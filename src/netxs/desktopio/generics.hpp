@@ -16,10 +16,6 @@
 #include <thread>
 #include <functional>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::generics
 {
     // generics: .
@@ -260,8 +256,8 @@ namespace netxs::generics
             auto guard = std::unique_lock{ mutex };
             while (alive)
             {
-                if (queue.empty()) synch.wait(guard);
-                while (alive && queue.size())
+                if (queue.empty() /* Not empty at startup */) synch.wait(guard);
+                while (queue.size())
                 {
                     auto& [token, proc] = queue.front();
                     guard.unlock();
@@ -278,30 +274,40 @@ namespace netxs::generics
         { }
        ~jobs()
         {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-            agent.join();
+            stop();
         }
         template<class TT, class P>
         void add(TT&& token, P&& proc)
         {
             auto guard = std::lock_guard{ mutex };
-            if constexpr (std::is_copy_constructible_v<P>)
+            if (alive)
             {
-                queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
-            }
-            else
-            {
-                //todo issue with MSVC: Generalized lambda capture does't work.
-                auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
-                queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
+                if constexpr (std::is_copy_constructible_v<P>)
                 {
-                    return (*proxy)(decltype(args)(args)...);
-                });
+                    queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
+                }
+                else
+                {
+                    //todo issue with MSVC: Generalized lambda capture does't work.
+                    auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
+                    queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
+                    {
+                        return (*proxy)(decltype(args)(args)...);
+                    });
+                }
             }
             synch.notify_one();
+        }
+        void stop()
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (alive)
+            {
+                alive = faux;
+                synch.notify_one();
+                guard.unlock();
+                agent.join();
+            }
         }
     };
 

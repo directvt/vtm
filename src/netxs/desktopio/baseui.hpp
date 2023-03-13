@@ -12,6 +12,7 @@
 namespace netxs::input
 {
     struct hids;
+    struct foci;
     using sysmouse = directvt::binary::sysmouse_t;
     using syskeybd = directvt::binary::syskeybd_t;
     using sysfocus = directvt::binary::sysfocus_t;
@@ -1144,18 +1145,20 @@ namespace netxs::ui
     struct pipe
     {
         using flux = std::ostream;
-        using xipc = std::shared_ptr<pipe>;
+        using xipc = sptr<pipe>;
 
         bool active; // pipe: Is connected.
+        flag isbusy; // pipe: Buffer is still busy.
 
         pipe(bool active)
-            : active{ active }
+            : active{ active },
+              isbusy{ faux   }
         { }
         virtual ~pipe()
         { }
         operator bool () { return active; }
 
-        virtual bool send(view buff) =0;
+        virtual bool send(view buff) = 0;
         virtual qiew recv(char* buff, size_t size) = 0;
         virtual qiew recv() = 0;
         virtual void shut() = 0;

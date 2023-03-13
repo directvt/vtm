@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "unidata.hpp"
 #include "intmath.hpp"
+#include "unidata.hpp"
 
 #include <string>
 #include <string_view>
@@ -17,11 +17,6 @@
 #include <span>
 #include <bitset>
 
-#define GRAPHEME_CLUSTER_LIMIT (31) // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
-#define CLUSTER_FIELD_SIZE     (5)
-#define WCWIDTH_FIELD_SIZE     (2)
-#define WCWIDTH_CLAMP(wcwidth) (wcwidth & (0XFF >> (8 - WCWIDTH_FIELD_SIZE)))
-
 namespace netxs
 {
     using view = std::string_view;
@@ -32,21 +27,22 @@ namespace netxs
     using flux = std::stringstream;
     using utfx = uint32_t;
     using namespace std::literals;
+
+    static constexpr auto whitespaces = " \n\r\t"sv;
+    static constexpr auto whitespace  = ' '; // '.';
 }
 
 namespace netxs::utf
 {
     using ctrl = unidata::cntrls::type;
 
-    static constexpr auto REPLACEMENT_CHARACTER           = utfx{ 0x0000FFFD };
-    static constexpr auto REPLACEMENT_CHARACTER_UTF8      = "\uFFFD";	// 0xEF 0xBF 0xBD (efbfbd) "�"
-    static constexpr auto REPLACEMENT_CHARACTER_UTF8_LEN  = size_t{ 3 };
-    static constexpr auto REPLACEMENT_CHARACTER_UTF8_VIEW = view(REPLACEMENT_CHARACTER_UTF8, REPLACEMENT_CHARACTER_UTF8_LEN); // '�'
-    static constexpr auto WHITESPACE_CHARACTER_UTF8_VIEW  = view(" ", 1); // ' '
-    static constexpr auto view_spaces                     = view{ " \n\r\t", 4 };
-    static constexpr auto spaces                          = " \n\r\t";
+    static constexpr auto replacement            = "\uFFFD"sv; // 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto replacement_code       = utfx{ 0x0000FFFD };
+    static constexpr auto grapheme_cluster_limit = 31; // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
+    static constexpr auto cluster_field_size     = 5;
+    static constexpr auto wcwidth_field_size     = 2;
 
-    // utf: A grapheme cluster decoded from UTF-8.
+    // utf: Grapheme cluster decoded from UTF-8.
     struct prop : public unidata::unidata
     {
         //todo size_t is too much for that
@@ -83,7 +79,7 @@ namespace netxs::utf
 
         auto combine(prop const& next)
         {
-            if (next.utf8len && cpcount < GRAPHEME_CLUSTER_LIMIT && next.allied(brgroup))
+            if (next.utf8len && cpcount < grapheme_cluster_limit && next.allied(brgroup))
             {
                 ucwidth  = std::max(ucwidth, next.ucwidth);
                 utf8len += next.utf8len;
@@ -309,7 +305,7 @@ namespace netxs::utf
                             else
                             {
                                 next.utf8len = left.utf8len;
-                                auto crop = frag{ REPLACEMENT_CHARACTER_UTF8_VIEW, next };
+                                auto crop = frag{ replacement, next };
                                 yield(crop);
                                 next = code.take();
                                 break;
@@ -326,7 +322,7 @@ namespace netxs::utf
                         }
                         else
                         {
-                            auto crop = frag{ REPLACEMENT_CHARACTER_UTF8_VIEW, next };
+                            auto crop = frag{ replacement, next };
                             yield(crop);
                         }
                         code.step();
@@ -350,7 +346,7 @@ namespace netxs::utf
                 {
                     //todo revise
                     //code.step();
-                    return frag{ REPLACEMENT_CHARACTER_UTF8_VIEW, next };
+                    return frag{ replacement, next };
                 }
                 else
                 {
@@ -370,7 +366,7 @@ namespace netxs::utf
                         else
                         {
                             next.utf8len = left.utf8len;
-                            return frag{ REPLACEMENT_CHARACTER_UTF8_VIEW, next };
+                            return frag{ replacement, next };
                         }
                     }
                     while (true);
@@ -379,7 +375,7 @@ namespace netxs::utf
             while (code);
         }
 
-        return frag{ REPLACEMENT_CHARACTER_UTF8_VIEW, prop{ 0 } };
+        return frag{ replacement, prop{ 0 } };
     }
 
     struct qiew : public view
@@ -729,7 +725,7 @@ namespace netxs::utf
                     }
                 }
             }
-            else wide_text.push_back(REPLACEMENT_CHARACTER);
+            else wide_text.push_back(replacement_code);
         }
         //wide_text.shrink_to_fit();
     }
@@ -871,7 +867,7 @@ namespace netxs::utf
             {
                 if (pair.empty()) // Broken surrogate pair.
                 {
-                    utf8 += utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+                    utf8 += utf::replacement;
                 }
                 else
                 {

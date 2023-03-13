@@ -576,7 +576,7 @@ namespace netxs::app::term
         auto defs = menu::item::look{};
         for (auto data_ptr : menudata)
         {
-            auto item_ptr = std::make_shared<menu::item>();
+            auto item_ptr = ptr::shared<menu::item>();
             auto& data = *data_ptr;
             auto& item = *item_ptr;
             auto route = data.take(menu::attr::route, func::Noop,          route_options);
@@ -681,7 +681,36 @@ namespace netxs::app::term
             auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-            auto hz = term_stat_area->attach(slot::_2, ui::grip_fx2<axis::X>::ctor(scroll))
+            static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+            {
+                // Brightener isn't suitable for white backgrounds.
+                auto brighter = skin::color(tone::selector);
+                brighter.bga(std::min(0xFF, brighter.bga() * 3));
+                auto brighter_bgc = brighter.bgc();
+                auto boss_bgc = boss.base::color().bgc();
+
+                if (handle_len != region_len) // Show only if it is oversized.
+                {
+                    if (wide) // Draw full scrollbar on mouse hover
+                    {
+                        static auto box = ' ';
+                        canvas.fill([&](cell& c) { c.txt(box).link(boss.bell::id).xlight(); });
+                        canvas.fill(handle, [&](cell& c) { c.bgc().mix(brighter_bgc); });
+                    }
+                    else
+                    {
+                        static auto box = "▄"sv; //"▀"sv;
+                        canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).bgc().mix(brighter_bgc); });
+                        canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(boss_bgc); });
+                    }
+                }
+                else
+                {
+                    static auto box = "▄"sv;
+                    canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(boss_bgc); });
+                }
+            };
+            auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
                 ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                 ->invoke([&](auto& boss)
                 {
@@ -709,6 +738,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
+                ->plugin<pro::focus>(faux, pro::focus::mode::focused)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)

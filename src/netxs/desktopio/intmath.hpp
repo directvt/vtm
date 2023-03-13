@@ -10,6 +10,7 @@
 #include <cfenv>
 #include <cassert>
 #include <bit>
+#include <atomic>
 
 #ifndef faux
     #define faux (false)
@@ -27,10 +28,16 @@ namespace netxs
     using hint = uint32_t;
     using id_t = uint32_t;
     using sz_t = ui32;
-
-    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
+    using flag = std::atomic<bool>;
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
+    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
+    static constexpr auto debugmode
+        #if defined(_DEBUG)
+        = true;
+        #else
+        = faux;
+        #endif
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 

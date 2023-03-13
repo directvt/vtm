@@ -608,8 +608,8 @@ namespace netxs::ui
                         auto& entry = *client.first;
                         if (!found)
                         {
-                            // todo optimize: use the only one axis to hittest
-                            // todo detect client during preview, use wptr
+                            //todo optimize: use the only one axis to hittest
+                            //todo detect client during preview, use wptr
                             auto& anker = entry.base::area();
                             if (anker.hittest(base::anchor))
                             {
@@ -1075,34 +1075,30 @@ namespace netxs::ui
         void clear() { layout.clear(); }
     };
 
-    // controls: Rigid text page.
-    class post
-        : public flow, public form<post>
+    // controls: Static text page.
+    template<auto fx>
+    class postfx
+        : public flow, public form<postfx<fx>>
     {
         twod width; // post: Page dimensions.
         text source; // post: Raw content.
-        page_layout layout;
+        page_layout layout; // post: .
         bool beyond; // post: Allow vertical scrolling beyond last line.
 
     public:
-        //using post = post_fx;
+        using post = postfx;
 
         page topic; // post: Text content.
 
-        template<class T>
-        auto& lyric(T paraid) { return *topic[paraid].lyric; }
-        template<class T>
-        auto& content(T paraid) { return topic[paraid]; }
-
-        // post: Set content.
-        template<class Text>
-        auto upload(Text utf8, si32 initial_width = 0)
+        auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
+        auto& content(si32 paraid) { return topic[paraid]; }
+        auto upload(view utf8, si32 initial_width = 0)
         {
             source = utf8;
             topic = utf8;
             base::resize(twod{ initial_width, 0 });
             base::reflow();
-            return This();
+            return this->This();
         }
         auto& get_source() const
         {
@@ -1113,124 +1109,7 @@ namespace netxs::ui
             flow::reset(canvas);
             auto publish = [&](auto const& combo)
             {
-                flow::print(combo, canvas);
-            };
-            topic.stream(publish);
-        }
-        auto get_size() const
-        {
-            return width;
-        }
-        void recalc()
-        {
-            if (topic.size() > layout.capacity())
-            {
-                layout.reserve(topic.size() * 2);
-            }
-
-            auto entry = layout.get_entry(base::anchor); // Take the object under central point
-            layout.clear();
-
-            flow::reset();
-            auto publish = [&](auto const& combo)
-            {
-                auto cp = flow::print(combo);
-
-                auto id = combo.id();
-                if (id == entry.id) entry.coor.y -= cp.y;
-                layout.push_back({ id,cp });
-            };
-            topic.stream(publish);
-
-            // Apply only vertical anchoring for this type of control.
-            base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
-
-            auto& cover = flow::minmax();
-            base::oversz.set(-std::min(0, cover.l),
-                              std::max(0, cover.r - width.x + 1),
-                             -std::min(0, cover.t),
-                              0);
-            auto height = cover.width() ? cover.height() + 1
-                                        : 0;
-            width.y = height + (beyond ? width.y - 1 : 0); //todo unify (text editor)
-        }
-        void recalc(twod const& size)
-        {
-            width = size;
-            recalc();
-        }
-
-        post(bool scroll_beyond = faux)
-            : flow{ width },
-              beyond{ scroll_beyond }
-        {
-            LISTEN(tier::preview, e2::size::set, size)
-            {
-                recalc(size);
-                size.y = width.y;
-            };
-            LISTEN(tier::release, e2::size::any, size)
-            {
-                //if (width != size)
-                //{
-                //	recalc(size);
-                //	//width.y = size.y;
-                //}
-                width = size;
-            };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                output(parent_canvas);
-
-                //auto mark = rect{ base::anchor + base::coor(), {10,5} };
-                //mark.coor += parent_canvas.view().coor; // Set client's basis
-                //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
-            };
-        }
-    };
-
-    // controls: Rigid text page.
-    //template<auto printfx = noop{}> //todo apple clang doesn't get it
-    //class post_fx
-    //    : public flow, public form<post_fx<printfx>>
-    class post_fx
-        : public flow, public form<post_fx>
-    {
-        twod width; // post: Page dimensions.
-        text source; // post: Raw content.
-        page_layout layout;
-        bool beyond; // post: Allow vertical scrolling beyond last line.
-
-    public:
-        using post = post_fx;
-
-        page topic; // post: Text content.
-
-        template<class T>
-        auto& lyric(T paraid) { return *topic[paraid].lyric; }
-        template<class T>
-        auto& content(T paraid) { return topic[paraid]; }
-
-        // post: Set content.
-        template<class Text>
-        auto upload(Text utf8, si32 initial_width = 0)
-        {
-            source = utf8;
-            topic = utf8;
-            base::resize(twod{ initial_width, 0 });
-            base::reflow();
-            return This();
-        }
-        auto& get_source() const
-        {
-            return source;
-        }
-        void output(face& canvas)
-        {
-            flow::reset(canvas);
-            auto publish = [&](auto const& combo)
-            {
-                flow::print(combo, canvas, cell::shaders::contrast);
+                flow::print(combo, canvas, fx);
             };
             topic.stream(publish);
         }
@@ -1277,7 +1156,7 @@ namespace netxs::ui
             recalc();
         }
 
-        post_fx(bool scroll_beyond = faux)
+        postfx(bool scroll_beyond = faux)
             : flow{ width },
               beyond{ scroll_beyond }
         {
@@ -1306,7 +1185,7 @@ namespace netxs::ui
         }
     };
 
-    //using post = post_fx<>;  //todo apple clang doesn't get it
+    using post = postfx<noop{}>;
 
     // controls: Scroller.
     class rail
@@ -1719,16 +1598,16 @@ namespace netxs::ui
     };
 
     // controls: Scrollbar.
-    template<axis Axis>
-    class grip
-        : public form<grip<Axis>>
+    template<axis Axis, auto drawfx>
+    class gripfx
+        : public flow, public form<gripfx<Axis, drawfx>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
         pro::limit limit{*this }; // grip: Size limits.
 
-        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
+        using sptr = netxs::sptr<base>;
         using wptr = netxs::wptr<base>;
-        using form = ui::form<grip<Axis>>;
+        using form = ui::form<gripfx<Axis, drawfx>>;
         using upon = e2::form::upon;
 
         enum activity
@@ -1828,15 +1707,14 @@ namespace netxs::ui
             }
         };
 
-        wptr boss;
-        hook memo;
+        wptr boss; // grip: .
+        hook memo; // grip: .
         si32 thin; // grip: Scrollbar thickness.
         si32 init; // grip: Handle base width.
         math calc; // grip: Scrollbar calculator.
         bool wide; // grip: Is the scrollbar active.
         si32 mult; // grip: Vertical bar width multiplier.
-
-        bool on_pager = faux;
+        bool on_pager = faux; // grip: .
 
         template<class Event>
         void send()
@@ -1889,393 +1767,7 @@ namespace netxs::ui
         }
 
     public:
-        grip(sptr boss, si32 thickness = 1, si32 multiplier = 2)
-            : boss{ boss       },
-              thin{ thickness  },
-              wide{ faux       },
-              init{ thickness  },
-              mult{ multiplier }
-        {
-            config(thin);
-
-            boss->LISTEN(tier::release, upon::scroll::bycoor::any, scinfo, memo)
-            {
-                calc.update(scinfo);
-                base::deface();
-            };
-
-            LISTEN(tier::release, e2::size::any, new_size)
-            {
-                calc.resize(new_size);
-            };
-
-            using button = hids::events::mouse::button;
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
-            {
-                if (gear.whldt)
-                {
-                    auto dir = gear.whldt < 0 ? 1 : -1;
-                    pager(dir);
-                    gear.dismiss();
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::move, gear)
-            {
-                calc.cursor_pos = gear.mouse::coord[Axis];
-            };
-            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-            {
-                gear.dismiss(); // Do not pass double clicks outside.
-            };
-            LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
-            {
-                if (!on_pager)
-                if (this->form::template protos<tier::release>(button::down::left)
-                 || this->form::template protos<tier::release>(button::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
-                {
-                    if (gear.capture(bell::id))
-                    {
-                        on_pager = true;
-                        pager_repeat();
-                        gear.dismiss();
-
-                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
-                        {
-                            if (pager_repeat())
-                            {
-                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
-                                {
-                                    return pager_repeat(); // Repeat until on_pager.
-                                });
-                            }
-                            return faux; // One shot call (first).
-                        });
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::up::any, gear)
-            {
-                if (on_pager && gear.captured(bell::id))
-                {
-                    if (this->form::template protos<tier::release>(button::up::left)
-                     || this->form::template protos<tier::release>(button::up::right))
-                    {
-                        gear.setfree();
-                        gear.dismiss();
-                        on_pager = faux;
-                        timer.pacify(activity::pager_first);
-                        timer.pacify(activity::pager_next);
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::up::right, gear)
-            {
-                //if (!gear.captured(bell::id)) //todo why?
-                {
-                    send<upon::scroll::cancel>();
-                    gear.dismiss();
-                }
-            };
-
-            LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.capture(bell::id))
-                    {
-                        gear.dismiss();
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (auto delta = gear.mouse::delta.get()[Axis])
-                        {
-                            calc.stepby(delta);
-                            send<upon::scroll::bycoor>();
-                            gear.dismiss();
-                        }
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
-            {
-                giveup(gear);
-            };
-            LISTEN(tier::general, hids::events::halt, gear)
-            {
-                giveup(gear);
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (this->form::template protos<tier::release>(button::drag::stop::right))
-                        {
-                            send<upon::scroll::cancel>();
-                        }
-                        base::deface();
-                        gear.setfree();
-                        gear.dismiss();
-                    }
-                }
-            };
-            LISTEN(tier::release, e2::form::state::mouse, active)
-            {
-                auto apply = [&](auto active)
-                {
-                    wide = active;
-                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
-                                                               : init);      // wider on hover.
-                    base::reflow();
-                    return faux; // One shot call.
-                };
-
-                timer.pacify(activity::mouse_leave);
-
-                if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
-            };
-            //LISTEN(tier::release, hids::events::mouse::move, gear)
-            //{
-            //	auto apply = [&](auto active)
-            //	{
-            //		wide = active;
-            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-            //		                                   : init);   //  wider on hover
-            //		base::reflow();
-            //		return faux; // One shot call
-            //	};
-            //
-            //	timer.pacify(activity::mouse_leave);
-            //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
-            //};
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                auto region = parent_canvas.view();
-                auto handle = region;
-
-                calc.commit(handle);
-
-                auto& handle_len = handle.size[Axis];
-                auto& region_len = region.size[Axis];
-
-                handle = region.clip(handle);
-                handle_len = std::max(1, handle_len);
-
-                if (handle_len != region_len) // Show only if it is oversized.
-                {
-                    // Brightener isn't suitable for white backgrounds.
-                    //auto bright = skin::color(tone::brighter);
-                    //bright.bga(bright.bga() / 2).fga(0);
-                    //bright.link(bell::id);
-
-                    if (wide) // Draw full scrollbar on mouse hover
-                    {
-                        parent_canvas.fill([&](cell& c) { c.link(bell::id).xlight(); });
-                    }
-                    //parent_canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
-                    parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).xlight(); });
-                }
-            };
-        }
-    };
-
-    // controls: Scroll bar.
-    //template<axis Axis, auto drawfx = noop{}> //todo apple clang doesn't get it
-    //class grip_fx
-    //    : public flow, public form<grip_fx<Axis, drawfx>>
-    template<axis Axis>
-    class grip_fx
-        : public form<grip_fx<Axis>>
-    {
-        pro::timer timer{*this }; // grip: Minimize by timeout.
-        pro::limit limit{*this }; // grip: Size limits.
-
-        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
-        using wptr = netxs::wptr<base>;
-        using form = ui::form<grip_fx<Axis>>;
-        using upon = e2::form::upon;
-
-        enum activity
-        {
-            mouse_leave = 0, // faux
-            mouse_hover = 1, // true
-            pager_first = 10,
-            pager_next  = 11,
-        };
-
-        struct math
-        {
-            rack  master_inf = {};                           // math: Master scroll info.
-            si32& master_len = master_inf.region     [Axis]; // math: Master len.
-            si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
-            si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
-            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
-            si32  scroll_len = 0; // math: Scrollbar len.
-            si32  scroll_pos = 0; // math: Scrollbar grip pos.
-            si32  scroll_box = 0; // math: Scrollbar grip len.
-            si32   m         = 0; // math: Master max pos.
-            si32   s         = 0; // math: Scroll max pos.
-            double r         = 1; // math: Scroll/master len ratio.
-
-            si32  cursor_pos = 0; // math: Mouse cursor position.
-
-            // math: Calc scroll to master metrics.
-            void s_to_m()
-            {
-                auto scroll_center = scroll_pos + scroll_box / 2.0;
-                auto master_center = scroll_len ? scroll_center / r
-                                                : 0;
-                master_pos = (si32)std::round(master_center - master_box / 2.0);
-
-                // Reset to extreme positions.
-                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
-                if (scroll_pos == s && master_pos < m) master_pos = m;
-            }
-            // math: Calc master to scroll metrics.
-            void m_to_s()
-            {
-                r = (double)scroll_len / master_len;
-                auto master_middle = master_pos + master_box / 2.0;
-                auto scroll_middle = master_middle * r;
-                scroll_box = std::max(1, (si32)(master_box * r));
-                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
-
-                // Don't place the grip behind the scrollbar.
-                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
-
-                // Extreme positions are always closed last.
-                s = scroll_len - scroll_box;
-                m = master_len - master_box;
-
-                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
-                {
-                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
-                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
-                }
-            }
-            void update(rack const& scinfo)
-            {
-                master_inf = scinfo;
-                m_to_s();
-            }
-            void resize(twod const& new_size)
-            {
-                scroll_len = new_size[Axis];
-                m_to_s();
-            }
-            void stepby(si32 delta)
-            {
-                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
-                s_to_m();
-            }
-            void commit(rect& handle)
-            {
-                handle.coor[Axis]+= scroll_pos;
-                handle.size[Axis] = scroll_box;
-            }
-            auto inside(si32 coor)
-            {
-                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
-                if (coor >= scroll_pos)              return 0; // Inside the grip.
-                                                     return-1; // Above the grip.
-            }
-            auto follow()
-            {
-                auto dir = scroll_len > 2 ? inside(cursor_pos)
-                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
-                                                           :-1;//    box on small scrollbar.
-                return dir;
-            }
-            void setdir(si32 dir)
-            {
-                master_dir = -dir;
-            }
-        };
-
-        wptr boss;
-        hook memo;
-        si32 thin; // grip: Scrollbar thickness.
-        si32 init; // grip: Handle base width.
-        math calc; // grip: Scrollbar calculator.
-        bool wide; // grip: Is the scrollbar active.
-        si32 mult; // grip: Vertical bar width multiplier.
-
-        bool on_pager = faux;
-
-        template<class Event>
-        void send()
-        {
-            if (auto master = this->boss.lock())
-            {
-                master->SIGNAL(tier::preview, Event::template _<Axis>, calc.master_inf);
-            }
-        }
-        void config(si32 width)
-        {
-            thin = width;
-            auto lims = Axis == axis::X ? twod{ -1,width }
-                                        : twod{ width,-1 };
-            limit.set(lims, lims);
-        }
-        void giveup(hids& gear)
-        {
-            if (on_pager)
-            {
-                gear.dismiss();
-            }
-            else
-            {
-                if (gear.captured(bell::id))
-                {
-                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
-                    {
-                        send<upon::scroll::cancel>();
-                    }
-                    base::deface();
-                    gear.setfree();
-                    gear.dismiss();
-                }
-            }
-        }
-        void pager(si32 dir)
-        {
-            calc.setdir(dir);
-            send<upon::scroll::bypage>();
-        }
-        auto pager_repeat()
-        {
-            if (on_pager)
-            {
-                auto dir = calc.follow();
-                pager(dir);
-            }
-            return on_pager;
-        }
-
-    public:
-        grip_fx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
+        gripfx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               thin{ thickness  },
               wide{ faux       },
@@ -2471,413 +1963,31 @@ namespace netxs::ui
                 handle = region.clip(handle);
                 handle_len = std::max(1, handle_len);
 
-                if (object_len && handle_len != region_len) // Show only if it is oversized.
-                {
-                    //parent_canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
-                    parent_canvas.fill(handle, [](cell& c) { c.und(true); });
-                }
+                drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
     };
 
-    // controls: Scroll bar.
-    //template<axis Axis, auto drawfx = noop{}> //todo apple clang doesn't get it
-    //class grip_fx
-    //    : public flow, public form<grip_fx<Axis, drawfx>>
-    template<axis Axis>
-    class grip_fx2
-        : public form<grip_fx2<Axis>>
+    static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
     {
-        pro::timer timer{*this }; // grip: Minimize by timeout.
-        pro::limit limit{*this }; // grip: Size limits.
-
-        using sptr = netxs::sptr<base>; //todo gcc (ubuntu 20.04) doesn't get it (see form::sptr)
-        using wptr = netxs::wptr<base>;
-        using form = ui::form<grip_fx2<Axis>>;
-        using upon = e2::form::upon;
-
-        enum activity
+        if (object_len && handle_len != region_len) // Show only if it is oversized.
         {
-            mouse_leave = 0, // faux
-            mouse_hover = 1, // true
-            pager_first = 10,
-            pager_next  = 11,
-        };
+            // Brightener isn't suitable for white backgrounds.
+            //auto bright = skin::color(tone::brighter);
+            //bright.bga(bright.bga() / 2).fga(0);
+            //bright.link(bell::id);
 
-        struct math
-        {
-            rack  master_inf = {};                           // math: Master scroll info.
-            si32& master_len = master_inf.region     [Axis]; // math: Master len.
-            si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
-            si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
-            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
-            si32  scroll_len = 0; // math: Scrollbar len.
-            si32  scroll_pos = 0; // math: Scrollbar grip pos.
-            si32  scroll_box = 0; // math: Scrollbar grip len.
-            si32   m         = 0; // math: Master max pos.
-            si32   s         = 0; // math: Scroll max pos.
-            double r         = 1; // math: Scroll/master len ratio.
-
-            si32  cursor_pos = 0; // math: Mouse cursor position.
-
-            // math: Calc scroll to master metrics.
-            void s_to_m()
+            if (wide) // Draw full scrollbar on mouse hover
             {
-                auto scroll_center = scroll_pos + scroll_box / 2.0;
-                auto master_center = scroll_len ? scroll_center / r
-                                                : 0;
-                master_pos = (si32)std::round(master_center - master_box / 2.0);
-
-                // Reset to extreme positions.
-                if (scroll_pos == 0 && master_pos > 0) master_pos = 0;
-                if (scroll_pos == s && master_pos < m) master_pos = m;
+                canvas.fill([&](cell& c) { c.link(boss.bell::id).xlight(); });
             }
-            // math: Calc master to scroll metrics.
-            void m_to_s()
-            {
-                r = (double)scroll_len / master_len;
-                auto master_middle = master_pos + master_box / 2.0;
-                auto scroll_middle = master_middle * r;
-                scroll_box = std::max(1, (si32)(master_box * r));
-                scroll_pos = (si32)std::round(scroll_middle - scroll_box / 2.0);
-
-                // Don't place the grip behind the scrollbar.
-                if (scroll_pos >= scroll_len) scroll_pos = scroll_len - 1;
-
-                // Extreme positions are always closed last.
-                s = scroll_len - scroll_box;
-                m = master_len - master_box;
-
-                if (scroll_len > 2) // Two-row hight is not suitable for this type of aligning.
-                {
-                    if (scroll_pos == 0 && master_pos > 0) scroll_pos = 1;
-                    if (scroll_pos == s && master_pos < m) scroll_pos = s - 1;
-                }
-            }
-            void update(rack const& scinfo)
-            {
-                master_inf = scinfo;
-                m_to_s();
-            }
-            void resize(twod const& new_size)
-            {
-                scroll_len = new_size[Axis];
-                m_to_s();
-            }
-            void stepby(si32 delta)
-            {
-                scroll_pos = std::clamp(scroll_pos + delta, 0, s);
-                s_to_m();
-            }
-            void commit(rect& handle)
-            {
-                handle.coor[Axis]+= scroll_pos;
-                handle.size[Axis] = scroll_box;
-            }
-            auto inside(si32 coor)
-            {
-                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
-                if (coor >= scroll_pos)              return 0; // Inside the grip.
-                                                     return-1; // Above the grip.
-            }
-            auto follow()
-            {
-                auto dir = scroll_len > 2 ? inside(cursor_pos)
-                                          : cursor_pos > 0 ? 1 // Don't stop to follow over
-                                                           :-1;//    box on small scrollbar.
-                return dir;
-            }
-            void setdir(si32 dir)
-            {
-                master_dir = -dir;
-            }
-        };
-
-        wptr boss;
-        hook memo;
-        si32 thin; // grip: Scrollbar thickness.
-        si32 init; // grip: Handle base width.
-        math calc; // grip: Scrollbar calculator.
-        bool wide; // grip: Is the scrollbar active.
-        si32 mult; // grip: Vertical bar width multiplier.
-
-        bool on_pager = faux;
-
-        template<class Event>
-        void send()
-        {
-            if (auto master = this->boss.lock())
-            {
-                master->SIGNAL(tier::preview, Event::template _<Axis>, calc.master_inf);
-            }
-        }
-        void config(si32 width)
-        {
-            thin = width;
-            auto lims = Axis == axis::X ? twod{ -1,width }
-                                        : twod{ width,-1 };
-            limit.set(lims, lims);
-        }
-        void giveup(hids& gear)
-        {
-            if (on_pager)
-            {
-                gear.dismiss();
-            }
-            else
-            {
-                if (gear.captured(bell::id))
-                {
-                    if (this->form::template protos<tier::release>(hids::events::mouse::button::drag::cancel::right))
-                    {
-                        send<upon::scroll::cancel>();
-                    }
-                    base::deface();
-                    gear.setfree();
-                    gear.dismiss();
-                }
-            }
-        }
-        void pager(si32 dir)
-        {
-            calc.setdir(dir);
-            send<upon::scroll::bypage>();
-        }
-        auto pager_repeat()
-        {
-            if (on_pager)
-            {
-                auto dir = calc.follow();
-                pager(dir);
-            }
-            return on_pager;
-        }
-
-    public:
-        grip_fx2(sptr boss, si32 thickness = 1, si32 multiplier = 2)
-            : boss{ boss       },
-              thin{ thickness  },
-              wide{ faux       },
-              init{ thickness  },
-              mult{ multiplier }
-        {
-            config(thin);
-
-            boss->LISTEN(tier::release, upon::scroll::bycoor::any, scinfo, memo)
-            {
-                calc.update(scinfo);
-                base::deface();
-            };
-
-            LISTEN(tier::release, e2::size::any, new_size)
-            {
-                calc.resize(new_size);
-            };
-
-            using bttn = hids::events::mouse::button;
-            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
-            {
-                if (gear.whldt)
-                {
-                    auto dir = gear.whldt < 0 ? 1 : -1;
-                    pager(dir);
-                    gear.dismiss();
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::move, gear)
-            {
-                calc.cursor_pos = gear.mouse::coord[Axis];
-            };
-            LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-            {
-                gear.dismiss(); // Do not pass double clicks outside.
-            };
-            LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
-            {
-                if (!on_pager)
-                if (this->form::template protos<tier::release>(bttn::down::left)
-                 || this->form::template protos<tier::release>(bttn::down::right))
-                if (auto dir = calc.inside(gear.mouse::coord[Axis]))
-                {
-                    if (gear.capture(bell::id))
-                    {
-                        on_pager = true;
-                        pager_repeat();
-                        gear.dismiss();
-
-                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
-                        {
-                            if (pager_repeat())
-                            {
-                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
-                                {
-                                    return pager_repeat(); // Repeat until on_pager.
-                                });
-                            }
-                            return faux; // One shot call (first).
-                        });
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::up::any, gear)
-            {
-                if (on_pager && gear.captured(bell::id))
-                {
-                    if (this->form::template protos<tier::release>(bttn::up::left)
-                     || this->form::template protos<tier::release>(bttn::up::right))
-                    {
-                        gear.setfree();
-                        gear.dismiss();
-                        on_pager = faux;
-                        timer.pacify(activity::pager_first);
-                        timer.pacify(activity::pager_next);
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::up::right, gear)
-            {
-                //if (!gear.captured(bell::id)) //todo why?
-                {
-                    send<upon::scroll::cancel>();
-                    gear.dismiss();
-                }
-            };
-
-            LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.capture(bell::id))
-                    {
-                        gear.dismiss();
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::pull::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (auto delta = gear.mouse::delta.get()[Axis])
-                        {
-                            calc.stepby(delta);
-                            send<upon::scroll::bycoor>();
-                            gear.dismiss();
-                        }
-                    }
-                }
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear)
-            {
-                giveup(gear);
-            };
-            LISTEN(tier::general, hids::events::halt, gear)
-            {
-                giveup(gear);
-            };
-            LISTEN(tier::release, hids::events::mouse::button::drag::stop::any, gear)
-            {
-                if (on_pager)
-                {
-                    gear.dismiss();
-                }
-                else
-                {
-                    if (gear.captured(bell::id))
-                    {
-                        if (this->form::template protos<tier::release>(bttn::drag::stop::right))
-                        {
-                            send<upon::scroll::cancel>();
-                        }
-                        base::deface();
-                        gear.setfree();
-                        gear.dismiss();
-                    }
-                }
-            };
-            LISTEN(tier::release, e2::form::state::mouse, active)
-            {
-                auto apply = [&](auto active)
-                {
-                    wide = active;
-                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
-                                                               : init);      // wider on hover.
-                    base::reflow();
-                    return faux; // One shot call.
-                };
-
-                timer.pacify(activity::mouse_leave);
-
-                if (active) apply(activity::mouse_hover);
-                else timer.actify(activity::mouse_leave, skin::globals().active_timeout, apply);
-            };
-            //LISTEN(tier::release, hids::events::mouse::move, gear)
-            //{
-            //	auto apply = [&](auto active)
-            //	{
-            //		wide = active;
-            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-            //		                                   : init);   //  wider on hover
-            //		base::reflow();
-            //		return faux; // One shot call
-            //	};
-            //
-            //	timer.pacify(activity::mouse_leave);
-            //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
-            //};
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                auto region = parent_canvas.view();
-                auto object = parent_canvas.full();
-                auto handle = region;
-
-                calc.commit(handle);
-
-                auto& handle_len = handle.size[Axis];
-                auto& region_len = region.size[Axis];
-                auto& object_len = object.size[Axis];
-
-                handle = region.clip(handle);
-                handle_len = std::max(1, handle_len);
-
-                // Brightener isn't suitable for white backgrounds.
-                auto brighter = skin::color(tone::selector);
-                brighter.bga(std::min(0xFF, brighter.bga() * 3));
-                brighter.link(bell::id);
-
-                if (handle_len != region_len) // Show only if it is oversized.
-                {
-                    if (wide) // Draw full scrollbar on mouse hover
-                    {
-                        static auto box = ' ';
-                        parent_canvas.fill([&](cell& c) { c.txt(box).link(bell::id).xlight(); });
-                        parent_canvas.fill(handle, [&](cell& c) { c.bgc().mix(brighter.bgc()); });
-                    }
-                    else
-                    {
-                        static auto box = "▄"sv; //"▀"sv;
-                        parent_canvas.fill(handle, [&](cell& c) { c.link(bell::id).bgc().mix(brighter.bgc()); });
-                        parent_canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(base::color().bgc()); });
-                    }
-                }
-                else
-                {
-                    static auto box = "▄"sv;
-                    parent_canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(base::color().bgc()); });
-                }
-            };
+            //canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
+            canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).xlight(); });
         }
     };
+
+    template<axis Axis>
+    using grip = gripfx<Axis, drawfx>;
 
     // controls: Container with margins (outer space) and padding (inner space).
     class pads
@@ -3117,7 +2227,7 @@ namespace netxs::ui
         }
 
         stem_rate_grip(view sfx_string)
-            : sfx_str{ sfx_string }, canvas{*(coreface = std::make_shared<face>())}
+            : sfx_str{ sfx_string }, canvas{*(coreface = ptr::shared<face>())}
         {
             //todo cache specific
             canvas.link(bell::id);
@@ -3262,7 +2372,7 @@ namespace netxs::ui
             : min_val{ min_value },
               max_val{ max_value },
               grip_suffix{ suffix },
-              canvas{*(coreface = std::make_shared<face>())}
+              canvas{*(coreface = ptr::shared<face>())}
         {
             //todo cache specific
             canvas.link(bell::id);

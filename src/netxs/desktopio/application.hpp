@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.8v";
+    static const auto version = "v0.9.8w";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -93,6 +93,14 @@ namespace netxs::app::shared
         using link = std::tuple<netxs::sptr<item>, std::function<void(ui::pads&, item&)>>;
         using list = std::list<link>;
 
+        static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+        {
+            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            {
+                //canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
+                canvas.fill(handle, [](cell& c) { c.und(true); });
+            }
+        };
         const auto create = [](xmls& config, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
@@ -130,7 +138,7 @@ namespace netxs::app::shared
                     auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
                     auto scroll_hint = ui::park::ctor();
-                    auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::grip_fx<axis::X>::ctor(scrlrail));
+                    auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::gripfx<axis::X, drawfx>::ctor(scrlrail));
 
                     auto scrl_grip = scrlarea->attach(scroll_hint);
 
@@ -280,11 +288,11 @@ namespace netxs::app::shared
         {
             auto items = list
             {
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
-                { std::make_shared<item>(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
+                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);
@@ -342,7 +350,7 @@ namespace netxs::app::shared
     const auto underlined_hz_scrollbars = [](auto master)
     {
         auto area = ui::park::ctor();
-        auto grip = ui::grip_fx<axis::X>::ctor(master);
+        auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master);
         area->branch(snap::stretch, snap::tail, grip)
             ->invoke([&](auto& boss)
             {
@@ -526,6 +534,7 @@ namespace netxs::app::shared
             auto params = utf::remain(app_name, ' ');
             auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
             domain->invite(uplink, applet, vtmode);
+            events::dequeue();
             domain->shutdown();
         };
 

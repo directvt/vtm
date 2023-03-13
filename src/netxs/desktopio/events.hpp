@@ -271,7 +271,7 @@ namespace netxs::events
         static wptr<T>                 empty;
         static std::map<id_t, wptr<T>> store;
 
-        // indexer: Return shared_ptr of the object by its id.
+        // indexer: Return sptr of the object by its id.
         template<class TT = T>
         static auto getref(id_t id)
         {
@@ -283,7 +283,7 @@ namespace netxs::events
             }
             return sptr<TT>{};
         }
-        // indexer: Create a new object of the specified subtype and return its shared_ptr.
+        // indexer: Create a new object of the specified subtype and return its sptr.
         template<class TT, class ...Args>
         static auto create(Args&&... args) -> sptr<TT>
         {
@@ -554,11 +554,11 @@ namespace netxs::events
             else            /* Tier == tier::anycast */
             {
                 auto root = gettop();
-                ftor proc = [&](auto boss_ptr) -> bool
+                auto proc = ftor{ [&](auto boss_ptr)
                 {
                     boss_ptr->anycast.notify(event, std::forward<F>(data));
                     return true;
-                };
+                }};
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }
@@ -597,7 +597,7 @@ namespace netxs::events
         }
         // bell: Sync with UI thread.
         template<class P>
-        void trysync(bool& active, P proc)
+        void trysync(flag& active, P proc)
         {
             while (active)
             {
@@ -649,6 +649,11 @@ namespace netxs::events
                 proc(*object_ptr);
             }
         });
+    }
+    void dequeue()
+    {
+        auto& agent = _agent<void>();
+        agent.stop();
     }
 
     template<class T> bell::fwd_reactor bell::_globals<T>::general;

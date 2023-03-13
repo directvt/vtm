@@ -112,10 +112,6 @@
 #include <vector>
 #include <iterator>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::unidata
 {
     namespace widths

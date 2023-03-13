@@ -83,14 +83,10 @@ namespace netxs::os
 
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
+    static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
 
     #if defined(_WIN32)
 
-        #if defined(_DEBUG)
-            #define APP_WAIT_TIMEOUT 1000000
-        #else
-            #define APP_WAIT_TIMEOUT 10000
-        #endif
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
@@ -584,15 +580,15 @@ namespace netxs::os
                 }
                 template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-                {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
-                    else                             return _repack(h, a, Index{});
+                {
+                    if constexpr (sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
+                    else                           return _repack(h, a, Index{});
                 }
                 template<class P, class ...Args>
                 constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
                 {
-                    if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                    else                             return std::array{ handle };
+                    if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                    else                           return std::array{ handle };
                 }
                 template<class R, class P, class ...Args>
                 constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
@@ -604,8 +600,8 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
-                        else                             return faux;
+                        if constexpr (sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
+                        else                           return faux;
                     }
                 }
 
@@ -615,7 +611,7 @@ namespace netxs::os
                 auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
                 {
                     FD_SET(handle, &socks);
-                    if constexpr (!!sizeof...(args))
+                    if constexpr (sizeof...(args))
                     {
                         return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
                     }
@@ -633,7 +629,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                        if constexpr (sizeof...(args)) _select(socks, std::forward<Args>(args)...);
                     }
                 }
 
@@ -1121,12 +1117,13 @@ namespace netxs::os
             {
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
-                active = p.active;
-                p.active = faux;
+                pipe::active = p.pipe::active;
+                p.pipe::active = faux;
             }
 
             virtual bool send(view buff) override
             {
+                pipe::isbusy = faux; // io::send blocks until the send is complete.
                 return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size) override
@@ -1139,7 +1136,7 @@ namespace netxs::os
             }
             virtual void shut() override
             {
-                active = faux;
+                pipe::active = faux;
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
             }
             virtual void stop() override
@@ -1155,29 +1152,29 @@ namespace netxs::os
         struct xcross
             : public stdcon
         {
-            class fifo
+            struct fifo
             {
                 using lock = std::mutex;
                 using sync = std::condition_variable;
 
-                bool alive;
-                text store;
-                lock mutex;
-                sync wsync;
-                sync rsync;
+                bool  alive; // fifo: .
+                lock  mutex; // fifo: .
+                sync  wsync; // fifo: .
+                sync  rsync; // fifo: .
+                text  store; // fifo: .
+                flag& going; // fifo: Sending not completed.
 
-            public:
-                fifo()
-                    : alive{ true }
+                fifo(flag& busy)
+                    : alive{ true },
+                      going{ busy }
                 { }
 
                 auto send(view block)
                 {
                     auto guard = std::unique_lock{ mutex };
-                    if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
                     if (alive)
                     {
-                        store = block;
+                        store += block;
                         wsync.notify_one();
                     }
                     return alive;
@@ -1189,8 +1186,9 @@ namespace netxs::os
                     if (alive)
                     {
                         std::swap(store, yield);
+                        going = faux;
+                        going.notify_all();
                         store.clear();
-                        rsync.notify_one();
                         return qiew{ yield };
                     }
                     else return qiew{};
@@ -1199,19 +1197,26 @@ namespace netxs::os
                 {
                     auto guard = std::lock_guard{ mutex };
                     alive = faux;
+                    going = faux;
+                    going.notify_all();
                     wsync.notify_one();
-                    rsync.notify_one();
                 }
             };
 
-            sptr<fifo> server;
-            sptr<fifo> client;
+            sptr<fifo>   client;
+            sptr<fifo>   server;
+            sptr<xcross> remote;
 
-            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
-                   sptr<fifo> c_queue = std::make_shared<fifo>())
-                : server{ s_queue },
-                  client{ c_queue }
+            xcross()
+            { }
+            xcross(sptr<xcross> remote)
+                : client{ ptr::shared<fifo>(isbusy)         },
+                  server{ ptr::shared<fifo>(remote->isbusy) },
+                  remote{ remote }
             {
+                remote->client = server;
+                remote->server = client;
+                remote->active = true;
                 active = true;
             }
 
@@ -1333,7 +1338,7 @@ namespace netxs::os
                             ? true
                             : (::GetLastError() == ERROR_PIPE_CONNECTED);
 
-                        if (active && connected) // Recreate the waiting point for the next client.
+                        if (pipe::active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
                                 ::CreateNamedPipeA(path.c_str(),             // pipe path
@@ -1352,7 +1357,7 @@ namespace netxs::os
                             //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
                         }
-                        else if (active) os::fail("meet: not active");
+                        else if (pipe::active) os::fail("meet: not active");
 
                         return next_waiting_point;
                     };
@@ -1360,7 +1365,7 @@ namespace netxs::os
                     auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
                     if (r == INVALID_FD)
                     {
-                        if (active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
+                        if (pipe::active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
                     }
                     else
                     {
@@ -1368,11 +1373,11 @@ namespace netxs::os
                         if (w == INVALID_FD)
                         {
                             ::CloseHandle(r);
-                            if (active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
+                            if (pipe::active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
                         }
                         else
                         {
-                            client = std::make_shared<ipc::socket>(handle);
+                            client = ptr::shared<ipc::socket>(handle);
                             handle = { r, w };
                         }
                     }
@@ -1383,7 +1388,7 @@ namespace netxs::os
                     {
                         auto h = ::accept(handle.r, 0, 0);
                         auto s = io::file{ h, h };
-                        if (s) client = std::make_shared<ipc::socket>(s);
+                        if (s) client = ptr::shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
                     {
@@ -1398,8 +1403,8 @@ namespace netxs::os
             }
             void stop() override
             {
-                if (!active) return;
-                active = faux;
+                if (!pipe::active) return;
+                pipe::active = faux;
                 log("xipc: server shuts down: ", handle);
                 #if defined(_WIN32)
                     auto to_client = WR_PIPE_PATH + scpath;
@@ -1412,8 +1417,8 @@ namespace netxs::os
             }
             void shut() override
             {
-                if (!active) return;
-                active = faux;
+                if (!pipe::active) return;
+                pipe::active = faux;
                 log("xipc: client disconnects: ", handle);
                 #if defined(_WIN32)
                     ::DisconnectNamedPipe(handle.w);
@@ -1659,7 +1664,7 @@ namespace netxs::os
                 #endif
                 if (r != INVALID_FD && w != INVALID_FD)
                 {
-                    socket = std::make_shared<ipc::socket>(r, w, path);
+                    socket = ptr::shared<ipc::socket>(r, w, path);
                 }
                 return socket;
             }
@@ -1667,12 +1672,12 @@ namespace netxs::os
 
         auto stdio()
         {
-            return std::make_shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
+            return ptr::shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
         }
         auto xlink()
         {
-            auto a = std::make_shared<ipc::xcross>();
-            auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
+            auto a = ptr::shared<ipc::xcross>();
+            auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
             return std::pair{ a, b };
         }
     }
@@ -1795,9 +1800,9 @@ namespace netxs::os
                 auto guard = std::unique_lock{ mutex };
                 log("pool: session control started");
 
-                while (alive)
+                while (alive || index.size())
                 {
-                    synch.wait(guard);
+                    if (alive) synch.wait(guard);
                     for (auto it = index.begin(); it != index.end();)
                     {
                         auto& [sid, session] = *it;
@@ -1831,6 +1836,7 @@ namespace netxs::os
             void run(Proc process)
             {
                 auto guard = std::lock_guard{ mutex };
+                if (!alive) return;
                 auto next_id = count++;
                 auto session = std::thread([&, process, next_id]
                 {
@@ -1848,8 +1854,8 @@ namespace netxs::os
 
             pool()
                 : count{ 0    },
-                alive{ true },
-                agent{ &pool::worker, this }
+                  alive{ true },
+                  agent{ &pool::worker, this }
             { }
            ~pool()
             {
@@ -2372,7 +2378,7 @@ namespace netxs::os
                     else if (code == STILL_ACTIVE)
                     {
                         log("vtty: child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
                             ::TerminateProcess(prochndl, 0);
@@ -3000,7 +3006,7 @@ namespace netxs::os
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
                                 ::TerminateProcess(prochndl, 0);
@@ -3014,7 +3020,7 @@ namespace netxs::os
                     #else
 
                         int status;
-                        //todo wait APP_WAIT_TIMEOUT before kill
+                        //todo wait app_wait_timeout before kill
                         ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
                         ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
                         if (WIFEXITED(status))
@@ -3562,14 +3568,14 @@ namespace netxs::os
                                 if (strv.at(pos) == 'I')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = true;
+                                    f.state = true;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = faux;
+                                    f.state = faux;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }

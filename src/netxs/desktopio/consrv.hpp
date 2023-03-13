@@ -75,7 +75,7 @@ struct consrv
         auto done(para& line)
         {
             auto& new_data = line.content();
-            auto trimmed = utf::trim(new_data.utf8(), utf::spaces);
+            auto trimmed = utf::trim(new_data.utf8(), whitespaces);
 
             if (trimmed.size() && (data.empty() || data.back() != new_data))
             {

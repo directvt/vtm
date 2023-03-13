@@ -582,7 +582,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -609,7 +609,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    c.txt(utf::replacement);
                     do fuse(*dest++, c);
                     while (--w && dest != tail + 1);
                 }
@@ -620,7 +620,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*dest, c);
                 else if (w == 2) fuse(*dest, c.wdt(3));
-                else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*dest, c.txt(utf::replacement));
             }
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -638,7 +638,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -670,7 +670,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do set(c);
                     //while (--w && size > 0);
                 }
@@ -691,7 +691,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -718,7 +718,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do *--dest = c;
                     //while (--w && dest != tail - 1);
                 }
@@ -729,7 +729,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*--dest, c);
                 else if (w == 2) fuse(*--dest, c.wdt(3));
-                else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
             }
         }
         // rich: Splice proto with auto grow.
@@ -1015,7 +1015,7 @@ namespace netxs::ui
         si32 caret = 0; // para: Cursor position inside lyric.
         ui32 index = 0;
         writ locus;
-        corx lyric = std::make_shared<rich>();
+        corx lyric = ptr::shared<rich>();
 
         using parser::parser;
         para()                         = default;
@@ -1034,7 +1034,7 @@ namespace netxs::ui
 
         operator writ const& () const { return locus; }
 
-        void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        void decouple() { lyric = ptr::shared<rich>(*lyric); } // para: Make canvas isolated copy.
         void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
@@ -1478,7 +1478,7 @@ namespace netxs::ui
 
     public:
         ui32 index = {};              // page: Current paragraph id.
-        list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
+        list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
         pmap parts;                   // page: Paragraph index.
 
@@ -1606,7 +1606,7 @@ namespace netxs::ui
         void fork()
         {
             if constexpr (Flush) parser::flush();
-            layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
+            layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
             (**layer).id(++index);
             shrink();
         }

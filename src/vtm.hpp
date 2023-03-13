@@ -219,7 +219,7 @@ namespace netxs::app::vtm
             {
                 this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
             };
-            LISTEN(tier::preview, hids::events::keybd::any, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::data, gear, tokens)
             {
                 //todo unify
                 auto& keystrokes = gear.keystrokes;
@@ -235,12 +235,12 @@ namespace netxs::app::vtm
 
                     if (item_ptr)
                     {
-                        auto& item = *item_ptr;
-                        auto& area = item.area();
+                        auto& area = item_ptr->area();
                         auto center = area.coor + (area.size / 2);
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        gear.clear_kb_focus();
-                        gear.kb_offer_7(item);
+                        gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
+                        gear.kb_offer_7(item_ptr);
+                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::on);
                     }
                     gear.dismiss();
                 }
@@ -443,7 +443,7 @@ namespace netxs::app::vtm
             auto back()      { return items.back()->object; }
             void append(sptr<base> item)
             {
-                items.push_back(std::make_shared<node>(item));
+                items.push_back(ptr::shared<node>(item));
             }
             //hall::list: Draw backpane for spectators.
             void prerender(face& canvas)
@@ -600,7 +600,7 @@ namespace netxs::app::vtm
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
-                ->plugin<pro::title>(what.header, what.footer) //todo "template": gcc complains on ubuntu 18.04
+                ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
@@ -687,7 +687,7 @@ namespace netxs::app::vtm
 
     protected:
         hall(sptr<pipe> server, xmls& config, text defapp)
-            : host{ server, config }
+            : host{ server, config, pro::focus::mode::focusable }
         {
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
@@ -826,10 +826,12 @@ namespace netxs::app::vtm
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.annul_kb_focus(item_ptr);
-                            if (gear.kb_focus_empty())
+                            gear.kb_annul_0(item_ptr);
+                            pro::focus::off(item_ptr, gear.id);
+                            if (gear.kb_focus_empty()) //todo pro::focus
                             {
                                 gear.kb_offer_4(last_ptr);
+                                pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                             }
                         }
                     }
@@ -906,7 +908,8 @@ namespace netxs::app::vtm
                             log("hall: detached: ", insts_count);
                         };
                         gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                        gear.kb_offer_10(window);
+                        gear.kb_offer_5(window);
+                        pro::focus::set(window, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
                 }
@@ -968,6 +971,7 @@ namespace netxs::app::vtm
                         if (auto window_ptr = bell::getref<base>(id))
                         {
                             gear.kb_offer_4(window_ptr);
+                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                         }
                     }
                     active.clear();

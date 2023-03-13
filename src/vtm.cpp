@@ -284,6 +284,7 @@ int main(int argc, char* argv[])
             }
         }
         domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
+        events::dequeue();
         domain->shutdown();
         logger->stop();
         stdlog.join();
