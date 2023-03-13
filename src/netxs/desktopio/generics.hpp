@@ -256,7 +256,7 @@ namespace netxs::generics
             auto guard = std::unique_lock{ mutex };
             while (alive)
             {
-                synch.wait(guard);
+                if (queue.empty() /* Not empty at startup */) synch.wait(guard);
                 while (queue.size())
                 {
                     auto& [token, proc] = queue.front();
