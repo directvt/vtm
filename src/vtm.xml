@@ -162,7 +162,7 @@ R"==(
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+            <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7  />  <!-- Preview shadow strength (0-10). -->
