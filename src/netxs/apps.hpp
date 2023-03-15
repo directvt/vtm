@@ -62,11 +62,11 @@ namespace netxs::app::shared
         auto build_Strobe        = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            auto strob = window->plugin<pro::focus>()
+            auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
                                ->plugin<pro::notes>(" Left+Right click to close ")
                                ->invoke([](auto& boss)
                                 {
-                                    boss.keybd.accept(true);
+                                    //boss.keybd.accept(true);
                                     closing_by_gesture(boss);
                                     closing_on_quit(boss);
                                 })
@@ -87,14 +87,14 @@ namespace netxs::app::shared
         auto build_Settings      = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::cache>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
-                        boss.keybd.accept(true);
+                        //boss.keybd.accept(true);
                         closing_by_gesture(boss);
                         closing_on_quit(boss);
                         boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
@@ -109,13 +109,13 @@ namespace netxs::app::shared
         auto build_Empty         = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                      //boss.keybd.accept(true);
                       closing_by_gesture(boss);
                       closing_on_quit(boss);
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
@@ -312,13 +312,13 @@ namespace netxs::app::shared
             truecolor += wiki01;
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {
-                        boss.keybd.accept(true);
+                        //boss.keybd.accept(true);
                         closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -347,8 +347,7 @@ namespace netxs::app::shared
                     {
                         closing_on_quit(boss);
                     });
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
+            window->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -364,6 +363,7 @@ namespace netxs::app::shared
                     auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                                      ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
                                       {
@@ -435,7 +435,7 @@ namespace netxs::app::shared
         {
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
-                ->plugin<pro::focus>()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->invoke([](auto& boss)
                 {
                     //todo

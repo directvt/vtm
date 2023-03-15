@@ -328,7 +328,7 @@ namespace netxs::app::calc
             auto [cellatix_rows, cellatix_cols, cellatix_text] = get_text();
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x601A5f00)
                   ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                   ->plugin<pro::track>()
@@ -336,7 +336,7 @@ namespace netxs::app::calc
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                      //boss.keybd.accept(true);
                       boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);

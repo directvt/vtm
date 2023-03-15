@@ -317,6 +317,7 @@ namespace netxs::ui
 
             operator bool () { return state != mode::none; }
 
+            //todo deprecated
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
                 auto m = std::bitset<8>{ gear.m.buttons };
@@ -7013,7 +7014,7 @@ namespace netxs::ui
               selalt{ config.def_selalt }
         {
             linux_console = os::vt::console();
-            form::keybd.accept(true); // Subscribe on keybd offers.
+            //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });

@@ -197,14 +197,14 @@ namespace netxs::app::shop
 
             auto [appstore_head, appstore_body, desktopio_body] = get_text();
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x60000000)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                   {
-                        boss.keybd.accept(true);
+                        //boss.keybd.accept(true);
                         boss.LISTEN(tier::anycast, e2::form::quit, item)
                         {
                             boss.RISEUP(tier::release, e2::form::quit, item);

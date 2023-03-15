@@ -1643,7 +1643,7 @@ namespace netxs::ui
                     }
                 }
             };
-            std::unordered_map<id_t, config> state;
+            std::unordered_map<id_t, config> gears;
 
             //todo deprecated
             template<class T>
@@ -1662,12 +1662,11 @@ namespace netxs::ui
             enum class flip { off = faux, on = true };
             static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f)
             {
-                return; //todo new focus architecture not completed
                 auto seed = hids::events::keybd::focus::set.param({ .solo = (bool)s, .flip = (bool)f, .id = gear_id });
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed);
                 if constexpr (debugmode)
                 {
-                    log("foci: focus set gear.id=", seed.id, " item.id=", item_ptr->id);
+                    log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
                     auto proc = std::function<void(base&)>{};
                     proc = [&](base& item)
                     {
@@ -1679,12 +1678,11 @@ namespace netxs::ui
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
             {
-                return; //todo new focus architecture not completed
                 auto seed = hids::events::keybd::focus::set.param({ .id = gear_id });
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed);
                 if constexpr (debugmode)
                 {
-                    log("foci: focus off gear.id=", seed.id);
+                    log("foci: focus off gear:", seed.id);
                     auto proc = std::function<void(base&)>{};
                     proc = [&](base& item)
                     {
@@ -1697,7 +1695,7 @@ namespace netxs::ui
             //todo if (gear.kb_focus_empty())
 
             focus(base&&) = delete;
-            focus(base& boss, bool visible = true, mode m = mode::hub)
+            focus(base& boss, mode m = mode::hub, bool visible = true)
                 : skill{ boss },
                   focusable{ m != mode::hub }
             {
@@ -1713,7 +1711,7 @@ namespace netxs::ui
                 {
                     auto alive = gear.alive;
                     auto accum = alive;
-                    state[gear.id].foreach([&](auto& nexthop)
+                    gears[gear.id].foreach([&](auto& nexthop)
                     {
                         nexthop->SIGNAL(tier::preview, hids::events::keybd::data, gear);
                         if (gear.alive) nexthop->SIGNAL(tier::release, hids::events::keybd::data, gear);
@@ -1726,15 +1724,24 @@ namespace netxs::ui
                 if constexpr (debugmode)
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo)
                 {
-                    auto& route = state[seed.id];
+                    auto& route = gears[seed.id];
                     auto test = text{};
-                    route.foreach([&](auto& next){ test += utf::concat("\n     - next_id=", next->id); });
-                    log("foci: boss.id=", boss.id, " state.size=", state.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
+                    route.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", seed.id); });
+                    log("      hub:", boss.id, " gears.size=", gears.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
+                    for (auto& [k, v] : gears)
+                    {
+                        if (k != seed.id)
+                        {
+                            test.clear();
+                            v.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", k); });
+                            log("      hub:", boss.id, test);
+                        }
+                    }
                 };
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::any, seed, memo)
                 {
-                    auto& route = state[seed.id];
+                    auto& route = gears[seed.id];
                     auto on = boss.bell::template protos<tier::preview>() == hids::events::keybd::focus::bus::on.id;
                     if (on) route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::on , seed); });
                     else    route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed); });
@@ -1743,7 +1750,34 @@ namespace netxs::ui
                 // Subscribe on focus offers.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
                 {
-                    auto& route = state[seed.id];
+                    auto iter = gears.find(seed.id);
+                    if (iter == gears.end()) // Use default focus route if it is.
+                    {
+                        if (seed.item)
+                        {
+                            iter = gears.emplace(seed.id, config{}).first;
+                        }
+                        else if (auto def_iter = gears.find(id_t{});
+                            def_iter != gears.end())
+                        {
+                            auto& def_route = def_iter->second;
+                            if (def_route.next.size())
+                            {
+                                auto temp = seed;
+                                for (auto& n : def_route.next)
+                                {
+                                    if (auto next_ptr = n.lock())
+                                    {
+                                        next_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::set, temp);
+                                    }
+                                }
+                                return;
+                            }
+                            else iter = gears.emplace(seed.id, def_route).first;
+                        }
+                        else iter = gears.emplace(seed.id, config{}).first;
+                    }
+                    auto& route = iter->second;
                     if (route.active)
                     {
                         if (seed.item)
@@ -1874,7 +1908,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::off, seed, memo)
                 {
-                    auto& route = state[seed.id];
+                    auto& route = gears[seed.id];
                     if (route.active)
                     {
                     }
@@ -2695,257 +2729,270 @@ namespace netxs::ui
         };
     }
 
-    // console: Data decoder.
-    class link
-        : public s11n
+    // console: Client gate.
+    class gate
+        : public base
     {
-    public:
-        struct relay_t
+        // gate: Data decoder.
+        struct link
+            : public s11n
         {
-            using lock = std::recursive_mutex;
+            struct relay_t
+            {
+                using lock = std::recursive_mutex;
+                using cond = std::condition_variable_any;
+
+                struct clip_t
+                {
+                    lock mutex{};
+                    cond synch{};
+                    bool ready{};
+                    twod block{};
+                    clip chunk{};
+                };
+                using umap = std::unordered_map<id_t, clip_t>;
+
+                umap depot{};
+                lock mutex{};
+
+                void set(id_t id, view utf8, clip::mime kind)
+                {
+                    auto lock = std::lock_guard{ mutex };
+                    auto iter = depot.find(id);
+                    if (iter != depot.end())
+                    {
+                        auto& item = iter->second;
+                        auto  lock = std::lock_guard{ item.mutex };
+                        item.chunk.utf8 = utf8;
+                        item.chunk.kind = kind;
+                        item.ready = true;
+                        item.synch.notify_all();
+                    }
+                }
+            };
+
+            pipe&    canal; // link: Data highway.
+            base&    owner; // link: Link owner.
+            relay_t  relay; // link: Clipboard relay.
+
+            // link: Send data outside.
+            void output(view data)
+            {
+                canal.output(data);
+            }
+            // link: .
+            auto request_clip_data(id_t ext_gear_id, clip& clip_rawdata)
+            {
+                relay.mutex.lock();
+                auto& selected_depot = relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
+                relay.mutex.unlock();
+                auto lock = std::unique_lock{ selected_depot.mutex };
+                selected_depot.ready = faux;
+                request_clipboard.send(canal, ext_gear_id);
+                auto maxoff = 100ms; //todo magic numbers
+                auto received = std::cv_status::timeout != selected_depot.synch.wait_for(lock, maxoff);
+                if (received)
+                {
+                    clip_rawdata = selected_depot.chunk;
+                }
+                return received;
+            }
+
+            link(pipe& canal, base& owner)
+                : s11n{ *this },
+                 canal{ canal },
+                 owner{ owner }
+            { }
+
+            // link: Send an event message to the link owner.
+            template<tier Tier = tier::release, class E, class T>
+            void notify(E, T&& data)
+            {
+                netxs::events::enqueue(owner.This(), [d = data](auto& boss) mutable
+                {
+                    //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
+                    boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
+                });
+            }
+            void handle(s11n::xs::sysfocus    lock)
+            {
+                auto& focus = lock.thing;
+                notify(e2::conio::focus, focus);
+            }
+            void handle(s11n::xs::winsz       lock)
+            {
+                auto& item = lock.thing;
+                notify(e2::conio::winsz, item.winsize);
+            }
+            void handle(s11n::xs::clipdata    lock)
+            {
+                auto& item = lock.thing;
+                relay.set(item.gear_id, item.data, static_cast<clip::mime>(item.mimetype));
+            }
+            void handle(s11n::xs::osclipdata  lock)
+            {
+                auto& item = lock.thing;
+                notify(e2::conio::clipdata, clip{ dot_00, item.data, static_cast<clip::mime>(item.mimetype) });
+            }
+            void handle(s11n::xs::syskeybd    lock)
+            {
+                auto& keybd = lock.thing;
+                notify(e2::conio::keybd, keybd);
+            }
+            void handle(s11n::xs::plain       lock)
+            {
+                auto k = s11n::syskeybd.freeze();
+                auto& keybd = k.thing;
+                auto& item = lock.thing;
+                keybd.wipe();
+                keybd.gear_id = item.gear_id;
+                keybd.cluster = item.utf8txt;
+                keybd.pressed = true;
+                notify(e2::conio::keybd, keybd);
+                keybd.pressed = faux;
+                notify(e2::conio::keybd, keybd);
+            }
+            void handle(s11n::xs::ctrls       lock)
+            {
+                auto k = s11n::syskeybd.freeze();
+                auto& keybd = k.thing;
+                auto& item = lock.thing;
+                keybd.wipe();
+                keybd.gear_id = item.gear_id;
+                keybd.ctlstat = item.ctlstat;
+                keybd.pressed = faux;
+                notify(e2::conio::keybd, keybd);
+            }
+            void handle(s11n::xs::sysmouse    lock)
+            {
+                auto& mouse = lock.thing;
+                notify(e2::conio::mouse, mouse);
+            }
+            void handle(s11n::xs::mouse_show  lock)
+            {
+                auto& item = lock.thing;
+                notify(e2::conio::pointer, item.mode);
+            }
+            void handle(s11n::xs::request_gc  lock)
+            {
+                auto& items = lock.thing;
+                auto list = jgc_list.freeze();
+                for (auto& gc : items)
+                {
+                    auto cluster = cell::gc_get_data(gc.token);
+                    list.thing.push(gc.token, cluster);
+                }
+                list.thing.sendby(canal);
+            }
+            void handle(s11n::xs::fps         lock)
+            {
+                auto& item = lock.thing;
+                notify(e2::config::fps, item.frame_rate);
+            }
+            void handle(s11n::xs::bgc         lock)
+            {
+                auto& item = lock.thing;
+                notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
+            }
+            void handle(s11n::xs::fgc         lock)
+            {
+                auto& item = lock.thing;
+                notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
+            }
+            void handle(s11n::xs::slimmenu    lock)
+            {
+                auto& item = lock.thing;
+                notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
+            }
+            void handle(s11n::xs::form_header lock)
+            {
+                auto& item = lock.thing;
+                notify<tier::preview>(e2::form::prop::ui::header, item.new_header); //todo window_id
+            }
+            void handle(s11n::xs::form_footer lock)
+            {
+                auto& item = lock.thing;
+                notify<tier::preview>(e2::form::prop::ui::footer, item.new_footer); //todo window_id
+            }
+        };
+
+        // gate: Bitmap forwarder.
+        struct diff
+        {
+            using work = std::thread;
+            using lock = std::mutex;
             using cond = std::condition_variable_any;
 
-            struct clip_t
+            struct stat
             {
-                lock mutex{};
-                cond synch{};
-                bool ready{};
-                twod block{};
-                clip chunk{};
+                span watch{}; // diff::stat: Duration of the STDOUT rendering.
+                sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
             };
-            using umap = std::unordered_map<id_t, clip_t>;
 
-            umap depot{};
-            lock mutex{};
+            lock mutex; // diff: Mutex between renderer and committer threads.
+            cond synch; // diff: Synchronization between renderer and committer.
+            core cache; // diff: The current content buffer which going to be checked and processed.
+            bool alive; // diff: Working loop state.
+            bool ready; // diff: Conditional variable to avoid spurious wakeup.
+            bool abort; // diff: Abort building current frame.
+            work paint; // diff: Rendering thread.
+            stat debug; // diff: Debug info.
 
-            void set(id_t id, view utf8, clip::mime kind)
+            // diff: Render current buffer to the screen.
+            template<class Bitmap>
+            void render(pipe& canal)
             {
-                auto lock = std::lock_guard{ mutex };
-                auto iter = depot.find(id);
-                if (iter != depot.end())
+                log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
+                auto start = time{};
+                auto image = Bitmap{};
+                auto guard = std::unique_lock{ mutex };
+                while ((void)synch.wait(guard, [&]{ return ready; }), alive)
                 {
-                    auto& item = iter->second;
-                    auto  lock = std::lock_guard{ item.mutex };
-                    item.chunk.utf8 = utf8;
-                    item.chunk.kind = kind;
-                    item.ready = true;
-                    item.synch.notify_all();
+                    start = datetime::now();
+                    ready = faux;
+                    abort = faux;
+                    auto winid = id_t{ 0xddccbbaa };
+                    auto coord = dot_00;
+                    image.set(winid, coord, cache, abort, debug.delta);
+                    if (debug.delta)
+                    {
+                        canal.isbusy = true; // It's okay if someone resets the busy flag before sending.
+                        image.sendby(canal);
+                        canal.isbusy.wait(true); // Successive frames must be discarded until the current frame is delivered (to prevent unlimited buffer growth).
+                    }
+                    debug.watch = datetime::now() - start;
                 }
+                log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
             }
-        };
-
-        pipe&    canal; // link: Data highway.
-        base&    owner; // link: Link owner.
-        relay_t  relay; // link: Clipboard relay.
-
-    public:
-        // link: Send data outside.
-        void output(view data)
-        {
-            canal.output(data);
-        }
-        // link: .
-        auto request_clip_data(id_t ext_gear_id, clip& clip_rawdata)
-        {
-            relay.mutex.lock();
-            auto& selected_depot = relay.depot[ext_gear_id]; // If rehashing occurs due to the insertion, all iterators are invalidated.
-            relay.mutex.unlock();
-            auto lock = std::unique_lock{ selected_depot.mutex };
-            selected_depot.ready = faux;
-            request_clipboard.send(canal, ext_gear_id);
-            auto maxoff = 100ms; //todo magic numbers
-            auto received = std::cv_status::timeout != selected_depot.synch.wait_for(lock, maxoff);
-            if (received)
+            // diff: Get rendering statistics.
+            auto status()
             {
-                clip_rawdata = selected_depot.chunk;
+                return debug;
             }
-            return received;
-        }
-
-        link(pipe& canal, base& owner)
-            : s11n{ *this },
-             canal{ canal },
-             owner{ owner }
-        { }
-
-        // link: Send an event message to the link owner.
-        template<tier Tier = tier::release, class E, class T>
-        void notify(E, T&& data)
-        {
-            netxs::events::enqueue(owner.This(), [d = data](auto& boss) mutable
+            // diff: Discard current frame.
+            void cancel()
             {
-                //boss.SIGNAL(Tier, E{}, d); // VS2022 17.4.1 doesn't get it for some reason (nested lambdas + static_cast + decltype(...)::type).
-                boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
-            });
-        }
-        void handle(s11n::xs::sysfocus    lock)
-        {
-            auto& focus = lock.thing;
-            notify(e2::conio::focus, focus);
-        }
-        void handle(s11n::xs::winsz       lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::conio::winsz, item.winsize);
-        }
-        void handle(s11n::xs::clipdata    lock)
-        {
-            auto& item = lock.thing;
-            relay.set(item.gear_id, item.data, static_cast<clip::mime>(item.mimetype));
-        }
-        void handle(s11n::xs::osclipdata  lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::conio::clipdata, clip{ dot_00, item.data, static_cast<clip::mime>(item.mimetype) });
-        }
-        void handle(s11n::xs::syskeybd    lock)
-        {
-            auto& keybd = lock.thing;
-            notify(e2::conio::keybd, keybd);
-        }
-        void handle(s11n::xs::plain       lock)
-        {
-            auto k = s11n::syskeybd.freeze();
-            auto& keybd = k.thing;
-            auto& item = lock.thing;
-            keybd.wipe();
-            keybd.gear_id = item.gear_id;
-            keybd.cluster = item.utf8txt;
-            keybd.pressed = true;
-            notify(e2::conio::keybd, keybd);
-            keybd.pressed = faux;
-            notify(e2::conio::keybd, keybd);
-        }
-        void handle(s11n::xs::ctrls       lock)
-        {
-            auto k = s11n::syskeybd.freeze();
-            auto& keybd = k.thing;
-            auto& item = lock.thing;
-            keybd.wipe();
-            keybd.gear_id = item.gear_id;
-            keybd.ctlstat = item.ctlstat;
-            keybd.pressed = faux;
-            notify(e2::conio::keybd, keybd);
-        }
-        void handle(s11n::xs::sysmouse    lock)
-        {
-            auto& mouse = lock.thing;
-            notify(e2::conio::mouse, mouse);
-        }
-        void handle(s11n::xs::mouse_show  lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::conio::pointer, item.mode);
-        }
-        void handle(s11n::xs::request_gc  lock)
-        {
-            auto& items = lock.thing;
-            auto list = jgc_list.freeze();
-            for (auto& gc : items)
-            {
-                auto cluster = cell::gc_get_data(gc.token);
-                list.thing.push(gc.token, cluster);
+                abort = true;
             }
-            list.thing.sendby(canal);
-        }
-        void handle(s11n::xs::fps         lock)
-        {
-            auto& item = lock.thing;
-            notify(e2::config::fps, item.frame_rate);
-        }
-        void handle(s11n::xs::bgc         lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
-        }
-        void handle(s11n::xs::fgc         lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
-        }
-        void handle(s11n::xs::slimmenu    lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
-        }
-        void handle(s11n::xs::form_header lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::preview>(e2::form::prop::ui::header, item.new_header); //todo window_id
-        }
-        void handle(s11n::xs::form_footer lock)
-        {
-            auto& item = lock.thing;
-            notify<tier::preview>(e2::form::prop::ui::footer, item.new_footer); //todo window_id
-        }
-    };
-
-    // console: Bitmap forwarder.
-    class diff
-    {
-        using work = std::thread;
-        using lock = std::mutex;
-        using cond = std::condition_variable_any;
-
-        struct stat
-        {
-            span watch{}; // diff::stat: Duration of the STDOUT rendering.
-            sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
-        };
-
-        lock mutex; // diff: Mutex between renderer and committer threads.
-        cond synch; // diff: Synchronization between renderer and committer.
-        core cache; // diff: The current content buffer which going to be checked and processed.
-        bool alive; // diff: Working loop state.
-        bool ready; // diff: Conditional variable to avoid spurious wakeup.
-        bool abort; // diff: Abort building current frame.
-        work paint; // diff: Rendering thread.
-        stat debug; // diff: Debug info.
-
-        // diff: Render current buffer to the screen.
-        template<class Bitmap>
-        void render(pipe& canal)
-        {
-            log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
-            auto start = time{};
-            auto image = Bitmap{};
-            auto guard = std::unique_lock{ mutex };
-            while ((void)synch.wait(guard, [&]{ return ready; }), alive)
+            // diff: Obtain new content to render.
+            auto commit(core const& canvas)
             {
-                start = datetime::now();
-                ready = faux;
-                abort = faux;
-                auto winid = id_t{ 0xddccbbaa };
-                auto coord = dot_00;
-                image.set(winid, coord, cache, abort, debug.delta);
-                if (debug.delta)
+                if (abort)
                 {
-                    canal.isbusy = true; // It's okay if someone resets the busy flag before sending.
-                    image.sendby(canal);
-                    canal.isbusy.wait(true); // Successive frames must be discarded until the current frame is delivered (to prevent unlimited buffer growth).
+                    while (alive) // Try to send a new frame as soon as possible (e.g. after resize).
+                    {
+                        auto lock = std::unique_lock{ mutex, std::try_to_lock };
+                        if (lock.owns_lock())
+                        {
+                            cache = canvas;
+                            ready = true;
+                            synch.notify_one();
+                            return true;
+                        }
+                        else std::this_thread::yield();
+                    }
                 }
-                debug.watch = datetime::now() - start;
-            }
-            log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
-        }
-
-    public:
-        // diff: Get rendering statistics.
-        auto status()
-        {
-            return debug;
-        }
-        // diff: Discard current frame.
-        void cancel()
-        {
-            abort = true;
-        }
-        // diff: Obtain new content to render.
-        auto commit(core const& canvas)
-        {
-            if (abort)
-            {
-                while (alive) // Try to send a new frame as soon as possible (e.g. after resize).
+                else
                 {
                     auto lock = std::unique_lock{ mutex, std::try_to_lock };
                     if (lock.owns_lock())
@@ -2955,55 +3002,38 @@ namespace netxs::ui
                         synch.notify_one();
                         return true;
                     }
-                    else std::this_thread::yield();
                 }
+                return faux;
             }
-            else
+
+            diff(pipe& canal, svga vtmode)
+                : alive{ true },
+                  ready{ faux },
+                  abort{ faux }
             {
-                auto lock = std::unique_lock{ mutex, std::try_to_lock };
-                if (lock.owns_lock())
+                using namespace netxs::directvt;
+                paint = work([&, vtmode]
                 {
-                    cache = canvas;
-                    ready = true;
-                    synch.notify_one();
-                    return true;
-                }
+                    //todo revise (bitmap/bitmap_t)
+                         if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               (canal);
+                    else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
+                    else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
+                    else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
+                });
             }
-            return faux;
-        }
-
-        diff(pipe& canal, svga vtmode)
-            : alive{ true },
-              ready{ faux },
-              abort{ faux }
-        {
-            using namespace netxs::directvt;
-            paint = work([&, vtmode]
+            void stop()
             {
-                //todo revise (bitmap/bitmap_t)
-                     if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               (canal);
-                else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
-                else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
-                else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
-            });
-        }
-        void stop()
-        {
-            auto id = paint.get_id();
-            mutex.lock();
-            alive = faux;
-            ready = true;
-            synch.notify_all();
-            mutex.unlock();
-            paint.join();
-            log("diff: id: ", id, " rendering thread joined");
-        }
-    };
+                auto id = paint.get_id();
+                mutex.lock();
+                alive = faux;
+                ready = true;
+                synch.notify_all();
+                mutex.unlock();
+                paint.join();
+                log("diff: id: ", id, " rendering thread joined");
+            }
+        };
 
-    // console: Client gate.
-    class gate
-        : public base
-    {
         // gate: Application properties.
         struct props_t
         {
@@ -3413,7 +3443,6 @@ namespace netxs::ui
         };
 
     public:
-        pro::keybd keybd{*this }; // gate: Keyboard controller.
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
@@ -3636,6 +3665,14 @@ namespace netxs::ui
             limit.set(dot_11);
             title.live = faux;
 
+            LISTEN(tier::preview, hids::events::keybd::data, gear, tokens)
+            {
+                if (auto world_ptr = base::parent())
+                {
+                    world_ptr->SIGNAL(tier::preview, hids::events::keybd::data, gear);
+                    if (gear.alive) this->SIGNAL(tier::release, hids::events::keybd::data, gear);
+                }
+            };
             LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
@@ -3946,7 +3983,7 @@ namespace netxs::ui
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
 
-        pro::keybd keybd{*this }; // host: Keyboard controller.
+        //pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
         pro::focus focus; // host: Focus controller.
 
@@ -3964,7 +4001,7 @@ namespace netxs::ui
 
     public:
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
-            :  focus{*this, faux, m },
+            :  focus{*this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config }
         {
@@ -4007,7 +4044,7 @@ namespace netxs::ui
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;
 
-            keybd.accept(true); // Subscribe on keybd offers.
+            //keybd.accept(true); // Subscribe on keybd offers.
 
             LISTEN(tier::general, e2::timer::any, timestamp, tokens)
             {

@@ -45,7 +45,7 @@ namespace netxs::ui
         using sptr = netxs::sptr<base>;
 
         pro::mouse mouse{ *this }; // form: Mouse controller.
-        pro::keybd keybd{ *this }; // form: Keybd controller.
+        //pro::keybd keybd{ *this }; // form: Keybd controller.
 
         auto This() { return base::This<T>(); }
         form()

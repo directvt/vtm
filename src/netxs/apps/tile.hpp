@@ -273,7 +273,7 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
-                        boss.keybd.active();
+                        //boss.keybd.active();
                         anycasting(boss);
                         mouse_subs(boss);
 
@@ -395,11 +395,11 @@ namespace netxs::app::tile
                                 ui::mock::ctor()
                                 ->isroot(true)
                                 ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
-                                ->template plugin<pro::focus>()
+                                ->template plugin<pro::focus>(pro::focus::mode::focusable)
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
-                                    boss.keybd.accept(true);
+                                    //boss.keybd.accept(true);
                                     anycasting(boss);
                                     //todo implement keydb support
                                 })
@@ -415,10 +415,10 @@ namespace netxs::app::tile
                 ->isroot(true, 2)
                 ->colors(cC.fgc(), cC.bgc())
                 ->plugin<pro::limit>(dot_00, -dot_11)
-                ->plugin<pro::focus>()
+                ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->invoke([&](auto& boss)
                 {
-                    boss.keybd.accept(true);
+                    //boss.keybd.accept(true);
                     anycasting(boss);
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
@@ -796,12 +796,10 @@ namespace netxs::app::tile
 
             auto object = ui::fork::ctor(axis::Y)
                 //todo foci
-                //->plugin<pro::focus>(faux)
+                //->plugin<pro::focus>(pro::focus::mode::focusable, faux)
                 ->plugin<items>()
                 ->invoke([&](auto& boss)
                 {
-                    //todo foci
-                    //boss.keybd.master();
                     auto oneoff = ptr::shared(hook{});
                     boss.LISTEN(tier::anycast, e2::form::upon::created, gear, *oneoff, (oneoff))
                     {
@@ -918,7 +916,7 @@ namespace netxs::app::tile
                   ->plugin<pro::focus>()
                   ->invoke([](auto& boss)
                   {
-                      boss.keybd.active();
+                      //boss.keybd.active();
                       boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);

@@ -606,9 +606,10 @@ namespace netxs::app::vtm
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::align>()
+                ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
-                    boss.keybd.active();
+                    //boss.keybd.active();
                     boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {

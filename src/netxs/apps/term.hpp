@@ -630,12 +630,13 @@ namespace netxs::app::term
             arg = arg_shadow;
             if (term_type == shared::app_type::normal)
             {
+                //todo revise focus
                 window->plugin<pro::focus>()
                       ->plugin<pro::track>()
                       ->plugin<pro::acryl>()
                       ->plugin<pro::cache>();
             }
-            else window->plugin<pro::focus>(faux);
+            else window->plugin<pro::focus>(pro::focus::mode::focusable, faux);
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB.fgc(), cB.bgc());
@@ -678,7 +679,8 @@ namespace netxs::app::term
                 });
 
             auto shell = os::env::shell() + " -i";
-            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config));
+            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config))
+                              ->plugin<pro::focus>(pro::focus::mode::focused, faux);
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
             static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
@@ -738,7 +740,6 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
-                ->plugin<pro::focus>(faux, pro::focus::mode::focused)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)

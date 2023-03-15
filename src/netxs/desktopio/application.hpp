@@ -400,7 +400,7 @@ namespace netxs::app::shared
                 ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
-                    boss.keybd.accept(true);
+                    //boss.keybd.accept(true);
                     closing_on_quit(boss);
                     closing_by_gesture(boss);
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
