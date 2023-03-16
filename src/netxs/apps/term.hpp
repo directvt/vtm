@@ -413,7 +413,6 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    //info.vector = -1;
                     boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info, ({ .vector = -1 }));
                 });
             }
