@@ -88,8 +88,7 @@ namespace netxs::app::vtm
                     auto& dest = *dest_ptr;
                     if (keep)
                     {
-                        auto what = vtm::events::d_n_d::drop.param();
-                        boss.SIGNAL(tier::preview, vtm::events::d_n_d::drop, what); // Take core.
+                        boss.SIGNAL(tier::preview, vtm::events::d_n_d::drop, what, ()); // Take core.
                         dest.SIGNAL(tier::release, vtm::events::d_n_d::drop, what); // Pass core.
                         boss.base::detach(); // The object kills itself.
                     }
@@ -195,8 +194,7 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
             {
-                auto viewport = e2::form::prop::viewport.param();
-                this->SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                this->SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                 auto oldpos = viewport.coor + (viewport.size / 2);
 
                 auto path = oldpos - newpos;
@@ -651,8 +649,7 @@ namespace netxs::app::vtm
                     boss.LISTEN(tier::release, e2::dtor, p)
                     {
                         auto start = datetime::now();
-                        auto counter = e2::cleanup.param();
-                        boss.SIGNAL(tier::general, e2::cleanup, counter);
+                        boss.SIGNAL(tier::general, e2::cleanup, counter, ());
                         auto stop = datetime::now() - start;
                         log("hall: garbage collection",
                         "\n\ttime ", utf::format(stop.count()), "ns",
@@ -803,11 +800,7 @@ namespace netxs::app::vtm
                 if (dbase.usrs.size() == 1) // Save all foci for the last user.
                 {
                     auto& active = taken[id_t{}];
-                    auto proc = e2::form::proceed::functor.param([&](sptr<base> focused_item_ptr)
-                    {
-                        active.push_back(focused_item_ptr->id);
-                    });
-                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc);
+                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc, ([&](sptr<base> focused_item_ptr){ active.push_back(focused_item_ptr->id); }));
                 }
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
@@ -820,8 +813,7 @@ namespace netxs::app::vtm
                 if (items.size()) // Pass focus to the top most object.
                 {
                     auto last_ptr = items.back();
-                    auto gear_id_list = e2::form::state::keybd::enlist.param();
-                    item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list);
+                    item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list, ());
                     for (auto gear_id : gear_id_list)
                     {
                         if (auto gear_ptr = bell::getref<hids>(gear_id))

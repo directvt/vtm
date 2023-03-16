@@ -324,9 +324,7 @@ namespace netxs::ui
                 auto s = std::bitset<8>{ gear.s.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, ({ gear.id, {} }));
                     if (gear_test.second == 0)
                     {
                         gear.kb_offer_2(owner.This());
@@ -337,9 +335,7 @@ namespace netxs::ui
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, ({ gear.id, {} }));
                     if (gear_test.second == 0)
                     {
                         if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner.This());
@@ -6125,8 +6121,7 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            auto gates = e2::form::state::keybd::enlist.param();
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
+            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
             for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto gear_ptr = bell::getref<hids>(gate_id))
@@ -6653,8 +6648,7 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
-            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, (gear.id, 0));
             if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
@@ -7285,8 +7279,7 @@ namespace netxs::ui
                         gear.pass<tier::release>(parent_ptr, owner.base::coor());
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
-                            auto basis = e2::coor::set.param();
-                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
+                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis, ());
                             owner.global(basis);
                             gear.coord -= basis; // Restore gate mouse position.
                             gear.owner.bell::template signal<tier::release>(m.cause, gear);
@@ -7571,10 +7564,8 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    auto header = e2::form::prop::ui::header.param();
-                    auto footer = e2::form::prop::ui::footer.param();
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, header);
-                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
                     procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
@@ -7610,8 +7601,7 @@ namespace netxs::ui
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
-            auto fps = e2::config::fps.param(-1);
-            SIGNAL(tier::general, e2::config::fps, fps);
+            SIGNAL(tier::general, e2::config::fps, fps, (-1));
             maxoff = max_drops * span{ span::period::den / fps };
             LISTEN(tier::general, e2::config::fps, fps)
             {

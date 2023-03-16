@@ -1088,6 +1088,11 @@ namespace netxs::ui
         {
             SIGNAL(tier::general, e2::shutdown, "base: rendering is not provided");
         }
+        // base: Syntax sugar helper.
+        void _saveme()
+        {
+            bell::_saveme();
+        }
 
     protected:
         virtual ~base() = default;

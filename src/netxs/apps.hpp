@@ -169,20 +169,14 @@ namespace netxs::app::shared
                             }
 
                             static auto i = 0; i++;
-                            auto title = ansi::add("View\nRegion ", i);
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
-
-                            auto outer = dent{ 2,2,1,1 };
-                            auto inner = dent{ -4,-4,-2,-2 };
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer);
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner);
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
                             boss.RISEUP(tier::release, e2::config::plugins::align, faux);
                             boss.RISEUP(tier::preview, e2::form::prop::zorder, Z_order::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                auto old_title = e2::form::prop::ui::header.param();
-                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title);
-
+                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
                                 auto data = gear.get_clip_data();
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
@@ -191,8 +185,7 @@ namespace netxs::app::shared
                                     boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
                                 }
                                 // Copy clipboard data to title.
-                                auto title = e2::form::prop::ui::header.param(data.utf8);
-                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
                                 gear.dismiss();
 
                                 if (old_title.size()) // Copy old title to clipboard.
