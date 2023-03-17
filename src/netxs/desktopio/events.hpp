@@ -385,7 +385,7 @@ namespace netxs::events
     #endif
 
     #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock()
+    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
     #define SIGNAL_X(...) ARG_EVAL(GET_LAST2(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
     #if defined(_WIN32)
         #define SIGNAL(...) ARG_EVAL(SIGNAL_X(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
@@ -394,7 +394,7 @@ namespace netxs::events
     #endif
 
     #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
-    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock()
+    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
     #define RISEUP_X(...) ARG_EVAL(GET_LAST2(__VA_ARGS__, RISEUP_N, RISEUP_S))
     #if defined(_WIN32)
         #define RISEUP(...) ARG_EVAL(RISEUP_X(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))

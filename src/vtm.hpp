@@ -993,7 +993,7 @@ namespace netxs::app::vtm
             list.push_back(item);
             item->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             item->SIGNAL(tier::anycast, vtm::events::attached, base::This());
-            SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+            this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
         auto invite(sptr<pipe> client, view userid, si32 vtmode, xmls config, si32 session_id)
@@ -1003,7 +1003,7 @@ namespace netxs::app::vtm
             users.append(user);
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            this->SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
             //todo make it configurable
             auto patch = ""s;
             auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
