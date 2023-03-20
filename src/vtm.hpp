@@ -217,7 +217,7 @@ namespace netxs::app::vtm
             {
                 this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
             };
-            LISTEN(tier::preview, hids::events::keybd::data, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::data::set, gear, tokens)
             {
                 //todo unify
                 auto& keystrokes = gear.keystrokes;
@@ -917,6 +917,13 @@ namespace netxs::app::vtm
                 this->branch(what.menuid, slot, !cfg.hidden);
                 slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.applet = slot;
+            };
+            LISTEN(tier::release, hids::events::keybd::data::any, gear) // Last resort for unhandled kb event.
+            {
+                if (gear)
+                {
+                    gear.owner.SIGNAL(tier::release, hids::events::keybd::data::set, gear);
+                }
             };
         }
 

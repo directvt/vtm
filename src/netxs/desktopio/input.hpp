@@ -60,11 +60,15 @@ namespace netxs::events::userland
             {
                 EVENT_XS( down   , input::hids ),
                 EVENT_XS( up     , input::hids ),
-                EVENT_XS( data   , input::hids ),
+                GROUP_XS( data   , input::hids ),
                 GROUP_XS( control, input::hids ),
                 GROUP_XS( state  , input::hids ),
                 GROUP_XS( focus  , input::hids ),
 
+                SUBSET_XS( data )
+                {
+                    EVENT_XS( set, input::hids ),
+                };
                 SUBSET_XS( control )
                 {
                     GROUP_XS( up  , input::hids ),
@@ -664,7 +668,7 @@ namespace netxs::input
         ui16 imitate = {};
         ui16 virtcod = {};
         ui16 scancod = {};
-        hint cause = netxs::events::userland::hids::keybd::data.id;
+        hint cause = netxs::events::userland::hids::keybd::data::set.id;
         text keystrokes;
 
         void update(syskeybd& k)

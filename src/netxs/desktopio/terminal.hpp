@@ -6445,7 +6445,7 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::release, hids::events::keybd::data, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::data::set, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -7040,7 +7040,7 @@ namespace netxs::ui
 
                 new_size.y += console.get_basis();
             };
-            LISTEN(tier::release, hids::events::keybd::data, gear)
+            LISTEN(tier::release, hids::events::keybd::data::set, gear)
             {
                 this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
@@ -7265,6 +7265,29 @@ namespace netxs::ui
                     }
                 });
             };
+            void handle(s11n::xs::keybd_event         lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        //todo use temp gear object
+                        gear.alive = true;
+                        gear.ctlstate= k.ctlstat;
+                        gear.winctrl = k.winctrl;
+                        gear.virtcod = k.virtcod;
+                        gear.scancod = k.scancod;
+                        gear.pressed = k.pressed;
+                        gear.imitate = k.imitate;
+                        gear.cluster = k.cluster;
+                        gear.winchar = k.winchar;
+                        parent_ptr->RISEUP(tier::release, hids::events::keybd::data::set, gear);
+                    }
+                });
+            };
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
@@ -7433,7 +7456,7 @@ namespace netxs::ui
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::data, gear, token)
+                owner.LISTEN(tier::release, hids::events::keybd::data::set, gear, token)
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
@@ -7444,6 +7467,7 @@ namespace netxs::ui
                                                gear.imitate,
                                                gear.cluster,
                                                gear.winchar);
+                    gear.dismiss();
                 };
                 owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
                 {

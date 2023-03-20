@@ -646,6 +646,7 @@ namespace netxs::directvt
         STRUCT(jgc_element,       (ui64, token) (text, cluster))
         STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
         STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
+        STRUCT(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
         STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT(request_clipboard, (id_t, gear_id))
         STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -917,6 +918,7 @@ namespace netxs::directvt
             /* Output stream                                                      */\
             X(bitmap           ) /* Canvas data.                                  */\
             X(mouse_event      ) /* Mouse events.                                 */\
+            X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(set_clipboard    ) /* Set main clipboard using following data.      */\
