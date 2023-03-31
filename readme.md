@@ -125,7 +125,7 @@ vtm
 <tbody>
   <tr>
     <th>Ctrl + PgUp/Dn</th>
-    <td colspan="9">Switch between running apps and assign exclusive keyboard focus</td>
+    <td colspan="9">Switch focus between running apps</td>
   </tr>
   <tr>
     <th>LeftClick</th>

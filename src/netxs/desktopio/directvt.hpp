@@ -650,6 +650,7 @@ namespace netxs::directvt
         STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT(request_clipboard, (id_t, gear_id))
         STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        STRUCT(focus_cut,         (id_t, gear_id))
         STRUCT(maximize,          (id_t, gear_id))
         STRUCT(form_header,       (id_t, window_id) (text, new_header))
         STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
@@ -658,6 +659,7 @@ namespace netxs::directvt
         STRUCT(logs,              (ui32, id) (time, guid) (text, data))
         STRUCT_LITE(expose)
         // Input stream.
+        STRUCT(focusbus,          (id_t, gear_id) (hint, cause))
         STRUCT(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
         STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
@@ -924,6 +926,7 @@ namespace netxs::directvt
             X(set_clipboard    ) /* Set main clipboard using following data.      */\
             X(request_clipboard) /* Request main clipboard data.                  */\
             X(focus            ) /* Request to set focus.                         */\
+            X(focus_cut        ) /* Request to focus cut.                         */\
             X(maximize         ) /* Request to maximize/restore                   */\
             X(form_header      ) /* Set window title.                             */\
             X(form_footer      ) /* Set window footer.                            */\
@@ -938,6 +941,7 @@ namespace netxs::directvt
             X(sysfocus         ) /* System focus state.                           */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
+            X(focusbus         ) /* Focus bus events.                             */\
             X(mouse_show       ) /* Show mouse cursor.                            */\
             X(winsz            ) /* Window resize.                                */\
             X(clipdata         ) /* Clipboard raw data.                           */\

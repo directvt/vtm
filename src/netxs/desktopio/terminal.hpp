@@ -6445,7 +6445,7 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::release, hids::events::keybd::data::set, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -7040,7 +7040,7 @@ namespace netxs::ui
 
                 new_size.y += console.get_basis();
             };
-            LISTEN(tier::release, hids::events::keybd::data::set, gear)
+            LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
                 this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
@@ -7265,6 +7265,19 @@ namespace netxs::ui
                     }
                 });
             };
+            void handle(s11n::xs::focus_cut           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    //todo move it to the static pro::focus::cut(gear_id, item_ptr)
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                    }
+                });
+            }
             void handle(s11n::xs::keybd_event         lock)
             {
                 auto& k = lock.thing;
@@ -7275,16 +7288,21 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         //todo use temp gear object
-                        gear.alive = true;
-                        gear.ctlstate= k.ctlstat;
-                        gear.winctrl = k.winctrl;
-                        gear.virtcod = k.virtcod;
-                        gear.scancod = k.scancod;
-                        gear.pressed = k.pressed;
-                        gear.imitate = k.imitate;
-                        gear.cluster = k.cluster;
-                        gear.winchar = k.winchar;
-                        parent_ptr->RISEUP(tier::release, hids::events::keybd::data::set, gear);
+                        gear.alive    = true;
+                        gear.ctlstate = k.ctlstat;
+                        gear.winctrl  = k.winctrl;
+                        gear.virtcod  = k.virtcod;
+                        gear.scancod  = k.scancod;
+                        gear.pressed  = k.pressed;
+                        gear.imitate  = k.imitate;
+                        gear.cluster  = k.cluster;
+                        gear.winchar  = k.winchar;
+                        do
+                        {
+                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                            parent_ptr = parent_ptr->parent();
+                        }
+                        while (gear && parent_ptr);
                     }
                 });
             };
@@ -7456,7 +7474,12 @@ namespace netxs::ui
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::data::set, gear, token)
+                owner.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, token)
+                {
+                    auto deed = owner.bell::template protos<tier::release>();
+                    s11n::focusbus.send(owner, seed.id, netxs::events::subindex(deed));
+                };
+                owner.LISTEN(tier::release, hids::events::keybd::data::post, gear, token)
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,

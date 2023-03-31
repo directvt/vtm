@@ -117,6 +117,20 @@ namespace netxs::events
     {
         return (event & level_mask(branch, block)) == branch;
     }
+    // events: Return event index inside the group.
+    static constexpr inline auto subindex(hint event)
+    {
+        auto offset = level(event) * block;
+        auto number = (event >> (offset - block)) - 1;
+        return number;
+    }
+    // events: Return event id by group + index.
+    static constexpr inline auto makeid(hint group, hint index)
+    {
+        auto offset = level(group) * block;
+        auto entity = group | ((index + 1) <<  offset);
+        return entity;
+    }
     template<hint Event>             constexpr auto offset = level(Event) * block;                                  // events: Item/msg bit shift.
     template<hint Event>             constexpr auto parent =          Event & ((1 << (offset<Event> - block)) - 1); // events: Event group ID.
     template<hint Event>             constexpr auto number =               (Event >> (offset<Event> - block)) - 1;  // events: Item index inside the group by its ID.

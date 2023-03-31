@@ -171,6 +171,61 @@ namespace netxs::app::vtm
         gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
+            //todo
+            local = faux;
+
+            LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+            };
+            LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
+            };
+            LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
+            {
+                if (gear)
+                {
+                    if (true /*...*/) //todo lookup taskbar kb shortcuts
+                    {
+                        //...
+                        //pro::focus::set(applet, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        
+                    }
+                    else
+                    {
+                        //...
+                    }
+                }
+            };
+            LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens)
+            {
+                //todo deprecated
+                //todo unify
+                auto& keystrokes = gear.keystrokes;
+                auto pgup = keystrokes == "\033[5;5~"s
+                        || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
+                auto pgdn = keystrokes == "\033[6;5~"s
+                        || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
+                if (pgup || pgdn)
+                {
+                    auto item_ptr = e2::form::layout::goprev.param();
+                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
+                    else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
+
+                    if (item_ptr)
+                    {
+                        auto& area = item_ptr->area();
+                        auto center = area.coor + (area.size / 2);
+                        this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
+                        gear.kb_offer_7(item_ptr);
+                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::on);
+                    }
+                    gear.dismiss();
+                }
+            };
+
             //todo move it to the desk (dragging)
             mouse.draggable<hids::buttons::leftright>(true);
             mouse.draggable<hids::buttons::left>(true);
@@ -208,40 +263,6 @@ namespace netxs::app::vtm
                     base::moveby(-x);
                     base::strike();
                 });
-            };
-            LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-            {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
-            };
-            LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-            {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
-            };
-            LISTEN(tier::preview, hids::events::keybd::data::set, gear, tokens)
-            {
-                //todo unify
-                auto& keystrokes = gear.keystrokes;
-                auto pgup = keystrokes == "\033[5;5~"s
-                        || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
-                auto pgdn = keystrokes == "\033[6;5~"s
-                        || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
-                if (pgup || pgdn)
-                {
-                    auto item_ptr = e2::form::layout::goprev.param();
-                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
-                    else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
-
-                    if (item_ptr)
-                    {
-                        auto& area = item_ptr->area();
-                        auto center = area.coor + (area.size / 2);
-                        this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
-                        gear.kb_offer_7(item_ptr);
-                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::on);
-                    }
-                    gear.dismiss();
-                }
             };
         }
 
@@ -592,6 +613,7 @@ namespace netxs::app::vtm
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
+        //todo foci
         idls taken; // hall: Focused objects for the last user.
 
         auto window(link& what)
@@ -922,7 +944,15 @@ namespace netxs::app::vtm
             {
                 if (gear)
                 {
-                    gear.owner.SIGNAL(tier::release, hids::events::keybd::data::set, gear);
+                    gear.owner.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                }
+            };
+            LISTEN(tier::preview, hids::events::keybd::focus::cut, seed)
+            {
+                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                {
+                    seed.item = this->This();
+                    gear_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::cut, seed);
                 }
             };
         }

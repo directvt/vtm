@@ -67,7 +67,7 @@ namespace netxs::events::userland
 
                 SUBSET_XS( data )
                 {
-                    EVENT_XS( set, input::hids ),
+                    EVENT_XS( post, input::hids ),
                 };
                 SUBSET_XS( control )
                 {
@@ -119,12 +119,14 @@ namespace netxs::events::userland
                     //EVENT_XS( die , input::foci ),
                     EVENT_XS( set, input::foci ),
                     EVENT_XS( off, input::foci ),
+                    EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                     GROUP_XS( bus, input::foci ),
 
                     SUBSET_XS( bus )
                     {
-                        EVENT_XS( on , input::foci ),
-                        EVENT_XS( off, input::foci ),
+                        EVENT_XS( on  , input::foci ),
+                        EVENT_XS( off , input::foci ),
+                        EVENT_XS( copy, input::foci ), // Copy default focus branch.
                     };
                 };
             };
@@ -282,6 +284,7 @@ namespace netxs::input
         bool flip = {};
         id_t id = {};
         sptr<base> item; // foci: Next focused item.
+        ui32 deep = {}; // for debug only.
     };
 
     // console: Mouse tracker.
@@ -668,7 +671,7 @@ namespace netxs::input
         ui16 imitate = {};
         ui16 virtcod = {};
         ui16 scancod = {};
-        hint cause = netxs::events::userland::hids::keybd::data::set.id;
+        hint cause = netxs::events::userland::hids::keybd::data::post.id;
         text keystrokes;
 
         void update(syskeybd& k)

@@ -1043,7 +1043,7 @@ namespace netxs::ui
             {
                 using drag = hids::events::mouse::button::drag;
 
-                boss.LISTEN(tier::preview, hids::events::keybd::data::set, gear, memo)
+                boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
@@ -1666,13 +1666,13 @@ namespace netxs::ui
                 if constexpr (debugmode)
                 {
                     log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
-                    auto proc = std::function<void(base&)>{};
-                    proc = [&](base& item)
-                    {
-                        item.toboss(proc);
-                        item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
-                    };
-                    proc(*item_ptr);
+                    //auto proc = std::function<void(base&)>{};
+                    //proc = [&](base& item)
+                    //{
+                    //    item.toboss(proc);
+                    //    item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
+                    //};
+                    //proc(*item_ptr);
                 }
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
@@ -1681,13 +1681,13 @@ namespace netxs::ui
                 if constexpr (debugmode)
                 {
                     log("foci: focus off gear:", seed.id);
-                    auto proc = std::function<void(base&)>{};
-                    proc = [&](base& item)
-                    {
-                        item.toboss(proc);
-                        item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
-                    };
-                    proc(*item_ptr);
+                    //auto proc = std::function<void(base&)>{};
+                    //proc = [&](base& item)
+                    //{
+                    //    item.toboss(proc);
+                    //    item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
+                    //};
+                    //proc(*item_ptr);
                 }
             }
             //todo if (gear.kb_focus_empty())
@@ -1701,64 +1701,99 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
                     {
-                        set(boss.This(), id_t{}, solo::off, flip::off);
+                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off);
                     };
                 }
+                // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
+                {
+                    if (gear.meta(hids::anyCtrl)) pro::focus::set(boss.This(), gear.id, solo::off, flip::on );
+                    else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
+                    gear.dismiss();
+                };
                 // Subscribe on keybd events.
-                boss.LISTEN(tier::preview, hids::events::keybd::data::set, gear, memo) // Run after keybd::data::any.
+                boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
                 {
                     if (!gear) return;
                     auto& route = gears[gear.id];
-                    if (route.next.size())
+                    auto  alive = gear.alive;
+                    auto  accum = alive;
+                    route.foreach([&](auto& nexthop)
                     {
-                        auto alive = gear.alive;
-                        auto accum = alive;
-                        route.foreach([&](auto& nexthop)
-                        {
-                            nexthop->SIGNAL(tier::preview, hids::events::keybd::data::set, gear);
-                            accum &= gear.alive;
-                            gear.alive = alive;
-                        });
-                        gear.alive = accum;
-                    }
-                    else boss.SIGNAL(tier::release, hids::events::keybd::data::set, gear);
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::data::any, gear, memo) // Run after keybd::data::set.
-                {
-                    if (gear)
-                    if (auto parent = boss.parent())
-                    {
-                        parent->RISEUP(tier::release, hids::events::keybd::data::set, gear);
-                    }
-                };
-                // Subscribe on focus chain log output.
-                if constexpr (debugmode)
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo)
-                {
-                    auto& route = gears[seed.id];
-                    auto test = text{};
-                    route.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", seed.id); });
-                    log("      hub:", boss.id, " gears.size=", gears.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
-                    for (auto& [k, v] : gears)
-                    {
-                        if (k != seed.id)
-                        {
-                            test.clear();
-                            v.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", k); });
-                            log("      hub:", boss.id, test);
-                        }
-                    }
+                        nexthop->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
+                        accum &= gear.alive;
+                        gear.alive = alive;
+                    });
+                    gear.alive = accum;
+                    if (accum) boss.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
                 };
                 // Subscribe on focus chain events.
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::any, seed, memo)
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
                 {
                     auto& route = gears[seed.id];
-                    auto on = boss.bell::template protos<tier::preview>() == hids::events::keybd::focus::bus::on.id;
-                    if (on) route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::on , seed); });
-                    else    route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed); });
-                    route.active = on;
+                    auto deed = boss.bell::template protos<tier::release>();
+                    //if constexpr (debugmode) // Focus chain log output.
+                    //{
+                    //    auto test = text{};
+                    //    route.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", seed.id); });
+                    //    log("      hub:", boss.id, " gears.size=", gears.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
+                    //    for (auto& [k, v] : gears)
+                    //    {
+                    //        if (k != seed.id)
+                    //        {
+                    //            test.clear();
+                    //            v.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", k); });
+                    //            log("      hub:", boss.id, test);
+                    //        }
+                    //    }
+                    //}
+                    if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
+                    route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
+                    if constexpr (debugmode) log(text(--seed.deep * 4, ' '), "----------------");
                 };
-                // Subscribe on focus offers.
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
+                {
+                    auto& route = gears[seed.id];
+                    route.active = true;
+                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id);
+                };
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
+                {
+                    auto& route = gears[seed.id];
+                    route.active = faux;
+                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
+                };
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
+                {
+                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
+                    if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
+                    {
+                        auto def_route = gears.find(id_t{}); // Check if the default route is present.
+                        if (def_route != gears.end()) gears.emplace(seed.id, def_route->second);
+                        else                          gears.emplace(seed.id, config{});
+                    }
+                };
+                // Truncate the maximum path without branches.
+                boss.LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, memo)
+                {
+                    //todo forward to the gate from world
+                    auto& route = gears[seed.id];
+                    if (route.next.size() <= 1)
+                    {
+                        if (auto parent_ptr = boss.parent())
+                        {
+                            seed.item = boss.This();
+                            parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                        }
+                    }
+                    else
+                    {
+                        auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
+                        if (iter != route.next.end()) route.next.erase(iter);
+                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                    }
+                };
+                // Subscribe on focus offers. Build a focus tree.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
                 {
                     // Case solo
@@ -1797,38 +1832,57 @@ namespace netxs::ui
                     //  - default
                     //  - active
                     //  - inactive
-                    auto iter = gears.find(seed.id);
-                    if (iter == gears.end()) // Use default focus route if it is.
+
+                    // Copy the default up-route for the focus hub.
+                    if (!focusable && !seed.item) boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
+
+                    auto& route = gears[seed.id];
+                    //if (route.active)
                     {
-                        if (seed.item)
+                        if (!seed.item) // No focused item. We are the first.
                         {
-                            iter = gears.emplace(seed.id, config{}).first;
-                        }
-                        else if (auto def_iter = gears.find(id_t{});
-                            def_iter != gears.end())
-                        {
-                            auto& def_route = def_iter->second;
-                            if (def_route.next.size())
+                            if (seed.flip)
                             {
-                                auto temp = seed;
-                                for (auto& n : def_route.next)
+                                if (route.active)
                                 {
-                                    if (auto next_ptr = n.lock())
+                                    route.focused = faux;
+                                    // A focus flip off is always a truncation of the maximum path without branches.
+                                    if (auto parent_ptr = boss.parent())
                                     {
-                                        next_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::set, temp);
+                                        auto temp = seed.item;
+                                        seed.item = boss.This();
+                                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                                        seed.item = temp;
                                     }
                                 }
-                                return;
+                                else
+                                {
+                                    route.focused = focusable;
+                                }
                             }
-                            else iter = gears.emplace(seed.id, def_route).first;
+                            else // Do not flip.
+                            {
+                                if (seed.solo)
+                                {
+                                    route.focused = focusable;
+                                    if (route.active)
+                                    {
+                                        if (route.focused)
+                                        {
+                                            boss.SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed);
+                                            route.next.clear();
+                                        }
+                                        return;
+                                    }
+                                }
+                                else
+                                {
+                                    route.focused = focusable;
+                                    if (route.active) return;
+                                }
+                            }
                         }
-                        else iter = gears.emplace(seed.id, config{}).first;
-                    }
-
-                    auto& route = iter->second;
-                    if (route.active)
-                    {
-                        if (seed.item)
+                        else
                         {
                             auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                             if (seed.solo)
@@ -1843,10 +1897,7 @@ namespace netxs::ui
                                     else // Do not flip.
                                     {
                                         route.next.erase(iter);
-                                        route.foreach([&](auto& nexthop)
-                                        {
-                                            nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed);
-                                        });
+                                        route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed); });
                                         route.next.push_back(seed.item);
                                     }
                                 }
@@ -1880,40 +1931,6 @@ namespace netxs::ui
                                 }
                             }
                         }
-                        else // No focused item. We are the first.
-                        {
-                            if (seed.solo)
-                            {
-                                if (seed.flip)
-                                {
-                                    //...
-                                    //seed.focus_state = faux;
-                                    //boss.SIGNAL(tier::preview, hids::events::keybd::focus::bus, seed);
-                                    //route.next.clear();
-                                }
-                                else // Do not flip.
-                                {
-                                    //...
-                                    //route.focused = focusable;
-                                    //return;
-                                }
-                            }
-                            else // Force group focus.
-                            {
-                                if (seed.flip)
-                                {
-                                    route.focused = faux;
-                                    //todo should we shut down the whole branch?
-                                    boss.SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed);
-                                    route.next.clear();
-                                }
-                                else // Do not flip.
-                                {
-                                    route.focused = focusable;
-                                    return;
-                                }
-                            }
-                        }
                         //if (gear.focus_force_group)
                         // Update bus state.
                         //...
@@ -1932,18 +1949,22 @@ namespace netxs::ui
 
                         }
                     }
+                    /*
                     else // We are not active.
                     {
                         route.active = true;
                         if (seed.item)
                         {
-                            route.next.push_back(seed.item);
+                            auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
+                            if (iter == route.next.end()) route.next.push_back(seed.item);
                         }
                         else // We are the focus endpoint.
                         {
                             route.focused = focusable;
                         }
                     }
+                    */
+
                     if (auto parent = boss.parent())
                     {
                         seed.item = boss.This();
@@ -2025,14 +2046,27 @@ namespace netxs::ui
                         boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
-                if (visible)
+
+                //todo move it to the pro::light/pro::shade
+                //if (visible)
                 {
                     boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                     {
+                        auto visible = faux;
+                        for (auto& [k, v] : gears)
+                        {
+                            if (v.active && k)
+                            {
+                                visible = true;
+                                break;
+                            }
+                        }
+                        if (!visible) return;
+
                         //todo revise, too many fillings (mold's artifacts)
                         auto normal = boss.base::color();
                         auto title_fg_color = rgba{ 0xFFffffff };
-                        if (!pool.empty())
+                        ////if (!pool.empty())
                         {
                             auto bright = skin::color(tone::brighter);
                             auto shadow = skin::color(tone::shadower);
@@ -2067,7 +2101,7 @@ namespace netxs::ui
                 }
             }
         };
-
+/*
         // pro: Provides functionality related to keyboard input.
         class keybd
             : public skill
@@ -2185,7 +2219,7 @@ namespace netxs::ui
                 }
             }
         };
-
+*/
         // pro: Provides functionality related to mouse interaction.
         class mouse
             : public skill
@@ -2862,6 +2896,16 @@ namespace netxs::ui
                     boss.bell::template signal<Tier>(E::id, static_cast<typename E::type &&>(d));
                 });
             }
+            void handle(s11n::xs::focusbus    lock)
+            {
+                auto& focus = lock.thing;
+                netxs::events::enqueue(owner.This(), [d = focus](auto& boss) mutable
+                {
+                    auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
+                    auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, d.cause);
+                    boss.bell::template signal<tier::release>(deed, seed);
+                });
+            }
             void handle(s11n::xs::sysfocus    lock)
             {
                 auto& focus = lock.thing;
@@ -3510,6 +3554,7 @@ namespace netxs::ui
         link  conio; // gate: Data IO.
         subs  tokens; // gate: Subscription tokens.
         bool direct; // gate: .
+        bool local; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3707,20 +3752,102 @@ namespace netxs::ui
              paint{ canal, props.vtmode },
              conio{ canal, *this  },
              debug{*this },
-             direct{ props.vtmode == svga::dtvt }
+             direct{ props.vtmode == svga::dtvt },
+             local{ true }
         {
             base::root(true);
             limit.set(dot_11);
             title.live = faux;
 
-            LISTEN(tier::preview, hids::events::keybd::data::set, gear, tokens) // Start of kb event propagation.
+            LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)
-                if (auto world_ptr = base::parent())
+                if (auto target = local ? applet : base::parent())
                 {
-                    world_ptr->SIGNAL(tier::preview, hids::events::keybd::data::set, gear);
+                    target->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
                 }
             };
+            //todo deprecated
+            LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
+            {
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (!gear_ptr) return;
+                auto& gear = *gear_ptr;
+                gear.kb_offer_4(applet);
+                pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
+                if (gear.focus_changed()) gear.dismiss();
+            };
+            //todo revise: nobody signal it
+            //todo deprecated
+            LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
+            {
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (gear_ptr)
+                {
+                    auto& gear = *gear_ptr;
+                    gear.kb_offer_5(applet);
+                    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                }
+            };
+
+            LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
+            {
+                auto deed = this->bell::template protos<tier::release>();
+                if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
+                if (auto target = local ? applet : base::parent())
+                {
+                    target->bell::template signal<tier::release>(deed, seed);
+                }
+                if constexpr (debugmode) log(text(--seed.deep * 4, ' '), "----------------gate");
+            };
+            LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
+            {
+                if (direct)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(seed.id);
+                    if (!gear_ptr) return;
+                    conio.focus_cut.send(conio, ext_gear_id);
+                }
+                else
+                {
+                    local = !local;
+                    seed.item->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed);
+                }
+            };
+            if (direct) // Forward unhandled events outside.
+            {
+                LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                    if (!gear_ptr) return;
+                    auto cause = this->bell::protos<tier::preview>();
+                    auto state = cause == hids::events::notify::focus::got.id;
+                    conio.focus.send(conio, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
+                };
+                LISTEN(tier::release, hids::events::keybd::data::any, gear) // Return back unhandled keybd events.
+                {
+                    if (gear)
+                    {
+                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                        if (gear_ptr)
+                        {
+                            conio.keybd_event.send(conio, ext_gear_id,
+                                                          gear.ctlstate,
+                                                          gear.winctrl,
+                                                          gear.virtcod,
+                                                          gear.scancod,
+                                                          gear.pressed,
+                                                          gear.imitate,
+                                                          gear.cluster,
+                                                          gear.winchar);
+                        }
+                    }
+                };
+            }
+
+
             LISTEN(tier::release, e2::form::quit, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
@@ -3885,28 +4012,6 @@ namespace netxs::ui
                     conio.output(ansi::header(temp));
                 }
             };
-            LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
-            {
-                auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (!gear_ptr) return;
-                auto& gear = *gear_ptr;
-                gear.kb_offer_4(applet);
-                pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                if (gear.focus_changed()) gear.dismiss();
-            };
-            //todo revise: nobody signal it
-            LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
-            {
-                auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (gear_ptr)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.kb_offer_5(applet);
-                    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                }
-            };
             LISTEN(tier::release, hids::events::clipbrd::set, from_gear, tokens)
             {
                 auto myid = from_gear.id;
@@ -3982,14 +4087,6 @@ namespace netxs::ui
                         gear.dismiss();
                     }
                 };
-                LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
-                {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                    if (!gear_ptr) return;
-                    auto cause = this->bell::protos<tier::preview>();
-                    auto state = cause == hids::events::notify::focus::got.id;
-                    conio.focus.send(conio, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
-                };
                 LISTEN(tier::general, e2::conio::logs, utf8, tokens)
                 {
                     conio.logs.send(canal, os::process::id.first, os::process::id.second, text{ utf8 });
@@ -4018,25 +4115,6 @@ namespace netxs::ui
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(conio, ext_gear_id);
-                };
-                LISTEN(tier::release, hids::events::keybd::data::any, gear)
-                {
-                    if (gear)
-                    {
-                        auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr)
-                        {
-                            conio.keybd_event.send(conio, ext_gear_id,
-                                                          gear.ctlstate,
-                                                          gear.winctrl,
-                                                          gear.virtcod,
-                                                          gear.scancod,
-                                                          gear.pressed,
-                                                          gear.imitate,
-                                                          gear.cluster,
-                                                          gear.winchar);
-                        }
-                    }
                 };
             }
         }
