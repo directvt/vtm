@@ -951,16 +951,18 @@ namespace netxs::app::vtm
             {
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
+                    auto& gear = *gear_ptr;
                     seed.item = this->This();
-                    gear_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::cut, seed);
+                    gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::cut, seed);
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed)
             {
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
+                    auto& gear = *gear_ptr;
                     seed.item = this->This();
-                    gear_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
+                    gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
         }

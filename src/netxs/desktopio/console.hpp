@@ -1777,20 +1777,24 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, memo)
                 {
                     auto& route = gears[seed.id];
-                    if (route.next.size() <= 1)
+                    auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
+                    if (iter != route.next.end())
                     {
-                        if (auto parent_ptr = boss.parent())
+                        if (route.next.size() == 1)
                         {
-                            seed.item = boss.This();
-                            parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                            if (auto parent_ptr = boss.parent())
+                            {
+                                seed.item = boss.This();
+                                parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
+                            }
+                            return;
+                        }
+                        else
+                        {
+                            route.next.erase(iter);
                         }
                     }
-                    else
-                    {
-                        auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                        if (iter != route.next.end()) route.next.erase(iter);
-                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
-                    }
+                    if (seed.item) seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
                 };
                 // Subscribe on focus offers. Build a focus tree.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
@@ -3703,7 +3707,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    seed.item->SIGNAL(tier::preview, hids::events::keybd::focus::bus::on, seed);
+                    seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
                 }
             };
             if (direct) // Forward unhandled events outside.
