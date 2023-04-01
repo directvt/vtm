@@ -955,6 +955,14 @@ namespace netxs::app::vtm
                     gear_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::cut, seed);
                 }
             };
+            LISTEN(tier::preview, hids::events::keybd::focus::set, seed)
+            {
+                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                {
+                    seed.item = this->This();
+                    gear_ptr->SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
+                }
+            };
         }
 
     public:

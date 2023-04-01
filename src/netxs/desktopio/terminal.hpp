@@ -7264,7 +7264,7 @@ namespace netxs::ui
                         parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
                     }
                 });
-            };
+            }
             void handle(s11n::xs::focus_cut           lock)
             {
                 auto& k = lock.thing;
@@ -7275,6 +7275,19 @@ namespace netxs::ui
                     if (auto parent_ptr = owner.base::parent())
                     {
                         parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                    }
+                });
+            }
+            void handle(s11n::xs::focus_set           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        //pro::focus::set(gear_id, item_ptr);
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .solo = k.solo, .id = k.gear_id, .item = owner.This() }));
                     }
                 });
             }
