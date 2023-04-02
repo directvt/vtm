@@ -407,7 +407,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Mouse cursor highlighter.
+        // pro: Keybd/Mouse highlighter.
         class track
             : public skill
         {
@@ -425,20 +425,86 @@ namespace netxs::ui
                 }
             };
 
+            using pool = std::list<id_t>;
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
 
+            pool focus; // track: Is keybd focused.
             list items; // track: .
             bool alive; // track: Is active.
 
         public:
             track(base&&) = delete;
-            track(base& boss)
+            track(base& boss, bool keybd_only = faux)
                 : skill{ boss },
                   items{ boss },
                   alive{ true }
             {
+                // Keybd focus.
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
+                {
+                    if (seed.id != id_t{})
+                    {
+                        auto stat = focus.empty();
+                        auto iter = std::find(focus.begin(), focus.end(), seed.id);
+                        if (iter == focus.end())
+                        {
+                            focus.push_back(seed.id);
+                            if (stat) boss.deface();
+                        }
+                    }
+                };
+                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
+                {
+                    if (seed.id != id_t{})
+                    {
+                        auto stat = focus.size();
+                        auto iter = std::find(focus.begin(), focus.end(), seed.id);
+                        if (iter != focus.end())
+                        {
+                            focus.erase(iter);
+                            if (stat) boss.deface();
+                        }
+                    }
+                };
+                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                {
+                    if (focus.empty()) return;
+                    //todo revise, too many fillings (mold's artifacts)
+                    auto normal = boss.base::color();
+                    auto title_fg_color = rgba{ 0xFFffffff };
+                    auto bright = skin::color(tone::brighter);
+                    auto shadow = skin::color(tone::shadower);
+                    //todo unify, make it more contrast
+                    shadow.alpha(0x80);
+                    bright.fgc(title_fg_color);
+                    shadow.fgc(title_fg_color);
+                    auto fillup = [&](auto bright, auto shadow)
+                    {
+                        parent_canvas.fill(shadow);
+                    };
+                    if (normal.bgc().alpha())
+                    {
+                        auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
+                        auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
+                        fillup(fuse_shadow, fuse_bright);
+                    }
+                    else
+                    {
+                        auto only_bright = [&](cell& c) { c.fuse(bright); };
+                        auto only_shadow = [&](cell& c) { c.fuse(shadow); };
+                        fillup(only_shadow, only_bright);
+                    }
+                    // Draw the border around
+                    auto area = parent_canvas.full();
+                    auto mark = skin::color(tone::kb_focus);
+                    mark.fgc(title_fg_color); //todo unify, make it more contrast
+                    auto fill = [&](cell& c) { c.fuse(mark); };
+                    parent_canvas.cage(area, dot_21, fill);
+                };
+                if (keybd_only) return;
+                // Mouse focus.
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
@@ -1927,59 +1993,6 @@ namespace netxs::ui
                         boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
-
-                //todo move it to the pro::light/pro::shade
-                //if (visible)
-                {
-                    boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                    {
-                        auto visible = faux;
-                        for (auto& [k, v] : gears)
-                        {
-                            if (v.active && k)
-                            {
-                                visible = true;
-                                break;
-                            }
-                        }
-                        if (!visible) return;
-
-                        //todo revise, too many fillings (mold's artifacts)
-                        auto normal = boss.base::color();
-                        auto title_fg_color = rgba{ 0xFFffffff };
-                        ////if (!pool.empty())
-                        {
-                            auto bright = skin::color(tone::brighter);
-                            auto shadow = skin::color(tone::shadower);
-                            //todo unify, make it more contrast
-                            shadow.alpha(0x80);
-                            bright.fgc(title_fg_color);
-                            shadow.fgc(title_fg_color);
-                            auto fillup = [&](auto bright, auto shadow)
-                            {
-                                parent_canvas.fill(shadow);
-                            };
-                            if (normal.bgc().alpha())
-                            {
-                                auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                                auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-                                fillup(fuse_shadow, fuse_bright);
-                            }
-                            else
-                            {
-                                auto only_bright = [&](cell& c) { c.fuse(bright); };
-                                auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-                                fillup(only_shadow, only_bright);
-                            }
-                            // Draw the border around
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::kb_focus);
-                            mark.fgc(title_fg_color); //todo unify, make it more contrast
-                            auto fill = [&](cell& c) { c.fuse(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        }
-                    };
-                }
             }
         };
 /*

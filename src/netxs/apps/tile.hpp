@@ -392,6 +392,7 @@ namespace netxs::app::tile
                                 ->isroot(true)
                                 ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                                 ->template plugin<pro::focus>(pro::focus::mode::focusable)
+                                ->template plugin<pro::track>(true)
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
@@ -412,6 +413,7 @@ namespace netxs::app::tile
                 ->colors(cC.fgc(), cC.bgc())
                 ->plugin<pro::limit>(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
+                ->plugin<pro::track>(true)
                 ->invoke([&](auto& boss)
                 {
                     //boss.keybd.accept(true);
