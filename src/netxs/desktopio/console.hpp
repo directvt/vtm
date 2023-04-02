@@ -1831,7 +1831,7 @@ namespace netxs::ui
                     {
                         if (seed.solo)
                         {
-                            route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed); });
+                            route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
                             route.next.clear();
                             route.next.push_back(seed.item);
                         }
@@ -3694,7 +3694,7 @@ namespace netxs::ui
                 else
                 {
                     //local = !local;
-                    seed.item->SIGNAL(tier::preview, hids::events::keybd::focus::bus::off, seed);
+                    seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed, tokens)
