@@ -1860,7 +1860,11 @@ namespace netxs::ui
                             route.next.erase(iter);
                         }
                     }
-                    if (seed.item) seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                    if (seed.item)
+                    {
+                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                        boss.expire<tier::preview>();
+                    }
                 };
                 // Subscribe on focus offers. Build a focus tree.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
@@ -1875,23 +1879,22 @@ namespace netxs::ui
                         {
                             if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
                             {
+                                if (focusable) route.focused = faux;
                                 boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
+                                return;
                             }
-                            else
+                            if (!seed.solo)
                             {
                                 route.focused = focusable;
-                                if (seed.solo && route.focused)
-                                {
-                                    route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
-                                    route.next.clear();
-                                }
+                                return;
                             }
-                            return;
+                            if (focusable)
+                            {
+                                route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
+                                route.next.clear();
+                            }
                         }
-                        else
-                        {
-                            route.focused = focusable;
-                        }
+                        route.focused = focusable;
                     }
                     else // Build focus tree.
                     {
