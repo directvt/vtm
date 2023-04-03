@@ -1739,7 +1739,6 @@ namespace netxs::ui
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = gear_id }));
                 if constexpr (debugmode) log("foci: focus off gear:", seed.id);
             }
-            //todo if (gear.kb_focus_empty())
 
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)

@@ -1282,12 +1282,6 @@ namespace netxs::input
             return kb_focus_changed;
         }
 
-        auto kb_focus_empty()
-        {
-            //todo kb
-            return kb_focus.empty();
-        }
-
         void kb_annul_0(sptr<base> item_ptr)
         {
             kb_focus_changed = faux;

@@ -841,11 +841,9 @@ namespace netxs::app::vtm
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            gear.kb_annul_0(item_ptr);
-                            pro::focus::off(item_ptr, gear.id);
-                            if (gear.kb_focus_empty()) //todo pro::focus
+                            this->SIGNAL(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                            if (gear_id_list.size() == 1) // If it is the last focused item.
                             {
-                                gear.kb_offer_4(last_ptr);
                                 pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                             }
                         }
