@@ -1690,6 +1690,7 @@ namespace netxs::ui
 
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
             bool focusable; // focus: Boss could be a focus endpoint.
+            bool scope; // focus: Cutoff threshold for the focus branch.
             struct config
             {
                 bool active = faux; // focus: The chain is under the focus.
@@ -1759,9 +1760,10 @@ namespace netxs::ui
             //todo if (gear.kb_focus_empty())
 
             focus(base&&) = delete;
-            focus(base& boss, mode m = mode::hub, bool visible = true)
+            focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)
                 : skill{ boss },
-                  focusable{ m != mode::hub }
+                  focusable{ m != mode::hub },
+                  scope{ cut_scope }
             {
                 if (m == mode::focused) // Pave default focus path at startup.
                 {
@@ -1826,7 +1828,17 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
                     auto& route = gears[seed.id];
-                    route.active = faux;
+                    if (boss.base::parent())
+                    {
+                        route.active = faux;
+                    }
+                    else // World side (cut).
+                    {
+                        log("++++++++++++++++++");
+                        auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
+                        if (iter != route.next.end()) route.next.erase(iter);
+                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                    }
                     if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
@@ -1846,7 +1858,11 @@ namespace netxs::ui
                     auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                     if (iter != route.next.end())
                     {
-                        if (route.next.size() == 1)
+                        if (scope || route.next.size() != 1)
+                        {
+                            route.next.erase(iter);
+                        }
+                        else
                         {
                             if (auto parent_ptr = boss.parent())
                             {
@@ -1854,10 +1870,6 @@ namespace netxs::ui
                                 parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
                             }
                             return;
-                        }
-                        else
-                        {
-                            route.next.erase(iter);
                         }
                     }
                     if (seed.item)
@@ -1880,6 +1892,7 @@ namespace netxs::ui
                             if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
                             {
                                 if (focusable) route.focused = faux;
+                                //log("seed.flip");
                                 boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                                 return;
                             }
@@ -3709,8 +3722,11 @@ namespace netxs::ui
                 }
                 else
                 {
-                    //local = !local;
-                    seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                    //if (auto target = local ? applet : base::parent())
+                    if (auto target = base::parent())
+                    {
+                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                    }
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed, tokens)

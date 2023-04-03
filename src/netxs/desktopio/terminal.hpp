@@ -7505,31 +7505,31 @@ namespace netxs::ui
                                                gear.winchar);
                     gear.dismiss();
                 };
-                owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
-                {
-                    auto focus_state = true;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
-                owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
-                {
-                    gear.remove_from_kb_focus(owner.This());
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
-                owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
-                {
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
+                //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
+                //{
+                //    auto focus_state = true;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
+                //{
+                //    gear.remove_from_kb_focus(owner.This());
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
+                //{
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
                 owner.LISTEN(tier::general, e2::config::fps, frame_rate, token)
                 {
                     if (frame_rate > 0)

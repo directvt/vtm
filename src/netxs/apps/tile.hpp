@@ -228,18 +228,6 @@ namespace netxs::app::tile
                 {
                     parent_memo.reset();
                 };
-                // Forward keybd events.
-                //todo foci
-                //parent->LISTEN(tier::anycast, hids::events::upevent::kboffer, gear, *parent_memo)
-                //{
-                //    log("forward kboffer");
-                //    boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
-                //};
-                //parent->LISTEN(tier::anycast, hids::events::upevent::kbannul, gear, *parent_memo)
-                //{
-                //    log("forward kbannul");
-                //    boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear);
-                //};
             };
         };
         auto mouse_subs = [](auto& boss)
@@ -434,6 +422,7 @@ namespace netxs::app::tile
         auto empty_slot = [](auto&& empty_slot) -> sptr<ui::veer>
         {
             return ui::veer::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
@@ -790,8 +779,6 @@ namespace netxs::app::tile
             auto cB = menu_white;
 
             auto object = ui::fork::ctor(axis::Y)
-                //todo foci
-                //->plugin<pro::focus>(pro::focus::mode::focusable, faux)
                 ->plugin<items>()
                 ->invoke([&](auto& boss)
                 {
@@ -906,7 +893,6 @@ namespace netxs::app::tile
                         }},
                     });
             object->attach(slot::_1, menu_block)
-                  ->plugin<pro::focus>()
                   ->invoke([](auto& boss)
                   {
                       //boss.keybd.active();
@@ -1029,24 +1015,6 @@ namespace netxs::app::tile
                             }
                         }
                     };
-                    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear)
-                    {
-                        // Set focus to all panes.
-                        boss.SIGNAL(tier::anycast, app::tile::events::ui::select, gear);
-                        gear.dismiss(true);
-                        //todo foci
-                        //todo restore focused state
-                        //log("kb offer");
-                    };
-                    //todo foci
-                    //boss.LISTEN(tier::release, e2::form::state::keybd::lost, gear)
-                    //{
-                    //    //log("kb lost");
-                    //};
-                    //boss.LISTEN(tier::release, e2::form::state::keybd::got, gear)
-                    //{
-                    //    //log("kb got");
-                    //};
                 });
             return object;
         };

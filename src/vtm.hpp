@@ -952,7 +952,7 @@ namespace netxs::app::vtm
                 if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
-                    seed.item = this->This();
+                    //seed.item = this->This();
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::cut, seed);
                 }
             };
