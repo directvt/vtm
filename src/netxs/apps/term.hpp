@@ -640,7 +640,7 @@ namespace netxs::app::term
                         //    0 -- maximize (toggle)
                         if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
                         {
-                            boss.SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates, ());
+                            boss.RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ());
                             if (gates.size())
                             if (auto gate_ptr = bell::getref(gates.back()))
                             {

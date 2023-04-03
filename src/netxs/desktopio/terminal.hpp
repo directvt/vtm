@@ -324,7 +324,7 @@ namespace netxs::ui
                 auto s = std::bitset<8>{ gear.s.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, ({ gear.id, {} }));
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
                         gear.kb_offer_2(owner.This());
@@ -335,7 +335,7 @@ namespace netxs::ui
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, ({ gear.id, {} }));
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
                         if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner.This());
@@ -6121,7 +6121,7 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
+            RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
             for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto gear_ptr = bell::getref<hids>(gate_id))
@@ -6648,7 +6648,7 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+            RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
             if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))

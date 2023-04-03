@@ -1732,32 +1732,12 @@ namespace netxs::ui
             static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f)
             {
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .solo = (bool)s, .flip = (bool)f, .id = gear_id }));
-                if constexpr (debugmode)
-                {
-                    log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
-                    //auto proc = std::function<void(base&)>{};
-                    //proc = [&](base& item)
-                    //{
-                    //    item.toboss(proc);
-                    //    item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
-                    //};
-                    //proc(*item_ptr);
-                }
+                if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
             {
                 item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = gear_id }));
-                if constexpr (debugmode)
-                {
-                    log("foci: focus off gear:", seed.id);
-                    //auto proc = std::function<void(base&)>{};
-                    //proc = [&](base& item)
-                    //{
-                    //    item.toboss(proc);
-                    //    item.SIGNAL(tier::release, hids::events::keybd::focus::bus::any, seed);
-                    //};
-                    //proc(*item_ptr);
-                }
+                if constexpr (debugmode) log("foci: focus off gear:", seed.id);
             }
             //todo if (gear.kb_focus_empty())
 
@@ -1803,21 +1783,6 @@ namespace netxs::ui
                 {
                     auto& route = gears[seed.id];
                     auto deed = boss.bell::template protos<tier::release>();
-                    //if constexpr (debugmode) // Focus chain log output.
-                    //{
-                    //    auto test = text{};
-                    //    route.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", seed.id); });
-                    //    log("      hub:", boss.id, " gears.size=", gears.size(), " focusable=", focusable?"1":"0", " next.size=", route.next.size(), test);
-                    //    for (auto& [k, v] : gears)
-                    //    {
-                    //        if (k != seed.id)
-                    //        {
-                    //            test.clear();
-                    //            v.foreach([&](auto& next){ test += utf::concat("\n        - next:", next->id, " gear:", k); });
-                    //            log("      hub:", boss.id, test);
-                    //        }
-                    //    }
-                    //}
                     if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
                     route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
                     if constexpr (debugmode) log(text(--seed.deep * 4, ' '), "----------------");
@@ -1948,28 +1913,23 @@ namespace netxs::ui
                         }
                     }
                 };
-
+                boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
+                    }
+                };
+                boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
+                {
+                    auto iter = gears.find(gear_test.first);
+                    if (iter != gears.end() && iter->second.active) gear_test.second++;
+                };
 
                 //todo deprecated
                 boss.LISTEN(tier::general, e2::form::proceed::functor, proc, memo)
                 {
                     if (pool.size()) proc(boss.This());
-                };
-                boss.LISTEN(tier::anycast, e2::form::state::keybd::find, gear_test, memo)
-                {
-                    if (find(gear_test.first)) gear_test.second++;
-                };
-                boss.LISTEN(tier::anycast, e2::form::state::keybd::enlist, gear_id_list, memo)
-                {
-                    if (pool.size())
-                    {
-                        auto tail = gear_id_list.end();
-                        gear_id_list.insert(tail, pool.begin(), pool.end());
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
-                {
-                    if (find(gear_test.first)) gear_test.second++;
                 };
                 boss.LISTEN(tier::anycast, e2::form::state::keybd::check, state, memo)
                 {

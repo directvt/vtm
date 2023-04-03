@@ -218,9 +218,9 @@ namespace netxs::app::vtm
                         auto& area = item_ptr->area();
                         auto center = area.coor + (area.size / 2);
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
-                        gear.kb_offer_7(item_ptr);
-                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::on);
+                        //gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
+                        //gear.kb_offer_7(item_ptr);
+                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     gear.dismiss();
                 }
@@ -835,7 +835,7 @@ namespace netxs::app::vtm
                 if (items.size()) // Pass focus to the top most object.
                 {
                     auto last_ptr = items.back();
-                    item_ptr->SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gear_id_list, ());
+                    item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                     for (auto gear_id : gear_id_list)
                     {
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
