@@ -81,7 +81,6 @@ namespace netxs::app::desk
                             auto& area = inst.base::area();
                             auto center = area.coor + (area.size / 2);
                             gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                            gear.kb_offer_3(data_src);
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
@@ -94,7 +93,6 @@ namespace netxs::app::desk
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
                             inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.coor + (viewport.size / 2))); // Pull window.
-                            gear.kb_offer_3(data_src);
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }

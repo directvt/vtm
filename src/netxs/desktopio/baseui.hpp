@@ -835,7 +835,6 @@ namespace netxs::ui
         si32 object_kind = {};
 
     public:
-        hook kb_token;
         static constexpr auto reflow_root = si32{ -1 }; //todo unify
 
         //todo replace "side" with "dent<si32>"
@@ -847,7 +846,7 @@ namespace netxs::ui
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
-        void  root(bool b) { assert(!kb_token); visual_root = b; }
+        void  root(bool b) { visual_root = b; }
         bool  root()       { return visual_root; }
         si32  kind()       { return object_kind; }
         void  kind(si32 k) { object_kind = k; }
@@ -1130,7 +1129,6 @@ namespace netxs::ui
             {
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
-                    kb_token.reset();
                     cascade_token.reset();
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive

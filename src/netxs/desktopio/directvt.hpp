@@ -649,7 +649,7 @@ namespace netxs::directvt
         STRUCT(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
         STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT(request_clipboard, (id_t, gear_id))
-        STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        //STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT(focus_cut,         (id_t, gear_id))
         STRUCT(focus_set,         (id_t, gear_id) (bool, solo))
         STRUCT(maximize,          (id_t, gear_id))
@@ -926,7 +926,6 @@ namespace netxs::directvt
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(set_clipboard    ) /* Set main clipboard using following data.      */\
             X(request_clipboard) /* Request main clipboard data.                  */\
-            X(focus            ) /* Request to set focus.                         */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
             X(maximize         ) /* Request to maximize/restore                   */\
@@ -957,6 +956,8 @@ namespace netxs::directvt
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
+            //X(focus            ) /* Request to set focus.                         */\
+
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;

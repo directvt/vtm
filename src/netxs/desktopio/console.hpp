@@ -2117,27 +2117,6 @@ namespace netxs::ui
             {
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-                {
-                    //todo kb
-                    parent_ptr->LISTEN(tier::release, hids::events::upevent::any, gear, boss.kb_token)
-                    {
-                        if (auto parent_ptr = boss.parent())
-                        {
-                            if (gear.focus_changed()) //todo unify, upevent::kbannul using it
-                            {
-                                parent_ptr->bell::expire<tier::release>();
-                            }
-                            else
-                            {
-                                if (auto deed = parent_ptr->bell::protos<tier::release>())
-                                {
-                                    boss.bell::signal<tier::release>(deed, gear);
-                                }
-                            }
-                        }
-                    };
-                };
                 // pro::mouse: Propagate form events down to the visual branch. Executed last.
                 boss.LISTEN(tier::release, hids::events::notify::any, gear)
                 {
@@ -3640,29 +3619,29 @@ namespace netxs::ui
                 }
             };
             //todo deprecated
-            LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
-            {
-                auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (!gear_ptr) return;
-                auto& gear = *gear_ptr;
-                gear.kb_offer_4(applet);
-                pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                if (gear.focus_changed()) gear.dismiss();
-            };
-            //todo revise: nobody signal it
-            //todo deprecated
-            LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
-            {
-                auto myid = from_gear.id;
-                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                if (gear_ptr)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.kb_offer_5(applet);
-                    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                }
-            };
+            //LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
+            //{
+            //    auto myid = from_gear.id;
+            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+            //    if (!gear_ptr) return;
+            //    auto& gear = *gear_ptr;
+            //    gear.kb_offer_4(applet);
+            //    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
+            //    if (gear.focus_changed()) gear.dismiss();
+            //};
+            ////todo revise: nobody signal it
+            ////todo deprecated
+            //LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
+            //{
+            //    auto myid = from_gear.id;
+            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+            //    if (gear_ptr)
+            //    {
+            //        auto& gear = *gear_ptr;
+            //        gear.kb_offer_5(applet);
+            //        pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+            //    }
+            //};
 
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
@@ -3716,14 +3695,14 @@ namespace netxs::ui
             if (direct) // Forward unhandled events outside.
             {
                 //todo deprecated
-                LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
-                {
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                    if (!gear_ptr) return;
-                    auto cause = this->bell::protos<tier::preview>();
-                    auto state = cause == hids::events::notify::focus::got.id;
-                    conio.focus.send(conio, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
-                };
+                //LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
+                //{
+                //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
+                //    if (!gear_ptr) return;
+                //    auto cause = this->bell::protos<tier::preview>();
+                //    auto state = cause == hids::events::notify::focus::got.id;
+                //    conio.focus.send(conio, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
+                //};
                 LISTEN(tier::release, hids::events::keybd::data::any, gear) // Return back unhandled keybd events.
                 {
                     if (gear)

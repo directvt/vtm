@@ -183,9 +183,8 @@ namespace netxs::app::tile
                             switch (deed)
                             {
                                 case app::tile::events::ui::create.id:
-                                    gear.focus_force_group = true;
+                                    //todo check focus_force_group
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                                    gear.focus_force_group = faux;
                                     break;
                                 case app::tile::events::ui::close.id:
                                     boss.RISEUP(tier::preview, e2::form::quit, boss.This());
@@ -196,7 +195,6 @@ namespace netxs::app::tile
                                     {
                                         gear.countdown--;
                                         // Removing multifocus - The only one can be maximized if several are selected.
-                                        gear.kb_offer_6(boss.This());
                                         pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::on);
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
                                         //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
@@ -258,7 +256,6 @@ namespace netxs::app::tile
                     ->active()
                     ->invoke([&](auto& boss)
                     {
-                        //boss.keybd.active();
                         anycasting(boss);
                         mouse_subs(boss);
 
@@ -305,9 +302,7 @@ namespace netxs::app::tile
                                 // Attach to the world.
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
                                 
-                                gear.kb_offer_2(what.applet); // Pass focus.
                                 pro::focus::set(what.applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                                gear.kb_annul_0(master_ptr); // Remove focus.
                                 pro::focus::off(master_ptr, gear.id);
 
                                 // Destroy placeholder.
@@ -356,7 +351,6 @@ namespace netxs::app::tile
                     if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        gear.kb_offer_2(item_ptr);
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
                 }
@@ -532,8 +526,6 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto item_ptr = boss.back();
-                        if (item_ptr->base::kind() != 1) gear.kb_offer_2(item_ptr);
-                        else                             gear.kb_annul_0(item_ptr); // Exclude grips.
                         if (item_ptr->base::kind() != 1) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         else                             pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
@@ -557,7 +549,6 @@ namespace netxs::app::tile
                             if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
                             {
                                 // Pass the focus to the maximized window.
-                                gear.kb_offer_3(boss.back());
                                 pro::focus::set(boss.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                                 auto fullscreen_item = boss.pop_back();
                                 if (fullscreen_item)
@@ -595,9 +586,7 @@ namespace netxs::app::tile
                             auto empty_1 = empty_slot(empty_slot);
                             auto empty_2 = empty_slot(empty_slot);
                             auto curitem = boss.pop_back(); // In order to preserve all foci.
-                            gear.kb_offer_4(empty_2);
                             pro::focus::set(empty_2, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                            gear.kb_annul_0(curitem);
                             pro::focus::off(curitem, gear.id);
                             if (boss.empty())
                             {
@@ -674,7 +663,6 @@ namespace netxs::app::tile
 
                         auto app = app_window(config);
 
-                        gear.kb_annul_0(boss.back()); // Take focus from the empty slot.
                         pro::focus::off(boss.back(), gear.id); // Take focus from empty slot.
 
                         boss.attach(app);
@@ -691,8 +679,6 @@ namespace netxs::app::tile
                         };
 
                         app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_4(app);
-                        else                          gear.kb_offer_5(app);
                         pro::focus::set(app, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                : pro::focus::solo::on, pro::focus::flip::off);
                     };
@@ -895,7 +881,6 @@ namespace netxs::app::tile
             object->attach(slot::_1, menu_block)
                   ->invoke([](auto& boss)
                   {
-                      //boss.keybd.active();
                       boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);

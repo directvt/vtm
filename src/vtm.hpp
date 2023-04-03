@@ -174,14 +174,14 @@ namespace netxs::app::vtm
             //todo
             local = faux;
 
-            LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-            {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
-            };
-            LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-            {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
-            };
+            //LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
+            //{
+            //    this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+            //};
+            //LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
+            //{
+            //    this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
+            //};
             LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
             {
                 if (gear)
@@ -218,8 +218,6 @@ namespace netxs::app::vtm
                         auto& area = item_ptr->area();
                         auto center = area.coor + (area.size / 2);
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        //gear.clear_kb_focus(); // Clear to avoid group focus because the ctrl is pressed.
-                        //gear.kb_offer_7(item_ptr);
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     gear.dismiss();
@@ -629,7 +627,6 @@ namespace netxs::app::vtm
                 ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
-                    //boss.keybd.active();
                     boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
@@ -844,7 +841,7 @@ namespace netxs::app::vtm
                             this->SIGNAL(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                             if (gear_id_list.size() == 1) // If it is the last focused item.
                             {
-                                pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
+                                pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                             }
                         }
                     }
@@ -893,11 +890,11 @@ namespace netxs::app::vtm
             {
                 autofocus(gear);
             };
-            LISTEN(tier::release, e2::form::proceed::autofocus::lost, gear)
-            {
-                taken[gear.id] = gear.get_kb_focus();
-                gear.clear_kb_focus();
-            };
+            //LISTEN(tier::release, e2::form::proceed::autofocus::lost, gear)
+            //{
+            //    taken[gear.id] = gear.get_kb_focus();
+            //    gear.clear_kb_focus();
+            //};
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 static auto insts_count = si32{ 0 };
@@ -920,9 +917,6 @@ namespace netxs::app::vtm
                             insts_count--;
                             log("hall: detached: ", insts_count);
                         };
-                        //gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                        //gear.kb_offer_5(window);
-                        //pro::focus::set(window, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
@@ -1009,7 +1003,6 @@ namespace netxs::app::vtm
                     {
                         if (auto window_ptr = bell::getref<base>(id))
                         {
-                            gear.kb_offer_4(window_ptr);
                             pro::focus::set(window_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
                         }
                     }

@@ -21,18 +21,12 @@ namespace netxs::events::userland
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
-            GROUP_XS( upevent, input::hids ), // events streamed up (to children) of the visual tree by base::.
             GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
 
             SUBSET_XS( clipbrd )
             {
                 EVENT_XS( get, input::hids ), // release: Get clipboard data.
                 EVENT_XS( set, input::hids ), // release: Set clipboard data.
-            };
-            SUBSET_XS( upevent )
-            {
-                EVENT_XS( kboffer, input::hids ), // inform nested objects that the keybd focus should be taken.
-                EVENT_XS( kbannul, input::hids ), // inform nested objects that the keybd focus should be released.
             };
             SUBSET_XS( notify )
             {
@@ -699,7 +693,6 @@ namespace netxs::input
 
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
-        list        kb_focus; // hids: Keyboard subscribers.
         bool        alive; // hids: Whether event processing is complete.
         span&       tooltip_timeout; // hids: .
         bool&       simple_instance; // hids: .
@@ -724,10 +717,6 @@ namespace netxs::input
 
         //todo unify
         bool disabled = faux;
-        bool kb_focus_changed = faux;
-        bool focus_force_group = faux;
-        bool focus_combine = faux;
-        bool kb_focus_set = faux;
         si32 countdown = 0;
 
         clip clip_rawdata{}; // hids: Clipboard data.
@@ -758,7 +747,7 @@ namespace netxs::input
         {
             auto lock = netxs::events::sync{};
             mouse_leave(mouse::hover, mouse::start);
-            clear_kb_focus();
+            //todo clear_kb_focus?
             SIGNAL(tier::general, events::halt, *this);
             SIGNAL(tier::general, events::die, *this);
         }
@@ -935,23 +924,6 @@ namespace netxs::input
             mouse::delta.set(delta);
             mouse::load_button_state(button_state);
         }
-        auto state()
-        {
-            auto s = std::tuple{ focus_force_group,
-                                  kb_focus_changed,
-                                     focus_combine,
-                                         countdown };
-            kb_focus_changed = faux;
-            return s;
-        }
-        template<class T>
-        void state(T const& s)
-        {
-            focus_force_group = std::get<0>(s);
-            kb_focus_changed  = std::get<1>(s);
-            focus_combine     = std::get<2>(s);
-            countdown         = std::get<3>(s);
-        }
 
         enum modifiers : ui32
         {
@@ -999,18 +971,7 @@ namespace netxs::input
         }
         void take(sysfocus& f)
         {
-            auto s = state();
-            if (f.state)
-            {
-                focus_force_group = f.focus_force_group;
-                focus_combine     = f.focus_combine    ;
-                owner.SIGNAL(tier::release, events::upevent::kboffer, *this);
-            }
-            else
-            {
-                owner.SIGNAL(tier::release, events::upevent::kbannul, *this);
-            }
-            state(s);
+            //todo focus<->seed
         }
 
         auto& area() const { return idmap.area(); }
@@ -1160,197 +1121,7 @@ namespace netxs::input
             alive = true;
             keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
-            //todo kb
-            auto iter = kb_focus.begin();
-            while (alive && iter != kb_focus.end())
-            {
-                if (auto next = iter++->lock())
-                {
-                    next->bell::template signal<tier::preview>(keybd::cause, *this);
-                }
-                else kb_focus.erase(std::prev(iter));
-            }
         }
-        template<class P = noop>
-        bool _check_kb_focus(sptr<base> item_ptr, P proc = {})
-        {
-            //todo kb
-            auto iter = kb_focus.begin();
-            while (iter != kb_focus.end())
-            {
-                if (auto next = iter->lock())
-                {
-                    if (item_ptr == next)
-                    {
-                        proc(iter);
-                        return true;
-                    }
-                }
-                iter++;
-            }
-            return faux;
-        }
-        void _add_kb_focus(sptr<base> item_ptr)
-        {
-            //todo kb
-            kb_focus.push_back(item_ptr);
-            item_ptr->SIGNAL(tier::release, events::notify::keybd::got, *this);
-        }
-        bool remove_from_kb_focus(sptr<base> item_ptr)
-        {
-            //todo kb
-            return _check_kb_focus(item_ptr, [&](auto iter)
-            {
-                auto next = iter->lock();
-                next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
-                kb_focus.erase(iter);
-            });
-        }
-        void set_kb_focus(sptr<base> item_ptr)
-        {
-            kb_focus_changed = true;
-            kb_focus_set = true;
-            //auto kb_focus_size = kb_focus.size();
-            if (!simple_instance && (hids::meta(anyCtrl) || focus_force_group))
-            {
-                if (focus_combine)
-                {
-                    if (!_check_kb_focus(item_ptr)) _add_kb_focus(item_ptr);
-                }
-                else
-                {
-                    kb_focus_set = !remove_from_kb_focus(item_ptr);
-                    if (kb_focus_set) _add_kb_focus(item_ptr);
-                }
-            }
-            else // Set exclusive focus.
-            {
-                auto keep = true;
-                auto iter = kb_focus.begin();
-                while (iter != kb_focus.end())
-                {
-                    if (auto next = iter->lock())
-                    {
-                        //next->SIGNAL(tier::preview, events::notify::keybd::lost, *this);
-                        if (item_ptr == next)
-                        {
-                            keep = faux;
-                            iter++;
-                            continue;
-                        }
-                        next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
-                    }
-                    iter++;
-                    kb_focus.erase(std::prev(iter));
-                }
-                if (keep) _add_kb_focus(item_ptr);
-                //item->SIGNAL(tier::anycast, hids::events::upevent::kbannul, *this); // Drop saved foci (see pro::keybd).
-            }
-            if (kb_focus.size()) owner.SIGNAL(tier::preview, events::notify::focus::got, *this);
-            //else if (kb_focus_size) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
-        }
-        auto get_kb_focus()
-        {
-            auto list = std::list<id_t>{};
-            for (auto& shadow : kb_focus)
-            {
-                if (auto item = shadow.lock())
-                {
-                    list.push_back(item->id);
-                }
-            }
-            return list;
-        }
-        void clear_kb_focus()
-        {
-            //todo kb
-            auto iter = kb_focus.begin();
-            while (iter != kb_focus.end())
-            {
-                if (auto next = iter->lock())
-                {
-                    next->SIGNAL(tier::release, events::notify::keybd::lost, *this);
-                }
-                iter++;
-                kb_focus.erase(std::prev(iter));
-            }
-            if (kb_focus.empty()) owner.SIGNAL(tier::preview, events::notify::focus::lost, *this);
-        }
-        bool focus_changed()
-        {
-            //todo kb
-            return kb_focus_changed;
-        }
-
-        void kb_annul_0(sptr<base> item_ptr)
-        {
-            kb_focus_changed = faux;
-            item_ptr->SIGNAL(tier::release, events::upevent::kbannul, *this);
-        }
-
-        void kb_offer_1(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = true;
-            focus_combine = faux;
-            item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_2(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = true;
-            focus_combine = true;
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_3(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = faux;
-            focus_combine = true;
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_4(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = true;
-            item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_5(sptr<base> item_ptr)
-        {
-            auto s = state();
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_6(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = faux;
-            item_ptr->SIGNAL(tier::release, hids::events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_7(sptr<base> item_ptr)
-        {
-            auto s = state();
-            focus_force_group = faux;
-            focus_combine = faux;
-            item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
-            state(s);
-        }
-        void kb_offer_8(sptr<base> item_ptr, bool force_group)
-        {
-            auto s = state();
-            focus_force_group = force_group;
-            focus_combine = true;  // dtvt app is always a group of focused.
-            //todo
-            //item_ptr->SIGNAL(tier::release, events::upevent::kboffer, *this);
-            set_kb_focus(item_ptr);
-            state(s);
-        }
-
         text interpret()
         {
             auto textline = text{};

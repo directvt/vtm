@@ -327,7 +327,6 @@ namespace netxs::ui
                     owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        gear.kb_offer_2(owner.This());
                         pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
@@ -338,8 +337,6 @@ namespace netxs::ui
                     owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner.This());
-                        else                          gear.kb_offer_7(owner.This());
                         pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                         : pro::focus::solo::on, pro::focus::flip::on);
                     }
@@ -6581,7 +6578,6 @@ namespace netxs::ui
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                gear.kb_offer_2(this->This());
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 //todo respect bracketed paste mode
                 follow[axis::X] = true;
@@ -6609,7 +6605,6 @@ namespace netxs::ui
         {
             auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
                                                            : static_cast<clip::mime>(selmod);
-            gear.kb_offer_2(this->This());
             pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
             gear.set_clip_data(clip{ target->panel, data, mimetype });
         }
@@ -6664,7 +6659,6 @@ namespace netxs::ui
                                                    : text{};
             if (utf8.size())
             {
-                gear.kb_offer_2(this->This());
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
                 data_out(utf8);
