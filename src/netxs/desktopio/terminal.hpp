@@ -7374,21 +7374,21 @@ namespace netxs::ui
                     s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
                 });
             }
-            void handle(s11n::xs::focus               lock)
-            {
-                auto& f = lock.thing;
-                owner.trysync(owner.active, [&]
-                {
-                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
-                        else         gear.remove_from_kb_focus(owner.This());
-                        if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
-                        else         pro::focus::off(owner.This(), gear.id);
-                    }
-                });
-            }
+            //void handle(s11n::xs::focus               lock)
+            //{
+            //    auto& f = lock.thing;
+            //    owner.trysync(owner.active, [&]
+            //    {
+            //        if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+            //        {
+            //            auto& gear = *gear_ptr;
+            //            if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
+            //            else         gear.remove_from_kb_focus(owner.This());
+            //            if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
+            //            else         pro::focus::off(owner.This(), gear.id);
+            //        }
+            //    });
+            //}
             void handle(s11n::xs::form_header         lock)
             {
                 auto& h = lock.thing;

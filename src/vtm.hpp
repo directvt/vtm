@@ -922,9 +922,10 @@ namespace netxs::app::vtm
                             insts_count--;
                             log("hall: detached: ", insts_count);
                         };
-                        gear.clear_kb_focus(); // DirectVT app could have a group of focused.
-                        gear.kb_offer_5(window);
-                        pro::focus::set(window, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                        //gear.clear_kb_focus(); // DirectVT app could have a group of focused.
+                        //gear.kb_offer_5(window);
+                        //pro::focus::set(window, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
                 }

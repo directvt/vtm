@@ -1724,6 +1724,8 @@ namespace netxs::ui
             }
 
         public:
+            //todo focused_hub
+            //enum class mode { hub, focusable, focused, focused_hub };
             enum class mode { hub, focusable, focused };
             enum class solo { off = faux, on = true };
             enum class flip { off = faux, on = true };
@@ -1782,6 +1784,7 @@ namespace netxs::ui
                 // Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
                 {
+                    if constexpr (debugmode) log("data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = gears[gear.id];
                     auto  alive = gear.alive;
@@ -1821,9 +1824,9 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
+                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
                     auto& route = gears[seed.id];
                     route.active = true;
-                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
@@ -1882,7 +1885,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
                 {
                     // Copy the default up-route for the focus hub.
-                    if (!focusable && !seed.item) boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
+                    if (!focusable && !seed.item && seed.id) boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
 
                     auto& route = gears[seed.id];
                     if (!seed.item) // No focused item. We are the first.
@@ -3704,6 +3707,15 @@ namespace netxs::ui
 
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
+                //todo use input::forward<focus>
+                auto gear_it = input.gears.find(seed.id);
+                if (gear_it == input.gears.end())
+                {
+                    gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, seed.id == 0, *this, input.xmap)).first;
+                }
+                auto& [_id, gear_ptr] = *gear_it;
+                seed.id = gear_ptr->id;
+
                 auto deed = this->bell::template protos<tier::release>();
                 if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
                 if (auto target = local ? applet : base::parent())

@@ -661,7 +661,7 @@ namespace netxs::app::term
 
             auto shell = os::env::shell() + " -i";
             auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config))
-                              ->plugin<pro::focus>(pro::focus::mode::focused, faux);
+                              ->plugin<pro::focus>(pro::focus::mode::focused);
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
             static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)

@@ -429,6 +429,8 @@ namespace netxs::app::shared
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focused)
+                //todo focused_hub
+                //->plugin<pro::focus>(pro::focus::mode::focused_hub)
                 ->invoke([](auto& boss)
                 {
                     //todo
