@@ -434,6 +434,33 @@ namespace netxs::ui
             list items; // track: .
             bool alive; // track: Is active.
 
+            void add_keybd(id_t gear_id)
+            {
+                if (gear_id != id_t{})
+                {
+                    auto stat = focus.empty();
+                    auto iter = std::find(focus.begin(), focus.end(), gear_id);
+                    if (iter == focus.end())
+                    {
+                        focus.push_back(gear_id);
+                        if (stat) boss.deface();
+                    }
+                }
+            }
+            void del_keybd(id_t gear_id)
+            {
+                if (gear_id != id_t{})
+                {
+                    auto stat = focus.size();
+                    auto iter = std::find(focus.begin(), focus.end(), gear_id);
+                    if (iter != focus.end())
+                    {
+                        focus.erase(iter);
+                        if (stat) boss.deface();
+                    }
+                }
+            }
+
         public:
             track(base&&) = delete;
             track(base& boss, bool keybd_only = faux)
@@ -444,29 +471,15 @@ namespace netxs::ui
                 // Keybd focus.
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
-                    if (seed.id != id_t{})
-                    {
-                        auto stat = focus.empty();
-                        auto iter = std::find(focus.begin(), focus.end(), seed.id);
-                        if (iter == focus.end())
-                        {
-                            focus.push_back(seed.id);
-                            if (stat) boss.deface();
-                        }
-                    }
+                    add_keybd(seed.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
-                    if (seed.id != id_t{})
-                    {
-                        auto stat = focus.size();
-                        auto iter = std::find(focus.begin(), focus.end(), seed.id);
-                        if (iter != focus.end())
-                        {
-                            focus.erase(iter);
-                            if (stat) boss.deface();
-                        }
-                    }
+                    del_keybd(seed.id);
+                };
+                boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
+                {
+                    del_keybd(gear.id);
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
@@ -1693,8 +1706,9 @@ namespace netxs::ui
             bool scope; // focus: Cutoff threshold for the focus branch.
             struct config
             {
-                bool active = faux; // focus: The chain is under the focus.
-                bool focused = faux; // focus: Focused endpoint.
+                bool active{}; // focus: The chain is under the focus.
+                bool focused{}; // focus: Focused endpoint.
+                hook token; // focus: Cleanup token.
                 std::list<wptr<base>> next; // focus: Focus event next hop.
 
                 template<class P>
@@ -1712,15 +1726,27 @@ namespace netxs::ui
             };
             std::unordered_map<id_t, config> gears;
 
-            //todo deprecated
-            template<class T>
-            bool find(T test_id)
+            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
-                for (auto id : pool)
+                auto iter = gears.emplace(gear_id, std::move(cfg)).first;
+                auto& route = iter->second;
+                boss.LISTEN(tier::general, hids::events::die, gear, route.token)
                 {
-                    if (test_id == id) return true;
-                }
-                return faux;
+                    auto iter = gears.find(gear.id);
+                    if (iter != gears.end())
+                    {
+                        if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
+                        boss.SIGNAL(tier::release, hids::events::die, gear);
+                        gears.erase(iter);
+                    }
+                };
+                return iter;
+            }
+            auto& get_route(id_t gear_id)
+            {
+                auto iter = gears.find(gear_id);
+                if (iter == gears.end()) iter = add_route(gear_id);
+                return iter->second;
             }
 
         public:
@@ -1765,7 +1791,7 @@ namespace netxs::ui
                 {
                     if constexpr (debugmode) log("data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
-                    auto& route = gears[gear.id];
+                    auto& route = get_route(gear.id);
                     auto  alive = gear.alive;
                     auto  accum = alive;
                     route.foreach([&](auto& nexthop)
@@ -1780,7 +1806,7 @@ namespace netxs::ui
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
                 {
-                    auto& route = gears[seed.id];
+                    auto& route = get_route(seed.id);
                     auto deed = boss.bell::template protos<tier::release>();
                     if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
                     route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
@@ -1789,19 +1815,34 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
                     if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
-                    auto& route = gears[seed.id];
-                    route.active = true;
+                    //auto& route = get_route(seed.id);
+                    //route.active = true;
+                    //todo revise
+                    auto iter = gears.find(seed.id);
+                    if (iter == gears.end())
+                    {
+                        if (!focusable && seed.id) // Restore dtvt focus after reconnection.
+                        {
+                            boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
+                        }
+                        auto& route = get_route(seed.id);
+                        route.active = true;
+                    }
+                    else
+                    {
+                        auto& route = iter->second;
+                        route.active = true;
+                    }
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
-                    auto& route = gears[seed.id];
+                    auto& route = get_route(seed.id);
                     if (boss.base::parent())
                     {
                         route.active = faux;
                     }
                     else // World side (cut).
                     {
-                        log("++++++++++++++++++");
                         auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                         if (iter != route.next.end()) route.next.erase(iter);
                         seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
@@ -1814,14 +1855,14 @@ namespace netxs::ui
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
                     {
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
-                        if (def_route != gears.end()) gears.emplace(seed.id, def_route->second);
-                        else                          gears.emplace(seed.id, config{});
+                        if (def_route != gears.end()) add_route(seed.id, def_route->second);
+                        else                          add_route(seed.id, config{});
                     }
                 };
                 // Truncate the maximum path without branches.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, memo)
                 {
-                    auto& route = gears[seed.id];
+                    auto& route = get_route(seed.id);
                     auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                     if (iter != route.next.end())
                     {
@@ -1851,7 +1892,7 @@ namespace netxs::ui
                     // Copy the default up-route for the focus hub.
                     if (!focusable && !seed.item && seed.id) boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
 
-                    auto& route = gears[seed.id];
+                    auto& route = get_route(seed.id);
                     if (!seed.item) // No focused item. We are the first.
                     {
                         if (route.active)
@@ -1899,7 +1940,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::off, seed, memo)
                 {
-                    auto& route = gears[seed.id];
+                    auto& route = get_route(seed.id);
                     if (route.active)
                     {
                         route.focused = faux;
@@ -1936,12 +1977,19 @@ namespace netxs::ui
                         }
                     }
                 };
-
-                //todo deprecated
                 boss.LISTEN(tier::general, e2::form::proceed::functor, proc, memo)
                 {
-                    if (pool.size()) proc(boss.This());
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        if (gear_id != id_t{} && route.next.empty() && route.active) // route.focused === route.active & route.next.empty().
+                        {
+                            proc(boss.This());
+                        }
+                    }
                 };
+
+
+                //todo deprecated
                 boss.LISTEN(tier::anycast, e2::form::state::keybd::check, state, memo)
                 {
                     state = !pool.empty();

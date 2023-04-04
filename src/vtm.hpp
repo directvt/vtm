@@ -174,6 +174,10 @@ namespace netxs::app::vtm
             //todo local=>nexthop
             local = faux;
 
+            LISTEN(tier::release, hids::events::focus::set, gear, tokens)
+            {
+                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+            };
             //LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
             //{
             //    this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
@@ -606,13 +610,12 @@ namespace netxs::app::vtm
             }
         };
 
-        using idls = std::unordered_map<id_t, std::list<id_t>>;
+        using idls = std::vector<id_t>;
 
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
-        //todo foci
-        idls taken; // hall: Focused objects for the last user.
+        idls relic; // hall: Last spectator's gear id.
 
         auto window(link& what)
         {
@@ -815,11 +818,11 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, e2::form::proceed::detach, item_ptr)
             {
-                //todo only if the last user detaches
                 if (dbase.usrs.size() == 1) // Save all foci for the last user.
                 {
-                    auto& active = taken[id_t{}];
-                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc, ([&](sptr<base> focused_item_ptr){ active.push_back(focused_item_ptr->id); }));
+                    relic.clear();
+                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc, ([&](sptr<base> focused_item_ptr){ relic.push_back(focused_item_ptr->id); }));
+                    if constexpr (debugmode) for (auto id : relic) log(" relic: item:", id);
                 }
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
@@ -972,7 +975,6 @@ namespace netxs::app::vtm
         void autorun()
         {
             auto what = link{};
-            auto& active = taken[id_t{}];
             for (auto app_ptr : host::config.list(path_autorun))
             {
                 auto& app = *app_ptr;
@@ -985,8 +987,8 @@ namespace netxs::app::vtm
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
-                        auto window = create(what);
-                        if (focused) active.push_back(window->id);
+                        auto window_ptr = create(what);
+                        if (focused) relic.push_back(window_ptr->id);
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }
@@ -995,25 +997,16 @@ namespace netxs::app::vtm
         // hall: Restore all foci for the first user.
         void autofocus(hids& gear)
         {
-            auto focus = [&](auto& active)
+            auto count = 0;
+            for (auto item_id : relic)
             {
-                if (active.size())
+                if (auto item_ptr = bell::getref<base>(item_id))
                 {
-                    for (auto id : active)
-                    {
-                        if (auto window_ptr = bell::getref<base>(id))
-                        {
-                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                        }
-                    }
-                    active.clear();
+                    pro::focus::set(item_ptr, gear.id, count++ ? pro::focus::solo::off // Reset all foci.
+                                                               : pro::focus::solo::on, pro::focus::flip::off);
                 }
-            };
-            focus(taken[id_t{}]);
-            if (auto iter = taken.find(gear.id); iter != taken.end())
-            {
-                focus(iter->second);
             }
+            relic.clear();
         }
         void redraw(face& canvas) override
         {

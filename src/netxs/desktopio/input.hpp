@@ -747,7 +747,6 @@ namespace netxs::input
         {
             auto lock = netxs::events::sync{};
             mouse_leave(mouse::hover, mouse::start);
-            //todo clear_kb_focus?
             SIGNAL(tier::general, events::halt, *this);
             SIGNAL(tier::general, events::die, *this);
         }
@@ -971,7 +970,10 @@ namespace netxs::input
         }
         void take(sysfocus& f)
         {
+            if constexpr (debugmode) log("take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
+            if (f.state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
+            else         owner.SIGNAL(tier::release, hids::events::focus::off, *this);
         }
 
         auto& area() const { return idmap.area(); }
