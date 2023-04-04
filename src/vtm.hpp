@@ -171,7 +171,7 @@ namespace netxs::app::vtm
         gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
-            //todo
+            //todo local=>nexthop
             local = faux;
 
             //LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
@@ -838,8 +838,8 @@ namespace netxs::app::vtm
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
                             auto& gear = *gear_ptr;
-                            this->SIGNAL(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
-                            if (gear_id_list.size() == 1) // If it is the last focused item.
+                            this->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear_id, 0));
+                            if (gear_test.second == 1) // If it is the last focused item.
                             {
                                 pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                             }

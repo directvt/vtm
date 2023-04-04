@@ -409,6 +409,7 @@ namespace netxs::events::userland
                     {
                         EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
                     };
                 };

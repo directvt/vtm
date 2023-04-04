@@ -1924,6 +1924,18 @@ namespace netxs::ui
                     auto iter = gears.find(gear_test.first);
                     if (iter != gears.end() && iter->second.active) gear_test.second++;
                 };
+                boss.LISTEN(tier::request, e2::form::state::keybd::next, gear_test, memo)
+                {
+                    auto iter = gears.find(gear_test.first);
+                    if (iter != gears.end())
+                    {
+                        auto& route = iter->second;
+                        if (route.active)
+                        {
+                            route.foreach([&](auto& nexthop){ gear_test.second++; });
+                        }
+                    }
+                };
 
                 //todo deprecated
                 boss.LISTEN(tier::general, e2::form::proceed::functor, proc, memo)
