@@ -1736,7 +1736,11 @@ namespace netxs::ui
                     if (iter != gears.end())
                     {
                         if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
-                        gears[id_t{}] = std::move(iter->second);
+                        auto& route = iter->second;
+                        if (route.active) // Keep only the active branch.
+                        {
+                            gears[id_t{}] = std::move(route);
+                        }
                         boss.SIGNAL(tier::release, hids::events::die, gear);
                         gears.erase(iter);
                     }
@@ -1751,9 +1755,7 @@ namespace netxs::ui
             }
 
         public:
-            //todo focused_hub
-            //enum class mode { hub, focusable, focused, focused_hub };
-            enum class mode { hub, focusable, focused };
+            enum class mode { hub, focusable, focused, active };
             enum class solo { off = faux, on = true };
             enum class flip { off = faux, on = true };
             static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f, bool skip = faux)
@@ -1770,14 +1772,14 @@ namespace netxs::ui
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)
                 : skill{ boss },
-                  focusable{ m != mode::hub },
+                  focusable{ m != mode::hub && m != mode::active },
                   scope{ cut_scope }
             {
-                if (m == mode::focused) // Pave default focus path at startup.
+                if (m == mode::focused || m == mode::active) // Pave default focus path at startup.
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo, (m))
                     {
-                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off);
+                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off, m == mode::active ? true : faux);
                     };
                 }
                 // Set unique focus on left click. Set group focus on Ctrl+LeftClick.

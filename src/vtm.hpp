@@ -927,11 +927,13 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed)
             {
-                if (seed.id == id_t{})
-                {
-                    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
-                }
-                else if (auto gear_ptr = bell::getref<hids>(seed.id))
+                //todo revise: dtvt-app focus state can be wrong when user reconnects
+                //if (seed.id == id_t{})
+                //{
+                //    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                //}
+                //else
+                if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     //seed.item = this->This();
@@ -940,11 +942,13 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed)
             {
-                if (seed.id == id_t{})
-                {
-                    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
-                }
-                else if (auto gear_ptr = bell::getref<hids>(seed.id))
+                //todo revise
+                //if (seed.id == id_t{})
+                //{
+                //    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                //}
+                //else
+                if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     seed.item = this->This();

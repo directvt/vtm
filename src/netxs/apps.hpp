@@ -428,13 +428,9 @@ namespace netxs::app::shared
         {
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
-                ->plugin<pro::focus>(pro::focus::mode::focused)
-                //todo focused_hub
-                //->plugin<pro::focus>(pro::focus::mode::focused_hub)
+                ->plugin<pro::focus>(pro::focus::mode::active)
                 ->invoke([](auto& boss)
                 {
-                    //todo
-                    //boss.keybd.accept(true);
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
                         boss.start();
