@@ -483,7 +483,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
-                    if (focus.empty()) return;
+                    if (focus.empty() || !alive) return;
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
                     auto title_fg_color = rgba{ 0xFFffffff };
@@ -516,12 +516,12 @@ namespace netxs::ui
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     parent_canvas.cage(area, dot_21, fill);
                 };
-                if (keybd_only) return;
-                // Mouse focus.
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
+                if (keybd_only) return;
+                // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
