@@ -7280,8 +7280,7 @@ namespace netxs::ui
                     if (auto gear_ptr = bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = owner.base::parent())
                     {
-                        //pro::focus::set(gear_id, item_ptr);
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .solo = k.solo, .id = k.gear_id, .item = owner.This() }));
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
                     }
                 });
             }

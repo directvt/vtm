@@ -174,18 +174,12 @@ namespace netxs::app::vtm
             //todo local=>nexthop
             local = faux;
 
-            LISTEN(tier::release, hids::events::focus::set, gear, tokens)
+            auto oneoff = ptr::shared(hook{});
+            LISTEN(tier::release, hids::events::focus::set, gear, *oneoff, (oneoff))
             {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
+                this->RISEUP(tier::release, e2::form::proceed::autofocus, gear);
+                oneoff.reset();
             };
-            //LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-            //{
-            //    this->RISEUP(tier::release, e2::form::proceed::autofocus::take, gear);
-            //};
-            //LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-            //{
-            //    this->RISEUP(tier::release, e2::form::proceed::autofocus::lost, gear);
-            //};
             LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
             {
                 if (gear)
@@ -615,7 +609,6 @@ namespace netxs::app::vtm
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
-        idls relic; // hall: Last spectator's gear id.
 
         auto window(link& what)
         {
@@ -818,12 +811,6 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, e2::form::proceed::detach, item_ptr)
             {
-                if (dbase.usrs.size() == 1) // Save all foci for the last user.
-                {
-                    relic.clear();
-                    this->SIGNAL(tier::general, e2::form::proceed::functor, proc, ([&](sptr<base> focused_item_ptr){ relic.push_back(focused_item_ptr->id); }));
-                    if constexpr (debugmode) for (auto id : relic) log(" relic: item:", id);
-                }
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
                 host::denote(users.remove(inst.id));
@@ -889,15 +876,10 @@ namespace netxs::app::vtm
                     prev = prev_ptr->object;
                 }
             };
-            LISTEN(tier::release, e2::form::proceed::autofocus::take, gear)
+            LISTEN(tier::release, e2::form::proceed::autofocus, gear) // Restore all foci for the first user.
             {
-                autofocus(gear);
+                pro::focus::set(This(), gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
             };
-            //LISTEN(tier::release, e2::form::proceed::autofocus::lost, gear)
-            //{
-            //    taken[gear.id] = gear.get_kb_focus();
-            //    gear.clear_kb_focus();
-            //};
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 static auto insts_count = si32{ 0 };
@@ -945,7 +927,11 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed)
             {
-                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                if (seed.id == id_t{})
+                {
+                    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
+                }
+                else if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     //seed.item = this->This();
@@ -954,7 +940,11 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::preview, hids::events::keybd::focus::set, seed)
             {
-                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                if (seed.id == id_t{})
+                {
+                    this->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                }
+                else if (auto gear_ptr = bell::getref<hids>(seed.id))
                 {
                     auto& gear = *gear_ptr;
                     seed.item = this->This();
@@ -975,7 +965,10 @@ namespace netxs::app::vtm
         void autorun()
         {
             auto what = link{};
-            for (auto app_ptr : host::config.list(path_autorun))
+            auto apps = host::config.list(path_autorun);
+            auto foci = std::vector<sptr<base>>();
+            foci.reserve(apps.size());
+            for (auto app_ptr : apps)
             {
                 auto& app = *app_ptr;
                 if (!app.fake)
@@ -988,25 +981,22 @@ namespace netxs::app::vtm
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (focused) relic.push_back(window_ptr->id);
+                        if (focused) foci.push_back(window_ptr);
                     }
                     else log("hall: Unexpected empty app id in autorun configuration");
                 }
             }
-        }
-        // hall: Restore all foci for the first user.
-        void autofocus(hids& gear)
-        {
             auto count = 0;
-            for (auto item_id : relic)
+            for (auto& window_ptr : foci)
             {
-                if (auto item_ptr = bell::getref<base>(item_id))
-                {
-                    pro::focus::set(item_ptr, gear.id, count++ ? pro::focus::solo::off // Reset all foci.
-                                                               : pro::focus::solo::on, pro::focus::flip::off);
-                }
+                pro::focus::set(window_ptr, id_t{}, count++ ? pro::focus::solo::off // Reset all foci on the first item.
+                                                            : pro::focus::solo::on, pro::focus::flip::off);
             }
-            relic.clear();
+            if constexpr (debugmode)
+            {
+                SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (0,0));
+                log("hall: autofocused items count:", gear_test.second);
+            }
         }
         void redraw(face& canvas) override
         {

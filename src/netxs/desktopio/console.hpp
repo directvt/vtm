@@ -1736,6 +1736,7 @@ namespace netxs::ui
                     if (iter != gears.end())
                     {
                         if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
+                        gears[id_t{}] = std::move(iter->second);
                         boss.SIGNAL(tier::release, hids::events::die, gear);
                         gears.erase(iter);
                     }
@@ -1755,14 +1756,14 @@ namespace netxs::ui
             enum class mode { hub, focusable, focused };
             enum class solo { off = faux, on = true };
             enum class flip { off = faux, on = true };
-            static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f)
+            static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f, bool skip = faux)
             {
-                item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .solo = (bool)s, .flip = (bool)f, .id = gear_id }));
+                if (item_ptr) item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = gear_id, .solo = (bool)s, .flip = (bool)f, .skip = skip }));
                 if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
             }
             static void off(sptr<base> item_ptr, id_t gear_id)
             {
-                item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = gear_id }));
+                if (item_ptr) item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = gear_id }));
                 if constexpr (debugmode) log("foci: focus off gear:", seed.id);
             }
 
@@ -1889,8 +1890,11 @@ namespace netxs::ui
                 // Subscribe on focus offers. Build a focus tree.
                 boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
                 {
-                    // Copy the default up-route for the focus hub.
-                    if (!focusable && !seed.item && seed.id) boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
+                    auto focusable = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
+                    if (!focusable && !seed.item && seed.id) // Copy the default up-route for the focus hub.
+                    {
+                        boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
+                    }
 
                     auto& route = get_route(seed.id);
                     if (!seed.item) // No focused item. We are the first.
@@ -1900,7 +1904,6 @@ namespace netxs::ui
                             if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
                             {
                                 if (focusable) route.focused = faux;
-                                //log("seed.flip");
                                 boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                                 return;
                             }
