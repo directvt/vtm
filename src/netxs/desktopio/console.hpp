@@ -1758,15 +1758,37 @@ namespace netxs::ui
             enum class mode { hub, focusable, focused, active };
             enum class solo { off = faux, on = true };
             enum class flip { off = faux, on = true };
-            static void set(sptr<base> item_ptr, id_t gear_id, solo s, flip f, bool skip = faux)
+            template<class T>
+            static void set(sptr<base> item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
             {
-                if (item_ptr) item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = gear_id, .solo = (bool)s, .flip = (bool)f, .skip = skip }));
-                if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
+                auto fire = [&](auto id)
+                {
+                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (bool)s, .flip = (bool)f, .skip = skip }));
+                    if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
+                };
+                if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
+                else                    for (auto next_id : gear_id) fire(next_id);
             }
-            static void off(sptr<base> item_ptr, id_t gear_id)
+            template<class T>
+            static void off(sptr<base> item_ptr, T&& gear_id)
             {
-                if (item_ptr) item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = gear_id }));
-                if constexpr (debugmode) log("foci: focus off gear:", seed.id);
+                auto fire = [&](auto id)
+                {
+                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
+                    if constexpr (debugmode) log("foci: focus off gear:", seed.id, " item:", item_ptr->id);
+                };
+                if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
+                else                    for (auto next_id : gear_id) fire(next_id);
+            }
+            static auto get(sptr<base> item_ptr)
+            {
+                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                for (auto next_id : gear_id_list)
+                {
+                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
+                    if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
+                };
+                return gear_id_list;
             }
 
             focus(base&&) = delete;
@@ -1957,6 +1979,11 @@ namespace netxs::ui
                             seed.item = temp;
                         }
                     }
+                };
+                boss.LISTEN(tier::preview, hids::events::keybd::focus::get, seed, memo)
+                {
+                    boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
+                    gears.erase(seed.id);
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
                 {

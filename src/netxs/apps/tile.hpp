@@ -299,11 +299,14 @@ namespace netxs::app::tile
                                 master.SIGNAL(tier::preview, e2::form::proceed::detach, applet_ptr);
                                 applet.moveto(dot_00);
 
+                                // Expropriate all foci.
+                                auto gear_id_list = pro::focus::get(master_ptr);
+
                                 // Attach to the world.
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
-                                
-                                pro::focus::set(what.applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                                pro::focus::off(master_ptr, gear.id);
+
+                                // Refocus.
+                                pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true);
 
                                 // Destroy placeholder.
                                 master.RISEUP(tier::release, e2::form::quit, master_ptr);
@@ -459,11 +462,13 @@ namespace netxs::app::tile
                         auto count = boss.count();
                         if (count == 1) // Only empty slot available.
                         {
+                            auto gear_id_list = pro::focus::get(what.applet);
                             //todo unify
                             boss.back()->color(cC.fgc(), cC.bgc());
                             auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
+                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)

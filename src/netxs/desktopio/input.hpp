@@ -112,6 +112,7 @@ namespace netxs::events::userland
                     //EVENT_XS( tie , proc_fx ),
                     //EVENT_XS( die , input::foci ),
                     EVENT_XS( set, input::foci ),
+                    EVENT_XS( get, input::foci ),
                     EVENT_XS( off, input::foci ),
                     EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                     GROUP_XS( bus, input::foci ),
