@@ -1780,6 +1780,12 @@ namespace netxs::ui
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
+            static void off(sptr<base> item_ptr)
+            {
+                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                pro::focus::off(item_ptr, gear_id_list);
+                if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
+            }
             static auto get(sptr<base> item_ptr)
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
@@ -1787,7 +1793,7 @@ namespace netxs::ui
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
                     if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
-                };
+                }
                 return gear_id_list;
             }
 

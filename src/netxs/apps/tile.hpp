@@ -460,11 +460,11 @@ namespace netxs::app::tile
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
                         auto count = boss.count();
-                        if (count == 1) // Only empty slot available.
+                        if (count == 1) // Only empty pane/slot available.
                         {
+                            pro::focus::off(boss.This());
                             auto gear_id_list = pro::focus::get(what.applet);
-                            //todo unify
-                            boss.back()->color(cC.fgc(), cC.bgc());
+                            boss.back()->color(cC.fgc(), cC.bgc()); //todo unify
                             auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
