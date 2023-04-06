@@ -31,24 +31,24 @@ namespace netxs::events::userland
             SUBSET_XS( notify )
             {
                 GROUP_XS( mouse, input::hids ),
-                GROUP_XS( keybd, input::hids ),
-                GROUP_XS( focus, input::hids ),
+                //GROUP_XS( keybd, input::hids ),
+                //GROUP_XS( focus, input::hids ),
 
                 SUBSET_XS( mouse )
                 {
                     EVENT_XS( enter, input::hids ), // inform the form about the mouse hover.
                     EVENT_XS( leave, input::hids ), // inform the form about leaving the mouse.
                 };
-                SUBSET_XS( keybd )
-                {
-                    EVENT_XS( got , input::hids ),
-                    EVENT_XS( lost, input::hids ),
-                };
-                SUBSET_XS( focus )
-                {
-                    EVENT_XS( got , input::hids ),
-                    EVENT_XS( lost, input::hids ),
-                };
+                //SUBSET_XS( keybd )
+                //{
+                //    EVENT_XS( got , input::hids ),
+                //    EVENT_XS( lost, input::hids ),
+                //};
+                //SUBSET_XS( focus )
+                //{
+                //    EVENT_XS( got , input::hids ),
+                //    EVENT_XS( lost, input::hids ),
+                //};
             };
             SUBSET_XS( keybd )
             {

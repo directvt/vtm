@@ -409,18 +409,11 @@ namespace netxs::ui
                 {
                     if (!token) // Do not subscribe if it is already subscribed.
                     {
-                        owner.LISTEN(tier::release, hids::events::notify::keybd::any, gear, token)
+                        owner.LISTEN(tier::release, e2::form::state::keybd::focus, s, token)
                         {
-                            auto s = state;
-                            switch (owner.bell::protos<tier::release>())
-                            {
-                                case hids::events::notify::keybd::got .id: state = true; break;
-                                case hids::events::notify::keybd::lost.id: state = faux; break;
-                                default: return;
-                            }
-                            if (s != state) owner.answer(queue.fcs(state));
+                            if (state(s)) owner.answer(queue.fcs(s));
                         };
-                        owner.SIGNAL(tier::anycast, e2::form::state::keybd::check, state);
+                        owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
                     }
                 }
                 else token.reset();
@@ -430,7 +423,7 @@ namespace netxs::ui
             term&       owner; // f_tracking: Terminal object reference.
             hook        token; // f_tracking: Subscription token.
             ansi::esc   queue; // f_tracking: Buffer.
-            bool        state; // f_tracking: Current focus state.
+            testy<bool> state; // f_tracking: Current focus state.
         };
 
         // term: Terminal title tracking functionality.

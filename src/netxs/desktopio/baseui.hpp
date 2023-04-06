@@ -142,7 +142,6 @@ namespace netxs::events::userland
                 EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod     ),
                 GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( highlight, bool           ),
                 GROUP_XS( upon     , bool           ),
                 GROUP_XS( proceed  , bool           ),
                 GROUP_XS( cursor   , bool           ),
@@ -180,12 +179,6 @@ namespace netxs::events::userland
                     //EVENT_XS( rect      , rect       ), // return client rect.
                     //EVENT_XS( show      , bool       ), // order to make it visible.
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
-                };
-                SUBSET_XS( highlight )
-                {
-                    EVENT_XS( on , bool ),
-                    EVENT_XS( off, bool ),
-                    EVENT_XS( set, bool ),
                 };
                 SUBSET_XS( upon )
                 {
@@ -391,12 +384,13 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    EVENT_XS( header, ui::para ), // notify the client has changed title.
-                    EVENT_XS( footer, ui::para ), // notify the client has changed footer.
-                    EVENT_XS( params, ui::para ), // notify the client has changed title params.
-                    EVENT_XS( color , ui::tone ), // notify the client has changed tone, preview to set.
-                    GROUP_XS( keybd , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    EVENT_XS( mouse    , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    EVENT_XS( header   , ui::para ), // notify the client has changed title.
+                    EVENT_XS( footer   , ui::para ), // notify the client has changed footer.
+                    EVENT_XS( params   , ui::para ), // notify the client has changed title params.
+                    EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
+                    EVENT_XS( highlight, bool     ),
+                    GROUP_XS( keybd    , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
 
                     SUBSET_XS( keybd )
                     {
@@ -404,6 +398,7 @@ namespace netxs::events::userland
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
+                        EVENT_XS( focus   , bool               ), // release: Has any keybd focus.
                     };
                 };
             };

@@ -374,7 +374,7 @@ namespace netxs::app::vtm
                 {
                     header.active = state;
                 };
-                inst.LISTEN(tier::release, e2::form::highlight::any, state, tokens)
+                inst.LISTEN(tier::release, e2::form::state::highlight, state, tokens)
                 {
                     header.highlighted = state;
                 };

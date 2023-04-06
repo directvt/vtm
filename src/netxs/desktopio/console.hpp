@@ -1247,7 +1247,7 @@ namespace netxs::ui
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
             {
-                boss.LISTEN(tier::anycast, e2::form::highlight::any, state, conf)
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus, state, conf)
                 {
                     down = !state;
                 };
@@ -1726,25 +1726,42 @@ namespace netxs::ui
             };
             std::unordered_map<id_t, config> gears;
 
+            template<bool On = true>
+            void signal_state()
+            {
+                if constexpr (On == faux)
+                {
+                    for (auto& [k, r] : gears)
+                    {
+                        if (r.active) return;
+                    }
+                }
+                boss.SIGNAL(tier::release, e2::form::state::keybd::focus, On);
+            }
             auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
                 auto iter = gears.emplace(gear_id, std::move(cfg)).first;
-                auto& route = iter->second;
-                boss.LISTEN(tier::general, hids::events::die, gear, route.token)
+                if (gear_id != id_t{})
                 {
-                    auto iter = gears.find(gear.id);
-                    if (iter != gears.end())
+                    auto& route = iter->second;
+                    boss.LISTEN(tier::general, hids::events::die, gear, route.token)
                     {
-                        if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
-                        auto& route = iter->second;
-                        if (route.active) // Keep only the active branch.
+                        auto iter = gears.find(gear.id);
+                        if (iter != gears.end())
                         {
-                            gears[id_t{}] = std::move(route);
+                            if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
+                            auto& route = iter->second;
+                            auto  token = std::move(route.token);
+                            if (route.active) // Keep only the active branch.
+                            {
+                                gears[id_t{}] = std::move(route);
+                                signal_state<faux>();
+                            }
+                            boss.SIGNAL(tier::release, hids::events::die, gear);
+                            gears.erase(iter);
                         }
-                        boss.SIGNAL(tier::release, hids::events::die, gear);
-                        gears.erase(iter);
-                    }
-                };
+                    };
+                }
                 return iter;
             }
             auto& get_route(id_t gear_id)
@@ -1810,6 +1827,14 @@ namespace netxs::ui
                         pro::focus::set(boss.This(), id_t{}, solo::off, flip::off, m == mode::active ? true : faux);
                     };
                 }
+                boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
+                {
+                    state = faux;
+                    for (auto& [k, r] : gears)
+                    {
+                        if (state |= r.active) return;
+                    }
+                };
                 // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
                 {
@@ -1846,9 +1871,6 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
                     if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
-                    //auto& route = get_route(seed.id);
-                    //route.active = true;
-                    //todo revise
                     auto iter = gears.find(seed.id);
                     if (iter == gears.end())
                     {
@@ -1864,20 +1886,13 @@ namespace netxs::ui
                         auto& route = iter->second;
                         route.active = true;
                     }
+                    if (seed.id != id_t{}) signal_state();
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
                     auto& route = get_route(seed.id);
-                    if (boss.base::parent())
-                    {
-                        route.active = faux;
-                    }
-                    else // World side (cut).
-                    {
-                        auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                        if (iter != route.next.end()) route.next.erase(iter);
-                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
-                    }
+                    route.active = faux;
+                    if (seed.id != id_t{}) signal_state<faux>();
                     if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
@@ -1897,7 +1912,7 @@ namespace netxs::ui
                     auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                     if (iter != route.next.end())
                     {
-                        if (scope || route.next.size() != 1)
+                        if (scope || route.next.size() != 1) // The root of the branch.
                         {
                             route.next.erase(iter);
                         }
@@ -2023,50 +2038,6 @@ namespace netxs::ui
                         {
                             proc(boss.This());
                         }
-                    }
-                };
-
-
-                //todo deprecated
-                boss.LISTEN(tier::anycast, e2::form::state::keybd::check, state, memo)
-                {
-                    state = !pool.empty();
-                };
-                boss.LISTEN(tier::anycast, e2::form::highlight::set, state, memo)
-                {
-                    state = !pool.empty();
-                    boss.RISEUP(tier::preview, e2::form::highlight::any, state);
-                };
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
-                {
-                    auto state = !pool.empty();
-                    boss.RISEUP(tier::preview, e2::form::highlight::any, state);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::keybd::got, gear, memo)
-                {
-                    boss.RISEUP(tier::preview, e2::form::highlight::any, true);
-                    boss.SIGNAL(tier::anycast, e2::form::highlight::any, true);
-                    pool.push_back(gear.id);
-                    boss.base::deface();
-                };
-                boss.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, memo)
-                {
-                    if (!pool.empty())
-                    {
-                        auto head = pool.begin();
-                        auto tail = pool.end();
-                        auto item = std::find_if(head, tail, [&](auto& c) { return c == gear.id; });
-                        if (item != tail)
-                        {
-                            pool.erase(item);
-                        }
-                        boss.base::deface();
-                    }
-
-                    if (pool.empty())
-                    {
-                        boss.RISEUP(tier::preview, e2::form::highlight::any, faux);
-                        boss.SIGNAL(tier::anycast, e2::form::highlight::any, faux);
                     }
                 };
             }
@@ -2663,7 +2634,7 @@ namespace netxs::ui
             light(base& boss, bool track_mouse = faux)
                 : skill{ boss }
             {
-                boss.LISTEN(tier::release, e2::form::highlight::any, state, memo)
+                boss.LISTEN(tier::release, e2::form::state::highlight, state, memo)
                 {
                     highlighted = state;
                     boss.base::deface();

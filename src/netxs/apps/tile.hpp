@@ -95,14 +95,7 @@ namespace netxs::app::tile
                         ->invoke([&](auto& boss)
                         {
                             auto data_shadow = ptr::shadow(data_src_sptr);
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
-                            {
-                                if (auto data_ptr = data_shadow.lock())
-                                {
-                                    data_ptr->SIGNAL(tier::anycast, e2::form::highlight::set, state, ());
-                                }
-                            };
-                            data_src_sptr->LISTEN(tier::preview, e2::form::highlight::any, state, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus, state, boss.tracker)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
@@ -126,7 +119,7 @@ namespace netxs::app::tile
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->SIGNAL(tier::release, e2::form::highlight::any, active);
+                                    data_ptr->SIGNAL(tier::release, e2::form::state::highlight, active);
                                 }
                             };
                         });
@@ -252,6 +245,7 @@ namespace netxs::app::tile
                     ->template plugin<pro::title>(""/*not used here*/, what.footer, true, faux, true)
                     ->template plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->template plugin<pro::light>()
+                    ->template plugin<pro::focus>()
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -266,6 +260,7 @@ namespace netxs::app::tile
                         boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = what.menuid))
                         {
                             if (auto master_ptr = master_shadow.lock())
+                            if (auto parent_ptr = master_ptr->parent())
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
                             {
@@ -300,7 +295,7 @@ namespace netxs::app::tile
                                 applet.moveto(dot_00);
 
                                 // Expropriate all foci.
-                                auto gear_id_list = pro::focus::get(master_ptr);
+                                auto gear_id_list = pro::focus::get(parent_ptr);
 
                                 // Attach to the world.
                                 world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
@@ -468,7 +463,8 @@ namespace netxs::app::tile
                             auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true);
+                            //todo revise focus::solo::off
+                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)

@@ -101,7 +101,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::release, e2::form::highlight::any, !!hits);
+                            data_src->SIGNAL(tier::release, e2::form::state::highlight, !!hits);
                         }
                     };
                 });
