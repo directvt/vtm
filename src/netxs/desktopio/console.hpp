@@ -3702,6 +3702,15 @@ namespace netxs::ui
             limit.set(dot_11);
             title.live = faux;
 
+            auto oneoff = ptr::shared(hook{});
+            LISTEN(tier::release, hids::events::focus::set, gear, *oneoff, (oneoff)) // Restore all foci for the first user.
+            {
+                if (auto target = local ? applet : base::parent())
+                {
+                    pro::focus::set(target, gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
+                }
+                oneoff.reset();
+            };
             LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)

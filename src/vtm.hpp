@@ -174,12 +174,6 @@ namespace netxs::app::vtm
             //todo local=>nexthop
             local = faux;
 
-            auto oneoff = ptr::shared(hook{});
-            LISTEN(tier::release, hids::events::focus::set, gear, *oneoff, (oneoff))
-            {
-                this->RISEUP(tier::release, e2::form::proceed::autofocus, gear);
-                oneoff.reset();
-            };
             LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
             {
                 if (gear)
@@ -875,10 +869,6 @@ namespace netxs::app::vtm
                 {
                     prev = prev_ptr->object;
                 }
-            };
-            LISTEN(tier::release, e2::form::proceed::autofocus, gear) // Restore all foci for the first user.
-            {
-                pro::focus::set(This(), gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
