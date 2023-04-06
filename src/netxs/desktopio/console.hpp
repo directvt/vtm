@@ -1697,13 +1697,6 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            //todo deprecated
-            using list = gear_id_list_t;
-            list pool; // focus: List of active input devices.
-
-            //todo kb navigation type: transit, cyclic, plain, disabled, closed
-            bool focusable; // focus: Boss could be a focus endpoint.
-            bool scope; // focus: Cutoff threshold for the focus branch.
             struct config
             {
                 bool active{}; // focus: The chain is under the focus.
@@ -1724,6 +1717,10 @@ namespace netxs::ui
                     }
                 }
             };
+
+            //todo kb navigation type: transit, cyclic, plain, disabled, closed
+            bool focusable; // focus: Boss could be a focus endpoint.
+            bool scope; // focus: Cutoff threshold for the focus branch.
             std::unordered_map<id_t, config> gears;
 
             template<bool On = true>
