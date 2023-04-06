@@ -1721,6 +1721,7 @@ namespace netxs::ui
             //todo kb navigation type: transit, cyclic, plain, disabled, closed
             bool focusable; // focus: Boss could be a focus endpoint.
             bool scope; // focus: Cutoff threshold for the focus branch.
+            //todo std::list<config>??? std::unordered_map is too expensive
             std::unordered_map<id_t, config> gears;
 
             template<bool On = true>
