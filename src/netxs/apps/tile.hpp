@@ -562,16 +562,15 @@ namespace netxs::app::tile
                         {
                             auto depth = e2::depth.param();
                             boss.template riseup<tier::request>(e2::depth, depth, true);
-                            log("tile: depth=", depth);
+                            if constexpr (debugmode) log("tile: depth=", depth);
                             if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
                             auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
                             auto empty_1 = empty_slot(empty_slot);
                             auto empty_2 = empty_slot(empty_slot);
-                            auto curitem = boss.pop_back(); // In order to preserve all foci.
-                            pro::focus::set(empty_2, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                            pro::focus::off(curitem, gear.id);
+                            auto gear_id = pro::focus::get(boss.This()); // Seize all foci.
+                            auto curitem = boss.pop_back();
                             if (boss.empty())
                             {
                                 boss.attach(empty_pane());
@@ -580,6 +579,8 @@ namespace netxs::app::tile
                             auto slot_1 = newnode->attach(slot::_1, empty_1->branch(curitem));
                             auto slot_2 = newnode->attach(slot::_2, empty_2);
                             boss.attach(newnode);
+                            pro::focus::set(slot_1->back(), gear_id, pro::focus::solo::off, pro::focus::flip::off); // Handover all foci.
+                            pro::focus::set(slot_2->back(), gear_id, pro::focus::solo::off, pro::focus::flip::off);
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::quit, nested_item_ptr)
