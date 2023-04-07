@@ -260,11 +260,9 @@ namespace netxs::app::tile
                         boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, -, (applet_shadow, master_shadow, menuid = what.menuid))
                         {
                             if (auto master_ptr = master_shadow.lock())
-                            if (auto parent_ptr = master_ptr->parent())
                             if (auto applet_ptr = applet_shadow.lock())
                             if (applet_ptr->area().hittest(gear.coord))
                             {
-                                //todo master == boss
                                 auto& master = *master_ptr;
                                 auto& applet = *applet_ptr;
 
@@ -272,7 +270,7 @@ namespace netxs::app::tile
                                 if (deed != hids::events::mouse::button::drag::start::left.id
                                  && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
-                                // Reset restoring callback.
+                                // Restore if maximized. Parent can be changed.
                                 master.SIGNAL(tier::release, e2::form::restore, e2::form::restore.param());
 
                                 // Take current title.
@@ -294,17 +292,13 @@ namespace netxs::app::tile
                                 master.SIGNAL(tier::preview, e2::form::proceed::detach, applet_ptr);
                                 applet.moveto(dot_00);
 
-                                // Expropriate all foci.
-                                auto gear_id_list = pro::focus::get(parent_ptr);
-
-                                // Attach to the world.
-                                world_ptr->SIGNAL(tier::request, vtm::events::handoff, what);
-
-                                // Refocus.
-                                pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true);
-
-                                // Destroy placeholder.
-                                master.RISEUP(tier::release, e2::form::quit, master_ptr);
+                                if (auto parent_ptr = master.parent())
+                                {
+                                    auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
+                                    world_ptr->SIGNAL(tier::request, vtm::events::handoff, what); // Attach to the world.
+                                    pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
+                                    master.RISEUP(tier::release, e2::form::quit, master_ptr); // Destroy placeholder.
+                                }
 
                                 // Handover mouse input.
                                 master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
@@ -531,44 +525,34 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::form::maximize, gear, -, (oneoff = subs{}))
                     {
-                        auto count = boss.count();
-                        if (count > 2) // It is a root.
-                        {
-                            auto item_ptr = boss.pop_back();
-                            item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
-                            return;
-                        }
-                        if (oneoff)
+                        if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
                             boss.RISEUP(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
-                            return;
                         }
-                        if (count > 1) // Preventing the empty slot from maximizing.
+                        else
                         {
-                            //todo revise
+                            if (boss.count() > 1) // Preventing the empty slot from maximizing.
                             if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
+                            if (auto fullscreen_item = boss.pop_back())
                             {
-                                // Pass the focus to the maximized window.
-                                pro::focus::set(boss.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
-                                auto fullscreen_item = boss.pop_back();
-                                if (fullscreen_item)
+                                auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
+                                fullscreen_item->LISTEN(tier::release, e2::form::restore, item_ptr, oneoff)
                                 {
-                                    fullscreen_item->LISTEN(tier::release, e2::form::restore, item_ptr, oneoff)
+                                    if (item_ptr)
                                     {
-                                        if (item_ptr)
-                                        {
-                                            boss.attach(item_ptr);
-                                            boss.base::reflow();
-                                        }
-                                        oneoff.reset();
-                                    };
-                                    fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
-                                    {
-                                        oneoff.reset();
-                                    };
-                                    boss.RISEUP(tier::release, e2::form::proceed::attach, fullscreen_item);
-                                    boss.base::reflow();
-                                }
+                                        boss.attach(item_ptr);
+                                        boss.base::reflow();
+                                    }
+                                    oneoff.reset();
+                                };
+                                fullscreen_item->LISTEN(tier::release, e2::dtor, item_ptr, oneoff)
+                                {
+                                    oneoff.reset();
+                                };
+                                auto just_copy = fullscreen_item;
+                                boss.RISEUP(tier::release, e2::form::proceed::attach, fullscreen_item);
+                                pro::focus::set(just_copy, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Handover all foci.
+                                boss.base::reflow();
                             }
                         }
                     };
@@ -915,12 +899,15 @@ namespace netxs::app::tile
                     {
                         if (boss.count() > 2)
                         {
+                            auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
                             auto item_ptr = boss.pop_back();
                             item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                            pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Handover all foci.
                         }
 
                         if (fullscreen_item)
                         {
+                            auto gear_id_list = pro::focus::get(boss.This()); // Drop all foci. Who maximizes the item will set the focus.
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }
@@ -932,8 +919,7 @@ namespace netxs::app::tile
                         {
                             if (boss.count() > 2 && deed != app::tile::events::ui::toggle.id) // Restore the window before any action if maximized.
                             {
-                                auto item_ptr = boss.pop_back();
-                                item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
+                                boss.RISEUP(tier::release, e2::form::proceed::attach, e2::form::proceed::attach.param());
                             }
 
                             if (deed == app::tile::events::ui::swap.id)
