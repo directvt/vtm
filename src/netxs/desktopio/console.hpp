@@ -1952,7 +1952,7 @@ namespace netxs::ui
                                 boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                                 return;
                             }
-                            if (seed.solo != solo::on)
+                            if (seed.solo != solo::on) // Group focus.
                             {
                                 route.focused = focusable;
                                 return;
@@ -1969,7 +1969,10 @@ namespace netxs::ui
                     {
                         if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
                         {
-                            if (route.active) route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
+                            if (route.active)
+                            {
+                                route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
+                            }
                             route.next.clear();
                             route.next.push_back(seed.item);
                         }
