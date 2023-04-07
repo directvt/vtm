@@ -895,19 +895,20 @@ namespace netxs::app::tile
             object->attach(slot::_2, parse_data(parse_data, param))
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item)
+                    boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item, -, (foci_list = gear_id_list_t{}))
                     {
                         if (boss.count() > 2)
                         {
                             auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
                             auto item_ptr = boss.pop_back();
                             item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
-                            pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Handover all foci.
+                            pro::focus::set(boss.back(), foci_list, pro::focus::solo::off, pro::focus::flip::off, true); // Restore saved foci.
+                            pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Apply item's foci.
                         }
 
                         if (fullscreen_item)
                         {
-                            auto gear_id_list = pro::focus::get(boss.This()); // Drop all foci. Who maximizes the item will set the focus.
+                            foci_list = pro::focus::get(boss.This()); // Save all foci.
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }
