@@ -463,8 +463,7 @@ namespace netxs::app::tile
                             auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-                            //todo revise focus::solo::off
-                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true);
+                            pro::focus::set(what.applet, gear_id_list, pro::focus::solo::mix, pro::focus::flip::off, true);
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)

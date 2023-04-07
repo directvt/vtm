@@ -1771,14 +1771,16 @@ namespace netxs::ui
 
         public:
             enum class mode { hub, focusable, focused, active };
-            enum class solo { off = faux, on = true };
+            enum class solo { off, on, mix };
             enum class flip { off = faux, on = true };
+            friend auto operator ==(si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
+
             template<class T>
             static void set(sptr<base> item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
             {
                 auto fire = [&](auto id)
                 {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (bool)s, .flip = (bool)f, .skip = skip }));
+                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
                     if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
@@ -1950,7 +1952,7 @@ namespace netxs::ui
                                 boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                                 return;
                             }
-                            if (!seed.solo)
+                            if (seed.solo != solo::on)
                             {
                                 route.focused = focusable;
                                 return;
@@ -1965,9 +1967,9 @@ namespace netxs::ui
                     }
                     else // Build focus tree.
                     {
-                        if (seed.solo)
+                        if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
                         {
-                            route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
+                            if (route.active) route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
                             route.next.clear();
                             route.next.push_back(seed.item);
                         }
@@ -1975,6 +1977,11 @@ namespace netxs::ui
                         {
                             auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
                             if (iter == route.next.end()) route.next.push_back(seed.item);
+                            if (route.active)
+                            {
+                                seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                                return;
+                            }
                         }
                     }
 

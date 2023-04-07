@@ -278,7 +278,7 @@ namespace netxs::input
         using sptr = netxs::sptr<base>;
 
         id_t   id{}; // foci: Gear id.
-        bool solo{}; // foci: Exclusive focus request.
+        si32 solo{}; // foci: Exclusive focus request.
         bool flip{}; // foci: Toggle focus request.
         bool skip{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.

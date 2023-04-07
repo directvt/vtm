@@ -651,7 +651,7 @@ namespace netxs::directvt
         STRUCT(request_clipboard, (id_t, gear_id))
         //STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT(focus_cut,         (id_t, gear_id))
-        STRUCT(focus_set,         (id_t, gear_id) (bool, solo))
+        STRUCT(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT(maximize,          (id_t, gear_id))
         STRUCT(form_header,       (id_t, window_id) (text, new_header))
         STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
