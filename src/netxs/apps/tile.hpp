@@ -612,9 +612,7 @@ namespace netxs::app::tile
                         gate.RISEUP(tier::request, vtm::events::newapp, config, ({ .menuid = current_default }));
 
                         auto app = app_window(config);
-
-                        pro::focus::off(boss.back(), gear.id); // Take focus from empty slot.
-
+                        auto gear_id_list = pro::focus::get(boss.back());
                         boss.attach(app);
                         if (auto world_ptr = gate.parent()) // Finalize app creation.
                         {
@@ -629,8 +627,11 @@ namespace netxs::app::tile
                         };
 
                         app->SIGNAL(tier::anycast, e2::form::upon::started, app);
-                        pro::focus::set(app, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                               : pro::focus::solo::on, pro::focus::flip::off);
+                        if (std::find(gear_id_list.begin(), gear_id_list.end(), gear.id) == gear_id_list.end())
+                        {
+                            gear_id_list.push_back(gear.id);
+                        }
+                        pro::focus::set(app, gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
                     };
                     boss.LISTEN(tier::release, events::backup, empty_slot_list)
                     {
