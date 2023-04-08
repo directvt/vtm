@@ -176,7 +176,6 @@ namespace netxs::app::tile
                             switch (deed)
                             {
                                 case app::tile::events::ui::create.id:
-                                    //todo check focus_force_group
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                                     break;
                                 case app::tile::events::ui::close.id:
@@ -186,11 +185,8 @@ namespace netxs::app::tile
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
                                     if (gear.countdown > 0)
                                     {
-                                        gear.countdown--;
-                                        // Removing multifocus - The only one can be maximized if several are selected.
-                                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::on);
+                                        gear.countdown--; // The only one can be maximized if several are selected.
                                         boss.RISEUP(tier::release, e2::form::maximize, gear);
-                                        //todo parent_memo is reset by the empty slot here (pop_back), undefined behavior from here
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
@@ -334,20 +330,6 @@ namespace netxs::app::tile
                         }))
                     ->branch(slot::_2, what.applet);
         };
-        auto pass_focus = [](auto& gear_id_list, auto item_ptr)
-        {
-            if (item_ptr)
-            {
-                for (auto gear_id : gear_id_list)
-                {
-                    if (auto gear_ptr = bell::getref<hids>(gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                    }
-                }
-            }
-        };
         auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
@@ -370,7 +352,6 @@ namespace netxs::app::tile
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
-                                    //boss.keybd.accept(true);
                                     anycasting(boss);
                                     //todo implement keydb support
                                 })
@@ -390,7 +371,6 @@ namespace netxs::app::tile
                 ->plugin<pro::track>(true)
                 ->invoke([&](auto& boss)
                 {
-                    //boss.keybd.accept(true);
                     anycasting(boss);
                     mouse_subs(boss);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
@@ -419,8 +399,7 @@ namespace netxs::app::tile
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
-                        auto count = boss.count();
-                        if (count == 1) // Only empty slot available.
+                        if (boss.count() == 1) // Only empty slot available.
                         {
                             //todo unify
                             boss.back()->color(cC.fgc(), cC.bgc());
@@ -429,8 +408,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::ask, target)
                     {
-                        auto count = boss.count();
-                        if (count == 1) // Only empty slot available.
+                        if (boss.count() == 1) // Only empty slot available.
                         {
                             auto highlight_color = skin::color(tone::highlight);
                             auto c3 = highlight_color;
@@ -448,8 +426,7 @@ namespace netxs::app::tile
                     {
                         auto menu_black = skin::color(tone::menu_black);
                         auto cC = menu_black;
-                        auto count = boss.count();
-                        if (count == 1) // Only empty pane/slot available.
+                        if (boss.count() == 1) // Only empty pane/slot available.
                         {
                             pro::focus::off(boss.This());
                             auto gear_id_list = pro::focus::get(what.applet);
@@ -462,21 +439,22 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::swap, item_ptr)
                     {
-                        auto count = boss.count();
-                        if (count == 1) // Only empty slot available.
+                        if (boss.count() == 1) // Only empty slot available.
                         {
-                            log("tile: empty_slot swap: defective structure, count=", count);
+                            log("tile: empty_slot swap: defective structure, count=", boss.count());
                         }
-                        else if (count == 2)
+                        else if (boss.count() == 2)
                         {
-                            auto my_item_ptr = boss.pop_back();
+                            auto gear_id_list = pro::focus::get(boss.This());
+                            auto deleted_item = boss.pop_back();
                             if (item_ptr)
                             {
                                 boss.attach(item_ptr);
                             }
-                            else item_ptr = boss.This(); // Heir to the focus.
+                            else item_ptr = boss.This();
+                            pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
                         }
-                        else log("tile: empty_slot swap: defective structure, count=", count);
+                        else log("tile: empty_slot swap: defective structure, count=", boss.count());
                     };
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
@@ -485,16 +463,17 @@ namespace netxs::app::tile
                         {
                             if (item_ptr != boss.This())
                             {
-                                auto count = boss.count();
-                                if (count == 1) // Only empty slot available.
+                                if (boss.count() == 1) // Only empty slot available.
                                 {
                                     item_ptr.reset();
                                 }
-                                else if (count == 2)
+                                else if (boss.count() == 2)
                                 {
+                                    auto gear_id_list = pro::focus::get(boss.This());
                                     item_ptr = boss.pop_back();
+                                    pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
                                 }
-                                else log("tile:  empty_slot: defective structure, count=", count);
+                                else log("tile: empty_slot: defective structure, count=", boss.count());
                                 if (auto parent = boss.parent())
                                 {
                                     parent->bell::template expire<tier::request>();
@@ -597,44 +576,24 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::form::quit, nested_item_ptr)
                     {
+                        if (auto parent = boss.base::parent())
                         if (nested_item_ptr)
                         {
+                            if (boss.count() > 1 && boss.back()->base::kind() == 0) // Only apps can be deleted.
+                            {
+                                auto gear_id_list = pro::focus::get(boss.This());
+                                auto deleted_item = boss.pop_back(); // Throw away.
+                                pro::focus::set(boss.back(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
+                            }
+                            else if (boss.count() == 1) // Remove empty slot, reorganize.
+                            {
+                                parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr, (boss.This())); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
+                                if (item_ptr != boss.This()) // Parallel slot is not empty or both slots are empty (item_ptr == null).
+                                {
+                                    parent->RISEUP(tier::release, e2::form::proceed::swap, item_ptr);
+                                }
+                            }
                             boss.deface();
-                            auto& item = *nested_item_ptr;
-                            item.RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
-                            auto count = boss.count();
-                            if (count > 1)
-                            {
-                                if (boss.back()->base::kind() == 0) // Only apps can be deleted.
-                                {
-                                    auto item = boss.pop_back(); // Throw away.
-                                    pass_focus(gear_id_list, boss.back());
-                                }
-                            }
-                            else if (count == 1) // Remove empty slot, reorganize.
-                            {
-                                if (auto parent = boss.base::parent())
-                                {
-                                    parent->SIGNAL(tier::request, e2::form::proceed::swap, item_ptr, (boss.This())); // sptr must be of the same type as the event argument. Casting kills all intermediaries when return.
-                                    if (item_ptr)
-                                    {
-                                        if (item_ptr != boss.This()) // Parallel slot is not empty.
-                                        {
-                                            parent->RISEUP(tier::release, e2::form::proceed::swap, item_ptr);
-                                            pass_focus(gear_id_list, item_ptr);
-                                        }
-                                        else // I'm alone.
-                                        {
-                                            // Nothing todo. There can be only one!
-                                        }
-                                    }
-                                    else // Both slots are empty.
-                                    {
-                                        parent->RISEUP(tier::release, e2::form::proceed::swap, item_ptr);
-                                        pass_focus(gear_id_list, item_ptr);
-                                    }
-                                }
-                            }
                         }
                     };
                     boss.LISTEN(tier::request, e2::form::proceed::createby, gear)
