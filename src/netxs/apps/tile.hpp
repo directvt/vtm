@@ -404,46 +404,39 @@ namespace netxs::app::tile
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
                 ->invoke([&](auto& boss)
                 {
+                    auto highlight = [](auto& boss, auto state)
+                    {
+                        auto c = state ? cell{ skin::color(tone::highlight) }.alpha(0x70)
+                                       : cell{ skin::color(tone::menu_black) };
+                        boss.front()->color(c.fgc(), c.bgc());
+                        boss.deface();
+                    };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
                         // Block rising up this event: DTVT object fires this event on exit.
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
                     {
-                        auto menu_black = skin::color(tone::menu_black);
-                        auto cC = menu_black;
-                        if (boss.count() == 1) // Only empty slot available.
+                        if (boss.count())
                         {
-                            //todo unify
-                            boss.back()->color(cC.fgc(), cC.bgc());
-                            boss.deface();
+                            highlight(boss, faux);
                         }
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::ask, target)
                     {
                         if (boss.count() == 1) // Only empty slot available.
                         {
-                            auto highlight_color = skin::color(tone::highlight);
-                            auto c3 = highlight_color;
-                            auto x3 = cell{ c3 }.alpha(0x00);
-                            auto fg = c3.fgc();
-                            auto bg = c3.bgc();
-                            fg.alpha(0x70);
-                            bg.alpha(0x70);
-                            boss.back()->color(fg, bg);
+                            highlight(boss, true);
                             target = boss.This();
-                            boss.deface();
                         }
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::drop, what)
                     {
-                        auto menu_black = skin::color(tone::menu_black);
-                        auto cC = menu_black;
                         if (boss.count() == 1) // Only empty pane/slot available.
                         {
+                            highlight(boss, faux);
                             pro::focus::off(boss.This());
                             auto gear_id_list = pro::focus::get(what.applet);
-                            boss.back()->color(cC.fgc(), cC.bgc()); //todo unify
                             auto app = app_window(what);
                             boss.attach(app);
                             app->SIGNAL(tier::anycast, e2::form::upon::started, app);

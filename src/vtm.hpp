@@ -107,6 +107,7 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
                 {
+                    if (drags) return;
                     if (boss.size().inside(gear.coord) && !gear.kbmod())
                     {
                         drags = true;

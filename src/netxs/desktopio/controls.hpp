@@ -952,10 +952,16 @@ namespace netxs::ui
                 }
             };
         }
-        // veer: Return the last object refrence or empty sptr.
+        // veer: Return the last object or empty sptr.
         auto back()
         {
             return subset.size() ? subset.back()
+                                 : sptr{};
+        }
+        // veer: Return the first object or empty sptr.
+        auto front()
+        {
+            return subset.size() ? subset.front()
                                  : sptr{};
         }
         // veer: Return nested objects count.
