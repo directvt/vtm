@@ -336,6 +336,7 @@ namespace netxs::app::tile
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
             node->isroot(faux, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
                 ->template plugin<pro::limit>(dot_00)
+                ->template plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
@@ -864,6 +865,7 @@ namespace netxs::app::tile
                             item_ptr->SIGNAL(tier::release, e2::form::restore, item_ptr);
                             pro::focus::set(boss.back(), foci_list, pro::focus::solo::off, pro::focus::flip::off, true); // Restore saved foci.
                             pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Apply item's foci.
+                            foci_list.clear();
                         }
 
                         if (fullscreen_item)
