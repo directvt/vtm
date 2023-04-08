@@ -94,13 +94,25 @@ namespace netxs::app::tile
                         ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                         ->invoke([&](auto& boss)
                         {
-                            auto data_shadow = ptr::shadow(data_src_sptr);
-                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus, state, boss.tracker)
+                            auto update_focus = [](auto& boss, auto state)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
                                 boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                            };
+                            auto data_shadow = ptr::shadow(data_src_sptr);
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
+                            {
+                                if (auto data_ptr = data_shadow.lock())
+                                {
+                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus, state, ());
+                                    update_focus(boss, state);
+                                }
+                            };
+                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus, state, boss.tracker)
+                            {
+                                update_focus(boss, state);
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {

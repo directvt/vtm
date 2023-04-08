@@ -2021,6 +2021,13 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
                     }
                 };
+                boss.LISTEN(tier::request, e2::form::state::keybd::focus, state, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        if (state |= gear_id != id_t{} && route.active) return;
+                    }
+                };
                 boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
                 {
                     auto iter = gears.find(gear_test.first);
