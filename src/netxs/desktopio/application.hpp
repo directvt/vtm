@@ -101,7 +101,7 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        const auto create = [](xmls& config, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -111,18 +111,17 @@ namespace netxs::app::shared
             auto x1 = cell{ c1 }.alpha(0x00);
 
             auto slot1 = ui::veer::ctor();
-            auto autohide = config.take("menu/autohide", faux);
-            auto menushow = config.take("menu/enabled" , true);
-            auto menusize = config.take("menu/slim"    , faux);
 
             auto menuarea = ui::fork::ctor()
                             ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
 
+                //todo apply custom label
+                //if (custom)
                     menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
                             ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
-                            ->plugin<pro::notes>(" Maximize/restore window ")
+                            ->plugin<pro::notes>(" Maximize/restore ")
                             ->invoke([&](ui::pads& boss)
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -175,9 +174,11 @@ namespace netxs::app::shared
                         };
                     });
                 }
+                //todo apply custom label
+                //if (custom)
                 menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
                         ->plugin<pro::fader>(x1, c1, fader)
-                        ->plugin<pro::notes>(" Close window ")
+                        ->plugin<pro::notes>(" Close ")
                         ->invoke([&](auto& boss)
                         {
                             #if defined(_DEBUG)
@@ -283,6 +284,13 @@ namespace netxs::app::shared
                     });
 
             return std::tuple{ slot1, border, menu_block };
+        };
+        const auto create = [](xmls& config, list menu_items)
+        {
+            auto autohide = config.take("menu/autohide", faux);
+            auto menushow = config.take("menu/enabled" , true);
+            auto menusize = config.take("menu/slim"    , faux);
+            return mini(autohide, menushow, menusize, faux, menu_items);
         };
         const auto demo = [](xmls& config)
         {

@@ -376,6 +376,66 @@ namespace netxs::app::tile
             auto menu_black = skin::color(tone::menu_black);
             auto cC = menu_black;
 
+            using namespace app::shared;
+            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
+            menu::list
+            {
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " + ", .notes = " New app " } }}),
+                [](ui::pads& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                        gear.dismiss(true);
+                    };
+                }},
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = ":::", .notes = " Select/deselect pane " } }}),
+                [](ui::pads& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.RISEUP(tier::release, app::tile::events::ui::toggle, gear);
+                        gear.dismiss(true);
+                    };
+                }},
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "│", .notes = " Split horizontally " } }}),
+                [](ui::pads& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.RISEUP(tier::release, app::tile::events::ui::split::hz, gear);
+                        gear.dismiss(true);
+                    };
+                }},
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "──", .notes = " Split vertically " } }}),
+                [](ui::pads& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.RISEUP(tier::release, app::tile::events::ui::split::vt, gear);
+                        gear.dismiss(true);
+                    };
+                }},
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " × ", .notes = " Delete pane " } }}),
+                [](ui::pads& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                        gear.dismiss(true);
+                    };
+                }},
+            });
+            menu_data->colors(cC.fgc(), cC.bgc());
+            auto menu_id = menu_block->id;
+            cover->invoke([&](auto& boss)
+            {
+                boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (menu_id))
+                {
+                    parent_canvas.fill([&](cell& c) { c.txt(whitespace).link(menu_id); });
+                };
+            });
+
             return ui::park::ctor()
                 ->isroot(true, 2)
                 ->colors(cC.fgc(), cC.bgc())
@@ -396,6 +456,11 @@ namespace netxs::app::tile
                 (
                     snap::center, snap::center,
                     ui::post::ctor()->upload("Empty Slot", 10)
+                )
+                ->branch
+                (
+                    snap::stretch, snap::head,
+                    menu_block
                 );
         };
         auto empty_slot = [](auto&& empty_slot) -> sptr<ui::veer>
