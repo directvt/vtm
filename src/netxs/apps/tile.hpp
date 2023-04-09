@@ -308,9 +308,7 @@ namespace netxs::app::tile
                                     master.RISEUP(tier::release, e2::form::quit, master_ptr); // Destroy placeholder.
                                 }
 
-                                // Handover mouse input.
-                                master.SIGNAL(tier::release, hids::events::notify::mouse::leave, gear);
-                                applet.SIGNAL(tier::release, hids::events::notify::mouse::enter, gear);
+                                // Redirect this mouse event to the new world's window.
                                 gear.pass<tier::release>(what.applet, dot_00);
                             }
                         };

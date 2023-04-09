@@ -1011,7 +1011,7 @@ namespace netxs::input
                 else log("hids: error condition: Clients count is broken, dangling ", last_id);
             }
         }
-        void take_mouse_focus(base& boss)
+        void redirect_mouse_focus(base& boss)
         {
             if (mouse::hover != boss.id) // The mouse cursor is over the new object.
             {
@@ -1035,7 +1035,7 @@ namespace netxs::input
         {
             mouse::load_button_state(0);
             mouse::m.buttons = {};
-            take_mouse_focus(owner);
+            redirect_mouse_focus(owner);
             SIGNAL(tier::general, events::halt, *this);
             disabled = true;
         }
@@ -1043,7 +1043,7 @@ namespace netxs::input
         {
             if (boss.id == relay)
             {
-                take_mouse_focus(boss);
+                redirect_mouse_focus(boss);
                 boss.bell::template signal<tier::release>(mouse::cause, *this);
             }
         }
@@ -1063,7 +1063,7 @@ namespace netxs::input
                 auto next = bell::getref<base>(mouse::swift);
                 if (next)
                 {
-                    take_mouse_focus(*next);
+                    redirect_mouse_focus(*next);
                     pass<tier::release>(next, offset, true);
 
                     if (alive && !captured()) // Pass unhandled event to the gate.

@@ -38,13 +38,21 @@ namespace netxs::ui
                 };
 
                 std::vector<sock> items; // sock: Registered hids.
-                hook              token; // sock: Hids dtor submission.
+                subs              token; // sock: Hids subscriptions.
 
                 socks(base& boss)
                 {
                     boss.LISTEN(tier::general, hids::events::die, gear, token)
                     {
                         del(gear);
+                    };
+                    boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, token)
+                    {
+                        add(gear);
+                    };
+                    boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, token)
+                    {
+                        dec(gear);
                     };
                 }
                 template<bool ConstWarn = true>
@@ -78,7 +86,7 @@ namespace netxs::ui
                 void dec(hids& gear)
                 {
                     auto& item = take(gear);
-                    if (--item.count < 1) // item.count could but equal to 0 due to unregistered access.
+                    if (--item.count < 1) // item.count could be equal to 0 due to unregistered access.
                     {
                         if (items.size() > 1) item = items.back(); // Remove an item without allocations.
                         items.pop_back();
@@ -247,14 +255,6 @@ namespace netxs::ui
                     auto next = area + warp;
                     auto step = boss.extend(next);
                 };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
-                {
-                    items.add(gear);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
-                {
-                    items.dec(gear);
-                };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
                     outer = outer_rect;
@@ -351,14 +351,6 @@ namespace netxs::ui
                   items{ boss },
                   dest_shadow{ subject }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
-                {
-                    items.add(gear);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
-                {
-                    items.dec(gear);
-                };
                 engage<hids::buttons::left>();
             }
             mover(base& boss)
@@ -525,14 +517,6 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
                     items.take(gear).calc(boss, gear.coord);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
-                {
-                    items.add(gear);
-                };
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
-                {
-                    items.dec(gear);
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
@@ -2180,6 +2164,12 @@ namespace netxs::ui
         class mouse
             : public skill
         {
+            struct sock
+            {
+                operator bool () { return true; }
+            };
+
+            using list = socks<sock>;
             using skill::boss,
                   skill::memo;
 
@@ -2188,12 +2178,14 @@ namespace netxs::ui
             si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
             bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
+            list       mice; // mouse: List of active mice.
             std::map<si32, subs> dragmemo; // mouse: Draggable subs.
 
         public:
             mouse(base&&) = delete;
             mouse(base& boss, bool take_all_events = true)
                 : skill{ boss            },
+                   mice{ boss            },
                    omni{ take_all_events },
                    rent{ 0               },
                    full{ 0               },
@@ -2201,6 +2193,21 @@ namespace netxs::ui
             {
                 auto brush = boss.base::color();
                 boss.base::color(brush.link(boss.bell::id));
+                // pro::mouse: Refocus all active mice on detach (to keep the mouse event tree consistent).
+                boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memo)
+                {
+                    if (parent_ptr)
+                    {
+                        auto& parent = *parent_ptr;
+                        mice.foreach([&](auto& gear)
+                        {
+                            if (auto gear_ptr = bell::getref<hids>(gear.id))
+                            {
+                                gear_ptr->redirect_mouse_focus(parent);
+                            }
+                        });
+                    }
+                };
                 // pro::mouse: Propagate form events down to the visual branch. Executed last.
                 boss.LISTEN(tier::release, hids::events::notify::any, gear)
                 {
@@ -2242,21 +2249,23 @@ namespace netxs::ui
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
                     }
+                    //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
                 {
-                    if (!--full)
-                    {
-                        soul->base::strike();
-                        soul.reset();
-                    }
                     if (gear.direct<faux>(boss.bell::id) || omni)
                     {
                         if (!--rent)
                         {
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
+                    }
+                    //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
+                    if (!--full)
+                    {
+                        soul->base::strike();
+                        soul.reset();
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
