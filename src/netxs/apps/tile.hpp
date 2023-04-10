@@ -378,21 +378,12 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
             menu::list
             {
-                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " + ", .notes = " New app " } }}),
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " +", .notes = " New app " } }}),
                 [](ui::pads& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                        gear.dismiss(true);
-                    };
-                }},
-                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = ":::", .notes = " Select/deselect pane " } }}),
-                [](ui::pads& boss, auto& item)
-                {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                    {
-                        boss.RISEUP(tier::release, app::tile::events::ui::toggle, gear);
                         gear.dismiss(true);
                     };
                 }},
@@ -414,7 +405,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " × ", .notes = " Delete pane " } }}),
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Delete pane " } }}),
                 [](ui::pads& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
