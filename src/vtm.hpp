@@ -393,7 +393,8 @@ namespace netxs::app::vtm
 
                 //todo unify - args... + template?
                 //middle button
-                boss.LISTEN(tier::preview, drag::start::middle, gear, memo)
+                //todo revise boss.LISTEN(tier::preview, drag::start::middle, gear, memo)
+                boss.LISTEN(tier::release, drag::start::middle, gear, memo)
                 {
                     handle_init(gear);
                 };
@@ -525,8 +526,8 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::any, gear, memo)
                 {
-                    if (drags) return;
                     if (boss.size().inside(gear.coord) && !gear.kbmod())
+                    if (drags || !gear.capture(boss.id)) return;
                     {
                         drags = true;
                         coord = gear.coord;
@@ -544,12 +545,14 @@ namespace netxs::app::vtm
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
+                    gear.setfree();
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::any, gear, memo)
                 {
                     if (!drags) return;
                     if (gear.kbmod()) proceed(faux);
                     else              proceed(true);
+                    gear.setfree();
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {

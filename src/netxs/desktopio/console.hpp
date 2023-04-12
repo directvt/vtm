@@ -3357,6 +3357,7 @@ namespace netxs::ui
                 }
                 else
                 {
+                    //todo revise see preview::focus::set
                     //if (auto target = local ? applet : base::parent())
                     if (auto target = base::parent())
                     {
@@ -3630,6 +3631,7 @@ namespace netxs::ui
                      || events::subevent(cause, button::tplclick  ::any.id)
                      || events::subevent(cause, button::drag::pull::any.id))
                     {
+                        gear.setfree();
                         forward = true;
                     }
                     else if (events::subevent(cause, button::drag::start::any.id))

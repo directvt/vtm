@@ -474,7 +474,7 @@ namespace netxs::app::desk
                 auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
                 auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
                     ->attach(ui::cake::ctor());
-                auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
+                auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
                     ->colors(0x00, 0x00) //todo mouse events passthrough
                     ->invoke([&](auto& boss)
                     {
@@ -532,7 +532,7 @@ namespace netxs::app::desk
                     };
                 });
                 auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
-                auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_ONLY))
+                auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
                     ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
                 bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
                 auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))

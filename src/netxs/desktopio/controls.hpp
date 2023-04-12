@@ -11,21 +11,13 @@
 
 namespace netxs::ui
 {
-    enum sort
+    enum axis { X, Y };
+    enum class sort
     {
         forward,
         reverse,
     };
-    enum slot { _1, _2, _I };
-    enum axis { X, Y };
-    enum axes
-    {
-        NONE   = 0,
-        X_ONLY = 1 << 0,
-        Y_ONLY = 1 << 1,
-        ALL    = (X_ONLY | Y_ONLY),
-    };
-    enum snap
+    enum class snap
     {
         none,
         head,
@@ -33,6 +25,16 @@ namespace netxs::ui
         stretch,
         center,
     };
+    enum class slot { _1, _2, _I };
+    enum class axes
+    {
+        none   = 0,
+        X_only = 1 << 0,
+        Y_only = 1 << 1,
+        all    = (X_only | Y_only),
+    };
+    auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
+
     // controls: base UI element.
     template<class T>
     class form
@@ -491,14 +493,14 @@ namespace netxs::ui
             }
         }
         template<class T>
-        auto attach(slot SLOT, T item_ptr)
+        auto attach(slot Slot, T item_ptr)
         {
-            if (SLOT == slot::_1)
+            if (Slot == slot::_1)
             {
                 if (client_1) remove(client_1);
                 client_1 = item_ptr;
             }
-            else if (SLOT == slot::_2)
+            else if (Slot == slot::_2)
             {
                 if (client_2) remove(client_2);
                 client_2 = item_ptr;
@@ -1225,9 +1227,9 @@ namespace netxs::ui
         si32 cycle{ ccl  }; // rail: Text auto-scroll duration in ms.
         bool steer{ faux }; // rail: Text scroll vertical direction.
 
-        static constexpr auto xy(axes AXES)
+        static constexpr auto xy(axes Axes)
         {
-            return twod{ !!(AXES & axes::X_ONLY), !!(AXES & axes::Y_ONLY) };
+            return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
 
     public:
@@ -1255,12 +1257,12 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
-        rail(axes allow_to_scroll = axes::ALL, axes allow_to_capture = axes::ALL, axes allow_overscroll = axes::ALL)
+        rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
               oversc{ xy(allow_overscroll) },
-              strict{ xy(axes::ALL) },
-              manual{ xy(axes::ALL) }
+              strict{ xy(axes::all) },
+              manual{ xy(axes::all) }
         {
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
@@ -1300,8 +1302,8 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
                 auto dt = gear.whldt > 0;
-                auto hz = permit == xy(axes::X_ONLY)
-                      || (permit == xy(axes::ALL) && gear.meta(hids::anyCtrl | hids::anyShift));
+                auto hz = permit == xy(axes::X_only)
+                      || (permit == xy(axes::all) && gear.meta(hids::anyCtrl | hids::anyShift));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();
@@ -1318,8 +1320,8 @@ namespace netxs::ui
                 {
                     if (gear.capture(bell::id))
                     {
-                        manual = xy(axes::ALL);
-                        strict = xy(axes::ALL) - oversc; // !oversc = dot_11 - oversc
+                        manual = xy(axes::all);
+                        strict = xy(axes::all) - oversc; // !oversc = dot_11 - oversc
                         gear.dismiss();
                     }
                 }
@@ -1360,7 +1362,7 @@ namespace netxs::ui
 
                     if (permit[X]) actify<X>(quadratic{ speed.x, cycle, limit, start });
                     if (permit[Y]) actify<Y>(quadratic{ speed.y, cycle, limit, start });
-                    //todo if (permit == xy(axes::ALL)) actify(quadratic{ speed, cycle, limit, start });
+                    //todo if (permit == xy(axes::all)) actify(quadratic{ speed, cycle, limit, start });
 
                     base::deface();
                     gear.setfree();

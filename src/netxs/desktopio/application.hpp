@@ -181,7 +181,7 @@ namespace netxs::app::shared
                             ->attach(ui::item::ctor("×"));
                 }
                 auto scrlarea = menulist->attach(slot::_2, ui::cake::ctor());
-                auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
+                auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::park::ctor();
