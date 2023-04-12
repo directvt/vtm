@@ -130,9 +130,9 @@ namespace netxs::app::shared
                     auto& hover = item.alive;
                     auto& label = item.views.front().label;
                     auto& notes = item.views.front().notes;
-                    if (hover) dest_ptr->plugin<pro::fader>(fgc, bgc, fader);
+                    if (hover) dest_ptr->template plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
                     else       dest_ptr->colors(0,0); //todo for mouse tracking
-                    dest_ptr->plugin<pro::notes>(notes)
+                    dest_ptr->template plugin<pro::notes>(notes) //todo template: GCC complains
                             ->branch(ui::item::ctor(label, faux, true))
                             ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                             {

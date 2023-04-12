@@ -37,7 +37,7 @@ namespace netxs::ui
         Y_only = 1 << 1,
         all    = (X_only | Y_only),
     };
-    auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
+    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
     // controls: base UI element.
     template<class T>
