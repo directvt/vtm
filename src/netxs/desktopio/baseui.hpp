@@ -57,10 +57,21 @@ namespace netxs::events::userland
 
             SUBSET_XS( extra )
             {
-                EVENT_XS( slot0, si32 ),
                 EVENT_XS( slot1, si32 ),
                 EVENT_XS( slot2, si32 ),
                 EVENT_XS( slot3, si32 ),
+                EVENT_XS( slot4, si32 ),
+                EVENT_XS( slot5, si32 ),
+                EVENT_XS( slot6, si32 ),
+                EVENT_XS( slot7, si32 ),
+                EVENT_XS( slot8, si32 ),
+                EVENT_XS( slot9, si32 ),
+                EVENT_XS( slotA, si32 ),
+                EVENT_XS( slotB, si32 ),
+                EVENT_XS( slotC, si32 ),
+                EVENT_XS( slotD, si32 ),
+                EVENT_XS( slotE, si32 ),
+                EVENT_XS( slotF, si32 ),
             };
             SUBSET_XS( timer )
             {

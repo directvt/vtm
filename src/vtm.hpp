@@ -47,7 +47,7 @@ namespace netxs::app::vtm
 
     struct events
     {
-        EVENTPACK( events, ui::e2::extra::slot0 )
+        EVENTPACK( events, ui::e2::extra::slot1 )
         {
             EVENT_XS( newapp  , link       ), // request: create new object using specified meniid
             EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.

@@ -12,7 +12,7 @@ namespace netxs::events::userland
 {
     struct tile
     {
-        EVENTPACK( tile, netxs::events::userland::root::custom )
+        EVENTPACK( tile, ui::e2::extra::slot4 )
         {
             EVENT_XS( backup, app::tile::backups ),
             EVENT_XS( enlist, sptr<ui::base>     ),

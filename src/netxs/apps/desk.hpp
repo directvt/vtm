@@ -37,7 +37,7 @@ namespace netxs::app::desk
 
     struct events
     {
-        EVENTPACK( events, netxs::events::userland::root::custom )
+        EVENTPACK( events, ui::e2::extra::slot2 )
         {
             EVENT_XS( usrs, sptr<desk::usrs> ), // list of connected users.
             EVENT_XS( apps, sptr<desk::apps> ), // list of running apps.

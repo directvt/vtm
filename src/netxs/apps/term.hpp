@@ -12,7 +12,7 @@ namespace netxs::events::userland
     {
         using mime = ansi::clip::mime;
 
-        EVENTPACK( term, netxs::events::userland::root::custom )
+        EVENTPACK( term, ui::e2::extra::slot3 )
         {
             EVENT_XS( cmd    , si32 ),
             GROUP_XS( preview, si32 ),
