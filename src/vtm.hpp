@@ -76,11 +76,11 @@ namespace netxs::app::vtm
 
             subs  link;
             robot robo;
-            si32  seat;
+            zpos  seat;
 
         public:
             frame(base&&) = delete;
-            frame(base& boss, si32 z_order = Z_order::plain) : skill{ boss },
+            frame(base& boss, zpos z_order = zpos::plain) : skill{ boss },
                 robo{ boss    },
                 seat{ z_order }
             {
@@ -773,7 +773,7 @@ namespace netxs::app::vtm
             rect region;
             sptr object;
             id_t obj_id;
-            si32 z_order = Z_order::plain;
+            zpos z_order = zpos::plain;
             subs tokens;
 
             node(sptr item)
@@ -890,9 +890,9 @@ namespace netxs::app::vtm
             {
                 for (auto& item : items) item->fasten(canvas);
                 //todo optimize
-                for (auto& item : items) if (item->z_order == Z_order::backmost) item->render(canvas);
-                for (auto& item : items) if (item->z_order == Z_order::plain   ) item->render(canvas);
-                for (auto& item : items) if (item->z_order == Z_order::topmost ) item->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::backmost) item->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::plain   ) item->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::topmost ) item->render(canvas);
             }
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)

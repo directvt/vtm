@@ -301,12 +301,17 @@ namespace netxs::input
             leftright = click::leftright.index(),
             numofbuttons,
         };
-        enum stat
+
+        struct stat
         {
-            ok,
-            halt,
-            die,
+            enum : ui32
+            {
+                ok,
+                halt,
+                die,
+            };
         };
+
         struct knob_t
         {
             bool pressed; // knod: Button pressed state.
@@ -616,51 +621,54 @@ namespace netxs::input
     // console: Keybd tracker.
     struct keybd
     {
-        enum key
+        struct key
         {
-            Backspace = 0x08,
-            Tab       = 0x09,
-            //CLEAR     = 0x0C,
-            Enter     = 0x0D,
-            Shift     = 0x10,
-            Control   = 0x11,
-            Alt       = 0x12,
-            Pause     = 0x13,
-            Escape    = 0x1B,
-            PageUp    = 0x21,
-            PageDown  = 0x22,
-            End       = 0x23,
-            Home      = 0x24,
-            Left      = 0x25,
-            Up        = 0x26,
-            Right     = 0x27,
-            Down      = 0x28,
-            Insert    = 0x2D,
-            Delete    = 0x2E,
-            F1        = 0x70,
-            F2        = 0x71,
-            F3        = 0x72,
-            F4        = 0x73,
-            F5        = 0x74,
-            F6        = 0x75,
-            F7        = 0x76,
-            F8        = 0x77,
-            F9        = 0x78,
-            F10       = 0x79,
-            F11       = 0x7A,
-            F12       = 0x7B,
-            F13       = 0x7C,
-            F14       = 0x7D,
-            F15       = 0x7E,
-            F16       = 0x7F,
-            F17       = 0x80,
-            F18       = 0x81,
-            F19       = 0x82,
-            F20       = 0x83,
-            F21       = 0x84,
-            F22       = 0x85,
-            F23       = 0x86,
-            F24       = 0x87,
+            enum
+            {
+                Backspace = 0x08,
+                Tab       = 0x09,
+                //CLEAR     = 0x0C,
+                Enter     = 0x0D,
+                Shift     = 0x10,
+                Control   = 0x11,
+                Alt       = 0x12,
+                Pause     = 0x13,
+                Escape    = 0x1B,
+                PageUp    = 0x21,
+                PageDown  = 0x22,
+                End       = 0x23,
+                Home      = 0x24,
+                Left      = 0x25,
+                Up        = 0x26,
+                Right     = 0x27,
+                Down      = 0x28,
+                Insert    = 0x2D,
+                Delete    = 0x2E,
+                F1        = 0x70,
+                F2        = 0x71,
+                F3        = 0x72,
+                F4        = 0x73,
+                F5        = 0x74,
+                F6        = 0x75,
+                F7        = 0x76,
+                F8        = 0x77,
+                F9        = 0x78,
+                F10       = 0x79,
+                F11       = 0x7A,
+                F12       = 0x7B,
+                F13       = 0x7C,
+                F14       = 0x7D,
+                F15       = 0x7E,
+                F16       = 0x7F,
+                F17       = 0x80,
+                F18       = 0x81,
+                F19       = 0x82,
+                F20       = 0x83,
+                F21       = 0x84,
+                F22       = 0x85,
+                F23       = 0x86,
+                F24       = 0x87,
+            };
         };
 
         wchr winchar = {}; // MS Windows specific.

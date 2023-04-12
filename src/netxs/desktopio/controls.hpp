@@ -12,11 +12,13 @@
 namespace netxs::ui
 {
     enum axis { X, Y };
+
     enum class sort
     {
         forward,
         reverse,
     };
+
     enum class snap
     {
         none,
@@ -25,7 +27,9 @@ namespace netxs::ui
         stretch,
         center,
     };
+
     enum class slot { _1, _2, _I };
+
     enum class axes
     {
         none   = 0,
@@ -224,7 +228,7 @@ namespace netxs::ui
     class fork
         : public form<fork>
     {
-        enum action { seize, drag, release };
+        enum class action { seize, drag, release };
 
         static constexpr auto MAX_RATIO  = si32{ 0xFFFF      };
         static constexpr auto HALF_RATIO = si32{ 0xFFFF >> 1 };

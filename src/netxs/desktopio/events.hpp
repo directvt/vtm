@@ -21,6 +21,7 @@ namespace netxs::events
         forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
         reverse, // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
     };
+
     enum class tier
     {
         release, // events: Run forwrad handlers with fixed param. Preserve subscription order.
@@ -169,7 +170,8 @@ namespace netxs::events
                 : proc{ proc }
             { }
         };
-        enum branch
+
+        enum class branch
         {
             fullstop,
             nothandled,

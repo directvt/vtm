@@ -336,7 +336,7 @@ namespace netxs::events::userland
                 SUBSET_XS( prop )
                 {
                     EVENT_XS( name      , text        ), // user name.
-                    EVENT_XS( zorder    , si32        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( zorder    , zpos        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.

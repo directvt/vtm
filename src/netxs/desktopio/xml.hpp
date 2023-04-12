@@ -405,6 +405,7 @@ namespace netxs::xml
                 attr,
                 flat,
             };
+
             frag from; // elem: First fragment in document.
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.

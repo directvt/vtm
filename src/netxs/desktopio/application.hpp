@@ -55,6 +55,7 @@ namespace netxs::app::shared
                 Option,
                 Repeat,
             };
+
             struct look
             {
                 text label{};

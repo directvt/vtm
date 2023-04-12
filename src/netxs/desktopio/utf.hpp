@@ -478,7 +478,7 @@ namespace netxs::utf
         auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
     }
-    enum codepage
+    enum class codepage
     {
         cp866,
         cp1251,

@@ -11,7 +11,7 @@
 
 namespace netxs
 {
-    enum svga
+    enum class svga
     {
         truecolor,
         vga16    ,
@@ -19,7 +19,7 @@ namespace netxs
         dtvt     ,
     };
 
-    enum Z_order : si32
+    enum class zpos : si32
     {
         backmost = -1,
         plain    =  0,
@@ -31,6 +31,7 @@ namespace netxs
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
     };
+
     struct tint16
     {
         enum : si32

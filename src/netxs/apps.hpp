@@ -173,7 +173,7 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
                             boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
                             boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                            boss.RISEUP(tier::preview, e2::form::prop::zorder, Z_order::backmost);
+                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
                                 boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
