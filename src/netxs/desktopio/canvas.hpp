@@ -673,6 +673,10 @@ namespace netxs
             {
                 return static_cast<byte>(glyph[1]) <= whitespace;
             }
+            auto is_null() const
+            {
+                return static_cast<byte>(glyph[1]) == 0;
+            }
             auto tkn() const
             {
                 return token & asset;
@@ -1276,6 +1280,7 @@ namespace netxs
         auto link() const  { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
+        auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
             if (gc == c.gc)
@@ -1361,6 +1366,7 @@ namespace netxs
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
+                    if (src.isnul()) return;
                     auto& fgc = src.fgc();
                     if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
                     else                    dst.fusefull(src);

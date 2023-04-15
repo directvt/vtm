@@ -1069,6 +1069,20 @@ namespace netxs::ui
             lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
         }
+        //todo unify: see ui::page::post
+        void post(utf::frag const& cluster)
+        {
+            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
+            {
+                auto c = cluster;
+                c.attr.ucwidth = netxs::unidata::widths::slim;
+                ansi::parser::post(c);
+            }
+            else
+            {
+                ansi::parser::post(cluster);
+            }
+        }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
 
@@ -1514,6 +1528,7 @@ namespace netxs::ui
         static void parser_config(T& vt)
         {
             using namespace netxs::ansi;
+            //vt.intro[ctrl::NUL]              = VT_PROC{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
             vt.intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
             vt.intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
             vt.intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
@@ -1647,6 +1662,19 @@ namespace netxs::ui
         {
             auto& item = **layer;
             item.style = parser::style;
+        }
+        void post(utf::frag const& cluster)
+        {
+            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
+            {
+                auto c = cluster;
+                c.attr.ucwidth = netxs::unidata::widths::slim;
+                ansi::parser::post(c);
+            }
+            else
+            {
+                ansi::parser::post(cluster);
+            }
         }
         void data(si32 count, grid const& proto) override
         {

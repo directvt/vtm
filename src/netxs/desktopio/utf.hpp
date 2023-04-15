@@ -30,6 +30,7 @@ namespace netxs
 
     static constexpr auto whitespaces = " \n\r\t"sv;
     static constexpr auto whitespace  = ' '; // '.';
+    static constexpr auto emptyspace  = "\0"sv;
 }
 
 namespace netxs::utf

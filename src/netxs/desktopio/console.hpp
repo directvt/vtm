@@ -1161,7 +1161,7 @@ namespace netxs::ui
                     {
                         auto index = gear_ptr->user_index;
                         auto color = rgba::color256[4 + index % (256 - 4)];
-                        auto image = netxs::ansi::add(' ').fgc(color).add("▀");
+                        auto image = netxs::ansi::fgc(color).add("\0▀"sv);
                         user_icon.push_front({ gear_id, image });
                         rebuild();
                     }
