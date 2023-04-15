@@ -1034,11 +1034,13 @@ namespace netxs::ui
         class title
             : public skill
         {
+            using ansi = netxs::ansi::esc;
             using skill::boss,
                   skill::memo;
 
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
+            ansi head_foci; // title: Original header + foci status.
             text head_text; // title: Original header.
             text foot_text; // title: Original footer.
             twod head_size; // title: Header page size.
@@ -1096,15 +1098,17 @@ namespace netxs::ui
                 }
                 else
                 {
-                    auto head_temp = ansi::add(head_text).chx(0).jet(bias::right);
+                    head_foci = head_text;
+                    head_foci.chx(0).jet(bias::right);
                     for (auto& gear : user_icon)
                     {
-                        head_temp.add(gear.icon);
+                        head_foci.add(gear.icon);
                     }
-                    head_page = head_temp.nil();
+                    head_page = head_foci.nil();
                 }
                 recalc(head_page, head_size);
                 boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::title , head_foci);
             }
 
             title(base&&) = delete;
@@ -1181,6 +1185,10 @@ namespace netxs::ui
                     boss.LISTEN(tier::request, e2::form::prop::ui::header, curtext, memo)
                     {
                         curtext = head_text;
+                    };
+                    boss.LISTEN(tier::request, e2::form::prop::ui::title, curtext, memo)
+                    {
+                        curtext = head_foci;
                     };
                 }
                 if (foot_live)

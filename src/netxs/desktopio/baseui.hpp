@@ -363,6 +363,7 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( ui )
                     {
+                        EVENT_XS( title   , text ), // form title + foci status.
                         EVENT_XS( header  , text ), // set/get form caption header.
                         EVENT_XS( footer  , text ), // set/get form caption footer.
                         EVENT_XS( tooltip , text ), // set/get tooltip text.
