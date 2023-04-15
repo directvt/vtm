@@ -1093,20 +1093,20 @@ namespace netxs::ui
             void rebuild()
             {
                 head_foci = head_text;
-                if (user_icon.empty())
-                {
-                    head_page = head_text;
-                }
-                else
+                if (user_icon.size())
                 {
                     head_foci.chx(0).jet(bias::right);
                     for (auto& gear : user_icon)
                     {
                         head_foci.add(gear.icon);
                     }
-                    head_page = head_foci.nil();
+                    head_foci.nil();
                 }
-                recalc(head_page, head_size);
+                if (head_live)
+                {
+                    head_page = head_foci;
+                    recalc(head_page, head_size);
+                }
                 boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
                 boss.SIGNAL(tier::release, e2::form::prop::ui::title , head_foci);
             }
@@ -1152,56 +1152,50 @@ namespace netxs::ui
                         canvas.bump(saved_context);
                     }
                 };
-                if (head_live)
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, memo)
                 {
-                    boss.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, memo)
+                    if (!gear_id) return;
+                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                    if (iter == user_icon.end())
+                    if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
-                        if (!gear_id) return;
-                        auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                        if (iter == user_icon.end())
-                        if (auto gear_ptr = bell::getref<hids>(gear_id))
-                        {
-                            auto index = gear_ptr->user_index;
-                            auto color = rgba::color256[4 + index % (256 - 4)];
-                            auto image = netxs::ansi::add(' ').fgc(color).add("▀");
-                            user_icon.push_front({ gear_id, image });
-                            rebuild();
-                        }
-                    };
-                    boss.LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, memo)
-                    {
-                        if (!gear_id) return;
-                        auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                        if (iter != user_icon.end())
-                        {
-                            user_icon.erase(iter);
-                            rebuild();
-                        }
-                    };
-                    boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
-                    {
-                        header(newtext);
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::ui::header, curtext, memo)
-                    {
-                        curtext = head_text;
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::ui::title, curtext, memo)
-                    {
-                        curtext = head_foci;
-                    };
-                }
-                if (foot_live)
+                        auto index = gear_ptr->user_index;
+                        auto color = rgba::color256[4 + index % (256 - 4)];
+                        auto image = netxs::ansi::add(' ').fgc(color).add("▀");
+                        user_icon.push_front({ gear_id, image });
+                        rebuild();
+                    }
+                };
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, memo)
                 {
-                    boss.LISTEN(tier::preview, e2::form::prop::ui::footer, newtext, memo)
+                    if (!gear_id) return;
+                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                    if (iter != user_icon.end())
                     {
-                        footer(newtext);
-                    };
-                    boss.LISTEN(tier::request, e2::form::prop::ui::footer, curtext, memo)
-                    {
-                        curtext = foot_text;
-                    };
-                }
+                        user_icon.erase(iter);
+                        rebuild();
+                    }
+                };
+                boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
+                {
+                    header(newtext);
+                };
+                boss.LISTEN(tier::request, e2::form::prop::ui::header, curtext, memo)
+                {
+                    curtext = head_text;
+                };
+                boss.LISTEN(tier::request, e2::form::prop::ui::title, curtext, memo)
+                {
+                    curtext = head_foci;
+                };
+                boss.LISTEN(tier::preview, e2::form::prop::ui::footer, newtext, memo)
+                {
+                    footer(newtext);
+                };
+                boss.LISTEN(tier::request, e2::form::prop::ui::footer, curtext, memo)
+                {
+                    curtext = foot_text;
+                };
             }
         };
 

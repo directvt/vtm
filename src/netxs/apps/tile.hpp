@@ -250,7 +250,7 @@ namespace netxs::app::tile
         auto app_window = [](auto& what)
         {
             return ui::fork::ctor(axis::Y)
-                    ->template plugin<pro::title>(""/*not used here*/, what.footer, true, faux, true)
+                    ->template plugin<pro::title>(what.header, what.footer, true, faux, true)
                     ->template plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->template plugin<pro::light>()
                     ->template plugin<pro::focus>()
@@ -321,20 +321,15 @@ namespace netxs::app::tile
                         ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
-                            auto shadow = ptr::shadow(boss.This());
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (shadow))
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
-                                parent->LISTEN(tier::preview, e2::form::prop::ui::header, newtext, -, (shadow))
+                                auto shadow = ptr::shadow(boss.This());
+                                parent->LISTEN(tier::release, e2::form::prop::ui::title, head_foci, -, (shadow))
                                 {
                                     if (auto boss_ptr = shadow.lock())
                                     {
-                                        boss_ptr->upload(newtext);
-                                        boss_ptr->parent()->SIGNAL(tier::release, e2::form::prop::ui::header, newtext);
+                                        boss_ptr->upload(head_foci);
                                     }
-                                };
-                                parent->LISTEN(tier::request, e2::form::prop::ui::header, curtext, -, (shadow))
-                                {
-                                    if (auto boss_ptr = shadow.lock()) curtext = boss_ptr->get_source();
                                 };
                             };
                         }))
