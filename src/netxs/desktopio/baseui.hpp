@@ -396,12 +396,10 @@ namespace netxs::events::userland
                 SUBSET_XS( state )
                 {
                     EVENT_XS( mouse    , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    EVENT_XS( header   , ui::para ), // notify the client has changed title.
-                    EVENT_XS( footer   , ui::para ), // notify the client has changed footer.
-                    EVENT_XS( params   , ui::para ), // notify the client has changed title params.
+                    //EVENT_XS( params   , ui::para ), // notify the client has changed title params.
                     EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
-                    GROUP_XS( keybd    , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    GROUP_XS( keybd    , bool     ),
 
                     SUBSET_XS( keybd )
                     {
@@ -409,7 +407,14 @@ namespace netxs::events::userland
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
                         EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
-                        EVENT_XS( focus   , bool               ), // release: Has any keybd focus.
+                        GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
+
+                        SUBSET_XS( focus )
+                        {
+                            EVENT_XS( on    , const id_t ),
+                            EVENT_XS( off   , const id_t ),
+                            EVENT_XS( state , bool       ),
+                        };
                     };
                 };
             };

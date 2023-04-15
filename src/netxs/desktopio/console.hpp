@@ -815,7 +815,7 @@ namespace netxs::ui
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
             {
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus, state, conf)
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus::state, state, conf)
                 {
                     down = !state;
                 };
@@ -1039,21 +1039,24 @@ namespace netxs::ui
 
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
-            text head_text; // title: Preserve original header.
-            text foot_text; // title: Preserve original footer.
+            text head_text; // title: Original header.
+            text foot_text; // title: Original footer.
             twod head_size; // title: Header page size.
             twod foot_size; // title: Footer page size.
             bool head_live; // title: Handle header events.
             bool foot_live; // title: Handle footer events.
             flow ooooooooo; // title: .
 
+            struct user
+            {
+                id_t gear_id;
+                text icon;
+            };
+            std::list<user> user_icon;
+
         public:
             bool live = true; // title: Title visibility.
 
-            auto& titles() const
-            {
-                return head_page;
-            }
             void recalc(page& object, twod& size)
             {
                 ooooooooo.flow::reset();
@@ -1073,34 +1076,56 @@ namespace netxs::ui
                 if (head_live) recalc(head_page, head_size);
                 if (foot_live) recalc(foot_page, foot_size);
             }
-            auto& header() { return head_text; }
-            auto& footer() { return foot_text; }
             void header(view newtext)
             {
-                head_page = newtext;
                 head_text = newtext;
-                recalc(head_page, head_size);
-                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
-                /*
-                textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
-                boss.SIGNAL(tier::release, e2::form::state::header, textline);
-                */
+                rebuild();
             }
             void footer(view newtext)
             {
-                foot_page = newtext;
                 foot_text = newtext;
+                foot_page = foot_text;
                 recalc(foot_page, foot_size);
                 boss.SIGNAL(tier::release, e2::form::prop::ui::footer, foot_text);
-                /*
-                textline.link(boss.id);
-                boss.SIGNAL(tier::release, e2::form::prop::ui::footer, foot_text);
-                boss.SIGNAL(tier::release, e2::form::state::footer, textline);
-                */
             }
-            void init()
+            void rebuild()
             {
+                if (user_icon.empty())
+                {
+                    head_page = head_text;
+                }
+                else
+                {
+                    auto head_temp = ansi::add(head_text).chx(0).jet(bias::right);
+                    for (auto& gear : user_icon)
+                    {
+                        head_temp.add(gear.icon);
+                    }
+                    head_page = head_temp.nil();
+                }
+                recalc(head_page, head_size);
+                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
+            }
+
+            title(base&&) = delete;
+            title(base& boss, view title = {}, view foots = {}, bool visible = true,
+                                                                bool on_header = true,
+                                                                bool on_footer = true)
+                : skill{ boss },
+                  live{ visible },
+                  head_live{ on_header },
+                  foot_live{ on_footer }
+            {
+                head_text = title;
+                foot_text = foots;
+                head_page = head_text;
+                foot_page = foot_text;
+                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
+                {
+                    if (head_live) header(head_text);
+                    if (foot_live) footer(foot_text);
+                    //footer(ansi::jet(bias::right).add("test\nmultiline\nfooter"));
+                };
                 boss.LISTEN(tier::release, e2::size::any, new_size, memo)
                 {
                     recalc(new_size);
@@ -1125,6 +1150,30 @@ namespace netxs::ui
                 };
                 if (head_live)
                 {
+                    boss.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, memo)
+                    {
+                        if (!gear_id) return;
+                        auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                        if (iter == user_icon.end())
+                        if (auto gear_ptr = bell::getref<hids>(gear_id))
+                        {
+                            auto index = gear_ptr->user_index;
+                            auto color = rgba::color256[4 + index % (256 - 4)];
+                            auto image = netxs::ansi::add(' ').fgc(color).add("▀");
+                            user_icon.push_front({ gear_id, image });
+                            rebuild();
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, memo)
+                    {
+                        if (!gear_id) return;
+                        auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
+                        if (iter != user_icon.end())
+                        {
+                            user_icon.erase(iter);
+                            rebuild();
+                        }
+                    };
                     boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
                     {
                         header(newtext);
@@ -1145,38 +1194,6 @@ namespace netxs::ui
                         curtext = foot_text;
                     };
                 }
-                /*
-                boss.LISTEN(tier::request, e2::form::state::header, caption, memo)
-                {
-                    caption = header();
-                };
-                boss.LISTEN(tier::request, e2::form::state::footer, caption, memo)
-                {
-                    caption = footer();
-                };
-                */
-            }
-
-            title(base&&) = delete;
-            title(base& boss)
-                : skill{ boss },
-                  head_live{ true },
-                  foot_live{ true }
-            {
-                init();
-            }
-            title(base& boss, view title, view foots = {}, bool visible = true,
-                                                           bool on_header = true,
-                                                           bool on_footer = true)
-                : skill{ boss },
-                  head_live{ on_header },
-                  foot_live{ on_footer }
-            {
-                init();
-                header(title);
-                footer(foots);
-                live = visible;
-                //footer(ansi::jet(bias::right) + "test\nmultiline\nfooter");
             }
         };
 
@@ -1302,7 +1319,7 @@ namespace netxs::ui
                         if (r.active) return;
                     }
                 }
-                boss.SIGNAL(tier::release, e2::form::state::keybd::focus, On);
+                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::state, On);
             }
             auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
@@ -1321,6 +1338,7 @@ namespace netxs::ui
                             if (route.active) // Keep only the active branch.
                             {
                                 gears[id_t{}] = std::move(route);
+                                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, gear.id);
                                 signal_state<faux>();
                             }
                             boss.SIGNAL(tier::release, hids::events::die, gear);
@@ -1448,19 +1466,25 @@ namespace netxs::ui
                         }
                         auto& route = get_route(seed.id);
                         route.active = true;
+                        if (seed.id) boss.SIGNAL(tier::release, e2::form::state::keybd::focus::on, seed.id);
                     }
                     else
                     {
                         auto& route = iter->second;
                         route.active = true;
+                        if (seed.id) boss.SIGNAL(tier::release, e2::form::state::keybd::focus::on, seed.id);
                     }
                     if (seed.id != id_t{}) signal_state();
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
                 {
                     auto& route = get_route(seed.id);
-                    route.active = faux;
-                    if (seed.id != id_t{}) signal_state<faux>();
+                    if (seed.id != id_t{})
+                    {
+                        route.active = faux;
+                        boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
+                        signal_state<faux>();
+                    }
                     if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
@@ -1589,7 +1613,7 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
                     }
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::focus, state, memo)
+                boss.LISTEN(tier::request, e2::form::state::keybd::focus::state, state, memo)
                 {
                     for (auto& [gear_id, route] : gears)
                     {
@@ -3704,6 +3728,8 @@ namespace netxs::ui
         gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
 
+        std::vector<bool> user_numbering; // host: .
+
         virtual void nextframe(bool damaged)
         {
             if (client) client->rebuild_scene(*this, damaged);
@@ -3718,11 +3744,11 @@ namespace netxs::ui
             using namespace std::chrono;
             auto& canal = *server;
             auto& g = skin::globals();
-            g.brighter       = config.take("brighter", cell{});//120);
-            g.kb_focus       = config.take("kb_focus", cell{});//60
-            g.shadower       = config.take("shadower", cell{});//180);//60);//40);// 20);
-            g.shadow         = config.take("shadow"  , cell{});//180);//5);
-            g.selector       = config.take("selector", cell{});//48);
+            g.brighter       = config.take("brighter"              , cell{});//120);
+            g.kb_focus       = config.take("kb_focus"              , cell{});//60
+            g.shadower       = config.take("shadower"              , cell{});//180);//60);//40);// 20);
+            g.shadow         = config.take("shadow"                , cell{});//180);//5);
+            g.selector       = config.take("selector"              , cell{});//48);
             g.highlight      = config.take("highlight"             , cell{});
             g.warning        = config.take("warning"               , cell{});
             g.danger         = config.take("danger"                , cell{});
@@ -3753,8 +3779,6 @@ namespace netxs::ui
 
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;
-
-            //keybd.accept(true); // Subscribe on keybd offers.
 
             LISTEN(tier::general, e2::timer::any, timestamp, tokens)
             {
@@ -3799,6 +3823,19 @@ namespace netxs::ui
                 log("host: shutdown: ", msg);
                 canal.stop();
             };
+            LISTEN(tier::general, hids::events::device::user::login, props, tokens)
+            {
+                props = 0;
+                while (props < user_numbering.size() && user_numbering[props]) { props++; }
+                if (props == user_numbering.size()) user_numbering.push_back(true);
+                else                                user_numbering[props] = true;
+            };
+            LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
+            {
+                if (props < user_numbering.size()) user_numbering[props] = faux;
+                else log(ansi::err("hall: user accounting error: ring size:", user_numbering.size(), " user_number:", props));
+            };
+
             quartz.ignite(maxfps);
             log("host: started at ", maxfps, "fps");
         }

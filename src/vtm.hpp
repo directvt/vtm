@@ -710,66 +710,11 @@ namespace netxs::app::vtm
     private:
         struct node // hall: Adapter for the object that going to be attached to the world.
         {
-            struct ward
-            {
-                enum states
-                {
-                    unused_hidden, // 00
-                    unused_usable, // 01
-                    active_hidden, // 10
-                    active_usable, // 11
-                    count
-                };
-
-                para title[states::count];
-                cell brush[states::count];
-                para basis;
-                bool usable = faux;
-                bool highlighted = faux;
-                si32 active = 0;
-                tone color = { tone::brighter, tone::shadower };
-
-                operator bool ()
-                {
-                    return basis.size() != dot_00;
-                }
-                void set(para const& caption)
-                {
-                    basis = caption;
-                    basis.decouple();
-                    recalc();
-                }
-                auto& get()
-                {
-                    return title[(active || highlighted ? 2 : 0) + usable];
-                }
-                void recalc()
-                {
-                    brush[active_hidden] = skin::color(color.active);
-                    brush[active_usable] = skin::color(color.active);
-                    brush[unused_hidden] = skin::color(color.passive);
-                    brush[unused_usable] = skin::color(color.passive);
-
-                    brush[unused_usable].bga(brush[unused_usable].bga() << 1);
-
-                    auto i = 0;
-                    for (auto& label : title)
-                    {
-                        auto& c = brush[i++];
-                        label = basis;
-                        label.decouple();
-
-                        //todo unify clear formatting/aligning in header
-                        label.locus.kill();
-                        label.style.rst();
-                        label.lyric->each([&](auto& a) { a.meta(c); });
-                    }
-                }
-            };
-
             using sptr = netxs::sptr<base>;
 
-            ward header;
+            bool highlighted = faux;
+            si32 active = 0;
+            tone color = { tone::brighter, tone::shadower };
             rect region;
             sptr object;
             id_t obj_id;
@@ -796,28 +741,21 @@ namespace netxs::app::vtm
                 };
                 inst.LISTEN(tier::release, e2::form::state::mouse, state, tokens)
                 {
-                    header.active = state;
+                    active = state;
                 };
                 inst.LISTEN(tier::release, e2::form::state::highlight, state, tokens)
                 {
-                    header.highlighted = state;
+                    highlighted = state;
                 };
-                inst.LISTEN(tier::release, e2::form::state::header, caption, tokens)
+                inst.LISTEN(tier::release, e2::form::state::color, new_color, tokens)
                 {
-                    header.set(caption);
-                };
-                inst.LISTEN(tier::release, e2::form::state::color, color, tokens)
-                {
-                    header.color = color;
+                    color = new_color;
                 };
 
-                inst.SIGNAL(tier::request, e2::size::set,  region.size);
-                inst.SIGNAL(tier::request, e2::coor::set,  region.coor);
-                inst.SIGNAL(tier::request, e2::form::state::mouse,  header.active);
-                inst.SIGNAL(tier::request, e2::form::state::header, header.basis);
-                inst.SIGNAL(tier::request, e2::form::state::color,  header.color);
-
-                header.recalc();
+                inst.SIGNAL(tier::request, e2::size::set, region.size);
+                inst.SIGNAL(tier::request, e2::coor::set, region.coor);
+                inst.SIGNAL(tier::request, e2::form::state::mouse, active);
+                inst.SIGNAL(tier::request, e2::form::state::color, color);
             }
             // hall::node: Check equality.
             bool equals(id_t id)
@@ -832,10 +770,10 @@ namespace netxs::app::vtm
                 //auto origin = twod{ 6, window.size.y - 3 };
                 auto offset = region.coor - window.coor;
                 auto center = offset + (region.size / 2);
-                header.usable = window.overlap(region);
-                auto active = header.active || header.highlighted;
-                auto& grade = skin::grade(active ? header.color.active
-                                                 : header.color.passive);
+                //header.usable = window.overlap(region);
+                auto is_active = active || highlighted;
+                auto& grade = skin::grade(is_active ? color.active
+                                                    : color.passive);
                 auto pset = [&](twod const& p, uint8_t k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
@@ -1046,9 +984,8 @@ namespace netxs::app::vtm
                     {
                         if (auto applet = boss.pop_back())
                         {
-                            auto& title = boss.template plugins<pro::title>();
-                            what.header = title.header();
-                            what.footer = title.footer();
+                            boss.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
+                            boss.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
                             what.applet = applet;
                             what.menuid = menuid;
                         }

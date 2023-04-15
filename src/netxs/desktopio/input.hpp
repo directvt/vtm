@@ -256,10 +256,16 @@ namespace netxs::events::userland
             {
                 //EVENT_XS( keybd, input::hids ), // release: Primary keybd event for forwarding purposes.
                 GROUP_XS( mouse, input::hids ), // release: Primary mouse event for forwarding purposes.
+                GROUP_XS( user , id_t        ), // Device properties.
 
                 SUBSET_XS( mouse )
                 {
                     EVENT_XS( on, input::hids ),
+                };
+                SUBSET_XS( user )
+                {
+                    EVENT_XS( login , id_t ),
+                    EVENT_XS( logout, id_t ),
                 };
             };
         };
@@ -738,6 +744,8 @@ namespace netxs::input
         cell& clip_preview_clrs;
         byte& clip_preview_alfa;
 
+        id_t user_index; // hids: User/Device image/icon index.
+
         template<class T>
         hids(T& props, bool not_directvt, base& owner, core const& idmap)
             : relay{ 0 },
@@ -754,6 +762,7 @@ namespace netxs::input
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             mouse::delay = props.dblclick_timeout;
+            SIGNAL(tier::general, events::device::user::login, user_index);
         }
         ~hids()
         {
@@ -761,6 +770,7 @@ namespace netxs::input
             mouse_leave(mouse::hover, mouse::start);
             SIGNAL(tier::general, events::halt, *this);
             SIGNAL(tier::general, events::die, *this);
+            SIGNAL(tier::general, events::device::user::logout, user_index);
         }
 
         // hids: Whether event processing is complete.

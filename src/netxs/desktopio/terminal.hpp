@@ -409,7 +409,7 @@ namespace netxs::ui
                 {
                     if (!token) // Do not subscribe if it is already subscribed.
                     {
-                        owner.LISTEN(tier::release, e2::form::state::keybd::focus, s, token)
+                        owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
                         {
                             if (state(s)) owner.answer(queue.fcs(s));
                         };

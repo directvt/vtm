@@ -106,11 +106,11 @@ namespace netxs::app::tile
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus, state, ());
+                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::state, state, ());
                                     update_focus(boss, state);
                                 }
                             };
-                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus, state, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::state, state, boss.tracker)
                             {
                                 update_focus(boss, state);
                             };
