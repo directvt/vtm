@@ -1092,13 +1092,13 @@ namespace netxs::ui
             }
             void rebuild()
             {
+                head_foci = head_text;
                 if (user_icon.empty())
                 {
                     head_page = head_text;
                 }
                 else
                 {
-                    head_foci = head_text;
                     head_foci.chx(0).jet(bias::right);
                     for (auto& gear : user_icon)
                     {
