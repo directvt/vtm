@@ -1434,16 +1434,19 @@ namespace netxs::ui
                     if constexpr (debugmode) log("data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = get_route(gear.id);
-                    auto  alive = gear.alive;
-                    auto  accum = alive;
-                    route.foreach([&](auto& nexthop)
+                    if (route.active)
                     {
-                        nexthop->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
-                        accum &= gear.alive;
-                        gear.alive = alive;
-                    });
-                    gear.alive = accum;
-                    if (accum) boss.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                        auto alive = gear.alive;
+                        auto accum = alive;
+                        route.foreach([&](auto& nexthop)
+                        {
+                            nexthop->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
+                            accum &= gear.alive;
+                            gear.alive = alive;
+                        });
+                        gear.alive = accum;
+                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                    }
                 };
                 // Subscribe on focus chain events.
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
