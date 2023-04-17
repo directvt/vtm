@@ -294,6 +294,7 @@ namespace netxs::ui
                     if (items.take(gear).grab(boss, gear.coord, outer))
                     {
                         gear.dismiss();
+                        boss.bell::expire<tier::release>(); // To prevent d_n_d triggering.
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
