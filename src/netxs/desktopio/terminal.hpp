@@ -7476,7 +7476,11 @@ namespace netxs::ui
                 owner.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, token)
                 {
                     auto deed = owner.bell::template protos<tier::release>();
-                    s11n::focusbus.send(owner, seed.id, netxs::events::subindex(deed));
+                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    {
+                        seed.guid = os::process::id.second;
+                    }
+                    s11n::focusbus.send(owner, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
                 owner.LISTEN(tier::release, hids::events::keybd::data::post, gear, token)
                 {

@@ -289,6 +289,7 @@ namespace netxs::input
         bool skip{}; // foci: Ignore focusable object, just activate it.
         sptr item{}; // foci: Next focused item.
         ui32 deep{}; // foci: Counter for debug.
+        time guid{}; // foci: Originating environment ID.
     };
 
     // console: Mouse tracker.

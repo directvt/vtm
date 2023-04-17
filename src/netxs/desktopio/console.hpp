@@ -2456,10 +2456,11 @@ namespace netxs::ui
             void handle(s11n::xs::focusbus    lock)
             {
                 auto& focus = lock.thing;
-                netxs::events::enqueue(owner.This(), [d = focus](auto& boss) mutable
+                auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
+                if (focus.guid != os::process::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
+                netxs::events::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
-                    auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, d.cause);
                     boss.bell::template signal<tier::release>(deed, seed);
                 });
             }

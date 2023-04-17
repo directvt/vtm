@@ -660,7 +660,7 @@ namespace netxs::directvt
         STRUCT(logs,              (ui32, id) (time, guid) (text, data))
         STRUCT_LITE(expose)
         // Input stream.
-        STRUCT(focusbus,          (id_t, gear_id) (hint, cause))
+        STRUCT(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
         STRUCT(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
         STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
