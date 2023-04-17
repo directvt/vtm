@@ -646,7 +646,7 @@ namespace netxs::directvt
         STRUCT(jgc_element,       (ui64, token) (text, cluster))
         STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
         STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+        STRUCT(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
         STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT(request_clipboard, (id_t, gear_id))
         //STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -662,7 +662,7 @@ namespace netxs::directvt
         // Input stream.
         STRUCT(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
         STRUCT(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
-        STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
+        STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
         STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                   (ui32, enabled)  // sysmouse: Mouse device health status.
                                   (ui32, ctlstat)  // sysmouse: Keybd modifiers state.

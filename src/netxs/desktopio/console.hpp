@@ -1421,7 +1421,8 @@ namespace netxs::ui
                     state = faux;
                     for (auto& [k, r] : gears)
                     {
-                        if (state |= r.active) return;
+                        state |= r.active;
+                        if (state) return;
                     }
                 };
                 // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
@@ -1623,7 +1624,8 @@ namespace netxs::ui
                 {
                     for (auto& [gear_id, route] : gears)
                     {
-                        if (state |= gear_id != id_t{} && route.active) return;
+                        state |= gear_id != id_t{} && route.active;
+                        if (state) return;
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
@@ -3435,7 +3437,8 @@ namespace netxs::ui
                                                           gear.pressed,
                                                           gear.imitate,
                                                           gear.cluster,
-                                                          gear.winchar);
+                                                          gear.winchar,
+                                                          gear.handled);
                         }
                     }
                 };

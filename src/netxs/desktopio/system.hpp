@@ -3268,7 +3268,8 @@ namespace netxs::os
                             bKeyDown,
                             wRepeatCount,
                             UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
-                            UnicodeChar);
+                            UnicodeChar,
+                            faux);
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
@@ -3382,7 +3383,8 @@ namespace netxs::os
                                             reply.Event.KeyEvent.bKeyDown,
                                             reply.Event.KeyEvent.wRepeatCount,
                                             reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{},
-                                            reply.Event.KeyEvent.uChar.UnicodeChar);
+                                            reply.Event.KeyEvent.uChar.UnicodeChar,
+                                            faux);
                                         break;
                                     case MOUSE_EVENT:
                                         wired.sysmouse.send(ipcio,

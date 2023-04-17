@@ -686,6 +686,7 @@ namespace netxs::input
         ui16 scancod = {};
         hint cause = netxs::events::userland::hids::keybd::data::post.id;
         text keystrokes;
+        bool handled = {};
 
         void update(syskeybd& k)
         {
@@ -695,6 +696,7 @@ namespace netxs::input
             scancod = k.scancod;
             cluster = k.cluster;
             winchar = k.winchar;
+            handled = k.handled;
             fire_keybd();
         }
 
@@ -976,6 +978,10 @@ namespace netxs::input
         {
             alive = faux;
             if (set_nodbl) nodbl = true;
+        }
+        void set_handled(bool b)
+        {
+            handled = b;
         }
 
         void take(sysmouse& m)

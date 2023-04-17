@@ -7029,6 +7029,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
+                if (gear.handled) return; // Don't pass registered keyboard shortcuts.
                 this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
@@ -7296,6 +7297,7 @@ namespace netxs::ui
                         gear.imitate  = k.imitate;
                         gear.cluster  = k.cluster;
                         gear.winchar  = k.winchar;
+                        gear.handled  = k.handled;
                         do
                         {
                             parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
@@ -7492,7 +7494,8 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.imitate,
                                                gear.cluster,
-                                               gear.winchar);
+                                               gear.winchar,
+                                               gear.handled);
                     gear.dismiss();
                 };
                 //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)

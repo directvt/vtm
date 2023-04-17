@@ -614,7 +614,7 @@ namespace netxs::app::vtm
                     }
                 }
             };
-            LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
             {
                 //todo deprecated
                 //todo unify
@@ -636,7 +636,8 @@ namespace netxs::app::vtm
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
-                    gear.dismiss();
+                    //gear.dismiss();
+                    gear.set_handled(true);
                 }
             };
 
