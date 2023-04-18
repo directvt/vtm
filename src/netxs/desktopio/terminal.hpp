@@ -397,33 +397,32 @@ namespace netxs::ui
         // term: Keyboard focus tracking functionality.
         struct f_tracking
         {
-            f_tracking(term& owner)
-                : owner{ owner },
-                  state{ faux  }
-            { }
-
-            operator bool () { return token.operator bool(); }
-            void set(bool enable)
-            {
-                if (enable)
-                {
-                    if (!token) // Do not subscribe if it is already subscribed.
-                    {
-                        owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
-                        {
-                            if (state(s)) owner.answer(queue.fcs(s));
-                        };
-                        owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
-                    }
-                }
-                else token.reset();
-            }
-
-        private:
             term&       owner; // f_tracking: Terminal object reference.
+            bool        relay; // f_tracking: Reporting state.
             hook        token; // f_tracking: Subscription token.
             ansi::esc   queue; // f_tracking: Buffer.
             testy<bool> state; // f_tracking: Current focus state.
+
+            f_tracking(term& owner)
+                : owner{ owner },
+                  relay{ faux  },
+                  state{ faux  }
+            {
+                owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
+                {
+                    if (state(s) && relay)
+                    {
+                        owner.answer(queue.fcs(s));
+                    }
+                };
+                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
+            }
+
+            operator bool () { return state; }
+            void set(bool enable)
+            {
+                relay = enable;
+            }
         };
 
         // term: Terminal title tracking functionality.
@@ -1890,7 +1889,7 @@ namespace netxs::ui
             template<class P>
             auto _shade_selection(si32 mode, P work)
             {
-                switch (mode)
+                switch (owner.ftrack ? mode : clip::disabled)
                 {
                     case clip::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
                     case clip::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
