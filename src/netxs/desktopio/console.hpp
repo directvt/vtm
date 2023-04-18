@@ -1317,9 +1317,9 @@ namespace netxs::ui
             {
                 if constexpr (On == faux)
                 {
-                    for (auto& [k, r] : gears)
+                    for (auto& [gear_id, route] : gears)
                     {
-                        if (r.active) return;
+                        if (gear_id != id_t{} && route.active) return;
                     }
                 }
                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::state, On);
@@ -3115,6 +3115,7 @@ namespace netxs::ui
         subs  tokens; // gate: Subscription tokens.
         bool direct; // gate: .
         bool local; // gate: .
+        hook oneoff_focus; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3319,14 +3320,13 @@ namespace netxs::ui
             limit.set(dot_11);
             title.live = faux;
 
-            auto oneoff = ptr::shared(hook{});
-            LISTEN(tier::release, hids::events::focus::set, gear, *oneoff, (oneoff)) // Restore all foci for the first user.
+            LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
             {
                 if (auto target = local ? applet : base::parent())
                 {
                     pro::focus::set(target, gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
                 }
-                oneoff.reset();
+                oneoff_focus.reset();
             };
             LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
             {
@@ -3336,6 +3336,23 @@ namespace netxs::ui
                     target->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
                 }
             };
+            if (!direct)
+            {
+                LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
+                {
+                    if (auto target = local ? applet : base::parent())
+                    {
+                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = gear.id }));
+                    }
+                };
+                LISTEN(tier::release, hids::events::focus::off, gear)
+                {
+                    if (auto target = local ? applet : base::parent())
+                    {
+                        target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = gear.id }));
+                    }
+                };
+            }
             //todo deprecated
             //LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
             //{

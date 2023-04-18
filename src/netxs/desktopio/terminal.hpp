@@ -405,8 +405,7 @@ namespace netxs::ui
 
             f_tracking(term& owner)
                 : owner{ owner },
-                  relay{ faux  },
-                  state{ faux  }
+                  relay{ faux  }
             {
                 owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
                 {
@@ -418,7 +417,7 @@ namespace netxs::ui
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
             }
 
-            operator bool () { return state; }
+            operator bool () { return state.last; }
             void set(bool enable)
             {
                 relay = enable;
