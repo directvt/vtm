@@ -6637,7 +6637,10 @@ namespace netxs::ui
         void selection_pickup(hids& gear)
         {
             RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
-            if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
+            if (!gear_test.second) // Set exclusive focus on right click.
+            {
+                pro::focus::set(This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+            }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
             {
