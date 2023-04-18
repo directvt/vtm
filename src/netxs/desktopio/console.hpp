@@ -1419,9 +1419,9 @@ namespace netxs::ui
                 boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
                 {
                     state = faux;
-                    for (auto& [k, r] : gears)
+                    for (auto& [gear_id, route] : gears)
                     {
-                        state |= r.active;
+                        state |= gear_id != id_t{} && route.active;
                         if (state) return;
                     }
                 };
@@ -1622,6 +1622,8 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::focus::state, state, memo)
                 {
+                    //todo revise: same as e2::form::state::keybd::check
+                    state = faux;
                     for (auto& [gear_id, route] : gears)
                     {
                         state |= gear_id != id_t{} && route.active;
@@ -3381,13 +3383,16 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
                 //todo use input::forward<focus>
-                auto gear_it = input.gears.find(seed.id);
-                if (gear_it == input.gears.end())
+                if (seed.id != id_t{}) // Translate only the real foreign gear id.
                 {
-                    gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, seed.id == 0, *this, input.xmap)).first;
+                    auto gear_it = input.gears.find(seed.id);
+                    if (gear_it == input.gears.end())
+                    {
+                        gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, seed.id == 0, *this, input.xmap)).first;
+                    }
+                    auto& [_id, gear_ptr] = *gear_it;
+                    seed.id = gear_ptr->id;
                 }
-                auto& [_id, gear_ptr] = *gear_it;
-                seed.id = gear_ptr->id;
 
                 auto deed = this->bell::template protos<tier::release>();
                 if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
