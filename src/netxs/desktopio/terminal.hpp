@@ -413,6 +413,7 @@ namespace netxs::ui
                     {
                         owner.answer(queue.fcs(s));
                     }
+                    owner.ptycon.focus(s);
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
             }

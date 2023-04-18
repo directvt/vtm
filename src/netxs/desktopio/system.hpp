@@ -2662,6 +2662,12 @@ namespace netxs::os
                     con_serv.reset();
                 #endif
             }
+            void focus(bool state)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.focus(state);
+                #endif
+            }
             void keybd(input::hids& gear, bool decckm)
             {
                 #if defined(_WIN32)
