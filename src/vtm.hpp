@@ -966,6 +966,7 @@ namespace netxs::app::vtm
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
+        twod vport; // hall: Last user's viewport position.
 
         auto window(link& what)
         {
@@ -1169,12 +1170,16 @@ namespace netxs::app::vtm
             {
                 auto& inst = *item_ptr;
                 host::denote(items.remove(inst.id));
-                host::denote(users.remove(inst.id));
+                auto block = users.remove(inst.id);
+                if (block) // Save user's viewport last position.
+                {
+                    host::denote(block);
+                    vport = block.coor;
+                }
                 if (dbase.remove(item_ptr))
                 {
                     inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
                 }
-
                 if (items.size()) // Pass focus to the top most object.
                 {
                     auto last_ptr = items.back();
@@ -1386,6 +1391,7 @@ namespace netxs::app::vtm
             auto patch = ""s;
             auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
             user->attach(deskmenu);
+            if (vport) user->base::moveto(vport); // Restore user's last position.
             lock.unlock();
             user->launch();
         }
