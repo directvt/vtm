@@ -324,6 +324,8 @@ namespace netxs::app::desk
 
             auto uibar_min_size = config.take("/config/menu/width/folded",   si32{ 4  });
             auto uibar_max_size = config.take("/config/menu/width/expanded", si32{ 31 });
+            auto bttn_min_size = twod{ 31, 3 };
+            auto bttn_max_size = twod{ -1, 3 };
 
             auto window = ui::cake::ctor();
             auto my_id = id_t{};
@@ -536,7 +538,7 @@ namespace netxs::app::desk
                     ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
                 bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
                 auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
-                    ->plugin<pro::limit>(twod{ uibar_max_size, 3 }, twod{ -1, 3 });
+                    ->plugin<pro::limit>(bttn_min_size, bttn_max_size);
                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                     ->plugin<pro::fader>(x2, c2, skin::globals().fader_time)
                     ->plugin<pro::notes>(" Leave current session ")
