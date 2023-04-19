@@ -44,6 +44,7 @@ namespace netxs::app::vtm
 
     static constexpr auto path_item     = "/config/menu/item";
     static constexpr auto path_autorun  = "/config/menu/autorun/item";
+    static constexpr auto path_viewport = "/config/menu/viewport/coor";
 
     struct events
     {
@@ -1325,6 +1326,7 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
+            vport = host::config.take(path_viewport, dot_00);
             auto what = link{};
             auto apps = host::config.list(path_autorun);
             auto foci = std::vector<sptr<base>>();

@@ -2697,7 +2697,6 @@ namespace netxs::ui
             text os_user_id;
             text title;
             text selected;
-            twod coor;
             span clip_preview_time;
             cell clip_preview_clrs;
             byte clip_preview_alfa;
@@ -2728,7 +2727,6 @@ namespace netxs::ui
                 clip_preview_glow = config.take("clipboard/preview/shadow", 7);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
                 clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-                coor              = config.take("viewport/coor", dot_00); //todo Move user's viewport to the last saved position
                 dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
                 tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
                 tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
@@ -3604,7 +3602,6 @@ namespace netxs::ui
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
             {
                 if (props.debug_overlay) debug.start();
-                base::moveby(props.coor);
                 this->SIGNAL(tier::release, e2::form::prop::name, props.title);
                 this->SIGNAL(tier::preview, e2::form::prop::ui::header, props.title);
             };
