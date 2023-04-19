@@ -1340,6 +1340,7 @@ namespace netxs::ui
                             auto  token = std::move(route.token);
                             if (route.active) // Keep only the active branch.
                             {
+                                route.active = faux;
                                 gears[id_t{}] = std::move(route);
                                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, gear.id);
                                 signal_state<faux>();
