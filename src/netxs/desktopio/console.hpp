@@ -1098,7 +1098,7 @@ namespace netxs::ui
                 head_foci = head_text;
                 if (user_icon.size())
                 {
-                    head_foci.add(text(user_icon.size() * 2 - 1, '\0')); // Reserv space for focus markers.
+                    head_foci.add(text(user_icon.size() * 2, '\0')); // Reserv space for focus markers.
                     //if (head_live) // Add a new line if there is no space for focus markers.
                     //{
                     //    head_page = head_foci;
