@@ -1060,17 +1060,19 @@ namespace netxs::ui
         public:
             bool live = true; // title: Title visibility.
 
-            void recalc(page& object, twod& size)
+            auto recalc(page& object, twod& size)
             {
+                auto cp = dot_00;
                 ooooooooo.flow::reset();
                 ooooooooo.flow::size(size);
                 auto publish = [&](auto const& combo)
                 {
-                    auto cp = ooooooooo.flow::print(combo);
+                    cp = ooooooooo.flow::print(combo);
                 };
                 object.stream(publish);
                 auto& cover = ooooooooo.flow::minmax();
                 size.y = cover.height() + 1;
+                return cp;
             }
             void recalc(twod const& new_size)
             {
@@ -1096,12 +1098,19 @@ namespace netxs::ui
                 head_foci = head_text;
                 if (user_icon.size())
                 {
-                    head_foci.chx(0).jet(bias::right);
+                    head_foci.add(text(user_icon.size() * 2 - 1, '\0')); // Reserv space for focus markers.
+                    //if (head_live) // Add a new line if there is no space for focus markers.
+                    //{
+                    //    head_page = head_foci;
+                    //    auto cp = recalc(head_page, head_size);
+                    //    if (cp.x + user_icon.size() * 2 - 1 < head_size.x) head_foci.eol();
+                    //}
+                    head_foci.nop().pushsgr().chx(0).jet(bias::right);
                     for (auto& gear : user_icon)
                     {
                         head_foci.add(gear.icon);
                     }
-                    head_foci.nil();
+                    head_foci.nop().popsgr();
                 }
                 if (head_live)
                 {

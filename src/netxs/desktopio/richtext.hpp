@@ -1489,12 +1489,14 @@ namespace netxs::ui
         using list = std::list<sptr<para>>;
         using iter = list::iterator;
         using pmap = std::map<si32, wptr<para>>;
+        using redo = std::list<std::pair<deco, ansi::mark>>;
 
     public:
         ui32 index = {};              // page: Current paragraph id.
         list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
-        pmap parts;                   // page: Paragraph index.
+        pmap parts = {};              // page: Paragraph index.
+        redo stack = {};              // paпу: Style state stack.
 
         //todo use ring
         si32 limit = std::numeric_limits<si32>::max(); // page: Paragraphs number limit.
@@ -1537,6 +1539,8 @@ namespace netxs::ui
             vt.csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
             vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
             vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
+            vt.csier.table_hash[CSI_HSH_PUSH_SGR] = VT_PROC{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
+            vt.csier.table_hash[CSI_HSH_POP_SGR ] = VT_PROC{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
         }
         page              (view utf8) {          ansi::parse(utf8, this);               }
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
@@ -1569,6 +1573,26 @@ namespace netxs::ui
             fork(id);
             parts.emplace(id, *layer);
             return **layer;
+        }
+        // page: CSI # {  Push SGR attributes.
+        void pushsgr()
+        {
+            parser::flush();
+            stack.push_back({ parser::style, parser::brush });
+            if (stack.size() == 10) stack.pop_front();
+        }
+        // page: CSI # }  Pop SGR attributes.
+        void popsgr()
+        {
+            parser::flush();
+            if (stack.size())
+            {
+                auto& [s, b] = stack.back();
+                parser::style = s;
+                parser::brush = b;
+                parser::flush_style();
+                stack.pop_back();
+            }
         }
         // page: Clear the list of paragraphs.
         page& clear(bool preserve_state = faux)

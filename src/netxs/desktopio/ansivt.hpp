@@ -1737,9 +1737,8 @@ namespace netxs::ansi
         }
     };
 
-    class parser
+    struct parser
     {
-    public:
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
         grid proto{}; // parser: Proto lyric.
