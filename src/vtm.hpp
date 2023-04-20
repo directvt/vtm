@@ -616,6 +616,7 @@ namespace netxs::app::vtm
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
+            //LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) //todo temp
             {
                 //todo deprecated
                 //todo unify
@@ -638,6 +639,7 @@ namespace netxs::app::vtm
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     //gear.dismiss();
+                    this->bell::expire<tier::preview>(); //todo temp
                     gear.set_handled(true);
                 }
             };

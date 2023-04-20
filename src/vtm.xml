@@ -131,13 +131,6 @@ R"==(
             <limits>
                 <window size=2000x1000 />  <!-- Max window size -->
             </limits>
-            <users icon*>  <!-- Not implemented. Predefined icons for displaying focus ownership on the right above the window. -->
-                <icon=" \e[34m▀"/>  <!-- User1 icon image (Blue box). -->
-                <icon=" \e[32m▀"/>  <!-- User2 icon image (Green box). -->
-                <icon=" \e[31m▀"/>  <!-- User3 icon image (Red box). -->
-                <icon=" \e[36m▀"/>  <!-- User4 icon image (Cyan box). -->
-                <icon=" \e[35m▀"/>  <!-- User5 icon image (Magents box). -->
-            </users>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter fgc=purewhite bgc=purewhite alpha=0 /> <!-- Highlighter. -->
