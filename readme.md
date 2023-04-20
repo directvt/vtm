@@ -460,7 +460,7 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term item* autorun*>  <!-- Use asterisk to zeroize existing item and autorun records. -->
+    <menu selected=Term item*>  <!-- Use asterisk to zeroize existing item records. -->
         <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
     </menu>
 </config>
@@ -472,7 +472,7 @@ Note: The following configuration sections are not implemented yet
 <config>
     <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested arguments
+                       Using an asterisk with the parameter name of the first element in the list without any other nested attributes
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
             <notes>
@@ -496,8 +496,11 @@ Note: The following configuration sections are not implemented yet
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
                     </cursor>
+                    <selection>
+                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
+                    </selection>
                     <menu>
-                        <autohide=off/>  <!--  If true/on, show menu only on hover. -->
+                        <autohide=on/>  <!--  If true/on, show menu only on hover. -->
                         <enabled="on"/>
                         <slim=1/>
                     </menu>
@@ -524,6 +527,7 @@ Note: The following configuration sections are not implemented yet
             <!--  <item wincoor=92,31 />                        -->
             <!--  <item wincoor=8,31 focused />                 -->
         </autorun>
+        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <width>    <!-- Taskbar menu width -->
             <folded=4/>
             <expanded=31/>
@@ -568,9 +572,12 @@ Note: The following configuration sections are not implemented yet
                 <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
+            <limits>
+                <window size=2000x1000 />  <!-- Max window size -->
+            </limits>
         </defaults>
         <runapp>    <!-- Override defaults. -->
-            <brighter=0 />
+            <brighter fgc=purewhite bgc=purewhite alpha=0 /> <!-- Highlighter. -->
         </runapp>
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
@@ -645,14 +652,14 @@ Note: The following configuration sections are not implemented yet
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=0 fgc=15 />  <!-- Initial colors. -->
-            <match fx=color bgc="0xFF007F00" fgc=whitelt />  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
+            <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
-                <text fx=color bgc=bluelt fgc=whitelt />  <!-- Highlighting of the selected text in plaintext mode. -->
-                <protected fx=color bgc=bluelt fgc=whitelt />  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
-                <ansi fx=xlight/>
-                <rich fx=xlight/>
-                <html fx=xlight/>
-                <none fx=color bgc=blacklt fgc=whitedk />  <!-- Inactive selection color. -->
+                <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
+                <protected fx=color bgc=bluelt fgc=whitelt/>  <!-- Note: The bgc and fgc attributes only apply to the fx=color shader. -->
+                <ansi fx=xlight bgc=bluelt fgc=whitelt/>
+                <rich fx=xlight bgc=bluelt fgc=whitelt/>
+                <html fx=xlight bgc=bluelt fgc=whitelt/>
+                <none fx=color bgc=blacklt fgc=whitedk/>  <!-- Inactive selection color. -->
             </selection>
         </color>
         <fields>
@@ -720,6 +727,7 @@ Note: The following configuration sections are not implemented yet
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
+            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
         </selection>
         <atexit = auto /> <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
