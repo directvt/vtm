@@ -79,7 +79,7 @@ namespace netxs::os
     using pipe = ui::pipe;
     using xipc = ui::pipe::xipc;
 
-    enum role { client, server };
+    enum class role { client, server };
 
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
@@ -2662,6 +2662,12 @@ namespace netxs::os
                     con_serv.reset();
                 #endif
             }
+            void focus(bool state)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.focus(state);
+                #endif
+            }
             void keybd(input::hids& gear, bool decckm)
             {
                 #if defined(_WIN32)
@@ -3268,7 +3274,8 @@ namespace netxs::os
                             bKeyDown,
                             wRepeatCount,
                             UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
-                            UnicodeChar);
+                            UnicodeChar,
+                            faux);
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
@@ -3382,12 +3389,13 @@ namespace netxs::os
                                             reply.Event.KeyEvent.bKeyDown,
                                             reply.Event.KeyEvent.wRepeatCount,
                                             reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{},
-                                            reply.Event.KeyEvent.uChar.UnicodeChar);
+                                            reply.Event.KeyEvent.uChar.UnicodeChar,
+                                            faux);
                                         break;
                                     case MOUSE_EVENT:
                                         wired.sysmouse.send(ipcio,
                                             0,
-                                            input::hids::ok,
+                                            input::hids::stat::ok,
                                             os::nt::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
                                             reply.Event.MouseEvent.dwButtonState & 0b00011111,

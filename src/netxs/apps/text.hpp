@@ -190,13 +190,13 @@ utility like ctags is used to locate the definitions.
             auto highlight_color = skin::color(tone::highlight);
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                      //boss.keybd.accept(true);
                       boss.LISTEN(tier::anycast, e2::form::quit, item)
                       {
                           boss.RISEUP(tier::release, e2::form::quit, item);

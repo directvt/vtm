@@ -420,13 +420,13 @@ namespace netxs::app::test
         {
             auto topic = get_text();
             auto window = ui::cake::ctor()
-                ->plugin<pro::focus>()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->plugin<pro::track>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->invoke([](auto& boss)
                 {
-                    boss.keybd.accept(true);
+                    //boss.keybd.accept(true);
                     boss.LISTEN(tier::anycast, e2::form::quit, item)
                     {
                         boss.RISEUP(tier::release, e2::form::quit, item);

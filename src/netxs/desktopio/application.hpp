@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.8w";
+    static const auto version = "v0.9.9c";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -55,6 +55,7 @@ namespace netxs::app::shared
                 Option,
                 Repeat,
             };
+
             struct look
             {
                 text label{};
@@ -101,28 +102,60 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        const auto create = [](xmls& config, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
+            auto action_color    = skin::color(tone::action);
+            auto c6 = action_color;
+            auto x6 = cell{ c6 }.alpha(0x00);
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto c1 = danger_color;
             auto x1 = cell{ c1 }.alpha(0x00);
 
             auto slot1 = ui::veer::ctor();
-            auto autohide = config.take("menu/autohide", faux);
-            auto menushow = config.take("menu/enabled" , true);
-            auto menusize = config.take("menu/slim"    , faux);
 
             auto menuarea = ui::fork::ctor()
                             ->active();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
+                auto fader = skin::globals().fader_time;
 
-                    menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }))
-                            ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
-                            ->plugin<pro::notes>(" Maximize/restore window ")
+                auto make_item = [&](auto& body, auto& dest_ptr, auto& fgc, auto& bgc)
+                {
+                    auto& item_ptr = std::get<0>(body);
+                    auto& setup = std::get<1>(body);
+                    auto& item = *item_ptr;
+                    auto& hover = item.alive;
+                    auto& label = item.views.front().label;
+                    auto& notes = item.views.front().notes;
+                    if (hover) dest_ptr->template plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
+                    else       dest_ptr->colors(0,0); //todo for mouse tracking
+                    dest_ptr->template plugin<pro::notes>(notes) //todo template: GCC complains
+                            ->branch(ui::item::ctor(label, faux, true))
+                            ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
+                            {
+                                setup(boss, item);
+                                boss.LISTEN(tier::release, e2::dtor, v, -, (item_ptr))
+                                {
+                                    item_ptr.reset();
+                                };
+                            });
+                };
+                auto headitem = menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }));
+                auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{ 0 }));
+                if (custom) // Apply a custom front/last menu items.
+                {
+                    make_item(menu_items.front(), headitem, x6, c6);
+                    make_item(menu_items.back(),  tailitem, x1, c1);
+                    menu_items.pop_front();
+                    menu_items.pop_back();
+                }
+                else // Apply standard front/last menu items.
+                {
+                    headitem->plugin<pro::fader>(x3, c3, fader)
+                            ->plugin<pro::notes>(" Maximize/restore ")
                             ->invoke([&](ui::pads& boss)
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -132,65 +165,36 @@ namespace netxs::app::shared
                                 };
                             })
                             ->attach(ui::item::ctor(" ≡", faux, true));
+                    tailitem->plugin<pro::fader>(x1, c1, fader)
+                            ->plugin<pro::notes>(" Close ")
+                            ->invoke([&](auto& boss)
+                            {
+                                #if defined(_DEBUG)
+                                boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
+                                #else
+                                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                                #endif
+                                {
+                                    boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
+                                    gear.dismiss();
+                                };
+                            })
+                            ->attach(ui::item::ctor("×"));
+                }
+                auto scrlarea = menulist->attach(slot::_2, ui::cake::ctor());
+                auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
+                auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
-                    auto scrlarea = menulist->attach(slot::_2, ui::cake::ctor());
-                    auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_ONLY, axes::X_ONLY));
-                    auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
+                auto scroll_hint = ui::park::ctor();
+                auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::gripfx<axis::X, drawfx>::ctor(scrlrail));
 
-                    auto scroll_hint = ui::park::ctor();
-                    auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::gripfx<axis::X, drawfx>::ctor(scrlrail));
+                auto scrl_grip = scrlarea->attach(scroll_hint);
 
-                    auto scrl_grip = scrlarea->attach(scroll_hint);
-
-                auto fader = skin::globals().fader_time;
                 for (auto& body : menu_items)
                 {
-                    auto& item_ptr = std::get<0>(body);
-                    auto& setup = std::get<1>(body);
-                    auto& item = *item_ptr;
-                    auto& hover = item.alive;
-                    auto& label = item.views.front().label;
-                    auto& notes = item.views.front().notes;
-                    if (hover)
-                    {
-                        scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                ->plugin<pro::fader>(x3, c3, fader)
-                                ->plugin<pro::notes>(notes)
-                                ->invoke([&](ui::pads& boss){ setup(boss, item); })
-                                ->attach(ui::item::ctor(label, faux, true));
-                    }
-                    else
-                    {
-                        scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }))
-                                ->colors(0,0) //todo for mouse tracking
-                                ->plugin<pro::notes>(notes)
-                                ->invoke([&](ui::pads& boss){ setup(boss, item); })
-                                ->attach(ui::item::ctor(label, faux, true));
-                    }
-                    scrllist->invoke([&](auto& boss) // Store shared ptr to the menu item config.
-                    {
-                        boss.LISTEN(tier::release, e2::dtor, v, -, (item_ptr))
-                        {
-                            item_ptr.reset();
-                        };
-                    });
+                    auto mid_item = scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    make_item(body, mid_item, x3, c3);
                 }
-                menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{}))
-                        ->plugin<pro::fader>(x1, c1, fader)
-                        ->plugin<pro::notes>(" Close window ")
-                        ->invoke([&](auto& boss)
-                        {
-                            #if defined(_DEBUG)
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
-                            #else
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            #endif
-                            {
-                                boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
-                                gear.dismiss();
-                            };
-                        })
-                        ->attach(ui::item::ctor("×"));
 
             auto menu_block = ui::park::ctor()
                 ->plugin<pro::limit>(twod{ -1, menusize ? 1 : 3 }, twod{ -1, menusize ? 1 : 3 })
@@ -283,6 +287,13 @@ namespace netxs::app::shared
                     });
 
             return std::tuple{ slot1, border, menu_block };
+        };
+        const auto create = [](xmls& config, list menu_items)
+        {
+            auto autohide = config.take("menu/autohide", faux);
+            auto menushow = config.take("menu/enabled" , true);
+            auto menusize = config.take("menu/slim"    , faux);
+            return mini(autohide, menushow, menusize, faux, menu_items);
         };
         const auto demo = [](xmls& config)
         {
@@ -398,9 +409,11 @@ namespace netxs::app::shared
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
+                ->plugin<pro::track>()
+                ->plugin<pro::acryl>()
                 ->invoke([&](auto& boss)
                 {
-                    boss.keybd.accept(true);
+                    //boss.keybd.accept(true);
                     closing_on_quit(boss);
                     closing_by_gesture(boss);
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)

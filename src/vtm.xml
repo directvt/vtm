@@ -83,6 +83,7 @@ R"==(
             <!--  <item wincoor=92,30/> -->
             <!--  <item wincoor=8,30 focused/> -->
         </autorun>
+        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <width>    <!-- Taskbar menu width. -->
             <folded=4/>
             <expanded=31/>
@@ -162,13 +163,12 @@ R"==(
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+            <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7  />  <!-- Preview shadow strength (0-10). -->
             </preview>
         </clipboard>
-        <viewport coor=0,0/>
         <mouse dblclick=500ms/>
         <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
         <glowfx=true/>                      <!-- Show glow effect around selected item. -->

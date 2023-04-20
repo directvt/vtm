@@ -30,6 +30,7 @@ namespace netxs
 
     static constexpr auto whitespaces = " \n\r\t"sv;
     static constexpr auto whitespace  = ' '; // '.';
+    static constexpr auto emptyspace  = "\0"sv;
 }
 
 namespace netxs::utf
@@ -478,7 +479,7 @@ namespace netxs::utf
         auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
     }
-    enum codepage
+    enum class codepage
     {
         cp866,
         cp1251,

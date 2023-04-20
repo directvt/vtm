@@ -9,7 +9,7 @@ namespace netxs::events::userland
 {
     struct uiterm
     {
-        EVENTPACK( uiterm, netxs::events::userland::root::custom )
+        EVENTPACK( uiterm, ui::e2::extra::slot5 )
         {
             EVENT_XS( selmod, si32 ),
             EVENT_XS( selalt, si32 ),
@@ -317,18 +317,16 @@ namespace netxs::ui
 
             operator bool () { return state != mode::none; }
 
+            //todo deprecated
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
                 auto m = std::bitset<8>{ gear.m.buttons };
                 auto s = std::bitset<8>{ gear.s.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        gear.kb_offer_2(owner.This());
                         pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
@@ -336,13 +334,9 @@ namespace netxs::ui
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(owner.This());
-                        else                          gear.kb_offer_7(owner.This());
                         pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                         : pro::focus::solo::on, pro::focus::flip::on);
                     }
@@ -403,40 +397,32 @@ namespace netxs::ui
         // term: Keyboard focus tracking functionality.
         struct f_tracking
         {
-            f_tracking(term& owner)
-                : owner{ owner },
-                  state{ faux  }
-            { }
-
-            operator bool () { return token.operator bool(); }
-            void set(bool enable)
-            {
-                if (enable)
-                {
-                    if (!token) // Do not subscribe if it is already subscribed.
-                    {
-                        owner.LISTEN(tier::release, hids::events::notify::keybd::any, gear, token)
-                        {
-                            auto s = state;
-                            switch (owner.bell::protos<tier::release>())
-                            {
-                                case hids::events::notify::keybd::got .id: state = true; break;
-                                case hids::events::notify::keybd::lost.id: state = faux; break;
-                                default: return;
-                            }
-                            if (s != state) owner.answer(queue.fcs(state));
-                        };
-                        owner.SIGNAL(tier::anycast, e2::form::state::keybd::check, state);
-                    }
-                }
-                else token.reset();
-            }
-
-        private:
             term&       owner; // f_tracking: Terminal object reference.
+            bool        relay; // f_tracking: Reporting state.
             hook        token; // f_tracking: Subscription token.
             ansi::esc   queue; // f_tracking: Buffer.
-            bool        state; // f_tracking: Current focus state.
+            testy<bool> state; // f_tracking: Current focus state.
+
+            f_tracking(term& owner)
+                : owner{ owner },
+                  relay{ faux  }
+            {
+                owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
+                {
+                    if (state(s) && relay)
+                    {
+                        owner.answer(queue.fcs(s));
+                    }
+                    owner.ptycon.focus(s);
+                };
+                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
+            }
+
+            operator bool () { return state.last; }
+            void set(bool enable)
+            {
+                relay = enable;
+            }
         };
 
         // term: Terminal title tracking functionality.
@@ -1903,7 +1889,7 @@ namespace netxs::ui
             template<class P>
             auto _shade_selection(si32 mode, P work)
             {
-                switch (mode)
+                switch (owner.ftrack ? mode : clip::disabled)
                 {
                     case clip::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
                     case clip::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
@@ -6124,8 +6110,7 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            auto gates = e2::form::state::keybd::enlist.param();
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
+            RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
             for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto gear_ptr = bell::getref<hids>(gate_id))
@@ -6449,7 +6434,7 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::release, hids::events::keybd::data, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -6585,7 +6570,6 @@ namespace netxs::ui
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                gear.kb_offer_2(this->This());
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 //todo respect bracketed paste mode
                 follow[axis::X] = true;
@@ -6613,7 +6597,6 @@ namespace netxs::ui
         {
             auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
                                                            : static_cast<clip::mime>(selmod);
-            gear.kb_offer_2(this->This());
             pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
             gear.set_clip_data(clip{ target->panel, data, mimetype });
         }
@@ -6652,9 +6635,11 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
-            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
-            if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
+            RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+            if (!gear_test.second) // Set exclusive focus on right click.
+            {
+                pro::focus::set(This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+            }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
             {
@@ -6669,7 +6654,6 @@ namespace netxs::ui
                                                    : text{};
             if (utf8.size())
             {
-                gear.kb_offer_2(this->This());
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
                 data_out(utf8);
@@ -7013,7 +6997,7 @@ namespace netxs::ui
               selalt{ config.def_selalt }
         {
             linux_console = os::vt::console();
-            form::keybd.accept(true); // Subscribe on keybd offers.
+            //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });
@@ -7045,8 +7029,9 @@ namespace netxs::ui
 
                 new_size.y += console.get_basis();
             };
-            LISTEN(tier::release, hids::events::keybd::data, gear)
+            LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
+                if (gear.handled) return; // Don't pass registered keyboard shortcuts.
                 this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
@@ -7269,6 +7254,60 @@ namespace netxs::ui
                         parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
                     }
                 });
+            }
+            void handle(s11n::xs::focus_cut           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    //todo move it to the static pro::focus::cut(gear_id, item_ptr)
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                    }
+                });
+            }
+            void handle(s11n::xs::focus_set           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
+                    }
+                });
+            }
+            void handle(s11n::xs::keybd_event         lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        //todo use temp gear object
+                        gear.alive    = true;
+                        gear.ctlstate = k.ctlstat;
+                        gear.winctrl  = k.winctrl;
+                        gear.virtcod  = k.virtcod;
+                        gear.scancod  = k.scancod;
+                        gear.pressed  = k.pressed;
+                        gear.imitate  = k.imitate;
+                        gear.cluster  = k.cluster;
+                        gear.winchar  = k.winchar;
+                        gear.handled  = k.handled;
+                        do
+                        {
+                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                            parent_ptr = parent_ptr->parent();
+                        }
+                        while (gear && parent_ptr);
+                    }
+                });
             };
             void handle(s11n::xs::mouse_event         lock)
             {
@@ -7284,8 +7323,7 @@ namespace netxs::ui
                         gear.pass<tier::release>(parent_ptr, owner.base::coor());
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
-                            auto basis = e2::coor::set.param();
-                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
+                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis, ());
                             owner.global(basis);
                             gear.coord -= basis; // Restore gate mouse position.
                             gear.owner.bell::template signal<tier::release>(m.cause, gear);
@@ -7326,21 +7364,21 @@ namespace netxs::ui
                     s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
                 });
             }
-            void handle(s11n::xs::focus               lock)
-            {
-                auto& f = lock.thing;
-                owner.trysync(owner.active, [&]
-                {
-                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-                    {
-                        auto& gear = *gear_ptr;
-                        if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
-                        else         gear.remove_from_kb_focus(owner.This());
-                        if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
-                        else         pro::focus::off(owner.This(), gear.id);
-                    }
-                });
-            }
+            //void handle(s11n::xs::focus               lock)
+            //{
+            //    auto& f = lock.thing;
+            //    owner.trysync(owner.active, [&]
+            //    {
+            //        if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+            //        {
+            //            auto& gear = *gear_ptr;
+            //            if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
+            //            else         gear.remove_from_kb_focus(owner.This());
+            //            if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
+            //            else         pro::focus::off(owner.This(), gear.id);
+            //        }
+            //    });
+            //}
             void handle(s11n::xs::form_header         lock)
             {
                 auto& h = lock.thing;
@@ -7439,7 +7477,16 @@ namespace netxs::ui
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::data, gear, token)
+                owner.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, token)
+                {
+                    auto deed = owner.bell::template protos<tier::release>();
+                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    {
+                        seed.guid = os::process::id.second;
+                    }
+                    s11n::focusbus.send(owner, seed.id, seed.guid, netxs::events::subindex(deed));
+                };
+                owner.LISTEN(tier::release, hids::events::keybd::data::post, gear, token)
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
@@ -7449,33 +7496,35 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.imitate,
                                                gear.cluster,
-                                               gear.winchar);
+                                               gear.winchar,
+                                               gear.handled);
+                    gear.dismiss();
                 };
-                owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
-                {
-                    auto focus_state = true;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
-                owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
-                {
-                    gear.remove_from_kb_focus(owner.This());
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
-                owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
-                {
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.focus_combine,
-                                               gear.focus_force_group);
-                };
+                //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
+                //{
+                //    auto focus_state = true;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
+                //{
+                //    gear.remove_from_kb_focus(owner.This());
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
+                //{
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
                 owner.LISTEN(tier::general, e2::config::fps, frame_rate, token)
                 {
                     if (frame_rate > 0)
@@ -7570,10 +7619,8 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    auto header = e2::form::prop::ui::header.param();
-                    auto footer = e2::form::prop::ui::footer.param();
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, header);
-                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
                     procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
@@ -7609,8 +7656,7 @@ namespace netxs::ui
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
-            auto fps = e2::config::fps.param(-1);
-            SIGNAL(tier::general, e2::config::fps, fps);
+            SIGNAL(tier::general, e2::config::fps, fps, (-1));
             maxoff = max_drops * span{ span::period::den / fps };
             LISTEN(tier::general, e2::config::fps, fps)
             {

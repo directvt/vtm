@@ -57,10 +57,21 @@ namespace netxs::events::userland
 
             SUBSET_XS( extra )
             {
-                EVENT_XS( slot0, si32 ),
                 EVENT_XS( slot1, si32 ),
                 EVENT_XS( slot2, si32 ),
                 EVENT_XS( slot3, si32 ),
+                EVENT_XS( slot4, si32 ),
+                EVENT_XS( slot5, si32 ),
+                EVENT_XS( slot6, si32 ),
+                EVENT_XS( slot7, si32 ),
+                EVENT_XS( slot8, si32 ),
+                EVENT_XS( slot9, si32 ),
+                EVENT_XS( slotA, si32 ),
+                EVENT_XS( slotB, si32 ),
+                EVENT_XS( slotC, si32 ),
+                EVENT_XS( slotD, si32 ),
+                EVENT_XS( slotE, si32 ),
+                EVENT_XS( slotF, si32 ),
             };
             SUBSET_XS( timer )
             {
@@ -142,7 +153,6 @@ namespace netxs::events::userland
                 EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod     ),
                 GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( highlight, bool           ),
                 GROUP_XS( upon     , bool           ),
                 GROUP_XS( proceed  , bool           ),
                 GROUP_XS( cursor   , bool           ),
@@ -180,12 +190,6 @@ namespace netxs::events::userland
                     //EVENT_XS( rect      , rect       ), // return client rect.
                     //EVENT_XS( show      , bool       ), // order to make it visible.
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
-                };
-                SUBSET_XS( highlight )
-                {
-                    EVENT_XS( on , bool ),
-                    EVENT_XS( off, bool ),
-                    EVENT_XS( set, bool ),
                 };
                 SUBSET_XS( upon )
                 {
@@ -272,18 +276,11 @@ namespace netxs::events::userland
                     EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( autofocus , input::hids    ), // release: restore the last foci state.
                     //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
-
-                    SUBSET_XS(autofocus)
-                    {
-                        EVENT_XS(take, input::hids),
-                        EVENT_XS(lost, input::hids),
-                    };
                 };
                 SUBSET_XS( cursor )
                 {
@@ -350,7 +347,7 @@ namespace netxs::events::userland
                 SUBSET_XS( prop )
                 {
                     EVENT_XS( name      , text        ), // user name.
-                    EVENT_XS( zorder    , si32        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( zorder    , zpos        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
                     EVENT_XS( brush     , const cell  ), // set form brush/color.
                     EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
                     EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
@@ -366,6 +363,7 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( ui )
                     {
+                        EVENT_XS( title   , text ), // form title + foci status.
                         EVENT_XS( header  , text ), // set/get form caption header.
                         EVENT_XS( footer  , text ), // set/get form caption footer.
                         EVENT_XS( tooltip , text ), // set/get tooltip text.
@@ -398,18 +396,26 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    EVENT_XS( header, ui::para ), // notify the client has changed title.
-                    EVENT_XS( footer, ui::para ), // notify the client has changed footer.
-                    EVENT_XS( params, ui::para ), // notify the client has changed title params.
-                    EVENT_XS( color , ui::tone ), // notify the client has changed tone, preview to set.
-                    GROUP_XS( keybd , bool     ), // notify the client if keybd is active or not. The form is active when the number of clients (form::eventa::keybd::got - keybd::lost) is not zero, only release.
+                    EVENT_XS( mouse    , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    //EVENT_XS( params   , ui::para ), // notify the client has changed title params.
+                    EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
+                    EVENT_XS( highlight, bool     ),
+                    GROUP_XS( keybd    , bool     ),
 
                     SUBSET_XS( keybd )
                     {
                         EVENT_XS( enlist  , ui::gear_id_list_t ), // anycast: Enumerate all available foci.
                         EVENT_XS( find    , ui::focus_test_t   ), // request: Check the focus.
+                        EVENT_XS( next    , ui::focus_test_t   ), // request: Next hop count.
                         EVENT_XS( check   , bool               ), // anycast: Check any focus.
+                        GROUP_XS( focus   , const id_t         ), // release: Has any keybd focus.
+
+                        SUBSET_XS( focus )
+                        {
+                            EVENT_XS( on    , const id_t ),
+                            EVENT_XS( off   , const id_t ),
+                            EVENT_XS( state , bool       ),
+                        };
                     };
                 };
             };
@@ -835,7 +841,6 @@ namespace netxs::ui
         si32 object_kind = {};
 
     public:
-        hook kb_token;
         static constexpr auto reflow_root = si32{ -1 }; //todo unify
 
         //todo replace "side" with "dent<si32>"
@@ -847,7 +852,7 @@ namespace netxs::ui
         auto& coor() const { return square.coor; }
         auto& size() const { return square.size; }
         auto& area() const { return square; }
-        void  root(bool b) { assert(!kb_token); visual_root = b; }
+        void  root(bool b) { visual_root = b; }
         bool  root()       { return visual_root; }
         si32  kind()       { return object_kind; }
         void  kind(si32 k) { object_kind = k; }
@@ -1088,6 +1093,11 @@ namespace netxs::ui
         {
             SIGNAL(tier::general, e2::shutdown, "base: rendering is not provided");
         }
+        // base: Syntax sugar helper.
+        void _saveme()
+        {
+            bell::_saveme();
+        }
 
     protected:
         virtual ~base() = default;
@@ -1125,7 +1135,6 @@ namespace netxs::ui
             {
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
-                    kb_token.reset();
                     cascade_token.reset();
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive

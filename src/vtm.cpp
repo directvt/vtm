@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
         log("main: waiting for server...");
         while (true)
         {
-            if (auto stream = os::ipc::socket::open<os::client, faux>(prefix))
+            if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
             {
                 log("main: connected");
                 while (os::io::send(stream->recv()))
@@ -186,7 +186,7 @@ int main(int argc, char* argv[])
 
         if (whoami == type::client)
         {
-            auto client = os::ipc::socket::open<os::client>(prefix, 10s, [&]
+            auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
             {
                 log("main: new desktopio environment for ", userid);
                 auto success = faux;
@@ -228,13 +228,13 @@ int main(int argc, char* argv[])
             }
         }
         
-        auto server = os::ipc::socket::open<os::server>(prefix);
+        auto server = os::ipc::socket::open<os::role::server>(prefix);
         if (!server)
         {
             os::fail("can't start desktopio server");
             return 1;
         }
-        auto logger = os::ipc::socket::open<os::server>(prefix + app::shared::logsuffix);
+        auto logger = os::ipc::socket::open<os::role::server>(prefix + app::shared::logsuffix);
         if (!logger)
         {
             os::fail("can't start desktopio logger");

@@ -500,6 +500,23 @@ struct consrv
                 signal.notify_one();
             }
         }
+        void focus(bool state)
+        {
+            auto lock = std::lock_guard{ locker };
+            buffer.emplace_back(INPUT_RECORD
+            {
+                .EventType = FOCUS_EVENT,
+                .Event =
+                {
+                    .FocusEvent =
+                    {
+                        .bSetFocus = state,
+                    }
+                }
+            });
+            ondata.reset();
+            signal.notify_one();
+        }
         void mouse(input::hids& gear, bool moved, twod const& coord)
         {
             auto state = gear.m.winctrl;
