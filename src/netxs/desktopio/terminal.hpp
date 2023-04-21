@@ -164,6 +164,9 @@ namespace netxs::ui
             si32 def_none_f;
             si32 def_find_f;
 
+            si32 def_altscr;
+            bool def_alt_on;
+
             termconfig(xmls& config)
             {
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
@@ -185,6 +188,8 @@ namespace netxs::ui
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
+                def_altscr = std::max(1, config.take("scrollback/altscroll/step", si32{ 1 }));
+                def_alt_on =             config.take("scrollback/altscroll/enabled", true);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
@@ -317,7 +322,6 @@ namespace netxs::ui
 
             operator bool () { return state != mode::none; }
 
-            //todo deprecated
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
                 auto m = std::bitset<8>{ gear.m.buttons };
@@ -6105,6 +6109,7 @@ namespace netxs::ui
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
         si32       selmod; // term: Selection mode (ansi::clip::mime).
+        si32       altscr; // term: Alternate scroll mode.
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
@@ -6136,6 +6141,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
+            altscr = config.def_alt_on ? config.def_altscr : 0;
             normal.brush.reset();
             ptycon.reset();
         }
@@ -6190,6 +6196,9 @@ namespace netxs::ui
                     break;
                 case 1006: // Enable SGR mouse reporting protocol.
                     mtrack.setmode(m_tracking::sgr);
+                    break;
+                case 1007: // Enable alternate scroll mode.
+                    altscr = config.def_altscr;
                     break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(m_tracking::negative_args);
@@ -6298,6 +6307,9 @@ namespace netxs::ui
                 case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
                     mtrack.setmode(m_tracking::x11);
                     mtrack.disable(m_tracking::all_movements);
+                    break;
+                case 1007: // Disable alternate scroll mode.
+                    altscr = 0;
                     break;
                 case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                     mtrack.disable(m_tracking::negative_args);
@@ -6779,6 +6791,19 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
             LISTEN(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (altscr && target == &altbuf)
+                {
+                    auto deed = this->bell::template protos<tier::release>();
+                    switch (deed)
+                    {
+                        case hids::events::mouse::scroll::up.id:   data_out(utf::repeat("\033[A"sv, altscr)); break;
+                        case hids::events::mouse::scroll::down.id: data_out(utf::repeat("\033[B"sv, altscr)); break;
+                    }
+                    gear.dismiss();
+                }
+            };
         }
         void selection_search(hids& gear, feed dir)
         {
@@ -6994,7 +7019,8 @@ namespace netxs::ui
               curdir{ cwd   },
               cmdarg{ cmd   },
               selmod{ config.def_selmod },
-              selalt{ config.def_selalt }
+              selalt{ config.def_selalt },
+              altscr{ config.def_altscr }
         {
             linux_console = os::vt::console();
             //form::keybd.accept(true); // Subscribe on keybd offers.
