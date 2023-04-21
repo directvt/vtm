@@ -2594,24 +2594,25 @@ namespace netxs::ui
                 sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
             };
 
-            lock mutex; // diff: Mutex between renderer and committer threads.
-            cond synch; // diff: Synchronization between renderer and committer.
-            core cache; // diff: The current content buffer which going to be checked and processed.
-            bool alive; // diff: Working loop state.
-            bool ready; // diff: Conditional variable to avoid spurious wakeup.
-            bool abort; // diff: Abort building current frame.
-            work paint; // diff: Rendering thread.
-            stat debug; // diff: Debug info.
+            pipe& canal;
+            lock  mutex; // diff: Mutex between renderer and committer threads.
+            cond  synch; // diff: Synchronization between renderer and committer.
+            core  cache; // diff: The current content buffer which going to be checked and processed.
+            flag  alive; // diff: Working loop state.
+            flag  ready; // diff: Conditional variable to avoid spurious wakeup.
+            flag  abort; // diff: Abort building current frame.
+            work  paint; // diff: Rendering thread.
+            stat  debug; // diff: Debug info.
 
             // diff: Render current buffer to the screen.
             template<class Bitmap>
-            void render(pipe& canal)
+            void render()
             {
                 log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
                 auto start = time{};
                 auto image = Bitmap{};
                 auto guard = std::unique_lock{ mutex };
-                while ((void)synch.wait(guard, [&]{ return ready; }), alive)
+                while ((void)synch.wait(guard, [&]{ return !!ready; }), alive)
                 {
                     start = datetime::now();
                     ready = faux;
@@ -2671,8 +2672,9 @@ namespace netxs::ui
                 return faux;
             }
 
-            diff(pipe& canal, svga vtmode)
-                : alive{ true },
+            diff(pipe& dest, svga vtmode)
+                : canal{ dest },
+                  alive{ true },
                   ready{ faux },
                   abort{ faux }
             {
@@ -2680,20 +2682,29 @@ namespace netxs::ui
                 paint = work([&, vtmode]
                 {
                     //todo revise (bitmap/bitmap_t)
-                         if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               (canal);
-                    else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>(canal);
-                    else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>(canal);
-                    else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>(canal);
+                         if (vtmode == svga::dtvt     ) render<binary::bitmap_t>               ();
+                    else if (vtmode == svga::truecolor) render< ascii::bitmap<svga::truecolor>>();
+                    else if (vtmode == svga::vga16    ) render< ascii::bitmap<svga::vga16    >>();
+                    else if (vtmode == svga::vga256   ) render< ascii::bitmap<svga::vga256   >>();
                 });
             }
             void stop()
             {
+                if (!alive.exchange(faux)) return;
                 auto id = paint.get_id();
-                mutex.lock();
-                alive = faux;
-                ready = true;
-                synch.notify_all();
-                mutex.unlock();
+                while (true)
+                {
+                    auto guard = std::unique_lock{ mutex, std::try_to_lock };
+                    if (guard.owns_lock())
+                    {
+                        ready = true;
+                        synch.notify_all();
+                        break;
+                    }
+                    canal.isbusy = faux;
+                    canal.isbusy.notify_all();
+                    std::this_thread::yield();
+                }
                 paint.join();
                 log("diff: id: ", id, " rendering thread joined");
             }

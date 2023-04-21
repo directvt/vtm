@@ -717,7 +717,7 @@ namespace netxs::directvt
                 style = 1 << 3,
                 glyph = 1 << 4,
             };
-            void set(id_t winid, twod const& coord, core& cache, bool& abort, sz_t& delta)
+            void set(id_t winid, twod const& coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
@@ -1039,7 +1039,7 @@ namespace netxs::directvt
                 return length();
             }
             // ascii::bitmap: .
-            void set(id_t winid, twod const& winxy, core& cache, bool& abort, sz_t& delta)
+            void set(id_t winid, twod const& winxy, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
                 auto saved = state;
