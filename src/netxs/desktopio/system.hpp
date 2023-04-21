@@ -1117,7 +1117,7 @@ namespace netxs::os
             {
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
-                pipe::active = p.pipe::active;
+                pipe::active.exchange(p.pipe::active);
                 p.pipe::active = faux;
             }
 
@@ -1134,14 +1134,15 @@ namespace netxs::os
             {
                 return recv(buffer.data(), buffer.size());
             }
-            virtual void shut() override
+            virtual bool shut() override
             {
-                pipe::active = faux;
+                auto state = pipe::shut();
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+                return state;
             }
-            virtual void stop() override
+            virtual bool stop() override
             {
-                shut();
+                return shut();
             }
             virtual flux& show(flux& s) const override
             {
@@ -1232,11 +1233,12 @@ namespace netxs::os
             {
                 return s << "local pipe: server=" << server.get() << " client=" << client.get();
             }
-            void shut() override
+            bool shut() override
             {
-                stdcon::shut();
+                auto state = stdcon::shut();
                 server->stop();
                 client->stop();
+                return state;
             }
         };
 
@@ -1401,38 +1403,44 @@ namespace netxs::os
                 #endif
                 return client;
             }
-            void stop() override
+            bool stop() override
             {
-                if (!pipe::active) return;
-                pipe::active = faux;
-                log("xipc: server shuts down: ", handle);
-                #if defined(_WIN32)
-                    auto to_client = WR_PIPE_PATH + scpath;
-                    auto to_server = RD_PIPE_PATH + scpath;
-                    if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
-                    if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
-                #else
-                    signal.reset();
-                #endif
+                auto state = pipe::stop();
+                if (state)
+                {
+                    log("xipc: server shuts down: ", handle);
+                    #if defined(_WIN32)
+                        auto to_client = WR_PIPE_PATH + scpath;
+                        auto to_server = RD_PIPE_PATH + scpath;
+                        if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
+                        if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
+                    #else
+                        signal.reset();
+                    #endif
+                }
+                return state;
             }
-            void shut() override
+            bool shut() override
             {
-                if (!pipe::active) return;
-                pipe::active = faux;
-                log("xipc: client disconnects: ", handle);
-                #if defined(_WIN32)
-                    ::DisconnectNamedPipe(handle.w);
-                    handle.shutdown(); // To trigger the read end to close.
-                #else
-                    ok(::shutdown(handle.w, SHUT_RDWR), "descriptor shutdown error"); // Further sends and receives are disallowed.
-                    // An important conceptual reason to want to use shutdown:
-                    //    To signal EOF to the peer and still be able
-                    //    to receive pending data the peer sent.
-                    //    "shutdown() doesn't actually close the file descriptor
-                    //     — it just changes its usability.
-                    // To free a socket descriptor, you need to use io::close().
-                    // Note: .r == .w, it is a full duplex socket handle on POSIX.
-                #endif
+                auto state = pipe::shut();
+                if (state)
+                {
+                    log("xipc: client disconnects: ", handle);
+                    #if defined(_WIN32)
+                        ::DisconnectNamedPipe(handle.w);
+                        handle.shutdown(); // To trigger the read end to close.
+                    #else
+                        ok(::shutdown(handle.w, SHUT_RDWR), "descriptor shutdown error"); // Further sends and receives are disallowed.
+                        // An important conceptual reason to want to use shutdown:
+                        //    To signal EOF to the peer and still be able
+                        //    to receive pending data the peer sent.
+                        //    "shutdown() doesn't actually close the file descriptor
+                        //     — it just changes its usability.
+                        // To free a socket descriptor, you need to use io::close().
+                        // Note: .r == .w, it is a full duplex socket handle on POSIX.
+                    #endif
+                }
+                return state;
             }
             template<role Role, bool Log = true, class P = noop>
             static auto open(text path, span retry_timeout = {}, P retry_proc = P())

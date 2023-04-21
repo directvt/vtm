@@ -1156,7 +1156,7 @@ namespace netxs::ui
         using flux = std::ostream;
         using xipc = sptr<pipe>;
 
-        bool active; // pipe: Is connected.
+        flag active; // pipe: Is connected.
         flag isbusy; // pipe: Buffer is still busy.
 
         pipe(bool active)
@@ -1170,8 +1170,14 @@ namespace netxs::ui
         virtual bool send(view buff) = 0;
         virtual qiew recv(char* buff, size_t size) = 0;
         virtual qiew recv() = 0;
-        virtual void shut() = 0;
-        virtual void stop() = 0;
+        virtual bool shut()
+        {
+            return active.exchange(faux);
+        }
+        virtual bool stop()
+        {
+            return pipe::shut();
+        }
         virtual flux& show(flux& s) const = 0;
         void output(view data)
         {

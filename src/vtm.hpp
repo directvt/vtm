@@ -616,7 +616,6 @@ namespace netxs::app::vtm
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
-            //LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) //todo temp
             {
                 //todo deprecated
                 //todo unify

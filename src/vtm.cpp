@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
         {
             auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
             {
-                log("main: new desktopio environment for ", userid);
+                log("main: new vtm session for ", userid);
                 auto success = faux;
                 if (os::process::fork(success, prefix, config.utf8())) whoami = type::server;
                 return success;
@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
             }
             else if (whoami != type::server)
             {
-                os::fail("no desktopio server connection");
+                os::fail("no vtm server connection");
                 return 1;
             }
         }
@@ -231,13 +231,13 @@ int main(int argc, char* argv[])
         auto server = os::ipc::socket::open<os::role::server>(prefix);
         if (!server)
         {
-            os::fail("can't start desktopio server");
+            os::fail("can't start vtm server");
             return 1;
         }
         auto logger = os::ipc::socket::open<os::role::server>(prefix + app::shared::logsuffix);
         if (!logger)
         {
-            os::fail("can't start desktopio logger");
+            os::fail("can't start vtm logger");
             return 1;
         }
         using e2 = netxs::ui::e2;
