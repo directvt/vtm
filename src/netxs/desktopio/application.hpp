@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9d";
+    static const auto version = "v0.9.9e";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
