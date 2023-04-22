@@ -3178,9 +3178,10 @@ namespace netxs::ui
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                if (gear.disabled) continue;
-                if (props.clip_preview_time == span::zero()
-                 || props.clip_preview_time > stamp - gear.delta.stamp())
+                gear.clip_printed = !gear.disabled &&
+                                    (props.clip_preview_time == span::zero() ||
+                                     props.clip_preview_time > stamp - gear.delta.stamp());
+                if (gear.clip_printed)
                 {
                     auto coor = gear.coord + dot_21 * 2;
                     auto full = gear.clip_preview.full();
@@ -3281,7 +3282,22 @@ namespace netxs::ui
                     });
                 }
             }
-            else if (yield) return;
+            else
+            {
+                if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
+                {
+                    for (auto& [id, gear_ptr] : input.gears)
+                    {
+                        auto& gear = *gear_ptr;
+                        if (gear.clip_printed && props.clip_preview_time < stamp - gear.delta.stamp())
+                        {
+                            base::deface();
+                            return;
+                        }
+                    }
+                }
+                if (yield) return;
+            }
 
             // Note: We have to fire a mouse move event every frame,
             //       because in the global frame the mouse can stand still,

@@ -52,7 +52,7 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run Windows PowerShell "/>
         <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
 )=="
 #endif
@@ -182,6 +182,7 @@ R"==(
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
             <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
+            <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->

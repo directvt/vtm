@@ -743,6 +743,7 @@ namespace netxs::input
         clip clip_rawdata{}; // hids: Clipboard data.
         face clip_preview{}; // hids: Clipboard preview render.
         bool not_directvt{}; // hids: Is it the top level gear (not directvt).
+        bool clip_printed{}; // hids: Preview output tracker.
         si32& clip_shadow_size;
         cell& clip_preview_clrs;
         byte& clip_preview_alfa;
