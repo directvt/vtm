@@ -487,8 +487,8 @@ namespace netxs::app::shared
                     if (path.empty()) return faux;
                     log(pads, temp, " = ", path);
                 }
-                auto config_path = path.starts_with("~/") ? os::env::homepath() / path.substr(2)
-                                                          : fs::path{ path };
+                auto config_path = path.starts_with("~") ? os::env::homepath() / path.substr(2 /* trim `~/` */)
+                                                         : fs::path{ path };
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
                 if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))

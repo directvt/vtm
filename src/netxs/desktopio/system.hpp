@@ -732,7 +732,18 @@ namespace netxs::os
         auto homepath()
         {
             #if defined(_WIN32)
-                return fs::path{ os::env::get("HOMEDRIVE") } / fs::path{ os::env::get("HOMEPATH") };
+                auto profile = os::env::get("USERPROFILE");
+                if (profile.size())
+                {
+                    return fs::path{ profile };
+                }
+                else
+                {
+                    auto homedrive = os::env::get("HOMEDRIVE");
+                    auto home_path = os::env::get("HOMEPATH");
+                    if (homedrive.empty() || home_path.empty()) os::fail("can't detect user profile path");
+                    return fs::path{ homedrive } / fs::path{ home_path };
+                }
             #else
                 return fs::path{ os::env::get("HOME") };
             #endif
