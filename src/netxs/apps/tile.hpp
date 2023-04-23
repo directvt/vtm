@@ -345,9 +345,21 @@ namespace netxs::app::tile
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
-                    boss.LISTEN(tier::release, app::tile::events::ui::swap    , gear) { boss.swap();       };
-                    boss.LISTEN(tier::release, app::tile::events::ui::rotate  , gear) { boss.rotate();     };
-                    boss.LISTEN(tier::release, app::tile::events::ui::equalize, gear) { boss.config(1, 1); };
+                    boss.LISTEN(tier::release, app::tile::events::ui::swap     , gear) { boss.swap();       };
+                    boss.LISTEN(tier::release, app::tile::events::ui::rotate   , gear) { boss.rotate();     };
+                    boss.LISTEN(tier::release, app::tile::events::ui::equalize , gear) { boss.config(1, 1); };
+                    boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+                    {
+                        if (gear.meta(hids::anyCtrl))
+                        {
+                            switch (boss.bell::protos<tier::release>())
+                            {
+                                case hids::events::mouse::scroll::up.id:   boss.move_slider(-1); break;
+                                case hids::events::mouse::scroll::down.id: boss.move_slider( 1); break;
+                            }
+                            gear.dismiss();
+                        }
+                    };
                 });
                 auto grip = node->attach(slot::_I,
                                 ui::mock::ctor()
