@@ -228,6 +228,18 @@ namespace netxs::ui
                   width{ outer - inner },
                   alive{ true          }
             {
+                boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
+                {
+                    if (gear.meta(hids::anyCtrl))
+                    {
+                        auto step = dent{ 2,2,1,1 };
+                        switch (boss.bell::protos<tier::release>())
+                        {
+                            case hids::events::mouse::scroll::up.id:   boss.SIGNAL(tier::release, e2::form::layout::swarp, step); break;
+                            case hids::events::mouse::scroll::down.id: boss.SIGNAL(tier::release, e2::form::layout::swarp,-step); break;
+                        }
+                    }
+                };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state, memo)
                 {
                     alive = state;
@@ -3708,6 +3720,12 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                    gear.dismiss();
+                };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
                 {
                     using button = hids::events::mouse::button;

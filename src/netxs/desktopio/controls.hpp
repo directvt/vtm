@@ -1305,9 +1305,10 @@ namespace netxs::ui
             using button = hids::events::mouse::button;
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_only)
-                      || (permit == xy(axes::all) && gear.meta(hids::anyCtrl | hids::anyShift));
+                      || (permit == xy(axes::all) && gear.meta(hids::anyAlt | hids::anyShift));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();
@@ -1802,6 +1803,7 @@ namespace netxs::ui
             using bttn = hids::events::mouse::button;
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
@@ -2470,11 +2472,13 @@ namespace netxs::ui
                 };
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
                 {
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     move_grip(cur_val - 1);
                     gear.dismiss();
                 };
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
                 {
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
@@ -2492,11 +2496,13 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 move_grip(cur_val - 10);
                 gear.dismiss();
             };
             LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 move_grip(cur_val + 10);
                 gear.dismiss();
             };

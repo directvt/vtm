@@ -6793,6 +6793,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (altscr && target == &altbuf)
                 {
                     auto deed = this->bell::template protos<tier::release>();
