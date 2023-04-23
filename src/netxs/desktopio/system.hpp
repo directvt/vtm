@@ -20,6 +20,8 @@
     #pragma warning(disable:4996) // disable std::getenv warnimg
 
     #include <Windows.h>
+    #include <userenv.h>    // ::GetUserProfileDirectoryW
+    #pragma comment(lib, "Userenv.lib")
     #include <Psapi.h>      // ::GetModuleFileNameEx
     #include <winternl.h>   // ::NtOpenFile
 
@@ -732,18 +734,18 @@ namespace netxs::os
         auto homepath()
         {
             #if defined(_WIN32)
-                auto profile = os::env::get("USERPROFILE");
-                if (profile.size())
+                auto handle = ::GetCurrentProcessToken();
+                auto length = DWORD{};
+                auto buffer = wide{};
+                ::GetUserProfileDirectoryW(handle, nullptr, &length);
+                if (length)
                 {
-                    return fs::path{ profile };
+                    buffer.resize(length);
+                    ::GetUserProfileDirectoryW(handle, buffer.data(), &length);
+                    if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
                 }
-                else
-                {
-                    auto homedrive = os::env::get("HOMEDRIVE");
-                    auto home_path = os::env::get("HOMEPATH");
-                    if (homedrive.empty() || home_path.empty()) os::fail("can't detect user profile path");
-                    return fs::path{ homedrive } / fs::path{ home_path };
-                }
+                else os::fail("can't detect user profile path");
+                return fs::path{ utf::to_utf(buffer) };
             #else
                 return fs::path{ os::env::get("HOME") };
             #endif
