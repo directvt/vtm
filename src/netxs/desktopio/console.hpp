@@ -124,10 +124,15 @@ namespace netxs::ui
                 bool inside; // sock: Is active.
                 bool seized; // sock: Is seized.
                 test lastxy; // sock: Change tracker.
+                rect zoomsz; // sock: Captured area for zooming.
+                dent zoomdt; // sock: Zoom step.
+                bool zoomon; // sock: Zoom in progress.
+                twod zoomat; // sock: Zoom pivot.
 
                 sock()
                     : inside{ faux },
-                      seized{ faux }
+                      seized{ faux },
+                      zoomon{ faux }
                 { }
 
                 operator bool () { return inside || seized; }
@@ -228,6 +233,36 @@ namespace netxs::ui
                   width{ outer - inner },
                   alive{ true          }
             {
+                boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
+                {
+                    if (gear.meta(hids::anyCtrl))
+                    {
+                        auto& g = items.take(gear);
+                        if (!g.zoomon)// && g.inside)
+                        {
+                            g.zoomdt = {};
+                            g.zoomon = true;
+                            g.zoomsz = boss.base::area();
+                            g.zoomat = gear.coord;
+                            gear.capture(boss.id);
+                        }
+                        static constexpr auto warp = dent{ 2,2,1,1 } * 2;
+                        //todo respect pivot
+                        auto prev = g.zoomdt;
+                        auto coor = boss.coor();
+                        auto deed = boss.bell::protos<tier::release>();
+                        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
+                        else                                              g.zoomdt += warp;
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                        auto next = (g.zoomsz + g.zoomdt).clip(viewport);
+                        auto step = boss.extend(next);
+                        if (!step.size) // Undo if can't zoom.
+                        {
+                            g.zoomdt = prev;
+                            boss.moveto(coor);
+                        }
+                    }
+                };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state, memo)
                 {
                     alive = state;
@@ -273,7 +308,19 @@ namespace netxs::ui
                 {
                     outer_rect = outer;
                 };
-
+                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
+                {
+                    auto& g = items.take(gear);
+                    if (g.zoomon && !gear.meta(hids::anyCtrl))
+                    {
+                        g.zoomon = faux;
+                        gear.setfree();
+                    }
+                    if (g.calc(boss, gear.coord, outer, inner, width))
+                    {
+                        boss.base::deface(); // Deface only if mouse moved.
+                    }
+                };
                 engage<hids::buttons::left>();
                 engage<hids::buttons::leftright>();
             }
@@ -282,13 +329,6 @@ namespace netxs::ui
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
-                {
-                    if (items.take(gear).calc(boss, gear.coord, outer, inner, width))
-                    {
-                        boss.base::deface(); // Deface only if mouse moved.
-                    }
-                };
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
@@ -3708,6 +3748,12 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                    gear.dismiss();
+                };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
                 {
                     using button = hids::events::mouse::button;

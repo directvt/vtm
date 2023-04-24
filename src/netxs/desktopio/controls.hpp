@@ -230,8 +230,8 @@ namespace netxs::ui
     {
         enum class action { seize, drag, release };
 
-        static constexpr auto MAX_RATIO  = si32{ 0xFFFF      };
-        static constexpr auto HALF_RATIO = si32{ 0xFFFF >> 1 };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
 
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
@@ -247,7 +247,7 @@ namespace netxs::ui
         tint clr;
         //twod size;
         rect stem;
-        si32 start;
+        //si32 start;
         si32 width;
         si32 ratio;
         si32 maxpos;
@@ -275,8 +275,8 @@ namespace netxs::ui
             if (s1 < 0) s1 = 0;
             if (s2 < 0) s2 = 0;
             auto sum = s1 + s2;
-            ratio = sum ? netxs::divround(s1 * MAX_RATIO, sum)
-                        : MAX_RATIO >> 1;
+            ratio = sum ? netxs::divround(s1 * max_ratio, sum)
+                        : max_ratio >> 1;
         }
 
     public:
@@ -320,7 +320,7 @@ namespace netxs::ui
         }
         fork(axis alignment = axis::X, si32 thickness = 0, si32 s1 = 1, si32 s2 = 1)
             : maxpos{ 0 },
-              start{ 0 },
+              //start{ 0 },
               width{ 0 },
               movable{ true },
               updown{ faux },
@@ -389,7 +389,7 @@ namespace netxs::ui
             auto new_size0 = xpose(new_size);
             {
                 maxpos = std::max(new_size0.x - width, 0);
-                split = netxs::divround(maxpos * ratio, MAX_RATIO);
+                split = netxs::divround(maxpos * ratio, max_ratio);
 
                 size1 = xpose({ split, new_size0.y });
                 if (client_1)
@@ -443,7 +443,14 @@ namespace netxs::ui
                 if (fixed) _config_ratio(split, get_x(size2));
             }
         }
-
+        void move_slider(si32 const& step)
+        {
+            if (splitter)
+            {
+                auto delta = xpose({ step * width, 0 });
+                splitter->SIGNAL(tier::preview, e2::form::upon::changed, delta);
+            }
+        }
         void slider(action act, twod const& delta)
         {
             if (movable)
@@ -452,7 +459,7 @@ namespace netxs::ui
                 {
                     case action::seize:
                         //control_w32::mouse(true);
-                        start = get_x(stem.coor) - get_x(delta);
+                        //start = get_x(stem.coor) - get_x(delta);
                         break;
                     case action::drag:
                         //if (!control_w32::mouse())
@@ -491,7 +498,7 @@ namespace netxs::ui
                 //	client_2->extend(
                 //		rect{ xpose({ split + width, 0 }), xpose({ maxpos - split, get_y(size) }) });
 
-                ratio = std::clamp(netxs::divround(get_x(stem.coor) * MAX_RATIO, maxpos), 0, MAX_RATIO);
+                ratio = std::clamp(netxs::divround(get_x(stem.coor) * max_ratio, maxpos), 0, max_ratio);
 
                 base::deface();
             }
@@ -516,7 +523,7 @@ namespace netxs::ui
                 splitter->LISTEN(tier::preview, e2::form::upon::changed, delta)
                 {
                     split += get_x(delta);
-                    ratio = netxs::divround(MAX_RATIO * split, maxpos);
+                    ratio = netxs::divround(max_ratio * split, maxpos);
                     this->base::reflow();
                 };
             }
@@ -1305,9 +1312,10 @@ namespace netxs::ui
             using button = hids::events::mouse::button;
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 auto dt = gear.whldt > 0;
                 auto hz = permit == xy(axes::X_only)
-                      || (permit == xy(axes::all) && gear.meta(hids::anyCtrl | hids::anyShift));
+                      || (permit == xy(axes::all) && gear.meta(hids::anyAlt | hids::anyShift));
                 if (hz) wheels<X>(dt);
                 else    wheels<Y>(dt);
                 gear.dismiss();
@@ -1439,7 +1447,9 @@ namespace netxs::ui
                 //move<Axis>(dir ? 1 : -1);
             }
             auto start = 0;
-            keepon<Axis>(quadratic<si32>(dir ? speed : -speed, pulse, cycle, start));
+            auto boost = dir ? speed : -speed;
+            if constexpr (Axis == X) boost *= 2;
+            keepon<Axis>(quadratic<si32>(boost, pulse, cycle, start));
         }
         template<axis Axis, class Fx>
         void keepon(Fx&& func)
@@ -1802,6 +1812,7 @@ namespace netxs::ui
             using bttn = hids::events::mouse::button;
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (gear.whldt)
                 {
                     auto dir = gear.whldt < 0 ? 1 : -1;
@@ -2470,11 +2481,13 @@ namespace netxs::ui
                 };
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
                 {
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     move_grip(cur_val - 1);
                     gear.dismiss();
                 };
                 grip_ctl->LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
                 {
+                    if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                     move_grip(cur_val + 1);
                     gear.dismiss();
                 };
@@ -2492,11 +2505,13 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::mouse::scroll::up, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 move_grip(cur_val - 10);
                 gear.dismiss();
             };
             LISTEN(tier::release, hids::events::mouse::scroll::down, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 move_grip(cur_val + 10);
                 gear.dismiss();
             };

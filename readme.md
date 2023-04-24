@@ -220,8 +220,13 @@ vtm
     <td colspan="2"></td>
   </tr>
   <tr>
-    <th>Shift+Wheel or Ctrl+Wheel</th>
+    <th>Shift+Wheel or Alt+Wheel</th>
     <td colspan="7">Horizontal scrolling</td>
+    <td colspan="2"></td>
+  </tr>
+  <tr>
+    <th>Ctrl+Wheel</th>
+    <td colspan="7">Zoom</td>
     <td colspan="2"></td>
   </tr>
 </tbody>

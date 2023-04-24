@@ -6793,6 +6793,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
             LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
             {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
                 if (altscr && target == &altbuf)
                 {
                     auto deed = this->bell::template protos<tier::release>();
@@ -7058,7 +7059,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                if (gear.cluster.size()) this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))
