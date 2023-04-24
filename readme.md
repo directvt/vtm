@@ -180,7 +180,9 @@ vtm
   <tr>
     <th>LeftDrag</th>
     <td colspan="3">Adjust taskbar width</td>
-    <td colspan="5">Move window or Select text</td>
+    <td colspan="3">Move window or Select text</td>
+    <td colspan="1">Resize window</td>
+    <td colspan="1">Move window</td>
     <td>Panoramic workspace scrolling</td>
   </tr>
   <tr>
@@ -203,7 +205,9 @@ vtm
   <tr>
     <th>Ctrl+LeftDrag</th>
     <td colspan="3">Adjust folded width</td>
-    <td colspan="6">Modify selection</td>
+    <td colspan="3">Modify selection</td>
+    <td colspan="1">Zoom window</td>
+    <td colspan="2"></td>
   </tr>
   <tr>
   <tr>
@@ -226,7 +230,7 @@ vtm
   </tr>
   <tr>
     <th>Ctrl+Wheel</th>
-    <td colspan="7">Zoom</td>
+    <td colspan="7">Zoom window</td>
     <td colspan="2"></td>
   </tr>
 </tbody>
