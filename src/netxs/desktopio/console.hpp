@@ -126,7 +126,7 @@ namespace netxs::ui
                 test lastxy; // sock: Change tracker.
                 rect zoomsz; // sock: Captured area for zooming.
                 dent zoomdt; // sock: Zoom step.
-                bool zoomon; // sock: Zoom in process.
+                bool zoomon; // sock: Zoom in progress.
                 twod zoomat; // sock: Zoom pivot.
 
                 sock()
