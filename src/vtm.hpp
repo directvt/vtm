@@ -769,10 +769,11 @@ namespace netxs::app::vtm
             void fasten(face& canvas)
             {
                 auto window = canvas.area();
+                auto center = region.coor + region.size / 2;
+                if (window.hittest(center)) return;
                 auto origin = window.size / 2;
+                center -= window.coor;
                 //auto origin = twod{ 6, window.size.y - 3 };
-                auto offset = region.coor - window.coor;
-                auto center = offset + (region.size / 2);
                 //header.usable = window.overlap(region);
                 auto is_active = active || highlighted;
                 auto& grade = skin::grade(is_active ? color.active
