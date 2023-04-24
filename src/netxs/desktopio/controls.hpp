@@ -1447,7 +1447,9 @@ namespace netxs::ui
                 //move<Axis>(dir ? 1 : -1);
             }
             auto start = 0;
-            keepon<Axis>(quadratic<si32>(dir ? speed : -speed, pulse, cycle, start));
+            auto boost = dir ? speed : -speed;
+            if constexpr (Axis == X) boost *= 2;
+            keepon<Axis>(quadratic<si32>(boost, pulse, cycle, start));
         }
         template<axis Axis, class Fx>
         void keepon(Fx&& func)
