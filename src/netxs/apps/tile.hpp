@@ -352,7 +352,7 @@ namespace netxs::app::tile
                     {
                         if (gear.meta(hids::anyCtrl))
                         {
-                            switch (boss.bell::protos<tier::release>())
+                            switch (boss.template bell::protos<tier::release>()) // Clang 13.0.0 complains.
                             {
                                 case hids::events::mouse::scroll::up.id:   boss.move_slider(-4); break;
                                 case hids::events::mouse::scroll::down.id: boss.move_slider( 4); break;
