@@ -976,6 +976,7 @@ namespace netxs::app::vtm
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::title>(what.header, what.footer)
+                ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
                 ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
@@ -994,6 +995,11 @@ namespace netxs::app::vtm
                             what.applet = applet;
                             what.menuid = menuid;
                         }
+                    };
+                    boss.LISTEN(tier::release, e2::form::prop::ui::header, title)
+                    {
+                        auto tooltip = " " + title + " ";
+                        boss.SIGNAL(tier::preview, e2::form::prop::ui::tooltip, tooltip);
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {

@@ -2403,13 +2403,16 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data)
+            notes(base& boss, view data, dent wrap = { maxsi32 })
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == maxsi32))
                 {
-                    gear.set_tooltip(boss.id, note);
+                    if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
+                    {
+                         gear.set_tooltip(boss.id, note);
+                    }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
                 {
