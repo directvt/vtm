@@ -232,7 +232,9 @@ namespace netxs::ui
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
-                        auto step = dent{ 2,2,1,1 };
+                        auto step = dent{ 2,2,1,1 } * 2;
+                        //todo respect viewport boundaries
+                        //todo respect pivot
                         switch (boss.bell::protos<tier::release>())
                         {
                             case hids::events::mouse::scroll::up.id:   boss.SIGNAL(tier::release, e2::form::layout::swarp, step); break;

@@ -354,8 +354,8 @@ namespace netxs::app::tile
                         {
                             switch (boss.bell::protos<tier::release>())
                             {
-                                case hids::events::mouse::scroll::up.id:   boss.move_slider(-1); break;
-                                case hids::events::mouse::scroll::down.id: boss.move_slider( 1); break;
+                                case hids::events::mouse::scroll::up.id:   boss.move_slider(-4); break;
+                                case hids::events::mouse::scroll::down.id: boss.move_slider( 4); break;
                             }
                             gear.dismiss();
                         }

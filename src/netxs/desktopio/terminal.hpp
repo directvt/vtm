@@ -7059,7 +7059,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                if (gear.cluster.size()) this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))
