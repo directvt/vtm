@@ -181,15 +181,15 @@ namespace netxs::ui
                     vtgrip.size.y += s.y;
                     return lastxy(curpos);
                 }
-                auto drag(base& master, twod const& curpos, dent const& outer)
+                auto drag(base& master, twod const& curpos, dent const& outer, bool zoom)
                 {
                     if (seized)
                     {
                         auto width = master.base::size() + outer;
-                        auto delta = corner(width) + origin - curpos;
-                        if (auto dxdy = master.base::sizeby(delta * sector))
+                        auto delta = (corner(width) + origin - curpos) * sector;
+                        if (auto dxdy = master.base::sizeby(zoom ? delta * 2 : delta))
                         {
-                            auto step = -dxdy * dtcoor;
+                            auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
                             master.base::moveby(step);
                             master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
                         }
@@ -339,7 +339,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).drag(boss, gear.coord, outer))
+                    if (items.take(gear).drag(boss, gear.coord, outer, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
