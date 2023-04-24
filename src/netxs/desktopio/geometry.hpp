@@ -624,12 +624,12 @@ namespace netxs
             foot.step = q(0);
         }
         // dent: Unary minus operator.
-        auto operator - () const
+        constexpr auto operator - () const
         {
             return dent{ -west.step, -east.step, -head.step, -foot.step };
         }
         // dent: Scale padding.
-        auto operator * (si32 const& factor) const
+        constexpr auto operator * (si32 const& factor) const
         {
             return dent{ west.step * factor, east.step * factor, head.step * factor, foot.step * factor };
         }

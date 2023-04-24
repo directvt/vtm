@@ -124,10 +124,15 @@ namespace netxs::ui
                 bool inside; // sock: Is active.
                 bool seized; // sock: Is seized.
                 test lastxy; // sock: Change tracker.
+                rect zoomsz; // sock: Captured area for zooming.
+                dent zoomdt; // sock: Zoom step.
+                bool zoomon; // sock: Zoom in process.
+                twod zoomat; // sock: Zoom pivot.
 
                 sock()
                     : inside{ faux },
-                      seized{ faux }
+                      seized{ faux },
+                      zoomon{ faux }
                 { }
 
                 operator bool () { return inside || seized; }
@@ -232,13 +237,29 @@ namespace netxs::ui
                 {
                     if (gear.meta(hids::anyCtrl))
                     {
-                        auto step = dent{ 2,2,1,1 } * 2;
-                        //todo respect viewport boundaries
-                        //todo respect pivot
-                        switch (boss.bell::protos<tier::release>())
+                        auto& g = items.take(gear);
+                        if (!g.zoomon)// && g.inside)
                         {
-                            case hids::events::mouse::scroll::up.id:   boss.SIGNAL(tier::release, e2::form::layout::swarp, step); break;
-                            case hids::events::mouse::scroll::down.id: boss.SIGNAL(tier::release, e2::form::layout::swarp,-step); break;
+                            g.zoomdt = {};
+                            g.zoomon = true;
+                            g.zoomsz = boss.base::area();
+                            g.zoomat = gear.coord;
+                            gear.capture(boss.id);
+                        }
+                        static constexpr auto warp = dent{ 2,2,1,1 } * 2;
+                        //todo respect pivot
+                        auto prev = g.zoomdt;
+                        auto coor = boss.coor();
+                        auto deed = boss.bell::protos<tier::release>();
+                        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
+                        else                                              g.zoomdt += warp;
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                        auto next = (g.zoomsz + g.zoomdt).clip(viewport);
+                        auto step = boss.extend(next);
+                        if (!step.size) // Undo if can't zoom.
+                        {
+                            g.zoomdt = prev;
+                            boss.moveto(coor);
                         }
                     }
                 };
@@ -287,7 +308,19 @@ namespace netxs::ui
                 {
                     outer_rect = outer;
                 };
-
+                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
+                {
+                    auto& g = items.take(gear);
+                    if (g.zoomon && !gear.meta(hids::anyCtrl))
+                    {
+                        g.zoomon = faux;
+                        gear.setfree();
+                    }
+                    if (g.calc(boss, gear.coord, outer, inner, width))
+                    {
+                        boss.base::deface(); // Deface only if mouse moved.
+                    }
+                };
                 engage<hids::buttons::left>();
                 engage<hids::buttons::leftright>();
             }
@@ -296,13 +329,6 @@ namespace netxs::ui
             void engage()
             {
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
-                {
-                    if (items.take(gear).calc(boss, gear.coord, outer, inner, width))
-                    {
-                        boss.base::deface(); // Deface only if mouse moved.
-                    }
-                };
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
                     if (items.take(gear).grab(boss, gear.coord, outer))
