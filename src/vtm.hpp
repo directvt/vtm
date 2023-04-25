@@ -68,6 +68,108 @@ namespace netxs::app::vtm
     {
         using namespace netxs::ui::pro;
 
+        // pro: Fullscreen size-binding functionality.
+        class align
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            enum class type { full, size, coor, };
+
+            rect prev{}; // align: Window size before the fullscreen has applied.
+            text head{}; // align: Main window title the fullscreen has applied.
+            id_t weak{}; // align: Master gate reference.
+            rect body{}; // align: For current coor/size tracking.
+            hook maxs{}; // align: Maximize on dblclick token.
+
+        public:
+            align(base&&) = delete;
+            align(base& boss, bool maximize = true)
+                : skill{ boss }
+            {
+                boss.LISTEN(tier::release, e2::config::plugins::align, set, memo)
+                {
+                    if (set)
+                    {
+                        boss.LISTEN(tier::release, e2::form::maximize, gear, maxs)
+                        {
+                            if (weak == gear.owner.id) unbind(gear.owner);
+                            else                       follow(gear.owner);
+                        };
+                    }
+                    else maxs.reset();
+                };
+                boss.SIGNAL(tier::release, e2::config::plugins::align, maximize);
+            }
+           ~align()
+            {
+                if (weak)
+                if (auto gate_ptr = bell::getref<base>(weak))
+                {
+                    release(*gate_ptr);
+                }
+            }
+
+            void follow(base& gate, dent pads = {})
+            {
+                body = {}; // To unbind previous subscription if it is.
+                if (!weak) prev = boss.base::area();
+                boss.base::extend(gate.base::area() + pads);
+                body = boss.base::area();
+                weak = gate.id;
+                gate.SIGNAL(tier::request, e2::form::prop::ui::header, head);
+                boss.SIGNAL(tier::request, e2::form::prop::ui::header, newhead, ());
+                gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
+                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
+
+                gate.LISTEN(tier::release, e2::size::any, size, memo, (pads))
+                {
+                    body.size = size + pads;
+                    boss.base::resize(body.size);
+                };
+                gate.LISTEN(tier::release, e2::coor::any, coor, memo)
+                {
+                    unbind(gate);
+                };
+                gate.LISTEN(tier::release, e2::dtor, master_id, memo)
+                {
+                    unbind(gate);
+                };
+                boss.LISTEN(tier::release, e2::size::any, size, memo)
+                {
+                    if (weak && body.size != size) unbind(gate, type::coor);
+                };
+                boss.LISTEN(tier::release, e2::coor::any, coor, memo)
+                {
+                    if (weak && body.coor != coor) unbind(gate, type::size);
+                };
+                boss.LISTEN(tier::release, e2::form::prop::ui::header, newhead, memo)
+                {
+                    gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
+                };
+            }
+            void release(base& gate)
+            {
+                memo.clear();
+                gate.SIGNAL(tier::preview, e2::form::prop::ui::header, head);
+                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, faux);
+                weak = {};
+            }
+            void unbind(base& gate, type restore = type::full)
+            {
+                release(gate);
+                switch (restore)
+                {
+                    case type::full: boss.base::extend(prev); break; // Restore previous position.
+                    case type::coor: boss.base::moveto(prev.coor); break;
+                    case type::size: boss.base::resize(prev.size);
+                                     boss.base::moveby(boss.base::anchor - prev.size / twod{ 2,4 }); // Centrify on mouse. See pro::frame pull.
+                                     break;
+                }
+            }
+        };
+
         // pro: Provides functionality for manipulating objects with a frame structure.
         class frame
             : public skill
