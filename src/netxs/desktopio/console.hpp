@@ -3045,7 +3045,6 @@ namespace netxs::ui
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
-        bool  fullscreen = faux; //gate: Fullscreen mode.
         props_t props; // gate: Application properties.
         input_t input; // gate: Input event handler.
         debug_t debug; // gate: Debug telemetry.
@@ -3426,10 +3425,6 @@ namespace netxs::ui
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
                 canal.shut();
                 this->SIGNAL(tier::general, e2::shutdown, msg);
-            };
-            LISTEN(tier::release, e2::form::prop::fullscreen, state, tokens)
-            {
-                fullscreen = state;
             };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {

@@ -346,16 +346,16 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( prop )
                 {
-                    EVENT_XS( name      , text        ), // user name.
-                    EVENT_XS( zorder    , zpos        ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
-                    EVENT_XS( brush     , const cell  ), // set form brush/color.
-                    EVENT_XS( fullscreen, bool        ), // set fullscreen flag.
-                    EVENT_XS( viewport  , rect        ), // request: return form actual viewport.
-                    EVENT_XS( lucidity  , si32        ), // set or request window transparency, si32: 0-255, -1 to request.
-                    EVENT_XS( fixedsize , bool        ), // set ui::fork ratio.
-                    GROUP_XS( window    , twod        ), // set or request window properties.
-                    GROUP_XS( ui        , text        ), // set or request textual properties.
-                    GROUP_XS( colors    , rgba        ), // set or request bg/fg colors.
+                    EVENT_XS( name      , text           ), // user name.
+                    EVENT_XS( zorder    , zpos           ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( brush     , const cell     ), // set form brush/color.
+                    EVENT_XS( fullscreen, sptr<ui::base> ), // set fullscreen app.
+                    EVENT_XS( viewport  , rect           ), // request: return form actual viewport.
+                    EVENT_XS( lucidity  , si32           ), // set or request window transparency, si32: 0-255, -1 to request.
+                    EVENT_XS( fixedsize , bool           ), // set ui::fork ratio.
+                    GROUP_XS( window    , twod           ), // set or request window properties.
+                    GROUP_XS( ui        , text           ), // set or request textual properties.
+                    GROUP_XS( colors    , rgba           ), // set or request bg/fg colors.
 
                     SUBSET_XS( window )
                     {

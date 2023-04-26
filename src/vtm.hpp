@@ -121,7 +121,7 @@ namespace netxs::app::vtm
                 gate.SIGNAL(tier::request, e2::form::prop::ui::header, head);
                 boss.SIGNAL(tier::request, e2::form::prop::ui::header, newhead, ());
                 gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
-                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
+                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, boss.This());
 
                 gate.LISTEN(tier::release, e2::size::any, size, memo, (pads))
                 {
@@ -136,6 +136,10 @@ namespace netxs::app::vtm
                 {
                     unbind(gate);
                 };
+                //boss.LISTEN(tier::release, e2::form::prop::fullscreen, any_ptr, memo)
+                //{
+                //    unbind(gate);
+                //};
                 boss.LISTEN(tier::release, e2::size::any, size, memo)
                 {
                     if (weak && body.size != size) unbind(gate, type::coor);
@@ -153,7 +157,7 @@ namespace netxs::app::vtm
             {
                 memo.clear();
                 gate.SIGNAL(tier::preview, e2::form::prop::ui::header, head);
-                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, faux);
+                gate.SIGNAL(tier::release, e2::form::prop::fullscreen, empty, ());
                 weak = {};
             }
             void unbind(base& gate, type restore = type::full)
@@ -695,6 +699,8 @@ namespace netxs::app::vtm
     {
         pro::maker maker{*this }; // gate: Form generator.
 
+        wptr<base> fullscreen_wptr; //gate: Fullscreen app reference.
+
         gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true }
         {
@@ -783,6 +789,22 @@ namespace netxs::app::vtm
                     base::strike();
                 });
             };
+            LISTEN(tier::release, e2::form::prop::fullscreen, app_ptr, tokens)
+            {
+                //if (auto fullscreen_ptr = fullscreen_wptr.lock())
+                //{
+                //    if (fullscreen_ptr != app_ptr)
+                //    {
+                //        fullscreen_ptr->SIGNAL(tier::release, e2::form::prop::fullscreen, empty, ());
+                //    }
+                //    else return;
+                //}
+                //if (app_ptr)
+                //{
+                //    app_ptr->SIGNAL(tier::release, e2::form::prop::fullscreen, app_ptr);
+                //}
+                fullscreen_wptr = app_ptr;
+            };
         }
 
         void rebuild_scene(base& world, bool damaged) override
@@ -791,17 +813,24 @@ namespace netxs::app::vtm
             if (damaged)
             {
                 canvas.wipe(world.bell::id);
-                if (props.background_image.size())
+                if (auto app_ptr = fullscreen_wptr.lock())
                 {
-                    //todo cache background
-                    canvas.tile(props.background_image, cell::shaders::fuse);
+                    canvas.render(app_ptr, dot_00);//, base::coor());
                 }
-                world.redraw(canvas); // Put the rest of the world on my canvas.
-                if (applet && !fullscreen) // Render main menu/application.
+                else
                 {
-                    //todo too hacky, unify
-                    if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                       canvas.render(applet, base::coor());
+                    if (props.background_image.size())
+                    {
+                        //todo cache background
+                        canvas.tile(props.background_image, cell::shaders::fuse);
+                    }
+                    world.redraw(canvas); // Put the rest of the world on my canvas.
+                    if (applet) // Render main menu/application.
+                    {
+                        //todo too hacky, unify
+                        if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                           canvas.render(applet, base::coor());
+                    }
                 }
             }
             _rebuild_scene(damaged);
