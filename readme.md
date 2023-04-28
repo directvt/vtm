@@ -887,7 +887,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
             <item label="Undo" type=Command action=TerminalUndo/>
             <item label="Redo" type=Command action=TerminalRedo/>
             <item label="Quit" type=Command action=TerminalQuit/>
-            <item label="Maximize" type=Command action=TerminalMaximize/>
+            <item label="Fullscreen" type=Command action=TerminalFullscreen/>
 
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
@@ -942,7 +942,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalSendKey              | Simulating keypresses using the `data=` string.
        TerminalQuit                 | Kill all runnning console apps and quit the built-in terminal.
        TerminalRestart              | Kill all runnning console apps and restart current session.
-       TerminalMaximize             | Maximize/Restore built-in terminal window.
+       TerminalFullscreen           | Toggle fullscreen mode.
        TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
        TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
        TerminalPaste                | Paste from clipboard.

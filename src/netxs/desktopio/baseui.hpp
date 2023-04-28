@@ -148,8 +148,6 @@ namespace netxs::events::userland
             SUBSET_XS( form )
             {
                 EVENT_XS( canvas   , sptr<core>     ), // request global canvas.
-                EVENT_XS( maximize , input::hids    ), // request to toggle maximize/restore.
-                EVENT_XS( restore  , sptr<ui::base> ), // request to toggle restore.
                 EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod     ),
                 GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
@@ -175,14 +173,16 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( shift , const twod    ), // request a global shifting  with delta.
-                    EVENT_XS( convey, cube          ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble, ui::base      ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose, ui::base      ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
-                    EVENT_XS( appear, twod          ), // fly to the specified coords.
-                    EVENT_XS( gonext, sptr<ui::base>), // request: proceed request for available objects (next)
-                    EVENT_XS( goprev, sptr<ui::base>), // request: proceed request for available objects (prev)
-                    EVENT_XS( swarp , const dent    ), // preview: form swarping
+                    EVENT_XS( fullscreen, input::hids    ), // request to fullscreen.
+                    EVENT_XS( restore   , sptr<ui::base> ), // request to restore.
+                    EVENT_XS( shift     , const twod     ), // request a global shifting  with delta.
+                    EVENT_XS( convey    , cube           ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble    , ui::base       ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose    , ui::base       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
+                    EVENT_XS( appear    , twod           ), // fly to the specified coords.
+                    EVENT_XS( gonext    , sptr<ui::base> ), // request: proceed request for available objects (next)
+                    EVENT_XS( goprev    , sptr<ui::base> ), // request: proceed request for available objects (prev)
+                    EVENT_XS( swarp     , const dent     ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
                     //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.

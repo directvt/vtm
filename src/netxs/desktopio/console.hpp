@@ -3685,10 +3685,10 @@ namespace netxs::ui
                 {
                     conio.warping.send(conio, 0, warp);
                 };
-                LISTEN(tier::release, e2::form::maximize, gear, tokens)
+                LISTEN(tier::release, e2::form::layout::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.maximize.send(conio, ext_gear_id);
+                    if (gear_ptr) conio.fullscreen.send(conio, ext_gear_id);
                 };
             }
         }

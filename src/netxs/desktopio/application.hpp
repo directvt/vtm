@@ -155,12 +155,12 @@ namespace netxs::app::shared
                 else // Apply standard front/last menu items.
                 {
                     headitem->plugin<pro::fader>(x3, c3, fader)
-                            ->plugin<pro::notes>(" Maximize/restore ")
+                            ->plugin<pro::notes>(" Fullscreen mode ")
                             ->invoke([&](ui::pads& boss)
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
+                                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                                     gear.dismiss();
                                 };
                             })

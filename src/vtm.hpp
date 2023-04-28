@@ -92,7 +92,7 @@ namespace netxs::app::vtm
                 {
                     if (set)
                     {
-                        boss.LISTEN(tier::release, e2::form::maximize, gear, maxs)
+                        boss.LISTEN(tier::release, e2::form::layout::fullscreen, gear, maxs)
                         {
                             if (weak == gear.owner.id) unbind(gear.owner);
                             else                       follow(gear.owner);
@@ -1134,7 +1134,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::maximize, gear);
+                        boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

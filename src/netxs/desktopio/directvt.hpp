@@ -652,7 +652,7 @@ namespace netxs::directvt
         //STRUCT(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT(focus_cut,         (id_t, gear_id))
         STRUCT(focus_set,         (id_t, gear_id) (si32, solo))
-        STRUCT(maximize,          (id_t, gear_id))
+        STRUCT(fullscreen,        (id_t, gear_id))
         STRUCT(form_header,       (id_t, window_id) (text, new_header))
         STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
         STRUCT(warping,           (id_t, window_id) (dent, warpdata))
@@ -928,7 +928,7 @@ namespace netxs::directvt
             X(request_clipboard) /* Request main clipboard data.                  */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
-            X(maximize         ) /* Request to maximize/restore                   */\
+            X(fullscreen       ) /* Request to fullscreen                         */\
             X(form_header      ) /* Set window title.                             */\
             X(form_footer      ) /* Set window footer.                            */\
             X(warping          ) /* Warp resize.                                  */\
