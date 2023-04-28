@@ -113,7 +113,7 @@ vtm
     <th>App group</th>
     <th>Running app</th>
     <th>User list</th>
-    <th>≡ Menu</th>
+    <th>≡ Menu button</th>
     <th>Menu bar</th>
     <th>Interior</th>
     <th>Resize grips</th>
@@ -131,7 +131,7 @@ vtm
     <td>Run app</td>
     <td>Go to app</td>
     <td></td>
-    <td>Maximize/restore</td>
+    <td>Toggle fullscreen</td>
     <td colspan="3">Assign exclusive keyboard focus</td>
     <td>Go to app</td>
     <td>Clear keyboard focus</td>
@@ -146,7 +146,7 @@ vtm
     <th>double LeftClick</th>
     <td colspan="3"></td>
     <td></td>
-    <td colspan="2">Maximize/restore app window</td>
+    <td colspan="2">Toggle fullscreen</td>
     <td colspan="3"></td>
   </tr>
   <tr>
@@ -173,7 +173,7 @@ vtm
   <tr>
     <th>Left+RightClick</th>
     <td colspan="3"></td>
-    <td colspan="5">Clear clipboard</td>
+    <td colspan="5">Reset clipboard</td>
     <td></td>
   </tr>
   <tr>
@@ -198,7 +198,7 @@ vtm
   <tr>
     <th>Left+RightDrag</th>
     <td colspan="3"></td>
-    <td colspan="4">Move window / Restore maximized window</td>
+    <td colspan="4">Move window / Restore fullscreen</td>
     <td colspan="2">Panoramic workspace scrolling</td>
   </tr>
   <tr>
