@@ -263,6 +263,8 @@ namespace netxs::ansi
     static const auto CCC_SEL    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.
     static const auto CCC_PAD    = 30 ; // CSI 30: n       p  - Set left/right padding for the built-in terminal.
 
+    static const auto CCC_LNK    = 31 ; // CSI 31: n       p  - Set object id to the cell owner.
+
     static const auto mimetext = "text/plain"sv;
     static const auto mimeansi = "text/xterm"sv;
     static const auto mimehtml = "text/html"sv;
@@ -951,6 +953,7 @@ namespace netxs::ansi
         auto& idx(si32 i)        { return add("\033[19:", i  , CSI_CCC); } // esc: Split the text run and associate the fragment with an id.
         auto& ref(si32 i)        { return add("\033[23:", i  , CSI_CCC); } // esc: Create the reference to the existing paragraph.
         auto& show_mouse(si32 b) { return add("\033[26:", b  , CSI_CCC); } // esc: Should the mouse poiner to be drawn.
+        auto& link(si32 i)       { return add("\033[31:", i  , CSI_CCC); } // esc: Set object id link.
     };
 
     template<class ...Args>
@@ -1026,6 +1029,7 @@ namespace netxs::ansi
     static auto altbuf(bool b)        { return esc{}.altbuf(b);     } // ansi: Alternative buffer.
     static auto cursor(bool b)        { return esc{}.cursor(b);     } // ansi: Caret visibility.
     static auto appkey(bool b)        { return esc{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
+    static auto link(si32 i)          { return esc{}.link(i);       } // ansi: Set object id link.
     static auto ref(si32 i)           { return esc{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return esc{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
                                                                       //       All following text is under the IDX until the next command is issued.
@@ -1274,6 +1278,7 @@ namespace netxs::ansi
             * - void wrp(bool b);                    // Set auto wrap.
             * - void jet(si32 b);                    // Set adjustment.
             * - void rtl(bool b);                    // Set reverse line feed.
+            * - void link(id_t i);                   // Set object id link.
             */
             #define F(t, q) p->task(rule{ fn::t, q })
 
@@ -1345,6 +1350,8 @@ namespace netxs::ansi
                     csi_ccc[CCC_WRP_or] = VT_PROC{ p->style.wrp_or(static_cast<wrap>(q(0))); }; // fx_ccc_or_wrp
                     csi_ccc[CCC_RTL_or] = VT_PROC{ p->style.rtl_or(static_cast<rtol>(q(0))); }; // fx_ccc_or_rtl
                     csi_ccc[CCC_RLF_or] = VT_PROC{ p->style.rlf_or(static_cast<feed>(q(0))); }; // fx_ccc_or_rlf
+
+                    csi_ccc[CCC_LNK   ] = VT_PROC{ p->brush.link  (static_cast<id_t>(q(0))); }; // fx_ccc_lnk
 
                     csi_ccc[CCC_NOP] = nullptr;
                     csi_ccc[CCC_IDX] = nullptr;
