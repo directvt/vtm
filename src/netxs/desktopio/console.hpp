@@ -3163,7 +3163,7 @@ namespace netxs::ui
         auto attach(sptr<base>& item)
         {
             std::swap(applet, item);
-            nexthop = applet;
+            if (local) nexthop = applet;
             applet->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
         }
         // gate: .
@@ -3279,8 +3279,8 @@ namespace netxs::ui
 
             LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
             {
-                if (auto target = local ? applet : base::parent())
-                //if (auto target = nexthop.lock())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     pro::focus::set(target, gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
                 }
@@ -3289,8 +3289,8 @@ namespace netxs::ui
             LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)
-                if (auto target = local ? applet : base::parent())
-                //if (auto target = nexthop.lock())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     target->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
                 }
@@ -3299,16 +3299,16 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
                 {
-                    if (auto target = local ? applet : base::parent())
-                    //if (auto target = nexthop.lock())
+                    //if (auto target = local ? applet : base::parent())
+                    if (auto target = nexthop.lock())
                     {
                         target->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = gear.id }));
                     }
                 };
                 LISTEN(tier::release, hids::events::focus::off, gear)
                 {
-                    if (auto target = local ? applet : base::parent())
-                    //if (auto target = nexthop.lock())
+                    //if (auto target = local ? applet : base::parent())
+                    if (auto target = nexthop.lock())
                     {
                         target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = gear.id }));
                     }
@@ -3355,8 +3355,8 @@ namespace netxs::ui
 
                 auto deed = this->bell::template protos<tier::release>();
                 if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
-                if (auto target = local ? applet : base::parent())
-                //if (auto target = nexthop.lock())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     target->bell::template signal<tier::release>(deed, seed);
                 }

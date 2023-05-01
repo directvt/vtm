@@ -84,14 +84,18 @@ namespace netxs::app::vtm
             enum class type { full, size, coor, };
 
         public:
+            //todo revise
+            wptr<base>& nexthop;
+            wptr<base> saved;
             link what; // align: Original window properties.
             rect prev; // align: Window size before the fullscreen has applied.
             rect body; // align: For current coor/size tracking.
             hook maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
-            align(base& boss, bool maximize = true)
-                : skill{ boss }
+            align(base& boss, wptr<base>& nexthop, bool maximize = true)
+                : skill{ boss },
+                  nexthop{ nexthop}
             {
                 boss.LISTEN(tier::release, vtm::events::gate::fullscreen, new_what, maxs)
                 {
@@ -109,6 +113,9 @@ namespace netxs::app::vtm
             {
                 what = new_what;
                 auto window_ptr = new_what.applet;
+                auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
+                saved = nexthop;
+                nexthop = new_what.applet;
                 window_ptr->base::detach();
                 prev = window_ptr->base::area();
                 auto new_pos = boss.base::area() + pads;
@@ -130,7 +137,7 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, e2::coor::any, coor, memo)
                 {
-                    unbind();
+                    if (memo) unbind();
                 };
                 window_ptr->LISTEN(tier::release, e2::form::quit, any_ptr, memo)
                 {
@@ -156,9 +163,12 @@ namespace netxs::app::vtm
 
                 window_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
                 window_ptr->SIGNAL(tier::anycast, vtm::events::attached, boss.base::This());
+                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
             }
             void release()
             {
+                nexthop = saved;
+                saved.reset();
                 memo.clear();
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::header, what.header);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, what.footer);
@@ -167,10 +177,10 @@ namespace netxs::app::vtm
             {
                 release();
                 auto window_ptr = what.applet;
+                auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
                 window_ptr->base::detach();
                 if (auto world_ptr = boss.base::parent())
                 {
-                    //nexthop = world_ptr;
                     world_ptr->SIGNAL(tier::release, vtm::events::gate::restore, what);
                 }
                 switch (restore)
@@ -182,6 +192,7 @@ namespace netxs::app::vtm
                                      break;
                 }
                 what.applet.reset();
+                pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
             }
         };
 
@@ -709,10 +720,12 @@ namespace netxs::app::vtm
         : public ui::gate
     {
         pro::maker maker{*this }; // gate: Form generator.
-        pro::align align{*this }; // gate: Fullscreen access controller.
+        pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
+        pro::notes notes; // gate: Tooltips for user.
 
         gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
-            : ui::gate{ uplink, vtmode, config, userid, session_id, true }
+            : ui::gate{ uplink, vtmode, config, userid, session_id, true },
+              notes{*this, ansi::add("Gate: ", props.title) }
         {
             //todo local=>nexthop
             local = faux;
@@ -748,6 +761,10 @@ namespace netxs::app::vtm
                         || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
                 if (pgup || pgdn)
                 {
+                    if (align.what.applet)
+                    {
+                        align.unbind();
+                    }
                     auto item_ptr = e2::form::layout::goprev.param();
                     if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
                     else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
@@ -1184,8 +1201,8 @@ namespace netxs::app::vtm
                         auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
                         auto what = what_copy;
                         what.applet = window_ptr;
-                        gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
+                        gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
                 });
         }
@@ -1303,8 +1320,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
                 auto& cfg = dbase.menu[what.menuid];
-                auto fullscreen_ptr = what.applet;
-                branch(what.menuid, fullscreen_ptr, !cfg.hidden);
+                branch(what.menuid, what.applet, !cfg.hidden);
             };
             LISTEN(tier::request, vtm::events::newapp, what)
             {
