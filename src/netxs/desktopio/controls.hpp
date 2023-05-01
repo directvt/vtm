@@ -173,7 +173,7 @@ namespace netxs::ui
             auto item_shadow = ptr::shadow(new_item);
             auto data_shadow = ptr::shadow(data_src_sptr);
             auto boss_shadow = ptr::shadow(backup);
-            data_src_sptr->LISTEN(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id], (boss_shadow, data_shadow, item_shadow))
+            data_src_sptr->LISTEN(tier::release, Property{}, arg_new_value, memomap[data_src_sptr->id], (boss_shadow, data_shadow, item_shadow, item_template))
             {
                 if (auto boss_ptr = boss_shadow.lock())
                 if (auto data_src = data_shadow.lock())
