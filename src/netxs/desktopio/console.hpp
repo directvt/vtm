@@ -1318,8 +1318,15 @@ namespace netxs::ui
                 pro::focus::off(item_ptr, gear_id_list);
                 if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
             }
-            static auto get(sptr<base> item_ptr)
+            static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
+                if (remove_default)
+                {
+                    if (auto parent = item_ptr->parent())
+                    {
+                        parent->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = id_t{} }));
+                    }
+                }
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 for (auto next_id : gear_id_list)
                 {

@@ -113,7 +113,7 @@ namespace netxs::app::vtm
             {
                 what = new_what;
                 auto window_ptr = new_what.applet;
-                auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
+                auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 saved = nexthop;
                 nexthop = new_what.applet;
                 window_ptr->base::detach();
@@ -177,7 +177,7 @@ namespace netxs::app::vtm
             {
                 release();
                 auto window_ptr = what.applet;
-                auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
+                auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 window_ptr->base::detach();
                 if (auto world_ptr = boss.base::parent())
                 {
@@ -1198,7 +1198,7 @@ namespace netxs::app::vtm
                     boss.LISTEN(tier::release, e2::form::layout::fullscreen, gear, -, (what_copy))
                     {
                         auto window_ptr = boss.This();
-                        auto gear_id_list = pro::focus::get(window_ptr); // Expropriate all foci.
+                        auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                         auto what = what_copy;
                         what.applet = window_ptr;
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
