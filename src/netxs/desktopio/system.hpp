@@ -3176,7 +3176,6 @@ namespace netxs::os
                                 | nt::console::inmode::preprocess
                                 | nt::console::inmode::extended
                                 | nt::console::inmode::winsize
-                                | nt::console::inmode::mouse
                                 };
                     ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
                     auto outmode = DWORD{ 0
