@@ -139,6 +139,10 @@ namespace netxs::app::vtm
                 {
                     if (memo) unbind();
                 };
+                boss.LISTEN(tier::preview, e2::form::quit, boss_ptr, memo)
+                {
+                    unbind(type::full);
+                };
                 window_ptr->LISTEN(tier::release, e2::form::quit, any_ptr, memo)
                 {
                     release();

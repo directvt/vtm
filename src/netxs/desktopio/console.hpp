@@ -3550,6 +3550,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
+                this->SIGNAL(tier::preview, e2::form::quit, this->This());
                 log("gate: ", msg);
                 canal.shut();
                 paint.stop();
