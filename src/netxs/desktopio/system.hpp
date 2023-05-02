@@ -3986,7 +3986,7 @@ namespace netxs::os
                             | nt::console::outmode::preprocess
                             | nt::console::outmode::vt
                             };
-                ok(::SetConsoleMode(STDOUT_FD, mode), "SetConsoleMode(STDOUT_FD) failed (ignite)");
+                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed (ignite)");
                 ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
 
             #else
