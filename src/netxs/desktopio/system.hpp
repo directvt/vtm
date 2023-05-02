@@ -3324,7 +3324,7 @@ namespace netxs::os
                     case CTRL_CLOSE_EVENT:
                     case CTRL_LOGOFF_EVENT:
                     case CTRL_SHUTDOWN_EVENT:
-                        g.ipcio->stop();
+                        g.ipcio->shut();
                         std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
                         break;
                     default:
@@ -3336,7 +3336,7 @@ namespace netxs::os
 
                 auto shutdown = [](auto what)
                 {
-                    globals().ipcio->stop();
+                    globals().ipcio->shut();
                     ::signal(what, SIG_DFL);
                     ::raise(what);
                 };
