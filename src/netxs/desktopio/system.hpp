@@ -3173,6 +3173,7 @@ namespace netxs::os
                     ok(::SetConsoleOutputCP(65001), "SetConsoleOutputCP failed");
                     ok(::SetConsoleCP(65001), "SetConsoleCP failed");
                     auto inpmode = DWORD{ 0
+                                | nt::console::inmode::preprocess
                                 | nt::console::inmode::extended
                                 | nt::console::inmode::winsize
                                 | nt::console::inmode::mouse
@@ -3192,7 +3193,7 @@ namespace netxs::os
                     }
 
                 #endif
-                ::atexit(repair);
+                std::atexit(repair);
 
                 if (auto term = os::env::get("TERM"); term.size())
                 {
@@ -3974,12 +3975,18 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                auto outmode = DWORD{};
-                if(::GetConsoleMode(STDOUT_FD, &outmode))
-                {
-                    outmode |= nt::console::outmode::no_auto_cr;
-                    ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode failed (ignite)");
-                }
+                auto inpmode = DWORD{ 0
+                            | nt::console::inmode::extended
+                            | nt::console::inmode::winsize
+                            | nt::console::inmode::mouse
+                            };
+                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed (ignite)");
+                auto outmode = DWORD{ 0
+                            | nt::console::outmode::no_auto_cr
+                            | nt::console::outmode::preprocess
+                            | nt::console::outmode::vt
+                            };
+                ok(::SetConsoleMode(STDOUT_FD, mode), "SetConsoleMode(STDOUT_FD) failed (ignite)");
                 ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
 
             #else
