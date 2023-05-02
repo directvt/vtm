@@ -3322,13 +3322,10 @@ namespace netxs::os
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
-                        /* do nothing */
-                        break;
                     case CTRL_LOGOFF_EVENT:
-                        /* todo signal global */
-                        break;
                     case CTRL_SHUTDOWN_EVENT:
-                        /* todo signal global */
+                        g.ipcio->stop();
+                        std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
                         break;
                     default:
                         break;
