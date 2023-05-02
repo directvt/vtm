@@ -1320,18 +1320,16 @@ namespace netxs::ui
             }
             static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
-                if (remove_default)
-                {
-                    if (auto parent = item_ptr->parent())
-                    {
-                        parent->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = id_t{} }));
-                    }
-                }
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 for (auto next_id : gear_id_list)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
                     if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
+                }
+                if (remove_default)
+                if (auto parent = item_ptr->parent())
+                {
+                    parent->RISEUP(tier::preview, hids::events::keybd::focus::dry, seed, ({ .item = item_ptr }));
                 }
                 return gear_id_list;
             }
@@ -1545,6 +1543,13 @@ namespace netxs::ui
                 {
                     boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                     gears.erase(seed.id);
+                };
+                boss.LISTEN(tier::preview, hids::events::keybd::focus::dry, seed, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        route.next.remove_if([&](auto& next){ return next.lock() == seed.item; });
+                    }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
                 {
