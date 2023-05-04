@@ -7268,7 +7268,7 @@ namespace netxs::ui
                     owner.base::deface();
                 });
             }
-            void handle(s11n::xs::maximize            lock)
+            void handle(s11n::xs::fullscreen          lock)
             {
                 auto& m = lock.thing;
                 owner.trysync(owner.active, [&]
@@ -7278,7 +7278,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
+                        parent_ptr->RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                     }
                 });
             }

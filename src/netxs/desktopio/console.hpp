@@ -181,15 +181,15 @@ namespace netxs::ui
                     vtgrip.size.y += s.y;
                     return lastxy(curpos);
                 }
-                auto drag(base& master, twod const& curpos, dent const& outer)
+                auto drag(base& master, twod const& curpos, dent const& outer, bool zoom)
                 {
                     if (seized)
                     {
                         auto width = master.base::size() + outer;
-                        auto delta = corner(width) + origin - curpos;
-                        if (auto dxdy = master.base::sizeby(delta * sector))
+                        auto delta = (corner(width) + origin - curpos) * sector;
+                        if (auto dxdy = master.base::sizeby(zoom ? delta * 2 : delta))
                         {
-                            auto step = -dxdy * dtcoor;
+                            auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
                             master.base::moveby(step);
                             master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
                         }
@@ -339,7 +339,7 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).drag(boss, gear.coord, outer))
+                    if (items.take(gear).drag(boss, gear.coord, outer, gear.meta(hids::anyCtrl)))
                     {
                         gear.dismiss();
                     }
@@ -573,130 +573,6 @@ namespace netxs::ui
                         parent_canvas.fill(area.clip(full), fill);
                     });
                 };
-            }
-        };
-
-        // pro: Provides size-binding functionality.
-        class align
-            : public skill
-        {
-            using gptr = wptr<bell>;
-            using skill::boss,
-                  skill::memo;
-
-            rect last{}; // pro::align: Window size before the fullscreen has applied.
-            text head{}; // pro::align: Main window title the fullscreen has applied.
-            id_t weak{}; // pro::align: Master id.
-            rect body{}; // pro::align: For current coor/size tracking.
-            twod pads{}; // pro::align: Owner's borders.
-            hook maxs{}; // pro::align: Maximize on dblclick token.
-
-            auto seized(id_t master)
-            {
-                return weak == master;
-            }
-
-        public:
-            align(base&&) = delete;
-            align(base& boss, bool maximize = true)
-                : skill{ boss }
-            {
-                boss.LISTEN(tier::release, e2::config::plugins::align, set, memo)
-                {
-                    if (set)
-                    {
-                        boss.LISTEN(tier::release, e2::form::maximize, gear, maxs)
-                        {
-                            if (seized(gear.owner.id)) unbind();
-                            else                       follow(gear.owner.id, dot_00);
-                        };
-                    }
-                    else maxs.reset();
-                };
-
-                boss.SIGNAL(tier::release, e2::config::plugins::align, maximize);
-            }
-           ~align() { unbind(faux); }
-
-            void follow(id_t master, twod const& borders)
-            {
-                pads = borders;
-                if (auto gate_ptr = bell::getref(master))
-                {
-                    auto& gate = *gate_ptr;
-
-                    auto area = rect{};
-                    gate.SIGNAL(tier::request, e2::size::set, area.size);
-                    gate.SIGNAL(tier::request, e2::coor::set, area.coor);
-                    last = boss.base::area();
-                    area.coor -= pads;
-                    area.size += pads * 2;
-                    body = {}; // In oder to unbind previous subscription if it is.
-                    boss.base::extend(area);
-                    body = area;
-
-                    auto newhead = text{};
-                    gate.SIGNAL(tier::request, e2::form::prop::ui::header, head);
-                    boss.SIGNAL(tier::request, e2::form::prop::ui::header, newhead);
-                    gate.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
-                    gate.SIGNAL(tier::release, e2::form::prop::fullscreen, true);
-
-                    gate.LISTEN(tier::release, e2::size::any, size, memo)
-                    {
-                        body.size = size + pads * 2;
-                        boss.base::resize(body.size);
-                    };
-                    gate.LISTEN(tier::release, e2::coor::any, coor, memo)
-                    {
-                        unbind();
-                    };
-                    gate.LISTEN(tier::release, e2::dtor, master_id, memo)
-                    {
-                        unbind();
-                    };
-
-                    boss.LISTEN(tier::release, e2::size::any, size, memo)
-                    {
-                        if (weak && body.size != size) unbind(faux);
-                    };
-                    boss.LISTEN(tier::release, e2::coor::any, coor, memo)
-                    {
-                        if (weak && body.coor != coor) unbind(true, faux);
-                    };
-
-                    weak = master;
-                    boss.LISTEN(tier::release, e2::form::prop::ui::header, newhead, memo)
-                    {
-                        if (auto gate_ptr = bell::getref(weak))
-                        {
-                            gate_ptr->SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
-                        }
-                        else unbind();
-                    };
-                }
-            }
-            void unbind(bool restor_size = true, bool restor_coor = true)
-            {
-                if (memo.count())
-                {
-                    memo.clear();
-                    if (auto gate_ptr = bell::getref(weak))
-                    {
-                        gate_ptr->SIGNAL(tier::preview, e2::form::prop::ui::header, head);
-                        gate_ptr->SIGNAL(tier::release, e2::form::prop::fullscreen, faux);
-                    }
-                }
-                weak = {};
-                if (restor_size && restor_coor) boss.base::extend(last); // Restore previous position
-                else
-                {
-                    if (restor_size)
-                    {
-                        boss.base::resize(last.size);
-                        boss.base::moveby(boss.base::anchor - last.size / twod{ 2,4 }); // Centrify on mouse. See pro::frame pull.
-                    }
-                    else if (restor_coor) boss.base::moveto(last.coor);
-                }
             }
         };
 
@@ -1079,6 +955,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
+        public:
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
             ansi head_foci; // title: Original header + foci status.
@@ -1097,7 +974,6 @@ namespace netxs::ui
             };
             std::list<user> user_icon;
 
-        public:
             bool live = true; // title: Title visibility.
 
             auto recalc(page& object, twod& size)
@@ -1442,13 +1318,18 @@ namespace netxs::ui
                 pro::focus::off(item_ptr, gear_id_list);
                 if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
             }
-            static auto get(sptr<base> item_ptr)
+            static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 for (auto next_id : gear_id_list)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
                     if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
+                }
+                if (remove_default)
+                if (auto parent = item_ptr->parent())
+                {
+                    parent->RISEUP(tier::preview, hids::events::keybd::focus::dry, seed, ({ .item = item_ptr }));
                 }
                 return gear_id_list;
             }
@@ -1662,6 +1543,13 @@ namespace netxs::ui
                 {
                     boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
                     gears.erase(seed.id);
+                };
+                boss.LISTEN(tier::preview, hids::events::keybd::focus::dry, seed, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        route.next.remove_if([&](auto& next){ return next.lock() == seed.item; });
+                    }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
                 {
@@ -2403,13 +2291,16 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data)
+            notes(base& boss, view data, dent wrap = { maxsi32 })
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == maxsi32))
                 {
-                    gear.set_tooltip(boss.id, note);
+                    if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
+                    {
+                         gear.set_tooltip(boss.id, note);
+                    }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
                 {
@@ -3166,7 +3057,6 @@ namespace netxs::ui
         bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para  uname; // gate: Client name.
         text  uname_txt; // gate: Client name (original).
-        bool  fullscreen = faux; //gate: Fullscreen mode.
         props_t props; // gate: Application properties.
         input_t input; // gate: Input event handler.
         debug_t debug; // gate: Debug telemetry.
@@ -3176,6 +3066,7 @@ namespace netxs::ui
         subs  tokens; // gate: Subscription tokens.
         bool direct; // gate: .
         bool local; // gate: .
+        wptr<base> nexthop;
         hook oneoff_focus; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
@@ -3284,6 +3175,7 @@ namespace netxs::ui
         auto attach(sptr<base>& item)
         {
             std::swap(applet, item);
+            if (local) nexthop = applet;
             applet->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
         }
         // gate: .
@@ -3399,7 +3291,8 @@ namespace netxs::ui
 
             LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
             {
-                if (auto target = local ? applet : base::parent())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     pro::focus::set(target, gear.id, pro::focus::solo::off, pro::focus::flip::off, true);
                 }
@@ -3408,7 +3301,8 @@ namespace netxs::ui
             LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)
-                if (auto target = local ? applet : base::parent())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     target->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
                 }
@@ -3417,14 +3311,16 @@ namespace netxs::ui
             {
                 LISTEN(tier::release, hids::events::focus::set, gear) // Conio focus tracking.
                 {
-                    if (auto target = local ? applet : base::parent())
+                    //if (auto target = local ? applet : base::parent())
+                    if (auto target = nexthop.lock())
                     {
                         target->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed, ({ .id = gear.id }));
                     }
                 };
                 LISTEN(tier::release, hids::events::focus::off, gear)
                 {
-                    if (auto target = local ? applet : base::parent())
+                    //if (auto target = local ? applet : base::parent())
+                    if (auto target = nexthop.lock())
                     {
                         target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed, ({ .id = gear.id }));
                     }
@@ -3471,7 +3367,8 @@ namespace netxs::ui
 
                 auto deed = this->bell::template protos<tier::release>();
                 if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
-                if (auto target = local ? applet : base::parent())
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
                 {
                     target->bell::template signal<tier::release>(deed, seed);
                 }
@@ -3488,8 +3385,9 @@ namespace netxs::ui
                 else
                 {
                     //todo revise see preview::focus::set
-                    //if (auto target = local ? applet : base::parent())
+                    ////if (auto target = local ? applet : base::parent())
                     if (auto target = base::parent())
+                    //if (auto target = nexthop.lock())
                     {
                         target->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
                     }
@@ -3505,7 +3403,10 @@ namespace netxs::ui
                 }
                 else
                 {
-                    seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                    if (seed.item)
+                    {
+                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
+                    }
                 }
             };
             if (direct) // Forward unhandled events outside.
@@ -3548,10 +3449,6 @@ namespace netxs::ui
                 canal.shut();
                 this->SIGNAL(tier::general, e2::shutdown, msg);
             };
-            LISTEN(tier::release, e2::form::prop::fullscreen, state, tokens)
-            {
-                fullscreen = state;
-            };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {
                 uname = uname_txt = user_name;
@@ -3593,36 +3490,6 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::render::any, parent_canvas, tokens)
-            {
-                if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
-                if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
-                {
-                    auto area = base::area();
-                    area.coor-= parent_canvas.area().coor;
-                    //todo revise
-                    auto mark = skin::color(tone::shadow);
-                    mark.bga(mark.bga() / 2);
-                    parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
-                }
-            };
-            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
-            {
-                if (&parent_canvas != &input.xmap)
-                {
-                    //if (parent.test(area.coor))
-                    //{
-                    //	auto hover_id = parent[area.coor].link();
-                    //	log ("---- hover id ", hover_id);
-                    //}
-                    //auto& header = *title.header().lyric;
-                    if (uname.lyric) // Render foreign user names at their place.
-                    {
-                        draw_foreign_names(parent_canvas);
-                    }
-                    draw_mouse_pointer(parent_canvas);
-                }
-            };
             LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
             {
                 auto delta = base::resize(newsize);
@@ -3658,6 +3525,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
+                this->SIGNAL(tier::preview, e2::form::quit, this->This());
                 log("gate: ", msg);
                 canal.shut();
                 paint.stop();
@@ -3811,10 +3679,10 @@ namespace netxs::ui
                 {
                     conio.warping.send(conio, 0, warp);
                 };
-                LISTEN(tier::release, e2::form::maximize, gear, tokens)
+                LISTEN(tier::release, e2::form::layout::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.maximize.send(conio, ext_gear_id);
+                    if (gear_ptr) conio.fullscreen.send(conio, ext_gear_id);
                 };
             }
         }

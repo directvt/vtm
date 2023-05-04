@@ -92,7 +92,7 @@ namespace netxs::os
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
-        using conmode = DWORD[2];
+        struct conmode { DWORD omode, imode, opage, ipage; };
         static const auto INVALID_FD   = fd_t{ INVALID_HANDLE_VALUE              };
         static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
         static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
@@ -3141,6 +3141,18 @@ namespace netxs::os
             static vars;
             return vars;
         }
+        void repair()
+        {
+            auto& state = globals().state;
+            #if defined(_WIN32)
+                ok(::SetConsoleMode(STDOUT_FD, state.omode), "SetConsoleMode failed (revert_o)");
+                ok(::SetConsoleMode(STDIN_FD , state.imode), "SetConsoleMode failed (revert_i)");
+                ok(::SetConsoleOutputCP(       state.opage), "SetConsoleOutputCP failed (revert_o)");
+                ok(::SetConsoleCP(             state.ipage), "SetConsoleCP failed (revert_i)");
+            #else
+                ::tcsetattr(STDIN_FD, TCSANOW, &state);
+            #endif
+        }
         auto vtmode()
         {
             auto mode = si32{ vt::clean };
@@ -3151,18 +3163,37 @@ namespace netxs::os
             }
             else
             {
-                #if defined(_WIN32) // Set vt-mode and UTF-8 codepage unconditionally.
+                auto& state = globals().state;
+                #if defined(_WIN32)
 
-                    auto outmode = DWORD{};
-                    if(::GetConsoleMode(STDOUT_FD, &outmode))
+                    ok(::GetConsoleMode(STDOUT_FD, &state.omode), "GetConsoleMode(STDOUT_FD) failed");
+                    ok(::GetConsoleMode(STDIN_FD , &state.imode), "GetConsoleMode(STDIN_FD) failed");
+                    state.opage = ::GetConsoleOutputCP();
+                    state.ipage = ::GetConsoleCP();
+                    ok(::SetConsoleOutputCP(65001), "SetConsoleOutputCP failed");
+                    ok(::SetConsoleCP(65001), "SetConsoleCP failed");
+                    auto inpmode = DWORD{ 0
+                                | nt::console::inmode::preprocess
+                                | nt::console::inmode::extended
+                                | nt::console::inmode::winsize
+                                };
+                    ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
+                    auto outmode = DWORD{ 0
+                                | nt::console::outmode::preprocess
+                                | nt::console::outmode::vt
+                                };
+                    ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
+
+                #else
+
+                    if (!ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed"))
                     {
-                        outmode |= nt::console::outmode::vt;
-                        ::SetConsoleMode(STDOUT_FD, outmode);
-                        ::SetConsoleOutputCP(65001);
-                        ::SetConsoleCP(65001);
+                        os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                     }
 
                 #endif
+                std::atexit(repair);
+
                 if (auto term = os::env::get("TERM"); term.size())
                 {
                     log("  os: terminal type \"", term, "\"");
@@ -3255,16 +3286,6 @@ namespace netxs::os
             }
             wired.winsz.send(ipcio, 0, winsz.last);
         }
-        void repair()
-        {
-            auto& state = globals().state;
-            #if defined(_WIN32)
-                ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode failed (revert_o)");
-                ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode failed (revert_i)");
-            #else
-                ::tcsetattr(STDIN_FD, TCSANOW, &state);
-            #endif
-        }
         auto signal(sigt what)
         {
             #if defined(_WIN32)
@@ -3300,13 +3321,10 @@ namespace netxs::os
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
-                        /* do nothing */
-                        break;
                     case CTRL_LOGOFF_EVENT:
-                        /* todo signal global */
-                        break;
                     case CTRL_SHUTDOWN_EVENT:
-                        /* todo signal global */
+                        g.ipcio->shut();
+                        std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
                         break;
                     default:
                         break;
@@ -3317,7 +3335,7 @@ namespace netxs::os
 
                 auto shutdown = [](auto what)
                 {
-                    globals().ipcio->stop();
+                    globals().ipcio->shut();
                     ::signal(what, SIG_DFL);
                     ::raise(what);
                 };
@@ -3953,42 +3971,25 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                auto& omode = globals().state[0];
-                auto& imode = globals().state[1];
-
-                ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode(STDOUT_FD) failed");
-                ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
-
                 auto inpmode = DWORD{ 0
-                              | nt::console::inmode::extended
-                              | nt::console::inmode::winsize
-                              | nt::console::inmode::mouse
-                              };
-                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
-
+                            | nt::console::inmode::extended
+                            | nt::console::inmode::winsize
+                            | nt::console::inmode::mouse
+                            };
+                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed (ignite)");
                 auto outmode = DWORD{ 0
-                              | nt::console::outmode::preprocess
-                              | nt::console::outmode::vt
-                              | nt::console::outmode::no_auto_cr
-                              };
-
-                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
+                            | nt::console::outmode::no_auto_cr
+                            | nt::console::outmode::preprocess
+                            | nt::console::outmode::vt
+                            };
+                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed (ignite)");
                 ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
 
             #else
 
-                auto& state = g.state;
-                if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
-                {
-                    auto raw_mode = state;
-                    ::cfmakeraw(&raw_mode);
-                    ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
-                }
-                else
-                {
-                    os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
-                }
-
+                auto raw_mode = g.state;
+                ::cfmakeraw(&raw_mode);
+                ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
                 ok(::signal(SIGPIPE , SIG_IGN ), "set signal(SIGPIPE ) failed");
                 ok(::signal(SIGWINCH, sig_hndl), "set signal(SIGWINCH) failed");
                 ok(::signal(SIGTERM , sig_hndl), "set signal(SIGTERM ) failed");
@@ -3997,7 +3998,6 @@ namespace netxs::os
             #endif
 
             os::vt::vgafont(mode);
-            ::atexit(repair);
             resize();
             wired.sysfocus.send(ipcio, id_t{}, true, faux, faux);
         }
@@ -4008,11 +4008,11 @@ namespace netxs::os
             auto& alarm = globals().alarm;
             auto  proxy = os::clipboard::proxy{};
             auto  vga16 = mode & os::vt::vga16;
-            auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
+            auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).set_palette(vga16);
             auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
-            vtrun.vmouse(true);
-            vtend.vmouse(faux);
+                vtrun.vmouse(true).setutf(true);
+                vtend.vmouse(faux);
             #endif
 
             io::send(STDOUT_FD, vtrun);

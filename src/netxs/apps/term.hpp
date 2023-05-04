@@ -189,7 +189,7 @@ namespace netxs::app::term
         #define PROC_LIST \
             X(Noop                      ) /* */ \
             X(TerminalQuit              ) /* */ \
-            X(TerminalMaximize          ) /* */ \
+            X(TerminalFullscreen        ) /* */ \
             X(TerminalRestart           ) /* */ \
             X(TerminalSendKey           ) /* */ \
             X(TerminalWrapMode          ) /* */ \
@@ -322,11 +322,11 @@ namespace netxs::app::term
                     boss.RISEUP(tier::release, e2::form::quit, boss.This());
                 });
             }
-            static void TerminalMaximize(ui::pads& boss, menu::item& item)
+            static void TerminalFullscreen(ui::pads& boss, menu::item& item)
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.RISEUP(tier::release, e2::form::maximize, gear);
+                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                 });
             }
             static void TerminalRestart(ui::pads& boss, menu::item& item)
@@ -638,7 +638,7 @@ namespace netxs::app::term
                         // Axis x/y (see XTWINOPS):
                         //   -1 -- preserve
                         //    0 -- maximize (toggle)
-                        if (new_size == dot_00) // Toggle maximize/restore terminal window (only if it is focused by someone).
+                        if (new_size == dot_00) // Toggle fullscreen terminal (only if it is focused by someone).
                         {
                             boss.RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ());
                             if (gates.size())
@@ -646,7 +646,7 @@ namespace netxs::app::term
                             {
                                 gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                                 {
-                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
+                                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                                 });
                             }
                         }

@@ -64,7 +64,6 @@ Build-time dependencies
  - [`git`](https://git-scm.com/download/win)
  - [`cmake`](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation)
  - [`Visual Studio 2019`](https://visualstudio.microsoft.com/downloads/) or later (Desktop development with C++)
- - `UTF-8` for worldwide language support, https://github.com/netxs-group/vtm/issues/175#issuecomment-1034734346
 
 Use `Developer Command Prompt` as a build environment
 
@@ -114,7 +113,7 @@ vtm
     <th>App group</th>
     <th>Running app</th>
     <th>User list</th>
-    <th>≡ Menu</th>
+    <th>≡ Menu button</th>
     <th>Menu bar</th>
     <th>Interior</th>
     <th>Resize grips</th>
@@ -132,7 +131,7 @@ vtm
     <td>Run app</td>
     <td>Go to app</td>
     <td></td>
-    <td>Maximize/restore</td>
+    <td>Toggle fullscreen</td>
     <td colspan="3">Assign exclusive keyboard focus</td>
     <td>Go to app</td>
     <td>Clear keyboard focus</td>
@@ -147,7 +146,7 @@ vtm
     <th>double LeftClick</th>
     <td colspan="3"></td>
     <td></td>
-    <td colspan="2">Maximize/restore app window</td>
+    <td colspan="2">Toggle fullscreen</td>
     <td colspan="3"></td>
   </tr>
   <tr>
@@ -174,13 +173,15 @@ vtm
   <tr>
     <th>Left+RightClick</th>
     <td colspan="3"></td>
-    <td colspan="5">Clear clipboard</td>
+    <td colspan="5">Reset clipboard</td>
     <td></td>
   </tr>
   <tr>
     <th>LeftDrag</th>
     <td colspan="3">Adjust taskbar width</td>
-    <td colspan="5">Move window or Select text</td>
+    <td colspan="3">Move window or Select text</td>
+    <td colspan="1">Resize window</td>
+    <td colspan="1">Move window</td>
     <td>Panoramic workspace scrolling</td>
   </tr>
   <tr>
@@ -197,13 +198,15 @@ vtm
   <tr>
     <th>Left+RightDrag</th>
     <td colspan="3"></td>
-    <td colspan="4">Move window / Restore maximized window</td>
+    <td colspan="4">Move window / Restore fullscreen</td>
     <td colspan="2">Panoramic workspace scrolling</td>
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
     <td colspan="3">Adjust folded width</td>
-    <td colspan="6">Modify selection</td>
+    <td colspan="3">Modify selection</td>
+    <td colspan="1">Zoom window</td>
+    <td colspan="2"></td>
   </tr>
   <tr>
   <tr>
@@ -226,7 +229,7 @@ vtm
   </tr>
   <tr>
     <th>Ctrl+Wheel</th>
-    <td colspan="7">Zoom</td>
+    <td colspan="7">Zoom window</td>
     <td colspan="2"></td>
   </tr>
 </tbody>
@@ -884,7 +887,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
             <item label="Undo" type=Command action=TerminalUndo/>
             <item label="Redo" type=Command action=TerminalRedo/>
             <item label="Quit" type=Command action=TerminalQuit/>
-            <item label="Maximize" type=Command action=TerminalMaximize/>
+            <item label="Fullscreen" type=Command action=TerminalFullscreen/>
 
             <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/>
             <item label="Push Me" notes=" test " type=Repeat action=TerminalOutput data="pressed ">
@@ -939,7 +942,7 @@ Note: `$0` will be expanded to the fully qualified current module filename when 
        TerminalSendKey              | Simulating keypresses using the `data=` string.
        TerminalQuit                 | Kill all runnning console apps and quit the built-in terminal.
        TerminalRestart              | Kill all runnning console apps and restart current session.
-       TerminalMaximize             | Maximize/Restore built-in terminal window.
+       TerminalFullscreen           | Toggle fullscreen mode.
        TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
        TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
        TerminalPaste                | Paste from clipboard.

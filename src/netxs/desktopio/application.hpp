@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9f";
+    static const auto version = "v0.9.9g";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -155,12 +155,12 @@ namespace netxs::app::shared
                 else // Apply standard front/last menu items.
                 {
                     headitem->plugin<pro::fader>(x3, c3, fader)
-                            ->plugin<pro::notes>(" Maximize/restore ")
+                            ->plugin<pro::notes>(" Fullscreen mode ")
                             ->invoke([&](ui::pads& boss)
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.RISEUP(tier::release, e2::form::maximize, gear);
+                                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                                     gear.dismiss();
                                 };
                             })
