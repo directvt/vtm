@@ -484,8 +484,9 @@ namespace netxs::app::desk
                             {
                                 return;
                             }
-                            auto apply = [&](auto state)
+                            auto apply = [&, size_config](auto state)
                             {
+                                auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                                 active = state;
                                 auto& limits = boss.template plugins<pro::limit>();
                                 auto size = active ? std::max(uibar_max_size, uibar_min_size)
