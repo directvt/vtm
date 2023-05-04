@@ -89,7 +89,7 @@ namespace netxs::app::vtm
             wptr<base> saved;
             link what; // align: Original window properties.
             rect prev; // align: Window size before the fullscreen has applied.
-            rect body; // align: For current coor/size tracking.
+            twod coor; // align: Coor tracking.
             hook maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
@@ -121,7 +121,7 @@ namespace netxs::app::vtm
                 auto new_pos = boss.base::area() + pads;
                 new_pos.coor -= boss.base::coor();
                 window_ptr->base::extend(new_pos);
-                body = window_ptr->base::area();
+                coor = window_ptr->base::coor();
 
                 boss.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
                 boss.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
@@ -132,10 +132,9 @@ namespace netxs::app::vtm
 
                 boss.LISTEN(tier::release, e2::size::any, size, memo, (pads))
                 {
-                    body.size = size + pads;
-                    what.applet->base::resize(body.size);
+                    what.applet->base::resize(size + pads);
                 };
-                boss.LISTEN(tier::release, e2::coor::any, coor, memo)
+                boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
                     if (memo) unbind();
                 };
@@ -148,13 +147,9 @@ namespace netxs::app::vtm
                     release();
                     what.applet.reset();
                 };
-                window_ptr->LISTEN(tier::release, e2::size::any, size, memo)
+                window_ptr->LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
-                    if (memo && body.size != size) unbind(type::coor);
-                };
-                window_ptr->LISTEN(tier::release, e2::coor::any, coor, memo)
-                {
-                    if (memo && body.coor != coor) unbind(type::size);
+                    if (memo && coor != new_coor) unbind(type::size);
                 };
                 window_ptr->LISTEN(tier::release, e2::form::prop::ui::header, newhead, memo)
                 {
