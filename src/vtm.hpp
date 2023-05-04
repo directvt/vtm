@@ -171,6 +171,7 @@ namespace netxs::app::vtm
                 memo.clear();
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::header, what.header);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, what.footer);
+                boss.SIGNAL(tier::anycast, e2::form::layout::restore, what, ()); // Notify app::desk to suppess triggering.
             }
             void unbind(type restore = type::full)
             {

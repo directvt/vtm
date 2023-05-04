@@ -436,10 +436,10 @@ namespace netxs::app::desk
                     ->invoke([&](auto& boss)
                     {
                         boss.mouse.template draggable<hids::buttons::left>(true);
-                        auto size_config = ptr::shared(std::tuple{ uibar_max_size, uibar_min_size, faux });
+                        auto size_config = ptr::shared(std::tuple{ uibar_max_size, uibar_min_size, faux, datetime::now() });
                         auto toggle = [&, size_config](bool state)
                         {
-                            auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                             active = state;
                             auto& limits = boss.template plugins<pro::limit>();
                             auto size = active ? std::max(uibar_max_size, uibar_min_size)
@@ -450,7 +450,7 @@ namespace netxs::app::desk
                         };
                         boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (size_config))
                         {
-                            auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                             auto& limits = boss.template plugins<pro::limit>();
                             auto lims = limits.get();
                             lims.min.x += gear.delta.get().x;
@@ -471,11 +471,21 @@ namespace netxs::app::desk
                         //    auto& [uibar_max_size, uibar_min_size, active] = *size_config;
                         //    toggle(!active);
                         //};
+                        boss.LISTEN(tier::anycast, e2::form::layout::restore, item_ptr, -, (size_config))
+                        {
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                            skip = datetime::now();
+                        };
                         boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (size_config))
                         {
-                            auto apply = [&, size_config](auto state)
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                            //todo too hacky
+                            if (state && skip + 500ms > datetime::now())
                             {
-                                auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                                return;
+                            }
+                            auto apply = [&](auto state)
+                            {
                                 active = state;
                                 auto& limits = boss.template plugins<pro::limit>();
                                 auto size = active ? std::max(uibar_max_size, uibar_min_size)
@@ -492,7 +502,7 @@ namespace netxs::app::desk
                         };
                         boss.LISTEN(tier::anycast, e2::form::prop::viewport, viewport, -, (size_config))
                         {
-                            auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                             viewport.coor.x += uibar_min_size;
                             viewport.size.x -= uibar_min_size;
                         };
