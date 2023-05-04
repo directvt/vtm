@@ -833,6 +833,48 @@ namespace netxs::app::vtm
                     base::strike();
                 });
             };
+            LISTEN(tier::release, e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
+            {
+                if (&canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
+                {
+                    auto area = base::area();
+                    area.coor-= canvas.area().coor;
+                    if (canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
+                    {
+                        //todo revise
+                        auto mark = skin::color(tone::shadow);
+                        mark.bga(mark.bga() / 2);
+                        canvas.fill(area, [&](cell& c){ c.fuse(mark); });
+                    }
+                    auto saved_context = canvas.bump(dent{ 0,0,1,0 });
+                    canvas.output(uname, dot_00, cell::shaders::contrast);
+                    if (align.what.applet)
+                    {
+                        canvas.bump(dent{ -2,-2,-2,-1 });
+                        canvas.cup(dot_00);
+                        canvas.output(fullscreen_banner);
+                        canvas.output(title.head_page, cell::shaders::contrast);
+                    }
+                    canvas.bump(saved_context);
+                }
+            };
+            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
+            {
+                if (&parent_canvas != &input.xmap)
+                {
+                    //if (parent.test(area.coor))
+                    //{
+                    //	auto hover_id = parent[area.coor].link();
+                    //	log ("---- hover id ", hover_id);
+                    //}
+                    //auto& header = *title.header().lyric;
+                    if (uname.lyric) // Render foreign user names at their place.
+                    {
+                        draw_foreign_names(parent_canvas);
+                    }
+                    draw_mouse_pointer(parent_canvas);
+                }
+            };
         }
 
         void rebuild_scene(base& world, bool damaged) override

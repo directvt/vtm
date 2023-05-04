@@ -955,6 +955,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
+        public:
             page head_page; // title: Owner's caption header.
             page foot_page; // title: Owner's caption footer.
             ansi head_foci; // title: Original header + foci status.
@@ -973,7 +974,6 @@ namespace netxs::ui
             };
             std::list<user> user_icon;
 
-        public:
             bool live = true; // title: Title visibility.
 
             auto recalc(page& object, twod& size)
@@ -3488,36 +3488,6 @@ namespace netxs::ui
                 {
                     this->bell::template expire<tier::release>();
                     gear.dismiss();
-                }
-            };
-            LISTEN(tier::release, e2::render::any, parent_canvas, tokens)
-            {
-                if (parent_canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
-                if (&parent_canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
-                {
-                    auto area = base::area();
-                    area.coor-= parent_canvas.area().coor;
-                    //todo revise
-                    auto mark = skin::color(tone::shadow);
-                    mark.bga(mark.bga() / 2);
-                    parent_canvas.fill(area, [&](cell& c){ c.fuse(mark); });
-                }
-            };
-            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
-            {
-                if (&parent_canvas != &input.xmap)
-                {
-                    //if (parent.test(area.coor))
-                    //{
-                    //	auto hover_id = parent[area.coor].link();
-                    //	log ("---- hover id ", hover_id);
-                    //}
-                    //auto& header = *title.header().lyric;
-                    if (uname.lyric) // Render foreign user names at their place.
-                    {
-                        draw_foreign_names(parent_canvas);
-                    }
-                    draw_mouse_pointer(parent_canvas);
                 }
             };
             LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
