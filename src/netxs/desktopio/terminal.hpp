@@ -502,6 +502,7 @@ namespace netxs::ui
                 static constexpr auto set_winsz = si32{ 8  }; // Set window size in characters.
                 static constexpr auto maximize  = si32{ 9  }; // Toggle maximize/restore.
                 static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode (todo: hide menu).
+                static constexpr auto view_size = si32{ 18 }; // Report viewport size.
                 static constexpr auto get_label = si32{ 20 }; // Report icon   label. (Report as OSC L label ST).
                 static constexpr auto get_title = si32{ 21 }; // Report window title. (Report as OSC l title ST).
                 static constexpr auto put_stack = si32{ 22 }; // Push icon label and window title to   stack.
@@ -520,6 +521,7 @@ namespace netxs::ui
                         owner.window_resize(winsz);
                         break;
                     }
+                    case view_size: owner.answer(queue.win_sz(owner.target->panel)); break;
                     case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break; // Return an empty string for security reasons
                     case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
                     case put_stack:

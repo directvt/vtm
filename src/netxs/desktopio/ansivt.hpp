@@ -701,6 +701,7 @@ namespace netxs::ansi
         auto& bpmode(bool b)        { return add(b ? "\033[?2004h" : "\033[?2004l"   ); } // esc: Set bracketed paste mode.
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // esc: Set autowrap mode.
         auto& report(twod const& p) { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // esc: Report 1-Based caret position (CPR).
+        auto& win_sz(twod const& p) { return add("\033[", p.y, ";", p.x, "t"         ); } // esc: Report viewport size (Reply on CSI 18 t).
         auto& locate_wipe()         { return add("\033[r"                            ); } // esc: Enable scrolling for entire display (clear screen).
         auto& locate_call()         { return add("\033[6n"                           ); } // esc: Report caret position.
         auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // esc: Reset palette, erase scrollback and reset caret location.
