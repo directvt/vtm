@@ -2602,16 +2602,26 @@ struct consrv
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size ", size);
 
-        if (size == twod{ 1500, 300 })
-        {
-            log("\twimc detected, turning off wrapping");
+        if (size.x > 165) // E.g. wmic requests { 1500, 300 }. max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
+        {                                                   // min: 150, 100, 132, 120, 150, 140, 165, 30, 80.
+            log("\ttoo wide buffer requested, turning off wrapping");
             console.style.wrp(faux);
+            size.x = console.panel.x;
         }
-        else if (packet.target->link != &uiterm.target)
+        if (size.y > 99) // Apps usually request either real viewport height (20,24,25,50) or extra high: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (dwSize.Y = N)
+        {
+            log("\ttoo long buffer requested, updating scrollback limits");
+            uiterm.sb_min(size.y);
+            size.y = console.panel.y;
+        }
+        if (packet.target->link != &uiterm.target)
         {
             console.resize_viewport(size);
         }
-        else uiterm.window_resize(size);
+        else
+        {
+            uiterm.window_resize(size);
+        }
 
         auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;

@@ -6358,6 +6358,15 @@ namespace netxs::ui
             auto grow_step = queue(config.def_growup);
             normal.resize_history(ring_size, grow_step);
         }
+        // term: Check and update scrollback buffer limits.
+        void sb_min(si32 min_length)
+        {
+            target->flush();
+            if (normal.batch.step == 0 && normal.batch.peak < min_length)
+            {
+                normal.resize_history(min_length);
+            }
+        }
         // term: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
         {
