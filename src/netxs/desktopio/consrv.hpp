@@ -3333,7 +3333,7 @@ struct consrv
         }
         server = std::thread{ [&]
         {
-            while (condrv != INVALID_FD)
+            while (condrv != os::invalid_fd)
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
