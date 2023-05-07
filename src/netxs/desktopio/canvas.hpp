@@ -1794,10 +1794,10 @@ namespace netxs
             {
                 auto dt = std::sqrt(x * x + z);
                 auto& chan = c.bgc().chan;
-                chan.r = (uint8_t)((float)c1.chan.r + dr * dt);
-                chan.g = (uint8_t)((float)c1.chan.g + dg * dt);
-                chan.b = (uint8_t)((float)c1.chan.b + db * dt);
-                chan.a = (uint8_t)((float)c1.chan.a + da * dt);
+                chan.r = (byte)((float)c1.chan.r + dr * dt);
+                chan.g = (byte)((float)c1.chan.g + dg * dt);
+                chan.b = (byte)((float)c1.chan.b + db * dt);
+                chan.a = (byte)((float)c1.chan.a + da * dt);
                 ++x;
             };
             auto eolfx = [&]

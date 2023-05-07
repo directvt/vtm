@@ -36,7 +36,7 @@ namespace netxs::ui
         }
 
         operator auto& () const { return basis; }
-        auto& operator [] (uint8_t k) const
+        auto& operator [] (byte k) const
         {
             return grade[k];
         }
@@ -1532,10 +1532,10 @@ namespace netxs::ui
             using namespace netxs::ansi;
 
             #define V [](auto& q, auto& p)
-            //vt.intro[ctrl::NUL]                   = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
-            vt.intro[ctrl::CR ]                   = V{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-            vt.intro[ctrl::TAB]                   = V{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
-            vt.intro[ctrl::EOL]                   = V{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
+            //vt.intro[ctrl::nul]                   = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
+            vt.intro[ctrl::cr ]                   = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::tab]                   = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
+            vt.intro[ctrl::eol]                   = V{ p->task({ fn::nl, q.pop_all(ctrl::eol) }); };
             vt.csier.table[CSI__ED]               = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
             vt.csier.table[CSI__EL]               = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
             vt.csier.table[CSI_CCC][CCC_NOP]      = V{ p->fork(); };
@@ -2054,7 +2054,7 @@ namespace netxs::ui
             // Override vt-functionality.
             using namespace netxs::ansi;
             #define V [](auto& q, auto& p)
-            vt.intro[ctrl::TAB] = V{ p->tabs(q.pop_all(ctrl::TAB)); };
+            vt.intro[ctrl::tab] = V{ p->tabs(q.pop_all(ctrl::tab)); };
             #undef V
         }
 

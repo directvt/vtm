@@ -2105,7 +2105,7 @@ namespace netxs::os
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
                 auto srtinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto buffer = std::vector<uint8_t>{};
+                auto buffer = std::vector<byte>{};
                 auto buflen = SIZE_T{ 0 };
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
                 result = buflen;
@@ -2449,7 +2449,7 @@ namespace netxs::os
                     termsize(winsz);
                     auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
 
                     srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
@@ -2878,7 +2878,7 @@ namespace netxs::os
                     auto m_pipe_w = os::invalid_fd;
                     auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
                     auto stdhndls = std::array<HANDLE, 2>{};
 

@@ -2221,7 +2221,7 @@ namespace netxs::ui
             pin_id,
         };
 
-        void set_pen(uint8_t hilight)
+        void set_pen(byte hilight)
         {
             auto& pen = canvas.mark().bga(hilight);
         }

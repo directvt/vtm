@@ -728,8 +728,8 @@ namespace netxs::ui
             {
                 #define V [](auto& q, auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
-                autocr ? parser.intro[ansi::ctrl::EOL] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::EOL)); }
-                       : parser.intro[ansi::ctrl::EOL] = V{          p->lf(q.pop_all(ansi::ctrl::EOL)); };
+                autocr ? parser.intro[ansi::ctrl::eol] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::eol)); }
+                       : parser.intro[ansi::ctrl::eol] = V{          p->lf(q.pop_all(ansi::ctrl::eol)); };
                 #undef V
             }
             template<class T>
@@ -788,7 +788,7 @@ namespace netxs::ui
                 vt.csier.table[CSI_CBT]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
                 vt.csier.table[CSI_TBC]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
                 vt.csier.table_quest[CSI_QST_RTB] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
-                vt.intro[ctrl::ESC][ESC_HTS]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
+                vt.intro[ctrl::esc][ESC_HTS]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
                 vt.csier.table[CSI_CUD2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
 
@@ -824,26 +824,26 @@ namespace netxs::ui
                 vt.csier.table[CSI_CCC][CCC_SEL] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
                 vt.csier.table[CSI_CCC][CCC_PAD] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
-                vt.intro[ctrl::ESC][ESC_IND   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::ESC][ESC_IR    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_SC    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::ESC][ESC_RIS   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_NEL   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
-                vt.intro[ctrl::ESC][ESC_DECDHL] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                vt.intro[ctrl::esc][ESC_IND   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::esc][ESC_IR    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::esc][ESC_SC    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::esc][ESC_RC    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::esc][ESC_RIS   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::esc][ESC_NEL   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::esc][ESC_DECDHL] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::ESC][ESC_APC   ] = V{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::ESC][ESC_DSC   ] = V{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
-                vt.intro[ctrl::ESC][ESC_SOS   ] = V{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::ESC][ESC_PM    ] = V{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::esc][ESC_APC   ] = V{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][ESC_DSC   ] = V{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::esc][ESC_SOS   ] = V{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::esc][ESC_PM    ] = V{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
 
-                vt.intro[ctrl::BS ] = V{ p->cub(q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = V{ p->del(q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = V{ p->tab(q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = V{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
-                vt.intro[ctrl::VT ] = V{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
-                vt.intro[ctrl::FF ] = V{ p->lf (q.pop_all(ctrl::FF )); }; // FF same as LF
-                vt.intro[ctrl::CR ] = V{ p->cr ();                     }; // CR
+                vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
+                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); };
+                vt.intro[ctrl::tab] = V{ p->tab(q.pop_all(ctrl::tab)); };
+                vt.intro[ctrl::eol] = V{ p->lf (q.pop_all(ctrl::eol)); }; // LF
+                vt.intro[ctrl::vt ] = V{ p->lf (q.pop_all(ctrl::vt )); }; // VT same as LF
+                vt.intro[ctrl::ff ] = V{ p->lf (q.pop_all(ctrl::ff )); }; // FF same as LF
+                vt.intro[ctrl::cr ] = V{ p->cr ();                     }; // CR
 
                 vt.csier.table_quest[DECSET] = V{ p->owner.decset(q); };
                 vt.csier.table_quest[DECRST] = V{ p->owner.decrst(q); };
@@ -872,7 +872,7 @@ namespace netxs::ui
                         proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                     }
                 }
-                auto& esc_lookup = vt.intro[ctrl::ESC];
+                auto& esc_lookup = vt.intro[ctrl::esc];
                 // Log all unimplemented ESC+rest.
                 for (auto i = 0; i < 0x100; ++i)
                 {

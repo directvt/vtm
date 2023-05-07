@@ -1218,19 +1218,19 @@ namespace netxs::ansi
     // split paragraphs when flow direction changes, for example.
     struct marker
     {
-        using changer = std::array<void (*)(cell&), ctrl::COUNT>;
+        using changer = std::array<void (*)(cell&), ctrl::count>;
         changer	setter = {};
         marker()
         {
-            setter[ctrl::ALM                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::RLM                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::LRM                 ] = [](cell& p) { p.rtl(faux);    };
-            setter[ctrl::SHY                 ] = [](cell& p) { p.hyphen(true); };
-            setter[ctrl::FUNCTION_APPLICATION] = [](cell& p) { p.fnappl(true); };
-            setter[ctrl::INVISIBLE_TIMES     ] = [](cell& p) { p.itimes(true); };
-            setter[ctrl::INVISIBLE_SEPARATOR ] = [](cell& p) { p.isepar(true); };
-            setter[ctrl::INVISIBLE_PLUS      ] = [](cell& p) { p.inplus(true); };
-            setter[ctrl::ZWNBSP              ] = [](cell& p) { p.zwnbsp(true); };
+            setter[ctrl::alm                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::rlm                 ] = [](cell& p) { p.rtl(true);    };
+            setter[ctrl::lrm                 ] = [](cell& p) { p.rtl(faux);    };
+            setter[ctrl::shy                 ] = [](cell& p) { p.hyphen(true); };
+            setter[ctrl::function_application] = [](cell& p) { p.fnappl(true); };
+            setter[ctrl::invisible_times     ] = [](cell& p) { p.itimes(true); };
+            setter[ctrl::invisible_separator ] = [](cell& p) { p.isepar(true); };
+            setter[ctrl::invisible_plus      ] = [](cell& p) { p.inplus(true); };
+            setter[ctrl::zwnbsp              ] = [](cell& p) { p.zwnbsp(true); };
         }
     };
 
@@ -1459,13 +1459,13 @@ namespace netxs::ansi
 
         vt_parser()
         {
-            intro.resize(ctrl::NON_CONTROL);
-            //intro[ctrl::BS ] = backspace;
-            //intro[ctrl::DEL] = backspace;
-            //intro[ctrl::CR ] = crlf;
-            //intro[ctrl::EOL] = exec <fn::nl, 1>;
+            intro.resize(ctrl::non_control);
+            //intro[ctrl::bs ] = backspace;
+            //intro[ctrl::del] = backspace;
+            //intro[ctrl::cr ] = crlf;
+            //intro[ctrl::eol] = exec <fn::nl, 1>;
 
-            auto& esc = intro[ctrl::ESC].resize(0x100);
+            auto& esc = intro[ctrl::esc].resize(0x100);
                 esc[ESC_CSI   ] = xcsi;
                 esc[ESC_OCS   ] = xosc;
                 esc[ESC_KEY_A ] = keym;
