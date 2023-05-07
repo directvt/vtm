@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #define log(...)
 #endif
 
@@ -3480,6 +3480,6 @@ struct consrv
     }
 };
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #undef log
 #endif

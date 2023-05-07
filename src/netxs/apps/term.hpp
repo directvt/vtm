@@ -186,7 +186,7 @@ namespace netxs::app::term
             { menu::type::Option,   menu::item::Option   },
             { menu::type::Repeat,   menu::item::Repeat   }};
 
-        #define PROC_LIST \
+        #define proc_list \
             X(Noop                      ) /* */ \
             X(TerminalQuit              ) /* */ \
             X(TerminalFullscreen        ) /* */ \
@@ -236,14 +236,14 @@ namespace netxs::app::term
         enum func
         {
             #define X(_proc) _proc,
-            PROC_LIST
+            proc_list
             #undef X
         };
 
         static const auto route_options = std::unordered_map<text, func>
         {
             #define X(_proc) { #_proc, func::_proc },
-            PROC_LIST
+            proc_list
             #undef X
         };
 
@@ -549,10 +549,10 @@ namespace netxs::app::term
         static const auto proc_map = std::unordered_map<func, submit_proc>
         {
             #define X(_proc) { func::_proc, &disp::_proc },
-            PROC_LIST
+            proc_list
             #undef X
         };
-        #undef PROC_LIST
+        #undef proc_list
 
         auto list = menu::list{};
         auto defs = menu::item::look{};

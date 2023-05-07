@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__) && !defined(__BSD__)
     #define __BSD__
 #endif
 
@@ -13,7 +13,7 @@
 
 #if defined(_WIN32)
 
-    #ifndef NOMINMAX
+    #if not defined(NOMINMAX)
         #define NOMINMAX
     #endif
 

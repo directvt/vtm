@@ -385,35 +385,35 @@ namespace netxs::events
                                 static constexpr auto index()               { return events::number<id>;                  }
     };
 
-    #define ARGsEVAL(...) __VA_ARGS__
-    #define ARG_EVAL(...) ARGsEVAL(__VA_ARGS__)
-    #define GET_LAST1(a, b, c, d, e, last, ...) last
-    #define GET_LAST2(a, b, c, d,    last, ...) last
+    #define ARGsEVAL_XS(...) __VA_ARGS__
+    #define ARG_EVAL_XS(...) ARGsEVAL_XS(__VA_ARGS__)
+    #define GET_END1_XS(a, b, c, d, e, last, ...) last
+    #define GET_END2_XS(a, b, c, d,    last, ...) last
 
     #define LISTEN_S(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
     #define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
-    #define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
-    #define LISTEN_X(...) ARG_EVAL(GET_LAST1(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
+    #define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] (typename decltype( event )::type&& param) mutable
+    #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #if defined(_WIN32)
-        #define LISTEN(...) ARG_EVAL(LISTEN_X(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define LISTEN(...) ARG_EVAL_XS(LISTEN_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
     #else
         #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
     #endif
 
     #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
-    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
-    #define SIGNAL_X(...) ARG_EVAL(GET_LAST2(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
+    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
     #if defined(_WIN32)
-        #define SIGNAL(...) ARG_EVAL(SIGNAL_X(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define SIGNAL(...) ARG_EVAL_XS(SIGNAL_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
     #else
         #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
     #endif
 
     #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
-    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
-    #define RISEUP_X(...) ARG_EVAL(GET_LAST2(__VA_ARGS__, RISEUP_N, RISEUP_S))
+    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define RISEUP_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, RISEUP_N, RISEUP_S))
     #if defined(_WIN32)
-        #define RISEUP(...) ARG_EVAL(RISEUP_X(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define RISEUP(...) ARG_EVAL_XS(RISEUP_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
     #else
         #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
     #endif

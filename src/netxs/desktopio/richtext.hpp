@@ -1530,17 +1530,20 @@ namespace netxs::ui
         static void parser_config(T& vt)
         {
             using namespace netxs::ansi;
-            //vt.intro[ctrl::NUL]              = VT_PROC{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
-            vt.intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-            vt.intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
-            vt.intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
-            vt.csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-            vt.csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-            vt.csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
-            vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
-            vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
-            vt.csier.table_hash[CSI_HSH_PUSH_SGR] = VT_PROC{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
-            vt.csier.table_hash[CSI_HSH_POP_SGR ] = VT_PROC{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
+
+            #define V [](auto& q, auto& p)
+            //vt.intro[ctrl::NUL]                   = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
+            vt.intro[ctrl::CR ]                   = V{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::TAB]                   = V{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
+            vt.intro[ctrl::EOL]                   = V{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
+            vt.csier.table[CSI__ED]               = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+            vt.csier.table[CSI__EL]               = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+            vt.csier.table[CSI_CCC][CCC_NOP]      = V{ p->fork(); };
+            vt.csier.table[CSI_CCC][CCC_IDX]      = V{ p->fork(q(0)); };
+            vt.csier.table[CSI_CCC][CCC_REF]      = V{ p->bind(q(0)); };
+            vt.csier.table_hash[CSI_HSH_PUSH_SGR] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
+            vt.csier.table_hash[CSI_HSH_POP_SGR ] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
+            #undef V
         }
         page              (view utf8) {          ansi::parse(utf8, this);               }
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
@@ -2050,7 +2053,9 @@ namespace netxs::ui
 
             // Override vt-functionality.
             using namespace netxs::ansi;
-            vt.intro[ctrl::TAB] = VT_PROC{ p->tabs(q.pop_all(ctrl::TAB)); };
+            #define V [](auto& q, auto& p)
+            vt.intro[ctrl::TAB] = V{ p->tabs(q.pop_all(ctrl::TAB)); };
+            #undef V
         }
 
         derived_from_page (view utf8) {          ansi::parse(utf8, this);               }
@@ -2064,7 +2069,7 @@ namespace netxs::ui
     {
     public:
 
-        #define PROP_LIST                              \
+        #define prop_list                              \
         X(kb_focus  , "Keyboard focus indicator")      \
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
@@ -2080,13 +2085,13 @@ namespace netxs::ui
         X(menu_black, "Dark menu color")
 
         #define X(a, b) a,
-        enum prop { PROP_LIST count };
+        enum prop { prop_list count };
         #undef X
 
         //#define X(a, b) b,
-        //text description[prop::count] = { PROP_LIST };
+        //text description[prop::count] = { prop_list };
         //#undef X
-        #undef PROP_LIST
+        #undef prop_list
 
         prop active  = prop::brighter;
         prop passive = prop::shadower;

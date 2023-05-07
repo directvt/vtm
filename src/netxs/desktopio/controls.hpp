@@ -161,8 +161,8 @@ namespace netxs::ui
             return backup;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class Property, class SPTR, class P>
-        auto attach_element(Property, SPTR data_src_sptr, P item_template)
+        template<class Property, class Sptr, class P>
+        auto attach_element(Property, Sptr data_src_sptr, P item_template)
         {
             auto arg_value = typename Property::type{};
 

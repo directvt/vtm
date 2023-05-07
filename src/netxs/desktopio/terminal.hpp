@@ -726,138 +726,142 @@ namespace netxs::ui
         {
             static void set_autocr(bool autocr)
             {
+                #define V [](auto& q, auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
-                autocr ? parser.intro[ansi::ctrl::EOL] = VT_PROC{ p->cr(); p->lf(q.pop_all(ansi::ctrl::EOL)); }
-                       : parser.intro[ansi::ctrl::EOL] = VT_PROC{          p->lf(q.pop_all(ansi::ctrl::EOL)); };
+                autocr ? parser.intro[ansi::ctrl::EOL] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::EOL)); }
+                       : parser.intro[ansi::ctrl::EOL] = V{          p->lf(q.pop_all(ansi::ctrl::EOL)); };
+                #undef V
             }
             template<class T>
             static void parser_config(T& vt)
             {
                 using namespace netxs::ansi;
-                vt.csier.table_space[CSI_SPC_SRC     ] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                vt.csier.table_space[CSI_SPC_SLC     ] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST     ] = VT_PROC{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
-                vt.csier.table_hash [CSI_HSH_SCP     ] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_RCP     ] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_PUSH_SGR] = VT_PROC{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
-                vt.csier.table_hash [CSI_HSH_POP_SGR ] = VT_PROC{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
-                vt.csier.table_excl [CSI_EXL_RST     ] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                #define V [](auto& q, auto& p)
+                vt.csier.table_space[CSI_SPC_SRC     ] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[CSI_SPC_SLC     ] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[CSI_SPC_CST     ] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_hash [CSI_HSH_SCP     ] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [CSI_HSH_RCP     ] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [CSI_HSH_PUSH_SGR] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
+                vt.csier.table_hash [CSI_HSH_POP_SGR ] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
+                vt.csier.table_excl [CSI_EXL_RST     ] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = VT_PROC{ p->owner.ctrack.fgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = VT_PROC{ p->owner.ctrack.fgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = VT_PROC{ p->owner.ctrack.fgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::whitelt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = VT_PROC{ p->owner.ctrack.bgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = VT_PROC{ p->owner.ctrack.bgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = VT_PROC{ p->owner.ctrack.bgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = V{ p->owner.ctrack.fgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = V{ p->owner.ctrack.fgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = V{ p->owner.ctrack.fgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = V{ p->owner.ctrack.fgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = V{ p->owner.ctrack.fgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = V{ p->owner.ctrack.fgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = V{ p->owner.ctrack.fgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = V{ p->owner.ctrack.fgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = V{ p->owner.ctrack.fgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = V{ p->owner.ctrack.fgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = V{ p->owner.ctrack.fgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = V{ p->owner.ctrack.fgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = V{ p->owner.ctrack.fgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = V{ p->owner.ctrack.fgc(tint::whitelt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = V{ p->owner.ctrack.bgc(tint::blackdk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = V{ p->owner.ctrack.bgc(tint::reddk    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = V{ p->owner.ctrack.bgc(tint::greendk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = V{ p->owner.ctrack.bgc(tint::yellowdk ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = V{ p->owner.ctrack.bgc(tint::bluedk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = V{ p->owner.ctrack.bgc(tint::magentadk); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = V{ p->owner.ctrack.bgc(tint::cyandk   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = V{ p->owner.ctrack.bgc(tint::whitedk  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = V{ p->owner.ctrack.bgc(tint::blacklt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = V{ p->owner.ctrack.bgc(tint::redlt    ); };
+                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = V{ p->owner.ctrack.bgc(tint::greenlt  ); };
+                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = V{ p->owner.ctrack.bgc(tint::yellowlt ); };
+                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = V{ p->owner.ctrack.bgc(tint::bluelt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = V{ p->owner.ctrack.bgc(tint::magentalt); };
+                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
+                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); }; // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); }; // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
+                vt.csier.table[CSI_CUU] = V{ p->up (q(1)); }; // CSI n A  (CUU)
+                vt.csier.table[CSI_CUD] = V{ p->dn (q(1)); }; // CSI n B  (CUD)
+                vt.csier.table[CSI_CUF] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
+                vt.csier.table[CSI_CUB] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
-                vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
-                vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
-                vt.csier.table[CSI_TBC]           = VT_PROC{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
-                vt.csier.table_quest[CSI_QST_RTB] = VT_PROC{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
-                vt.intro[ctrl::ESC][ESC_HTS]      = VT_PROC{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
+                vt.csier.table[CSI_CHT]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[CSI_CBT]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[CSI_TBC]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table_quest[CSI_QST_RTB] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
+                vt.intro[ctrl::ESC][ESC_HTS]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
-                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
+                vt.csier.table[CSI_CUD2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[CSI_CNL] = VT_PROC{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
-                vt.csier.table[CSI_CPL] = VT_PROC{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
-                vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
-                vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
-                vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); }; // CSI y ; x H (1-based)
-                vt.csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); }; // CSI y ; x f (1-based)
+                vt.csier.table[CSI_CNL] = V{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[CSI_CPL] = V{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
+                vt.csier.table[CSI_CHX] = V{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
+                vt.csier.table[CSI_CHY] = V{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
+                vt.csier.table[CSI_CUP] = V{ p->cup( q   ); }; // CSI y ; x H (1-based)
+                vt.csier.table[CSI_HVP] = V{ p->cup( q   ); }; // CSI y ; x f (1-based)
 
-                vt.csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
-                vt.csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
-                vt.csier.table[CSI_ICH] = VT_PROC{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
+                vt.csier.table[CSI_DCH] = V{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
+                vt.csier.table[CSI_ECH] = V{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
+                vt.csier.table[CSI_ICH] = V{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
 
-                vt.csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); }; // CSI n J
-                vt.csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); }; // CSI n K
-                vt.csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
-                vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
-                vt.csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
-                vt.csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
-                vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); }; // CSI   s  Save cursor position.
-                vt.csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); }; // CSI   u  Restore cursor position.
+                vt.csier.table[CSI__ED] = V{ p->ed ( q(0)); }; // CSI n J
+                vt.csier.table[CSI__EL] = V{ p->el ( q(0)); }; // CSI n K
+                vt.csier.table[CSI__IL] = V{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
+                vt.csier.table[CSI__DL] = V{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
+                vt.csier.table[CSI__SD] = V{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
+                vt.csier.table[CSI__SU] = V{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
+                vt.csier.table[CSI_SCP] = V{ p->scp(     ); }; // CSI   s  Save cursor position.
+                vt.csier.table[CSI_RCP] = V{ p->rcp(     ); }; // CSI   u  Restore cursor position.
 
-                vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
+                vt.csier.table[DECSTBM] = V{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
-                vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
+                vt.csier.table[CSI_WIN] = V{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[CSI_DSR] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
+                vt.csier.table[CSI_PDA] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
-                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
-                vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
-                vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
-                vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
+                vt.csier.table[CSI_CCC][CCC_SBS] = V{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
+                vt.csier.table[CSI_CCC][CCC_RST] = V{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
+                vt.csier.table[CSI_CCC][CCC_SGR] = V{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
+                vt.csier.table[CSI_CCC][CCC_SEL] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
+                vt.csier.table[CSI_CCC][CCC_PAD] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
-                vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_SC    ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC    ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::ESC][ESC_RIS   ] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
-                vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                vt.intro[ctrl::ESC][ESC_IND   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::ESC][ESC_IR    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::ESC][ESC_SC    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::ESC][ESC_RC    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::ESC][ESC_RIS   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::ESC][ESC_NEL   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::ESC][ESC_DECDHL] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
-                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::ESC][ESC_APC   ] = V{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::ESC][ESC_DSC   ] = V{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::ESC][ESC_SOS   ] = V{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::ESC][ESC_PM    ] = V{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
 
-                vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
-                vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
-                vt.intro[ctrl::FF ] = VT_PROC{ p->lf (q.pop_all(ctrl::FF )); }; // FF same as LF
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
+                vt.intro[ctrl::BS ] = V{ p->cub(q.pop_all(ctrl::BS )); };
+                vt.intro[ctrl::DEL] = V{ p->del(q.pop_all(ctrl::DEL)); };
+                vt.intro[ctrl::TAB] = V{ p->tab(q.pop_all(ctrl::TAB)); };
+                vt.intro[ctrl::EOL] = V{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
+                vt.intro[ctrl::VT ] = V{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
+                vt.intro[ctrl::FF ] = V{ p->lf (q.pop_all(ctrl::FF )); }; // FF same as LF
+                vt.intro[ctrl::CR ] = V{ p->cr ();                     }; // CR
 
-                vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
-                vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
+                vt.csier.table_quest[DECSET] = V{ p->owner.decset(q); };
+                vt.csier.table_quest[DECRST] = V{ p->owner.decrst(q); };
 
-                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL      ] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE      ] = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP      ] = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
-                vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
-                vt.oscer[OSC_LINUX_RESET] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
-                vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
-                vt.oscer[OSC_SET_FGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_FGCOLOR, q); };
-                vt.oscer[OSC_SET_BGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_BGCOLOR, q); };
-                vt.oscer[OSC_RESET_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
-                vt.oscer[OSC_RESET_FGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
-                vt.oscer[OSC_RESET_BGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
-                vt.oscer[OSC_CLIPBOARD  ] = VT_PROC{ p->owner.forward_clipboard(q);           };
+                vt.oscer[OSC_LABEL_TITLE] = V{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
+                vt.oscer[OSC_LABEL      ] = V{ p->owner.wtrack.set(OSC_LABEL,       q); };
+                vt.oscer[OSC_TITLE      ] = V{ p->owner.wtrack.set(OSC_TITLE,       q); };
+                vt.oscer[OSC_XPROP      ] = V{ p->owner.wtrack.set(OSC_XPROP,       q); };
+                vt.oscer[OSC_LINUX_COLOR] = V{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
+                vt.oscer[OSC_LINUX_RESET] = V{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
+                vt.oscer[OSC_SET_PALETTE] = V{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
+                vt.oscer[OSC_SET_FGCOLOR] = V{ p->owner.ctrack.set(OSC_SET_FGCOLOR, q); };
+                vt.oscer[OSC_SET_BGCOLOR] = V{ p->owner.ctrack.set(OSC_SET_BGCOLOR, q); };
+                vt.oscer[OSC_RESET_COLOR] = V{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
+                vt.oscer[OSC_RESET_FGCLR] = V{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
+                vt.oscer[OSC_RESET_BGCLR] = V{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
+                vt.oscer[OSC_CLIPBOARD  ] = V{ p->owner.forward_clipboard(q);           };
+                #undef V
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
