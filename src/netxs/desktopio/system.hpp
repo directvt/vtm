@@ -1744,12 +1744,21 @@ namespace netxs::os
         public:
             args(int argc, char** argv)
             {
-                process::arg0 = text{ *argv };
-                auto head = argv + 1;
-                auto tail = argv + argc;
-                while (head != tail)
+                #if defined(_WIN32)
+                    auto line = utf::to_utf(::GetCommandLineW());
+                    data.splice(data.end(), split(line));
+                #else
+                    auto head = argv;
+                    auto tail = argv + argc;
+                    while (head != tail)
+                    {
+                        data.splice(data.end(), split(*head++));
+                    }
+                #endif
+                if (data.size())
                 {
-                    data.splice(data.end(), split(*head++));
+                    process::arg0 = data.front();
+                    data.pop_front();
                 }
                 reset();
             }
