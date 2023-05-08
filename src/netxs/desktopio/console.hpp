@@ -1136,7 +1136,6 @@ namespace netxs::ui
 
             bool wait; // guard: Ready to close.
             time stop; // guard: Timeout for single Esc.
-            text desc = "exit after preclose";
 
         public:
             guard(base&&) = delete;
@@ -1152,7 +1151,7 @@ namespace netxs::ui
                     }
                 };
                 // Double escape catcher.
-                boss.LISTEN(tier::general, e2::timer::any, timestamp, memo)
+                boss.LISTEN(tier::general, e2::timer::any, timestamp, memo, (desc = "exit after preclose"s))
                 {
                     if (wait && (timestamp > stop))
                     {
@@ -2846,7 +2845,7 @@ namespace netxs::ui
         // gate: Realtime telemetry.
         struct debug_t
         {
-            #define PROP_LIST                     \
+            #define prop_list                     \
             X(total_size   , "total sent"       ) \
             X(proceed_ns   , "rendering time"   ) \
             X(render_ns    , "stdout time"      ) \
@@ -2872,13 +2871,13 @@ namespace netxs::ui
             X(last_event   , "event"            )
 
             #define X(a, b) a,
-            enum prop { PROP_LIST count };
+            enum prop { prop_list count };
             #undef X
 
             #define X(a, b) b,
-            text description[prop::count] = { PROP_LIST };
+            text description[prop::count] = { prop_list };
             #undef X
-            #undef PROP_LIST
+            #undef prop_list
 
             base& boss;
             subs tokens;

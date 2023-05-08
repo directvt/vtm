@@ -975,7 +975,7 @@ namespace netxs::app::vtm
                 auto is_active = active || highlighted;
                 auto& grade = skin::grade(is_active ? color.active
                                                     : color.passive);
-                auto pset = [&](twod const& p, uint8_t k)
+                auto pset = [&](twod const& p, byte k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
                     //canvas[p].fuse(grade[k], obj_id);

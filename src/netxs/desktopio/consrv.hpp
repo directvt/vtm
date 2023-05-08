@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #define log(...)
 #endif
 
@@ -755,7 +755,7 @@ struct consrv
                 });
             }
 
-            if (gear.keybd::winchar == ansi::C0_ETX)
+            if (gear.keybd::winchar == ansi::c0_etx)
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
@@ -1270,6 +1270,27 @@ struct consrv
         }
         if (!result) { log("\tinvalid handle 0x", utf::to_hex(handle_ptr)); }
         return result;
+    }
+    void check_buffer_size(auto& console, auto& size)
+    {
+        if (size.x > 165)
+        {
+            // Just disable wrapping if user application requests too much (Explicit requirement for horizontal scrolling).
+            // E.g. wmic requests { x=1500, y=300 }.
+            //      Indep stat for dwSize.X = N: max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
+            //                                   min: 150, 100, 132, 120, 150, 140, 165, 30, 80.
+            log("\ttoo wide buffer requested, turning off wrapping");
+            console.style.wrp(faux);
+            size.x = console.panel.x;
+        }
+        if (size.y > 99)
+        {
+             // Applications usually request real viewport heights: 20, 24, 25, 50
+             //         or extra large values for the scrollbuffer: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (stat for dwSize.Y = N)
+            log("\ttoo long buffer requested, updating scrollback limits");
+            uiterm.sb_min(size.y);
+            size.y = console.panel.y;
+        }
     }
 
     template<class S, class P>
@@ -2559,8 +2580,15 @@ struct consrv
         auto windowsz = twod{ packet.input.windowsz_x, packet.input.windowsz_y };
         console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
-        if (&console != uiterm.target) console.resize_viewport(buffsize);
-        else                           uiterm.window_resize(windowsz);
+        if (&console != uiterm.target) // If not active buffer.
+        {
+            check_buffer_size(console, buffsize);
+            console.resize_viewport(buffsize);
+        }
+        else // If active buffer.
+        {
+            uiterm.window_resize(windowsz);
+        }
         log("\tbuffer size ", buffsize);
         log("\tcursor coor ", twod{ packet.input.cursorposx, packet.input.cursorposy });
         log("\twindow coor ", twod{ packet.input.windowposx, packet.input.windowposy });
@@ -2602,16 +2630,15 @@ struct consrv
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size ", size);
 
-        if (size == twod{ 1500, 300 })
-        {
-            log("\twimc detected, turning off wrapping");
-            console.style.wrp(faux);
-        }
-        else if (packet.target->link != &uiterm.target)
+        if (packet.target->link != &uiterm.target) // It is additional/alternate buffer.
         {
             console.resize_viewport(size);
         }
-        else uiterm.window_resize(size);
+        else
+        {
+            check_buffer_size(console, size);
+            uiterm.window_resize(size);
+        }
 
         auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;
@@ -2773,7 +2800,7 @@ struct consrv
         log(prompt, packet.input.prime ? "GetConsoleOriginalTitle"
                                        : "GetConsoleTitle");
         //todo differentiate titles by category
-        auto& title = uiterm.wtrack.get(ansi::OSC_TITLE);
+        auto& title = uiterm.wtrack.get(ansi::osc_title);
         log("\treply title (", title.size(), "): ", title);
         if (packet.input.utf16)
         {
@@ -2805,13 +2832,13 @@ struct consrv
             toUTF8.clear();
             auto title = take_buffer<wchr, feed::fwd>(packet);
             utf::to_utf(title, toUTF8);
-            uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
+            uiterm.wtrack.set(ansi::osc_title, toUTF8);
             log("\tUTF-16 title: ", utf::debase(toUTF8));
         }
         else
         {
             auto title = take_buffer<char, feed::fwd>(packet);
-            uiterm.wtrack.set(ansi::OSC_TITLE, title);
+            uiterm.wtrack.set(ansi::osc_title, title);
             log("\tUTF-8 title: ", utf::debase(title));
         }
     }
@@ -3306,7 +3333,7 @@ struct consrv
         }
         server = std::thread{ [&]
         {
-            while (condrv != INVALID_FD)
+            while (condrv != os::invalid_fd)
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
@@ -3453,6 +3480,6 @@ struct consrv
     }
 };
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #undef log
 #endif

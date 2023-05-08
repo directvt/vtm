@@ -39,7 +39,8 @@
 #include <unordered_map>
 #include <utility>
 
-#define AUTO_PROMPT const netxs::logger::prompt __func__##_auto_prompt(__func__)
+//todo revise - drop macro
+//#define AUTO_PROMPT const netxs::logger::prompt __func__##_auto_prompt(__func__)
 
 namespace netxs
 {
