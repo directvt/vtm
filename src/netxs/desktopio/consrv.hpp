@@ -755,7 +755,7 @@ struct consrv
                 });
             }
 
-            if (gear.keybd::winchar == ansi::C0_ETX)
+            if (gear.keybd::winchar == ansi::c0_etx)
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
@@ -2800,7 +2800,7 @@ struct consrv
         log(prompt, packet.input.prime ? "GetConsoleOriginalTitle"
                                        : "GetConsoleTitle");
         //todo differentiate titles by category
-        auto& title = uiterm.wtrack.get(ansi::OSC_TITLE);
+        auto& title = uiterm.wtrack.get(ansi::osc_title);
         log("\treply title (", title.size(), "): ", title);
         if (packet.input.utf16)
         {
@@ -2832,13 +2832,13 @@ struct consrv
             toUTF8.clear();
             auto title = take_buffer<wchr, feed::fwd>(packet);
             utf::to_utf(title, toUTF8);
-            uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
+            uiterm.wtrack.set(ansi::osc_title, toUTF8);
             log("\tUTF-16 title: ", utf::debase(toUTF8));
         }
         else
         {
             auto title = take_buffer<char, feed::fwd>(packet);
-            uiterm.wtrack.set(ansi::OSC_TITLE, title);
+            uiterm.wtrack.set(ansi::osc_title, title);
             log("\tUTF-8 title: ", utf::debase(title));
         }
     }

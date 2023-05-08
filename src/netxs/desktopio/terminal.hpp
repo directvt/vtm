@@ -451,17 +451,17 @@ namespace netxs::ui
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
                 static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
-                if (property == ansi::OSC_LABEL_TITLE)
+                if (property == ansi::osc_label_title)
                 {
-                                  props[ansi::OSC_LABEL] = txt;
-                    auto& utf8 = (props[ansi::OSC_TITLE] = txt);
+                                  props[ansi::osc_label] = txt;
+                    auto& utf8 = (props[ansi::osc_title] = txt);
                     utf8 = jet_left + utf8;
                     owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
                     auto& utf8 = (props[property] = txt);
-                    if (property == ansi::OSC_TITLE)
+                    if (property == ansi::osc_title)
                     {
                         utf8 = jet_left + utf8;
                         owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
@@ -522,8 +522,8 @@ namespace netxs::ui
                         break;
                     }
                     case view_size: owner.answer(queue.win_sz(owner.target->panel)); break;
-                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break; // Return an empty string for security reasons
-                    case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
+                    case get_label: owner.answer(queue.osc(ansi::osc_label_report, "")); break; // Return an empty string for security reasons
+                    case get_title: owner.answer(queue.osc(ansi::osc_title_report, "")); break;
                     case put_stack:
                     {
                         auto push = [&](auto const& property)
@@ -532,10 +532,10 @@ namespace netxs::ui
                         };
                         switch (q(all_title))
                         {
-                            case title:     push(ansi::OSC_TITLE); break;
-                            case label:     push(ansi::OSC_LABEL); break;
-                            case all_title: push(ansi::OSC_TITLE);
-                                            push(ansi::OSC_LABEL); break;
+                            case title:     push(ansi::osc_title); break;
+                            case label:     push(ansi::osc_label); break;
+                            case all_title: push(ansi::osc_title);
+                                            push(ansi::osc_label); break;
                             default: break;
                         }
                         break;
@@ -553,10 +553,10 @@ namespace netxs::ui
                         };
                         switch (q(all_title))
                         {
-                            case title:     pop(ansi::OSC_TITLE); break;
-                            case label:     pop(ansi::OSC_LABEL); break;
-                            case all_title: pop(ansi::OSC_TITLE);
-                                            pop(ansi::OSC_LABEL); break;
+                            case title:     pop(ansi::osc_title); break;
+                            case label:     pop(ansi::osc_label); break;
+                            case all_title: pop(ansi::osc_title);
+                                            pop(ansi::osc_label); break;
                             default: break;
                         }
                         break;
@@ -618,7 +618,7 @@ namespace netxs::ui
                 : owner{ owner }
             {
                 reset();
-                procs[ansi::OSC_LINUX_COLOR] = [&](view data) // ESC ] P Nrrggbb
+                procs[ansi::osc_linux_color] = [&](view data) // ESC ] P Nrrggbb
                 {
                     if (data.length() >= 7)
                     {
@@ -635,7 +635,7 @@ namespace netxs::ui
                                  + 0xFF000000;
                     }
                 };
-                procs[ansi::OSC_RESET_COLOR] = [&](view data) // ESC ] 104 ; 0; 1;...
+                procs[ansi::osc_reset_color] = [&](view data) // ESC ] 104 ; 0; 1;...
                 {
                     auto empty = true;
                     while (data.length())
@@ -650,7 +650,7 @@ namespace netxs::ui
                     }
                     if (empty) reset();
                 };
-                procs[ansi::OSC_SET_PALETTE] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
+                procs[ansi::osc_set_palette] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
                 {
                     auto fails = faux;
                     while (data.length())
@@ -675,33 +675,33 @@ namespace netxs::ui
                             break;
                         }
                     }
-                    if (fails) notsupported(ansi::OSC_SET_PALETTE, data);
+                    if (fails) notsupported(ansi::osc_set_palette, data);
                 };
-                procs[ansi::OSC_LINUX_RESET] = [&](view data) // ESC ] R
+                procs[ansi::osc_linux_reset] = [&](view data) // ESC ] R
                 {
                     reset();
                 };
-                procs[ansi::OSC_SET_FGCOLOR] = [&](view data) // ESC ] 10 ;rgb:00/00/00
+                procs[ansi::osc_set_fgcolor] = [&](view data) // ESC ] 10 ;rgb:00/00/00
                 {
                     if (auto r = record(data))
                     {
                         owner.target->brush.sfg(r.value());
                     }
-                    else notsupported(ansi::OSC_SET_FGCOLOR, data);
+                    else notsupported(ansi::osc_set_fgcolor, data);
                 };
-                procs[ansi::OSC_SET_BGCOLOR] = [&](view data) // ESC ] 11 ;rgb:00/00/00
+                procs[ansi::osc_set_bgcolor] = [&](view data) // ESC ] 11 ;rgb:00/00/00
                 {
                     if (auto r = record(data))
                     {
                         owner.target->brush.sbg(r.value());
                     }
-                    else notsupported(ansi::OSC_SET_BGCOLOR, data);
+                    else notsupported(ansi::osc_set_bgcolor, data);
                 };
-                procs[ansi::OSC_RESET_FGCLR] = [&](view data)
+                procs[ansi::osc_reset_fgclr] = [&](view data)
                 {
                     owner.target->brush.sfg(0);
                 };
-                procs[ansi::OSC_RESET_BGCLR] = [&](view data)
+                procs[ansi::osc_reset_bgclr] = [&](view data)
                 {
                     owner.target->brush.sbg(0);
                 };
@@ -737,105 +737,105 @@ namespace netxs::ui
             {
                 using namespace netxs::ansi;
                 #define V [](auto& q, auto& p)
-                vt.csier.table_space[CSI_SPC_SRC     ] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                vt.csier.table_space[CSI_SPC_SLC     ] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST     ] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
-                vt.csier.table_hash [CSI_HSH_SCP     ] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_RCP     ] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_PUSH_SGR] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
-                vt.csier.table_hash [CSI_HSH_POP_SGR ] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
-                vt.csier.table_excl [CSI_EXL_RST     ] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
+                vt.csier.table_hash [csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
+                vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = V{ p->owner.ctrack.fgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = V{ p->owner.ctrack.fgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = V{ p->owner.ctrack.fgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = V{ p->owner.ctrack.fgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = V{ p->owner.ctrack.fgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = V{ p->owner.ctrack.fgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = V{ p->owner.ctrack.fgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = V{ p->owner.ctrack.fgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = V{ p->owner.ctrack.fgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = V{ p->owner.ctrack.fgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = V{ p->owner.ctrack.fgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = V{ p->owner.ctrack.fgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = V{ p->owner.ctrack.fgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = V{ p->owner.ctrack.fgc(tint::whitelt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = V{ p->owner.ctrack.bgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = V{ p->owner.ctrack.bgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = V{ p->owner.ctrack.bgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = V{ p->owner.ctrack.bgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = V{ p->owner.ctrack.bgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = V{ p->owner.ctrack.bgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = V{ p->owner.ctrack.bgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = V{ p->owner.ctrack.bgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = V{ p->owner.ctrack.bgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = V{ p->owner.ctrack.bgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = V{ p->owner.ctrack.bgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = V{ p->owner.ctrack.bgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = V{ p->owner.ctrack.bgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = V{ p->owner.ctrack.bgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_blk   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_red   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
+                vt.csier.table[csi_sgr][sgr_fg_grn   ] = V{ p->owner.ctrack.fgc(tint::greendk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_ylw   ] = V{ p->owner.ctrack.fgc(tint::yellowdk ); };
+                vt.csier.table[csi_sgr][sgr_fg_blu   ] = V{ p->owner.ctrack.fgc(tint::bluedk   ); };
+                vt.csier.table[csi_sgr][sgr_fg_mgt   ] = V{ p->owner.ctrack.fgc(tint::magentadk); };
+                vt.csier.table[csi_sgr][sgr_fg_cyn   ] = V{ p->owner.ctrack.fgc(tint::cyandk   ); };
+                vt.csier.table[csi_sgr][sgr_fg_wht   ] = V{ p->owner.ctrack.fgc(tint::whitedk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_blk_lt] = V{ p->owner.ctrack.fgc(tint::blacklt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_red_lt] = V{ p->owner.ctrack.fgc(tint::redlt    ); };
+                vt.csier.table[csi_sgr][sgr_fg_grn_lt] = V{ p->owner.ctrack.fgc(tint::greenlt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_ylw_lt] = V{ p->owner.ctrack.fgc(tint::yellowlt ); };
+                vt.csier.table[csi_sgr][sgr_fg_blu_lt] = V{ p->owner.ctrack.fgc(tint::bluelt   ); };
+                vt.csier.table[csi_sgr][sgr_fg_mgt_lt] = V{ p->owner.ctrack.fgc(tint::magentalt); };
+                vt.csier.table[csi_sgr][sgr_fg_cyn_lt] = V{ p->owner.ctrack.fgc(tint::cyanlt   ); };
+                vt.csier.table[csi_sgr][sgr_fg_wht_lt] = V{ p->owner.ctrack.fgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_blk   ] = V{ p->owner.ctrack.bgc(tint::blackdk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_red   ] = V{ p->owner.ctrack.bgc(tint::reddk    ); };
+                vt.csier.table[csi_sgr][sgr_bg_grn   ] = V{ p->owner.ctrack.bgc(tint::greendk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_ylw   ] = V{ p->owner.ctrack.bgc(tint::yellowdk ); };
+                vt.csier.table[csi_sgr][sgr_bg_blu   ] = V{ p->owner.ctrack.bgc(tint::bluedk   ); };
+                vt.csier.table[csi_sgr][sgr_bg_mgt   ] = V{ p->owner.ctrack.bgc(tint::magentadk); };
+                vt.csier.table[csi_sgr][sgr_bg_cyn   ] = V{ p->owner.ctrack.bgc(tint::cyandk   ); };
+                vt.csier.table[csi_sgr][sgr_bg_wht   ] = V{ p->owner.ctrack.bgc(tint::whitedk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_blk_lt] = V{ p->owner.ctrack.bgc(tint::blacklt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_red_lt] = V{ p->owner.ctrack.bgc(tint::redlt    ); };
+                vt.csier.table[csi_sgr][sgr_bg_grn_lt] = V{ p->owner.ctrack.bgc(tint::greenlt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_ylw_lt] = V{ p->owner.ctrack.bgc(tint::yellowlt ); };
+                vt.csier.table[csi_sgr][sgr_bg_blu_lt] = V{ p->owner.ctrack.bgc(tint::bluelt   ); };
+                vt.csier.table[csi_sgr][sgr_bg_mgt_lt] = V{ p->owner.ctrack.bgc(tint::magentalt); };
+                vt.csier.table[csi_sgr][sgr_bg_cyn_lt] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
+                vt.csier.table[csi_sgr][sgr_bg_wht_lt] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = V{ p->up (q(1)); }; // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = V{ p->dn (q(1)); }; // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
-                vt.csier.table[CSI_CUB] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
+                vt.csier.table[csi_cuu] = V{ p->up (q(1)); }; // CSI n A  (CUU)
+                vt.csier.table[csi_cud] = V{ p->dn (q(1)); }; // CSI n B  (CUD)
+                vt.csier.table[csi_cuf] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
+                vt.csier.table[csi_cub] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
-                vt.csier.table[CSI_CHT]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
-                vt.csier.table[CSI_CBT]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
-                vt.csier.table[CSI_TBC]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
-                vt.csier.table_quest[CSI_QST_RTB] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
-                vt.intro[ctrl::esc][ESC_HTS]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
+                vt.csier.table[csi_cht]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[csi_cbt]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[csi_tbc]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table_quest[csi_qst_rtb] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
+                vt.intro[ctrl::esc][esc_hts]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
-                vt.csier.table[CSI_CUD2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
+                vt.csier.table[csi_cud2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[CSI_CNL] = V{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
-                vt.csier.table[CSI_CPL] = V{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
-                vt.csier.table[CSI_CHX] = V{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
-                vt.csier.table[CSI_CHY] = V{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
-                vt.csier.table[CSI_CUP] = V{ p->cup( q   ); }; // CSI y ; x H (1-based)
-                vt.csier.table[CSI_HVP] = V{ p->cup( q   ); }; // CSI y ; x f (1-based)
+                vt.csier.table[csi_cnl] = V{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[csi_cpl] = V{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
+                vt.csier.table[csi_chx] = V{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
+                vt.csier.table[csi_chy] = V{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
+                vt.csier.table[csi_cup] = V{ p->cup( q   ); }; // CSI y ; x H (1-based)
+                vt.csier.table[csi_hvp] = V{ p->cup( q   ); }; // CSI y ; x f (1-based)
 
-                vt.csier.table[CSI_DCH] = V{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
-                vt.csier.table[CSI_ECH] = V{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
-                vt.csier.table[CSI_ICH] = V{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
+                vt.csier.table[csi_dch] = V{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
+                vt.csier.table[csi_ech] = V{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
+                vt.csier.table[csi_ich] = V{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
 
-                vt.csier.table[CSI__ED] = V{ p->ed ( q(0)); }; // CSI n J
-                vt.csier.table[CSI__EL] = V{ p->el ( q(0)); }; // CSI n K
-                vt.csier.table[CSI__IL] = V{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
-                vt.csier.table[CSI__DL] = V{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
-                vt.csier.table[CSI__SD] = V{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
-                vt.csier.table[CSI__SU] = V{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
-                vt.csier.table[CSI_SCP] = V{ p->scp(     ); }; // CSI   s  Save cursor position.
-                vt.csier.table[CSI_RCP] = V{ p->rcp(     ); }; // CSI   u  Restore cursor position.
+                vt.csier.table[csi__ed] = V{ p->ed ( q(0)); }; // CSI n J
+                vt.csier.table[csi__el] = V{ p->el ( q(0)); }; // CSI n K
+                vt.csier.table[csi__il] = V{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
+                vt.csier.table[csi__dl] = V{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
+                vt.csier.table[csi__sd] = V{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
+                vt.csier.table[csi__su] = V{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
+                vt.csier.table[csi_scp] = V{ p->scp(     ); }; // CSI   s  Save cursor position.
+                vt.csier.table[csi_rcp] = V{ p->rcp(     ); }; // CSI   u  Restore cursor position.
 
-                vt.csier.table[DECSTBM] = V{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
+                vt.csier.table[decstbm] = V{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = V{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
-                vt.csier.table[CSI_DSR] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
+                vt.csier.table[csi_win] = V{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[csi_dsr] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
+                vt.csier.table[csi_pda] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
-                vt.csier.table[CSI_CCC][CCC_SBS] = V{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_RST] = V{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
-                vt.csier.table[CSI_CCC][CCC_SGR] = V{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
-                vt.csier.table[CSI_CCC][CCC_SEL] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
-                vt.csier.table[CSI_CCC][CCC_PAD] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
+                vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
+                vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
+                vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
+                vt.csier.table[csi_ccc][ccc_sel] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
+                vt.csier.table[csi_ccc][ccc_pad] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
-                vt.intro[ctrl::esc][ESC_IND   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::esc][ESC_IR    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::esc][ESC_SC    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::esc][ESC_RC    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::esc][ESC_RIS   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::esc][ESC_NEL   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
-                vt.intro[ctrl::esc][ESC_DECDHL] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                vt.intro[ctrl::esc][esc_ind   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::esc][esc_ir    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::esc][esc_sc    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::esc][esc_rc    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::esc][esc_ris   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::esc][esc_nel   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::esc][ESC_APC   ] = V{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::esc][ESC_DSC   ] = V{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
-                vt.intro[ctrl::esc][ESC_SOS   ] = V{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::esc][ESC_PM    ] = V{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::esc][esc_apc   ] = V{ p->msg(esc_apc, q); }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][esc_dsc   ] = V{ p->msg(esc_dsc, q); }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
                 vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); };
@@ -845,22 +845,22 @@ namespace netxs::ui
                 vt.intro[ctrl::ff ] = V{ p->lf (q.pop_all(ctrl::ff )); }; // FF same as LF
                 vt.intro[ctrl::cr ] = V{ p->cr ();                     }; // CR
 
-                vt.csier.table_quest[DECSET] = V{ p->owner.decset(q); };
-                vt.csier.table_quest[DECRST] = V{ p->owner.decrst(q); };
+                vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
+                vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
 
-                vt.oscer[OSC_LABEL_TITLE] = V{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL      ] = V{ p->owner.wtrack.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE      ] = V{ p->owner.wtrack.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP      ] = V{ p->owner.wtrack.set(OSC_XPROP,       q); };
-                vt.oscer[OSC_LINUX_COLOR] = V{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
-                vt.oscer[OSC_LINUX_RESET] = V{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
-                vt.oscer[OSC_SET_PALETTE] = V{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
-                vt.oscer[OSC_SET_FGCOLOR] = V{ p->owner.ctrack.set(OSC_SET_FGCOLOR, q); };
-                vt.oscer[OSC_SET_BGCOLOR] = V{ p->owner.ctrack.set(OSC_SET_BGCOLOR, q); };
-                vt.oscer[OSC_RESET_COLOR] = V{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
-                vt.oscer[OSC_RESET_FGCLR] = V{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
-                vt.oscer[OSC_RESET_BGCLR] = V{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
-                vt.oscer[OSC_CLIPBOARD  ] = V{ p->owner.forward_clipboard(q);           };
+                vt.oscer[osc_label_title] = V{ p->owner.wtrack.set(osc_label_title, q); };
+                vt.oscer[osc_label      ] = V{ p->owner.wtrack.set(osc_label,       q); };
+                vt.oscer[osc_title      ] = V{ p->owner.wtrack.set(osc_title,       q); };
+                vt.oscer[osc_xprop      ] = V{ p->owner.wtrack.set(osc_xprop,       q); };
+                vt.oscer[osc_linux_color] = V{ p->owner.ctrack.set(osc_linux_color, q); };
+                vt.oscer[osc_linux_reset] = V{ p->owner.ctrack.set(osc_linux_reset, q); };
+                vt.oscer[osc_set_palette] = V{ p->owner.ctrack.set(osc_set_palette, q); };
+                vt.oscer[osc_set_fgcolor] = V{ p->owner.ctrack.set(osc_set_fgcolor, q); };
+                vt.oscer[osc_set_bgcolor] = V{ p->owner.ctrack.set(osc_set_bgcolor, q); };
+                vt.oscer[osc_reset_color] = V{ p->owner.ctrack.set(osc_reset_color, q); };
+                vt.oscer[osc_reset_fgclr] = V{ p->owner.ctrack.set(osc_reset_fgclr, q); };
+                vt.oscer[osc_reset_bgclr] = V{ p->owner.ctrack.set(osc_reset_bgclr, q); };
+                vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -1250,26 +1250,26 @@ namespace netxs::ui
                 switch (c)
                 {
                     // Unexpected
-                    case ansi::ESC_CSI   :
-                    case ansi::ESC_OCS   :
-                    case ansi::ESC_DSC   :
-                    case ansi::ESC_SOS   :
-                    case ansi::ESC_PM    :
-                    case ansi::ESC_APC   :
-                    case ansi::ESC_ST    :
+                    case ansi::esc_csi   :
+                    case ansi::esc_ocs   :
+                    case ansi::esc_dsc   :
+                    case ansi::esc_sos   :
+                    case ansi::esc_pm    :
+                    case ansi::esc_apc   :
+                    case ansi::esc_st    :
                         log("term: ESC ", (char)c, " (", c, ") is unexpected");
                         break;
                     // Unsupported ESC + byte + rest
-                    case ansi::ESC_G0SET :
-                    case ansi::ESC_G1SET :
-                    case ansi::ESC_G2SET :
-                    case ansi::ESC_G3SET :
-                    case ansi::ESC_G1xSET:
-                    case ansi::ESC_G2xSET:
-                    case ansi::ESC_G3xSET:
-                    case ansi::ESC_CTRL  :
-                    case ansi::ESC_DECDHL:
-                    case ansi::ESC_CHRSET:
+                    case ansi::esc_g0set :
+                    case ansi::esc_g1set :
+                    case ansi::esc_g2set :
+                    case ansi::esc_g3set :
+                    case ansi::esc_g1xset:
+                    case ansi::esc_g2xset:
+                    case ansi::esc_g3xset:
+                    case ansi::esc_ctrl  :
+                    case ansi::esc_decdhl:
+                    case ansi::esc_chrset:
                     {
                         if (!q) log("term: ESC ", (char)c, " (", c, ") is incomplete");
                         auto b = q.front();
@@ -1325,31 +1325,31 @@ namespace netxs::ui
                         break;
                     }
                     // Unsupported ESC + byte
-                    case ansi::ESC_DELIM :
-                    case ansi::ESC_KEY_A :
-                    case ansi::ESC_KEY_N :
-                    case ansi::ESC_DECBI :
-                    case ansi::ESC_DECFI :
-                    case ansi::ESC_SC    :
-                    case ansi::ESC_RC    :
-                    case ansi::ESC_HTS   :
-                    case ansi::ESC_NEL   :
-                    case ansi::ESC_CLB   :
-                    case ansi::ESC_IND   :
-                    case ansi::ESC_IR    :
-                    case ansi::ESC_RIS   :
-                    case ansi::ESC_MEMLK :
-                    case ansi::ESC_MUNLK :
-                    case ansi::ESC_LS2   :
-                    case ansi::ESC_LS3   :
-                    case ansi::ESC_LS1R  :
-                    case ansi::ESC_LS2R  :
-                    case ansi::ESC_LS3R  :
-                    case ansi::ESC_SS3   :
-                    case ansi::ESC_SS2   :
-                    case ansi::ESC_SPA   :
-                    case ansi::ESC_EPA   :
-                    case ansi::ESC_RID   :
+                    case ansi::esc_delim :
+                    case ansi::esc_key_a :
+                    case ansi::esc_key_n :
+                    case ansi::esc_decbi :
+                    case ansi::esc_decfi :
+                    case ansi::esc_sc    :
+                    case ansi::esc_rc    :
+                    case ansi::esc_hts   :
+                    case ansi::esc_nel   :
+                    case ansi::esc_clb   :
+                    case ansi::esc_ind   :
+                    case ansi::esc_ir    :
+                    case ansi::esc_ris   :
+                    case ansi::esc_memlk :
+                    case ansi::esc_munlk :
+                    case ansi::esc_ls2   :
+                    case ansi::esc_ls3   :
+                    case ansi::esc_ls1r  :
+                    case ansi::esc_ls2r  :
+                    case ansi::esc_ls3r  :
+                    case ansi::esc_ss3   :
+                    case ansi::esc_ss2   :
+                    case ansi::esc_spa   :
+                    case ansi::esc_epa   :
+                    case ansi::esc_rid   :
                         log("term: ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
@@ -1400,8 +1400,8 @@ namespace netxs::ui
                     auto c = q.front();
                     data.push_back(c);
                     q.pop_front();
-                         if (c == ansi::C0_BEL) break;
-                    else if (c == ansi::C0_ESC)
+                         if (c == ansi::c0_bel) break;
+                    else if (c == ansi::c0_esc)
                     {
                         auto c = q.front();
                         if (q && c == '\\')
@@ -6467,8 +6467,8 @@ namespace netxs::ui
                         {
                             switch (gear.cluster.front())
                             {
-                                case ansi::C0_ESC: onexit(0); break;
-                                case ansi::C0_CR:  start();   break;
+                                case ansi::c0_esc: onexit(0); break;
+                                case ansi::c0_cr:  start();   break;
                             }
                         }
                     };
@@ -6521,12 +6521,12 @@ namespace netxs::ui
 
             auto mark = marker{};
             mark.brush = base::color();
-            auto param = queue.front(ansi::SGR_RST);
+            auto param = queue.front(ansi::sgr_rst);
             if (queue.issub(param))
             {
                 auto ptr = &mark;
                 queue.settop(queue.desub(param));
-                parser.table[ansi::CSI_SGR].execute(queue, ptr);
+                parser.table[ansi::csi_sgr].execute(queue, ptr);
             }
             else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor); //todo unify (config with defaults)
             set_color(mark.brush);
@@ -6979,7 +6979,7 @@ namespace netxs::ui
                 ptycon.cleanup();
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
                     ptycon.start(initsz);
                 });

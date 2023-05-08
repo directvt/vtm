@@ -1532,17 +1532,17 @@ namespace netxs::ui
             using namespace netxs::ansi;
 
             #define V [](auto& q, auto& p)
-            //vt.intro[ctrl::nul]                   = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
-            vt.intro[ctrl::cr ]                   = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
-            vt.intro[ctrl::tab]                   = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
-            vt.intro[ctrl::eol]                   = V{ p->task({ fn::nl, q.pop_all(ctrl::eol) }); };
-            vt.csier.table[CSI__ED]               = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-            vt.csier.table[CSI__EL]               = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-            vt.csier.table[CSI_CCC][CCC_NOP]      = V{ p->fork(); };
-            vt.csier.table[CSI_CCC][CCC_IDX]      = V{ p->fork(q(0)); };
-            vt.csier.table[CSI_CCC][CCC_REF]      = V{ p->bind(q(0)); };
-            vt.csier.table_hash[CSI_HSH_PUSH_SGR] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
-            vt.csier.table_hash[CSI_HSH_POP_SGR ] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
+            //vt.intro[ctrl::nul]             = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
+            vt.intro[ctrl::cr ]              = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::tab]              = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
+            vt.intro[ctrl::eol]              = V{ p->task({ fn::nl, q.pop_all(ctrl::eol) }); };
+            vt.csier.table[csi__ed]          = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+            vt.csier.table[csi__el]          = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+            vt.csier.table[csi_ccc][ccc_nop] = V{ p->fork(); };
+            vt.csier.table[csi_ccc][ccc_idx] = V{ p->fork(q(0)); };
+            vt.csier.table[csi_ccc][ccc_ref] = V{ p->bind(q(0)); };
+            vt.csier.table_hash[csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
+            vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
             #undef V
         }
         page              (view utf8) {          ansi::parse(utf8, this);               }

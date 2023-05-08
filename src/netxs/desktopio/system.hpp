@@ -1049,14 +1049,14 @@ namespace netxs::os
                     }
                     else yield.remove_prefix(start);
 
-                    if (auto p = yield.find(ansi::C0_BEL); p != view::npos)
+                    if (auto p = yield.find(ansi::c0_bel); p != view::npos)
                     {
                         auto temp = view{ cache };
                         auto skip = ocs52head.size() + brand.size() + 1/*;*/;
                         auto data = temp.substr(skip, p + start - skip);
                         if (os::clipboard::set(brand, utf::unbase64(data)))
                         {
-                            yield.remove_prefix(p + 1/* C0_BEL */);
+                            yield.remove_prefix(p + 1/* c0_bel */);
                         }
                         else yield = temp; // Forward all out;
                         cache.clear();
