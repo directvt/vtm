@@ -1155,8 +1155,10 @@ struct consrv
 
     struct xcod
     {
-        std::array<byte, 256> leadbyte; // xcod: .
-        ui32                  codepage; // xcod: .
+        using buff = std::array<byte, 256>;
+        ui32 codepage; // xcod: .
+        byte lastbyte; // xcod: .
+        buff leadbyte; // xcod: .
 
         auto load(ui32 cp)
         {
@@ -1166,6 +1168,7 @@ struct consrv
             if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
             {
                 codepage = cp;
+                lastbyte = {};
                 auto head = std::begin(data.LeadByte);
                 auto tail = std::end(data.LeadByte);
                 while (head != tail)
@@ -1189,12 +1192,25 @@ struct consrv
         {
             // ::MultiByteToWideChar() + utf::to_utf()
             // utf::to_utf() + ::WideCharToMultiByte()
+            if (lastbyte)
+            {
+                ;;;
+            }
+            utf8 += toANSI;
+            if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
+        }
+        auto encode(view toANSI, text& utf8)
+        {
+            // ::MultiByteToWideChar() + utf::to_utf()
+            // utf::to_utf() + ::WideCharToMultiByte()
+            if (lastbyte) ;;;
             utf8 += toANSI;
             if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
         }
 
         xcod(ui32 cp)
-            : codepage{ CP_UTF8 }
+            : codepage{ CP_UTF8 },
+              lostbyte{         }
         {
             load(cp);
         }
