@@ -340,7 +340,7 @@ struct consrv
         }
     };
 
-    struct event_list
+    struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
         using fire = netxs::os::io::fire;
@@ -373,7 +373,7 @@ struct consrv
         fire    ondata; // events_t: Signal on input buffer data.
         wide    wcpair; // events_t: Surrogate pair buffer.
 
-        event_list(consrv& serv)
+        evnt(consrv& serv)
             :  server{ serv },
                closed{ faux },
                ondata{ true }
@@ -1153,6 +1153,53 @@ struct consrv
         }
     };
 
+    struct xcod
+    {
+        std::array<byte, 256> leadbyte; // xcod: .
+        ui32                  codepage; // xcod: .
+
+        auto load(ui32 cp)
+        {
+            if (codepage == cp) return true;
+            leadbyte.fill(0);
+            auto data = CPINFO{};
+            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
+            {
+                codepage = cp;
+                auto head = std::begin(data.LeadByte);
+                auto tail = std::end(data.LeadByte);
+                while (head != tail)
+                {
+                    auto a = *head++;
+                    if (!a) break;
+                    auto b = *head++;
+                    log("\tcodepage range: ", (int)a, "-", (int)b);
+                    do leadbyte[a] = 1;
+                    while (a++ != b);
+                }
+                return true;
+            }
+            else return faux;
+        }
+        auto test(byte c)
+        {
+            return !!leadbyte[c];
+        }
+        auto decode(view toANSI, text& utf8)
+        {
+            // ::MultiByteToWideChar() + utf::to_utf()
+            // utf::to_utf() + ::WideCharToMultiByte()
+            utf8 += toANSI;
+            if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
+        }
+
+        xcod(ui32 cp)
+            : codepage{ CP_UTF8 }
+        {
+            load(cp);
+        }
+    };
+
     enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
 
     auto attr_to_brush(ui16 attr)
@@ -1617,8 +1664,9 @@ struct consrv
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.is_output ? "GetConsoleOutputCP"
                                            : "GetConsoleCP");
-        packet.reply.code_page = CP_UTF8;
-        log("\treply.code_page ", CP_UTF8);
+        packet.reply.code_page = packet.input.is_output ? outenc.codepage
+                                                        : inpenc.codepage;
+        log("\treply.code_page ", packet.reply.code_page);
     }
     auto api_process_codepage_set            ()
     {
@@ -1635,8 +1683,9 @@ struct consrv
         log(prompt, packet.input.is_output ? "SetConsoleOutputCP"
                                            : "SetConsoleCP");
         log("\tinput.code_page ", packet.input.code_page);
-        //wsl depends on this - always reply success
-        //answer.status = nt::status::not_supported;
+        auto ok = packet.input.is_output ? outenc.load(packet.input.code_page)
+                                         : inpenc.load(packet.input.code_page);
+        if (!ok) answer.status = nt::status::not_supported;
     }
     auto api_process_mode_get                ()
     {
@@ -1927,13 +1976,19 @@ struct consrv
             if (packet.input.utf16)
             {
                 toWIDE.resize(datasize / sizeof(wchr));
-                if (answer.recv_data(condrv, toWIDE) == faux) return;
+                if (faux == answer.recv_data(condrv, toWIDE)) return;
                 utf::to_utf(toWIDE, scroll_handle.rest);
+            }
+            else if (outenc.codepage == CP_UTF8)
+            {
+                scroll_handle.rest.resize(initsize + datasize);
+                if (faux == answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize })) return;
             }
             else
             {
-                scroll_handle.rest.resize(initsize + datasize);
-                if (answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize }) == faux) return;
+                toANSI.resize(datasize);
+                if (faux == answer.recv_data(condrv, toANSI)) return;
+                outenc.decode(toANSI, scroll_handle.rest);
             }
 
             if (auto crop = ansi::purify(scroll_handle.rest))
@@ -3256,7 +3311,7 @@ struct consrv
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.
-    event_list  events; // consrv: Input event list.
+    evnt        events; // consrv: Input event list.
     view        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
@@ -3267,6 +3322,7 @@ struct consrv
     task        upload; // consrv: Console driver request.
     text        buffer; // consrv: Temp buffer.
     text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
+    text        toANSI; // consrv: Buffer for ANSICP-UTF-8 conversion.
     wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
     rich        filler; // consrv: Buffer for filling operations.
     apis        apimap; // consrv: Fx reference.
@@ -3275,6 +3331,8 @@ struct consrv
     face        mirror; // consrv: Viewport bitmap buffer.
     bool        impcls; // consrv: Implicit scroll buffer clearing detection.
     para        celler; // consrv: Buffer for converting raw text to cells.
+    xcod        inpenc; // consrv: Current code page decoder for input stream.
+    xcod        outenc; // consrv: Current code page decoder for output stream.
 
     void start()
     {
@@ -3414,7 +3472,9 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ "vtty: consrv: " }
+          prompt{ "vtty: consrv: " },
+          inpenc{ os::codepage },
+          outenc{ os::codepage }
     {
         using _ = consrv;
         apimap.resize(0xFF, &_::api_unsupported);
