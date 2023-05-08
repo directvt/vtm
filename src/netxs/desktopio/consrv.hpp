@@ -1210,7 +1210,7 @@ struct consrv
 
         xcod(ui32 cp)
             : codepage{ CP_UTF8 },
-              lostbyte{         }
+              lastbyte{         }
         {
             load(cp);
         }
