@@ -1155,13 +1155,14 @@ struct consrv
 
     struct xcod
     {
-        using buf1 = std::array<byte, 256>;
-        using buf3 = std::array<wchr, 65536>;
+        using buff = std::array<byte, 256>;
+        using vecW = std::array<wchr, 65536>;
+        using vecA = std::vector<wchr>;
         ui32 codepage; // xcod: .
         byte lastbyte; // xcod: .
-        buf1 leadbyte; // xcod: .
-        buf3 BMPtoOEM; // xcod .
-        buf3 OEMtoBMP; // xcod .
+        buff leadbyte; // xcod: .
+        vecW BMPtoOEM; // xcod .
+        vecA OEMtoBMP; // xcod .
         sz_t charsize; // xcod .
 
         auto test(byte c)
@@ -1198,10 +1199,7 @@ struct consrv
 
                 // Vendors have anachronistically assigned code page numbers to Unicode encodings.
                 // Generate forward table.
-                auto oem = std::vector<byte>{};
-                oem.reserve(65536 * charsize);
-                //OEMtoBMP.resize(655536);
-                OEMtoBMP.fill(0);
+                OEMtoBMP.resize(charsize == 1 ? 256 : 655536, 0);
                 for (auto i = 0; i <= 255; i++)
                 {
                     if (test((byte)i))
@@ -1213,10 +1211,11 @@ struct consrv
                     }
                     else OEMtoBMP[i] = i;
                 }
-                //OEMtoBMP.resize(charsize == 1 ? 255 : 655536);
+                auto oem = std::vector<byte>{};
+                oem.reserve(65536 * charsize);
                 for (auto c : OEMtoBMP)
                 {
-                    if (c < 255)
+                    if (c < 256)
                     {
                         oem.push_back((byte)c);
                     }
@@ -1226,7 +1225,7 @@ struct consrv
                         oem.push_back(c & 0xFF);
                     }
                 }
-                ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), oem.size(), OEMtoBMP.data(), OEMtoBMP.size());
+                ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), (si32)oem.size(), OEMtoBMP.data(), (si32)OEMtoBMP.size());
 
                 //debug
                 auto t = text{};
@@ -1234,8 +1233,11 @@ struct consrv
                 auto s = 0;
                 for (auto c : OEMtoBMP)
                 {
-                    t += utf::to_utf(c) + " ";
-                    p++;
+                    if (c >= ' ')
+                    {
+                        t += ansi::inv(true).add(utf::to_utf(c)).nil() + " ";
+                        p++;
+                    }
                     if (p > 16)
                     {
                         p = 0;
@@ -1244,18 +1246,19 @@ struct consrv
                         if (s > 15 && charsize == 1) break;
                     }
                 }
-                log("\n", t, "\n");
+                log("-------------------------\n", t, "\n-------------------------");
 
                 // Generate reverse table.
                 auto bmp = std::vector<wchr>(65536, 0);
                 auto tmp = std::vector<byte>(65536 * 2, 0);
                 auto i = 0;
                 for (auto& b : bmp) b = i;
-                ::WideCharToMultiByte(codepage, 0, bmp.data(), bmp.size(), (char *)tmp.data(), tmp.size(), 0, 0);
+                ::WideCharToMultiByte(codepage, 0, bmp.data(), (si32)bmp.size(), (char *)tmp.data(), (si32)tmp.size(), 0, 0);
                 auto ptr = tmp.begin();
                 for (auto& d : BMPtoOEM)
                 {
                     auto c = *ptr++;
+                    assert(((wchr)c << 8) == (c << 8));
                     if (test(c)) d = ((wchr)c << 8) + *ptr++;
                     else         d = c;
                 }
@@ -1265,8 +1268,6 @@ struct consrv
         }
         auto decode(view toANSI, text& utf8)
         {
-            // ::MultiByteToWideChar() + utf::to_utf()
-            // utf::to_utf() + ::WideCharToMultiByte()
             if (lastbyte)
             {
                 ;;;
@@ -1276,8 +1277,6 @@ struct consrv
         }
         auto encode(view toANSI, text& utf8)
         {
-            // ::MultiByteToWideChar() + utf::to_utf()
-            // utf::to_utf() + ::WideCharToMultiByte()
             if (lastbyte) ;;;
             utf8 += toANSI;
             if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
