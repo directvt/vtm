@@ -1155,20 +1155,35 @@ struct consrv
 
     struct xcod
     {
-        using buff = std::array<byte, 256>;
+        using buf1 = std::array<byte, 256>;
+        using buf3 = std::array<wchr, 65536>;
         ui32 codepage; // xcod: .
         byte lastbyte; // xcod: .
-        buff leadbyte; // xcod: .
+        buf1 leadbyte; // xcod: .
+        buf3 BMPtoOEM; // xcod .
+        buf3 OEMtoBMP; // xcod .
+        sz_t charsize; // xcod .
 
+        auto test(byte c)
+        {
+            return !!leadbyte[c];
+        }
         auto load(ui32 cp)
         {
-            if (codepage == cp) return true;
+            if (cp == codepage) return true;
             leadbyte.fill(0);
+            if (cp == CP_UTF8)
+            {
+                codepage = cp;
+                lastbyte = {};
+                return true;
+            }
             auto data = CPINFO{};
             if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
             {
                 codepage = cp;
                 lastbyte = {};
+                charsize = data.MaxCharSize;
                 auto head = std::begin(data.LeadByte);
                 auto tail = std::end(data.LeadByte);
                 while (head != tail)
@@ -1180,13 +1195,73 @@ struct consrv
                     do leadbyte[a] = 1;
                     while (a++ != b);
                 }
+
+                // Vendors have anachronistically assigned code page numbers to Unicode encodings.
+                // Generate forward table.
+                auto oem = std::vector<byte>{};
+                oem.reserve(65536 * charsize);
+                //OEMtoBMP.resize(655536);
+                OEMtoBMP.fill(0);
+                for (auto i = 0; i <= 255; i++)
+                {
+                    if (test((byte)i))
+                    {
+                        auto lead = i << 8;
+                        auto head = OEMtoBMP.begin() + lead;
+                        auto tail = head + 255;
+                        while (head != tail) *head++ = lead++;
+                    }
+                    else OEMtoBMP[i] = i;
+                }
+                //OEMtoBMP.resize(charsize == 1 ? 255 : 655536);
+                for (auto c : OEMtoBMP)
+                {
+                    if (c < 255)
+                    {
+                        oem.push_back((byte)c);
+                    }
+                    else
+                    {
+                        oem.push_back(c >> 8);
+                        oem.push_back(c & 0xFF);
+                    }
+                }
+                ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), oem.size(), OEMtoBMP.data(), OEMtoBMP.size());
+
+                //debug
+                auto t = text{};
+                auto p = 0;
+                auto s = 0;
+                for (auto c : OEMtoBMP)
+                {
+                    t += utf::to_utf(c) + " ";
+                    p++;
+                    if (p > 16)
+                    {
+                        p = 0;
+                        t += '\n';
+                        s++;
+                        if (s > 15 && charsize == 1) break;
+                    }
+                }
+                log("\n", t, "\n");
+
+                // Generate reverse table.
+                auto bmp = std::vector<wchr>(65536, 0);
+                auto tmp = std::vector<byte>(65536 * 2, 0);
+                auto i = 0;
+                for (auto& b : bmp) b = i;
+                ::WideCharToMultiByte(codepage, 0, bmp.data(), bmp.size(), (char *)tmp.data(), tmp.size(), 0, 0);
+                auto ptr = tmp.begin();
+                for (auto& d : BMPtoOEM)
+                {
+                    auto c = *ptr++;
+                    if (test(c)) d = ((wchr)c << 8) + *ptr++;
+                    else         d = c;
+                }
                 return true;
             }
             else return faux;
-        }
-        auto test(byte c)
-        {
-            return !!leadbyte[c];
         }
         auto decode(view toANSI, text& utf8)
         {
