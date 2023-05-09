@@ -146,7 +146,9 @@ struct consrv
             ui32& mode;
             type  kind;
             void* link;
-            text  rest;
+            text  toUTF8;
+            text  toANSI;
+            wide  toWIDE;
 
             hndl(clnt& boss, ui32& mode, type kind, void* link)
                 : boss{ boss },
@@ -1158,12 +1160,13 @@ struct consrv
         using buff = std::array<byte, 256>;
         using vecW = std::array<wchr, 65536>;
         using vecA = std::vector<wchr>;
-        ui32 codepage; // xcod: .
-        byte lastbyte; // xcod: .
-        buff leadbyte; // xcod: .
-        vecW BMPtoOEM; // xcod .
-        vecA OEMtoBMP; // xcod .
-        sz_t charsize; // xcod .
+        ui32 codepage{ CP_UTF8 }; // xcod: .
+        byte defchar1{}; // xcod: .
+        byte defchar2{}; // xcod: .
+        buff leadbyte{}; // xcod: .
+        vecW BMPtoOEM{}; // xcod .
+        vecA OEMtoBMP{}; // xcod .
+        sz_t charsize{}; // xcod .
 
         auto test(byte c)
         {
@@ -1176,15 +1179,18 @@ struct consrv
             if (cp == CP_UTF8)
             {
                 codepage = cp;
-                lastbyte = {};
+                charsize = {};
+                defchar1 = {};
+                defchar2 = {};
                 return true;
             }
             auto data = CPINFO{};
             if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
             {
                 codepage = cp;
-                lastbyte = {};
                 charsize = data.MaxCharSize;
+                defchar1 = data.DefaultChar[0];
+                defchar2 = data.DefaultChar[1];
                 auto head = std::begin(data.LeadByte);
                 auto tail = std::end(data.LeadByte);
                 while (head != tail)
@@ -1197,8 +1203,7 @@ struct consrv
                     while (a++ != b);
                 }
 
-                // Vendors have anachronistically assigned code page numbers to Unicode encodings.
-                // Generate forward table.
+                // Forward table.
                 OEMtoBMP.resize(charsize == 1 ? 256 : 655536, 0);
                 for (auto i = 0; i <= 255; i++)
                 {
@@ -1248,7 +1253,7 @@ struct consrv
                 }
                 log("-------------------------\n", t, "\n-------------------------");
 
-                // Generate reverse table.
+                // Reverse table.
                 auto bmp = std::vector<wchr>(65536, 0);
                 auto tmp = std::vector<byte>(65536 * 2, 0);
                 auto i = 0;
@@ -1258,33 +1263,60 @@ struct consrv
                 for (auto& d : BMPtoOEM)
                 {
                     auto c = *ptr++;
-                    assert(((wchr)c << 8) == (c << 8));
-                    if (test(c)) d = ((wchr)c << 8) + *ptr++;
+                    if (test(c)) d = ((ui16)c << 8) + *ptr++;
                     else         d = c;
                 }
                 return true;
             }
             else return faux;
         }
-        auto decode(view toANSI, text& utf8)
+        auto decode(wide& toWIDE, text& toUTF8)
         {
-            if (lastbyte)
+            auto last = toWIDE.back();
+            if (last >= 0xd800 && last <= 0xdbff) // First part of surrogate pair.
             {
-                ;;;
+                toWIDE.pop_back();
+                utf::to_utf(toWIDE, toUTF8);
+                toWIDE.clear();
+                toWIDE.push_back(last);
             }
-            utf8 += toANSI;
-            if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
+            else
+            {
+                utf::to_utf(toWIDE, toUTF8);
+                toWIDE.clear();
+            }
         }
-        auto encode(view toANSI, text& utf8)
+        auto decode(text& toANSI, text& toUTF8)
         {
-            if (lastbyte) ;;;
-            utf8 += toANSI;
-            if (toANSI.size()) log("page: ", codepage, " lead:", test(toANSI.back())? "lead":"single");
+            auto last = toANSI.back();
+            auto hang = test(last);
+            if (hang)
+            {
+                toANSI.pop_back();
+                if (toANSI.size() && test(toANSI.back())) // Another hanging lead byte. Fix it.
+                {
+                    toANSI.back() = defchar1;
+                    if (test(defchar1)) toANSI.push_back(defchar2);
+                }
+            }
+            auto head = toANSI.begin();
+            auto tail = toANSI.end();
+            while (head != tail)
+            {
+                auto c = (byte)*head++;
+                auto a = test(c) ? ((ui16)c << 8) + (byte)*head++ : (ui16)c;
+                utf::to_utf(OEMtoBMP[a], toUTF8);
+            }
+            toANSI.clear();
+            if (hang) toANSI.push_back(last);
+        }
+        auto encode(text& toUTF8, text& toANSI)
+        {
+            toANSI = toUTF8;
+            toUTF8.clear();
         }
 
         xcod(ui32 cp)
-            : codepage{ CP_UTF8 },
-              lastbyte{         }
         {
             load(cp);
         }
@@ -2062,26 +2094,29 @@ struct consrv
 
         if (auto datasize = size_check(packet.packsz,  answer.readoffset()))
         {
-            auto initsize = scroll_handle.rest.size();
             if (packet.input.utf16)
             {
-                toWIDE.resize(datasize / sizeof(wchr));
-                if (faux == answer.recv_data(condrv, toWIDE)) return;
-                utf::to_utf(toWIDE, scroll_handle.rest);
+                auto initsize = scroll_handle.toWIDE.size();
+                auto widesize = datasize / sizeof(wchr);
+                scroll_handle.toWIDE.resize(initsize + widesize);
+                if (!answer.recv_data(condrv, wiew{ scroll_handle.toWIDE.data() + initsize, widesize })) return;
+                outenc.decode(scroll_handle.toWIDE, scroll_handle.toUTF8);
             }
             else if (outenc.codepage == CP_UTF8)
             {
-                scroll_handle.rest.resize(initsize + datasize);
-                if (faux == answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize })) return;
+                auto initsize = scroll_handle.toUTF8.size();
+                scroll_handle.toUTF8.resize(initsize + datasize);
+                if (!answer.recv_data(condrv, view{ scroll_handle.toUTF8.data() + initsize, datasize })) return;
             }
             else
             {
-                toANSI.resize(datasize);
-                if (faux == answer.recv_data(condrv, toANSI)) return;
-                outenc.decode(toANSI, scroll_handle.rest);
+                auto initsize = scroll_handle.toANSI.size();
+                scroll_handle.toANSI.resize(initsize + datasize);
+                if (!answer.recv_data(condrv, view{ scroll_handle.toANSI.data() + initsize, datasize })) return;
+                outenc.decode(scroll_handle.toANSI, scroll_handle.toUTF8);
             }
 
-            if (auto crop = ansi::purify(scroll_handle.rest))
+            if (auto crop = ansi::purify(scroll_handle.toUTF8))
             {
                 auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                 if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
@@ -2089,13 +2124,15 @@ struct consrv
                 {
                     datasize = 0;
                 }
-                log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
-                scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
+                log(packet.input.utf16         ? "\tUTF-16: "s :
+                    outenc.codepage == CP_UTF8 ? "\tUTF-8: "s  :
+                                                 "\tOEM-" + std::to_string(outenc.codepage) + ": ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
+                scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
             {
-                log("\trest: ", utf::debase<faux, faux>(scroll_handle.rest),
-                  "\n\tsize: ", scroll_handle.rest.size());
+                log("\trest: ", utf::debase<faux, faux>(scroll_handle.toUTF8),
+                  "\n\tsize: ", scroll_handle.toUTF8.size());
             }
             packet.reply.count = datasize;
         }
