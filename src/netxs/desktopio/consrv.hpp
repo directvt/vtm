@@ -793,6 +793,7 @@ struct consrv
         {
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
+            auto nums = utfx{};
             auto line = para{ cooked.ustr };
             auto done = faux;
             auto crlf = 0;
@@ -824,10 +825,9 @@ struct consrv
                             "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
                     }
 
-                    if (rec.EventType == KEY_EVENT
-                     && rec.Event.KeyEvent.bKeyDown)
+                    auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
+                    if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
                     {
-                        auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
                         auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
                         auto& n = rec.Event.KeyEvent.wRepeatCount;
                         cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
@@ -873,6 +873,21 @@ struct consrv
                             case VK_F5:
                             case VK_UP:     burn(); hist.prev(line);                                                               break;
                             case VK_DOWN:   burn(); hist.next(line);                                                               break;
+                            case VK_NUMPAD0:
+                            case VK_NUMPAD1:
+                            case VK_NUMPAD2:
+                            case VK_NUMPAD3:
+                            case VK_NUMPAD4:
+                            case VK_NUMPAD5:
+                            case VK_NUMPAD6:
+                            case VK_NUMPAD7:
+                            case VK_NUMPAD8:
+                            case VK_NUMPAD9:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
+                            {
+                                while (n--) nums = nums * 10 + v - VK_NUMPAD0;
+                                break;
+                            }
                             default:
                             {
                                 n--;
@@ -932,6 +947,11 @@ struct consrv
                                 }
                             }
                         }
+                    }
+                    else if (nums && v == VK_MENU) // Alt is released after num digits input.
+                    {
+                        server.inpenc->decode(nums, buff);
+                        nums = 0;
                     }
                     if (done) break;
                     else      pops++;
@@ -1269,6 +1289,25 @@ struct consrv
                 return true;
             }
             else return faux;
+        }
+        auto decode(utfx code, text& toUTF8)
+        {
+            static constexpr auto c0 = { " ", "☺", "☻", "♥", "♦", "♣", "♠", "•", "◘", "○", "◙", "♂", "♀", "♪", "♫", "☼",
+                                         "►", "◄", "↕", "‼", "¶", "§", "▬", "↨", "↑", "↓", "→", "←", "∟", "↔", "▲", "▼",
+                                         "⌂" };
+            if (code < 0x20 || code == 0x7F)
+            {
+                toUTF8 += *(c0.begin() + std::min<size_t>(code, c0.size() - 1));
+            }
+            else
+            {
+                if (codepage != CP_UTF8)
+                {
+                    if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
+                    else                        code = charsize == 1 ? defchar1 : ((utfx)defchar1 << 8) + defchar2;
+                }
+                utf::to_utf_from_code(code, toUTF8);
+            }
         }
         auto decode(wide& toWIDE, text& toUTF8)
         {
