@@ -1803,12 +1803,12 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log(prompt, packet.input.is_output ? "SetConsoleOutputCP"
-                                           : "SetConsoleCP");
-        log("\tinput.code_page ", packet.input.code_page);
-        auto& c = packet.input.code_page;
-        auto& o = packet.input.is_output ? outenc : inpenc;
-        auto& i = packet.input.is_output ? inpenc : outenc;
+        auto c = packet.input.code_page;
+        auto is_output = !!packet.input.is_output;
+        log(prompt, is_output ? "SetConsoleOutputCP"
+                              : "SetConsoleCP", "\n\tinput.code_page ", c);
+        auto& o = is_output ? outenc : inpenc;
+        auto& i = is_output ? inpenc : outenc;
         if (o->codepage != c)
         {
             if (i->codepage == c) o = i; // Reuse existing decoder.
@@ -1817,6 +1817,14 @@ struct consrv
                 if (auto p = ptr::shared<decoder>(); p->load(c)) o = p;
                 else answer.status = nt::status::not_supported;
             }
+        }
+        for (auto& client : joined) // Reset trailing/hanging bytes.
+        for (auto& handle : client.tokens)
+        if (is_output == (handle.kind != hndl::type::events))
+        {
+            handle.toWIDE.clear();
+            handle.toANSI.clear();
+            handle.toUTF8.clear();
         }
     }
     auto api_process_mode_get                ()
