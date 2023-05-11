@@ -1045,14 +1045,29 @@ struct consrv
         template<bool Complete = faux, class Payload>
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
-            auto size = std::min((ui32)cooked.rest.size(), readstep);
-            auto data = view{ cooked.rest.data(), size };
-            log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                                                : data));
-            cooked.rest.remove_prefix(size);
-            packet.reply.ctrls = cooked.ctrl;
-            packet.reply.bytes = size;
-            answer.send_data<Complete>(server.condrv, data);
+            auto& inpenc = *server.inpenc;
+            if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
+            {
+                auto size = std::min((ui32)cooked.rest.size(), readstep);
+                auto data = view{ cooked.rest.data(), size };
+                log("\thandle 0x", utf::to_hex(packet.target),
+                    "\n\tread rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                           : data));
+                cooked.rest.remove_prefix(size);
+                packet.reply.ctrls = cooked.ctrl;
+                packet.reply.bytes = size;
+                answer.send_data<Complete>(server.condrv, data);
+            }
+            else
+            {
+                auto data = inpenc.encode(cooked.rest, readstep);
+                auto size = (ui32)data.size();
+                log("\thandle 0x", utf::to_hex(packet.target),
+                    "\n\tread rest line: ", utf::debase(data));
+                packet.reply.ctrls = cooked.ctrl;
+                packet.reply.bytes = size;
+                answer.send_data<Complete>(server.condrv, data);
+            }
         }
         template<class Payload>
         auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
@@ -1405,6 +1420,21 @@ struct consrv
                 toWIDE.clear();
             }
         }
+        auto decode_run(auto& toANSI, text& toUTF8)
+        {
+            auto head = toANSI.begin();
+            auto tail = toANSI.end();
+            while (head != tail)
+            {
+                auto c = (ui16)(byte)*head++;
+                if (test((byte)c))
+                {
+                    c = head != tail ? (c << 8) + (byte)*head++ : defchar();
+                }
+                auto bmp = OEMtoBMP[c];
+                utf::to_utf(bmp, toUTF8);
+            }
+        }
         auto decode(text& toANSI, text& toUTF8)
         {
             auto last = toANSI.back();
@@ -1418,18 +1448,7 @@ struct consrv
                     if (test(defchar1)) toANSI.push_back(defchar2);
                 }
             }
-            auto head = toANSI.begin();
-            auto tail = toANSI.end();
-            while (head != tail)
-            {
-                auto c = (ui16)(byte)*head++;
-                if (test((byte)c))
-                {
-                    c = head != tail ? (c << 8) + (byte)*head++ : defchar();
-                }
-                auto bmp = OEMtoBMP[c];
-                utf::to_utf(bmp, toUTF8);
-            }
+            decode_run(toANSI, toUTF8);
             toANSI.clear();
             if (hang) toANSI.push_back(last);
         }
@@ -1437,11 +1456,36 @@ struct consrv
         {
             return BMPtoOEM[code];
         }
-        auto encode(text& toUTF8, text& toANSI)
+        auto encode(view& utf8, ui32 readstep)
         {
-            //todo
-            toANSI = toUTF8;
-            toUTF8.clear();
+            auto crop = text{};
+            auto done = size_t{};
+            auto rest = readstep;
+            if (auto iter = utf::cpit{ utf8 })
+            {
+                do
+                {
+                    auto next = iter.next();
+                    auto code = next.correct ? BMPtoOEM[next.cdpoint]
+                                          : defchar();
+                    auto size = code < 256 ? 1u : 2u;
+                    if (rest < size) break;
+                    if (code < 256)
+                    {
+                        crop.push_back((byte)code);
+                    }
+                    else
+                    {
+                        crop.push_back(code >> 8);
+                        crop.push_back(code & 0xFF);
+                    }
+                    rest -= size;
+                    done += next.utf8len;
+                }
+                while (iter);
+            }
+            utf8.remove_prefix(done);
+            return crop;
         }
 
         decoder() = default;
@@ -2068,11 +2112,18 @@ struct consrv
 
         auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
+        if (!packet.input.utf16 && inpenc->codepage != CP_UTF8)
+        {
+            toANSI.clear();
+            inpenc->decode_run(initdata, toANSI);
+            initdata = toANSI;
+        }
         log("\tnamesize: ", namesize);
         log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
         log("\treadstep: ", readstep);
-        log("\tinitdata: ", packet.input.utf16 ? "utf-16: " + utf::debase(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2)))
-                                               : "utf-8: "  + utf::debase(initdata));
+        log("\tinitdata: ", packet.input.utf16 ? "UTF-16: " + utf::debase(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2))) :
+                   inpenc->codepage == CP_UTF8 ? "UTF-8: "  + utf::debase(initdata) :
+                                                 "OEM-" + std::to_string(inpenc->codepage) + ": " + utf::debase(initdata));
         events.placeorder(packet, nameview, initdata, readstep);
     }
     auto api_events_clear                    ()
