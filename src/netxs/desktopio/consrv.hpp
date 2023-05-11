@@ -349,6 +349,7 @@ struct consrv
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
+        using irec = INPUT_RECORD;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
@@ -374,11 +375,13 @@ struct consrv
         bool    closed; // events_t: Console server was shutdown.
         fire    ondata; // events_t: Signal on input buffer data.
         wide    wcpair; // events_t: Surrogate pair buffer.
+        irec    leader; // events_t: Hanging key event record (lead byte).
 
         evnt(consrv& serv)
             :  server{ serv },
                closed{ faux },
-               ondata{ true }
+               ondata{ true },
+               leader{      }
         { }
 
         void reset()
@@ -1100,10 +1103,51 @@ struct consrv
             else reply(packet, server.answer, readstep);
         }
         template<class T>
-        auto sendevents(T&& recs)
+        auto sendevents(T&& recs, bool utf16)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.insert(buffer.end(), recs.begin(), recs.end());
+            auto& inpenc = *server.inpenc;
+            if (utf16)
+            {
+                buffer.insert(buffer.end(), recs.begin(), recs.end());
+            }
+            else if (inpenc.codepage == CP_UTF8)
+            {
+                //todo inpenc: UTF-8 to UTF-16
+                buffer.insert(buffer.end(), recs.begin(), recs.end());
+            }
+            else
+            {
+                auto head = recs.begin();
+                auto tail = recs.end();
+                while (head != tail)
+                {
+                    auto& coming = *head++;
+                    if (coming.EventType == KEY_EVENT)
+                    {
+                        auto lead = (byte)leader.Event.KeyEvent.uChar.AsciiChar;
+                        auto next = (byte)coming.Event.KeyEvent.uChar.AsciiChar;
+                        if (lead)
+                        {
+                            if (leader.Event.KeyEvent.wVirtualKeyCode == coming.Event.KeyEvent.wVirtualKeyCode)
+                            {
+                                coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(lead, next);
+                            }
+                            leader = {}; // Drop hanging lead byte.
+                        }
+                        else
+                        {
+                            if (inpenc.test(next))
+                            {
+                                leader = coming;
+                                continue;
+                            }
+                            else coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(next);
+                        }
+                    }
+                    buffer.insert(buffer.end(), coming);
+                }
+            }
             if (!buffer.empty())
             {
                 ondata.reset();
@@ -1121,9 +1165,30 @@ struct consrv
             auto srcit = buffer.begin();
             auto dstit = recbuf.begin();
             auto endit = recbuf.end();
-            while (dstit != endit)
+            if (packet.input.utf16)
             {
-                *dstit++ = *srcit++;
+                while (dstit != endit)
+                {
+                    *dstit++ = *srcit++;
+                }
+            }
+            else if (server.inpenc->codepage == CP_UTF8)
+            {
+                //todo inpenc: to UTF-16 to UTF-8
+                //possible lost data
+                while (dstit != endit)
+                {
+                    *dstit++ = *srcit++;
+                }
+            }
+            else
+            {
+                //todo inpenc: to UTF-16 to server.inpenc->codepage
+                //possible lost data
+                while (dstit != endit)
+                {
+                    *dstit++ = *srcit++;
+                }
             }
             if (!(packet.input.flags & Payload::peek))
             {
@@ -1224,17 +1289,27 @@ struct consrv
                 }
 
                 // Forward table.
-                OEMtoBMP.resize(charsize == 1 ? 256 : 655536, 0);
-                for (auto i = 0; i <= 255; i++)
+                if ((charsize == 1))
                 {
-                    if (test((byte)i))
+                    OEMtoBMP.resize(256);
+                    auto i = 0;
+                    for (auto& c : OEMtoBMP) c = i++;
+                }
+                else
+                {
+                    OEMtoBMP.resize(65536, 0);
+                    for (auto i = 0; i < 256; i++)
                     {
-                        auto lead = i << 8;
-                        auto head = OEMtoBMP.begin() + lead;
-                        auto tail = head + 255;
-                        while (head != tail) *head++ = lead++;
+                        if (test((byte)i))
+                        {
+                            auto lead = i << 8;
+                            auto head = OEMtoBMP.begin() + lead;
+                            auto tail = head + 256;
+                            *head++ = ++lead/*zero can't be a second byte*/;
+                            while (head != tail) *head++ = lead++;
+                        }
+                        else OEMtoBMP[i] = i;
                     }
-                    else OEMtoBMP[i] = i;
                 }
                 auto oem = std::vector<byte>{};
                 oem.reserve(65536 * charsize);
@@ -1252,26 +1327,27 @@ struct consrv
                 }
                 ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), (si32)oem.size(), OEMtoBMP.data(), (si32)OEMtoBMP.size());
 
-                //debug
-                auto t = text{};
-                auto p = 0;
-                auto s = 0;
-                for (auto c : OEMtoBMP)
+                if constexpr (debugmode)
                 {
-                    if (c >= ' ')
+                    auto t = text{};
+                    auto n = 0;
+                    //auto u = oem.begin();
+                    t += utf::to_hex<true>(n >> 4, 3) + "0: ";
+                    for (auto c : OEMtoBMP)
                     {
-                        t += ansi::inv(true).add(utf::to_utf(c)).nil() + " ";
-                        p++;
+                        t += ansi::ocx(20 + 6 + (n % 16) * 3);
+                        //auto d = *u++;
+                        //t += ansi::ocx(20 + 6 + (n % 16) * 8).add(utf::to_hex(d, 4)).add("-");
+                        if (c < ' ' || c == 0x7f) t += ansi::fgc(blacklt).add(utf::to_hex<true>(c, 2)).nil();
+                        else                      t += ansi::inv(true).scp().add("  ").rcp().add(utf::to_utf(c)).nil();
+                        if (++n % 16 == 0)
+                        {
+                            t += "\n" + utf::to_hex<true>(n >> 4, 3) + "0: ";
+                            if (n > 255 && charsize == 1) break;
+                        }
                     }
-                    if (p > 16)
-                    {
-                        p = 0;
-                        t += '\n';
-                        s++;
-                        if (s > 15 && charsize == 1) break;
-                    }
+                    log("-------------------------\n", t, "\n-------------------------");
                 }
-                log("-------------------------\n", t, "\n-------------------------");
 
                 // Reverse table.
                 auto bmp = std::vector<wchr>(65536, 0);
@@ -1290,6 +1366,21 @@ struct consrv
             }
             else return faux;
         }
+        auto defchar()
+        {
+            return charsize == 1 ? (utfx)defchar1 : ((utfx)defchar1 << 8) + defchar2;
+        }
+        auto decode(utfx code)
+        {
+            if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
+            else                        code = defchar();
+            return code;
+        }
+        auto decode(byte lead, byte next)
+        {
+            auto code = ((ui16)lead << 8) + next;
+            return decode(code);
+        }
         auto decode(utfx code, text& toUTF8)
         {
             static constexpr auto c0 = { " ", "☺", "☻", "♥", "♦", "♣", "♠", "•", "◘", "○", "◙", "♂", "♀", "♪", "♫", "☼",
@@ -1303,8 +1394,7 @@ struct consrv
             {
                 if (codepage != CP_UTF8)
                 {
-                    if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
-                    else                        code = charsize == 1 ? defchar1 : ((utfx)defchar1 << 8) + defchar2;
+                    code = decode(code);
                 }
                 utf::to_utf_from_code(code, toUTF8);
             }
@@ -1342,9 +1432,13 @@ struct consrv
             auto tail = toANSI.end();
             while (head != tail)
             {
-                auto c = (byte)*head++;
-                auto a = test(c) ? ((ui16)c << 8) + (byte)*head++ : (ui16)c;
-                utf::to_utf(OEMtoBMP[a], toUTF8);
+                auto c = (ui16)(byte)*head++;
+                if (test((byte)c))
+                {
+                    c = head != tail ? (c << 8) + (byte)*head++ : defchar();
+                }
+                auto bmp = OEMtoBMP[c];
+                utf::to_utf(bmp, toUTF8);
             }
             toANSI.clear();
             if (hang) toANSI.push_back(last);
@@ -1500,6 +1594,12 @@ struct consrv
             uiterm.sb_min(size.y);
             size.y = console.panel.y;
         }
+    }
+    auto show_page(auto utf16, auto codepage)
+    {
+        return        utf16 ? "UTF-16"s :
+        codepage == CP_UTF8 ? "UTF-8"s  :
+                              "OEM-"s + std::to_string(codepage);
     }
 
     template<class S, class P>
@@ -2038,9 +2138,9 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
-                                                       : "ReadConsoleInput");
-        log("\tinput.flags ", utf::to_hex(packet.input.flags));
-
+                                                       : "ReadConsoleInput",
+            "\n\tinput.flags ", utf::to_hex(packet.input.flags),
+            "\n\t", show_page(packet.input.utf16, inpenc->codepage));
         auto client_ptr = packet.client;
         if (client_ptr == nullptr)
         {
@@ -2072,15 +2172,16 @@ struct consrv
             struct
             {
                 byte utf16;
-                byte totop;
+                byte totop; // Not used.
             }
             input;
         };
         auto& packet = payload::cast(upload);
         auto recs = take_buffer<INPUT_RECORD, feed::fwd>(packet);
-        if (!recs.empty()) events.sendevents(recs); //todo convert to wide - is it necessary?
+        if (!recs.empty()) events.sendevents(recs, packet.input.utf16);
         packet.reply.count = static_cast<ui32>(recs.size());
-        log("\twritten events count ", packet.reply.count);
+        log("\twritten events count ", packet.reply.count,
+            "\n\t", show_page(packet.input.utf16, inpenc->codepage));
     }
     auto api_events_generate_ctrl_event      ()
     {
@@ -2182,9 +2283,8 @@ struct consrv
                 {
                     datasize = 0;
                 }
-                log(packet.input.utf16        ? "\tUTF-16: "s :
-                    codec.codepage == CP_UTF8 ? "\tUTF-8: "s  :
-                                                "\tOEM-" + std::to_string(codec.codepage) + ": ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
+                log("\t", show_page(packet.input.utf16, codec.codepage),
+                    "\n\ttext: ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
                 scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
@@ -3073,14 +3173,15 @@ struct consrv
             auto title = take_buffer<wchr, feed::fwd>(packet);
             utf::to_utf(title, toUTF8);
             uiterm.wtrack.set(ansi::osc_title, toUTF8);
-            log("\tUTF-16 title: ", utf::debase(toUTF8));
+            log("\ttitle: ", utf::debase(toUTF8));
         }
         else
         {
             auto title = take_buffer<char, feed::fwd>(packet);
             uiterm.wtrack.set(ansi::osc_title, title);
-            log("\tUTF-8 title: ", utf::debase(title));
+            log("\ttitle: ", utf::debase(title));
         }
+        log("\t", show_page(packet.input.utf16, inpenc->codepage));
     }
     auto api_window_font_size_get            ()
     {
