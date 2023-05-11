@@ -1165,17 +1165,9 @@ struct consrv
             auto srcit = buffer.begin();
             auto dstit = recbuf.begin();
             auto endit = recbuf.end();
-            if (packet.input.utf16)
+            auto& inpenc = *server.inpenc;
+            if (packet.input.utf16 || inpenc.codepage == CP_UTF8) // Store 7-bit in case of UTF-8.
             {
-                while (dstit != endit)
-                {
-                    *dstit++ = *srcit++;
-                }
-            }
-            else if (server.inpenc->codepage == CP_UTF8)
-            {
-                //todo inpenc: to UTF-16 to UTF-8
-                //possible lost data
                 while (dstit != endit)
                 {
                     *dstit++ = *srcit++;
@@ -1183,11 +1175,14 @@ struct consrv
             }
             else
             {
-                //todo inpenc: to UTF-16 to server.inpenc->codepage
-                //possible lost data
                 while (dstit != endit)
                 {
-                    *dstit++ = *srcit++;
+                    auto& dst = *dstit++;
+                    dst = *srcit++;
+                    if (dst.EventType == KEY_EVENT) // Store DBCS char as a wide char.
+                    {
+                        dst.Event.KeyEvent.uChar.UnicodeChar = inpenc.encode(dst.Event.KeyEvent.uChar.UnicodeChar);
+                    }
                 }
             }
             if (!(packet.input.flags & Payload::peek))
@@ -1443,8 +1438,13 @@ struct consrv
             toANSI.clear();
             if (hang) toANSI.push_back(last);
         }
+        auto encode(wchr code)
+        {
+            return BMPtoOEM[code];
+        }
         auto encode(text& toUTF8, text& toANSI)
         {
+            //todo
             toANSI = toUTF8;
             toUTF8.clear();
         }
@@ -2069,7 +2069,7 @@ struct consrv
         auto readstep = packet.echosz - answer.sendoffset();
         auto datasize = namesize + packet.input.affix;
         buffer.resize(datasize);
-        if (answer.recv_data(condrv, buffer) == faux) return;
+        if (!answer.recv_data(condrv, buffer)) return;
 
         auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
