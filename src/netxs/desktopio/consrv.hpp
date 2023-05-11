@@ -1107,13 +1107,8 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             auto& inpenc = *server.inpenc;
-            if (utf16)
+            if (utf16 || inpenc.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
             {
-                buffer.insert(buffer.end(), recs.begin(), recs.end());
-            }
-            else if (inpenc.codepage == CP_UTF8)
-            {
-                //todo inpenc: UTF-8 to UTF-16
                 buffer.insert(buffer.end(), recs.begin(), recs.end());
             }
             else
