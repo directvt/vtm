@@ -1198,28 +1198,31 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (size_state = dot_11, min_size = dot_00))
                     {
+                        auto This = boss.This();
                         auto size = boss.base::size();
                         if (size.y == min_size.y)
                         {
                             boss.base::resize({ size.x, size_state.y });
-                            pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                           : pro::focus::solo::on, pro::focus::flip::off, true);
+                            pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                    : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
                         else
                         {
                             size_state = size;
                             boss.base::resize({ size.x, 1 });
                             min_size = boss.base::size();
-                            if (auto parent = boss.parent()) // Pass focus to the next desktop window.
+                            // Refocusing.
+                            boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+                            if (auto parent = boss.parent())
+                            if (gear_test.second) // If it is focused pass the focus to the next desktop window.
                             {
-                                auto This = boss.This();
                                 parent->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear.id, 0));
                                 if (gear_test.second == 1) // If it is the last focused item.
                                 {
-                                    auto next = e2::form::layout::gonext.param();
+                                    auto next = e2::form::layout::goprev.param();
                                     do
                                     {
-                                        parent->SIGNAL(tier::request, e2::form::layout::gonext, next);
+                                        parent->SIGNAL(tier::request, e2::form::layout::goprev, next);
                                     }
                                     while (next->size().y == 1 && next != This);
                                     if (next != This)
