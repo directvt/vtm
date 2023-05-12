@@ -174,6 +174,7 @@ namespace netxs::events::userland
                 SUBSET_XS( layout )
                 {
                     EVENT_XS( fullscreen, input::hids    ), // request to fullscreen.
+                    EVENT_XS( minimize  , bool           ), // request to minimize.
                     EVENT_XS( restore   , sptr<ui::base> ), // request to restore.
                     EVENT_XS( shift     , const twod     ), // request a global shifting  with delta.
                     EVENT_XS( convey    , cube           ), // request a global conveying with delta (Inform all children to be conveyed).
@@ -200,6 +201,7 @@ namespace netxs::events::userland
                     EVENT_XS( dragged, input::hids    ), // event after drag.
                     EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
                     EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
+                    EVENT_XS( resize , const twod     ), // anycast: notify about the actual window size.
                     GROUP_XS( vtree  , sptr<ui::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack           ), // event after scroll.
                     //EVENT_XS( created    , sptr<ui::base> ), // event after itself creation, arg: itself bell_sptr.

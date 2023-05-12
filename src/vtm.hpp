@@ -1192,6 +1192,25 @@ namespace netxs::app::vtm
                             what.menuid = menuid;
                         }
                     };
+                    boss.LISTEN(tier::release, e2::size::any, new_size)
+                    {
+                        boss.SIGNAL(tier::anycast, e2::form::upon::resize, new_size);
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, minimize_state, -, (size_state = dot_11, min_size = dot_00))
+                    {
+                        auto size = boss.base::size();
+                        if (minimize_state == (size.y == min_size.y)) minimize_state = !minimize_state;
+                        if (size.y == min_size.y)
+                        {
+                            boss.base::resize({ size.x, size_state.y });
+                        }
+                        else
+                        {
+                            size_state = size;
+                            boss.base::resize({ size.x, 1 });
+                            min_size = boss.base::size();
+                        }
+                    };
                     boss.LISTEN(tier::release, e2::form::prop::ui::header, title)
                     {
                         auto tooltip = " " + title + " ";

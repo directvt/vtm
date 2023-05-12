@@ -3491,6 +3491,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
             {
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resize, newsize);
                 auto delta = base::resize(newsize);
                 if (delta && direct)
                 if (auto world_ptr = base::parent())
@@ -3499,9 +3500,9 @@ namespace netxs::ui
                     rebuild_scene(*world_ptr, true);
                 }
             };
-            LISTEN(tier::release, e2::size::any, newsz, tokens)
+            LISTEN(tier::release, e2::size::any, newsize, tokens)
             {
-                if (applet) applet->base::resize(newsz);
+                if (applet) applet->base::resize(newsize);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
@@ -3615,6 +3616,10 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, e2::form::layout::minimize, state, tokens)
+                {
+                    conio.minimize.send(canal, state);
+                };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);

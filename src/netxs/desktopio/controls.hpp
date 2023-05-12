@@ -898,7 +898,7 @@ namespace netxs::ui
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(snap hz, snap vt, T item_ptr)
+        auto attach(T item_ptr, snap hz, snap vt)
         {
             subset.push_back({ item_ptr, hz, vt, true });
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());

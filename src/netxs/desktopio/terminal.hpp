@@ -7373,6 +7373,14 @@ namespace netxs::ui
                     }
                 });
             }
+            void handle(s11n::xs::minimize            lock)
+            {
+                auto& m = lock.thing;
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    owner.RISEUP(tier::release, e2::form::layout::minimize, m.state);
+                });
+            }
             void handle(s11n::xs::expose              lock)
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)

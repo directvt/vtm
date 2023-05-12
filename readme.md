@@ -159,7 +159,7 @@ vtm
     <td>Set default app</td>
     <td>Center app window</td>
     <td colspan="1"></td>
-    <td colspan="2">Toggle menu height</td>
+    <td colspan="2">Minimize/restore</td>
     <td colspan="1"></td>
     <td colspan="2">Center app window</td>
     <td></td>

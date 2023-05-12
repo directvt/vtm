@@ -450,13 +450,13 @@ namespace netxs::app::tile
                 })
                 ->branch
                 (
-                    snap::center, snap::center,
-                    ui::post::ctor()->upload("Empty Slot", 10)
+                    ui::post::ctor()->upload("Empty Slot", 10),
+                    snap::center, snap::center
                 )
                 ->branch
                 (
-                    snap::stretch, snap::head,
-                    menu_block
+                    menu_block,
+                    snap::stretch, snap::head
                 );
         };
         auto empty_slot = [](auto&& empty_slot) -> sptr<ui::veer>
