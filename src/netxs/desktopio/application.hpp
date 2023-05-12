@@ -198,8 +198,7 @@ namespace netxs::app::shared
                     auto slim_status = ptr::shared(menusize);
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (minimize_state = faux))
                     {
-                        minimize_state = !minimize_state;
-                        boss.RISEUP(tier::release, e2::form::layout::minimize, minimize_state);
+                        boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::resize, new_size, -, (slim_status))

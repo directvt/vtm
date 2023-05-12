@@ -658,7 +658,7 @@ namespace netxs::directvt
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT_macro(vt_command,        (text, command))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
-        STRUCT_macro(minimize,          (bool, state))
+        STRUCT_macro(minimize,          (id_t, gear_id))
         STRUCT_macro_lite(expose)
         // Input stream.
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))

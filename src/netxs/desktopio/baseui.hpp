@@ -174,7 +174,7 @@ namespace netxs::events::userland
                 SUBSET_XS( layout )
                 {
                     EVENT_XS( fullscreen, input::hids    ), // request to fullscreen.
-                    EVENT_XS( minimize  , bool           ), // request to minimize.
+                    EVENT_XS( minimize  , input::hids    ), // request to minimize.
                     EVENT_XS( restore   , sptr<ui::base> ), // request to restore.
                     EVENT_XS( shift     , const twod     ), // request a global shifting  with delta.
                     EVENT_XS( convey    , cube           ), // request a global conveying with delta (Inform all children to be conveyed).

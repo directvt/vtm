@@ -7378,7 +7378,11 @@ namespace netxs::ui
                 auto& m = lock.thing;
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
                 {
-                    owner.RISEUP(tier::release, e2::form::layout::minimize, m.state);
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        owner.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                    }
                 });
             }
             void handle(s11n::xs::expose              lock)

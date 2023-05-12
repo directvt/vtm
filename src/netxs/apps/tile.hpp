@@ -372,10 +372,9 @@ namespace netxs::app::tile
                                 {
                                     anycasting(boss);
                                     //todo implement keydb support
-                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (minimize_state = faux))
+                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                                     {
-                                        minimize_state = !minimize_state;
-                                        boss.RISEUP(tier::release, e2::form::layout::minimize, minimize_state);
+                                        boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
                                         gear.dismiss();
                                     };
                                 })
@@ -478,15 +477,16 @@ namespace netxs::app::tile
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, state, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
                     {
                         if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
                         {
                             auto ratio = node->get_ratio();
-                            if (state == (ratio == min_ratio)) state = !state;
                             if (ratio == min_ratio)
                             {
                                 node->set_ratio(saved_ratio);
+                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                               : pro::focus::solo::on, pro::focus::flip::off, true);
                             }
                             else
                             {

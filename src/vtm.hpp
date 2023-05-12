@@ -1196,19 +1196,40 @@ namespace netxs::app::vtm
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resize, new_size);
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, minimize_state, -, (size_state = dot_11, min_size = dot_00))
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (size_state = dot_11, min_size = dot_00))
                     {
                         auto size = boss.base::size();
-                        if (minimize_state == (size.y == min_size.y)) minimize_state = !minimize_state;
                         if (size.y == min_size.y)
                         {
                             boss.base::resize({ size.x, size_state.y });
+                            pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                           : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
                         else
                         {
                             size_state = size;
                             boss.base::resize({ size.x, 1 });
                             min_size = boss.base::size();
+                            if (auto parent = boss.parent()) // Pass focus to the next desktop window.
+                            {
+                                auto This = boss.This();
+                                parent->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear.id, 0));
+                                if (gear_test.second == 1) // If it is the last focused item.
+                                {
+                                    auto next = e2::form::layout::gonext.param();
+                                    do
+                                    {
+                                        parent->SIGNAL(tier::request, e2::form::layout::gonext, next);
+                                    }
+                                    while (next->size().y == 1 && next != This);
+                                    if (next != This)
+                                    {
+                                        pro::focus::set(next, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                        This.reset();
+                                    }
+                                }
+                                if (This) pro::focus::off(This, gear.id);
+                            }
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::prop::ui::header, title)
@@ -1429,11 +1450,10 @@ namespace netxs::app::vtm
                     {
                         if (auto gear_ptr = bell::getref<hids>(gear_id))
                         {
-                            auto& gear = *gear_ptr;
                             this->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear_id, 0));
                             if (gear_test.second == 1) // If it is the last focused item.
                             {
-                                pro::focus::set(last_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                                pro::focus::set(last_ptr, gear_id, pro::focus::solo::off, pro::focus::flip::off);
                             }
                         }
                     }

@@ -3616,9 +3616,10 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, e2::form::layout::minimize, state, tokens)
+                LISTEN(tier::release, e2::form::layout::minimize, gear, tokens)
                 {
-                    conio.minimize.send(canal, state);
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
                 };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
                 {
