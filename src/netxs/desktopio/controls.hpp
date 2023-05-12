@@ -230,9 +230,6 @@ namespace netxs::ui
     {
         enum class action { seize, drag, release };
 
-        static constexpr auto max_ratio = si32{ 0xFFFF      };
-        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
-
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
         sptr splitter; // fork: Resizing grip.
@@ -280,9 +277,17 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto min_ratio = si32{ 0           };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
+
         auto get_ratio()
         {
             return ratio;
+        }
+        auto set_ratio(si32 new_ratio = max_ratio)
+        {
+            ratio = new_ratio;
         }
         void config(si32 s1, si32 s2 = 1)
         {

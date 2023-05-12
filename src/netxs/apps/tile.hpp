@@ -372,6 +372,12 @@ namespace netxs::app::tile
                                 {
                                     anycasting(boss);
                                     //todo implement keydb support
+                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (minimize_state = faux))
+                                    {
+                                        minimize_state = !minimize_state;
+                                        boss.RISEUP(tier::release, e2::form::layout::minimize, minimize_state);
+                                        gear.dismiss();
+                                    };
                                 })
                                 ->active());
             return node;
@@ -459,7 +465,7 @@ namespace netxs::app::tile
                     snap::stretch, snap::head
                 );
         };
-        auto empty_slot = [](auto&& empty_slot) -> sptr<ui::veer>
+        auto empty_slot = [](auto&& empty_slot, auto min_state) -> sptr<ui::veer>
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
@@ -471,6 +477,25 @@ namespace netxs::app::tile
                                        : cell{ skin::color(tone::menu_black) };
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, state, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    {
+                        if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
+                        {
+                            auto ratio = node->get_ratio();
+                            if (state == (ratio == min_ratio)) state = !state;
+                            if (ratio == min_ratio)
+                            {
+                                node->set_ratio(saved_ratio);
+                            }
+                            else
+                            {
+                                saved_ratio = ratio;
+                                node->set_ratio(min_state);
+                                min_ratio = node->get_ratio();
+                            }
+                            node->base::reflow();
+                        }
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
@@ -613,8 +638,8 @@ namespace netxs::app::tile
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
                             auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                            auto empty_1 = empty_slot(empty_slot);
-                            auto empty_2 = empty_slot(empty_slot);
+                            auto empty_1 = empty_slot(empty_slot, ui::fork::min_ratio);
+                            auto empty_2 = empty_slot(empty_slot, ui::fork::max_ratio);
                             auto gear_id = pro::focus::get(boss.This()); // Seize all foci.
                             auto curitem = boss.pop_back();
                             if (boss.empty())
@@ -706,9 +731,9 @@ namespace netxs::app::tile
                 })
                 ->branch(empty_pane());
         };
-        auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> sptr<ui::veer>
         {
-            auto slot = empty_slot(empty_slot);
+            auto slot = empty_slot(empty_slot, min_ratio);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return slot;
             auto tag = utf8.front();
@@ -744,10 +769,9 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8));
-                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8));
+                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
+                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
                 slot->attach(node);
-
                 utf::trim_front(utf8, ") ");
             }
             else  // Add application.
@@ -920,7 +944,7 @@ namespace netxs::app::tile
                 else     log("tile: change current working directory to '", cwd, "'");
             }
 
-            object->attach(slot::_2, parse_data(parse_data, param))
+            object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item, -, (foci_list = gear_id_list_t{}))
