@@ -850,17 +850,18 @@ namespace netxs::ui
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         template<class T = base>
-        auto  This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
-        auto& coor() const { return square.coor; }
-        auto& size() const { return square.size; }
-        auto& area() const { return square; }
-        void  root(bool b) { visual_root = b; }
-        bool  root()       { return visual_root; }
-        si32  kind()       { return object_kind; }
-        void  kind(si32 k) { object_kind = k; }
-        auto parent()      { return parent_shadow.lock(); }
-        void ruined(bool state) { invalid = state; }
-        auto ruined() const { return invalid; }
+        auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
+        auto&  coor() const { return square.coor;          }
+        auto&  size() const { return square.size;          }
+        auto&  area() const { return square;               }
+        void   root(bool b) { visual_root = b;             }
+        bool   root()       { return visual_root;          }
+        si32   kind()       { return object_kind;          }
+        void   kind(si32 k) { object_kind = k;             }
+        auto center() const { return square.center();      }
+        auto parent()       { return parent_shadow.lock(); }
+        void ruined(bool s) { invalid = s;                 }
+        auto ruined() const { return invalid;              }
         template<bool Absolute = true>
         auto actual_area() const
         {

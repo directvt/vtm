@@ -771,8 +771,7 @@ namespace netxs::app::vtm
 
                     if (item_ptr)
                     {
-                        auto& area = item_ptr->area();
-                        auto center = area.coor + (area.size / 2);
+                        auto center = item_ptr->center();
                         this->SIGNAL(tier::release, e2::form::layout::shift, center);
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
@@ -815,7 +814,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
             {
                 this->SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                auto oldpos = viewport.coor + (viewport.size / 2);
+                auto oldpos = viewport.center();
 
                 auto path = oldpos - newpos;
                 auto time = skin::globals().switching;
@@ -966,7 +965,7 @@ namespace netxs::app::vtm
             void fasten(face& canvas)
             {
                 auto window = canvas.area();
-                auto center = region.coor + region.size / 2;
+                auto center = region.center();
                 if (window.hittest(center)) return;
                 auto origin = window.size / 2;
                 center -= window.coor;
@@ -1219,15 +1218,16 @@ namespace netxs::app::vtm
                                 parent->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear.id, 0));
                                 if (gear_test.second == 1) // If it is the last focused item.
                                 {
-                                    auto next = e2::form::layout::goprev.param();
+                                    auto viewport = gear.owner.base::area();
+                                    auto window = e2::form::layout::goprev.param();
                                     do
                                     {
-                                        parent->SIGNAL(tier::request, e2::form::layout::goprev, next);
+                                        parent->SIGNAL(tier::request, e2::form::layout::goprev, window);
                                     }
-                                    while (next->size().y == 1 && next != This);
-                                    if (next != This)
+                                    while (window != This && (window->size().y == 1 || !viewport.hittest(window->center())));
+                                    if (window != This)
                                     {
-                                        pro::focus::set(next, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                                         This.reset();
                                     }
                                 }
@@ -1247,11 +1247,10 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        auto area = boss.base::area();
-                        auto home = rect{ -dot_21, area.size + dot_21 * 2}; // Including resizer grips.
+                        auto home = rect{ -dot_21, boss.base::size() + dot_21 * 2 }; // Including resizer grips.
                         if (!home.hittest(gear.coord))
                         {
-                            auto center = area.coor + (area.size / 2);
+                            auto center = boss.base::center();
                             gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
                             boss.base::deface();
                         }

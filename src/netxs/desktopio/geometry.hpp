@@ -206,6 +206,7 @@ namespace netxs
         }
         bool operator == (rect const&) const = default;
         explicit operator bool ()              const { return size.x != 0 && size.y != 0;       }
+        auto   center          ()              const { return coor + size / 2;                  }
         auto   area            ()              const { return size.x * size.y;                  }
         twod   map             (twod const& p) const { return p - coor;                         }
         rect   shift           (twod const& p) const { return { coor + p, size };               }

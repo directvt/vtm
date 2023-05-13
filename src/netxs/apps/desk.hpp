@@ -78,9 +78,7 @@ namespace netxs::app::desk
                         {
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                            auto& area = inst.base::area();
-                            auto center = area.coor + (area.size / 2);
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center, (inst.base::center()));  // Goto to the window.
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
@@ -92,7 +90,7 @@ namespace netxs::app::desk
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.coor + (viewport.size / 2))); // Pull window.
+                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
@@ -186,7 +184,7 @@ namespace netxs::app::desk
 
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            viewport.coor += gear.area().coor;;
+                            viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
@@ -219,8 +217,7 @@ namespace netxs::app::desk
                         //           // Expose window.
                         //           auto& inst = *app_list.back();
                         //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                        //           auto& area = inst.base::area();
-                        //           auto center = area.coor + (area.size / 2);
+                        //           auto center = inst.base::center();
                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                         //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);
                         //           pro::focus::set(app_list.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
