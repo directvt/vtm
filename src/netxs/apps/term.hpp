@@ -707,10 +707,43 @@ namespace netxs::app::term
             auto menu = object->attach(slot::_1, slot1);
             cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
             {
-                boss.colors(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
-                boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)
+                auto bar = cell{ "▀"sv }.link(slot1->id);
+                auto brush = ptr::shared(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+                auto winsz = ptr::shared(dot_00);
+                auto visible = ptr::shared(true);
+                auto check_state = ptr::function([state = testy<bool>{}, winsz, visible](base& boss) mutable
                 {
-                    boss.color(boss.color().fgc(bg));
+                    if (state(*visible || winsz->y != 1))
+                    {
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::acryl, state.last);
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state.last);
+                    }
+                });
+                boss.LISTEN(tier::release, e2::form::state::visible, menu_visible, -, (visible, check_state))
+                {
+                    *visible = menu_visible;
+                    (*check_state)(boss);
+                };
+                boss.LISTEN(tier::anycast, e2::form::upon::resize, newsize, -, (winsz, check_state))
+                {
+                    *winsz = newsize;
+                    (*check_state)(boss);
+                };
+                boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg, -, (brush))
+                {
+                    brush->fgc(bg);
+                };
+                boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, brush))
+                {
+                    if (winsz->y != 1)
+                    {
+                        auto& b = *brush;
+                        parent_canvas.fill([&](cell& c) { c.fusefull(b); });
+                    }
+                    else
+                    {
+                        parent_canvas.fill([&](cell& c) { c.fgc(c.bgc()).fga(0xff).bgc(0).txt(bar).link(bar); });
+                    }
                 };
             });
 

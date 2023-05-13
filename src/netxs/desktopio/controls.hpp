@@ -1116,7 +1116,7 @@ namespace netxs::ui
 
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         auto& content(si32 paraid) { return topic[paraid]; }
-        auto upload(view utf8, si32 initial_width = 0)
+        auto upload(view utf8, si32 initial_width = 0) // Don't use cell link id here. Apply it to the parent (with a whole rect coverage).
         {
             source = utf8;
             topic = utf8;

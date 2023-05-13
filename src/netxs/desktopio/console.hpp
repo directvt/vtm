@@ -568,7 +568,7 @@ namespace netxs::ui
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     items.foreach([&](sock& item)
                     {
-                        auto area = rect{ item.cursor,dot_00 } + dent{ 6,6,3,3 };
+                        auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
                         area.coor += full.coor;
                         parent_canvas.fill(area.clip(full), fill);
                     });
@@ -2117,6 +2117,7 @@ namespace netxs::ui
 
             sptr<face> coreface;
             byte       lucidity;
+            bool       usecache;
 
         public:
             face& canvas; // cache: Bitmap cache.
@@ -2125,11 +2126,16 @@ namespace netxs::ui
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
                   canvas{*(coreface = ptr::shared<face>())},
-                  lucidity{ 0xFF }
+                  lucidity{ 0xFF },
+                  usecache{ true }
             {
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
+                boss.LISTEN(tier::preview, e2::form::prop::ui::cache, state, memo)
+                {
+                    usecache = state;
+                };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, value, memo)
                 {
                     if (value == -1)
@@ -2153,6 +2159,7 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                     {
+                        if (!usecache) return;
                         if (boss.base::ruined())
                         {
                             canvas.wipe();
@@ -2184,6 +2191,10 @@ namespace netxs::ui
                   width{ size },
                   alive{ true }
             {
+                boss.LISTEN(tier::preview, e2::form::prop::ui::acryl, state, memo)
+                {
+                    alive = state;
+                };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;

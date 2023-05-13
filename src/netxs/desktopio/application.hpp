@@ -102,7 +102,7 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, bool allow_minimize, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -196,11 +196,14 @@ namespace netxs::app::shared
                 {
                     scroll_hint->visible(hints, faux);
                     auto slim_status = ptr::shared(menusize);
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (minimize_state = faux))
+                    if (allow_minimize)
                     {
-                        boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
-                        gear.dismiss();
-                    };
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                        {
+                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                            gear.dismiss();
+                        };
+                    }
                     boss.LISTEN(tier::anycast, e2::form::upon::resize, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
@@ -256,17 +259,23 @@ namespace netxs::app::shared
                     else if (autohide == faux) slot1->roll();
                     slot1->invoke([&](auto& boss)
                     {
+                        auto border_shadow = ptr::shadow(border);
                         auto menu_shadow = ptr::shadow(menu_block);
                         auto hide_shadow = ptr::shared(autohide);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menu_shadow, hide_shadow))
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menu_shadow, hide_shadow, border_shadow))
                         {
                             if (*hide_shadow)
                             if (auto menu_ptr = menu_shadow.lock())
                             {
-                                if (!!hits != (boss.back() == menu_ptr))
+                                auto menu_visible = boss.back() != menu_ptr;
+                                if (!!hits == menu_visible)
                                 {
                                     boss.roll();
                                     boss.reflow();
+                                    if (auto border = border_shadow.lock())
+                                    {
+                                        border->SIGNAL(tier::release, e2::form::state::visible, menu_visible);
+                                    }
                                 }
                             }
                         };
@@ -279,7 +288,7 @@ namespace netxs::app::shared
             auto autohide = config.take("menu/autohide", faux);
             auto menushow = config.take("menu/enabled" , true);
             auto menusize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, menusize, faux, menu_items);
+            return mini(autohide, menushow, menusize, faux, true, menu_items);
         };
         const auto demo = [](xmls& config)
         {

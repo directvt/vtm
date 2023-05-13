@@ -370,6 +370,8 @@ namespace netxs::events::userland
                         EVENT_XS( footer  , text ), // set/get form caption footer.
                         EVENT_XS( tooltip , text ), // set/get tooltip text.
                         EVENT_XS( slimmenu, bool ), // set/get window menu size.
+                        EVENT_XS( acryl   , bool ), // set/get window acrylic effect.
+                        EVENT_XS( cache   , bool ), // set/get render cache usage.
                     };
                     SUBSET_XS( colors )
                     {
@@ -402,6 +404,7 @@ namespace netxs::events::userland
                     //EVENT_XS( params   , ui::para ), // notify the client has changed title params.
                     EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
+                    EVENT_XS( visible  , bool     ),
                     GROUP_XS( keybd    , bool     ),
 
                     SUBSET_XS( keybd )

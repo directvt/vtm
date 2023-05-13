@@ -321,6 +321,12 @@ namespace netxs::app::tile
                         ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
+                            boss.color(0, 0);
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                            {
+                                boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                                gear.dismiss();
+                            };
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 auto shadow = ptr::shadow(boss.This());
@@ -387,7 +393,7 @@ namespace netxs::app::tile
             auto cC = menu_black;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
+            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true, faux,
             menu::list
             {
                 { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " +", .notes = " New app " } }}),
@@ -493,6 +499,7 @@ namespace netxs::app::tile
                                 saved_ratio = ratio;
                                 node->set_ratio(min_state);
                                 min_ratio = node->get_ratio();
+                                pro::focus::off(boss.This(), gear.id);
                             }
                             node->base::reflow();
                         }

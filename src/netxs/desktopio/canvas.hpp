@@ -992,7 +992,7 @@ namespace netxs
         }
         auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
-        // cell: Merge the two cells according to visibility and other attributes.
+        // cell: Merge two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
             //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
@@ -1007,7 +1007,7 @@ namespace netxs
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Merge the two cells if text part != '\0'.
+        // cell: Merge two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
             if (c.gc.glyph[1] != 0) fuse(c);
@@ -1044,13 +1044,13 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fusefull(cell const& c)
         {
             fuse(c);
