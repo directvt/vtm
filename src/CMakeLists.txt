@@ -15,7 +15,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj /utf-8")
 elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-    #gcc static linkage
+    # Static linkage
     #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
 endif ()
 
