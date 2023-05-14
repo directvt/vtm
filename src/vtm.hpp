@@ -130,6 +130,10 @@ namespace netxs::app::vtm
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, newfoot);
 
+                boss.LISTEN(tier::preview, e2::form::quit, boss_ptr, memo)
+                {
+                    unbind(type::full);
+                };
                 boss.LISTEN(tier::release, e2::size::any, size, memo, (pads))
                 {
                     what.applet->base::resize(size + pads);
@@ -138,9 +142,13 @@ namespace netxs::app::vtm
                 {
                     if (memo) unbind();
                 };
-                boss.LISTEN(tier::preview, e2::form::quit, boss_ptr, memo)
+                window_ptr->LISTEN(tier::release, e2::form::layout::minimize, gear, memo)
                 {
-                    unbind(type::full);
+                    if (memo)
+                    {
+                        what.applet->bell::expire<tier::release>(); // Suppress minimization.
+                        unbind();
+                    }
                 };
                 window_ptr->LISTEN(tier::release, e2::form::quit, any_ptr, memo)
                 {
