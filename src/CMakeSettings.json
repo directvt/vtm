@@ -79,7 +79,7 @@
         },
         {
           "name": "CMAKE_EXE_LINKER_FLAGS_RELEASE",
-          "value": "-static-libstdc++ -static-libgcc -static",
+          "value": "-static",
           "type": "STRING"
         },
         {
