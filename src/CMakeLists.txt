@@ -17,7 +17,7 @@ elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
         #gcc static linkage
-        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc -pthread -s")
+        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libstdc++ -static-libgcc -pthread -s")
     else ()
         #clang static linkage
         #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
