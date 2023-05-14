@@ -443,19 +443,22 @@ namespace netxs::ui
             // w_tracking: Get terminal window property.
             auto& get(text const& property)
             {
-                return props[property];
+                auto& utf8 = props[property];
+                if (property == ansi::osc_title)
+                {
+                    owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
+                }
+                return utf8;
             }
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
-                static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
                 if (property == ansi::osc_label_title)
                 {
                                   props[ansi::osc_label] = txt;
                     auto& utf8 = (props[ansi::osc_title] = txt);
-                    utf8 = jet_left + utf8;
                     owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
@@ -463,7 +466,6 @@ namespace netxs::ui
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::osc_title)
                     {
-                        utf8 = jet_left + utf8;
                         owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                     }
                 }

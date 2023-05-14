@@ -1051,8 +1051,8 @@ struct consrv
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
                 log("\thandle 0x", utf::to_hex(packet.target),
-                    "\n\tread rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                           : data));
+                    "\n\tread rest line: ", ansi::inv(true).add(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                                               : data)).nil());
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1063,7 +1063,7 @@ struct consrv
                 auto data = inpenc.encode(cooked.rest, readstep);
                 auto size = (ui32)data.size();
                 log("\thandle 0x", utf::to_hex(packet.target),
-                    "\n\tread rest line: ", utf::debase(data));
+                    "\n\tread rest line: ", ansi::inv(true).add(utf::debase<faux, faux>(data)).nil());
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
@@ -1102,7 +1102,8 @@ struct consrv
 
                     if (cooked.ustr.size())
                     {
-                        log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
+                        log("\thandle 0x", utf::to_hex(packet.target),
+                            "\n\tread line: ", ansi::inv(true).add(utf::debase<faux, faux>(cooked.ustr)).nil());
                     }
 
                     if (closed || cancel)
@@ -1456,7 +1457,7 @@ struct consrv
         {
             return BMPtoOEM[code];
         }
-        auto encode(view& utf8, ui32 readstep)
+        auto encode(view& utf8, ui32 readstep = maxui32)
         {
             auto crop = text{};
             auto done = size_t{};
@@ -3187,7 +3188,8 @@ struct consrv
                                        : "GetConsoleTitle");
         //todo differentiate titles by category
         auto& title = uiterm.wtrack.get(ansi::osc_title);
-        log("\treply title (", title.size(), "): ", title);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            ansi::add("\n\tdata: ").inv(true).add(utf::debase(title)).nil());
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -3195,10 +3197,17 @@ struct consrv
             packet.reply.count = static_cast<ui32>(toWIDE.size() + 1 /*null terminator*/);
             answer.send_data(condrv, toWIDE, true);
         }
-        else
+        else if (inpenc->codepage == CP_UTF8)
         {
             packet.reply.count = static_cast<ui32>(title.size() + 1 /*null terminator*/);
             answer.send_data(condrv, title, true);
+        }
+        else
+        {
+            auto shadow = view{ title };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.count = static_cast<ui32>(toANSI.size() + 1 /*null terminator*/);
+            answer.send_data(condrv, toANSI, true);
         }
     }
     auto api_window_title_set                ()
@@ -3213,21 +3222,21 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage));
+        auto utf8_title = text{};
         if (packet.input.utf16)
         {
-            toUTF8.clear();
             auto title = take_buffer<wchr, feed::fwd>(packet);
-            utf::to_utf(title, toUTF8);
-            uiterm.wtrack.set(ansi::osc_title, toUTF8);
-            log("\ttitle: ", utf::debase(toUTF8));
+            utf::to_utf(title, utf8_title);
         }
         else
         {
             auto title = take_buffer<char, feed::fwd>(packet);
-            uiterm.wtrack.set(ansi::osc_title, title);
-            log("\ttitle: ", utf::debase(title));
+            if (inpenc->codepage == CP_UTF8) utf8_title = qiew{ title };
+            else                             inpenc->decode_run(title, utf8_title);
         }
-        log("\t", show_page(packet.input.utf16, inpenc->codepage));
+        uiterm.wtrack.set(ansi::osc_title, utf8_title);
+        log(ansi::add("\tdata: ").inv(true).add(utf::debase(utf8_title)).nil());
     }
     auto api_window_font_size_get            ()
     {

@@ -32,6 +32,7 @@ namespace netxs
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
     static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
+    static constexpr auto maxui32 = std::numeric_limits<ui32>::max();
     static constexpr auto debugmode
         #if defined(_DEBUG)
         = true;
