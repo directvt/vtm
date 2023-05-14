@@ -710,8 +710,8 @@ namespace netxs::app::term
                 auto bar = cell{ "▀"sv }.link(slot1->id);
                 auto brush = ptr::shared(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
                 auto winsz = ptr::shared(dot_00);
-                auto visible = ptr::shared(true);
-                auto check_state = ptr::function([state = testy<bool>{}, winsz, visible](base& boss) mutable
+                auto visible = ptr::shared(slot1->back() != boss.This());
+                auto check_state = ptr::function([state = testy<bool>{ true }, winsz, visible](base& boss) mutable
                 {
                     if (state(*visible || winsz->y != 1))
                     {

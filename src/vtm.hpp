@@ -765,14 +765,26 @@ namespace netxs::app::vtm
                     {
                         align.unbind();
                     }
-                    auto item_ptr = e2::form::layout::goprev.param();
-                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::goprev, item_ptr); // Take prev item
-                    else      this->RISEUP(tier::request, e2::form::layout::gonext, item_ptr); // Take next item
+                    auto item_ptr = e2::form::layout::go::item.param();
+                    this->RISEUP(tier::request, e2::form::layout::go::item, item_ptr); // Take current item.
+                    if (item_ptr) item_ptr->SIGNAL(tier::release, e2::form::layout::unselect, gear);
+
+                    item_ptr.reset();
+                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, item_ptr); // Take prev item.
+                    else      this->RISEUP(tier::request, e2::form::layout::go::next, item_ptr); // Take next item.
 
                     if (item_ptr)
                     {
-                        auto center = item_ptr->center();
-                        this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        item_ptr->SIGNAL(tier::release, e2::form::layout::selected, gear);
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                        auto object_area = item_ptr->area() + dent{ 2,2,1,1 };
+                        auto outside = viewport.unite(object_area);
+                        if (outside != viewport)
+                        {
+                            auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
+                            auto center = viewport.center() + coor - viewport.coor;
+                            this->SIGNAL(tier::release, e2::form::layout::shift, center);
+                        }
                         pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     //gear.dismiss();
@@ -1195,21 +1207,44 @@ namespace netxs::app::vtm
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resize, new_size);
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (size_state = dot_11, min_size = dot_00))
+                    auto size_state = ptr::shared(dot_11);
+                    auto last_state = ptr::shared(faux);
+                    auto min_size = ptr::shared(dot_11);
+                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (size_state, min_size, last_state))
+                    {
+                        auto size = boss.base::size();
+                        if (size.y == min_size->y) // Restore if it is minimized.
+                        {
+                            boss.base::resize({ size.x, size_state->y });
+                            *last_state = true;
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (size_state, min_size, last_state))
+                    {
+                        auto size = boss.base::size();
+                        if (*last_state && size.y == size_state->y) // Return to minimized state.
+                        {
+                            *size_state = size;
+                            boss.base::resize({ size.x, 1 });
+                            *min_size = boss.base::size();
+                        }
+                        *last_state = faux;
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (size_state, min_size))
                     {
                         auto This = boss.This();
                         auto size = boss.base::size();
-                        if (size.y == min_size.y)
+                        if (size.y == min_size->y)
                         {
-                            boss.base::resize({ size.x, size_state.y });
+                            boss.base::resize({ size.x, size_state->y });
                             pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                     : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
                         else
                         {
-                            size_state = size;
+                            *size_state = size;
                             boss.base::resize({ size.x, 1 });
-                            min_size = boss.base::size();
+                            *min_size = boss.base::size();
                             // Refocusing.
                             boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                             if (auto parent = boss.parent())
@@ -1219,10 +1254,10 @@ namespace netxs::app::vtm
                                 if (gear_test.second == 1) // If it is the last focused item.
                                 {
                                     auto viewport = gear.owner.base::area();
-                                    auto window = e2::form::layout::goprev.param();
+                                    auto window = e2::form::layout::go::prev.param();
                                     do
                                     {
-                                        parent->SIGNAL(tier::request, e2::form::layout::goprev, window);
+                                        parent->SIGNAL(tier::request, e2::form::layout::go::prev, window);
                                     }
                                     while (window != This && (window->size().y == 1 || !viewport.hittest(window->center())));
                                     if (window != This)
@@ -1485,7 +1520,7 @@ namespace netxs::app::vtm
                 menu_ptr = dbase.menu_ptr;
             };
             //todo unify
-            LISTEN(tier::request, e2::form::layout::gonext, next)
+            LISTEN(tier::request, e2::form::layout::go::next, next)
             {
                 if (items)
                 if (auto next_ptr = items.rotate_next())
@@ -1493,13 +1528,17 @@ namespace netxs::app::vtm
                     next = next_ptr->object;
                 }
             };
-            LISTEN(tier::request, e2::form::layout::goprev, prev)
+            LISTEN(tier::request, e2::form::layout::go::prev, prev)
             {
                 if (items)
                 if (auto prev_ptr = items.rotate_prev())
                 {
                     prev = prev_ptr->object;
                 }
+            };
+            LISTEN(tier::request, e2::form::layout::go::item, item)
+            {
+                if (items) item = items.back();
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {

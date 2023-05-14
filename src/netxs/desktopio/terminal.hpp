@@ -838,7 +838,7 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
-                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); };
+                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
                 vt.intro[ctrl::tab] = V{ p->tab(q.pop_all(ctrl::tab)); };
                 vt.intro[ctrl::eol] = V{ p->lf (q.pop_all(ctrl::eol)); }; // LF
                 vt.intro[ctrl::vt ] = V{ p->lf (q.pop_all(ctrl::vt )); }; // VT same as LF
