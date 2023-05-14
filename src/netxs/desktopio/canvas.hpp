@@ -95,11 +95,14 @@ namespace netxs
                 switch (fifo::desub(mode))
                 {
                     case mode_RGB:
-                        chan.r = queue.subarg(0);
+                    {
+                        auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
+                        chan.r = r == -1 ? queue.subarg(0) : r;
                         chan.g = queue.subarg(0);
                         chan.b = queue.subarg(0);
                         chan.a = queue.subarg(0xFF);
                         break;
+                    }
                     case mode_256:
                         token = netxs::letoh(color256[queue.subarg(0)]);
                         break;

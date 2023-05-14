@@ -1538,7 +1538,7 @@ namespace netxs::ansi
                         {
                             auto c = ascii.front();
                             if (trap(c)) continue;
-                            push(0); // Default zero parameter expressed by standalone delimiter/semicolon.
+                            push(fifo::skip); // Default parameter expressed by standalone delimiter/semicolon.
                             a = c; // Delimiter or cmd after number.
                         }
                         ascii.pop_front();
