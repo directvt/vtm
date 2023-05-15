@@ -1046,13 +1046,15 @@ struct consrv
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
             auto& inpenc = *server.inpenc;
+            log("\thandle 0x", utf::to_hex(packet.target), ":",
+              "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
+              "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
             if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
             {
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
-                log("\thandle 0x", utf::to_hex(packet.target),
-                    "\n\tread rest line: ", ansi::inv(true).add(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                               : data)).nil());
+                log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                              : data)));
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1062,8 +1064,7 @@ struct consrv
             {
                 auto data = inpenc.encode(cooked.rest, readstep);
                 auto size = (ui32)data.size();
-                log("\thandle 0x", utf::to_hex(packet.target),
-                    "\n\tread rest line: ", ansi::inv(true).add(utf::debase<faux, faux>(data)).nil());
+                log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
@@ -1098,20 +1099,16 @@ struct consrv
                         else                    cooked.ustr = initdata;
                         readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, client.inputs);
                     }
-                    else readchar(lock, cancel, packet.input.utf16);
-
-                    if (cooked.ustr.size())
+                    else
                     {
-                        log("\thandle 0x", utf::to_hex(packet.target),
-                            "\n\tread line: ", ansi::inv(true).add(utf::debase<faux, faux>(cooked.ustr)).nil());
+                        readchar(lock, cancel, packet.input.utf16);
                     }
-
                     if (closed || cancel)
                     {
+                        log("\thandle 0x", utf::to_hex(packet.target), ": task canceled");
                         cooked.drop();
                         return;
                     }
-
                     reply<true>(packet, answer, readstep);
                 });
                 server.answer = {};
@@ -1254,6 +1251,7 @@ struct consrv
         ui32 codepage{ CP_UTF8 }; // decoder: .
         byte defchar1{}; // decoder: .
         byte defchar2{}; // decoder: .
+        byte lastbyte{}; // decoder: .
         buff leadbyte{}; // decoder: .
         vecW BMPtoOEM{}; // decoder: .
         vecA OEMtoBMP{}; // decoder: .
@@ -1332,10 +1330,9 @@ struct consrv
                     }
                 }
                 ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), (si32)oem.size(), OEMtoBMP.data(), (si32)OEMtoBMP.size());
-
                 if constexpr (debugmode)
                 {
-                    auto t = text{};
+                    auto t = "OEM to BMP lookup table:\n"s;
                     auto n = 0;
                     //auto u = oem.begin();
                     t += utf::to_hex<true>(n >> 4, 3) + "0: ";
@@ -1359,7 +1356,7 @@ struct consrv
                 auto bmp = std::vector<wchr>(65536, 0);
                 auto tmp = std::vector<byte>(65536 * 2, 0);
                 auto i = 0;
-                for (auto& b : bmp) b = i;
+                for (auto& b : bmp) b = i++;
                 ::WideCharToMultiByte(codepage, 0, bmp.data(), (si32)bmp.size(), (char *)tmp.data(), (si32)tmp.size(), 0, 0);
                 auto ptr = tmp.begin();
                 for (auto& d : BMPtoOEM)
@@ -1368,6 +1365,25 @@ struct consrv
                     if (test(c)) d = ((ui16)c << 8) + *ptr++;
                     else         d = c;
                 }
+                if constexpr (debugmode)
+                {
+                    auto t = "BMP to OEM lookup table:\n"s;
+                    auto n = 0;
+                    t += utf::to_hex<true>(n >> 4, 3) + "0: ";
+                    for (auto c : BMPtoOEM)
+                    {
+                        c = OEMtoBMP[c];
+                        t += ansi::ocx(20 + 6 + (n % 16) * 3);
+                        if (c < ' ' || c == 0x7f) t += ansi::fgc(blacklt).add(utf::to_hex<true>(c, 2)).nil();
+                        else                      t += ansi::inv(true).scp().add("  ").rcp().add(utf::to_utf(c)).nil();
+                        if (++n % 16 == 0)
+                        {
+                            t += "\n" + utf::to_hex<true>(n >> 4, 3) + "0: ";
+                        }
+                    }
+                    log("-------------------------\n", t, "\n-------------------------");
+                }
+
                 return true;
             }
             else return faux;
@@ -1436,6 +1452,12 @@ struct consrv
                 utf::to_utf(bmp, toUTF8);
             }
         }
+        auto decode_log(view toANSI)
+        {
+            auto utf8 = text{};
+            decode_run(toANSI, utf8);
+            return utf8;
+        }
         auto decode(text& toANSI, text& toUTF8)
         {
             auto last = toANSI.back();
@@ -1457,6 +1479,10 @@ struct consrv
         {
             return BMPtoOEM[code];
         }
+        void reset()
+        {
+            lastbyte = 0;
+        }
         auto encode(view& utf8, ui32 readstep = maxui32)
         {
             auto crop = text{};
@@ -1464,26 +1490,42 @@ struct consrv
             auto rest = readstep;
             if (auto iter = utf::cpit{ utf8 })
             {
-                do
+                if (lastbyte)
+                {
+                    auto next = iter.next();
+                    done += next.utf8len;
+                    crop.push_back(lastbyte);
+                    rest--;
+                    lastbyte = 0;
+                }
+                while (iter && rest)
                 {
                     auto next = iter.next();
                     auto code = next.correct ? BMPtoOEM[next.cdpoint]
-                                          : defchar();
+                                             : defchar();
                     auto size = code < 256 ? 1u : 2u;
-                    if (rest < size) break;
-                    if (code < 256)
+                    if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
                     {
-                        crop.push_back((byte)code);
+                        crop.push_back(code >> 8);
+                        lastbyte = code & 0xFF;
+                        rest -= 1;
+                        assert(rest == 0);
                     }
                     else
                     {
-                        crop.push_back(code >> 8);
-                        crop.push_back(code & 0xFF);
+                        if (code < 256)
+                        {
+                            crop.push_back((byte)code);
+                        }
+                        else
+                        {
+                            crop.push_back(code >> 8);
+                            crop.push_back(code & 0xFF);
+                        }
+                        rest -= size;
+                        done += next.utf8len;
                     }
-                    rest -= size;
-                    done += next.utf8len;
                 }
-                while (iter);
             }
             utf8.remove_prefix(done);
             return crop;
@@ -2005,6 +2047,7 @@ struct consrv
             handle.toANSI.clear();
             handle.toUTF8.clear();
         }
+        if (!is_output) inpenc->reset();
     }
     auto api_process_mode_get                ()
     {
@@ -2115,16 +2158,17 @@ struct consrv
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
         if (!packet.input.utf16 && inpenc->codepage != CP_UTF8)
         {
-            toANSI.clear();
-            inpenc->decode_run(initdata, toANSI);
-            initdata = toANSI;
+            toUTF8.clear();
+            inpenc->decode_run(initdata, toUTF8);
+            initdata = toUTF8;
         }
-        log("\tnamesize: ", namesize);
-        log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
-        log("\treadstep: ", readstep);
-        log("\tinitdata: ", packet.input.utf16 ? "UTF-16: " + utf::debase(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2))) :
-                   inpenc->codepage == CP_UTF8 ? "UTF-8: "  + utf::debase(initdata) :
-                                                 "OEM-" + std::to_string(inpenc->codepage) + ": " + utf::debase(initdata));
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            "\n\tnamesize: ", namesize,
+            "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
+            "\n\treadstep: ", readstep,
+            "\n\tinitdata: ", ansi::hi(packet.input.utf16 ? utf::debase<faux, faux>(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2)))
+                            : inpenc->codepage == CP_UTF8 ? utf::debase<faux, faux>(initdata)
+                                                          : utf::debase<faux, faux>(toUTF8)));
         events.placeorder(packet, nameview, initdata, readstep);
     }
     auto api_events_clear                    ()
@@ -2331,7 +2375,7 @@ struct consrv
                     datasize = 0;
                 }
                 log("\t", show_page(packet.input.utf16, codec.codepage),
-                    "\n\ttext: ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
+                    ": ", ansi::hi(utf::debase<faux, faux>(crop)));
                 scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
@@ -3189,7 +3233,7 @@ struct consrv
         //todo differentiate titles by category
         auto& title = uiterm.wtrack.get(ansi::osc_title);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-            ansi::add("\n\tdata: ").inv(true).add(utf::debase(title)).nil());
+            ansi::add(": ").hi(utf::debase(title)));
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -3236,7 +3280,7 @@ struct consrv
             else                             inpenc->decode_run(title, utf8_title);
         }
         uiterm.wtrack.set(ansi::osc_title, utf8_title);
-        log(ansi::add("\tdata: ").inv(true).add(utf::debase(utf8_title)).nil());
+        log(ansi::add("\tdata: ").hi(utf::debase(utf8_title)));
     }
     auto api_window_font_size_get            ()
     {

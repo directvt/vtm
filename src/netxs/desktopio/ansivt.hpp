@@ -560,6 +560,10 @@ namespace netxs::ansi
                                                                                                  c.chan.b, 'm');
             else return block;
         }
+        template<class ...Args>
+        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // esc: Add highlighted message.
+        template<class ...Args>
+        auto& err(Args&&... data) { return fgc(redlt).add(std::forward<Args>(data)...).nil(); } // esc: Add error message.
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)
@@ -942,7 +946,9 @@ namespace netxs::ansi
     template<class ...Args>
     static auto add(Args&&... data)   { return esc{}.add(std::forward<Args>(data)...); } // ansi: Add text.
     template<class ...Args>
-    static auto err(Args&&... data)   { return esc{}.fgc(redlt).add(std::forward<Args>(data)...).nil(); } // ansi: Add error message.
+    static auto err(Args&&... data)   { return esc{}.err(std::forward<Args>(data)...); } // ansi: Add error message.
+    template<class ...Args>
+    static auto hi(Args&&... data)    { return esc{}.hi(std::forward<Args>(data)...); } // ansi: Add highlighted message.
     static auto cup(twod const& n)    { return esc{}.cup(n);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return esc{}.cuu(n);        } // ansi: Caret up.
     static auto cud(si32 n)           { return esc{}.cud(n);        } // ansi: Caret down.
