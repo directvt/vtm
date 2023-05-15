@@ -148,7 +148,6 @@ namespace netxs::events::userland
             SUBSET_XS( form )
             {
                 EVENT_XS( canvas   , sptr<core>     ), // request global canvas.
-                EVENT_XS( quit     , sptr<ui::base> ), // request parent for destroy.
                 GROUP_XS( layout   , const twod     ),
                 GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
                 GROUP_XS( upon     , bool           ),
@@ -286,11 +285,17 @@ namespace netxs::events::userland
                     EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
+                    GROUP_XS( quit      , sptr<ui::base> ), // request parent for destroy.
                     //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
                     //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
+
+                    SUBSET_XS( quit )
+                    {
+                        EVENT_XS( one, sptr<ui::base> ), // Signal to close.
+                    };
                 };
                 SUBSET_XS( cursor )
                 {

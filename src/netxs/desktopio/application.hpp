@@ -169,7 +169,7 @@ namespace netxs::app::shared
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
+                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, boss.This());
                                     gear.dismiss();
                                 };
                             })
@@ -325,9 +325,9 @@ namespace netxs::app::shared
     };
     const auto closing_on_quit = [](auto& boss)
     {
-        boss.LISTEN(tier::anycast, e2::form::quit, item)
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
         {
-            boss.RISEUP(tier::release, e2::form::quit, item);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -335,13 +335,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
             gear.dismiss();
         };
     };

@@ -3453,7 +3453,7 @@ namespace netxs::ui
             }
 
 
-            LISTEN(tier::release, e2::form::quit, initiator, tokens)
+            LISTEN(tier::release, e2::form::proceed::quit::any, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
                 canal.shut();
@@ -3536,7 +3536,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
-                this->SIGNAL(tier::preview, e2::form::quit, this->This());
+                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, this->This());
                 log("gate: ", msg);
                 canal.shut();
                 paint.stop();

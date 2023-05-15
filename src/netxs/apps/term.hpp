@@ -319,7 +319,7 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
                 });
             }
             static void TerminalFullscreen(ui::pads& boss, menu::item& item)
@@ -756,14 +756,14 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, boss_ptr)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::quit, boss_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, boss_ptr);
                     };
-                    boss.LISTEN(tier::preview, e2::form::quit, item_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, item_ptr)
                     {
                         boss.stop();
-                        boss.RISEUP(tier::release, e2::form::quit, item_ptr);
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, item_ptr);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                     {

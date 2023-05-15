@@ -130,9 +130,10 @@ namespace netxs::app::vtm
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, newfoot);
 
-                boss.LISTEN(tier::preview, e2::form::quit, boss_ptr, memo)
+                boss.LISTEN(tier::preview, e2::form::proceed::quit::one, boss_ptr, memo)
                 {
-                    unbind(type::full);
+                    unbind();
+                    boss.router<tier::preview>().skip();
                 };
                 boss.LISTEN(tier::release, e2::size::any, size, memo, (pads))
                 {
@@ -140,24 +141,21 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
-                    if (memo) unbind();
+                    unbind();
                 };
                 window_ptr->LISTEN(tier::release, e2::form::layout::minimize, gear, memo)
                 {
-                    if (memo)
-                    {
-                        what.applet->bell::expire<tier::release>(); // Suppress minimization.
-                        unbind();
-                    }
+                    what.applet->bell::expire<tier::release>(); // Suppress minimization.
+                    unbind();
                 };
-                window_ptr->LISTEN(tier::release, e2::form::quit, any_ptr, memo)
+                window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, any_ptr, memo)
                 {
-                    release();
-                    what.applet.reset();
+                    unbind();
+                    boss.router<tier::release>().skip();
                 };
                 window_ptr->LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
-                    if (memo && coor != new_coor) unbind(type::size);
+                    if (coor != new_coor) unbind(type::size);
                 };
                 window_ptr->LISTEN(tier::release, e2::form::prop::ui::header, newhead, memo)
                 {
@@ -172,18 +170,15 @@ namespace netxs::app::vtm
                 window_ptr->SIGNAL(tier::anycast, vtm::events::attached, boss.base::This());
                 pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
             }
-            void release()
+            void unbind(type restore = type::full)
             {
+                if (!memo) return;
                 nexthop = saved;
                 saved.reset();
                 memo.clear();
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::header, what.header);
                 boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, what.footer);
-                boss.SIGNAL(tier::anycast, e2::form::layout::restore, what, ()); // Notify app::desk to suppess triggering.
-            }
-            void unbind(type restore = type::full)
-            {
-                release();
+                boss.SIGNAL(tier::anycast, e2::form::layout::restore, empty, ()); // Notify app::desk to suppress triggering.
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 window_ptr->base::detach();
@@ -1303,7 +1298,7 @@ namespace netxs::app::vtm
                         boss.mouse.reset();
                         boss.base::detach(); // The object kills itself.
                     };
-                    boss.LISTEN(tier::release, e2::form::quit, nested_item)
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, nested_item)
                     {
                         boss.mouse.reset();
                         if (nested_item) boss.base::detach(); // The object kills itself.

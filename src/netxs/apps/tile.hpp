@@ -191,7 +191,7 @@ namespace netxs::app::tile
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                                     break;
                                 case app::tile::events::ui::close.id:
-                                    boss.RISEUP(tier::preview, e2::form::quit, boss.This());
+                                    boss.RISEUP(tier::preview, e2::form::proceed::quit::one, boss.This());
                                     break;
                                 case app::tile::events::ui::toggle.id:
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
@@ -238,12 +238,12 @@ namespace netxs::app::tile
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
             //    gear.dismiss();
             //};
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
             //    gear.dismiss();
             //};
         };
@@ -305,7 +305,7 @@ namespace netxs::app::tile
                                     auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
                                     world_ptr->SIGNAL(tier::request, vtm::events::handoff, what); // Attach to the world.
                                     pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
-                                    master.RISEUP(tier::release, e2::form::quit, master_ptr); // Destroy placeholder.
+                                    master.RISEUP(tier::release, e2::form::proceed::quit::one, master_ptr); // Destroy placeholder.
                                 }
 
                                 // Redirect this mouse event to the new world's window.
@@ -428,7 +428,7 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
                         gear.dismiss(true);
                     };
                 }},
@@ -661,19 +661,19 @@ namespace netxs::app::tile
                             pro::focus::set(slot_2->back(), gear_id, pro::focus::solo::off, pro::focus::flip::off);
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, nested_item_ptr)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::quit, nested_item_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, nested_item_ptr);
                     };
-                    boss.LISTEN(tier::preview, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, nested_item_ptr)
                     {
                         if (boss.count() > 1 && boss.back()->base::kind() == 0)
                         {
-                            boss.back()->SIGNAL(tier::anycast, e2::form::quit, nested_item_ptr);
+                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, nested_item_ptr);
                         }
-                        else boss.SIGNAL(tier::release, e2::form::quit, nested_item_ptr);
+                        else boss.SIGNAL(tier::release, e2::form::proceed::quit::one, nested_item_ptr);
                     };
-                    boss.LISTEN(tier::release, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, nested_item_ptr)
                     {
                         if (auto parent = boss.base::parent())
                         if (nested_item_ptr)
@@ -924,9 +924,9 @@ namespace netxs::app::tile
             object->attach(slot::_1, menu_block)
                   ->invoke([](auto& boss)
                   {
-                      boss.LISTEN(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
                       {
-                          boss.RISEUP(tier::release, e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
                       };
                   });
             menu_data->colors(cB.fgc(), cB.bgc())

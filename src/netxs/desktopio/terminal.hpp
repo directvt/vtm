@@ -6454,7 +6454,7 @@ namespace netxs::ui
                 {
                     netxs::events::enqueue(This(), [&](auto& boss)
                     {
-                        this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                        this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
                     });
                 };
                 auto chose_proc = [&]
@@ -7648,7 +7648,7 @@ namespace netxs::ui
             netxs::events::enqueue(This(), [&](auto& boss)
             {
                 //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
-                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.
