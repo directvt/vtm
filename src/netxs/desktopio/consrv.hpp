@@ -1717,6 +1717,14 @@ struct consrv
     }
     auto api_system_langid_get               ()
     {
+        static const auto langmap = std::unordered_map<ui32, ui16>
+        {
+            { 932,   MAKELANGID(LANG_JAPANESE, SUBLANG_DEFAULT            ) },
+            { 936,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_SIMPLIFIED ) },
+            { 949,   MAKELANGID(LANG_KOREAN  , SUBLANG_KOREAN             ) },
+            { 950,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_TRADITIONAL) },
+            { 65001, MAKELANGID(LANG_ENGLISH , SUBLANG_ENGLISH_US         ) },
+        };
         log(prompt, "GetConsoleLangId");
         struct payload : drvpacket<payload>
         {
@@ -1727,10 +1735,17 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        answer.status = nt::status::not_supported;
-        log("\tlangid not supported");
-        //packet.reply.langid = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
-        //log("\treply.langid ", packet.reply.langid);
+        auto winuicp = ::GetACP();
+        if (winuicp != 65001 && langmap.contains(winuicp))
+        {
+            packet.reply.langid = netxs::map_or(langmap, outenc->codepage, 65001);
+            log("\tlang id: 0x", utf::to_hex(packet.reply.langid));
+        }
+        else
+        {
+            answer.status = nt::status::not_supported;
+            log("\tlang id not supported");
+        }
     }
     auto api_system_mouse_buttons_get_count  ()
     {

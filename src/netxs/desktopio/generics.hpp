@@ -923,10 +923,10 @@ namespace netxs
         }
     }
     template<class Map, class Key, class FBKey>
-    auto& map_or(Map& map, Key const& key, FBKey const& fallback)
+    auto& map_or(Map& map, Key const& key, FBKey const& fallback) // Note: The map must contain a fallback.
     {
         auto const it = map.find(key);
-        return it == map.end() ? map[fallback]
+        return it == map.end() ? map.at(fallback)
                                : it->second;
     }
 }
