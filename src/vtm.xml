@@ -98,6 +98,7 @@ R"==(
             <fps      = 60   />
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
+            <tracking = on   /> <!-- Mouse cursor highlighting. -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->

@@ -517,9 +517,9 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (focus.empty() || !alive) return;
+                    static constexpr auto title_fg_color = rgba{ 0xFFffffff };
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
-                    auto title_fg_color = rgba{ 0xFFffffff };
                     auto bright = skin::color(tone::brighter);
                     auto shadow = skin::color(tone::shadower);
                     //todo unify, make it more contrast
@@ -553,7 +553,7 @@ namespace netxs::ui
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
-                if (keybd_only) return;
+                if (keybd_only || !skin::globals().tracking) return;
                 // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
@@ -3754,6 +3754,7 @@ namespace netxs::ui
             g.menu_white     = config.take("menu_white"            , cell{});
             g.menu_black     = config.take("menu_black"            , cell{});
             g.lucidity       = config.take("lucidity");
+            g.tracking       = config.take("tracking"              , true);
             g.bordersz       = config.take("bordersz"              , dot_11);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
