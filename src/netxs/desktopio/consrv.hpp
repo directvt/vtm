@@ -2922,7 +2922,7 @@ struct consrv
                 auto recs = wrap<char>::cast(buffer, count);
                 if (codec.codepage == CP_UTF8)
                 {
-                    count = std::min<si32>(count, toUTF8.size());
+                    count = std::min(count, (si32)toUTF8.size());
                     toUTF8.resize(count);
                     std::copy(toUTF8.begin(), toUTF8.end(), recs.begin());
                     log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
@@ -2932,7 +2932,7 @@ struct consrv
                     toANSI.clear();
                     auto utf8 = netxs::view{ toUTF8 };
                     codec.encode(utf8, toANSI, count);
-                    count = std::min<si32>(count, toANSI.size());
+                    count = std::min(count, (si32)toANSI.size());
                     std::copy(toANSI.begin(), toANSI.end(), recs.begin());
                     log("\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
                 }
@@ -2943,7 +2943,7 @@ struct consrv
                 toWIDE.clear();
                 utf::to_utf(toUTF8, toWIDE);
                 auto recs = wrap<wchr>::cast(buffer, count);
-                count = std::min<si32>(count, toWIDE.size());
+                count = std::min(count, (si32)toWIDE.size());
                 toWIDE.resize(count);
                 std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
                 log("\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
