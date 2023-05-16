@@ -634,7 +634,7 @@ namespace netxs::ansi
                     if constexpr (UseSGR) basevt::nil();
                 }
             }
-            return *this;
+            return block;
         }
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region) // basevt: Ansify/textify content of specified region.
@@ -941,6 +941,11 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // esc: Set object id link.
     };
 
+    template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+    static auto s11n(core const& canvas, rect region) // ansi: Ansify/textify content of specified region.
+    {
+        return esc{}.s11n<UseSGR, Initial, Finalize>(canvas, region);
+    }
     template<class ...Args>
     static auto clipbuf(Args&&... data) { return esc{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
     template<class ...Args>

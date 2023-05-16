@@ -440,6 +440,7 @@ struct consrv
             auto lock = std::lock_guard{ locker };
             ondata.flush();
             buffer.clear();
+            cooked.drop();
         }
         auto generate(wchr c, ui32 s = 0, ui16 v = 0)
         {
@@ -1392,6 +1393,21 @@ struct consrv
         {
             return charsize == 1 ? (utfx)defchar1 : ((utfx)defchar1 << 8) + defchar2;
         }
+        auto decode_char(utfx code)
+        {
+            static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
+                                              L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
+                                              L'⌂' };
+                 if (code < 0x20 || code == 0x7F) code = *(c0_wchr.begin() + std::min<size_t>(code, c0_wchr.size() - 1));
+            else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
+            else                                  code = defchar();
+            return code;
+        }
+        auto decode_char(byte lead, byte next)
+        {
+            auto code = ((ui16)lead << 8) + next;
+            return decode_char(code);
+        }
         auto decode(utfx code)
         {
             if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
@@ -1405,12 +1421,12 @@ struct consrv
         }
         auto decode(utfx code, text& toUTF8)
         {
-            static constexpr auto c0 = { " ", "☺", "☻", "♥", "♦", "♣", "♠", "•", "◘", "○", "◙", "♂", "♀", "♪", "♫", "☼",
-                                         "►", "◄", "↕", "‼", "¶", "§", "▬", "↨", "↑", "↓", "→", "←", "∟", "↔", "▲", "▼",
-                                         "⌂" };
+            static constexpr auto c0_view = { " "sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
+                                              "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
+                                              "⌂"sv };
             if (code < 0x20 || code == 0x7F)
             {
-                toUTF8 += *(c0.begin() + std::min<size_t>(code, c0.size() - 1));
+                toUTF8 += *(c0_view.begin() + std::min<size_t>(code, c0_view.size() - 1));
             }
             else
             {
@@ -1483,9 +1499,8 @@ struct consrv
         {
             lastbyte = 0;
         }
-        auto encode(view& utf8, ui32 readstep = maxui32)
+        void encode(view& utf8, text& crop, ui32 readstep = maxui32)
         {
-            auto crop = text{};
             auto done = size_t{};
             auto rest = readstep;
             if (auto iter = utf::cpit{ utf8 })
@@ -1528,6 +1543,11 @@ struct consrv
                 }
             }
             utf8.remove_prefix(done);
+        }
+        auto encode(view& utf8, ui32 readstep = maxui32)
+        {
+            auto crop = text{};
+            encode(utf8, crop, readstep);
             return crop;
         }
 
@@ -1540,6 +1560,19 @@ struct consrv
 
     //enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
     enum type : ui32 { undefined, ansiOEM, realUTF16, attribute, fakeUTF16 };
+
+    auto& langmap()
+    {
+        static const auto langmap = std::unordered_map<ui32, ui16>
+        {
+            { 932,   MAKELANGID(LANG_JAPANESE, SUBLANG_DEFAULT            ) },
+            { 936,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_SIMPLIFIED ) },
+            { 949,   MAKELANGID(LANG_KOREAN  , SUBLANG_KOREAN             ) },
+            { 950,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_TRADITIONAL) },
+            { 65001, MAKELANGID(LANG_ENGLISH , SUBLANG_ENGLISH_US         ) },
+        };
+        return langmap;
+    }
 
     auto attr_to_brush(ui16 attr)
     {
@@ -1570,6 +1603,13 @@ struct consrv
         if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
         if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
         return attr;
+    }
+    auto set_half(auto wdt, auto& attr)
+    {
+        if (wdt >= 2)
+        {
+            attr |= (wdt - 1) << 8; // Apply COMMON_LVB_LEADING_BYTE / COMMON_LVB_TRAILING_BYTE;
+        }
     }
     template<class RecType, feed Input, class T>
     auto take_buffer(T&& packet)
@@ -1717,14 +1757,6 @@ struct consrv
     }
     auto api_system_langid_get               ()
     {
-        static const auto langmap = std::unordered_map<ui32, ui16>
-        {
-            { 932,   MAKELANGID(LANG_JAPANESE, SUBLANG_DEFAULT            ) },
-            { 936,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_SIMPLIFIED ) },
-            { 949,   MAKELANGID(LANG_KOREAN  , SUBLANG_KOREAN             ) },
-            { 950,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_TRADITIONAL) },
-            { 65001, MAKELANGID(LANG_ENGLISH , SUBLANG_ENGLISH_US         ) },
-        };
         log(prompt, "GetConsoleLangId");
         struct payload : drvpacket<payload>
         {
@@ -1736,9 +1768,9 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         auto winuicp = ::GetACP();
-        if (winuicp != 65001 && langmap.contains(winuicp))
+        if (winuicp != 65001 && langmap().contains(winuicp))
         {
-            packet.reply.langid = netxs::map_or(langmap, outenc->codepage, 65001);
+            packet.reply.langid = netxs::map_or(langmap(), outenc->codepage, 65001);
             log("\tlang id: 0x", utf::to_hex(packet.reply.langid));
         }
         else
@@ -2395,7 +2427,7 @@ struct consrv
             }
             else
             {
-                log("\trest: ", utf::debase<faux, faux>(scroll_handle.toUTF8),
+                log("\trest: ", ansi::hi(utf::debase<faux, faux>(scroll_handle.toUTF8)),
                   "\n\tsize: ", scroll_handle.toUTF8.size());
             }
             packet.reply.count = datasize;
@@ -2535,16 +2567,137 @@ struct consrv
         mirror.view(crop);
         if (!recs.empty() && crop)
         {
-            auto& dest = (rich&)mirror;
-            auto  copy = netxs::raster(recs, view);
-            netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+            auto copy = netxs::raster(recs, view);
+            auto& codec = *outenc;
+            if (!packet.input.utf16 && codec.codepage != CP_UTF8) // Decode from OEM.
             {
+                if (langmap().contains(codec.codepage)) // Decode DBCS to UTF-16.
+                {
+                    auto prev = PCHAR_INFO{};
+                    auto lead = byte{};
+                    netxs::onrect(copy, crop, [&](auto& r)
+                    {
+                        auto& code = r.Char.UnicodeChar;
+                        if (auto w = r.Attributes & COMMON_LVB_SBCSDBCS)
+                        {
+                            if (code && w & COMMON_LVB_LEADING_BYTE)
+                            {
+                                lead = (byte)code;
+                                prev = &r;
+                            }
+                            else
+                            {
+                                if (lead)
+                                {
+                                    code = codec.decode_char(lead, (byte)code);
+                                    prev->Char.UnicodeChar = code;
+                                    lead = {};
+                                }
+                                else // Broken pair.
+                                {
+                                    code = utf::replacement_code;
+                                    r.Attributes &= ~(COMMON_LVB_SBCSDBCS);
+                                }
+                            }
+                        }
+                        else // Single byte character.
+                        {
+                            if (lead) // Unexpected sbcs after lead byte.
+                            {
+                                prev->Char.UnicodeChar = utf::replacement_code;
+                                lead = {};
+                            }
+                            code = codec.decode_char(code);
+                        }
+                    }, [&]
+                    {
+                        lead = {};
+                    });
+                }
+                else // Decode SBCS to UTF-16.
+                {
+                    for (auto& r : recs)
+                    {
+                        auto& code = r.Char.UnicodeChar;
+                        code = codec.decode_char(code);
+                    }
+                }
+            }
+            toUTF8.clear();
+            auto& dest = (rich&)mirror;
+            auto  prev = (cell*)nullptr;
+            auto  skip = faux;
+            auto  code = utfx{};
+            auto eolfx = [&] // Reset state on new line.
+            {
+                prev = {};
+                code = {};
+                skip = {};
+            };
+            auto allfx = [&](auto& dst, auto& src)
+            {
+                //if (src.Char.UnicodeChar == '\0') // Transparent cell support?
+                //{
+                //    dst.txt('\0');
+                //    eolfx();
+                //    return;
+                //}
                 dst.meta(attr_to_brush(src.Attributes));
-                dst.txt(utf::to_utf(src.Char.UnicodeChar));
-            });
+                if (skip) // Right half of wide char.
+                {
+                    dst.txt(toUTF8).wdt(3);
+                    skip = faux;
+                    return;
+                }
+                if (utf::tocode((wchr)src.Char.UnicodeChar, code))
+                {
+                    toUTF8.clear();
+                    utf::to_utf_from_code(code, toUTF8);
+                    auto& prop = unidata::select(code);
+                    code = {};
+                    if (prev)
+                    {
+                        if (prop.ucwidth == unidata::widths::wide)
+                        {
+                            prev->txt(toUTF8).wdt(2);
+                            dst  .txt(toUTF8).wdt(3);
+                        }
+                        else // Narrow surrogate pair.
+                        {
+                            prev->txt(toUTF8).wdt(1);
+                            dst.txt(whitespace);
+                        }
+                        prev = {};
+                    }
+                    else
+                    {
+                        if (prop.ucwidth == unidata::widths::wide)
+                        {
+                            if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
+                            {
+                                dst.txt(toUTF8).wdt(3); // Right half of wide char.
+                            }
+                            else
+                            {
+                                dst.txt(toUTF8).wdt(2); // Left half of wide char.
+                                skip = true;
+                            }
+                        }
+                        else
+                        {
+                            dst.txt(toUTF8).wdt(1); // Narrow character.
+                        }
+                    }
+                }
+                else
+                {
+                    prev = &dst; // Go to the next.
+                }
+            };
+            netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full);
+                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::nonzero for transparency?
             });
             if (!success) crop = {};
         }
@@ -2552,9 +2705,10 @@ struct consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("\tinput.utf16: ", packet.input.utf16 ? "true" : "faux",
-          "\n\tinput.rect: ", view,
-          "\n\treply.rect: ", crop);
+        log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
+            "\n\tinput.rect: ", view,
+            "\n\treply.rect: ", crop,
+            "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_attribute_set        ()
     {
@@ -2739,6 +2893,7 @@ struct consrv
                     mark = src;
                 }
                 dst = attr;
+                set_half(src.wdt(), dst);
             }
             answer.send_data(condrv, recs);
         }
@@ -2844,21 +2999,48 @@ struct consrv
                     auto wdt = src.wdt();
                     if (wdt != 3) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
                     else          dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
+                    set_half(wdt, dst.Attributes);
                 });
             }
             else
             {
-                netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                auto& codec = *outenc;
+                if (codec.codepage == CP_UTF8)
                 {
-                    if (!src.like(mark))
+                    netxs::onbody(dest, copy, [&](auto& dst, auto& src)
                     {
-                        attr = brush_to_attr(src);
-                        mark = src;
-                    }
-                    dst.Attributes = attr;
-                    auto acsii = src.txt();
-                    dst.Char.AsciiChar = acsii.size() ? acsii.front() : ' ';
-                });
+                        auto& attr = dst.Attributes;
+                        if (!src.like(mark))
+                        {
+                            attr = brush_to_attr(src);
+                            mark = src;
+                        }
+                        auto utf8 = src.txt();
+                        auto wdt = src.wdt();
+                        set_half(wdt, attr);
+                        dst.Char.AsciiChar = utf8.size() ? utf8.front() : ' ';
+                    });
+                }
+                else
+                {
+                    netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                    {
+                        auto& attr = dst.Attributes;
+                        if (!src.like(mark))
+                        {
+                            attr = brush_to_attr(src);
+                            mark = src;
+                        }
+                        auto utf8 = src.txt();
+                        auto wdt = src.wdt();
+                        set_half(wdt, attr);
+                        toANSI.clear();
+                        codec.encode(utf8, toANSI);
+                             if (toANSI.empty())                dst.Char.AsciiChar = ' ';
+                        else if (wdt == 3 && toANSI.size() > 1) dst.Char.AsciiChar = toANSI[1];
+                        else                                    dst.Char.AsciiChar = toANSI[0];
+                    });
+                }
             }
             answer.send_data(condrv, recs);
         }
@@ -2868,7 +3050,8 @@ struct consrv
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
         log("\tpanel size: ", window.panel,
           "\n\tinput.rect: ", view,
-          "\n\treply.rect: ", crop);
+          "\n\treply.rect: ", crop,
+          "\n\treply data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_set_active           ()
     {

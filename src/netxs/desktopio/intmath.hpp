@@ -554,8 +554,8 @@ namespace netxs
     // intmath: Intersect two sprites and
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<bool RtoL, class T, class D, class R, class C, class P>
-    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle)
+    template<bool RtoL, class T, class D, class R, class C, class P, class NewlineFx = noop>
+    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = NewlineFx())
     {
         auto& base1 = region.coor;
 
@@ -588,6 +588,7 @@ namespace netxs
             }
             data1 += skip1;
             data2 += skip2;
+            online();
         }
     }
 
@@ -612,8 +613,8 @@ namespace netxs
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<class T, class D, class P>
-    void onbody(T& canvas, D const& bitmap, P handle)
+    template<class T, class D, class P, class NewlineFx = noop>
+    void onbody(T& canvas, D const& bitmap, P handle, NewlineFx online = NewlineFx())
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -623,7 +624,7 @@ namespace netxs
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
 
-            inbody<faux>(canvas, bitmap, joint, basis, handle);
+            inbody<faux>(canvas, bitmap, joint, basis, handle, online);
         }
     }
 
