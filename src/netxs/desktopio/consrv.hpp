@@ -2909,37 +2909,44 @@ struct consrv
         {
             auto head = mirror.iter() + start;
             auto tail = head + count;
+            log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
+            toUTF8.clear();
+            while (head != tail)
+            {
+                auto& src = *head++;
+                if (src.wdt() != 3) toUTF8 += src.txt();
+            }
             if (packet.input.etype == type::ansiOEM)
             {
-                log("\tinput.type: utf-8");
+                auto& codec = *outenc;
                 auto recs = wrap<char>::cast(buffer, count);
-                auto iter = recs.begin();
-                while (head != tail)
+                if (codec.codepage == CP_UTF8)
                 {
-                    auto& src = *head++;
-                    auto& dst = *iter++;
-                    auto acsii = src.txt();
-                    auto wdt = src.wdt();
-                    if (wdt != 3) dst = acsii.size()     ? acsii.front() : ' ';
-                    else          dst = acsii.size() > 1 ? acsii[1]      : ' ';
+                    count = std::min<size_t>(count, toUTF8.size());
+                    toUTF8.resize(count);
+                    std::copy(toUTF8.begin(), toUTF8.end(), recs.begin());
+                    log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                }
+                else
+                {
+                    toANSI.clear();
+                    auto utf8 = netxs::view{ toUTF8 };
+                    codec.encode(utf8, toANSI, count);
+                    count = std::min<size_t>(count, toANSI.size());
+                    std::copy(toANSI.begin(), toANSI.end(), recs.begin());
+                    log("\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
                 }
                 answer.send_data(condrv, recs);
             }
             else
             {
-                log("\tinput.type: utf-16");
+                toWIDE.clear();
+                utf::to_utf(toUTF8, toWIDE);
                 auto recs = wrap<wchr>::cast(buffer, count);
-                auto iter = recs.begin();
-                while (head != tail)
-                {
-                    auto& src = *head++;
-                    auto& dst = *iter++;
-                    toWIDE.clear();
-                    utf::to_utf(src.txt(), toWIDE);
-                    auto wdt = src.wdt();
-                    if (wdt != 3) dst = toWIDE.size()     ? toWIDE.front() : ' ';
-                    else          dst = toWIDE.size() > 1 ? toWIDE[1]      : ' ';
-                }
+                count = std::min<size_t>(count, toWIDE.size());
+                toWIDE.resize(count);
+                std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
+                log("\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
                 answer.send_data(condrv, recs);
             }
         }
