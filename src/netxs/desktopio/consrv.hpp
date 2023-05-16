@@ -2792,9 +2792,9 @@ struct consrv
         else
         {
             log(prompt, "FillConsoleOutputCharacter",
+                        "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                         "\n\tcoord: ", coord,
-                        "\n\tcount: ", count,
-                        "\n\twchar: ", piece);
+                        "\n\tcount: ", count);
             impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
             if (piece <  ' ' || piece == 0x7F) piece = ' ';
             if (piece == ' ' && (si32)count > maxsz)
@@ -2805,8 +2805,16 @@ struct consrv
             else
             {
                 toUTF8.clear();
-                utf::to_utf((wchr)piece, toUTF8);
-                log("\tfill using char: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                if (packet.input.etype != type::ansiOEM)
+                {
+                    utf::to_utf((wchr)piece, toUTF8);
+                }
+                else
+                {
+                    if (outenc->codepage == CP_UTF8) toUTF8.push_back(piece & 0xff);
+                    else                             outenc->decode(piece & 0xff, toUTF8);
+                }
+                log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 auto c = cell{ toUTF8 };
                 auto w = c.wdt();
                 if (w == 1 || w == 2)
@@ -3048,7 +3056,8 @@ struct consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("\tpanel size: ", window.panel,
+        log("\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
+          "\n\tpanel size: ", window.panel,
           "\n\tinput.rect: ", view,
           "\n\treply.rect: ", crop,
           "\n\treply data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
