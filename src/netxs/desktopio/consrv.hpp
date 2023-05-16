@@ -2901,7 +2901,7 @@ struct consrv
                     mark = src;
                 }
                 dst = attr;
-                set_half(src.wdt(), dst);
+                //set_half(src.wdt(), dst);
             }
             answer.send_data(condrv, recs);
         }
@@ -2922,7 +2922,7 @@ struct consrv
                 auto recs = wrap<char>::cast(buffer, count);
                 if (codec.codepage == CP_UTF8)
                 {
-                    count = std::min<size_t>(count, toUTF8.size());
+                    count = std::min<si32>(count, toUTF8.size());
                     toUTF8.resize(count);
                     std::copy(toUTF8.begin(), toUTF8.end(), recs.begin());
                     log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
@@ -2932,7 +2932,7 @@ struct consrv
                     toANSI.clear();
                     auto utf8 = netxs::view{ toUTF8 };
                     codec.encode(utf8, toANSI, count);
-                    count = std::min<size_t>(count, toANSI.size());
+                    count = std::min<si32>(count, toANSI.size());
                     std::copy(toANSI.begin(), toANSI.end(), recs.begin());
                     log("\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
                 }
@@ -2943,7 +2943,7 @@ struct consrv
                 toWIDE.clear();
                 utf::to_utf(toUTF8, toWIDE);
                 auto recs = wrap<wchr>::cast(buffer, count);
-                count = std::min<size_t>(count, toWIDE.size());
+                count = std::min<si32>(count, toWIDE.size());
                 toWIDE.resize(count);
                 std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
                 log("\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
@@ -3014,7 +3014,7 @@ struct consrv
                     auto wdt = src.wdt();
                     if (wdt != 3) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
                     else          dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
-                    set_half(wdt, dst.Attributes);
+                    //set_half(wdt, dst.Attributes);
                 });
             }
             else
@@ -3032,7 +3032,7 @@ struct consrv
                         }
                         auto utf8 = src.txt();
                         auto wdt = src.wdt();
-                        set_half(wdt, attr);
+                        //set_half(wdt, attr);
                         dst.Char.AsciiChar = utf8.size() ? utf8.front() : ' ';
                     });
                 }
