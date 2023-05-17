@@ -2821,15 +2821,23 @@ struct consrv
                 log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 auto c = cell{ toUTF8 };
                 auto w = c.wdt();
-                if (w == 1 || w == 2)
+                if ((si32)count > maxsz) count = std::max(0, maxsz);
+                count *= w;
+                filler.kill();
+                filler.size(count, c);
+                if (w == 2)
                 {
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
-                    filler.kill();
-                    filler.size(count / w, c);
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    auto head = filler.iter();
+                    auto tail = filler.iend();
+                    while (head != tail)
                     {
-                        count = 0;
+                        (++head)->wdt(3);
+                        (++head);
                     }
+                }
+                if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                {
+                    count = 0;
                 }
             }
         }
