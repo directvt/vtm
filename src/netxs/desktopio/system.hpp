@@ -1915,22 +1915,19 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto handle = ::GetCurrentProcess();
-                auto buffer = std::vector<char>(MAX_PATH);
-
+                auto buffer = wide(MAX_PATH, 0);
                 while (buffer.size() <= 32768)
                 {
-                    auto length = ::GetModuleFileNameEx(handle,         // hProcess
-                                                        NULL,           // hModule
-                                                        buffer.data(),  // lpFilename
-                                     static_cast<DWORD>(buffer.size()));// nSize
+                    auto length = ::GetModuleFileNameExW(handle,         // hProcess
+                                                         NULL,           // hModule
+                                                         buffer.data(),  // lpFilename
+                                      static_cast<DWORD>(buffer.size()));// nSize
                     if (length == 0) break;
-
                     if (buffer.size() > length + 1)
                     {
-                        result = text(buffer.data(), length);
+                        result = utf::to_utf(buffer.data(), length);
                         break;
                     }
-
                     buffer.resize(buffer.size() << 1);
                 }
 

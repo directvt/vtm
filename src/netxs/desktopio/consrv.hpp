@@ -907,7 +907,10 @@ struct consrv
                                         {
                                             line.lyric->utf8(cooked.ustr);
                                             cooked.ustr.push_back('\r');
-                                            cooked.ustr.push_back('\n');
+                                            if (server.inpmod & nt::console::inmode::preprocess)
+                                            {
+                                                cooked.ustr.push_back('\n');
+                                            }
                                         }
                                         else
                                         {
@@ -985,7 +988,7 @@ struct consrv
                         using erase = std::decay_t<decltype(server.uiterm)>::commands::erase;
                         term.el(erase::line::wraps);
 
-                        if (done && crlf)
+                        if (done && crlf && server.inpmod & nt::console::inmode::preprocess) // On PROCESSED_INPUT + ECHO_INPUT only.
                         {
                             term.cr();
                             term.lf(crlf);
@@ -2213,6 +2216,7 @@ struct consrv
             "\n\tnamesize: ", namesize,
             "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
             "\n\treadstep: ", readstep,
+            "\n\treadstop: 0x", utf::to_hex(packet.input.stops),
             "\n\tinitdata: ", ansi::hi(packet.input.utf16 ? utf::debase<faux, faux>(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2)))
                             : inpenc->codepage == CP_UTF8 ? utf::debase<faux, faux>(initdata)
                                                           : utf::debase<faux, faux>(toUTF8)));
