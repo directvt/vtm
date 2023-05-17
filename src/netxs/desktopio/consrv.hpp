@@ -1608,7 +1608,7 @@ struct consrv
     {
         if (wdt >= 2)
         {
-            attr |= (wdt - 1) << 8; // Apply COMMON_LVB_LEADING_BYTE / COMMON_LVB_TRAILING_BYTE;
+            attr |= (wdt - 1) << 8; // Apply COMMON_LVB_LEADING_BYTE / COMMON_LVB_TRAILING_BYTE.
         }
     }
     template<class RecType, feed Input, class T>

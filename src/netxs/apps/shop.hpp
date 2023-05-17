@@ -79,9 +79,8 @@ namespace netxs::app::shop
 
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
-                .bld(faux).fgc(whitelt).jet(bias::left).wrp(wrap::on).add(
-                "Desktopio Application Distribution Platform that allows "
-                "users to browse and download software.\n\n");
+                .bld(true).fgc(whitelt).jet(bias::left).wrp(wrap::on)
+                .add("Desktopio Application Distribution Hub").bld(faux).add("\n\n");
 
                 auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
@@ -217,13 +216,13 @@ namespace netxs::app::shop
                     auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
-                               ->plugin<pro::limit>(twod{ 37,-1 }, twod{ -1,-1 })
+                               ->plugin<pro::limit>(twod{ 42,-1 }, twod{ -1,-1 })
                                ->upload(appstore_head)
                                ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->colors(whitedk, 0xFF0f0f0f)
-                                        ->plugin<pro::limit>(twod{ -1,2 }, twod{ -1,-1 });
+                                        ->plugin<pro::limit>(twod{ -1,-1 }, twod{ -1,-1 });
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())
                                                               ->upload(body)

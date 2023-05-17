@@ -2682,19 +2682,19 @@ namespace netxs::ui
             void read(xmls& config)
             {
                 config.cd("/config/client/");
-                clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
+                clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
                 clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-                clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
-                clip_preview_glow = config.take("clipboard/preview/shadow", 7);
+                clip_preview_alfa = config.take("clipboard/preview/alpha"  , 0xFF);
+                clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
-                clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-                dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
-                tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-                tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
-                tooltip_enabled   = config.take("tooltip/enabled", true);
-                debug_overlay     = config.take("debug/overlay", faux);
-                debug_toggle      = config.take("debug/toggle", "🐞"s);
-                show_regions      = config.take("regions/enabled", faux);
+                clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
+                dblclick_timeout  = config.take("mouse/dblclick"           , span{ 500ms });
+                tooltip_colors    = config.take("tooltips"                 , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+                tooltip_timeout   = config.take("tooltips/timeout"         , span{ 2000ms });
+                tooltip_enabled   = config.take("tooltips/enabled"         , true);
+                debug_overlay     = config.take("debug/overlay"            , faux);
+                debug_toggle      = config.take("debug/toggle"             , "🐞"s);
+                show_regions      = config.take("regions/enabled"          , faux);
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
             }
 
@@ -3754,7 +3754,7 @@ namespace netxs::ui
             g.menu_white     = config.take("menu_white"            , cell{});
             g.menu_black     = config.take("menu_black"            , cell{});
             g.lucidity       = config.take("lucidity");
-            g.tracking       = config.take("tracking"              , true);
+            g.tracking       = config.take("tracking"              , faux);
             g.bordersz       = config.take("bordersz"              , dot_11);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
