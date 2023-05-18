@@ -2582,36 +2582,31 @@ struct consrv
                     netxs::onrect(copy, crop, [&](auto& r)
                     {
                         auto& code = r.Char.UnicodeChar;
-                        if (auto w = r.Attributes & COMMON_LVB_SBCSDBCS)
+                        auto& attr = r.Attributes;
+                        if (auto w = !lead && ((attr & COMMON_LVB_LEADING_BYTE) || codec.test(code & 0xff)))
                         {
-                            if (code && w & COMMON_LVB_LEADING_BYTE)
+                            attr &= ~(COMMON_LVB_SBCSDBCS);
+                            if (code)
                             {
+                                attr |= COMMON_LVB_LEADING_BYTE;
                                 lead = (byte)code;
                                 prev = &r;
                             }
-                            else
-                            {
-                                if (lead)
-                                {
-                                    code = codec.decode_char(lead, (byte)code);
-                                    prev->Char.UnicodeChar = code;
-                                    lead = {};
-                                }
-                                else // Broken pair.
-                                {
-                                    code = utf::replacement_code;
-                                    r.Attributes &= ~(COMMON_LVB_SBCSDBCS);
-                                }
-                            }
                         }
-                        else // Single byte character.
+                        else
                         {
-                            if (lead) // Unexpected sbcs after lead byte.
+                            attr &= ~(COMMON_LVB_SBCSDBCS);
+                            if (lead) // Trailing byte.
                             {
-                                prev->Char.UnicodeChar = utf::replacement_code;
+                                code = codec.decode_char(lead, (byte)code);
+                                attr |= COMMON_LVB_TRAILING_BYTE;
+                                prev->Char.UnicodeChar = code;
                                 lead = {};
                             }
-                            code = codec.decode_char(code);
+                            else // Single byte character.
+                            {
+                                code = codec.decode_char(code);
+                            }
                         }
                     }, [&]
                     {
@@ -2630,7 +2625,7 @@ struct consrv
             toUTF8.clear();
             auto& dest = (rich&)mirror;
             auto  prev = (cell*)nullptr;
-            auto  skip = faux;
+            auto  skip = ui16{};
             auto  code = utfx{};
             auto eolfx = [&] // Reset state on new line.
             {
@@ -2649,26 +2644,29 @@ struct consrv
                 dst.meta(attr_to_brush(src.Attributes));
                 if (skip) // Right half of wide char.
                 {
-                    dst.txt(toUTF8).wdt(3);
-                    skip = faux;
-                    return;
+                    if (skip == src.Char.UnicodeChar)
+                    {
+                        dst.txt(toUTF8, 3);
+                        skip = {};
+                        return;
+                    }
+                    skip = {};
                 }
                 if (utf::tocode((wchr)src.Char.UnicodeChar, code))
                 {
                     toUTF8.clear();
                     utf::to_utf_from_code(code, toUTF8);
                     auto& prop = unidata::select(code);
-                    code = {};
-                    if (prev)
+                    if (prev) // Surrogate pair.
                     {
                         if (prop.ucwidth == unidata::widths::wide)
                         {
-                            prev->txt(toUTF8).wdt(2);
-                            dst  .txt(toUTF8).wdt(3);
+                            prev->txt(toUTF8, 2);
+                            dst  .txt(toUTF8, 3);
                         }
                         else // Narrow surrogate pair.
                         {
-                            prev->txt(toUTF8).wdt(1);
+                            prev->txt(toUTF8, 1);
                             dst.txt(whitespace);
                         }
                         prev = {};
@@ -2679,19 +2677,20 @@ struct consrv
                         {
                             if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
                             {
-                                dst.txt(toUTF8).wdt(3); // Right half of wide char.
+                                dst.txt(toUTF8, 3); // Right half of wide char.
                             }
                             else
                             {
-                                dst.txt(toUTF8).wdt(2); // Left half of wide char.
-                                skip = true;
+                                dst.txt(toUTF8, 2); // Left half of wide char.
+                                skip = src.Char.UnicodeChar;
                             }
                         }
                         else
                         {
-                            dst.txt(toUTF8).wdt(1); // Narrow character.
+                            dst.txt(toUTF8, 1); // Narrow character.
                         }
                     }
+                    code = {};
                 }
                 else
                 {
@@ -3024,43 +3023,71 @@ struct consrv
                     toWIDE.clear();
                     utf::to_utf(src.txt(), toWIDE);
                     auto wdt = src.wdt();
-                    if (wdt != 3) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
-                    else          dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
-                    //set_half(wdt, dst.Attributes);
+                    auto& c = dst.Char.UnicodeChar;
+                    if (toWIDE.size())
+                    {
+                        if (wdt == 1)
+                        {
+                            c = toWIDE[0];
+                        }
+                        else if (wdt == 2) // Left half.
+                        {
+                            c = toWIDE[0];
+                            if (!(c >= 0xd800 && c <= 0xdbff)) // Not the first part of surrogate pair.
+                            {
+                                set_half(wdt, dst.Attributes);
+                            }
+                        }
+                        else if (wdt == 3) // Right half.
+                        {
+                            if (toWIDE.size() > 1)
+                            {
+                                dst.Char.UnicodeChar = toWIDE[1];
+                            }
+                            else
+                            {
+                                dst.Char.UnicodeChar = toWIDE[0];
+                            }
+                            if (!(c >= 0xdc00 && c <= 0xdfff)) // Not the second part of surrogate pair.
+                            {
+                                set_half(wdt, dst.Attributes);
+                            }
+                        }
+                    }
                 });
             }
             else
             {
                 auto& codec = *outenc;
-                if (codec.codepage == CP_UTF8)
+                if (codec.codepage == CP_UTF8) // UTF-8 multibyte: Possible lost data.
                 {
                     netxs::onbody(dest, copy, [&](auto& dst, auto& src)
                     {
-                        auto& attr = dst.Attributes;
                         if (!src.like(mark))
                         {
                             attr = brush_to_attr(src);
                             mark = src;
                         }
+                        dst.Attributes = attr;
                         auto utf8 = src.txt();
                         auto wdt = src.wdt();
                         //set_half(wdt, attr);
                         dst.Char.AsciiChar = utf8.size() ? utf8.front() : ' ';
                     });
                 }
-                else
+                else // OEM multibyte, DBCS: Possible lost data.
                 {
                     netxs::onbody(dest, copy, [&](auto& dst, auto& src)
                     {
-                        auto& attr = dst.Attributes;
                         if (!src.like(mark))
                         {
                             attr = brush_to_attr(src);
                             mark = src;
                         }
+                        dst.Attributes = attr;
                         auto utf8 = src.txt();
                         auto wdt = src.wdt();
-                        set_half(wdt, attr);
+                        set_half(wdt, dst.Attributes);
                         toANSI.clear();
                         codec.encode(utf8, toANSI);
                              if (toANSI.empty())                dst.Char.AsciiChar = ' ';
