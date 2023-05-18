@@ -1039,7 +1039,7 @@ struct consrv
                         }
                     }
                 }
-                buffer.clear();
+                buffer.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
             }
             while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
 
