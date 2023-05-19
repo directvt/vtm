@@ -427,9 +427,9 @@ namespace netxs::app::test
                 ->invoke([](auto& boss)
                 {
                     //boss.keybd.accept(true);
-                    boss.LISTEN(tier::anycast, e2::form::quit, item)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
                     {
-                        boss.RISEUP(tier::release, e2::form::quit, item);
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
                     };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))

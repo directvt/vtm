@@ -443,19 +443,22 @@ namespace netxs::ui
             // w_tracking: Get terminal window property.
             auto& get(text const& property)
             {
-                return props[property];
+                auto& utf8 = props[property];
+                if (property == ansi::osc_title)
+                {
+                    owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
+                }
+                return utf8;
             }
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
-                static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
                 if (property == ansi::osc_label_title)
                 {
                                   props[ansi::osc_label] = txt;
                     auto& utf8 = (props[ansi::osc_title] = txt);
-                    utf8 = jet_left + utf8;
                     owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
@@ -463,7 +466,6 @@ namespace netxs::ui
                     auto& utf8 = (props[property] = txt);
                     if (property == ansi::osc_title)
                     {
-                        utf8 = jet_left + utf8;
                         owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                     }
                 }
@@ -838,7 +840,7 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
-                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); };
+                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
                 vt.intro[ctrl::tab] = V{ p->tab(q.pop_all(ctrl::tab)); };
                 vt.intro[ctrl::eol] = V{ p->lf (q.pop_all(ctrl::eol)); }; // LF
                 vt.intro[ctrl::vt ] = V{ p->lf (q.pop_all(ctrl::vt )); }; // VT same as LF
@@ -6452,7 +6454,7 @@ namespace netxs::ui
                 {
                     netxs::events::enqueue(This(), [&](auto& boss)
                     {
-                        this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                        this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
                     });
                 };
                 auto chose_proc = [&]
@@ -7373,6 +7375,18 @@ namespace netxs::ui
                     }
                 });
             }
+            void handle(s11n::xs::minimize            lock)
+            {
+                auto& m = lock.thing;
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        owner.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                    }
+                });
+            }
             void handle(s11n::xs::expose              lock)
             {
                 netxs::events::enqueue(owner.This(), [&](auto& boss)
@@ -7634,7 +7648,7 @@ namespace netxs::ui
             netxs::events::enqueue(This(), [&](auto& boss)
             {
                 //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
-                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.

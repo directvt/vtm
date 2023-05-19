@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9h";
+    static const auto version = "v0.9.9i";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -102,7 +102,7 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, bool allow_minimize, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -115,9 +115,7 @@ namespace netxs::app::shared
             auto x1 = cell{ c1 }.alpha(0x00);
 
             auto slot1 = ui::veer::ctor();
-
-            auto menuarea = ui::fork::ctor()
-                            ->active();
+            auto menuarea = ui::fork::ctor()->active();
                 auto inner_pads = dent{ 1,2,1,1 };
                 auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
                 auto fader = skin::globals().fader_time;
@@ -169,13 +167,9 @@ namespace netxs::app::shared
                             ->plugin<pro::notes>(" Close ")
                             ->invoke([&](auto& boss)
                             {
-                                #if defined(_DEBUG)
-                                boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
-                                #else
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                                #endif
                                 {
-                                    boss.SIGNAL(tier::anycast, e2::form::quit, boss.This());
+                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, boss.This());
                                     gear.dismiss();
                                 };
                             })
@@ -186,7 +180,7 @@ namespace netxs::app::shared
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(snap::stretch, menusize ? snap::center : snap::tail, ui::gripfx<axis::X, drawfx>::ctor(scrlrail));
+                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail), snap::stretch, menusize ? snap::center : snap::tail);
 
                 auto scrl_grip = scrlarea->attach(scroll_hint);
 
@@ -201,67 +195,62 @@ namespace netxs::app::shared
                 ->invoke([&](ui::park& boss)
                 {
                     scroll_hint->visible(hints, faux);
-                    auto park_shadow = ptr::shadow(scroll_hint);
-                    auto grip_shadow = ptr::shadow(hints);
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (park_shadow, grip_shadow))
+                    auto slim_status = ptr::shared(menusize);
+                    if (allow_minimize)
                     {
-                        if (auto park_ptr = park_shadow.lock())
-                        if (auto grip_ptr = grip_shadow.lock())
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                        {
+                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                            gear.dismiss();
+                        };
+                    }
+                    boss.LISTEN(tier::anycast, e2::form::upon::resize, new_size, -, (slim_status))
+                    {
+                        if (!*slim_status)
                         {
                             auto& limit = boss.plugins<pro::limit>();
                             auto limits = limit.get();
-                            if (limits.min.y == 1)
+                            if (new_size.y < 3)
                             {
-                                park_ptr->config(grip_ptr, snap::stretch, snap::tail);
+                                if (limits.min.y != new_size.y)
+                                {
+                                    limits.min.y = limits.max.y = new_size.y;
+                                    limit.set(limits);
+                                }
+                            }
+                            else if (limits.min.y != 3)
+                            {
                                 limits.min.y = limits.max.y = 3;
+                                limit.set(limits);
                             }
-                            else
-                            {
-                                park_ptr->config(grip_ptr, snap::stretch, snap::center);
-                                limits.min.y = limits.max.y = 1;
-                            }
-                            limit.set(limits);
-                            boss.reflow();
-                            gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (park_shadow, grip_shadow))
+                    boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (slim_status))
                     {
-                        auto size = slim ? 1 : 3;
-                        if (auto park_ptr = park_shadow.lock())
-                        if (auto grip_ptr = grip_shadow.lock())
-                        {
-                            auto& limit = boss.plugins<pro::limit>();
-                            auto limits = limit.get();
-                            limits.min.y = limits.max.y = std::max(0, size);
-                            //todo too hacky
-                            if (limits.min.y == 3)
-                            {
-                                park_ptr->config(grip_ptr, snap::stretch, snap::tail);
-                            }
-                            else
-                            {
-                                park_ptr->config(grip_ptr, snap::stretch, snap::center);
-                            }
-                            limit.set(limits);
-                            boss.reflow();
-                        }
+                        auto& limit = boss.plugins<pro::limit>();
+                        auto limits = limit.get();
+                        *slim_status = slim;
+                        limits.min.y = limits.max.y = slim ? 1 : 3;
+                        limit.set(limits);
+                        boss.reflow();
                     };
                     //todo revise
                     if (menu_items.size()) // Show scrolling hint only if elements exist.
                     {
-                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (park_shadow, grip_shadow))
+                        auto scrl_shadow = ptr::shadow(scroll_hint);
+                        auto grip_shadow = ptr::shadow(hints);
+                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (scrl_shadow, grip_shadow))
                         {
-                            if (auto park_ptr = park_shadow.lock())
+                            if (auto scrl_ptr = scrl_shadow.lock())
                             if (auto grip_ptr = grip_shadow.lock())
                             {
-                                park_ptr->visible(grip_ptr, active);
+                                scrl_ptr->visible(grip_ptr, active);
                                 boss.base::deface();
                             }
                         };
                     }
                 });
-            menu_block->attach(snap::stretch, snap::center, menuarea);
+            menu_block->attach(menuarea, snap::stretch, snap::center);
 
             auto menu = slot1->attach(menu_block);
                     auto border = slot1->attach(ui::mock::ctor())
@@ -270,17 +259,23 @@ namespace netxs::app::shared
                     else if (autohide == faux) slot1->roll();
                     slot1->invoke([&](auto& boss)
                     {
+                        auto border_shadow = ptr::shadow(border);
                         auto menu_shadow = ptr::shadow(menu_block);
                         auto hide_shadow = ptr::shared(autohide);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menu_shadow, hide_shadow))
+                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menu_shadow, hide_shadow, border_shadow))
                         {
                             if (*hide_shadow)
                             if (auto menu_ptr = menu_shadow.lock())
                             {
-                                if (!!hits != (boss.back() == menu_ptr))
+                                auto menu_visible = boss.back() != menu_ptr;
+                                if (!!hits == menu_visible)
                                 {
                                     boss.roll();
                                     boss.reflow();
+                                    if (auto border = border_shadow.lock())
+                                    {
+                                        border->SIGNAL(tier::release, e2::form::state::visible, menu_visible);
+                                    }
                                 }
                             }
                         };
@@ -293,7 +288,7 @@ namespace netxs::app::shared
             auto autohide = config.take("menu/autohide", faux);
             auto menushow = config.take("menu/enabled" , true);
             auto menusize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, menusize, faux, menu_items);
+            return mini(autohide, menushow, menusize, faux, true, menu_items);
         };
         const auto demo = [](xmls& config)
         {
@@ -330,9 +325,9 @@ namespace netxs::app::shared
     };
     const auto closing_on_quit = [](auto& boss)
     {
-        boss.LISTEN(tier::anycast, e2::form::quit, item)
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
         {
-            boss.RISEUP(tier::release, e2::form::quit, item);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -340,13 +335,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::quit, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
             gear.dismiss();
         };
     };
@@ -362,7 +357,7 @@ namespace netxs::app::shared
     {
         auto area = ui::park::ctor();
         auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master);
-        area->branch(snap::stretch, snap::tail, grip)
+        area->branch(grip, snap::stretch, snap::tail)
             ->invoke([&](auto& boss)
             {
                 area->visible(grip, faux);
@@ -439,7 +434,7 @@ namespace netxs::app::shared
                 );
             auto placeholder = ui::park::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->attach(snap::stretch, snap::stretch, msg);
+                ->attach(msg, snap::stretch, snap::stretch);
             window->attach(ui::rail::ctor())
                   ->attach(placeholder);
             return window;

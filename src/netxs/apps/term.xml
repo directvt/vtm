@@ -9,6 +9,7 @@ R"==(
             <shadower = 180  />
             <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
+            <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <selector = 48   />
             <highlight  fgc=purewhite bgc=bluelt      />
             <warning    fgc=whitelt   bgc=yellowdk    />
@@ -75,10 +76,10 @@ R"==(
         </clipboard>
         <viewport coor=0,0/>
         <mouse dblclick=500ms/>
-        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
+        <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
         <glowfx=true/>                      <!-- Show glow effect around selected item. -->
-        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
-        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
+        <debug overlay=0 toggle="🐞"/>  <!-- Display console debug info. -->
+        <regions enabled=0/>            <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
@@ -177,7 +178,7 @@ R"==(
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
+            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
         </selection>
         <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.

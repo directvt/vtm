@@ -60,7 +60,6 @@ namespace netxs::utf
               cpcount { 0    },
               cdpoint { 0    }
         { }
-
         prop(utfx code, size_t size)
             : unidata ( code ),
               utf8len { size },
@@ -68,7 +67,6 @@ namespace netxs::utf
               cpcount { 0    },
               cdpoint { code }
         { }
-
         constexpr
         prop(prop const& attr)
             : unidata (attr),
@@ -756,6 +754,25 @@ namespace netxs::utf
         }
         return code;
     }
+    // Return faux only on first part of surrogate pair.
+    inline bool tocode(wchr c, utfx& code)
+    {
+        auto first_part = c >= 0xd800 && c <= 0xdbff;
+        if (first_part) // First part of surrogate pair.
+        {
+            code = ((c - 0xd800) << 10) + 0x10000;
+        }
+        else
+        {
+            if (c >= 0xdc00 && c <= 0xdfff) // Second part of surrogate pair.
+            {
+                if (code) code |= c - 0xdc00;
+                else      code = utf::replacement_code; // Broken pair.
+            }
+            else code = c;
+        }
+        return !first_part;
+    }
 
     namespace
     {
@@ -797,7 +814,7 @@ namespace netxs::utf
     }
     void to_utf(wchr const* wide_text, size_t size, text& utf8)
     {
-        utf8.reserve(utf8.size() + (size << 2));
+        utf8.reserve(utf8.size() + size * 3/*worst case*/);
         auto code = utfx{ 0 };
         auto tail = wide_text + size;
         while (wide_text < tail)
@@ -1072,6 +1089,13 @@ namespace netxs::utf
                 utf8.resize(dest - base);
             }
         }
+    }
+    template<class W, class R>
+    auto change(view utf8, W const& what, R const& replace)
+    {
+        auto crop = text{ utf8 };
+        change(crop, what, replace);
+        return crop;
     }
 
     template<class TextOrView, class T>

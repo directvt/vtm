@@ -560,6 +560,10 @@ namespace netxs::ansi
                                                                                                  c.chan.b, 'm');
             else return block;
         }
+        template<class ...Args>
+        auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // esc: Add highlighted message.
+        template<class ...Args>
+        auto& err(Args&&... data) { return fgc(redlt).add(std::forward<Args>(data)...).nil(); } // esc: Add error message.
         // basevt: Ansify/textify content of specified region.
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region, cell& state)
@@ -630,7 +634,7 @@ namespace netxs::ansi
                     if constexpr (UseSGR) basevt::nil();
                 }
             }
-            return *this;
+            return block;
         }
         template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
         auto& s11n(core const& canvas, rect region) // basevt: Ansify/textify content of specified region.
@@ -937,12 +941,19 @@ namespace netxs::ansi
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // esc: Set object id link.
     };
 
+    template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
+    static auto s11n(core const& canvas, rect region) // ansi: Ansify/textify content of specified region.
+    {
+        return esc{}.s11n<UseSGR, Initial, Finalize>(canvas, region);
+    }
     template<class ...Args>
     static auto clipbuf(Args&&... data) { return esc{}.clipbuf(std::forward<Args>(data)...); } // ansi: Set clipboard.
     template<class ...Args>
     static auto add(Args&&... data)   { return esc{}.add(std::forward<Args>(data)...); } // ansi: Add text.
     template<class ...Args>
-    static auto err(Args&&... data)   { return esc{}.fgc(redlt).add(std::forward<Args>(data)...).nil(); } // ansi: Add error message.
+    static auto err(Args&&... data)   { return esc{}.err(std::forward<Args>(data)...); } // ansi: Add error message.
+    template<class ...Args>
+    static auto hi(Args&&... data)    { return esc{}.hi(std::forward<Args>(data)...); } // ansi: Add highlighted message.
     static auto cup(twod const& n)    { return esc{}.cup(n);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return esc{}.cuu(n);        } // ansi: Caret up.
     static auto cud(si32 n)           { return esc{}.cud(n);        } // ansi: Caret down.
@@ -1538,7 +1549,7 @@ namespace netxs::ansi
                         {
                             auto c = ascii.front();
                             if (trap(c)) continue;
-                            push(0); // Default zero parameter expressed by standalone delimiter/semicolon.
+                            push(fifo::skip); // Default parameter expressed by standalone delimiter/semicolon.
                             a = c; // Delimiter or cmd after number.
                         }
                         ascii.pop_front();

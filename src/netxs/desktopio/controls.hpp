@@ -230,9 +230,6 @@ namespace netxs::ui
     {
         enum class action { seize, drag, release };
 
-        static constexpr auto max_ratio = si32{ 0xFFFF      };
-        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
-
         sptr client_1; // fork: 1st object.
         sptr client_2; // fork: 2nd object.
         sptr splitter; // fork: Resizing grip.
@@ -280,9 +277,17 @@ namespace netxs::ui
         }
 
     public:
+        static constexpr auto min_ratio = si32{ 0           };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
+
         auto get_ratio()
         {
             return ratio;
+        }
+        auto set_ratio(si32 new_ratio = max_ratio)
+        {
+            ratio = new_ratio;
         }
         void config(si32 s1, si32 s2 = 1)
         {
@@ -898,7 +903,7 @@ namespace netxs::ui
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(snap hz, snap vt, T item_ptr)
+        auto attach(T item_ptr, snap hz, snap vt)
         {
             subset.push_back({ item_ptr, hz, vt, true });
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
@@ -1111,7 +1116,7 @@ namespace netxs::ui
 
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         auto& content(si32 paraid) { return topic[paraid]; }
-        auto upload(view utf8, si32 initial_width = 0)
+        auto upload(view utf8, si32 initial_width = 0) // Don't use cell link id here. Apply it to the parent (with a whole rect coverage).
         {
             source = utf8;
             topic = utf8;

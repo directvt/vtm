@@ -95,11 +95,14 @@ namespace netxs
                 switch (fifo::desub(mode))
                 {
                     case mode_RGB:
-                        chan.r = queue.subarg(0);
+                    {
+                        auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
+                        chan.r = r == -1 ? queue.subarg(0) : r;
                         chan.g = queue.subarg(0);
                         chan.b = queue.subarg(0);
                         chan.a = queue.subarg(0xFF);
                         break;
+                    }
                     case mode_256:
                         token = netxs::letoh(color256[queue.subarg(0)]);
                         break;
@@ -992,7 +995,7 @@ namespace netxs
         }
         auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
-        // cell: Merge the two cells according to visibility and other attributes.
+        // cell: Merge two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
             //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
@@ -1007,7 +1010,7 @@ namespace netxs
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Merge the two cells if text part != '\0'.
+        // cell: Merge two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
             if (c.gc.glyph[1] != 0) fuse(c);
@@ -1044,13 +1047,13 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fusefull(cell const& c)
         {
             fuse(c);
@@ -1222,6 +1225,7 @@ namespace netxs
         auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         auto& link(cell const& c) { id = c.id;          return *this; } // cell: Set link object ID.
         auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
+        auto& txt (view c, si32 w){ gc.set(c, w);       return *this; } // cell: Set Grapheme cluster.
         auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
         auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
         auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
@@ -1392,6 +1396,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst = src; }
             };
+            struct nonzero_t : public brush_t<nonzero_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { if (!src.isnul()) dst = src; }
+            };
             struct fuse_t : public brush_t<fuse_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1505,6 +1514,7 @@ namespace netxs
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
+            static constexpr auto  nonzero =  nonzero_t{};
             static constexpr auto     text =     text_t{};
             static constexpr auto     meta =     meta_t{};
             static constexpr auto   xlight =   xlight_t{};

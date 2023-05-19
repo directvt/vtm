@@ -78,9 +78,7 @@ namespace netxs::app::desk
                         {
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                            auto& area = inst.base::area();
-                            auto center = area.coor + (area.size / 2);
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center, (inst.base::center()));  // Goto to the window.
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
@@ -92,7 +90,7 @@ namespace netxs::app::desk
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.coor + (viewport.size / 2))); // Pull window.
+                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
@@ -120,7 +118,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::anycast, e2::form::quit, data_src);
+                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, data_src);
                             gear.dismiss();
                         }
                     };
@@ -186,7 +184,7 @@ namespace netxs::app::desk
 
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            viewport.coor += gear.area().coor;;
+                            viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
@@ -219,8 +217,7 @@ namespace netxs::app::desk
                         //           // Expose window.
                         //           auto& inst = *app_list.back();
                         //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                        //           auto& area = inst.base::area();
-                        //           auto center = area.coor + (area.size / 2);
+                        //           auto center = inst.base::center();
                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                         //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);
                         //           pro::focus::set(app_list.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
@@ -254,9 +251,10 @@ namespace netxs::app::desk
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto x8 = cell{ c8 }.alpha(0x00);
+            auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
+                ->plugin<pro::fader>(x8, c8, 0ms);
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::shared::version))
-                ->plugin<pro::fader>(x8, c8, 0ms))
+                ->branch(ver_label, ui::snap::tail, ui::snap::tail)
                 ->plugin<pro::notes>(" About ")
                 ->invoke([&](auto& boss)
                 {
@@ -585,7 +583,7 @@ namespace netxs::app::desk
                             gear.dismiss();
                         };
                     });
-                auto disconnect_area = disconnect_park->attach(snap::head, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::head, snap::center);
                 auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
                 auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
                     ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
@@ -597,7 +595,7 @@ namespace netxs::app::desk
                             boss.SIGNAL(tier::general, e2::shutdown, "desk: server shutdown");
                         };
                     });
-                auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::tail, snap::center);
                 auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
             }
             return window;

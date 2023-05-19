@@ -439,14 +439,14 @@ namespace netxs::app::shared
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, boss_ptr)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::quit, boss_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, boss_ptr);
                     };
-                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, boss_ptr)
                     {
                         boss.shut();
-                        boss.RISEUP(tier::release, e2::form::quit, boss_ptr); // Detach base window.
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss_ptr); // Detach base window.
                     };
                 });
         };

@@ -1001,7 +1001,7 @@ namespace netxs::input
         }
         void take(sysfocus& f)
         {
-            if constexpr (debugmode) log("take focus hid:", id, " state:", f.state ? "on":"off");
+            //if constexpr (debugmode) log("foci: take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
             if (f.state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
             else         owner.SIGNAL(tier::release, hids::events::focus::off, *this);

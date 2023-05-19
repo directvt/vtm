@@ -191,7 +191,7 @@ namespace netxs::app::tile
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                                     break;
                                 case app::tile::events::ui::close.id:
-                                    boss.RISEUP(tier::preview, e2::form::quit, boss.This());
+                                    boss.RISEUP(tier::preview, e2::form::proceed::quit::one, boss.This());
                                     break;
                                 case app::tile::events::ui::toggle.id:
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
@@ -238,12 +238,12 @@ namespace netxs::app::tile
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
             //    gear.dismiss();
             //};
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::quit, boss.This());
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
             //    gear.dismiss();
             //};
         };
@@ -305,7 +305,7 @@ namespace netxs::app::tile
                                     auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
                                     world_ptr->SIGNAL(tier::request, vtm::events::handoff, what); // Attach to the world.
                                     pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
-                                    master.RISEUP(tier::release, e2::form::quit, master_ptr); // Destroy placeholder.
+                                    master.RISEUP(tier::release, e2::form::proceed::quit::one, master_ptr); // Destroy placeholder.
                                 }
 
                                 // Redirect this mouse event to the new world's window.
@@ -321,6 +321,12 @@ namespace netxs::app::tile
                         ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
+                            boss.color(0, 0);
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                            {
+                                boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                                gear.dismiss();
+                            };
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 auto shadow = ptr::shadow(boss.This());
@@ -372,6 +378,11 @@ namespace netxs::app::tile
                                 {
                                     anycasting(boss);
                                     //todo implement keydb support
+                                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                                    {
+                                        boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                                        gear.dismiss();
+                                    };
                                 })
                                 ->active());
             return node;
@@ -382,7 +393,7 @@ namespace netxs::app::tile
             auto cC = menu_black;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
+            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true, faux,
             menu::list
             {
                 { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " +", .notes = " New app " } }}),
@@ -417,7 +428,7 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::quit, boss.This());
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
                         gear.dismiss(true);
                     };
                 }},
@@ -450,16 +461,16 @@ namespace netxs::app::tile
                 })
                 ->branch
                 (
-                    snap::center, snap::center,
-                    ui::post::ctor()->upload("Empty Slot", 10)
+                    ui::post::ctor()->upload("Empty Slot", 10),
+                    snap::center, snap::center
                 )
                 ->branch
                 (
-                    snap::stretch, snap::head,
-                    menu_block
+                    menu_block,
+                    snap::stretch, snap::head
                 );
         };
-        auto empty_slot = [](auto&& empty_slot) -> sptr<ui::veer>
+        auto empty_slot = [](auto&& empty_slot, auto min_state) -> sptr<ui::veer>
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
@@ -471,6 +482,27 @@ namespace netxs::app::tile
                                        : cell{ skin::color(tone::menu_black) };
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    {
+                        if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
+                        {
+                            auto ratio = node->get_ratio();
+                            if (ratio == min_ratio)
+                            {
+                                node->set_ratio(saved_ratio);
+                                pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                               : pro::focus::solo::on, pro::focus::flip::off, true);
+                            }
+                            else
+                            {
+                                saved_ratio = ratio;
+                                node->set_ratio(min_state);
+                                min_ratio = node->get_ratio();
+                                pro::focus::off(boss.This(), gear.id);
+                            }
+                            node->base::reflow();
+                        }
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
@@ -613,8 +645,8 @@ namespace netxs::app::tile
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
                             auto newnode = built_node(heading ? 'v':'h', 1, 1, heading ? 1 : 2);
-                            auto empty_1 = empty_slot(empty_slot);
-                            auto empty_2 = empty_slot(empty_slot);
+                            auto empty_1 = empty_slot(empty_slot, ui::fork::min_ratio);
+                            auto empty_2 = empty_slot(empty_slot, ui::fork::max_ratio);
                             auto gear_id = pro::focus::get(boss.This()); // Seize all foci.
                             auto curitem = boss.pop_back();
                             if (boss.empty())
@@ -629,19 +661,19 @@ namespace netxs::app::tile
                             pro::focus::set(slot_2->back(), gear_id, pro::focus::solo::off, pro::focus::flip::off);
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, nested_item_ptr)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::quit, nested_item_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, nested_item_ptr);
                     };
-                    boss.LISTEN(tier::preview, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, nested_item_ptr)
                     {
                         if (boss.count() > 1 && boss.back()->base::kind() == 0)
                         {
-                            boss.back()->SIGNAL(tier::anycast, e2::form::quit, nested_item_ptr);
+                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, nested_item_ptr);
                         }
-                        else boss.SIGNAL(tier::release, e2::form::quit, nested_item_ptr);
+                        else boss.SIGNAL(tier::release, e2::form::proceed::quit::one, nested_item_ptr);
                     };
-                    boss.LISTEN(tier::release, e2::form::quit, nested_item_ptr)
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, nested_item_ptr)
                     {
                         if (auto parent = boss.base::parent())
                         if (nested_item_ptr)
@@ -706,9 +738,9 @@ namespace netxs::app::tile
                 })
                 ->branch(empty_pane());
         };
-        auto parse_data = [](auto&& parse_data, view& utf8) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> sptr<ui::veer>
         {
-            auto slot = empty_slot(empty_slot);
+            auto slot = empty_slot(empty_slot, min_ratio);
             utf::trim_front(utf8, ", ");
             if (utf8.empty()) return slot;
             auto tag = utf8.front();
@@ -744,10 +776,9 @@ namespace netxs::app::tile
                 if (utf8.empty() || utf8.front() != '(') return slot;
                 utf8.remove_prefix(1);
                 auto node = built_node(tag, s1, s2, w);
-                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8));
-                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8));
+                auto slot1 = node->attach(ui::slot::_1, parse_data(parse_data, utf8, ui::fork::min_ratio));
+                auto slot2 = node->attach(ui::slot::_2, parse_data(parse_data, utf8, ui::fork::max_ratio));
                 slot->attach(node);
-
                 utf::trim_front(utf8, ") ");
             }
             else  // Add application.
@@ -893,9 +924,9 @@ namespace netxs::app::tile
             object->attach(slot::_1, menu_block)
                   ->invoke([](auto& boss)
                   {
-                      boss.LISTEN(tier::anycast, e2::form::quit, item)
+                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
                       {
-                          boss.RISEUP(tier::release, e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
                       };
                   });
             menu_data->colors(cB.fgc(), cB.bgc())
@@ -920,7 +951,7 @@ namespace netxs::app::tile
                 else     log("tile: change current working directory to '", cwd, "'");
             }
 
-            object->attach(slot::_2, parse_data(parse_data, param))
+            object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, e2::form::proceed::attach, fullscreen_item, -, (foci_list = gear_id_list_t{}))

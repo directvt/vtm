@@ -283,10 +283,10 @@ int main(int argc, char* argv[])
                 });
             }
         }
+        logger->stop(); // Logger must be stopped first to prevent reconnection.
         domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
         events::dequeue();
         domain->shutdown();
-        logger->stop();
         stdlog.join();
     }
 }

@@ -159,7 +159,7 @@ vtm
     <td>Set default app</td>
     <td>Center app window</td>
     <td colspan="1"></td>
-    <td colspan="2">Toggle menu height</td>
+    <td colspan="2">Minimize/restore</td>
     <td colspan="1"></td>
     <td colspan="2">Center app window</td>
     <td></td>
@@ -550,6 +550,7 @@ Note: The following configuration sections are not implemented yet
             <fps      = 60   />
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
+            <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
@@ -629,10 +630,10 @@ Note: The following configuration sections are not implemented yet
         </clipboard>
         <viewport coor=0,0 />
         <mouse dblclick=500ms />
-        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite />
+        <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite />
         <glowfx=true />                      <!-- Show glow effect around selected item. -->
-        <debug overlay=faux toggle="🐞" />  <!-- Display console debug info. -->
-        <regions enabled=faux />             <!-- Highlight UI objects boundaries. -->
+        <debug overlay=off toggle="🐞" />  <!-- Display console debug info. -->
+        <regions enabled=0 />             <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
@@ -735,7 +736,7 @@ Note: The following configuration sections are not implemented yet
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
+            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
         </selection>
         <atexit = auto /> <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
@@ -749,7 +750,7 @@ Note: The following configuration sections are not implemented yet
     </term>
     <defapp>
         <menu>
-            <autohide=faux />  <!--  If true, show menu only on hover. -->
+            <autohide=off />  <!--  If true, show menu only on hover. -->
             <enabled="on"/>
             <slim=true />
         </menu>

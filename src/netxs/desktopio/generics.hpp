@@ -37,9 +37,11 @@ namespace netxs::generics
         static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 1) };
 
     public:
+        static constexpr auto skip = unsigned{ 0x3fff'ffff };
         static inline bool issub(Item const& value) { return (value & subbit) != (value & sigbit) >> 1; }
         static inline auto desub(Item const& value) { return static_cast<Item>((value & ~subbit) | (value & sigbit) >> 1); }
         static inline auto insub(Item const& value) { return static_cast<Item>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
+        static inline auto isdef(Item const& value) { return (value & fifo::skip) == fifo::skip; }
 
         static auto& fake() { static fifo empty; return empty; }
 
@@ -88,9 +90,18 @@ namespace netxs::generics
                 item++;
             }
         }
-        constexpr size_t   length ()    const             { return size;                }
-        constexpr operator bool   ()    const             { return size;                }
-        constexpr Item     front  (Item const& dflt = {}) { return size ? *item : dflt; }
+        constexpr operator bool () const { return size; }
+        constexpr auto length() const { return size; }
+        constexpr Item front(Item const& dflt = {})
+        {
+            if (size)
+            {
+                auto value = *item;
+                return isdef(value) ? issub(value) ? insub(dflt) : dflt
+                                    : value;
+            }
+            else return dflt;
+        }
         constexpr
         Item operator () (Item const& dflt = {})
         {
@@ -98,7 +109,8 @@ namespace netxs::generics
             {
                 size--;
                 auto result = *item++;
-                return issub(result) ? desub(result)
+                return isdef(result) ? dflt :
+                       issub(result) ? desub(result)
                                      : result;
             }
             else return dflt;
@@ -129,7 +141,7 @@ namespace netxs::generics
                 {
                     size--;
                     item++;
-                    return desub(result);
+                    return isdef(result) ? dflt : desub(result);
                 }
                 else return dflt;
             }
@@ -911,10 +923,10 @@ namespace netxs
         }
     }
     template<class Map, class Key, class FBKey>
-    auto& map_or(Map& map, Key const& key, FBKey const& fallback)
+    auto& map_or(Map& map, Key const& key, FBKey const& fallback) // Note: The map must contain a fallback.
     {
         auto const it = map.find(key);
-        return it == map.end() ? map[fallback]
+        return it == map.end() ? map.at(fallback)
                                : it->second;
     }
 }

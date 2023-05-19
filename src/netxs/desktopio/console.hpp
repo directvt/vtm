@@ -517,9 +517,9 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (focus.empty() || !alive) return;
+                    static constexpr auto title_fg_color = rgba{ 0xFFffffff };
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
-                    auto title_fg_color = rgba{ 0xFFffffff };
                     auto bright = skin::color(tone::brighter);
                     auto shadow = skin::color(tone::shadower);
                     //todo unify, make it more contrast
@@ -553,7 +553,7 @@ namespace netxs::ui
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
-                if (keybd_only) return;
+                if (keybd_only || !skin::globals().tracking) return;
                 // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
@@ -568,7 +568,7 @@ namespace netxs::ui
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     items.foreach([&](sock& item)
                     {
-                        auto area = rect{ item.cursor,dot_00 } + dent{ 6,6,3,3 };
+                        auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
                         area.coor += full.coor;
                         parent_canvas.fill(area.clip(full), fill);
                     });
@@ -1259,7 +1259,7 @@ namespace netxs::ui
                         auto iter = gears.find(gear.id);
                         if (iter != gears.end())
                         {
-                            if constexpr (debugmode) log("gears cleanup boss:", boss.id, " hid:", gear.id);
+                            //if constexpr (debugmode) log("foci: gears cleanup boss:", boss.id, " hid:", gear.id);
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
                             if (route.active) // Keep only the active branch.
@@ -1295,7 +1295,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
-                    if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1306,7 +1306,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
-                    if constexpr (debugmode) log("foci: focus off gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("foci: focus off gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1315,7 +1315,7 @@ namespace netxs::ui
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 pro::focus::off(item_ptr, gear_id_list);
-                if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
+                //if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
             }
             static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
@@ -1323,7 +1323,7 @@ namespace netxs::ui
                 for (auto next_id : gear_id_list)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
-                    if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
                 }
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
@@ -1365,7 +1365,7 @@ namespace netxs::ui
                 // Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
                 {
-                    if constexpr (debugmode) log("data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log("foci: data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = get_route(gear.id);
                     if (route.active)
@@ -1387,13 +1387,13 @@ namespace netxs::ui
                 {
                     auto& route = get_route(seed.id);
                     auto deed = boss.bell::template protos<tier::release>();
-                    if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("foci: ", text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
                     route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
-                    if constexpr (debugmode) log(text(--seed.deep * 4, ' '), "----------------");
+                    //if constexpr (debugmode) log("foci: ", text(--seed.deep * 4, ' '), "----------------");
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
-                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
                     auto iter = gears.find(seed.id);
                     if (iter == gears.end())
                     {
@@ -1422,11 +1422,11 @@ namespace netxs::ui
                         boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
                         signal_state<faux>();
                     }
-                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
                 {
-                    if constexpr (debugmode) log(text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
                     {
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
@@ -2117,6 +2117,7 @@ namespace netxs::ui
 
             sptr<face> coreface;
             byte       lucidity;
+            bool       usecache;
 
         public:
             face& canvas; // cache: Bitmap cache.
@@ -2125,11 +2126,16 @@ namespace netxs::ui
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
                   canvas{*(coreface = ptr::shared<face>())},
-                  lucidity{ 0xFF }
+                  lucidity{ 0xFF },
+                  usecache{ true }
             {
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
+                boss.LISTEN(tier::preview, e2::form::prop::ui::cache, state, memo)
+                {
+                    usecache = state;
+                };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, value, memo)
                 {
                     if (value == -1)
@@ -2153,6 +2159,7 @@ namespace netxs::ui
                 {
                     boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                     {
+                        if (!usecache) return;
                         if (boss.base::ruined())
                         {
                             canvas.wipe();
@@ -2184,6 +2191,10 @@ namespace netxs::ui
                   width{ size },
                   alive{ true }
             {
+                boss.LISTEN(tier::preview, e2::form::prop::ui::acryl, state, memo)
+                {
+                    alive = state;
+                };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
@@ -2671,19 +2682,19 @@ namespace netxs::ui
             void read(xmls& config)
             {
                 config.cd("/config/client/");
-                clip_preview_clrs = config.take("clipboard/preview", cell{}.bgc(bluedk).fgc(whitelt));
+                clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
                 clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-                clip_preview_alfa = config.take("clipboard/preview/alpha", 0xFF);
-                clip_preview_glow = config.take("clipboard/preview/shadow", 7);
+                clip_preview_alfa = config.take("clipboard/preview/alpha"  , 0xFF);
+                clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
-                clip_preview_size = config.take("clipboard/preview/size", twod{ 80,25 });
-                dblclick_timeout  = config.take("mouse/dblclick",  span{ 500ms });
-                tooltip_colors    = config.take("tooltip", cell{}.bgc(0xFFffffff).fgc(0xFF000000));
-                tooltip_timeout   = config.take("tooltip/timeout", span{ 500ms });
-                tooltip_enabled   = config.take("tooltip/enabled", true);
-                debug_overlay     = config.take("debug/overlay", faux);
-                debug_toggle      = config.take("debug/toggle", "🐞"s);
-                show_regions      = config.take("regions/enabled", faux);
+                clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
+                dblclick_timeout  = config.take("mouse/dblclick"           , span{ 500ms });
+                tooltip_colors    = config.take("tooltips"                 , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
+                tooltip_timeout   = config.take("tooltips/timeout"         , span{ 2000ms });
+                tooltip_enabled   = config.take("tooltips/enabled"         , true);
+                debug_overlay     = config.take("debug/overlay"            , faux);
+                debug_toggle      = config.take("debug/toggle"             , "🐞"s);
+                show_regions      = config.take("regions/enabled"          , faux);
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
             }
 
@@ -3365,13 +3376,13 @@ namespace netxs::ui
                 }
 
                 auto deed = this->bell::template protos<tier::release>();
-                if constexpr (debugmode) log(text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
+                //if constexpr (debugmode) log("foci: ", text(seed.deep++ * 4, ' '), "foci: ---gate bus::any gear:", seed.id, " hub:", this->id);
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
                     target->bell::template signal<tier::release>(deed, seed);
                 }
-                if constexpr (debugmode) log(text(--seed.deep * 4, ' '), "----------------gate");
+                //if constexpr (debugmode) log("foci: ", text(--seed.deep * 4, ' '), "foci: ----------------gate");
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
             {
@@ -3442,7 +3453,7 @@ namespace netxs::ui
             }
 
 
-            LISTEN(tier::release, e2::form::quit, initiator, tokens)
+            LISTEN(tier::release, e2::form::proceed::quit::any, initiator, tokens)
             {
                 auto msg = ansi::add("gate: quit message from: ", initiator->id);
                 canal.shut();
@@ -3491,6 +3502,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
             {
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resize, newsize);
                 auto delta = base::resize(newsize);
                 if (delta && direct)
                 if (auto world_ptr = base::parent())
@@ -3499,9 +3511,9 @@ namespace netxs::ui
                     rebuild_scene(*world_ptr, true);
                 }
             };
-            LISTEN(tier::release, e2::size::any, newsz, tokens)
+            LISTEN(tier::release, e2::size::any, newsize, tokens)
             {
-                if (applet) applet->base::resize(newsz);
+                if (applet) applet->base::resize(newsize);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
@@ -3524,7 +3536,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
-                this->SIGNAL(tier::preview, e2::form::quit, this->This());
+                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, this->This());
                 log("gate: ", msg);
                 canal.shut();
                 paint.stop();
@@ -3615,6 +3627,11 @@ namespace netxs::ui
             }
             if (direct) // Forward unhandled events outside.
             {
+                LISTEN(tier::release, e2::form::layout::minimize, gear, tokens)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
+                };
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
@@ -3737,6 +3754,7 @@ namespace netxs::ui
             g.menu_white     = config.take("menu_white"            , cell{});
             g.menu_black     = config.take("menu_black"            , cell{});
             g.lucidity       = config.take("lucidity");
+            g.tracking       = config.take("tracking"              , faux);
             g.bordersz       = config.take("bordersz"              , dot_11);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
