@@ -1190,11 +1190,10 @@ struct consrv
             }
             else
             {
-                auto& inpenc = *server.inpenc;
-                auto tail = buffer.end();
-                recbuf.reserve(recbuf.size() + count());
-                if (inpenc.codepage == CP_UTF8)
+                auto splitter = [&](auto codec_proc)
                 {
+                    recbuf.reserve(recbuf.size() + count());
+                    auto tail = buffer.end();
                     auto code = utfx{};
                     auto left = INPUT_RECORD{};
                     if (recbuf.size() && recbuf.size() <= limit)
@@ -1214,9 +1213,9 @@ struct consrv
                             auto& copy = code ? left : src;
                             if (utf::tocode(next, code)) // BMP or the second part of surrogate pair.
                             {
-                                toUTF8.clear();
-                                utf::to_utf_from_code(code, toUTF8);
-                                auto queue = qiew{ toUTF8 };
+                                toANSI.clear();
+                                codec_proc(code, toANSI);
+                                auto queue = qiew{ toANSI };
                                 while (queue)
                                 {
                                     auto& dst = recbuf.emplace_back(copy);
@@ -1231,19 +1230,10 @@ struct consrv
                             }
                         }
                     }
-                }
-                else
-                {
-                    while (head != tail && recbuf.size() < limit)
-                    {
-                        auto& src = *head++;
-                        auto& dst = recbuf.emplace_back(src);
-                        if (dst.EventType == KEY_EVENT) // Store DBCS char as a wide char.
-                        {
-                            dst.Event.KeyEvent.uChar.UnicodeChar = inpenc.encode(dst.Event.KeyEvent.uChar.UnicodeChar);
-                        }
-                    }
-                }
+                };
+                auto& codec = *server.inpenc;
+                if (codec.codepage == CP_UTF8) splitter([&](utfx& code, text& toUTF8){ utf::to_utf_from_code(code, toUTF8); });
+                else                           splitter([&](utfx& code, text& toANSI){          codec.encode(code, toANSI); });
             }
             auto size = std::min(limit, (ui32)recbuf.size());
             auto peek = packet.input.flags & Payload::peek;
@@ -1557,6 +1547,20 @@ struct consrv
         auto encode(wchr code)
         {
             return BMPtoOEM[code];
+        }
+        void encode(wchr code, text& ansi)
+        {
+            if (code >= 65536) code = defchar();
+            else               code = BMPtoOEM[code];
+            if (code < 256)
+            {
+                ansi.push_back((byte)code);
+            }
+            else
+            {
+                ansi.push_back(code >> 8);
+                ansi.push_back(code & 0xFF);
+            }
         }
         void reset()
         {
