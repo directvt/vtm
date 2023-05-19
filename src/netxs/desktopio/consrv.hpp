@@ -2229,7 +2229,7 @@ struct consrv
     }
     auto api_events_count_get                ()
     {
-        log(prompt, "GetNumberOfInputEvents");
+        log(prompt, "GetNumberOfConsoleInputEvents");
         struct payload : drvpacket<payload>
         {
             struct
