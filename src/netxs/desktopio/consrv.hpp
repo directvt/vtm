@@ -375,6 +375,9 @@ struct consrv
         bool    closed; // events_t: Console server was shutdown.
         fire    ondata; // events_t: Signal on input buffer data.
         wide    wcpair; // events_t: Surrogate pair buffer.
+        wide    toWIDE; // events_t: UTF-16 decoder buffer.
+        text    toUTF8; // events_t: UTF-8  decoder buffer.
+        text    toANSI; // events_t: ANSI   decoder buffer.
         irec    leader; // events_t: Hanging key event record (lead byte).
 
         evnt(consrv& serv)
@@ -440,6 +443,7 @@ struct consrv
             auto lock = std::lock_guard{ locker };
             ondata.flush();
             buffer.clear();
+            recbuf.clear();
             cooked.drop();
         }
         auto generate(wchr c, ui32 s = 0, ui16 v = 0)
@@ -492,9 +496,9 @@ struct consrv
         }
         auto generate(view ustr)
         {
-            server.toWIDE.clear();
-            utf::to_utf(ustr, server.toWIDE);
-            return generate(server.toWIDE);
+            toWIDE.clear();
+            utf::to_utf(ustr, toWIDE);
+            return generate(toWIDE);
         }
         auto write(view ustr)
         {
@@ -1171,39 +1175,95 @@ struct consrv
         {
             if (!server.size_check(packet.echosz, answer.sendoffset())) return;
             auto avail = packet.echosz - answer.sendoffset();
-            auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
+            auto limit = avail / (ui32)sizeof(recbuf.front());
             log("\tuser limit: ", limit);
-            recbuf.resize(limit);
-            auto srcit = buffer.begin();
-            auto dstit = recbuf.begin();
-            auto endit = recbuf.end();
-            auto& inpenc = *server.inpenc;
-            if (packet.input.utf16 || inpenc.codepage == CP_UTF8) // Store 7-bit in case of UTF-8.
+            auto head = buffer.begin();
+            if (packet.input.utf16)
             {
-                while (dstit != endit)
+                recbuf.clear();
+                recbuf.reserve(count());
+                auto tail = head + std::min(limit, count());
+                while (head != tail)
                 {
-                    *dstit++ = *srcit++;
+                    recbuf.emplace_back(*head++);
                 }
             }
             else
             {
-                while (dstit != endit)
+                auto& inpenc = *server.inpenc;
+                auto tail = buffer.end();
+                recbuf.reserve(recbuf.size() + count());
+                if (inpenc.codepage == CP_UTF8)
                 {
-                    auto& dst = *dstit++;
-                    dst = *srcit++;
-                    if (dst.EventType == KEY_EVENT) // Store DBCS char as a wide char.
+                    auto code = utfx{};
+                    auto left = INPUT_RECORD{};
+                    if (recbuf.size() && recbuf.size() <= limit)
                     {
-                        dst.Event.KeyEvent.uChar.UnicodeChar = inpenc.encode(dst.Event.KeyEvent.uChar.UnicodeChar);
+                        ++head; // Drop the deferred record.
+                    }
+                    while (head != tail && recbuf.size() < limit)
+                    {
+                        auto& src = *head++;
+                        if (src.EventType != KEY_EVENT) // Just copy non keybd events.
+                        {
+                            recbuf.emplace_back(src);
+                        }
+                        else // Expand and fill up to limit.
+                        {
+                            auto& next = src.Event.KeyEvent.uChar.UnicodeChar;
+                            auto& copy = code ? left : src;
+                            if (utf::tocode(next, code)) // BMP or the second part of surrogate pair.
+                            {
+                                toUTF8.clear();
+                                utf::to_utf_from_code(code, toUTF8);
+                                auto queue = qiew{ toUTF8 };
+                                while (queue)
+                                {
+                                    auto& dst = recbuf.emplace_back(copy);
+                                    dst.Event.KeyEvent.uChar.UnicodeChar = (byte)queue.pop_front();
+                                }
+                                if (recbuf.size() > limit) --head; // Keep the current record until the deferred buffer not empty.
+                                code = {};
+                            }
+                            else // The first part of surrogate pair.
+                            {
+                                left = src;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    while (head != tail && recbuf.size() < limit)
+                    {
+                        auto& src = *head++;
+                        auto& dst = recbuf.emplace_back(src);
+                        if (dst.EventType == KEY_EVENT) // Store DBCS char as a wide char.
+                        {
+                            dst.Event.KeyEvent.uChar.UnicodeChar = inpenc.encode(dst.Event.KeyEvent.uChar.UnicodeChar);
+                        }
                     }
                 }
             }
-            if (!(packet.input.flags & Payload::peek))
+            auto size = std::min(limit, (ui32)recbuf.size());
+            auto peek = packet.input.flags & Payload::peek;
+            packet.reply.count = size;
+            if (!peek)
             {
-                buffer.erase(buffer.begin(), srcit);
+                buffer.erase(buffer.begin(), head);
                 if (buffer.empty()) ondata.flush();
             }
-            packet.reply.count = limit;
-            answer.send_data<Complete>(server.condrv, recbuf);
+            if (size == recbuf.size())
+            {
+                answer.send_data<Complete>(server.condrv, recbuf);
+                recbuf.clear();
+            }
+            else
+            {
+                answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
+                if (peek) recbuf.clear();
+                else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
+            }
         }
         template<class Payload>
         auto take(Payload& packet)
