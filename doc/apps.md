@@ -30,7 +30,7 @@ Name         | Sequence                         | Description
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
-## Custom Menu Configuration
+## Custom menu configuration
       
 Terminal window menu can be composed from scratch by specifying a list of menu items in the `<config/term/menu/>` configuration file section.
 
