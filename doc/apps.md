@@ -207,7 +207,7 @@ TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport p
 
 - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
-# Tiling Window anager
+# Tiling Window Manager
 
 ## Features
 
