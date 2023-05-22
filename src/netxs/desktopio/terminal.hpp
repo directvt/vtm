@@ -7363,12 +7363,12 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
-                        gear.pass<tier::release>(parent_ptr, owner.base::coor());
+                        auto basis = gear.owner.base::coor();
+                        owner.global(basis);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons);
+                        gear.pass<tier::release>(parent_ptr, basis);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
-                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis, ());
-                            owner.global(basis);
                             gear.coord -= basis; // Restore gate mouse position.
                             gear.owner.bell::template signal<tier::release>(m.cause, gear);
                         }

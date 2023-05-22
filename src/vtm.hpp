@@ -966,8 +966,7 @@ namespace netxs::app::vtm
                     color = new_color;
                 };
 
-                inst.SIGNAL(tier::request, e2::size::set, region.size);
-                inst.SIGNAL(tier::request, e2::coor::set, region.coor);
+                region = inst.area();
                 inst.SIGNAL(tier::request, e2::form::state::mouse, active);
                 inst.SIGNAL(tier::request, e2::form::state::color, color);
             }
