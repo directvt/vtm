@@ -3,13 +3,6 @@
 
 #pragma once
 
-#include "apps/term.hpp"
-#include "apps/tile.hpp"
-#include "apps/calc.hpp"
-#include "apps/text.hpp"
-#include "apps/shop.hpp"
-#include "apps/test.hpp"
-
 namespace netxs::app::strobe
 {
     static constexpr auto id = "strobe";
@@ -55,6 +48,14 @@ namespace netxs::app::region
     static constexpr auto id = "region";
     static constexpr auto desc = "region";
 }
+
+#include "apps/term.hpp"
+#include "apps/tile.hpp"
+#include "apps/calc.hpp"
+#include "apps/text.hpp"
+#include "apps/shop.hpp"
+#include "apps/test.hpp"
+
 namespace netxs::app::shared
 {
     namespace
