@@ -253,6 +253,11 @@ No arguments               | Run client (auto start server)
 </tbody>
 </table>
 
+# Documentation
+
+- [Settings](doc/settings.md)
+- [Built-in applications](doc/apps.md)
+
 # Related Repositories
 
 [Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
