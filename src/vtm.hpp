@@ -15,6 +15,7 @@ namespace netxs::app::vtm
     {
         using sptr = netxs::sptr<base>;
         text menuid{};
+        text kindid{};
         text header{};
         text footer{};
         rect square{};
@@ -51,6 +52,7 @@ namespace netxs::app::vtm
         EVENTPACK( events, ui::e2::extra::slot1 )
         {
             EVENT_XS( newapp  , link       ), // request: create new object using specified meniid.
+            EVENT_XS( apptype , link       ), // request: ask app type.
             EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.
             EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world.
             GROUP_XS( d_n_d   , sptr<base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
@@ -1442,6 +1444,11 @@ namespace netxs::app::vtm
             {
                 auto& cfg = dbase.menu[what.menuid];
                 branch(what.menuid, what.applet, !cfg.hidden);
+            };
+            LISTEN(tier::request, vtm::events::apptype, what)
+            {
+                auto& setup = dbase.menu[what.menuid];
+                what.kindid = setup.type;
             };
             LISTEN(tier::request, vtm::events::newapp, what)
             {
