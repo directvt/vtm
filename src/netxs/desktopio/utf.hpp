@@ -83,7 +83,6 @@ namespace netxs::utf
                 ucwidth  = std::max(ucwidth, next.ucwidth);
                 utf8len += next.utf8len;
                 cpcount += 1;
-
                 return 0_sz;
             }
             else
@@ -257,7 +256,70 @@ namespace netxs::utf
     {
         view text;
         prop attr;
+
+        auto letter(view utf8)
+        {
+            if (auto code = cpit{ utf8 })
+            {
+                auto next = code.take();
+                do
+                {
+                    if (next.is_cmd())
+                    {
+                        //todo revise
+                        //code.step();
+                        return std::pair{ replacement, next };
+                    }
+                    else
+                    {
+                        auto head = code.textptr;
+                        auto left = next;
+                        do
+                        {
+                            code.step();
+                            if (next.correct)
+                            {
+                                next = code.take();
+                                if (auto size = left.combine(next))
+                                {
+                                    return std::pair{ view(head, size), left };
+                                }
+                            }
+                            else
+                            {
+                                next.utf8len = left.utf8len;
+                                return std::pair{ replacement, next };
+                            }
+                        }
+                        while (true);
+                    }
+                }
+                while (code);
+            }
+            return std::pair{ replacement, prop{ 0 } };
+        }
+
+        frag(view utf8, prop const& attr)
+            : text{ utf8 },
+              attr{ attr }
+        { }
+        frag(view utf8, utfx code)
+            : text{ utf8 },
+              attr{ code, utf8.size() }
+        { }
+        frag(std::pair<view, prop> p)
+            : frag{ p.first, p.second }
+        { }
+        frag(view utf8)
+            : frag{ letter(utf8) }
+        { }
     };
+
+    // utf: Return the first grapheme cluster and its Unicode attributes.
+    auto letter(view const& utf8)
+    {
+        return frag{ utf8 };
+    }
 
     // utf: Break the text into the enriched grapheme clusters.
     //      Forward the result to the dest using the "serve" and "yield" lambdas.
@@ -265,10 +327,14 @@ namespace netxs::utf
     //             auto s = [&](utf::prop const& traits, view const& utf8) -> view;
     //      yield: Handle grapheme clusters.
     //             auto y = [&](frag const& cluster){};
-    //      EGC: parse by grapheme clusters (true) or codepoints (faux)
-    template<bool EGC = true, class S, class Y>
-    void decode(S serve, Y yield, view utf8)
+    //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
+    template<bool Clusterize = true, class S, class Y>
+    void decode(S serve, Y yield, view utf8, si32& decsg)
     {
+        static const auto dec_sgm_lookup = std::vector<frag> // DEC Special Graphics mode lookup table.
+        {//  _      `      a      b       c       d       e      f      g      h       i       j      k      l      m      n     o       p      q      r      s      t      u      v      w      x      y      z      {      |      }      ~                                 };
+            "w"sv, "♦"sv, "▒"sv, "␉"sv, "␌"sv, "␍"sv, "␊"sv, "°"sv, "±"sv, "␤"sv, "␋"sv, "┘"sv, "┐"sv, "┌"sv, "└"sv, "┼"sv, "⎺"sv, "⎻"sv, "─"sv, "⎼"sv, "⎽"sv, "├"sv, "┤"sv, "┴"sv, "┬"sv, "│"sv, "≤"sv, "≥"sv, "π"sv, "≠"sv, "£"sv, "·"sv,
+        };
         if (auto code = cpit{ utf8 })
         {
             auto next = code.take();
@@ -284,7 +350,13 @@ namespace netxs::utf
                 }
                 else
                 {
-                    if constexpr (EGC)
+                    if (decsg && next.cdpoint <= 0x7e && next.cdpoint >= 0x5f) // ['_' - '~']
+                    {
+                        yield(dec_sgm_lookup[next.cdpoint - 0x5f]);
+                        code.step();
+                        next = code.take();
+                    }
+                    else if constexpr (Clusterize)
                     {
                         auto head = code.textptr;
                         auto left = next;
@@ -331,50 +403,6 @@ namespace netxs::utf
             }
             while (code);
         }
-    }
-
-    // utf: Return the first grapheme cluster and its Unicode attributes.
-    auto letter(view const& utf8)
-    {
-        if (auto code = cpit{ utf8 })
-        {
-            auto next = code.take();
-            do
-            {
-                if (next.is_cmd())
-                {
-                    //todo revise
-                    //code.step();
-                    return frag{ replacement, next };
-                }
-                else
-                {
-                    auto head = code.textptr;
-                    auto left = next;
-                    do
-                    {
-                        code.step();
-                        if (next.correct)
-                        {
-                            next = code.take();
-                            if (auto size = left.combine(next))
-                            {
-                                return frag{ view(head, size), left };
-                            }
-                        }
-                        else
-                        {
-                            next.utf8len = left.utf8len;
-                            return frag{ replacement, next };
-                        }
-                    }
-                    while (true);
-                }
-            }
-            while (code);
-        }
-
-        return frag{ replacement, prop{ 0 } };
     }
 
     struct qiew : public view
@@ -1487,6 +1515,7 @@ namespace netxs::utf
     template<bool Split = true, bool Multiline = true>
     auto debase(qiew utf8)
     {
+        auto mode = si32{};
         auto buff = text{};
         auto size = utf8.size();
         buff.reserve(size * 2);
@@ -1536,8 +1565,7 @@ namespace netxs::utf
             //else if (cluster.text.front() == ' ') buff += "\x20";
             else                                   buff += cluster.text;
         };
-        decode<faux>(s, y, utf8);
-
+        decode<faux>(s, y, utf8, mode);
         return buff;
     }
 

@@ -1449,8 +1449,10 @@ namespace netxs::ansi
         ansi::esc_t<T> intro; // vt_parser:  C0 table.
         ansi::csi_t<T> csier; // vt_parser: CSI table.
         ansi::osc_t<T> oscer; // vt_parser: OSC table.
+        si32           decsg; // vt_parser: Enable DEC Special Graphics Mode (if non zero).
 
         vt_parser()
+            : decsg{ 0 }
         {
             intro.resize(ctrl::non_control);
             //intro[ctrl::bs ] = backspace;
@@ -1478,9 +1480,9 @@ namespace netxs::ansi
                 intro.execute(traits.control, queue, client); // Make one iteration using firstcmd and return.
                 return queue;
             };
-            auto y = [&](auto& cluster) { client->post(cluster); };
+            auto y = [&](auto const& cluster) { client->post(cluster); };
 
-            utf::decode(s, y, utf8);
+            utf::decode(s, y, utf8, decsg);
             client->flush();
         }
         // vt_parser: Static UTF-8/ANSI parser proc.
@@ -1730,11 +1732,11 @@ namespace netxs::ansi
         {
             // ESC ( C
             //      [-]
-
             if (ascii)
             {
+                auto& parser = ansi::get_parser<T>();
+                parser.decsg = ascii.front() == '0' ? 1 : 0; // '0' - DEC Special Graphics mode.
                 ascii.pop_front(); // Take Final character C for designating 94-character sets.
-                //todo implement
             }
         }
     };

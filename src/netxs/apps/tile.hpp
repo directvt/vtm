@@ -702,8 +702,10 @@ namespace netxs::app::tile
                         if (boss.count() != 1) return; // Create new apps at the empty slots only.
                         auto& gate = gear.owner;
                         gate.SIGNAL(tier::request, e2::data::changed, current_default, ());
-                        gate.RISEUP(tier::request, vtm::events::newapp, config, ({ .menuid = current_default }));
+                        gate.RISEUP(tier::request, vtm::events::apptype, config, ({ .menuid = current_default }));
+                        if (config.kindid == netxs::app::region::id) return; // Deny any view regions inside the tiling manager.
 
+                        gate.RISEUP(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);
                         auto gear_id_list = pro::focus::get(boss.back());
                         boss.attach(app);
