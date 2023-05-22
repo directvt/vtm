@@ -401,7 +401,7 @@ Top-level element `<config>` contains the following base objects
 
 #### Application Configuration
 
-The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This is currently only supported by the built-in vtm terminal.
+The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal.
 
 The content of the `<config>` subelement is passed to the application upon startup. This config has the highest priority and is merged with the root of the configuration loaded by this application from a file.
 

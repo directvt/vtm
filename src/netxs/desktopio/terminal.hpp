@@ -6430,7 +6430,7 @@ namespace netxs::ui
             update([&]
             {
                 //todo Developer Mode
-                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6440,7 +6440,7 @@ namespace netxs::ui
             update([&]
             {
                 //todo Developer Mode
-                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }

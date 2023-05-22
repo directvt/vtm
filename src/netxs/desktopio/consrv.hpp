@@ -824,13 +824,13 @@ struct consrv
                 {
                     if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
                     {
-                        log(" ============================",
-                            "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                            "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                            "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                            "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                            "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
-                            "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
+                        //log(" ============================",
+                        //    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
+                        //    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                        //    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                        //    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                        //    "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
+                        //    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
                     }
 
                     auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
