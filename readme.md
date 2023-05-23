@@ -91,7 +91,7 @@ vtm
 
 # Documentation
 
-- [Command line Options](doc/command-line-oOptions.md)
+- [Command line Options](doc/command-line-options.md)
 - [User Interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Built-in Applications](doc/apps.md)
