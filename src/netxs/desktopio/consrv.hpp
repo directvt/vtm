@@ -4061,7 +4061,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok(!debugmode, "vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, "vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
