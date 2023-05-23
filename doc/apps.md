@@ -9,8 +9,6 @@
 
 - UTF-8 Everywhere
 - TrueColor aware
-- Lock-free performance
-- Stdin/stdout logging
 - Horizontal scrolling
 - Infinite* scrollback (20000 wrapped lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
@@ -35,6 +33,7 @@
   - Disabled DOSKEY functionality (cmd.exe's F7 input history popups too)  
     Note: Sharing the input history as well as a bunch of command aliases among processes (which could have different elevation levels) is a huge security threat. So DOSKEY functionality is absolutely incompatible with any sort of sudo-like commands/applications.
 - Outside terminal viewport mouse tracking (See #62 for details)
+- Stdin/stdout parser log on demand
 - Configurable at startup via `settings.xml`
 - Configurable in runtime using VT-sequences
 
