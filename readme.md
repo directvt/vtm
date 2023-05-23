@@ -7,12 +7,8 @@ Text-based desktop environment inside your terminal
 # Demo
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
-  <img align="right" width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
+  <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
-
- - [Desktop Environment](https://youtu.be/fLumnSctakY)
- - [Collaborative Interaction](https://youtu.be/0zU4e5Vam8c)
- - [Recursive Connection](https://youtu.be/Fm5X75sO62c)
 
 # Supported Platforms
 
