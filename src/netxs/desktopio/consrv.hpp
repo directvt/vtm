@@ -821,16 +821,16 @@ struct consrv
                 auto pops = 0_sz;
                 for (auto& rec : buffer)
                 {
-                    if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                    if (server.io_log)
                     {
-                        //if (server.io_log)
-                        //log(" ============================",
-                        //    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                        //    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                        //    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                        //    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                        //    "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
-                        //    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
+                        if (rec.EventType == KEY_EVENT)
+                        log("stdin: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                            " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
+                            " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
+                            " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
+                            " virt: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualKeyCode),
+                            " scan: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualScanCode),
+                            " rept: ",                rec.Event.KeyEvent.wRepeatCount);
                     }
 
                     auto& v = rec.Event.KeyEvent.wVirtualKeyCode;

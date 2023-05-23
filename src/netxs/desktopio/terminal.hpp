@@ -7096,19 +7096,6 @@ namespace netxs::ui
                 #if defined(_WIN32)
 
                     ptycon.keybd(gear, decckm);
-                    if (io_log && gear.keybd::pressed)
-                    {
-                        auto data = gear.interpret();
-                        auto d = std::stringstream{};
-                        auto v = view{ data };
-                        d << ansi::hi(utf::debase<faux, faux>(v)) << "\n\t";
-                        while (v.size())
-                        {
-                            d << (int)v.front() << " ";
-                            v.remove_prefix(1);
-                        }
-                        log("stdin:\n\t", d.str());
-                    }
 
                 #else
 
@@ -7155,7 +7142,7 @@ namespace netxs::ui
                         d << ansi::hi(utf::debase<faux, faux>(v)) << "\n\t";
                         while (v.size())
                         {
-                            d << (int)v.front() << " ";
+                            d << (byte)v.front() << " ";
                             v.remove_prefix(1);
                         }
                         log("stdin:\n\t", d.str());
