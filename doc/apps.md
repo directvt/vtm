@@ -9,6 +9,8 @@
 
 - UTF-8 Everywhere
 - TrueColor aware
+- Lock-free performance
+- Stdin/stdout logging
 - Horizontal scrolling
 - Infinite* scrollback (20000 wrapped lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
