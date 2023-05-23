@@ -1,116 +1,116 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#if defined(MACROGEN_DEF)
-    #undef MACROGEN_DEF
+#if defined(DEFINE_macro)
+    #undef DEFINE_macro
 
-        #define CAT_(x, ...) x ## __VA_ARGS__
-        #define CAT(x, ...) CAT_(x, __VA_ARGS__)
+        #define CAT_macro_(x, ...) x ## __VA_ARGS__
+        #define CAT_macro(x, ...) CAT_macro_(x, __VA_ARGS__)
 
-        #define EVAL_(...) __VA_ARGS__
-        #define EVAL(...) EVAL_(__VA_ARGS__)
+        #define EVAL_macro_(...) __VA_ARGS__
+        #define EVAL_macro(...) EVAL_macro_(__VA_ARGS__)
 
         #define WRAP__odd(...) ((__VA_ARGS__))WRAP_even
         #define WRAP_even(...) ((__VA_ARGS__))WRAP__odd
         #define WRAP_even_last
         #define WRAP__odd_last
-        #define WRAP(args) EVAL(CAT(WRAP__odd args, _last))
+        #define WRAP_macro(args) EVAL_macro(CAT_macro(WRAP__odd args, _last))
 
-        #define TAKE_NAME(...) __VA_OPT__(this->__VA_ARGS__) // Ignore trailing spaces.
-        #define MAKE_NAME(type, name, ...) TAKE_NAME(name)
-        #define MAKE_INIT(type, name, ...) this->name = name;
-        #define MAKE_ATTR(type, name, ...) type name{};
-        #define MAKE_SIGN(type, name, ...) type name
-        #define MAKE_TYPE(type, name, ...) type
-        #define MAKE_TEMP(type, name, ...) this->name = source. name;
-        #define MAKE_LOGS(type, name, ...) s << "\n\t " << #name << ": " << o.name;
-        #define MAKE_WIPE(type, name, ...) this->name = {};
+        #define TAKE_NAME_macro(...) __VA_OPT__(this->__VA_ARGS__) // Ignore trailing spaces.
+        #define MAKE_NAME_macro(type, name, ...) TAKE_NAME_macro(name)
+        #define MAKE_INIT_macro(type, name, ...) this->name = name;
+        #define MAKE_ATTR_macro(type, name, ...) type name{};
+        #define MAKE_SIGN_macro(type, name, ...) type name
+        #define MAKE_TYPE_macro(type, name, ...) type
+        #define MAKE_TEMP_macro(type, name, ...) this->name = source. name;
+        #define MAKE_LOGS_macro(type, name, ...) s << "\n\t " << #name << ": " << o.name;
+        #define MAKE_WIPE_macro(type, name, ...) this->name = {};
 
-        #define SEQ_ATTR__odd(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR_even
-        #define SEQ_ATTR_even(...) MAKE_ATTR __VA_ARGS__ SEQ_ATTR__odd
+        #define SEQ_ATTR__odd(...) MAKE_ATTR_macro __VA_ARGS__ SEQ_ATTR_even
+        #define SEQ_ATTR_even(...) MAKE_ATTR_macro __VA_ARGS__ SEQ_ATTR__odd
         #define SEQ_ATTR_even_last
         #define SEQ_ATTR__odd_last
-        #define SEQ_ATTR(args) EVAL(CAT(SEQ_ATTR__odd args, _last))
+        #define SEQ_ATTR_macro(args) EVAL_macro(CAT_macro(SEQ_ATTR__odd args, _last))
 
-        #define SEQ_INIT__odd(...) MAKE_INIT __VA_ARGS__ SEQ_INIT_even
-        #define SEQ_INIT_even(...) MAKE_INIT __VA_ARGS__ SEQ_INIT__odd
+        #define SEQ_INIT__odd(...) MAKE_INIT_macro __VA_ARGS__ SEQ_INIT_even
+        #define SEQ_INIT_even(...) MAKE_INIT_macro __VA_ARGS__ SEQ_INIT__odd
         #define SEQ_INIT_even_last
         #define SEQ_INIT__odd_last
-        #define SEQ_INIT(args) EVAL(CAT(SEQ_INIT__odd args, _last))
+        #define SEQ_INIT_macro(args) EVAL_macro(CAT_macro(SEQ_INIT__odd args, _last))
 
-        #define SEQ_TEMP__odd(...) MAKE_TEMP __VA_ARGS__ SEQ_TEMP_even
-        #define SEQ_TEMP_even(...) MAKE_TEMP __VA_ARGS__ SEQ_TEMP__odd
+        #define SEQ_TEMP__odd(...) MAKE_TEMP_macro __VA_ARGS__ SEQ_TEMP_even
+        #define SEQ_TEMP_even(...) MAKE_TEMP_macro __VA_ARGS__ SEQ_TEMP__odd
         #define SEQ_TEMP_even_last
         #define SEQ_TEMP__odd_last
-        #define SEQ_TEMP(args) EVAL(CAT(SEQ_TEMP__odd args, _last))
+        #define SEQ_TEMP_macro(args) EVAL_macro(CAT_macro(SEQ_TEMP__odd args, _last))
 
-        #define SEQ_WIPE__odd(...) MAKE_WIPE __VA_ARGS__ SEQ_WIPE_even
-        #define SEQ_WIPE_even(...) MAKE_WIPE __VA_ARGS__ SEQ_WIPE__odd
+        #define SEQ_WIPE__odd(...) MAKE_WIPE_macro __VA_ARGS__ SEQ_WIPE_even
+        #define SEQ_WIPE_even(...) MAKE_WIPE_macro __VA_ARGS__ SEQ_WIPE__odd
         #define SEQ_WIPE_even_last
         #define SEQ_WIPE__odd_last
-        #define SEQ_WIPE(args) EVAL(CAT(SEQ_WIPE__odd args, _last))
+        #define SEQ_WIPE_macro(args) EVAL_macro(CAT_macro(SEQ_WIPE__odd args, _last))
 
-        #define SEQ_LOGS__odd(...) MAKE_LOGS __VA_ARGS__ SEQ_LOGS_even
-        #define SEQ_LOGS_even(...) MAKE_LOGS __VA_ARGS__ SEQ_LOGS__odd
+        #define SEQ_LOGS__odd(...) MAKE_LOGS_macro __VA_ARGS__ SEQ_LOGS_even
+        #define SEQ_LOGS_even(...) MAKE_LOGS_macro __VA_ARGS__ SEQ_LOGS__odd
         #define SEQ_LOGS_even_last
         #define SEQ_LOGS__odd_last
-        #define SEQ_LOGS(args) EVAL(CAT(SEQ_LOGS__odd args, _last))
+        #define SEQ_LOGS_macro(args) EVAL_macro(CAT_macro(SEQ_LOGS__odd args, _last))
 
-        #define SEQ_SIGN__odd(...) MAKE_SIGN __VA_ARGS__, SEQ_SIGN_even
-        #define SEQ_SIGN_even(...) MAKE_SIGN __VA_ARGS__, SEQ_SIGN__odd
+        #define SEQ_SIGN__odd(...) MAKE_SIGN_macro __VA_ARGS__, SEQ_SIGN_even
+        #define SEQ_SIGN_even(...) MAKE_SIGN_macro __VA_ARGS__, SEQ_SIGN__odd
         #define SEQ_SIGN_even_last
         #define SEQ_SIGN__odd_last
 
-        #define SEQ_NAME__odd(...) MAKE_NAME __VA_ARGS__, SEQ_NAME_even
-        #define SEQ_NAME_even(...) MAKE_NAME __VA_ARGS__, SEQ_NAME__odd
+        #define SEQ_NAME__odd(...) MAKE_NAME_macro __VA_ARGS__, SEQ_NAME_even
+        #define SEQ_NAME_even(...) MAKE_NAME_macro __VA_ARGS__, SEQ_NAME__odd
         #define SEQ_NAME_even_last
         #define SEQ_NAME__odd_last
 
-        #define SEQ_TYPE__odd(...) MAKE_TYPE __VA_ARGS__, SEQ_TYPE_even
-        #define SEQ_TYPE_even(...) MAKE_TYPE __VA_ARGS__, SEQ_TYPE__odd
+        #define SEQ_TYPE__odd(...) MAKE_TYPE_macro __VA_ARGS__, SEQ_TYPE_even
+        #define SEQ_TYPE_even(...) MAKE_TYPE_macro __VA_ARGS__, SEQ_TYPE__odd
         #define SEQ_TYPE_even_last
         #define SEQ_TYPE__odd_last
 
     #if defined(_WIN32)
-        #define SEQ_SIGN(args) EVAL(CAT(SEQ_SIGN__odd args, _last))
-        #define SEQ_NAME(args) EVAL(CAT(SEQ_NAME__odd args, _last))
-        #define SEQ_TYPE(args) EVAL(CAT(SEQ_TYPE__odd args, _last))
+        #define SEQ_SIGN_macro(args) EVAL_macro(CAT_macro(SEQ_SIGN__odd args, _last))
+        #define SEQ_NAME_macro(args) EVAL_macro(CAT_macro(SEQ_NAME__odd args, _last))
+        #define SEQ_TYPE_macro(args) EVAL_macro(CAT_macro(SEQ_TYPE__odd args, _last))
     #else
-        #define DEL_(...)
-        #define DEL_TAIL DEL_(
-        #define SEQ_SIGN(args) SEQ_SIGN__odd args ((,DEL_TAIL ))) // Trailing comma workaround.
-        #define SEQ_NAME(args) SEQ_NAME__odd args ((,DEL_TAIL ))) //
-        #define SEQ_TYPE(args) SEQ_TYPE__odd args (( DEL_TAIL,))) //
+        #define DEL_macro_(...)
+        #define DEL_TAIL_macro DEL_macro_(
+        #define SEQ_SIGN_macro(args) SEQ_SIGN__odd args ((,DEL_TAIL_macro ))) // Trailing comma workaround.
+        #define SEQ_NAME_macro(args) SEQ_NAME__odd args ((,DEL_TAIL_macro ))) //
+        #define SEQ_TYPE_macro(args) SEQ_TYPE__odd args (( DEL_TAIL_macro,))) //
     #endif
 
 #endif
-#if defined(MACROGEN_UNDEF)
-    #undef MACROGEN_UNDEF
+#if defined(UNDEFINE_macro)
+    #undef UNDEFINE_macro
 
-        #undef CAT_
-        #undef CAT
-        #undef EVAL_
-        #undef EVAL
+        #undef CAT_macro_
+        #undef CAT_macro
+        #undef EVAL_macro_
+        #undef EVAL_macro
         #undef WRAP__odd
         #undef WRAP_even
         #undef WRAP_even_last
         #undef WRAP__odd_last
-        #undef WRAP
-        #undef MAKE_ATTR
-        #undef MAKE_INIT
-        #undef MAKE_SIGN
-        #undef MAKE_NAME
-        #undef MAKE_TYPE
+        #undef WRAP_macro
+        #undef MAKE_ATTR_macro
+        #undef MAKE_INIT_macro
+        #undef MAKE_SIGN_macro
+        #undef MAKE_NAME_macro
+        #undef MAKE_TYPE_macro
         #undef SEQ_ATTR__odd
         #undef SEQ_ATTR_even
         #undef SEQ_ATTR_even_last
         #undef SEQ_ATTR__odd_last
-        #undef SEQ_ATTR
+        #undef SEQ_ATTR_macro
         #undef SEQ_INIT__odd
         #undef SEQ_INIT_even
         #undef SEQ_INIT_even_last
         #undef SEQ_INIT__odd_last
-        #undef SEQ_INIT
+        #undef SEQ_INIT_macro
         #undef SEQ_SIGN__odd
         #undef SEQ_SIGN_even
         #undef SEQ_SIGN_even_last
@@ -123,10 +123,10 @@
         #undef SEQ_TYPE_even
         #undef SEQ_TYPE_even_last
         #undef SEQ_TYPE__odd_last
-        #undef DEL_
-        #undef DEL_AFTER
-        #undef SEQ_SIGN
-        #undef SEQ_NAME
-        #undef SEQ_TYPE
+        #undef DEL_macro_
+        #undef DEL_TAIL_macro
+        #undef SEQ_SIGN_macro
+        #undef SEQ_NAME_macro
+        #undef SEQ_TYPE_macro
 
 #endif

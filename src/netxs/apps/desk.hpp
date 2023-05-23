@@ -37,7 +37,7 @@ namespace netxs::app::desk
 
     struct events
     {
-        EVENTPACK( events, netxs::events::userland::root::custom )
+        EVENTPACK( events, ui::e2::extra::slot2 )
         {
             EVENT_XS( usrs, sptr<desk::usrs> ), // list of connected users.
             EVENT_XS( apps, sptr<desk::apps> ), // list of running apps.
@@ -78,10 +78,8 @@ namespace netxs::app::desk
                         {
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                            auto& area = inst.base::area();
-                            auto center = area.coor + (area.size / 2);
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                            gear.pass_kb_focus(inst);
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center, (inst.base::center()));  // Goto to the window.
+                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
                     };
@@ -91,11 +89,9 @@ namespace netxs::app::desk
                         {
                             auto& inst = *data_src;
                             inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                            auto viewport = e2::form::prop::viewport.param();
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                            auto center = gear.area().coor + viewport.coor + (viewport.size / 2);
-                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center); // Pull window.
-                            gear.pass_kb_focus(inst);
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
+                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
+                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
                     };
@@ -103,7 +99,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::release, e2::form::highlight::any, !!hits);
+                            data_src->SIGNAL(tier::release, e2::form::state::highlight, !!hits);
                         }
                     };
                 });
@@ -122,7 +118,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::anycast, e2::form::quit, data_src);
+                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, data_src);
                             gear.dismiss();
                         }
                     };
@@ -143,8 +139,7 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        auto current_default = e2::data::changed.param();
-                        boss.RISEUP(tier::request, e2::data::changed, current_default);
+                        boss.RISEUP(tier::request, e2::data::changed, current_default, ());
                         boss.SIGNAL(tier::anycast, events::ui::selected, current_default);
                     };
                 });
@@ -152,8 +147,7 @@ namespace netxs::app::desk
             auto def_note = text{" Menu item:                           \n"
                                  "   Left click to start a new instance \n"
                                  "   Right click to set default app     "};
-            auto conf_list_ptr = desk::events::menu.param();
-            data_src->RISEUP(tier::request, desk::events::menu, conf_list_ptr);
+            data_src->RISEUP(tier::request, desk::events::menu, conf_list_ptr, ());
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;
@@ -186,11 +180,11 @@ namespace netxs::app::desk
                         };
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id))
                         {
-                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                             static auto offset = dot_00;
-                            auto viewport = e2::form::prop::viewport.param();
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                            viewport.coor += gear.area().coor;;
+
+                            boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
+                            viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                             gear.slot.size = viewport.size * 3 / 4;
@@ -223,10 +217,10 @@ namespace netxs::app::desk
                         //           // Expose window.
                         //           auto& inst = *app_list.back();
                         //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                        //           auto& area = inst.base::area();
-                        //           auto center = area.coor + (area.size / 2);
+                        //           auto center = inst.base::center();
                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                        //           gear.pass_kb_focus(inst);
+                        //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);
+                        //           pro::focus::set(app_list.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         //           gear.dismiss();
                         //       }
                         //   }
@@ -248,7 +242,7 @@ namespace netxs::app::desk
                     });
                 auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                 auto insts = list_pads->attach(ui::list::ctor())
-                    ->attach_collection(e2::form::prop::ui::header, inst_ptr_list, app_template);
+                    ->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template);
             }
             return apps;
         };
@@ -257,9 +251,10 @@ namespace netxs::app::desk
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto x8 = cell{ c8 }.alpha(0x00);
+            auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
+                ->plugin<pro::fader>(x8, c8, 0ms);
             return ui::park::ctor()
-                ->branch(ui::snap::tail, ui::snap::tail, ui::item::ctor(utf::concat(app::shared::version))
-                ->plugin<pro::fader>(x8, c8, 0ms))
+                ->branch(ver_label, ui::snap::tail, ui::snap::tail)
                 ->plugin<pro::notes>(" About ")
                 ->invoke([&](auto& boss)
                 {
@@ -271,18 +266,15 @@ namespace netxs::app::desk
                     {
                         static auto offset = dot_00;
                         auto& gate = gear.owner;
-                        auto viewport = e2::form::prop::viewport.param();
-                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
+                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
                         viewport.coor += gear.area().coor;
                         offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                         gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                         gear.slot.size = viewport.size * 3 / 4;
                         gear.slot_forced = faux;
 
-                        auto menu_list_ptr = desk::events::apps.param();
-                        auto conf_list_ptr = desk::events::menu.param();
-                        gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr);
-                        gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr);
+                        gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr, ());
+                        gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr, ());
                         auto& menu_list = *menu_list_ptr;
                         auto& conf_list = *conf_list_ptr;
 
@@ -302,8 +294,7 @@ namespace netxs::app::desk
                         m.hidden = true;
                         menu_list[menuid];
 
-                        auto lastid = e2::data::changed.param();
-                        gate.SIGNAL(tier::request, e2::data::changed, lastid);
+                        gate.SIGNAL(tier::request, e2::data::changed, lastid, ());
                         gate.SIGNAL(tier::release, e2::data::changed, menuid);
                         gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
                         gate.SIGNAL(tier::release, e2::data::changed, lastid);
@@ -331,6 +322,8 @@ namespace netxs::app::desk
 
             auto uibar_min_size = config.take("/config/menu/width/folded",   si32{ 4  });
             auto uibar_max_size = config.take("/config/menu/width/expanded", si32{ 31 });
+            auto bttn_min_size = twod{ 31, 3 };
+            auto bttn_max_size = twod{ -1, 3 };
 
             auto window = ui::cake::ctor();
             auto my_id = id_t{};
@@ -361,7 +354,8 @@ namespace netxs::app::desk
                         ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                         ->plugin<pro::notes>(" Connected user ");
                     auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
-                        .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8), true));
+                        //.link(data_src->id).fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8).nil(), true));
+                        .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8).nil(), true));
                     return item_area;
                 };
                 auto branch_template = [user_template](auto& data_src, auto& usr_list)
@@ -440,10 +434,21 @@ namespace netxs::app::desk
                     ->invoke([&](auto& boss)
                     {
                         boss.mouse.template draggable<hids::buttons::left>(true);
-                        auto size_config = ptr::shared(std::pair{ uibar_max_size, uibar_min_size });
+                        auto size_config = ptr::shared(std::tuple{ uibar_max_size, uibar_min_size, faux, datetime::now() });
+                        auto toggle = [&, size_config](bool state)
+                        {
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                            active = state;
+                            auto& limits = boss.template plugins<pro::limit>();
+                            auto size = active ? std::max(uibar_max_size, uibar_min_size)
+                                               : uibar_min_size;
+                            auto lims = twod{ size,-1 };
+                            limits.set(lims, lims);
+                            boss.base::reflow();
+                        };
                         boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (size_config))
                         {
-                            auto& [uibar_max_size, uibar_min_size] = *size_config;
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                             auto& limits = boss.template plugins<pro::limit>();
                             auto lims = limits.get();
                             lims.min.x += gear.delta.get().x;
@@ -453,11 +458,34 @@ namespace netxs::app::desk
                             limits.set(lims.min, lims.max);
                             boss.base::reflow();
                         };
-                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (size_config))
+                        //todo rewrite taskbar
+                        //boss.LISTEN(tier::preview, hids::events::keybd::data::any, gear, -, (toggle))
+                        //{
+                        //    auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                        //    toggle(!active);
+                        //};
+                        //boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (toggle))
+                        //{
+                        //    auto& [uibar_max_size, uibar_min_size, active] = *size_config;
+                        //    toggle(!active);
+                        //};
+                        boss.LISTEN(tier::anycast, e2::form::layout::restore, item_ptr, -, (size_config))
                         {
-                            auto apply = [&, size_config](auto active)
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                            skip = datetime::now();
+                        };
+                        boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (size_config))
+                        {
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                            //todo too hacky
+                            if (state && skip + 500ms > datetime::now())
                             {
-                                auto& [uibar_max_size, uibar_min_size] = *size_config;
+                                return;
+                            }
+                            auto apply = [&, size_config](auto state)
+                            {
+                                auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
+                                active = state;
                                 auto& limits = boss.template plugins<pro::limit>();
                                 auto size = active ? std::max(uibar_max_size, uibar_min_size)
                                                    : uibar_min_size;
@@ -468,12 +496,12 @@ namespace netxs::app::desk
                             };
                             auto& timer = boss.template plugins<pro::timer>();
                             timer.pacify(faux);
-                            if (active) apply(true);
-                            else        timer.actify(faux, skin::globals().menu_timeout, apply);
+                            if (state) apply(true);
+                            else       timer.actify(faux, skin::globals().menu_timeout, apply);
                         };
                         boss.LISTEN(tier::anycast, e2::form::prop::viewport, viewport, -, (size_config))
                         {
-                            auto& [uibar_max_size, uibar_min_size] = *size_config;
+                            auto& [uibar_max_size, uibar_min_size, active, skip] = *size_config;
                             viewport.coor.x += uibar_min_size;
                             viewport.size.x -= uibar_min_size;
                         };
@@ -481,14 +509,13 @@ namespace netxs::app::desk
                 auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
                 auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
                     ->attach(ui::cake::ctor());
-                auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_ONLY))
+                auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
                     ->colors(0x00, 0x00) //todo mouse events passthrough
                     ->invoke([&](auto& boss)
                     {
                         boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
                         {
-                            auto world_ptr = e2::config::creator.param();
-                            boss.RISEUP(tier::request, e2::config::creator, world_ptr);
+                            boss.RISEUP(tier::request, e2::config::creator, world_ptr, ());
                             if (world_ptr)
                             {
                                 auto apps = boss.attach_element(desk::events::apps, world_ptr, apps_template);
@@ -511,10 +538,9 @@ namespace netxs::app::desk
                     ->plugin<pro::limit>()
                     ->invoke([&](auto& boss)
                     {
-                        boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
+                        boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, -, (branch_template))
                         {
-                            auto world_ptr = e2::config::creator.param();
-                            boss.RISEUP(tier::request, e2::config::creator, world_ptr);
+                            boss.RISEUP(tier::request, e2::config::creator, world_ptr, ());
                             if (world_ptr)
                             {
                                 auto users = boss.attach_element(desk::events::usrs, world_ptr, branch_template);
@@ -541,11 +567,11 @@ namespace netxs::app::desk
                     };
                 });
                 auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
-                auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_ONLY))
+                auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
                     ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
                 bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
                 auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
-                    ->plugin<pro::limit>(twod{ uibar_max_size, 3 }, twod{ -1, 3 });
+                    ->plugin<pro::limit>(bttn_min_size, bttn_max_size);
                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                     ->plugin<pro::fader>(x2, c2, skin::globals().fader_time)
                     ->plugin<pro::notes>(" Leave current session ")
@@ -557,7 +583,7 @@ namespace netxs::app::desk
                             gear.dismiss();
                         };
                     });
-                auto disconnect_area = disconnect_park->attach(snap::head, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::head, snap::center);
                 auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
                 auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
                     ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
@@ -569,7 +595,7 @@ namespace netxs::app::desk
                             boss.SIGNAL(tier::general, e2::shutdown, "desk: server shutdown");
                         };
                     });
-                auto shutdown_area = shutdown_park->attach(snap::tail, snap::center, ui::pads::ctor(dent{ 2,3,1,1 }));
+                auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::tail, snap::center);
                 auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
             }
             return window;

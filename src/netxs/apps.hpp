@@ -3,13 +3,6 @@
 
 #pragma once
 
-#include "apps/term.hpp"
-#include "apps/tile.hpp"
-#include "apps/calc.hpp"
-#include "apps/text.hpp"
-#include "apps/shop.hpp"
-#include "apps/test.hpp"
-
 namespace netxs::app::strobe
 {
     static constexpr auto id = "strobe";
@@ -55,6 +48,14 @@ namespace netxs::app::region
     static constexpr auto id = "region";
     static constexpr auto desc = "region";
 }
+
+#include "apps/term.hpp"
+#include "apps/tile.hpp"
+#include "apps/calc.hpp"
+#include "apps/text.hpp"
+#include "apps/shop.hpp"
+#include "apps/test.hpp"
+
 namespace netxs::app::shared
 {
     namespace
@@ -62,11 +63,11 @@ namespace netxs::app::shared
         auto build_Strobe        = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            auto strob = window->plugin<pro::focus>()
+            auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
                                ->plugin<pro::notes>(" Left+Right click to close ")
                                ->invoke([](auto& boss)
                                 {
-                                    boss.keybd.accept(true);
+                                    //boss.keybd.accept(true);
                                     closing_by_gesture(boss);
                                     closing_on_quit(boss);
                                 })
@@ -87,14 +88,14 @@ namespace netxs::app::shared
         auto build_Settings      = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::cache>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
-                        boss.keybd.accept(true);
+                        //boss.keybd.accept(true);
                         closing_by_gesture(boss);
                         closing_on_quit(boss);
                         boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
@@ -109,13 +110,13 @@ namespace netxs::app::shared
         auto build_Empty         = [](text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
+                      //boss.keybd.accept(true);
                       closing_by_gesture(boss);
                       closing_on_quit(boss);
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
@@ -169,20 +170,14 @@ namespace netxs::app::shared
                             }
 
                             static auto i = 0; i++;
-                            auto title = ansi::add("View\nRegion ", i);
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
-
-                            auto outer = dent{ 2,2,1,1 };
-                            auto inner = dent{ -4,-4,-2,-2 };
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer);
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner);
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
                             boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                            boss.RISEUP(tier::preview, e2::form::prop::zorder, Z_order::backmost);
+                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                auto old_title = e2::form::prop::ui::header.param();
-                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title);
-
+                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
                                 auto data = gear.get_clip_data();
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
@@ -191,8 +186,7 @@ namespace netxs::app::shared
                                     boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
                                 }
                                 // Copy clipboard data to title.
-                                auto title = e2::form::prop::ui::header.param(data.utf8);
-                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
                                 gear.dismiss();
 
                                 if (old_title.size()) // Copy old title to clipboard.
@@ -312,13 +306,13 @@ namespace netxs::app::shared
             truecolor += wiki01;
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([](auto& boss)
                     {
-                        boss.keybd.accept(true);
+                        //boss.keybd.accept(true);
                         closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -347,8 +341,7 @@ namespace netxs::app::shared
                     {
                         closing_on_quit(boss);
                     });
-            window->plugin<pro::focus>()
-                  ->plugin<pro::track>()
+            window->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -364,6 +357,7 @@ namespace netxs::app::shared
                     auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                                      ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
                                       {
@@ -435,7 +429,7 @@ namespace netxs::app::shared
         {
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
-                ->plugin<pro::focus>()
+                ->plugin<pro::focus>(pro::focus::mode::active)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -446,14 +440,14 @@ namespace netxs::app::shared
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, boss_ptr)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::quit, boss_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, boss_ptr);
                     };
-                    boss.LISTEN(tier::preview, e2::form::quit, boss_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, boss_ptr)
                     {
                         boss.shut();
-                        boss.RISEUP(tier::release, e2::form::quit, boss_ptr); // Detach base window.
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss_ptr); // Detach base window.
                     };
                 });
         };

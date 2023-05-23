@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #define log(...)
 #endif
 
@@ -75,7 +75,7 @@ struct consrv
         auto done(para& line)
         {
             auto& new_data = line.content();
-            auto trimmed = utf::trim(new_data.utf8(), utf::spaces);
+            auto trimmed = utf::trim(new_data.utf8(), whitespaces);
 
             if (trimmed.size() && (data.empty() || data.back() != new_data))
             {
@@ -146,7 +146,9 @@ struct consrv
             ui32& mode;
             type  kind;
             void* link;
-            text  rest;
+            text  toUTF8;
+            text  toANSI;
+            wide  toWIDE;
 
             hndl(clnt& boss, ui32& mode, type kind, void* link)
                 : boss{ boss },
@@ -340,13 +342,14 @@ struct consrv
         }
     };
 
-    struct event_list
+    struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
         using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
+        using irec = INPUT_RECORD;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
@@ -372,11 +375,16 @@ struct consrv
         bool    closed; // events_t: Console server was shutdown.
         fire    ondata; // events_t: Signal on input buffer data.
         wide    wcpair; // events_t: Surrogate pair buffer.
+        wide    toWIDE; // events_t: UTF-16 decoder buffer.
+        text    toUTF8; // events_t: UTF-8  decoder buffer.
+        text    toANSI; // events_t: ANSI   decoder buffer.
+        irec    leader; // events_t: Hanging key event record (lead byte).
 
-        event_list(consrv& serv)
+        evnt(consrv& serv)
             :  server{ serv },
                closed{ faux },
-               ondata{ true }
+               ondata{ true },
+               leader{      }
         { }
 
         void reset()
@@ -435,6 +443,8 @@ struct consrv
             auto lock = std::lock_guard{ locker };
             ondata.flush();
             buffer.clear();
+            recbuf.clear();
+            cooked.drop();
         }
         auto generate(wchr c, ui32 s = 0, ui16 v = 0)
         {
@@ -486,9 +496,9 @@ struct consrv
         }
         auto generate(view ustr)
         {
-            server.toWIDE.clear();
-            utf::to_utf(ustr, server.toWIDE);
-            return generate(server.toWIDE);
+            toWIDE.clear();
+            utf::to_utf(ustr, toWIDE);
+            return generate(toWIDE);
         }
         auto write(view ustr)
         {
@@ -499,6 +509,23 @@ struct consrv
                 ondata.reset();
                 signal.notify_one();
             }
+        }
+        void focus(bool state)
+        {
+            auto lock = std::lock_guard{ locker };
+            buffer.emplace_back(INPUT_RECORD
+            {
+                .EventType = FOCUS_EVENT,
+                .Event =
+                {
+                    .FocusEvent =
+                    {
+                        .bSetFocus = state,
+                    }
+                }
+            });
+            ondata.reset();
+            signal.notify_one();
         }
         void mouse(input::hids& gear, bool moved, twod const& coord)
         {
@@ -738,7 +765,7 @@ struct consrv
                 });
             }
 
-            if (gear.keybd::winchar == ansi::C0_ETX)
+            if (gear.keybd::winchar == ansi::c0_etx)
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
@@ -774,6 +801,7 @@ struct consrv
         {
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
+            auto nums = utfx{};
             auto line = para{ cooked.ustr };
             auto done = faux;
             auto crlf = 0;
@@ -796,19 +824,18 @@ struct consrv
                 {
                     if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
                     {
-                        log(" ============================",
-                            "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                            "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                            "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                            "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                            "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
-                            "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
+                        //log(" ============================",
+                        //    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
+                        //    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
+                        //    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
+                        //    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
+                        //    "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
+                        //    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
                     }
 
-                    if (rec.EventType == KEY_EVENT
-                     && rec.Event.KeyEvent.bKeyDown)
+                    auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
+                    if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
                     {
-                        auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
                         auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
                         auto& n = rec.Event.KeyEvent.wRepeatCount;
                         cooked.ctrl = rec.Event.KeyEvent.dwControlKeyState;
@@ -854,6 +881,21 @@ struct consrv
                             case VK_F5:
                             case VK_UP:     burn(); hist.prev(line);                                                               break;
                             case VK_DOWN:   burn(); hist.next(line);                                                               break;
+                            case VK_NUMPAD0:
+                            case VK_NUMPAD1:
+                            case VK_NUMPAD2:
+                            case VK_NUMPAD3:
+                            case VK_NUMPAD4:
+                            case VK_NUMPAD5:
+                            case VK_NUMPAD6:
+                            case VK_NUMPAD7:
+                            case VK_NUMPAD8:
+                            case VK_NUMPAD9:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
+                            {
+                                while (n--) nums = nums * 10 + v - VK_NUMPAD0;
+                                break;
+                            }
                             default:
                             {
                                 n--;
@@ -869,7 +911,10 @@ struct consrv
                                         {
                                             line.lyric->utf8(cooked.ustr);
                                             cooked.ustr.push_back('\r');
-                                            cooked.ustr.push_back('\n');
+                                            if (server.inpmod & nt::console::inmode::preprocess)
+                                            {
+                                                cooked.ustr.push_back('\n');
+                                            }
                                         }
                                         else
                                         {
@@ -914,6 +959,11 @@ struct consrv
                             }
                         }
                     }
+                    else if (nums && v == VK_MENU) // Alt is released after num digits input.
+                    {
+                        server.inpenc->decode(nums, buff);
+                        nums = 0;
+                    }
                     if (done) break;
                     else      pops++;
                 }
@@ -942,7 +992,7 @@ struct consrv
                         using erase = std::decay_t<decltype(server.uiterm)>::commands::erase;
                         term.el(erase::line::wraps);
 
-                        if (done && crlf)
+                        if (done && crlf && server.inpmod & nt::console::inmode::preprocess) // On PROCESSED_INPUT + ECHO_INPUT only.
                         {
                             term.cr();
                             term.lf(crlf);
@@ -993,7 +1043,7 @@ struct consrv
                         }
                     }
                 }
-                buffer.clear();
+                buffer.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
             }
             while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
 
@@ -1003,14 +1053,30 @@ struct consrv
         template<bool Complete = faux, class Payload>
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
-            auto size = std::min((ui32)cooked.rest.size(), readstep);
-            auto data = view{ cooked.rest.data(), size };
-            log("\thandle 0x", utf::to_hex(packet.target), ": read rest line: ", utf::debase(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                                                : data));
-            cooked.rest.remove_prefix(size);
-            packet.reply.ctrls = cooked.ctrl;
-            packet.reply.bytes = size;
-            answer.send_data<Complete>(server.condrv, data);
+            auto& inpenc = *server.inpenc;
+            log("\thandle 0x", utf::to_hex(packet.target), ":",
+              "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
+              "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
+            if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
+            {
+                auto size = std::min((ui32)cooked.rest.size(), readstep);
+                auto data = view{ cooked.rest.data(), size };
+                log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                              : data)));
+                cooked.rest.remove_prefix(size);
+                packet.reply.ctrls = cooked.ctrl;
+                packet.reply.bytes = size;
+                answer.send_data<Complete>(server.condrv, data);
+            }
+            else
+            {
+                auto data = inpenc.encode(cooked.rest, readstep);
+                auto size = (ui32)data.size();
+                log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
+                packet.reply.ctrls = cooked.ctrl;
+                packet.reply.bytes = size;
+                answer.send_data<Complete>(server.condrv, data);
+            }
         }
         template<class Payload>
         auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
@@ -1041,19 +1107,16 @@ struct consrv
                         else                    cooked.ustr = initdata;
                         readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, client.inputs);
                     }
-                    else readchar(lock, cancel, packet.input.utf16);
-
-                    if (cooked.ustr.size())
+                    else
                     {
-                        log("\thandle 0x", utf::to_hex(packet.target), ": read line: ", utf::debase(cooked.ustr));
+                        readchar(lock, cancel, packet.input.utf16);
                     }
-
                     if (closed || cancel)
                     {
+                        log("\thandle 0x", utf::to_hex(packet.target), ": task canceled");
                         cooked.drop();
                         return;
                     }
-
                     reply<true>(packet, answer, readstep);
                 });
                 server.answer = {};
@@ -1061,10 +1124,46 @@ struct consrv
             else reply(packet, server.answer, readstep);
         }
         template<class T>
-        auto sendevents(T&& recs)
+        auto sendevents(T&& recs, bool utf16)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.insert(buffer.end(), recs.begin(), recs.end());
+            auto& inpenc = *server.inpenc;
+            if (utf16 || inpenc.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
+            {
+                buffer.insert(buffer.end(), recs.begin(), recs.end());
+            }
+            else
+            {
+                auto head = recs.begin();
+                auto tail = recs.end();
+                while (head != tail)
+                {
+                    auto& coming = *head++;
+                    if (coming.EventType == KEY_EVENT)
+                    {
+                        auto lead = (byte)leader.Event.KeyEvent.uChar.AsciiChar;
+                        auto next = (byte)coming.Event.KeyEvent.uChar.AsciiChar;
+                        if (lead)
+                        {
+                            if (leader.Event.KeyEvent.wVirtualKeyCode == coming.Event.KeyEvent.wVirtualKeyCode)
+                            {
+                                coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(lead, next);
+                            }
+                            leader = {}; // Drop hanging lead byte.
+                        }
+                        else
+                        {
+                            if (inpenc.test(next))
+                            {
+                                leader = coming;
+                                continue;
+                            }
+                            else coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(next);
+                        }
+                    }
+                    buffer.insert(buffer.end(), coming);
+                }
+            }
             if (!buffer.empty())
             {
                 ondata.reset();
@@ -1076,23 +1175,85 @@ struct consrv
         {
             if (!server.size_check(packet.echosz, answer.sendoffset())) return;
             auto avail = packet.echosz - answer.sendoffset();
-            auto limit = std::min<ui32>(count(), avail / sizeof(recbuf.front()));
+            auto limit = avail / (ui32)sizeof(recbuf.front());
             log("\tuser limit: ", limit);
-            recbuf.resize(limit);
-            auto srcit = buffer.begin();
-            auto dstit = recbuf.begin();
-            auto endit = recbuf.end();
-            while (dstit != endit)
+            auto head = buffer.begin();
+            if (packet.input.utf16)
             {
-                *dstit++ = *srcit++;
+                recbuf.clear();
+                recbuf.reserve(count());
+                auto tail = head + std::min(limit, count());
+                while (head != tail)
+                {
+                    recbuf.emplace_back(*head++);
+                }
             }
-            if (!(packet.input.flags & Payload::peek))
+            else
             {
-                buffer.erase(buffer.begin(), srcit);
+                auto splitter = [&](auto codec_proc)
+                {
+                    recbuf.reserve(recbuf.size() + count());
+                    auto tail = buffer.end();
+                    auto code = utfx{};
+                    auto left = INPUT_RECORD{};
+                    if (recbuf.size() && recbuf.size() <= limit)
+                    {
+                        ++head; // Drop the deferred record.
+                    }
+                    while (head != tail && recbuf.size() < limit)
+                    {
+                        auto& src = *head++;
+                        if (src.EventType != KEY_EVENT) // Just copy non keybd events.
+                        {
+                            recbuf.emplace_back(src);
+                        }
+                        else // Expand and fill up to limit.
+                        {
+                            auto& next = src.Event.KeyEvent.uChar.UnicodeChar;
+                            auto& copy = code ? left : src;
+                            if (utf::tocode(next, code)) // BMP or the second part of surrogate pair.
+                            {
+                                toANSI.clear();
+                                codec_proc(code, toANSI);
+                                auto queue = qiew{ toANSI };
+                                while (queue)
+                                {
+                                    auto& dst = recbuf.emplace_back(copy);
+                                    dst.Event.KeyEvent.uChar.UnicodeChar = (byte)queue.pop_front();
+                                }
+                                if (recbuf.size() > limit) --head; // Keep the current record until the deferred buffer not empty.
+                                code = {};
+                            }
+                            else // The first part of surrogate pair.
+                            {
+                                left = src;
+                            }
+                        }
+                    }
+                };
+                auto& codec = *server.inpenc;
+                if (codec.codepage == CP_UTF8) splitter([&](utfx& code, text& toUTF8){ utf::to_utf_from_code(code, toUTF8); });
+                else                           splitter([&](utfx& code, text& toANSI){          codec.encode(code, toANSI); });
+            }
+            auto size = std::min(limit, (ui32)recbuf.size());
+            auto peek = packet.input.flags & Payload::peek;
+            packet.reply.count = size;
+            if (!peek)
+            {
+                buffer.erase(buffer.begin(), head);
                 if (buffer.empty()) ondata.flush();
             }
-            packet.reply.count = limit;
-            answer.send_data<Complete>(server.condrv, recbuf);
+            if (size == recbuf.size())
+            {
+                answer.send_data<Complete>(server.condrv, recbuf);
+                recbuf.clear();
+            }
+            else
+            {
+                answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
+                if (peek) recbuf.clear();
+                else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
+            }
         }
         template<class Payload>
         auto take(Payload& packet)
@@ -1136,7 +1297,349 @@ struct consrv
         }
     };
 
-    enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
+    struct decoder
+    {
+        using buff = std::array<byte, 256>;
+        using vecW = std::array<wchr, 65536>;
+        using vecA = std::vector<wchr>;
+        ui32 codepage{ CP_UTF8 }; // decoder: .
+        byte defchar1{}; // decoder: .
+        byte defchar2{}; // decoder: .
+        byte lastbyte{}; // decoder: .
+        buff leadbyte{}; // decoder: .
+        vecW BMPtoOEM{}; // decoder: .
+        vecA OEMtoBMP{}; // decoder: .
+        sz_t charsize{}; // decoder: .
+
+        auto test(byte c)
+        {
+            return !!leadbyte[c];
+        }
+        auto load(ui32 cp)
+        {
+            if (cp == codepage) return true;
+            leadbyte.fill(0);
+            if (cp == CP_UTF8)
+            {
+                codepage = cp;
+                charsize = {};
+                defchar1 = {};
+                defchar2 = {};
+                return true;
+            }
+            auto data = CPINFO{};
+            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
+            {
+                codepage = cp;
+                charsize = data.MaxCharSize;
+                defchar1 = data.DefaultChar[0];
+                defchar2 = data.DefaultChar[1];
+                auto head = std::begin(data.LeadByte);
+                auto tail = std::end(data.LeadByte);
+                while (head != tail)
+                {
+                    auto a = *head++;
+                    if (!a) break;
+                    auto b = *head++;
+                    log("\tcodepage range: ", (int)a, "-", (int)b);
+                    do leadbyte[a] = 1;
+                    while (a++ != b);
+                }
+
+                // Forward table.
+                if ((charsize == 1))
+                {
+                    OEMtoBMP.resize(256);
+                    auto i = 0;
+                    for (auto& c : OEMtoBMP) c = i++;
+                }
+                else
+                {
+                    OEMtoBMP.resize(65536, 0);
+                    for (auto i = 0; i < 256; i++)
+                    {
+                        if (test((byte)i))
+                        {
+                            auto lead = i << 8;
+                            auto head = OEMtoBMP.begin() + lead;
+                            auto tail = head + 256;
+                            *head++ = ++lead/*zero can't be a second byte*/;
+                            while (head != tail) *head++ = lead++;
+                        }
+                        else OEMtoBMP[i] = i;
+                    }
+                }
+                auto oem = std::vector<byte>{};
+                oem.reserve(65536 * charsize);
+                for (auto c : OEMtoBMP)
+                {
+                    if (c < 256)
+                    {
+                        oem.push_back((byte)c);
+                    }
+                    else
+                    {
+                        oem.push_back(c >> 8);
+                        oem.push_back(c & 0xFF);
+                    }
+                }
+                ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), (si32)oem.size(), OEMtoBMP.data(), (si32)OEMtoBMP.size());
+                if constexpr (debugmode)
+                {
+                    auto t = "OEM to BMP lookup table:\n"s;
+                    auto n = 0;
+                    //auto u = oem.begin();
+                    t += utf::to_hex<true>(n >> 4, 3) + "0: ";
+                    for (auto c : OEMtoBMP)
+                    {
+                        t += ansi::ocx(20 + 6 + (n % 16) * 3);
+                        //auto d = *u++;
+                        //t += ansi::ocx(20 + 6 + (n % 16) * 8).add(utf::to_hex(d, 4)).add("-");
+                        if (c < ' ' || c == 0x7f) t += ansi::fgc(blacklt).add(utf::to_hex<true>(c, 2)).nil();
+                        else                      t += ansi::inv(true).scp().add("  ").rcp().add(utf::to_utf(c)).nil();
+                        if (++n % 16 == 0)
+                        {
+                            t += "\n" + utf::to_hex<true>(n >> 4, 3) + "0: ";
+                            if (n > 255 && charsize == 1) break;
+                        }
+                    }
+                    log("-------------------------\n", t, "\n-------------------------");
+                }
+
+                // Reverse table.
+                auto bmp = std::vector<wchr>(65536, 0);
+                auto tmp = std::vector<byte>(65536 * 2, 0);
+                auto i = 0;
+                for (auto& b : bmp) b = i++;
+                ::WideCharToMultiByte(codepage, 0, bmp.data(), (si32)bmp.size(), (char *)tmp.data(), (si32)tmp.size(), 0, 0);
+                auto ptr = tmp.begin();
+                for (auto& d : BMPtoOEM)
+                {
+                    auto c = *ptr++;
+                    if (test(c)) d = ((ui16)c << 8) + *ptr++;
+                    else         d = c;
+                }
+                if constexpr (debugmode && faux)
+                {
+                    auto t = "BMP to OEM lookup table:\n"s;
+                    auto n = 0;
+                    t += utf::to_hex<true>(n >> 4, 3) + "0: ";
+                    for (auto c : BMPtoOEM)
+                    {
+                        c = OEMtoBMP[c];
+                        t += ansi::ocx(20 + 6 + (n % 16) * 3);
+                        if (c < ' ' || c == 0x7f) t += ansi::fgc(blacklt).add(utf::to_hex<true>(c, 2)).nil();
+                        else                      t += ansi::inv(true).scp().add("  ").rcp().add(utf::to_utf(c)).nil();
+                        if (++n % 16 == 0)
+                        {
+                            t += "\n" + utf::to_hex<true>(n >> 4, 3) + "0: ";
+                        }
+                    }
+                    log("-------------------------\n", t, "\n-------------------------");
+                }
+
+                return true;
+            }
+            else return faux;
+        }
+        auto defchar()
+        {
+            return charsize == 1 ? (utfx)defchar1 : ((utfx)defchar1 << 8) + defchar2;
+        }
+        auto decode_char(utfx code)
+        {
+            static constexpr auto c0_wchr = { L'\0',L'☺', L'☻', L'♥', L'♦', L'♣', L'♠', L'•', L'◘', L'○', L'◙', L'♂', L'♀', L'♪', L'♫', L'☼',
+                                              L'►', L'◄', L'↕', L'‼', L'¶', L'§', L'▬', L'↨', L'↑', L'↓', L'→', L'←', L'∟', L'↔', L'▲', L'▼',
+                                              L'⌂' };
+                 if (code < 0x20 || code == 0x7F) code = *(c0_wchr.begin() + std::min<size_t>(code, c0_wchr.size() - 1));
+            else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
+            else                                  code = defchar();
+            return code;
+        }
+        auto decode_char(byte lead, byte next)
+        {
+            auto code = ((ui16)lead << 8) + next;
+            return decode_char(code);
+        }
+        auto decode(utfx code)
+        {
+            if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
+            else                        code = defchar();
+            return code;
+        }
+        auto decode(byte lead, byte next)
+        {
+            auto code = ((ui16)lead << 8) + next;
+            return decode(code);
+        }
+        auto decode(utfx code, text& toUTF8)
+        {
+            static constexpr auto c0_view = { " "sv, "☺"sv, "☻"sv, "♥"sv, "♦"sv, "♣"sv, "♠"sv, "•"sv, "◘"sv, "○"sv, "◙"sv, "♂"sv, "♀"sv, "♪"sv, "♫"sv, "☼"sv,
+                                              "►"sv, "◄"sv, "↕"sv, "‼"sv, "¶"sv, "§"sv, "▬"sv, "↨"sv, "↑"sv, "↓"sv, "→"sv, "←"sv, "∟"sv, "↔"sv, "▲"sv, "▼"sv,
+                                              "⌂"sv };
+            if (code < 0x20 || code == 0x7F)
+            {
+                toUTF8 += *(c0_view.begin() + std::min<size_t>(code, c0_view.size() - 1));
+            }
+            else
+            {
+                if (codepage != CP_UTF8)
+                {
+                    code = decode(code);
+                }
+                utf::to_utf_from_code(code, toUTF8);
+            }
+        }
+        auto decode(wide& toWIDE, text& toUTF8)
+        {
+            auto last = toWIDE.back();
+            if (last >= 0xd800 && last <= 0xdbff) // First part of surrogate pair.
+            {
+                toWIDE.pop_back();
+                utf::to_utf(toWIDE, toUTF8);
+                toWIDE.clear();
+                toWIDE.push_back(last);
+            }
+            else
+            {
+                utf::to_utf(toWIDE, toUTF8);
+                toWIDE.clear();
+            }
+        }
+        auto decode_run(auto& toANSI, text& toUTF8)
+        {
+            auto head = toANSI.begin();
+            auto tail = toANSI.end();
+            while (head != tail)
+            {
+                auto c = (ui16)(byte)*head++;
+                if (test((byte)c))
+                {
+                    c = head != tail ? (c << 8) + (byte)*head++ : defchar();
+                }
+                auto bmp = OEMtoBMP[c];
+                utf::to_utf(bmp, toUTF8);
+            }
+        }
+        auto decode_log(view toANSI)
+        {
+            auto utf8 = text{};
+            decode_run(toANSI, utf8);
+            return utf8;
+        }
+        auto decode(text& toANSI, text& toUTF8)
+        {
+            auto last = toANSI.back();
+            auto hang = test(last);
+            if (hang)
+            {
+                toANSI.pop_back();
+                if (toANSI.size() && test(toANSI.back())) // Another hanging lead byte. Fix it.
+                {
+                    toANSI.back() = defchar1;
+                    if (test(defchar1)) toANSI.push_back(defchar2);
+                }
+            }
+            decode_run(toANSI, toUTF8);
+            toANSI.clear();
+            if (hang) toANSI.push_back(last);
+        }
+        auto encode(wchr code)
+        {
+            return BMPtoOEM[code];
+        }
+        void encode(wchr code, text& ansi)
+        {
+            if (code >= 65536) code = defchar();
+            else               code = BMPtoOEM[code];
+            if (code < 256)
+            {
+                ansi.push_back((byte)code);
+            }
+            else
+            {
+                ansi.push_back(code >> 8);
+                ansi.push_back(code & 0xFF);
+            }
+        }
+        void reset()
+        {
+            lastbyte = 0;
+        }
+        void encode(view& utf8, text& crop, ui32 readstep = maxui32)
+        {
+            auto done = size_t{};
+            auto rest = readstep;
+            if (auto iter = utf::cpit{ utf8 })
+            {
+                if (lastbyte)
+                {
+                    auto next = iter.next();
+                    done += next.utf8len;
+                    crop.push_back(lastbyte);
+                    rest--;
+                    lastbyte = 0;
+                }
+                while (iter && rest)
+                {
+                    auto next = iter.next();
+                    auto code = next.correct ? BMPtoOEM[next.cdpoint]
+                                             : defchar();
+                    auto size = code < 256 ? 1u : 2u;
+                    if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
+                    {
+                        crop.push_back(code >> 8);
+                        lastbyte = code & 0xFF;
+                        rest -= 1;
+                        assert(rest == 0);
+                    }
+                    else
+                    {
+                        if (code < 256)
+                        {
+                            crop.push_back((byte)code);
+                        }
+                        else
+                        {
+                            crop.push_back(code >> 8);
+                            crop.push_back(code & 0xFF);
+                        }
+                        rest -= size;
+                        done += next.utf8len;
+                    }
+                }
+            }
+            utf8.remove_prefix(done);
+        }
+        auto encode(view& utf8, ui32 readstep = maxui32)
+        {
+            auto crop = text{};
+            encode(utf8, crop, readstep);
+            return crop;
+        }
+
+        decoder() = default;
+        decoder(ui32 cp)
+        {
+            load(cp);
+        }
+    };
+
+    //enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
+    enum type : ui32 { undefined, ansiOEM, realUTF16, attribute, fakeUTF16 };
+
+    auto& langmap()
+    {
+        static const auto langmap = std::unordered_map<ui32, ui16>
+        {
+            { 932,   MAKELANGID(LANG_JAPANESE, SUBLANG_DEFAULT            ) },
+            { 936,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_SIMPLIFIED ) },
+            { 949,   MAKELANGID(LANG_KOREAN  , SUBLANG_KOREAN             ) },
+            { 950,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_TRADITIONAL) },
+            { 65001, MAKELANGID(LANG_ENGLISH , SUBLANG_ENGLISH_US         ) },
+        };
+        return langmap;
+    }
 
     auto attr_to_brush(ui16 attr)
     {
@@ -1167,6 +1670,13 @@ struct consrv
         if (brush.und()) attr |= COMMON_LVB_UNDERSCORE;
         if (brush.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
         return attr;
+    }
+    auto set_half(auto wdt, auto& attr)
+    {
+        if (wdt >= 2)
+        {
+            attr |= (wdt - 1) << 8; // Apply COMMON_LVB_LEADING_BYTE / COMMON_LVB_TRAILING_BYTE.
+        }
     }
     template<class RecType, feed Input, class T>
     auto take_buffer(T&& packet)
@@ -1254,7 +1764,33 @@ struct consrv
         if (!result) { log("\tinvalid handle 0x", utf::to_hex(handle_ptr)); }
         return result;
     }
-
+    void check_buffer_size(auto& console, auto& size)
+    {
+        if (size.x > 165)
+        {
+            // Just disable wrapping if user application requests too much (Explicit requirement for horizontal scrolling).
+            // E.g. wmic requests { x=1500, y=300 }.
+            //      Indep stat for dwSize.X = N: max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
+            //                                   min: 150, 100, 132, 120, 150, 140, 165, 30, 80.
+            log("\ttoo wide buffer requested, turning off wrapping");
+            console.style.wrp(faux);
+            size.x = console.panel.x;
+        }
+        if (size.y > 99)
+        {
+             // Applications usually request real viewport heights: 20, 24, 25, 50
+             //         or extra large values for the scrollbuffer: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (stat for dwSize.Y = N)
+            log("\ttoo long buffer requested, updating scrollback limits");
+            uiterm.sb_min(size.y);
+            size.y = console.panel.y;
+        }
+    }
+    auto show_page(auto utf16, auto codepage)
+    {
+        return        utf16 ? "UTF-16"s :
+        codepage == CP_UTF8 ? "UTF-8"s  :
+                              "OEM-"s + std::to_string(codepage);
+    }
     template<class S, class P>
     auto write_block(S& scrollback, core const& block, twod coor, rect clip, P fuse)
     {
@@ -1298,10 +1834,17 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        answer.status = nt::status::not_supported;
-        log("\tlangid not supported");
-        //packet.reply.langid = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
-        //log("\treply.langid ", packet.reply.langid);
+        auto winuicp = ::GetACP();
+        if (winuicp != 65001 && langmap().contains(winuicp))
+        {
+            packet.reply.langid = netxs::map_or(langmap(), outenc->codepage, 65001);
+            log("\tlang id: 0x", utf::to_hex(packet.reply.langid));
+        }
+        else
+        {
+            answer.status = nt::status::not_supported;
+            log("\tlang id not supported");
+        }
     }
     auto api_system_mouse_buttons_get_count  ()
     {
@@ -1316,7 +1859,7 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.count = ::GetSystemMetrics(SM_CMOUSEBUTTONS);
-        log("\treply.count ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
     }
     auto api_process_attach                  ()
     {
@@ -1378,21 +1921,21 @@ struct consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-        log("\tprocid ", client.procid, "\n",
-            "\tthread ", client.thread, "\n",
-            "\tpgroup ", client.pgroup, "\n",
-            "\ticonid ", client.detail.iconid, "\n",
-            "\thotkey ", client.detail.hotkey, "\n",
-            "\tconfig ", client.detail.config, "\n",
-            "\tcolors ", client.detail.colors, "\n",
-            "\tformat ", client.detail.format, "\n",
-            "\tscroll ", client.detail.scroll, "\n",
-            "\tcliapp ", client.detail.cliapp, "\n",
-            "\texpose ", client.detail.expose, "\n",
-            "\twindow ", client.detail.window, "\n",
-            "\theader ", client.detail.header, "\n",
-            "\tapname ", client.detail.curexe, "\n",
-            "\tcurdir ", client.detail.curdir);
+        log("\tprocid: ", client.procid, "\n",
+            "\tthread: ", client.thread, "\n",
+            "\tpgroup: ", client.pgroup, "\n",
+            "\ticonid: ", client.detail.iconid, "\n",
+            "\thotkey: ", client.detail.hotkey, "\n",
+            "\tconfig: ", client.detail.config, "\n",
+            "\tcolors: ", client.detail.colors, "\n",
+            "\tformat: ", client.detail.format, "\n",
+            "\tscroll: ", client.detail.scroll, "\n",
+            "\tcliapp: ", client.detail.cliapp, "\n",
+            "\texpose: ", client.detail.expose, "\n",
+            "\twindow: ", client.detail.window, "\n",
+            "\theader: ", client.detail.header, "\n",
+            "\tapname: ", client.detail.curexe, "\n",
+            "\tcurdir: ", client.detail.curdir);
 
         struct connect_info : wrap<connect_info>
         {
@@ -1417,16 +1960,16 @@ struct consrv
         { };
         auto& packet = payload::cast(upload);
         auto client_ptr = packet.client;
-        log(prompt, "detach process from console 0x", utf::to_hex(client_ptr));
+        log(prompt, "detach process from console: 0x", utf::to_hex(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
         {
             auto& client = *client_ptr;
-            log("\tproc id ", client.procid);
+            log("\tproc id: ", client.procid);
             for (auto& handle : client.tokens)
             {
                 auto handle_ptr = &handle;
-                log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
+                log("\tdeactivate handle: 0x", utf::to_hex(handle_ptr));
                 events.abort(handle_ptr);
             }
             uiterm.target->brush = client.backup;
@@ -1464,7 +2007,7 @@ struct consrv
         auto count = avail / sizeof(ui32);
         auto recs = wrap<ui32>::cast(buffer, count);
         packet.reply.count = static_cast<ui32>(joined.size());
-        log("\treply.count ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
         if (count >= joined.size())
         {
             auto dest = recs.begin();
@@ -1503,7 +2046,7 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         auto& client = *packet.client;
-        log("\tclient procid ", client.procid);
+        log("\tclient procid: ", client.procid);
         auto newbuf = [&]()
         {
             auto& console = client.alters.emplace_back(uiterm);
@@ -1545,7 +2088,7 @@ struct consrv
         auto client_iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (client_iter == joined.end())
         {
-            log("\tbad handle 0x", utf::to_hex(handle_ptr));
+            log("\tbad handle: 0x", utf::to_hex(handle_ptr));
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -1555,7 +2098,7 @@ struct consrv
         {
             auto a = handle_ptr->link;
             if (uiterm.target == a) uiterm.reset_to_normal(*uiterm.target);
-            log("\tdeactivate handle 0x", utf::to_hex(handle_ptr));
+            log("\tdeactivate handle: 0x", utf::to_hex(handle_ptr));
             events.abort(handle_ptr);
             client.tokens.erase(iter);
         }
@@ -1579,8 +2122,9 @@ struct consrv
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.is_output ? "GetConsoleOutputCP"
                                            : "GetConsoleCP");
-        packet.reply.code_page = CP_UTF8;
-        log("\treply.code_page ", CP_UTF8);
+        packet.reply.code_page = packet.input.is_output ? outenc->codepage
+                                                        : inpenc->codepage;
+        log("\treply.code_page: ", packet.reply.code_page);
     }
     auto api_process_codepage_set            ()
     {
@@ -1594,11 +2138,30 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log(prompt, packet.input.is_output ? "SetConsoleOutputCP"
-                                           : "SetConsoleCP");
-        log("\tinput.code_page ", packet.input.code_page);
-        //wsl depends on this - always reply success
-        //answer.status = nt::status::not_supported;
+        auto c = packet.input.code_page;
+        auto is_output = !!packet.input.is_output;
+        log(prompt, is_output ? "SetConsoleOutputCP"
+                              : "SetConsoleCP", "\n\tinput.code_page ", c);
+        auto& o = is_output ? outenc : inpenc;
+        auto& i = is_output ? inpenc : outenc;
+        if (o->codepage != c)
+        {
+            if (i->codepage == c) o = i; // Reuse existing decoder.
+            else
+            {
+                if (auto p = ptr::shared<decoder>(); p->load(c)) o = p;
+                else answer.status = nt::status::not_supported;
+            }
+        }
+        for (auto& client : joined) // Reset trailing/hanging bytes.
+        for (auto& handle : client.tokens)
+        if (is_output == (handle.kind != hndl::type::events))
+        {
+            handle.toWIDE.clear();
+            handle.toANSI.clear();
+            handle.toUTF8.clear();
+        }
+        if (!is_output) inpenc->reset();
     }
     auto api_process_mode_get                ()
     {
@@ -1621,7 +2184,7 @@ struct consrv
         }
         auto& handle = *handle_ptr;
         packet.reply.mode = handle.mode;
-        log("\treply.mode ", handle);
+        log("\treply.mode: ", handle);
     }
     auto api_process_mode_set                ()
     {
@@ -1651,7 +2214,7 @@ struct consrv
             {
                 auto autocr = !new_mode;
                 uiterm.normal.set_autocr(autocr);
-                log("\tauto_crlf ", autocr ? "enabled" : "disabled");
+                log("\tauto_crlf: ", autocr ? "enabled" : "disabled");
             }
         }
         else if (handle.kind == hndl::type::events)
@@ -1663,10 +2226,10 @@ struct consrv
                 uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
             }
             else uiterm.mtrack.disable(decltype(uiterm.mtrack)::negative_args);
-            log("\tmouse_input ", mouse_mode ? "enabled" : "disabled");
+            log("\tmouse_input: ", mouse_mode ? "enabled" : "disabled");
         }
         handle.mode = packet.input.mode;
-        log("\tinput.mode ", handle);
+        log("\tinput.mode: ", handle);
     }
     template<bool RawRead = faux>
     auto api_events_read_as_text             ()
@@ -1694,7 +2257,7 @@ struct consrv
         packet.reply.bytes = 0;
         if constexpr (RawRead)
         {
-            log("\traw read (ReadFile emulation)");
+            log("\tread mode: raw ReadFile emulation");
             packet.input = { .EOFon = 1 };
         }
         auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
@@ -1703,15 +2266,24 @@ struct consrv
         auto readstep = packet.echosz - answer.sendoffset();
         auto datasize = namesize + packet.input.affix;
         buffer.resize(datasize);
-        if (answer.recv_data(condrv, buffer) == faux) return;
+        if (!answer.recv_data(condrv, buffer)) return;
 
         auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
-        log("\tnamesize: ", namesize);
-        log("\tnameview: ", utf::debase(utf::to_utf(nameview)));
-        log("\treadstep: ", readstep);
-        log("\tinitdata: ", packet.input.utf16 ? "utf-16: " + utf::debase(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2)))
-                                               : "utf-8: "  + utf::debase(initdata));
+        if (!packet.input.utf16 && inpenc->codepage != CP_UTF8)
+        {
+            toUTF8.clear();
+            inpenc->decode_run(initdata, toUTF8);
+            initdata = toUTF8;
+        }
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            "\n\tnamesize: ", namesize,
+            "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
+            "\n\treadstep: ", readstep,
+            "\n\treadstop: 0x", utf::to_hex(packet.input.stops),
+            "\n\tinitdata: ", ansi::hi(packet.input.utf16 ? utf::debase<faux, faux>(utf::to_utf(wiew((wchr*)initdata.data(), initdata.size() / 2)))
+                            : inpenc->codepage == CP_UTF8 ? utf::debase<faux, faux>(initdata)
+                                                          : utf::debase<faux, faux>(toUTF8)));
         events.placeorder(packet, nameview, initdata, readstep);
     }
     auto api_events_clear                    ()
@@ -1721,7 +2293,7 @@ struct consrv
     }
     auto api_events_count_get                ()
     {
-        log(prompt, "GetNumberOfInputEvents");
+        log(prompt, "GetNumberOfConsoleInputEvents");
         struct payload : drvpacket<payload>
         {
             struct
@@ -1741,12 +2313,12 @@ struct consrv
         auto& handle = *handle_ptr;
         if (handle.kind != hndl::type::events) // GH#305: Python attempts to get the input event number using the hndl::type::scroll handle to determine the handle type.
         {
-            log("\tabort: invalid handle type ", handle.kind);
+            log("\tabort: invalid handle type: ", handle.kind);
             answer.status = nt::status::invalid_handle;
             return;
         }
         packet.reply.count = events.count();
-        log("\treply.count ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
     }
     auto api_events_get                      ()
     {
@@ -1772,9 +2344,9 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
-                                                       : "ReadConsoleInput");
-        log("\tinput.flags ", utf::to_hex(packet.input.flags));
-
+                                                       : "ReadConsoleInput",
+            "\n\tinput.flags: ", utf::to_hex(packet.input.flags),
+            "\n\t", show_page(packet.input.utf16, inpenc->codepage));
         auto client_ptr = packet.client;
         if (client_ptr == nullptr)
         {
@@ -1806,15 +2378,16 @@ struct consrv
             struct
             {
                 byte utf16;
-                byte totop;
+                byte totop; // Not used.
             }
             input;
         };
         auto& packet = payload::cast(upload);
         auto recs = take_buffer<INPUT_RECORD, feed::fwd>(packet);
-        if (!recs.empty()) events.sendevents(recs); //todo convert to wide - is it necessary?
+        if (!recs.empty()) events.sendevents(recs, packet.input.utf16);
         packet.reply.count = static_cast<ui32>(recs.size());
-        log("\twritten events count ", packet.reply.count);
+        log("\twritten events count: ", packet.reply.count,
+            "\n\t", show_page(packet.input.utf16, inpenc->codepage));
     }
     auto api_events_generate_ctrl_event      ()
     {
@@ -1885,20 +2458,30 @@ struct consrv
 
         if (auto datasize = size_check(packet.packsz,  answer.readoffset()))
         {
-            auto initsize = scroll_handle.rest.size();
+            auto& codec = *outenc;
             if (packet.input.utf16)
             {
-                toWIDE.resize(datasize / sizeof(wchr));
-                if (answer.recv_data(condrv, toWIDE) == faux) return;
-                utf::to_utf(toWIDE, scroll_handle.rest);
+                auto initsize = scroll_handle.toWIDE.size();
+                auto widesize = datasize / sizeof(wchr);
+                scroll_handle.toWIDE.resize(initsize + widesize);
+                if (!answer.recv_data(condrv, wiew{ scroll_handle.toWIDE.data() + initsize, widesize })) return;
+                codec.decode(scroll_handle.toWIDE, scroll_handle.toUTF8);
+            }
+            else if (codec.codepage == CP_UTF8)
+            {
+                auto initsize = scroll_handle.toUTF8.size();
+                scroll_handle.toUTF8.resize(initsize + datasize);
+                if (!answer.recv_data(condrv, view{ scroll_handle.toUTF8.data() + initsize, datasize })) return;
             }
             else
             {
-                scroll_handle.rest.resize(initsize + datasize);
-                if (answer.recv_data(condrv, view{ scroll_handle.rest.data() + initsize, datasize }) == faux) return;
+                auto initsize = scroll_handle.toANSI.size();
+                scroll_handle.toANSI.resize(initsize + datasize);
+                if (!answer.recv_data(condrv, view{ scroll_handle.toANSI.data() + initsize, datasize })) return;
+                codec.decode(scroll_handle.toANSI, scroll_handle.toUTF8);
             }
 
-            if (auto crop = ansi::purify(scroll_handle.rest))
+            if (auto crop = ansi::purify(scroll_handle.toUTF8))
             {
                 auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                 if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
@@ -1906,13 +2489,14 @@ struct consrv
                 {
                     datasize = 0;
                 }
-                log(packet.input.utf16 ? "\tUTF-16: ":"\tUTF-8: ", ansi::inv(true).add(utf::debase<faux, faux>(crop)).nil());
-                scroll_handle.rest.erase(0, crop.size()); // Delete processed data.
+                log("\t", show_page(packet.input.utf16, codec.codepage),
+                    ": ", ansi::hi(utf::debase<faux, faux>(crop)));
+                scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
             {
-                log("\trest: ", utf::debase<faux, faux>(scroll_handle.rest),
-                  "\n\tsize: ", scroll_handle.rest.size());
+                log("\trest: ", ansi::hi(utf::debase<faux, faux>(scroll_handle.toUTF8)),
+                  "\n\tsize: ", scroll_handle.toUTF8.size());
             }
             packet.reply.count = datasize;
         }
@@ -1948,8 +2532,8 @@ struct consrv
             count = static_cast<ui32>(recs.size());
             if (count > maxsz) count = maxsz;
             log(prompt, "WriteConsoleOutputAttribute",
-                        "\n\tinput.coord ", coord,
-                        "\n\tinput.count ", count);
+                        "\n\tinput.coord: ", coord,
+                        "\n\tinput.count: ", count);
             filler.size(count, cell{});
             auto iter = filler.iter();
             for (auto& attr : recs)
@@ -1968,20 +2552,31 @@ struct consrv
         else
         {
             log(prompt, "WriteConsoleOutputCharacter",
-                        "\n\tinput.coord ", coord);
-            if (packet.input.etype == type::trueUTF_8)
+                        "\n\tinput.coor: ", coord,
+                        "\n\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
+            if (packet.input.etype == type::ansiOEM)
             {
-                log("\tinput.type utf-8");
                 auto recs = take_buffer<char, feed::fwd>(packet);
-                celler = buffer;
+                if (outenc->codepage != CP_UTF8)
+                {
+                    toUTF8.clear();
+                    outenc->decode(buffer, toUTF8);
+                    celler = toUTF8;
+                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                }
+                else
+                {
+                    celler = buffer;
+                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
+                }
             }
             else
             {
-                log("\tinput.type utf-16");
                 auto recs = take_buffer<wchr, feed::fwd>(packet);
                 toUTF8.clear();
                 utf::to_utf(recs, toUTF8);
                 celler = toUTF8;
+                log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
             }
             auto success = direct(packet.target, [&](auto& scrollback)
             {
@@ -2040,16 +2635,136 @@ struct consrv
         mirror.view(crop);
         if (!recs.empty() && crop)
         {
-            auto& dest = (rich&)mirror;
-            auto  copy = netxs::raster(recs, view);
-            netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+            auto copy = netxs::raster(recs, view);
+            auto& codec = *outenc;
+            if (!packet.input.utf16 && codec.codepage != CP_UTF8) // Decode from OEM.
             {
+                if (langmap().contains(codec.codepage)) // Decode DBCS to UTF-16.
+                {
+                    auto prev = PCHAR_INFO{};
+                    auto lead = byte{};
+                    netxs::onrect(copy, crop, [&](auto& r)
+                    {
+                        auto& code = r.Char.UnicodeChar;
+                        auto& attr = r.Attributes;
+                        if (auto w = !lead && ((attr & COMMON_LVB_LEADING_BYTE) || codec.test(code & 0xff)))
+                        {
+                            attr &= ~(COMMON_LVB_SBCSDBCS);
+                            if (code)
+                            {
+                                attr |= COMMON_LVB_LEADING_BYTE;
+                                lead = (byte)code;
+                                prev = &r;
+                            }
+                        }
+                        else
+                        {
+                            attr &= ~(COMMON_LVB_SBCSDBCS);
+                            if (lead) // Trailing byte.
+                            {
+                                code = codec.decode_char(lead, (byte)code);
+                                attr |= COMMON_LVB_TRAILING_BYTE;
+                                prev->Char.UnicodeChar = code;
+                                lead = {};
+                            }
+                            else // Single byte character.
+                            {
+                                code = codec.decode_char(code);
+                            }
+                        }
+                    }, [&]
+                    {
+                        lead = {};
+                    });
+                }
+                else // Decode SBCS to UTF-16.
+                {
+                    for (auto& r : recs)
+                    {
+                        auto& code = r.Char.UnicodeChar;
+                        code = codec.decode_char(code);
+                    }
+                }
+            }
+            toUTF8.clear();
+            auto& dest = (rich&)mirror;
+            auto  prev = (cell*)nullptr;
+            auto  skip = ui16{};
+            auto  code = utfx{};
+            auto eolfx = [&] // Reset state on new line.
+            {
+                prev = {};
+                code = {};
+                skip = {};
+            };
+            auto allfx = [&](auto& dst, auto& src)
+            {
+                //if (src.Char.UnicodeChar == '\0') // Transparent cell support?
+                //{
+                //    dst.txt('\0');
+                //    eolfx();
+                //    return;
+                //}
                 dst.meta(attr_to_brush(src.Attributes));
-                dst.txt(utf::to_utf(src.Char.UnicodeChar));
-            });
+                if (skip) // Right half of wide char.
+                {
+                    if (skip == src.Char.UnicodeChar)
+                    {
+                        dst.txt(toUTF8, 3);
+                        skip = {};
+                        return;
+                    }
+                    skip = {};
+                }
+                if (utf::tocode((wchr)src.Char.UnicodeChar, code))
+                {
+                    toUTF8.clear();
+                    utf::to_utf_from_code(code, toUTF8);
+                    auto& prop = unidata::select(code);
+                    if (prev) // Surrogate pair.
+                    {
+                        if (prop.ucwidth == unidata::widths::wide)
+                        {
+                            prev->txt(toUTF8, 2);
+                            dst  .txt(toUTF8, 3);
+                        }
+                        else // Narrow surrogate pair.
+                        {
+                            prev->txt(toUTF8, 1);
+                            dst.txt(whitespace);
+                        }
+                        prev = {};
+                    }
+                    else
+                    {
+                        if (prop.ucwidth == unidata::widths::wide)
+                        {
+                            if (src.Attributes & COMMON_LVB_TRAILING_BYTE)
+                            {
+                                dst.txt(toUTF8, 3); // Right half of wide char.
+                            }
+                            else
+                            {
+                                dst.txt(toUTF8, 2); // Left half of wide char.
+                                skip = src.Char.UnicodeChar;
+                            }
+                        }
+                        else
+                        {
+                            dst.txt(toUTF8, 1); // Narrow character.
+                        }
+                    }
+                    code = {};
+                }
+                else
+                {
+                    prev = &dst; // Go to the next.
+                }
+            };
+            netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full);
+                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::nonzero for transparency?
             });
             if (!success) crop = {};
         }
@@ -2057,9 +2772,10 @@ struct consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("\tinput.utf16: ", packet.input.utf16 ? "true" : "faux",
-          "\n\tinput.rect: ", view,
-          "\n\treply.rect: ", crop);
+        log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
+            "\n\tinput.rect: ", view,
+            "\n\treply.rect: ", crop,
+            "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_attribute_set        ()
     {
@@ -2119,8 +2835,8 @@ struct consrv
         if (packet.input.etype == type::attribute)
         {
             log(prompt, "FillConsoleOutputAttribute",
-                        "\n\tcoord ", coord,
-                        "\n\tcount ", count);
+                        "\n\tcoord: ", coord,
+                        "\n\tcount: ", count);
             impcls = impcls && coord == dot_00 && count == screen.panel.x * screen.panel.y;
             if (impcls)
             {
@@ -2143,32 +2859,48 @@ struct consrv
         else
         {
             log(prompt, "FillConsoleOutputCharacter",
-                        "\n\tcoord ", coord,
-                        "\n\tcount ", count,
-                        "\n\twchar ", piece);
+                        "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
+                        "\n\tcoord: ", coord,
+                        "\n\tcount: ", count);
             impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
             if (piece <  ' ' || piece == 0x7F) piece = ' ';
             if (piece == ' ' && (si32)count > maxsz)
             {
-                log("\terase below");
+                log("\taction: erase below");
                 screen.ed(0 /*commands::erase::display::below*/);
             }
             else
             {
                 toUTF8.clear();
-                utf::to_utf((wchr)piece, toUTF8);
-                log("\tfill using char ", toUTF8);
+                if (packet.input.etype != type::ansiOEM)
+                {
+                    utf::to_utf((wchr)piece, toUTF8);
+                }
+                else
+                {
+                    if (outenc->codepage == CP_UTF8) toUTF8.push_back(piece & 0xff);
+                    else                             outenc->decode(piece & 0xff, toUTF8);
+                }
+                log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 auto c = cell{ toUTF8 };
                 auto w = c.wdt();
-                if (w == 1 || w == 2)
+                if ((si32)count > maxsz) count = std::max(0, maxsz);
+                count *= w;
+                filler.kill();
+                filler.size(count, c);
+                if (w == 2)
                 {
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
-                    filler.kill();
-                    filler.size(count / w, c);
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    auto head = filler.iter();
+                    auto tail = filler.iend();
+                    while (head != tail)
                     {
-                        count = 0;
+                        (++head)->wdt(3);
+                        (++head);
                     }
+                }
+                if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                {
+                    count = 0;
                 }
             }
         }
@@ -2206,7 +2938,7 @@ struct consrv
         {
             return;
         }
-        auto recsz = packet.input.etype == type::trueUTF_8 ? sizeof(char) : sizeof(ui16);
+        auto recsz = packet.input.etype == type::ansiOEM ? sizeof(char) : sizeof(ui16);
         auto count = static_cast<si32>(avail / recsz);
 
         auto coor = twod{ packet.input.coorx, packet.input.coory };
@@ -2229,7 +2961,7 @@ struct consrv
         auto& copy = (rich&)mirror;
         if (packet.input.etype == type::attribute)
         {
-            log("\tinput.type attributes");
+            log("\tinput.type: attributes");
             auto recs = wrap<ui16>::cast(buffer, count);
             auto iter = recs.begin();
             auto head = mirror.iter() + start;
@@ -2244,6 +2976,7 @@ struct consrv
                     mark = src;
                 }
                 dst = attr;
+                //set_half(src.wdt(), dst);
             }
             answer.send_data(condrv, recs);
         }
@@ -2251,42 +2984,49 @@ struct consrv
         {
             auto head = mirror.iter() + start;
             auto tail = head + count;
-            if (packet.input.etype == type::trueUTF_8)
+            log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
+            toUTF8.clear();
+            while (head != tail)
             {
-                log("\tinput.type utf-8");
+                auto& src = *head++;
+                if (src.wdt() != 3) toUTF8 += src.txt();
+            }
+            if (packet.input.etype == type::ansiOEM)
+            {
+                auto& codec = *outenc;
                 auto recs = wrap<char>::cast(buffer, count);
-                auto iter = recs.begin();
-                while (head != tail)
+                if (codec.codepage == CP_UTF8)
                 {
-                    auto& src = *head++;
-                    auto& dst = *iter++;
-                    auto acsii = src.txt();
-                    auto wdt = src.wdt();
-                    if (wdt != 3) dst = acsii.size()     ? acsii.front() : ' ';
-                    else          dst = acsii.size() > 1 ? acsii[1]      : ' ';
+                    count = std::min(count, (si32)toUTF8.size());
+                    toUTF8.resize(count);
+                    std::copy(toUTF8.begin(), toUTF8.end(), recs.begin());
+                    log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                }
+                else
+                {
+                    toANSI.clear();
+                    auto utf8 = netxs::view{ toUTF8 };
+                    codec.encode(utf8, toANSI, count);
+                    count = std::min(count, (si32)toANSI.size());
+                    std::copy(toANSI.begin(), toANSI.end(), recs.begin());
+                    log("\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
                 }
                 answer.send_data(condrv, recs);
             }
             else
             {
-                log("\tinput.type utf-16");
+                toWIDE.clear();
+                utf::to_utf(toUTF8, toWIDE);
                 auto recs = wrap<wchr>::cast(buffer, count);
-                auto iter = recs.begin();
-                while (head != tail)
-                {
-                    auto& src = *head++;
-                    auto& dst = *iter++;
-                    toWIDE.clear();
-                    utf::to_utf(src.txt(), toWIDE);
-                    auto wdt = src.wdt();
-                    if (wdt != 3) dst = toWIDE.size()     ? toWIDE.front() : ' ';
-                    else          dst = toWIDE.size() > 1 ? toWIDE[1]      : ' ';
-                }
+                count = std::min(count, (si32)toWIDE.size());
+                toWIDE.resize(count);
+                std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
+                log("\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
                 answer.send_data(condrv, recs);
             }
         }
         packet.reply.count = count;
-        log("\treply.count ", count);
+        log("\treply.count: ", count);
     }
     auto api_scrollback_read_block           ()
     {
@@ -2347,23 +3087,78 @@ struct consrv
                     toWIDE.clear();
                     utf::to_utf(src.txt(), toWIDE);
                     auto wdt = src.wdt();
-                    if (wdt != 3) dst.Char.UnicodeChar = toWIDE.size() ? toWIDE.front() : ' ';
-                    else          dst.Char.UnicodeChar = toWIDE.size() > 1 ? toWIDE[1]  : ' ';
+                    auto& c = dst.Char.UnicodeChar;
+                    if (toWIDE.size())
+                    {
+                        if (wdt == 1)
+                        {
+                            c = toWIDE[0];
+                        }
+                        else if (wdt == 2) // Left half.
+                        {
+                            c = toWIDE[0];
+                            if (!(c >= 0xd800 && c <= 0xdbff)) // Not the first part of surrogate pair.
+                            {
+                                set_half(wdt, dst.Attributes);
+                            }
+                        }
+                        else if (wdt == 3) // Right half.
+                        {
+                            if (toWIDE.size() > 1)
+                            {
+                                dst.Char.UnicodeChar = toWIDE[1];
+                            }
+                            else
+                            {
+                                dst.Char.UnicodeChar = toWIDE[0];
+                            }
+                            if (!(c >= 0xdc00 && c <= 0xdfff)) // Not the second part of surrogate pair.
+                            {
+                                set_half(wdt, dst.Attributes);
+                            }
+                        }
+                    }
                 });
             }
             else
             {
-                netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                auto& codec = *outenc;
+                if (codec.codepage == CP_UTF8) // UTF-8 multibyte: Possible lost data.
                 {
-                    if (!src.like(mark))
+                    netxs::onbody(dest, copy, [&](auto& dst, auto& src)
                     {
-                        attr = brush_to_attr(src);
-                        mark = src;
-                    }
-                    dst.Attributes = attr;
-                    auto acsii = src.txt();
-                    dst.Char.AsciiChar = acsii.size() ? acsii.front() : ' ';
-                });
+                        if (!src.like(mark))
+                        {
+                            attr = brush_to_attr(src);
+                            mark = src;
+                        }
+                        dst.Attributes = attr;
+                        auto utf8 = src.txt();
+                        auto wdt = src.wdt();
+                        //set_half(wdt, attr);
+                        dst.Char.AsciiChar = utf8.size() ? utf8.front() : ' ';
+                    });
+                }
+                else // OEM multibyte, DBCS: Possible lost data.
+                {
+                    netxs::onbody(dest, copy, [&](auto& dst, auto& src)
+                    {
+                        if (!src.like(mark))
+                        {
+                            attr = brush_to_attr(src);
+                            mark = src;
+                        }
+                        dst.Attributes = attr;
+                        auto utf8 = src.txt();
+                        auto wdt = src.wdt();
+                        set_half(wdt, dst.Attributes);
+                        toANSI.clear();
+                        codec.encode(utf8, toANSI);
+                             if (toANSI.empty())                dst.Char.AsciiChar = ' ';
+                        else if (wdt == 3 && toANSI.size() > 1) dst.Char.AsciiChar = toANSI[1];
+                        else                                    dst.Char.AsciiChar = toANSI[0];
+                    });
+                }
             }
             answer.send_data(condrv, recs);
         }
@@ -2371,9 +3166,11 @@ struct consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("\tpanel size ", window.panel,
-          "\n\tinput.rect ", view,
-          "\n\treply.rect ", crop);
+        log("\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
+          "\n\tpanel size: ", window.panel,
+          "\n\tinput.rect: ", view,
+          "\n\treply.rect: ", crop,
+          "\n\treply data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_set_active           ()
     {
@@ -2383,7 +3180,7 @@ struct consrv
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
-        log("\tset active buffer 0x", utf::to_hex(packet.target));
+        log("\tset active buffer: 0x", utf::to_hex(packet.target));
         auto& console = *window_ptr;
         uiterm.reset_to_altbuf(console);
     }
@@ -2400,7 +3197,7 @@ struct consrv
         auto& packet = payload::cast(upload);
         log(prompt, "SetConsoleCursorPosition ");
         auto caretpos = twod{ packet.input.coorx, packet.input.coory };
-        log("\tinput.cursor_coor ", caretpos);
+        log("\tinput.cursor_coor: ", caretpos);
         if (auto console_ptr = select_buffer(packet.target))
         {
             console_ptr->cup0(caretpos);
@@ -2422,8 +3219,8 @@ struct consrv
         packet.reply.style = form ? 100 : 1;
         packet.reply.alive = show;
         log(prompt, "GetConsoleCursorInfo",
-            "\n\treply.style = ", packet.reply.style,
-            "\n\treply.alive = ", packet.reply.alive ? "true" : "faux");
+            "\n\treply.style: ", packet.reply.style,
+            "\n\treply.alive: ", packet.reply.alive ? "true" : "faux");
     }
     auto api_scrollback_cursor_info_set      ()
     {
@@ -2438,15 +3235,15 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         log(prompt, "SetConsoleCursorInfo",
-            "\n\tinput.style = ", packet.input.style,
-            "\n\tinput.alive = ", packet.input.alive ? "true" : "faux");
+            "\n\tinput.style: ", packet.input.style,
+            "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
         if (packet.target && packet.target->link == &uiterm.target)
         {
             uiterm.cursor.style(packet.input.style > 50);
             packet.input.alive ? uiterm.cursor.show()
                                : uiterm.cursor.hide();
         }
-        else log("\taborted: inactive buffer 0x", utf::to_hex(packet.target));
+        else log("\taborted: inactive buffer: 0x", utf::to_hex(packet.target));
     }
     auto api_scrollback_info_get             ()
     {
@@ -2510,9 +3307,9 @@ struct consrv
         if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
         if (mark.und()) packet.reply.attributes |= COMMON_LVB_UNDERSCORE;
         if (mark.ovr()) packet.reply.attributes |= COMMON_LVB_GRID_HORIZONTAL;
-        log("\treply.attributes 0x", utf::to_hex(packet.reply.attributes),
-            "\n\treply.cursor_coor ", caretpos,
-            "\n\treply.window_size ", viewport);
+        log("\treply.attributes: 0x", utf::to_hex(packet.reply.attributes),
+            "\n\treply.cursor_coor: ", caretpos,
+            "\n\treply.window_size: ", viewport);
     }
     auto api_scrollback_info_set             ()
     {
@@ -2542,17 +3339,24 @@ struct consrv
         auto windowsz = twod{ packet.input.windowsz_x, packet.input.windowsz_y };
         console.cup0(caretpos);
         console.brush.meta(attr_to_brush(packet.input.attributes));
-        if (&console != uiterm.target) console.resize_viewport(buffsize);
-        else                           uiterm.window_resize(windowsz);
-        log("\tbuffer size ", buffsize);
-        log("\tcursor coor ", twod{ packet.input.cursorposx, packet.input.cursorposy });
-        log("\twindow coor ", twod{ packet.input.windowposx, packet.input.windowposy });
-        log("\tattributes x", utf::to_hex(packet.input.attributes));
-        log("\twindow size ", windowsz);
-        log("\tmaxwin size ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
-        log("\tpopup color ", packet.input.popupcolor);
-        log("\tfull screen ", packet.input.fullscreen);
-        log("\trgb palette ");
+        if (&console != uiterm.target) // If not active buffer.
+        {
+            check_buffer_size(console, buffsize);
+            console.resize_viewport(buffsize);
+        }
+        else // If active buffer.
+        {
+            uiterm.window_resize(windowsz);
+        }
+        log("\tbuffer size: ", buffsize);
+        log("\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy });
+        log("\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy });
+        log("\tattributes : ", utf::to_hex(packet.input.attributes));
+        log("\twindow size: ", windowsz);
+        log("\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
+        log("\tpopup color: ", packet.input.popupcolor);
+        log("\tfull screen: ", packet.input.fullscreen);
+        log("\trgb palette: ");
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
         {
@@ -2583,18 +3387,17 @@ struct consrv
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
-        log("\tinput.size ", size);
+        log("\tinput.size: ", size);
 
-        if (size == twod{ 1500, 300 })
-        {
-            log("\twimc detected, turning off wrapping");
-            console.style.wrp(faux);
-        }
-        else if (packet.target->link != &uiterm.target)
+        if (packet.target->link != &uiterm.target) // It is additional/alternate buffer.
         {
             console.resize_viewport(size);
         }
-        else uiterm.window_resize(size);
+        else
+        {
+            check_buffer_size(console, size);
+            uiterm.window_resize(size);
+        }
 
         auto viewport = console.panel;
         packet.input.buffersz_x = viewport.x;
@@ -2618,7 +3421,7 @@ struct consrv
         auto viewport = console.panel;
         packet.reply.maxwinsz_x = viewport.x;
         packet.reply.maxwinsz_y = viewport.y;
-        log("\treply.maxwin size ", viewport);
+        log("\treply.maxwin size: ", viewport);
     }
     auto api_scrollback_viewport_set         ()
     {
@@ -2636,8 +3439,8 @@ struct consrv
         auto area = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
-        log("\tinput.area ", area,
-          "\n\tinput.isabsolute ", packet.input.isabsolute ? "true" : "faux");
+        log("\tinput.area: ", area,
+          "\n\tinput.isabsolute: ", packet.input.isabsolute ? "true" : "faux");
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
@@ -2693,12 +3496,12 @@ struct consrv
                                                  std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
         auto dest = twod{ packet.input.destx, packet.input.desty };
         auto mark = attr_to_brush(packet.input.color).txt(utf::to_utf(packet.input.wchar));
-        log("\tinput.scrl.rect ", scrl,
-          "\n\tinput.clip.rect ", clip,
-          "\n\tinput.dest.coor ", dest,
-          "\n\tinput.trunc ", packet.input.trunc ? "true" : "faux",
-          "\n\tinput.utf16 ", packet.input.utf16 ? "true" : "faux",
-          "\n\tinput.brush ", mark);
+        log("\tinput.scrl.rect: ", scrl,
+          "\n\tinput.clip.rect: ", clip,
+          "\n\tinput.dest.coor: ", dest,
+          "\n\tinput.trunc: ", packet.input.trunc ? "true" : "faux",
+          "\n\tinput.utf16: ", packet.input.utf16 ? "true" : "faux",
+          "\n\tinput.brush: ", mark);
         scrl = scrl.trunc(window.panel);
         clip = clip.trunc(window.panel);
         mirror.size(window.panel);
@@ -2756,8 +3559,9 @@ struct consrv
         log(prompt, packet.input.prime ? "GetConsoleOriginalTitle"
                                        : "GetConsoleTitle");
         //todo differentiate titles by category
-        auto& title = uiterm.wtrack.get(ansi::OSC_TITLE);
-        log("\treply title (", title.size(), "): ", title);
+        auto& title = uiterm.wtrack.get(ansi::osc_title);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            ": ", ansi::hi(utf::debase(title)));
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -2765,10 +3569,17 @@ struct consrv
             packet.reply.count = static_cast<ui32>(toWIDE.size() + 1 /*null terminator*/);
             answer.send_data(condrv, toWIDE, true);
         }
-        else
+        else if (inpenc->codepage == CP_UTF8)
         {
             packet.reply.count = static_cast<ui32>(title.size() + 1 /*null terminator*/);
             answer.send_data(condrv, title, true);
+        }
+        else
+        {
+            auto shadow = view{ title };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.count = static_cast<ui32>(toANSI.size() + 1 /*null terminator*/);
+            answer.send_data(condrv, toANSI, true);
         }
     }
     auto api_window_title_set                ()
@@ -2783,20 +3594,21 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        auto utf8_title = text{};
         if (packet.input.utf16)
         {
-            toUTF8.clear();
             auto title = take_buffer<wchr, feed::fwd>(packet);
-            utf::to_utf(title, toUTF8);
-            uiterm.wtrack.set(ansi::OSC_TITLE, toUTF8);
-            log("\tUTF-16 title: ", utf::debase(toUTF8));
+            utf::to_utf(title, utf8_title);
         }
         else
         {
             auto title = take_buffer<char, feed::fwd>(packet);
-            uiterm.wtrack.set(ansi::OSC_TITLE, title);
-            log("\tUTF-8 title: ", utf::debase(title));
+            if (inpenc->codepage == CP_UTF8) utf8_title = qiew{ title };
+            else                             inpenc->decode_run(title, utf8_title);
         }
+        uiterm.wtrack.set(ansi::osc_title, utf8_title);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            ": ", ansi::hi(utf::debase<faux, faux>(utf8_title)));
     }
     auto api_window_font_size_get            ()
     {
@@ -2817,8 +3629,8 @@ struct consrv
         auto& packet = payload::cast(upload);
         packet.reply.sizex = 10;
         packet.reply.sizey = 20;
-        log("\tinput.index ", packet.input.index,
-          "\n\treply.size  ", packet.reply.sizex, "x", packet.reply.sizey);
+        log("\tinput.index: ", packet.input.index,
+          "\n\treply.size : ", packet.reply.sizex, "x", packet.reply.sizey);
     }
     auto api_window_font_get                 ()
     {
@@ -2848,12 +3660,12 @@ struct consrv
         packet.reply.heavy = 0;
         auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
-        log("\tinput.fullscreen ", packet.input.fullscreen ? "true" : "faux",
-          "\n\treply.index ",      packet.reply.index,
-          "\n\treply.size  ",      packet.reply.sizex, "x", packet.reply.sizey,
-          "\n\treply.pitch ",      packet.reply.pitch,
-          "\n\treply.heavy ",      packet.reply.heavy,
-          "\n\treply.brand ", utf::to_utf(brand));
+        log("\tinput.fullscreen: ", packet.input.fullscreen ? "true" : "faux",
+          "\n\treply.index: ",      packet.reply.index,
+          "\n\treply.size : ",      packet.reply.sizex, "x", packet.reply.sizey,
+          "\n\treply.pitch: ",      packet.reply.pitch,
+          "\n\treply.heavy: ",      packet.reply.heavy,
+          "\n\treply.brand: ", utf::to_utf(brand));
     }
     auto api_window_font_set                 ()
     {
@@ -2885,12 +3697,12 @@ struct consrv
             };
         };
         auto& packet = payload::cast(upload);
-        log("\tinput.fullscreen ",        packet.input.fullscreen ? "true" : "faux",
-          "\n\tinput.index ",             packet.input.index,
-          "\n\tinput.pitch ",             packet.input.pitch,
-          "\n\tinput.heavy ",             packet.input.heavy,
-          "\n\tinput.size  ",       twod{ packet.input.sizex, packet.input.sizey },
-          "\n\tinput.brand ", utf::to_utf(packet.input.brand));
+        log("\tinput.fullscreen: ",        packet.input.fullscreen ? "true" : "faux",
+          "\n\tinput.index: ",             packet.input.index,
+          "\n\tinput.pitch: ",             packet.input.pitch,
+          "\n\tinput.heavy: ",             packet.input.heavy,
+          "\n\tinput.size : ",       twod{ packet.input.sizex, packet.input.sizey },
+          "\n\tinput.brand: ", utf::to_utf(packet.input.brand));
     }
     auto api_window_mode_get                 ()
     {
@@ -2905,7 +3717,7 @@ struct consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.flags = CONSOLE_WINDOWED_MODE;
-        log("\treply.flags ", packet.reply.flags);
+        log("\treply.flags: ", packet.reply.flags);
     }
     auto api_window_mode_set                 ()
     {
@@ -2927,8 +3739,8 @@ struct consrv
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
-        log("\tinput.flags ", packet.input.flags);
-        log("\treply.buffer size ", console.panel);
+        log("\tinput.flags: ", packet.input.flags);
+        log("\treply.buffer size: ", console.panel);
         packet.reply.buffersz_x = console.panel.x;
         packet.reply.buffersz_y = console.panel.y;
     }
@@ -2951,7 +3763,7 @@ struct consrv
                                       // - vim sets the icon of its hosting window.
                                       // - The handle is used to show/hide GUI console window.
                                       // - Used for SetConsoleTitle().
-        log("\tfake window handle 0x", utf::to_hex(packet.reply.handle));
+        log("\tfake window handle: 0x", utf::to_hex(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
     {
@@ -3209,10 +4021,11 @@ struct consrv
     using list = std::list<clnt>;
     using face = Term::face;
     using fire = netxs::os::io::fire;
+    using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.
-    event_list  events; // consrv: Input event list.
+    evnt        events; // consrv: Input event list.
     view        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
@@ -3223,6 +4036,7 @@ struct consrv
     task        upload; // consrv: Console driver request.
     text        buffer; // consrv: Temp buffer.
     text        toUTF8; // consrv: Buffer for UTF-16-UTF-8 conversion.
+    text        toANSI; // consrv: Buffer for ANSICP-UTF-8 conversion.
     wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
     rich        filler; // consrv: Buffer for filling operations.
     apis        apimap; // consrv: Fx reference.
@@ -3231,6 +4045,8 @@ struct consrv
     face        mirror; // consrv: Viewport bitmap buffer.
     bool        impcls; // consrv: Implicit scroll buffer clearing detection.
     para        celler; // consrv: Buffer for converting raw text to cells.
+    xlat        inpenc; // consrv: Current code page decoder for input stream.
+    xlat        outenc; // consrv: Current code page decoder for output stream.
 
     void start()
     {
@@ -3289,7 +4105,7 @@ struct consrv
         }
         server = std::thread{ [&]
         {
-            while (condrv != INVALID_FD)
+            while (condrv != os::invalid_fd)
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
@@ -3370,7 +4186,9 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ "vtty: consrv: " }
+          prompt{ "vtty: consrv: " },
+          inpenc{ std::make_shared<decoder>(os::codepage) },
+          outenc{ inpenc }
     {
         using _ = consrv;
         apimap.resize(0xFF, &_::api_unsupported);
@@ -3436,6 +4254,6 @@ struct consrv
     }
 };
 
-#if not defined(_DEBUG)
+#ifndef _DEBUG
     #undef log
 #endif

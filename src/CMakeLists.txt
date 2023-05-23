@@ -15,13 +15,8 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /DWIN32 /D_WINDOWS /W3 /GR /EHsc /bigobj /utf-8")
 elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        #gcc static linkage
-        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ -static-libgcc -pthread -s")
-    else ()
-        #clang static linkage
-        #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
-    endif ()
+    # Static linkage
+    #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
 endif ()
 
 add_executable (vtm "vtm.cpp")

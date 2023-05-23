@@ -328,7 +328,7 @@ namespace netxs::app::calc
             auto [cellatix_rows, cellatix_cols, cellatix_text] = get_text();
 
             auto window = ui::cake::ctor();
-            window->plugin<pro::focus>()
+            window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x601A5f00)
                   ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
                   ->plugin<pro::track>()
@@ -336,10 +336,10 @@ namespace netxs::app::calc
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {
-                      boss.keybd.accept(true);
-                      boss.LISTEN(tier::anycast, e2::form::quit, item)
+                      //boss.keybd.accept(true);
+                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
                       {
-                          boss.RISEUP(tier::release, e2::form::quit, item);
+                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
                       };
                       boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                       {
@@ -392,12 +392,12 @@ namespace netxs::app::calc
                                                             boss.upload(ansi::bgc(whitelt).fgc(blacklt).add(data));
                                                          };
                                                      });
-                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_ONLY, axes::X_ONLY))
+                                    auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::X_only))
                                                                 ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
                                                              ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
                                                              ->upload(cellatix_cols); //todo grid  A  B  C ...
-                                    auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::Y_ONLY, axes::Y_ONLY))
+                                    auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::Y_only, axes::Y_only))
                                                               ->follow<axis::Y>(scroll)
                                                               ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
                                         auto rows = rows_area->attach(ui::post::ctor())

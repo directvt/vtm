@@ -9,7 +9,7 @@ namespace netxs::events::userland
 {
     struct uiterm
     {
-        EVENTPACK( uiterm, netxs::events::userland::root::custom )
+        EVENTPACK( uiterm, ui::e2::extra::slot5 )
         {
             EVENT_XS( selmod, si32 ),
             EVENT_XS( selalt, si32 ),
@@ -164,6 +164,9 @@ namespace netxs::ui
             si32 def_none_f;
             si32 def_find_f;
 
+            si32 def_altscr;
+            bool def_alt_on;
+
             termconfig(xmls& config)
             {
                 static auto atexit_options = std::unordered_map<text, commands::atexit::codes>
@@ -185,6 +188,8 @@ namespace netxs::ui
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
+                def_altscr = std::max(1, config.take("scrollback/altscroll/step", si32{ 1 }));
+                def_alt_on =             config.take("scrollback/altscroll/enabled", true);
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
@@ -306,7 +311,6 @@ namespace netxs::ui
             si32        state; // m_tracking: .
             si32        smode; // m_tracking: Selection mode state backup.
             si32        bttns; // m_tracking: Last buttons state.
-            sysmouse    saved; // m_tracking: Last mouse state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
@@ -321,28 +325,24 @@ namespace netxs::ui
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
                 auto m = std::bitset<8>{ gear.m.buttons };
-                auto s = std::bitset<8>{ saved. buttons };
+                auto s = std::bitset<8>{ gear.s.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        gear.kb_offer_9(owner.This());
+                        pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
                 {
-                    auto gear_test = e2::form::state::keybd::find.param();
-                    gear_test.first = gear.id;
-                    owner.SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
+                    owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second == 0)
                     {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_2(owner);
-                        else                          gear.kb_offer_7(owner);
+                        pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                        : pro::focus::solo::on, pro::focus::flip::on);
                     }
                     owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
                 }
@@ -352,7 +352,7 @@ namespace netxs::ui
                 state |= m;
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
-                    owner.LISTEN(tier::release, hids::events::device::mouse, gear, token)
+                    owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
                         if (owner.selmod == clip::disabled)
@@ -367,21 +367,20 @@ namespace netxs::ui
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
-                            if (saved.changed != gear.m.changed)
+                            if (gear.s.changed != gear.m.changed)
                             {
                                 if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
                                 else
                                 {
                                     if (state & mode::move
-                                    || (state & mode::drag && gear.m.buttons && moved)
-                                    || (state & mode::bttn && (gear.m.buttons != saved.buttons || gear.m.wheeled)))
+                                    || (state & mode::drag && (gear.m.buttons && moved))
+                                    || (state & mode::bttn && (gear.m.buttons != gear.s.buttons || gear.m.wheeled)))
                                     {
-                                             if (proto == sgr) queue.mouse_sgr(gear, saved, coord);
-                                        else if (proto == x11) queue.mouse_x11(gear, saved, coord, state & mode::utf8);
+                                             if (proto == sgr) queue.mouse_sgr(gear, coord);
+                                        else if (proto == x11) queue.mouse_x11(gear, coord, state & mode::utf8);
                                     }
                                 }
                                 owner.answer(queue);
-                                saved = gear.m;
                             }
                             gear.dismiss();
                         }
@@ -402,40 +401,32 @@ namespace netxs::ui
         // term: Keyboard focus tracking functionality.
         struct f_tracking
         {
-            f_tracking(term& owner)
-                : owner{ owner },
-                  state{ faux  }
-            { }
-
-            operator bool () { return token.operator bool(); }
-            void set(bool enable)
-            {
-                if (enable)
-                {
-                    if (!token) // Do not subscribe if it is already subscribed.
-                    {
-                        owner.LISTEN(tier::release, hids::events::notify::keybd::any, gear, token)
-                        {
-                            auto s = state;
-                            switch (owner.bell::protos<tier::release>())
-                            {
-                                case hids::events::notify::keybd::got .id: state = true; break;
-                                case hids::events::notify::keybd::lost.id: state = faux; break;
-                                default: return;
-                            }
-                            if (s != state) owner.answer(queue.fcs(state));
-                        };
-                        owner.SIGNAL(tier::anycast, e2::form::state::keybd::check, state);
-                    }
-                }
-                else token.reset();
-            }
-
-        private:
             term&       owner; // f_tracking: Terminal object reference.
+            bool        relay; // f_tracking: Reporting state.
             hook        token; // f_tracking: Subscription token.
             ansi::esc   queue; // f_tracking: Buffer.
-            bool        state; // f_tracking: Current focus state.
+            testy<bool> state; // f_tracking: Current focus state.
+
+            f_tracking(term& owner)
+                : owner{ owner },
+                  relay{ faux  }
+            {
+                owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
+                {
+                    if (state(s) && relay)
+                    {
+                        owner.answer(queue.fcs(s));
+                    }
+                    owner.ptycon.focus(s);
+                };
+                owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
+            }
+
+            operator bool () { return state.last; }
+            void set(bool enable)
+            {
+                relay = enable;
+            }
         };
 
         // term: Terminal title tracking functionality.
@@ -452,27 +443,29 @@ namespace netxs::ui
             // w_tracking: Get terminal window property.
             auto& get(text const& property)
             {
-                return props[property];
+                auto& utf8 = props[property];
+                if (property == ansi::osc_title)
+                {
+                    owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
+                }
+                return utf8;
             }
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
-                static const auto jet_left = ansi::jet(bias::left);
                 owner.target->flush();
-                if (property == ansi::OSC_LABEL_TITLE)
+                if (property == ansi::osc_label_title)
                 {
-                                  props[ansi::OSC_LABEL] = txt;
-                    auto& utf8 = (props[ansi::OSC_TITLE] = txt);
-                    utf8 = jet_left + utf8;
+                                  props[ansi::osc_label] = txt;
+                    auto& utf8 = (props[ansi::osc_title] = txt);
                     owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                 }
                 else
                 {
                     auto& utf8 = (props[property] = txt);
-                    if (property == ansi::OSC_TITLE)
+                    if (property == ansi::osc_title)
                     {
-                        utf8 = jet_left + utf8;
                         owner.RISEUP(tier::preview, e2::form::prop::ui::header, utf8);
                     }
                 }
@@ -511,6 +504,7 @@ namespace netxs::ui
                 static constexpr auto set_winsz = si32{ 8  }; // Set window size in characters.
                 static constexpr auto maximize  = si32{ 9  }; // Toggle maximize/restore.
                 static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode (todo: hide menu).
+                static constexpr auto view_size = si32{ 18 }; // Report viewport size.
                 static constexpr auto get_label = si32{ 20 }; // Report icon   label. (Report as OSC L label ST).
                 static constexpr auto get_title = si32{ 21 }; // Report window title. (Report as OSC l title ST).
                 static constexpr auto put_stack = si32{ 22 }; // Push icon label and window title to   stack.
@@ -529,8 +523,9 @@ namespace netxs::ui
                         owner.window_resize(winsz);
                         break;
                     }
-                    case get_label: owner.answer(queue.osc(ansi::OSC_LABEL_REPORT, "")); break; // Return an empty string for security reasons
-                    case get_title: owner.answer(queue.osc(ansi::OSC_TITLE_REPORT, "")); break;
+                    case view_size: owner.answer(queue.win_sz(owner.target->panel)); break;
+                    case get_label: owner.answer(queue.osc(ansi::osc_label_report, "")); break; // Return an empty string for security reasons
+                    case get_title: owner.answer(queue.osc(ansi::osc_title_report, "")); break;
                     case put_stack:
                     {
                         auto push = [&](auto const& property)
@@ -539,10 +534,10 @@ namespace netxs::ui
                         };
                         switch (q(all_title))
                         {
-                            case title:     push(ansi::OSC_TITLE); break;
-                            case label:     push(ansi::OSC_LABEL); break;
-                            case all_title: push(ansi::OSC_TITLE);
-                                            push(ansi::OSC_LABEL); break;
+                            case title:     push(ansi::osc_title); break;
+                            case label:     push(ansi::osc_label); break;
+                            case all_title: push(ansi::osc_title);
+                                            push(ansi::osc_label); break;
                             default: break;
                         }
                         break;
@@ -560,16 +555,16 @@ namespace netxs::ui
                         };
                         switch (q(all_title))
                         {
-                            case title:     pop(ansi::OSC_TITLE); break;
-                            case label:     pop(ansi::OSC_LABEL); break;
-                            case all_title: pop(ansi::OSC_TITLE);
-                                            pop(ansi::OSC_LABEL); break;
+                            case title:     pop(ansi::osc_title); break;
+                            case label:     pop(ansi::osc_label); break;
+                            case all_title: pop(ansi::osc_title);
+                                            pop(ansi::osc_label); break;
                             default: break;
                         }
                         break;
                     }
                     default:
-                        log("CSI ", option, "... t (XTWINOPS) is not supported");
+                        log("term: CSI ", option, "... t (XTWINOPS) is not supported");
                         break;
                 }
             }
@@ -618,14 +613,14 @@ namespace netxs::ui
             }
             void notsupported(text const& property, view data)
             {
-                log(" Not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
+                log("term: not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
             }
 
             c_tracking(term& owner)
                 : owner{ owner }
             {
                 reset();
-                procs[ansi::OSC_LINUX_COLOR] = [&](view data) // ESC ] P Nrrggbb
+                procs[ansi::osc_linux_color] = [&](view data) // ESC ] P Nrrggbb
                 {
                     if (data.length() >= 7)
                     {
@@ -642,7 +637,7 @@ namespace netxs::ui
                                  + 0xFF000000;
                     }
                 };
-                procs[ansi::OSC_RESET_COLOR] = [&](view data) // ESC ] 104 ; 0; 1;...
+                procs[ansi::osc_reset_color] = [&](view data) // ESC ] 104 ; 0; 1;...
                 {
                     auto empty = true;
                     while (data.length())
@@ -657,7 +652,7 @@ namespace netxs::ui
                     }
                     if (empty) reset();
                 };
-                procs[ansi::OSC_SET_PALETTE] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
+                procs[ansi::osc_set_palette] = [&](view data) // ESC ] 4 ; 0;rgb:00/00/00;1;rgb:00/00/00;...
                 {
                     auto fails = faux;
                     while (data.length())
@@ -682,33 +677,33 @@ namespace netxs::ui
                             break;
                         }
                     }
-                    if (fails) notsupported(ansi::OSC_SET_PALETTE, data);
+                    if (fails) notsupported(ansi::osc_set_palette, data);
                 };
-                procs[ansi::OSC_LINUX_RESET] = [&](view data) // ESC ] R
+                procs[ansi::osc_linux_reset] = [&](view data) // ESC ] R
                 {
                     reset();
                 };
-                procs[ansi::OSC_SET_FGCOLOR] = [&](view data) // ESC ] 10 ;rgb:00/00/00
+                procs[ansi::osc_set_fgcolor] = [&](view data) // ESC ] 10 ;rgb:00/00/00
                 {
                     if (auto r = record(data))
                     {
                         owner.target->brush.sfg(r.value());
                     }
-                    else notsupported(ansi::OSC_SET_FGCOLOR, data);
+                    else notsupported(ansi::osc_set_fgcolor, data);
                 };
-                procs[ansi::OSC_SET_BGCOLOR] = [&](view data) // ESC ] 11 ;rgb:00/00/00
+                procs[ansi::osc_set_bgcolor] = [&](view data) // ESC ] 11 ;rgb:00/00/00
                 {
                     if (auto r = record(data))
                     {
                         owner.target->brush.sbg(r.value());
                     }
-                    else notsupported(ansi::OSC_SET_BGCOLOR, data);
+                    else notsupported(ansi::osc_set_bgcolor, data);
                 };
-                procs[ansi::OSC_RESET_FGCLR] = [&](view data)
+                procs[ansi::osc_reset_fgclr] = [&](view data)
                 {
                     owner.target->brush.sfg(0);
                 };
-                procs[ansi::OSC_RESET_BGCLR] = [&](view data)
+                procs[ansi::osc_reset_bgclr] = [&](view data)
                 {
                     owner.target->brush.sbg(0);
                 };
@@ -721,7 +716,7 @@ namespace netxs::ui
                 {
                     proc->second(data);
                 }
-                else log(" Not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
+                else log("term: not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
             }
             void fgc(tint c) { owner.target->brush.fgc(color[c]); }
             void bgc(tint c) { owner.target->brush.bgc(color[c]); }
@@ -733,138 +728,142 @@ namespace netxs::ui
         {
             static void set_autocr(bool autocr)
             {
+                #define V [](auto& q, auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
-                autocr ? parser.intro[ansi::ctrl::EOL] = VT_PROC{ p->cr(); p->lf(q.pop_all(ansi::ctrl::EOL)); }
-                       : parser.intro[ansi::ctrl::EOL] = VT_PROC{          p->lf(q.pop_all(ansi::ctrl::EOL)); };
+                autocr ? parser.intro[ansi::ctrl::eol] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::eol)); }
+                       : parser.intro[ansi::ctrl::eol] = V{          p->lf(q.pop_all(ansi::ctrl::eol)); };
+                #undef V
             }
             template<class T>
             static void parser_config(T& vt)
             {
                 using namespace netxs::ansi;
-                vt.csier.table_space[CSI_SPC_SRC     ] = VT_PROC{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
-                vt.csier.table_space[CSI_SPC_SLC     ] = VT_PROC{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[CSI_SPC_CST     ] = VT_PROC{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
-                vt.csier.table_hash [CSI_HSH_SCP     ] = VT_PROC{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_RCP     ] = VT_PROC{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
-                vt.csier.table_hash [CSI_HSH_PUSH_SGR] = VT_PROC{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
-                vt.csier.table_hash [CSI_HSH_POP_SGR ] = VT_PROC{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
-                vt.csier.table_excl [CSI_EXL_RST     ] = VT_PROC{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                #define V [](auto& q, auto& p)
+                vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
+                vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
+                vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
+                vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
+                vt.csier.table_hash [csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
+                vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
 
-                vt.csier.table[CSI_SGR][SGR_FG_BLK   ] = VT_PROC{ p->owner.ctrack.fgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED   ] = VT_PROC{ p->owner.ctrack.fgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW   ] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU   ] = VT_PROC{ p->owner.ctrack.fgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN   ] = VT_PROC{ p->owner.ctrack.fgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT   ] = VT_PROC{ p->owner.ctrack.fgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLK_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_RED_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_FG_GRN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_FG_YLW_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_FG_BLU_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_MGT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_FG_CYN_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_FG_WHT_LT] = VT_PROC{ p->owner.ctrack.fgc(tint::whitelt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK   ] = VT_PROC{ p->owner.ctrack.bgc(tint::blackdk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED   ] = VT_PROC{ p->owner.ctrack.bgc(tint::reddk    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::greendk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW   ] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowdk ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU   ] = VT_PROC{ p->owner.ctrack.bgc(tint::bluedk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::magentadk); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN   ] = VT_PROC{ p->owner.ctrack.bgc(tint::cyandk   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT   ] = VT_PROC{ p->owner.ctrack.bgc(tint::whitedk  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLK_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::blacklt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_RED_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::redlt    ); };
-                vt.csier.table[CSI_SGR][SGR_BG_GRN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::greenlt  ); };
-                vt.csier.table[CSI_SGR][SGR_BG_YLW_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::yellowlt ); };
-                vt.csier.table[CSI_SGR][SGR_BG_BLU_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::bluelt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_MGT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::magentalt); };
-                vt.csier.table[CSI_SGR][SGR_BG_CYN_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::cyanlt   ); };
-                vt.csier.table[CSI_SGR][SGR_BG_WHT_LT] = VT_PROC{ p->owner.ctrack.bgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_blk   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_red   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
+                vt.csier.table[csi_sgr][sgr_fg_grn   ] = V{ p->owner.ctrack.fgc(tint::greendk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_ylw   ] = V{ p->owner.ctrack.fgc(tint::yellowdk ); };
+                vt.csier.table[csi_sgr][sgr_fg_blu   ] = V{ p->owner.ctrack.fgc(tint::bluedk   ); };
+                vt.csier.table[csi_sgr][sgr_fg_mgt   ] = V{ p->owner.ctrack.fgc(tint::magentadk); };
+                vt.csier.table[csi_sgr][sgr_fg_cyn   ] = V{ p->owner.ctrack.fgc(tint::cyandk   ); };
+                vt.csier.table[csi_sgr][sgr_fg_wht   ] = V{ p->owner.ctrack.fgc(tint::whitedk  ); };
+                vt.csier.table[csi_sgr][sgr_fg_blk_lt] = V{ p->owner.ctrack.fgc(tint::blacklt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_red_lt] = V{ p->owner.ctrack.fgc(tint::redlt    ); };
+                vt.csier.table[csi_sgr][sgr_fg_grn_lt] = V{ p->owner.ctrack.fgc(tint::greenlt  ); };
+                vt.csier.table[csi_sgr][sgr_fg_ylw_lt] = V{ p->owner.ctrack.fgc(tint::yellowlt ); };
+                vt.csier.table[csi_sgr][sgr_fg_blu_lt] = V{ p->owner.ctrack.fgc(tint::bluelt   ); };
+                vt.csier.table[csi_sgr][sgr_fg_mgt_lt] = V{ p->owner.ctrack.fgc(tint::magentalt); };
+                vt.csier.table[csi_sgr][sgr_fg_cyn_lt] = V{ p->owner.ctrack.fgc(tint::cyanlt   ); };
+                vt.csier.table[csi_sgr][sgr_fg_wht_lt] = V{ p->owner.ctrack.fgc(tint::whitelt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_blk   ] = V{ p->owner.ctrack.bgc(tint::blackdk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_red   ] = V{ p->owner.ctrack.bgc(tint::reddk    ); };
+                vt.csier.table[csi_sgr][sgr_bg_grn   ] = V{ p->owner.ctrack.bgc(tint::greendk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_ylw   ] = V{ p->owner.ctrack.bgc(tint::yellowdk ); };
+                vt.csier.table[csi_sgr][sgr_bg_blu   ] = V{ p->owner.ctrack.bgc(tint::bluedk   ); };
+                vt.csier.table[csi_sgr][sgr_bg_mgt   ] = V{ p->owner.ctrack.bgc(tint::magentadk); };
+                vt.csier.table[csi_sgr][sgr_bg_cyn   ] = V{ p->owner.ctrack.bgc(tint::cyandk   ); };
+                vt.csier.table[csi_sgr][sgr_bg_wht   ] = V{ p->owner.ctrack.bgc(tint::whitedk  ); };
+                vt.csier.table[csi_sgr][sgr_bg_blk_lt] = V{ p->owner.ctrack.bgc(tint::blacklt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_red_lt] = V{ p->owner.ctrack.bgc(tint::redlt    ); };
+                vt.csier.table[csi_sgr][sgr_bg_grn_lt] = V{ p->owner.ctrack.bgc(tint::greenlt  ); };
+                vt.csier.table[csi_sgr][sgr_bg_ylw_lt] = V{ p->owner.ctrack.bgc(tint::yellowlt ); };
+                vt.csier.table[csi_sgr][sgr_bg_blu_lt] = V{ p->owner.ctrack.bgc(tint::bluelt   ); };
+                vt.csier.table[csi_sgr][sgr_bg_mgt_lt] = V{ p->owner.ctrack.bgc(tint::magentalt); };
+                vt.csier.table[csi_sgr][sgr_bg_cyn_lt] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
+                vt.csier.table[csi_sgr][sgr_bg_wht_lt] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[CSI_CUU] = VT_PROC{ p->up (q(1)); }; // CSI n A  (CUU)
-                vt.csier.table[CSI_CUD] = VT_PROC{ p->dn (q(1)); }; // CSI n B  (CUD)
-                vt.csier.table[CSI_CUF] = VT_PROC{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
-                vt.csier.table[CSI_CUB] = VT_PROC{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
+                vt.csier.table[csi_cuu] = V{ p->up (q(1)); }; // CSI n A  (CUU)
+                vt.csier.table[csi_cud] = V{ p->dn (q(1)); }; // CSI n B  (CUD)
+                vt.csier.table[csi_cuf] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
+                vt.csier.table[csi_cub] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
-                vt.csier.table[CSI_CHT]           = VT_PROC{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
-                vt.csier.table[CSI_CBT]           = VT_PROC{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
-                vt.csier.table[CSI_TBC]           = VT_PROC{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
-                vt.csier.table_quest[CSI_QST_RTB] = VT_PROC{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
-                vt.intro[ctrl::ESC][ESC_HTS]      = VT_PROC{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
+                vt.csier.table[csi_cht]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
+                vt.csier.table[csi_cbt]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
+                vt.csier.table[csi_tbc]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table_quest[csi_qst_rtb] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
+                vt.intro[ctrl::esc][esc_hts]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
-                vt.csier.table[CSI_CUD2]= VT_PROC{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
+                vt.csier.table[csi_cud2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[CSI_CNL] = VT_PROC{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
-                vt.csier.table[CSI_CPL] = VT_PROC{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
-                vt.csier.table[CSI_CHX] = VT_PROC{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
-                vt.csier.table[CSI_CHY] = VT_PROC{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
-                vt.csier.table[CSI_CUP] = VT_PROC{ p->cup( q   ); }; // CSI y ; x H (1-based)
-                vt.csier.table[CSI_HVP] = VT_PROC{ p->cup( q   ); }; // CSI y ; x f (1-based)
+                vt.csier.table[csi_cnl] = V{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[csi_cpl] = V{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
+                vt.csier.table[csi_chx] = V{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
+                vt.csier.table[csi_chy] = V{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
+                vt.csier.table[csi_cup] = V{ p->cup( q   ); }; // CSI y ; x H (1-based)
+                vt.csier.table[csi_hvp] = V{ p->cup( q   ); }; // CSI y ; x f (1-based)
 
-                vt.csier.table[CSI_DCH] = VT_PROC{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
-                vt.csier.table[CSI_ECH] = VT_PROC{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
-                vt.csier.table[CSI_ICH] = VT_PROC{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
+                vt.csier.table[csi_dch] = V{ p->dch( q(1)); };  // CSI n P  Delete n chars (DCH).
+                vt.csier.table[csi_ech] = V{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
+                vt.csier.table[csi_ich] = V{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
 
-                vt.csier.table[CSI__ED] = VT_PROC{ p->ed ( q(0)); }; // CSI n J
-                vt.csier.table[CSI__EL] = VT_PROC{ p->el ( q(0)); }; // CSI n K
-                vt.csier.table[CSI__IL] = VT_PROC{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
-                vt.csier.table[CSI__DL] = VT_PROC{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
-                vt.csier.table[CSI__SD] = VT_PROC{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
-                vt.csier.table[CSI__SU] = VT_PROC{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
-                vt.csier.table[CSI_SCP] = VT_PROC{ p->scp(     ); }; // CSI   s  Save cursor position.
-                vt.csier.table[CSI_RCP] = VT_PROC{ p->rcp(     ); }; // CSI   u  Restore cursor position.
+                vt.csier.table[csi__ed] = V{ p->ed ( q(0)); }; // CSI n J
+                vt.csier.table[csi__el] = V{ p->el ( q(0)); }; // CSI n K
+                vt.csier.table[csi__il] = V{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
+                vt.csier.table[csi__dl] = V{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
+                vt.csier.table[csi__sd] = V{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
+                vt.csier.table[csi__su] = V{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
+                vt.csier.table[csi_scp] = V{ p->scp(     ); }; // CSI   s  Save cursor position.
+                vt.csier.table[csi_rcp] = V{ p->rcp(     ); }; // CSI   u  Restore cursor position.
 
-                vt.csier.table[DECSTBM] = VT_PROC{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
+                vt.csier.table[decstbm] = V{ p->scr( q   ); }; // CSI r; b r  Set scrolling region (t/b: top+bottom).
 
-                vt.csier.table[CSI_WIN] = VT_PROC{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
-                vt.csier.table[CSI_DSR] = VT_PROC{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
-                vt.csier.table[CSI_PDA] = VT_PROC{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
+                vt.csier.table[csi_win] = V{ p->owner.wtrack.manage(q   ); }; // CSI n;m;k t  Terminal window options (XTWINOPS).
+                vt.csier.table[csi_dsr] = V{ p->owner.wtrack.report(q(6)); }; // CSI n n  Device status report (DSR).
+                vt.csier.table[csi_pda] = V{ p->owner.wtrack.device(q(0)); }; // CSI n c  Send device attributes (Primary DA).
 
-                vt.csier.table[CSI_CCC][CCC_SBS] = VT_PROC{ p->owner.sbsize(q);    }; // CCC_SBS: Set scrollback size.
-                vt.csier.table[CSI_CCC][CCC_RST] = VT_PROC{ p->owner.setdef();     }; // CCC_RST: Reset to defaults.
-                vt.csier.table[CSI_CCC][CCC_SGR] = VT_PROC{ p->owner.setsgr(q);    };           // CCC_SGR: Set default SGR.
-                vt.csier.table[CSI_CCC][CCC_SEL] = VT_PROC{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
-                vt.csier.table[CSI_CCC][CCC_PAD] = VT_PROC{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
+                vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
+                vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
+                vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
+                vt.csier.table[csi_ccc][ccc_sel] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
+                vt.csier.table[csi_ccc][ccc_pad] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
-                vt.intro[ctrl::ESC][ESC_IND   ] = VT_PROC{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::ESC][ESC_IR    ] = VT_PROC{ p->ri (); };          // ESC M  Reverse index (RI).
-                vt.intro[ctrl::ESC][ESC_SC    ] = VT_PROC{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
-                vt.intro[ctrl::ESC][ESC_RC    ] = VT_PROC{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
-                vt.intro[ctrl::ESC][ESC_RIS   ] = VT_PROC{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
-                vt.intro[ctrl::ESC][ESC_NEL   ] = VT_PROC{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
-                vt.intro[ctrl::ESC][ESC_DECDHL] = VT_PROC{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
+                vt.intro[ctrl::esc][esc_ind   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
+                vt.intro[ctrl::esc][esc_ir    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::esc][esc_sc    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
+                vt.intro[ctrl::esc][esc_rc    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
+                vt.intro[ctrl::esc][esc_ris   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
+                vt.intro[ctrl::esc][esc_nel   ] = V{ p->cr(); p->dn(1); }; // ESC E  Move cursor down and CR. Same as CSI 1 E
+                vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
-                vt.intro[ctrl::ESC][ESC_APC   ] = VT_PROC{ p->msg(ESC_APC, q);      }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::ESC][ESC_DSC   ] = VT_PROC{ p->msg(ESC_DSC, q);      }; // ESC P ... ST  DSC.
-                vt.intro[ctrl::ESC][ESC_SOS   ] = VT_PROC{ p->msg(ESC_SOS, q);      }; // ESC X ... ST  SOS.
-                vt.intro[ctrl::ESC][ESC_PM    ] = VT_PROC{ p->msg(ESC_PM , q);      }; // ESC ^ ... ST  PM.
+                vt.intro[ctrl::esc][esc_apc   ] = V{ p->msg(esc_apc, q); }; // ESC _ ... ST  APC.
+                vt.intro[ctrl::esc][esc_dsc   ] = V{ p->msg(esc_dsc, q); }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
+                vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
-                vt.intro[ctrl::BS ] = VT_PROC{ p->cub(q.pop_all(ctrl::BS )); };
-                vt.intro[ctrl::DEL] = VT_PROC{ p->del(q.pop_all(ctrl::DEL)); };
-                vt.intro[ctrl::TAB] = VT_PROC{ p->tab(q.pop_all(ctrl::TAB)); };
-                vt.intro[ctrl::EOL] = VT_PROC{ p->lf (q.pop_all(ctrl::EOL)); }; // LF
-                vt.intro[ctrl::VT ] = VT_PROC{ p->lf (q.pop_all(ctrl::VT )); }; // VT same as LF
-                vt.intro[ctrl::FF ] = VT_PROC{ p->lf (q.pop_all(ctrl::FF )); }; // FF same as LF
-                vt.intro[ctrl::CR ] = VT_PROC{ p->cr ();                     }; // CR
+                vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
+                vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
+                vt.intro[ctrl::tab] = V{ p->tab(q.pop_all(ctrl::tab)); };
+                vt.intro[ctrl::eol] = V{ p->lf (q.pop_all(ctrl::eol)); }; // LF
+                vt.intro[ctrl::vt ] = V{ p->lf (q.pop_all(ctrl::vt )); }; // VT same as LF
+                vt.intro[ctrl::ff ] = V{ p->lf (q.pop_all(ctrl::ff )); }; // FF same as LF
+                vt.intro[ctrl::cr ] = V{ p->cr ();                     }; // CR
 
-                vt.csier.table_quest[DECSET] = VT_PROC{ p->owner.decset(q); };
-                vt.csier.table_quest[DECRST] = VT_PROC{ p->owner.decrst(q); };
+                vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
+                vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
 
-                vt.oscer[OSC_LABEL_TITLE] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL_TITLE, q); };
-                vt.oscer[OSC_LABEL      ] = VT_PROC{ p->owner.wtrack.set(OSC_LABEL,       q); };
-                vt.oscer[OSC_TITLE      ] = VT_PROC{ p->owner.wtrack.set(OSC_TITLE,       q); };
-                vt.oscer[OSC_XPROP      ] = VT_PROC{ p->owner.wtrack.set(OSC_XPROP,       q); };
-                vt.oscer[OSC_LINUX_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_COLOR, q); };
-                vt.oscer[OSC_LINUX_RESET] = VT_PROC{ p->owner.ctrack.set(OSC_LINUX_RESET, q); };
-                vt.oscer[OSC_SET_PALETTE] = VT_PROC{ p->owner.ctrack.set(OSC_SET_PALETTE, q); };
-                vt.oscer[OSC_SET_FGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_FGCOLOR, q); };
-                vt.oscer[OSC_SET_BGCOLOR] = VT_PROC{ p->owner.ctrack.set(OSC_SET_BGCOLOR, q); };
-                vt.oscer[OSC_RESET_COLOR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_COLOR, q); };
-                vt.oscer[OSC_RESET_FGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_FGCLR, q); };
-                vt.oscer[OSC_RESET_BGCLR] = VT_PROC{ p->owner.ctrack.set(OSC_RESET_BGCLR, q); };
-                vt.oscer[OSC_CLIPBOARD  ] = VT_PROC{ p->owner.forward_clipboard(q);           };
+                vt.oscer[osc_label_title] = V{ p->owner.wtrack.set(osc_label_title, q); };
+                vt.oscer[osc_label      ] = V{ p->owner.wtrack.set(osc_label,       q); };
+                vt.oscer[osc_title      ] = V{ p->owner.wtrack.set(osc_title,       q); };
+                vt.oscer[osc_xprop      ] = V{ p->owner.wtrack.set(osc_xprop,       q); };
+                vt.oscer[osc_linux_color] = V{ p->owner.ctrack.set(osc_linux_color, q); };
+                vt.oscer[osc_linux_reset] = V{ p->owner.ctrack.set(osc_linux_reset, q); };
+                vt.oscer[osc_set_palette] = V{ p->owner.ctrack.set(osc_set_palette, q); };
+                vt.oscer[osc_set_fgcolor] = V{ p->owner.ctrack.set(osc_set_fgcolor, q); };
+                vt.oscer[osc_set_bgcolor] = V{ p->owner.ctrack.set(osc_set_bgcolor, q); };
+                vt.oscer[osc_reset_color] = V{ p->owner.ctrack.set(osc_reset_color, q); };
+                vt.oscer[osc_reset_fgclr] = V{ p->owner.ctrack.set(osc_reset_fgclr, q); };
+                vt.oscer[osc_reset_bgclr] = V{ p->owner.ctrack.set(osc_reset_bgclr, q); };
+                vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
+                #undef V
 
                 // Log all unimplemented CSI commands.
                 for (auto i = 0; i < 0x100; ++i)
@@ -875,7 +874,7 @@ namespace netxs::ui
                         proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
                     }
                 }
-                auto& esc_lookup = vt.intro[ctrl::ESC];
+                auto& esc_lookup = vt.intro[ctrl::esc];
                 // Log all unimplemented ESC+rest.
                 for (auto i = 0; i < 0x100; ++i)
                 {
@@ -1203,7 +1202,7 @@ namespace netxs::ui
             void task(ansi::rule const& property)
             {
                 parser::flush();
-                log("bufferbase: locus extensions are not supported");
+                log("term: bufferbase: locus extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -1231,7 +1230,7 @@ namespace netxs::ui
             template<class T>
             void na(T&& note)
             {
-                log("not implemented: ", note);
+                log("term: not implemented: ", note);
             }
             void not_implemented_CSI(si32 i, fifo& q)
             {
@@ -1246,35 +1245,35 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
+                log("term: CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
             }
             void not_implemented_ESC(si32 c, qiew& q)
             {
                 switch (c)
                 {
                     // Unexpected
-                    case ansi::ESC_CSI   :
-                    case ansi::ESC_OCS   :
-                    case ansi::ESC_DSC   :
-                    case ansi::ESC_SOS   :
-                    case ansi::ESC_PM    :
-                    case ansi::ESC_APC   :
-                    case ansi::ESC_ST    :
-                        log("ESC ", (char)c, " (", c, ") is unexpected");
+                    case ansi::esc_csi   :
+                    case ansi::esc_ocs   :
+                    case ansi::esc_dsc   :
+                    case ansi::esc_sos   :
+                    case ansi::esc_pm    :
+                    case ansi::esc_apc   :
+                    case ansi::esc_st    :
+                        log("term: ESC ", (char)c, " (", c, ") is unexpected");
                         break;
                     // Unsupported ESC + byte + rest
-                    case ansi::ESC_G0SET :
-                    case ansi::ESC_G1SET :
-                    case ansi::ESC_G2SET :
-                    case ansi::ESC_G3SET :
-                    case ansi::ESC_G1xSET:
-                    case ansi::ESC_G2xSET:
-                    case ansi::ESC_G3xSET:
-                    case ansi::ESC_CTRL  :
-                    case ansi::ESC_DECDHL:
-                    case ansi::ESC_CHRSET:
+                    case ansi::esc_g0set :
+                    case ansi::esc_g1set :
+                    case ansi::esc_g2set :
+                    case ansi::esc_g3set :
+                    case ansi::esc_g1xset:
+                    case ansi::esc_g2xset:
+                    case ansi::esc_g3xset:
+                    case ansi::esc_ctrl  :
+                    case ansi::esc_decdhl:
+                    case ansi::esc_chrset:
                     {
-                        if (!q) log("ESC ", (char)c, " (", c, ") is incomplete");
+                        if (!q) log("term: ESC ", (char)c, " (", c, ") is incomplete");
                         auto b = q.front();
                         q.pop_front();
                         switch (b)
@@ -1303,7 +1302,7 @@ namespace netxs::ui
                             case '9':
                             case '`':
                             case 'U':
-                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
+                                log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
                                 break;
                             case '%':
                             case '"':
@@ -1311,52 +1310,52 @@ namespace netxs::ui
                                 if (q.size() < 2)
                                 {
                                     if (q) q.pop_front();
-                                    log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
+                                    log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
                                 }
                                 else
                                 {
                                      auto d = q.front();
                                      q.pop_front();
-                                     log("ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
+                                     log("term: ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
                                 }
                                 break;
                             }
                             default:
-                                log("ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
+                                log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
                                 break;
                         }
                         break;
                     }
                     // Unsupported ESC + byte
-                    case ansi::ESC_DELIM :
-                    case ansi::ESC_KEY_A :
-                    case ansi::ESC_KEY_N :
-                    case ansi::ESC_DECBI :
-                    case ansi::ESC_DECFI :
-                    case ansi::ESC_SC    :
-                    case ansi::ESC_RC    :
-                    case ansi::ESC_HTS   :
-                    case ansi::ESC_NEL   :
-                    case ansi::ESC_CLB   :
-                    case ansi::ESC_IND   :
-                    case ansi::ESC_IR    :
-                    case ansi::ESC_RIS   :
-                    case ansi::ESC_MEMLK :
-                    case ansi::ESC_MUNLK :
-                    case ansi::ESC_LS2   :
-                    case ansi::ESC_LS3   :
-                    case ansi::ESC_LS1R  :
-                    case ansi::ESC_LS2R  :
-                    case ansi::ESC_LS3R  :
-                    case ansi::ESC_SS3   :
-                    case ansi::ESC_SS2   :
-                    case ansi::ESC_SPA   :
-                    case ansi::ESC_EPA   :
-                    case ansi::ESC_RID   :
-                        log("ESC ", (char)c, " (", c, ") is unsupported");
+                    case ansi::esc_delim :
+                    case ansi::esc_key_a :
+                    case ansi::esc_key_n :
+                    case ansi::esc_decbi :
+                    case ansi::esc_decfi :
+                    case ansi::esc_sc    :
+                    case ansi::esc_rc    :
+                    case ansi::esc_hts   :
+                    case ansi::esc_nel   :
+                    case ansi::esc_clb   :
+                    case ansi::esc_ind   :
+                    case ansi::esc_ir    :
+                    case ansi::esc_ris   :
+                    case ansi::esc_memlk :
+                    case ansi::esc_munlk :
+                    case ansi::esc_ls2   :
+                    case ansi::esc_ls3   :
+                    case ansi::esc_ls1r  :
+                    case ansi::esc_ls2r  :
+                    case ansi::esc_ls3r  :
+                    case ansi::esc_ss3   :
+                    case ansi::esc_ss2   :
+                    case ansi::esc_spa   :
+                    case ansi::esc_epa   :
+                    case ansi::esc_rid   :
+                        log("term: ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
-                        log("ESC ", (char)c, " (", c, ") is unknown");
+                        log("term: ESC ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1369,13 +1368,13 @@ namespace netxs::ui
                 switch (c)
                 {
                     case -1:
-                        log("ESC #  is unexpected");
+                        log("term: ESC #  is unexpected");
                         break;
                     case '3':
                     case '4':
                     case '5':
                     case '6':
-                        log("ESC # ", (char)c, " (", c, ") is unsupported");
+                        log("term: ESC # ", (char)c, " (", c, ") is unsupported");
                         break;
                     case '8':
                     {
@@ -1390,7 +1389,7 @@ namespace netxs::ui
                         break;
                     }
                     default:
-                        log("ESC # ", (char)c, " (", c, ") is unknown");
+                        log("term: ESC # ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1403,8 +1402,8 @@ namespace netxs::ui
                     auto c = q.front();
                     data.push_back(c);
                     q.pop_front();
-                         if (c == ansi::C0_BEL) break;
-                    else if (c == ansi::C0_ESC)
+                         if (c == ansi::c0_bel) break;
+                    else if (c == ansi::c0_esc)
                     {
                         auto c = q.front();
                         if (q && c == '\\')
@@ -1415,7 +1414,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                log("Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
+                log("term: Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
             }
             // bufferbase: Clear buffer.
     virtual void clear_all()
@@ -1731,7 +1730,7 @@ namespace netxs::ui
             // bufferbase: Shift left n columns(s).
             void shl(si32 n)
             {
-                log("bufferbase: SHL(n=", n, ") is not implemented.");
+                log("term: bufferbase: SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(si32 n, char c = '\0') = 0;
@@ -1902,7 +1901,7 @@ namespace netxs::ui
             template<class P>
             auto _shade_selection(si32 mode, P work)
             {
-                switch (mode)
+                switch (owner.ftrack ? mode : clip::disabled)
                 {
                     case clip::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
                     case clip::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
@@ -3365,7 +3364,7 @@ namespace netxs::ui
             {
                 if (batch.basis >= batch.vsize)
                 {
-                    assert((log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                    assert((log("term: batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
                     batch.basis = batch.vsize - 1;
                 }
 
@@ -3665,7 +3664,8 @@ namespace netxs::ui
                     while (size.y-- > 0)
                     {
                         auto oldsz = batch.size;
-                        auto proto = core::span{ &(*curit), static_cast<size_t>(size.x) }; // Apple Clang doesn't accept an iterator as an arg in the span ctor.
+                        //auto proto = core::span{ curit, static_cast<size_t>(size.x) };
+                        auto proto = core::span{ &(*curit), static_cast<size_t>(size.x) }; //todo Clang 13.0.0 doesn't accept an iterator as an arg in the span ctor.
                         auto curln = line{ curid++, style, proto, width };
                         curln.shrink(block.mark());
                         batch.insert(start, std::move(curln));
@@ -5454,7 +5454,7 @@ namespace netxs::ui
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(ansi::esc& yield, si32 selmod)
             {
-                //todo Clang don't get it
+                //todo Clang 15 don't get it
                 //auto [i_top, i_end, upcur, dncur] = selection_get_it();
                 auto tempvr = selection_get_it();
                 auto i_top = std::get<0>(tempvr);
@@ -5610,7 +5610,7 @@ namespace netxs::ui
                     auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
-                    //todo Clang don't get it
+                    //todo Clang 15 don't get it
                     //auto [curtop, curend] = selection_take_grips();
                     auto tempvr = selection_take_grips();
                     auto curtop = tempvr.first;
@@ -6109,7 +6109,7 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
-        bool       active; // term: Terminal lifetime.
+        flag       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       onlogs; // term: Developer mode.
@@ -6117,13 +6117,13 @@ namespace netxs::ui
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
         si32       selmod; // term: Selection mode (ansi::clip::mime).
+        si32       altscr; // term: Alternate scroll mode.
         vtty       ptycon; // term: PTY device. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            auto gates = e2::form::state::keybd::enlist.param();
-            SIGNAL(tier::anycast, e2::form::state::keybd::enlist, gates); // Take all foci.
+            RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
             for (auto gate_id : gates) // Signal them to set the clipboard data.
             {
                 if (auto gear_ptr = bell::getref<hids>(gate_id))
@@ -6149,6 +6149,7 @@ namespace netxs::ui
             invert = faux;
             decckm = faux;
             bpmode = faux;
+            altscr = config.def_alt_on ? config.def_altscr : 0;
             normal.brush.reset();
             ptycon.reset();
         }
@@ -6181,13 +6182,13 @@ namespace netxs::ui
                     cursor.show();
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
-                    log("decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
+                    log("term: decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
                 case 1000: // Enable mouse buttons reporting mode.
                     mtrack.enable(m_tracking::buttons_press);
                     break;
                 case 1001: // Use Hilite mouse tracking mode.
-                    log("decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
+                    log("term: decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Enable mouse buttons and drags reporting mode.
                     mtrack.enable(m_tracking::buttons_drags);
@@ -6204,14 +6205,17 @@ namespace netxs::ui
                 case 1006: // Enable SGR mouse reporting protocol.
                     mtrack.setmode(m_tracking::sgr);
                     break;
+                case 1007: // Enable alternate scroll mode.
+                    altscr = config.def_altscr;
+                    break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
                     mtrack.enable(m_tracking::negative_args);
                     break;
                 case 1015: // Enable URXVT mouse reporting protocol.
-                    log("decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
+                    log("term: decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Enable Pixels (subcell) mouse mode.
-                    log("decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                    log("term: decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Save cursor pos.
                     target->scp();
@@ -6288,13 +6292,13 @@ namespace netxs::ui
                     cursor.hide();
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
-                    log("decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
+                    log("term: decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                     break;
                 case 1000: // Disable mouse buttons reporting mode.
                     mtrack.disable(m_tracking::buttons_press);
                     break;
                 case 1001: // Don't use Hilite(c) mouse tracking mode.
-                    log("decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
+                    log("term: decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Disable mouse buttons and drags reporting mode.
                     mtrack.disable(m_tracking::buttons_drags);
@@ -6312,14 +6316,17 @@ namespace netxs::ui
                     mtrack.setmode(m_tracking::x11);
                     mtrack.disable(m_tracking::all_movements);
                     break;
+                case 1007: // Disable alternate scroll mode.
+                    altscr = 0;
+                    break;
                 case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
                     mtrack.disable(m_tracking::negative_args);
                     break;
                 case 1015: // Disable URXVT mouse reporting protocol.
-                    log("decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
+                    log("term: decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Disable Pixels (subcell) mouse mode.
-                    log("decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
+                    log("term: decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Restore cursor pos.
                     target->rcp();
@@ -6356,6 +6363,15 @@ namespace netxs::ui
             auto ring_size = queue(config.def_length);
             auto grow_step = queue(config.def_growup);
             normal.resize_history(ring_size, grow_step);
+        }
+        // term: Check and update scrollback buffer limits.
+        void sb_min(si32 min_length)
+        {
+            target->flush();
+            if (normal.batch.step == 0 && normal.batch.peak < min_length)
+            {
+                normal.resize_history(min_length);
+            }
         }
         // term: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
@@ -6414,7 +6430,7 @@ namespace netxs::ui
             update([&]
             {
                 //todo Developer Mode
-                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6424,7 +6440,7 @@ namespace netxs::ui
             update([&]
             {
                 //todo Developer Mode
-                //if (onlogs) this->SIGNAL(tier::anycast, e2::debug::output, data); // Post data for Logs.
+                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6438,7 +6454,7 @@ namespace netxs::ui
                 {
                     netxs::events::enqueue(This(), [&](auto& boss)
                     {
-                        this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                        this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
                     });
                 };
                 auto chose_proc = [&]
@@ -6447,14 +6463,14 @@ namespace netxs::ui
                         .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
-                    this->LISTEN(tier::release, hids::events::keybd::any, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
                             switch (gear.cluster.front())
                             {
-                                case ansi::C0_ESC: onexit(0); break;
-                                case ansi::C0_CR:  start();   break;
+                                case ansi::c0_esc: onexit(0); break;
+                                case ansi::c0_cr:  start();   break;
                             }
                         }
                     };
@@ -6507,12 +6523,12 @@ namespace netxs::ui
 
             auto mark = marker{};
             mark.brush = base::color();
-            auto param = queue.front(ansi::SGR_RST);
+            auto param = queue.front(ansi::sgr_rst);
             if (queue.issub(param))
             {
                 auto ptr = &mark;
                 queue.settop(queue.desub(param));
-                parser.table[ansi::CSI_SGR].execute(queue, ptr);
+                parser.table[ansi::csi_sgr].execute(queue, ptr);
             }
             else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor); //todo unify (config with defaults)
             set_color(mark.brush);
@@ -6583,7 +6599,7 @@ namespace netxs::ui
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                gear.kb_offer_9(this->This());
+                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 //todo respect bracketed paste mode
                 follow[axis::X] = true;
                 if (data.kind == clip::richtext)
@@ -6610,7 +6626,7 @@ namespace netxs::ui
         {
             auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
                                                            : static_cast<clip::mime>(selmod);
-            gear.kb_offer_9(this->This());
+            pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
             gear.set_clip_data(clip{ target->panel, data, mimetype });
         }
         auto copy(hids& gear)
@@ -6648,9 +6664,11 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            auto gear_test = e2::form::state::keybd::find.param(gear.id, 0);
-            SIGNAL(tier::anycast, e2::form::state::keybd::find, gear_test);
-            if (!gear_test.second) return; // Right clicks are only allowed on the focused terminal.
+            RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+            if (!gear_test.second) // Set exclusive focus on right click.
+            {
+                pro::focus::set(This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+            }
             if ((selection_active() && copy(gear))
              || (selection_passed() && paste(gear)))
             {
@@ -6659,14 +6677,13 @@ namespace netxs::ui
         }
         void selection_mclick(hids& gear)
         {
-            log("       term: middle click");
             auto& console = *target;
             auto utf8 = console.selection_active() ? console.match.utf8()      // Paste from selection.
                       :         selection_passed() ? gear.get_clip_data().utf8 // Paste from clipboard.
                                                    : text{};
             if (utf8.size())
             {
-                gear.kb_offer_9(this->This());
+                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
                 data_out(utf8);
                 gear.dismiss();
@@ -6791,6 +6808,20 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::mouse::button::click   ::middle,gear) {                         selection_mclick(gear); };
             LISTEN(tier::release, hids::events::mouse::button::dblclick::left,  gear) { if (selection_passed()) selection_dblclk(gear); };
             LISTEN(tier::release, hids::events::mouse::button::tplclick::left,  gear) { if (selection_passed()) selection_tplclk(gear); };
+            LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+            {
+                if (gear.meta(hids::anyCtrl)) return; // Ctrl+Wheel is reserved for zooming.
+                if (altscr && target == &altbuf)
+                {
+                    auto deed = this->bell::template protos<tier::release>();
+                    switch (deed)
+                    {
+                        case hids::events::mouse::scroll::up.id:   data_out(utf::repeat("\033[A"sv, altscr)); break;
+                        case hids::events::mouse::scroll::down.id: data_out(utf::repeat("\033[B"sv, altscr)); break;
+                    }
+                    gear.dismiss();
+                }
+            };
         }
         void selection_search(hids& gear, feed dir)
         {
@@ -6950,7 +6981,7 @@ namespace netxs::ui
                 ptycon.cleanup();
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::OSC_TITLE));
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
                     ptycon.start(initsz);
                 });
@@ -7006,10 +7037,11 @@ namespace netxs::ui
               curdir{ cwd   },
               cmdarg{ cmd   },
               selmod{ config.def_selmod },
-              selalt{ config.def_selalt }
+              selalt{ config.def_selalt },
+              altscr{ config.def_altscr }
         {
             linux_console = os::vt::console();
-            form::keybd.accept(true); // Subscribe on keybd offers.
+            //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });
@@ -7041,9 +7073,10 @@ namespace netxs::ui
 
                 new_size.y += console.get_basis();
             };
-            LISTEN(tier::release, hids::events::keybd::any, gear)
+            LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
-                this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                if (gear.handled) return; // Don't pass registered keyboard shortcuts.
+                if (gear.cluster.size()) this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))
@@ -7245,14 +7278,14 @@ namespace netxs::ui
                 for (auto& jgc : lock.thing)
                 {
                     cell::gc_set_data(jgc.token, jgc.cluster);
-                    log("new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    log("term: new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
                 netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
                 {
                     owner.base::deface();
                 });
             }
-            void handle(s11n::xs::maximize            lock)
+            void handle(s11n::xs::fullscreen          lock)
             {
                 auto& m = lock.thing;
                 owner.trysync(owner.active, [&]
@@ -7262,7 +7295,61 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::maximize, gear);
+                        parent_ptr->RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                    }
+                });
+            }
+            void handle(s11n::xs::focus_cut           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    //todo move it to the static pro::focus::cut(gear_id, item_ptr)
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                    }
+                });
+            }
+            void handle(s11n::xs::focus_set           lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
+                    }
+                });
+            }
+            void handle(s11n::xs::keybd_event         lock)
+            {
+                auto& k = lock.thing;
+                owner.trysync(owner.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(k.gear_id))
+                    if (auto parent_ptr = owner.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        //todo use temp gear object
+                        gear.alive    = true;
+                        gear.ctlstate = k.ctlstat;
+                        gear.winctrl  = k.winctrl;
+                        gear.virtcod  = k.virtcod;
+                        gear.scancod  = k.scancod;
+                        gear.pressed  = k.pressed;
+                        gear.imitate  = k.imitate;
+                        gear.cluster  = k.cluster;
+                        gear.winchar  = k.winchar;
+                        gear.handled  = k.handled;
+                        do
+                        {
+                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                            parent_ptr = parent_ptr->parent();
+                        }
+                        while (gear && parent_ptr);
                     }
                 });
             };
@@ -7276,16 +7363,27 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(owner.id)) gear.setfree(true);
-                        gear.replay(m.cause, m.coord + owner.base::coor(), m.delta, m.buttons);
-                        gear.pass<tier::release>(parent_ptr, owner.base::coor());
+                        auto basis = gear.owner.base::coor();
+                        owner.global(basis);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons);
+                        gear.pass<tier::release>(parent_ptr, basis);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
-                            auto basis = e2::coor::set.param();
-                            gear.owner.SIGNAL(tier::request, e2::coor::set, basis);
-                            owner.global(basis);
                             gear.coord -= basis; // Restore gate mouse position.
                             gear.owner.bell::template signal<tier::release>(m.cause, gear);
                         }
+                    }
+                });
+            }
+            void handle(s11n::xs::minimize            lock)
+            {
+                auto& m = lock.thing;
+                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                {
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    {
+                        auto& gear = *gear_ptr;
+                        owner.RISEUP(tier::release, e2::form::layout::minimize, gear);
                     }
                 });
             }
@@ -7322,28 +7420,21 @@ namespace netxs::ui
                     s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
                 });
             }
-            void handle(s11n::xs::set_focus           lock)
-            {
-                auto& f = lock.thing;
-                owner.trysync(owner.active, [&]
-                {
-                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-                    {
-                        gear_ptr->kb_offer_18(owner.This(), f.force_group_focus);
-                    }
-                });
-            }
-            void handle(s11n::xs::off_focus           lock)
-            {
-                auto& f = lock.thing;
-                owner.trysync(owner.active, [&]
-                {
-                    if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-                    {
-                        gear_ptr->remove_from_kb_focus(owner.This());
-                    }
-                });
-            }
+            //void handle(s11n::xs::focus               lock)
+            //{
+            //    auto& f = lock.thing;
+            //    owner.trysync(owner.active, [&]
+            //    {
+            //        if (auto gear_ptr = bell::getref<hids>(f.gear_id))
+            //        {
+            //            auto& gear = *gear_ptr;
+            //            if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
+            //            else         gear.remove_from_kb_focus(owner.This());
+            //            if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
+            //            else         pro::focus::off(owner.This(), gear.id);
+            //        }
+            //    });
+            //}
             void handle(s11n::xs::form_header         lock)
             {
                 auto& h = lock.thing;
@@ -7412,7 +7503,7 @@ namespace netxs::ui
                 {
                     s11n::form_footer.send(owner, 0, utf8);
                 };
-                owner.LISTEN(tier::release, hids::events::device::mouse, gear, token)
+                owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     if (gear.captured(owner.id))
                     {
@@ -7442,7 +7533,16 @@ namespace netxs::ui
                     gear.m.enabled = hids::stat::halt;
                     s11n::sysmouse.send(owner, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::any, gear, token)
+                owner.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, token)
+                {
+                    auto deed = owner.bell::template protos<tier::release>();
+                    if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
+                    {
+                        seed.guid = os::process::id.second;
+                    }
+                    s11n::focusbus.send(owner, seed.id, seed.guid, netxs::events::subindex(deed));
+                };
+                owner.LISTEN(tier::release, hids::events::keybd::data::post, gear, token)
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
@@ -7452,33 +7552,35 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.imitate,
                                                gear.cluster,
-                                               gear.winchar);
+                                               gear.winchar,
+                                               gear.handled);
+                    gear.dismiss();
                 };
-                owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
-                {
-                    auto focus_state = true;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
-                };
-                owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
-                {
-                    gear.remove_from_kb_focus(owner.This());
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
-                };
-                owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
-                {
-                    auto focus_state = faux;
-                    s11n::sysfocus.send(owner, gear.id,
-                                               focus_state,
-                                               gear.combine_focus,
-                                               gear.force_group_focus);
-                };
+                //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
+                //{
+                //    auto focus_state = true;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
+                //{
+                //    gear.remove_from_kb_focus(owner.This());
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
+                //owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
+                //{
+                //    auto focus_state = faux;
+                //    s11n::sysfocus.send(owner, gear.id,
+                //                               focus_state,
+                //                               gear.focus_combine,
+                //                               gear.focus_force_group);
+                //};
                 owner.LISTEN(tier::general, e2::config::fps, frame_rate, token)
                 {
                     if (frame_rate > 0)
@@ -7509,7 +7611,7 @@ namespace netxs::ui
         text        curdir; // dtvt: Current working directory.
         text        cmdarg; // dtvt: Startup command line arguments.
         text        xmlcfg; // dtvt: Startup config.
-        bool        active; // dtvt: Terminal lifetime.
+        flag        active; // dtvt: Terminal lifetime.
         si32        nodata; // dtvt: Show splash "No signal".
         face        splash; // dtvt: "No signal" splash.
         span        maxoff; // dtvt: Max delay before showing "No signal".
@@ -7546,7 +7648,7 @@ namespace netxs::ui
             netxs::events::enqueue(This(), [&](auto& boss)
             {
                 //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
-                this->SIGNAL(tier::preview, e2::form::quit, This()); //todo VS2019 requires `this`
+                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
             });
         }
         // dtvt: Shutdown callback handler.
@@ -7573,10 +7675,8 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
-                    auto header = e2::form::prop::ui::header.param();
-                    auto footer = e2::form::prop::ui::footer.param();
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, header);
-                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer);
+                    this->RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
                     procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
@@ -7612,8 +7712,7 @@ namespace netxs::ui
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
-            auto fps = e2::config::fps.param(-1);
-            SIGNAL(tier::general, e2::config::fps, fps);
+            SIGNAL(tier::general, e2::config::fps, fps, (-1));
             maxoff = max_drops * span{ span::period::den / fps };
             LISTEN(tier::general, e2::config::fps, fps)
             {

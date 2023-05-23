@@ -52,7 +52,7 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="PowerShell"                  param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run PowerShell "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run Windows PowerShell "/>
         <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
 )=="
 #endif
@@ -83,6 +83,7 @@ R"==(
             <!--  <item wincoor=92,30/> -->
             <!--  <item wincoor=8,30 focused/> -->
         </autorun>
+        <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <width>    <!-- Taskbar menu width. -->
             <folded=4/>
             <expanded=31/>
@@ -97,6 +98,7 @@ R"==(
             <fps      = 60   />
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
+            <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
@@ -162,18 +164,17 @@ R"==(
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+            <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7  />  <!-- Preview shadow strength (0-10). -->
             </preview>
         </clipboard>
-        <viewport coor=0,0/>
         <mouse dblclick=500ms/>
-        <tooltip timeout=500ms enabled=true fgc=pureblack bgc=purewhite/>
+        <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
         <glowfx=true/>                      <!-- Show glow effect around selected item. -->
-        <debug overlay=faux toggle="🐞"/>  <!-- Display console debug info. -->
-        <regions enabled=faux/>             <!-- Highlight UI objects boundaries. -->
+        <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
+        <regions enabled=0/>             <!-- Highlight UI objects boundaries. -->
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
@@ -182,6 +183,7 @@ R"==(
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
             <reset onkey="on" onoutput="off"/>   <!-- Scrollback viewport reset triggers. -->
+            <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
             <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
@@ -272,7 +274,7 @@ R"==(
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
-            <rect=faux/>  <!-- Preferred selection form: Rectangular: true, Linear false. -->
+            <rect=false/>  <!-- Preferred selection form: Rectangular: true, Linear: false. -->
         </selection>
         <atexit = auto/>  <!-- auto:    Stay open and ask if exit code != 0. (default)
                                ask:     Stay open and ask.
@@ -286,7 +288,7 @@ R"==(
     </term>
     <defapp>
         <menu>
-            <autohide=faux/>
+            <autohide=off/>
             <enabled="on"/>
             <slim=true/>
         </menu>

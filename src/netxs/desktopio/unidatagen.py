@@ -47,22 +47,22 @@ DATA_SOURCE = { 'GCBREAK' : ('https://www.unicode.org/Public/UNIDATA/auxiliary/G
 UNICODESPACE = 0x110000
 
 # classification: https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Break_Property_Values
-BREAKCAT = {'Other'                 :[ 'ANY'  , 'Other'                         ],
-            'CR'                    :[ 'CR'   , 'CR'                            ],
-            'LF'                    :[ 'LF'   , 'LF'                            ],
-            'Control'               :[ 'CTRL' , 'Control'                       ],
-            'Extend'                :[ 'EXT'  , 'Extend or Emoji_Modifier_Base' ],
-            'L'                     :[ 'L'    , 'HANGUL CHOSEONG'               ],
-            'V'                     :[ 'V'    , 'HANGUL JUNGSEONG'              ],
-            'T'                     :[ 'T'    , 'HANGUL JUNGSEONG'              ],
-            'LV'                    :[ 'LV'   , 'HANGUL SYLLABLE'               ],
-            'LVT'                   :[ 'LVT'  , 'HANGUL SYLLABLE'               ],
-            'Regional_Indicator'    :[ 'RI'   , 'Regional_Indicator'            ],
-            'SpacingMark'           :[ 'SM'   , 'SpacingMark'                   ],
-            'Prepend'               :[ 'PREP' , 'Prepend'                       ],
-            'ZWJ'                   :[ 'ZWJ'  , 'ZERO WIDTH JOINER'             ],
-            'Extended_Pictographic' :[ 'EP'   , 'Extended_Pictographic'         ],
-            'EP + ZWJ'              :[ 'COMBO', 'EP + ZWJ'                      ]}
+BREAKCAT = {'Other'                 :[ 'any'  , 'Other'                         ],
+            'CR'                    :[ 'cr'   , 'CR'                            ],
+            'LF'                    :[ 'lf'   , 'LF'                            ],
+            'Control'               :[ 'ctrl' , 'Control'                       ],
+            'Extend'                :[ 'ext'  , 'Extend or Emoji_Modifier_Base' ],
+            'L'                     :[ 'l'    , 'HANGUL CHOSEONG'               ],
+            'V'                     :[ 'v'    , 'HANGUL JUNGSEONG'              ],
+            'T'                     :[ 't'    , 'HANGUL JUNGSEONG'              ],
+            'LV'                    :[ 'lv'   , 'HANGUL SYLLABLE'               ],
+            'LVT'                   :[ 'lvt'  , 'HANGUL SYLLABLE'               ],
+            'Regional_Indicator'    :[ 'ri'   , 'Regional_Indicator'            ],
+            'SpacingMark'           :[ 'sm'   , 'SpacingMark'                   ],
+            'Prepend'               :[ 'prep' , 'Prepend'                       ],
+            'ZWJ'                   :[ 'zwj'  , 'ZERO WIDTH JOINER'             ],
+            'Extended_Pictographic' :[ 'ep'   , 'Extended_Pictographic'         ],
+            'EP + ZWJ'              :[ 'combo', 'EP + ZWJ'                      ]}
 
 # classification: https://www.unicode.org/reports/tr44/#General_Category_Values
 CATEGORY = {'Uppercase_Letter'	    : 'Lu' ,  # an uppercase letter
@@ -170,51 +170,51 @@ EAWIDTH = {'NP': WCWIDTHS['zerowidth'][0] , # Non-printable
            'F' : WCWIDTHS['fullwidth'][0] , # Fullwidth
            'W' : WCWIDTHS['fullwidth'][0] } # Wide
 
-NON_CONTROL = 'NON_CONTROL'
+NON_CONTROL = 'non_control'
 
 CNTRLCLSASS = 'cntrls'
 BREAKSCLASS = 'gbreak'
 WCWIDTHTYPE = 'widths'
 
-SIZE16_TYPE = 'uint16_t'
-SIZE_8_TYPE = 'uint8_t'
+SIZE16_TYPE = 'ui16'
+SIZE_8_TYPE = 'byte'
 
 ALLIED_IMPL = r'''
-            {break_type} const& r = brgroup;
+            auto const& r = brgroup;
             auto result =
-                (  l == {break_CR}    &&  r == {break_LF}   )  ? true: // GB3
+                (  l == {break_cr}    &&  r == {break_lf}   )  ? true: // GB3
 
-                (  l >= {break_CR}    &&  l <= {break_CTRL} )  ? faux: // GB4
+                (  l >= {break_cr}    &&  l <= {break_ctrl} )  ? faux: // GB4
 
-                (  r >= {break_CR}    &&  r <= {break_CTRL} )  ? faux: // GB5
+                (  r >= {break_cr}    &&  r <= {break_ctrl} )  ? faux: // GB5
 
-                (  l == {break_L}     && (r == {break_L}
-                                      ||  r == {break_V}
-                                      ||  r == {break_LV}
-                                      ||  r == {break_LVT}  )) ? true: // GB6
+                (  l == {break_l}     && (r == {break_l}
+                                      ||  r == {break_v}
+                                      ||  r == {break_lv}
+                                      ||  r == {break_lvt}  )) ? true: // GB6
 
-                (( l == {break_LV}    ||  l == {break_V}    )
-              && ( r == {break_V}     ||  r == {break_T}    )) ? true: // GB7
+                (( l == {break_lv}    ||  l == {break_v}    )
+              && ( r == {break_v}     ||  r == {break_t}    )) ? true: // GB7
 
-                (( l == {break_LVT}   ||  l == {break_T}    )
-                                      &&  r == {break_T}    )  ? true: // GB8
+                (( l == {break_lvt}   ||  l == {break_t}    )
+                                      &&  r == {break_t}    )  ? true: // GB8
 
-                (  l == {break_PREP}  ||  r == {break_ZWJ}
-                                      ||  r == {break_SM}
-                                      ||  r == {break_EXT}  )  ? true: // GB9,a,b
+                (  l == {break_prep}  ||  r == {break_zwj}
+                                      ||  r == {break_sm}
+                                      ||  r == {break_ext}  )  ? true: // GB9,a,b
 
-                (  l == {break_COMBO} &&  r == {break_EP}   )  ? true: // GB11
+                (  l == {break_combo} &&  r == {break_ep}   )  ? true: // GB11
 
-                (  l == {break_RI}    &&  r == {break_RI}   )  ? true: // GB12,13
+                (  l == {break_ri}    &&  r == {break_ri}   )  ? true: // GB12,13
                                                                  faux; // GB999
-            if (l == {break_EP})
+            if (l == {break_ep})
             {{
-                l = (r == {break_EXT}) ? {break_EP}    :
-               	    (r == {break_ZWJ}) ? {break_COMBO} : r;
+                l = (r == {break_ext}) ? {break_ep}    :
+               	    (r == {break_zwj}) ? {break_combo} : r;
             }}
             else
             {{
-                l = (l == {break_RI} && r == {break_RI}) ? {break_ANY} : r;
+                l = (l == {break_ri} && r == {break_ri}) ? {break_any} : r;
             }}
             return result;
 '''.strip()
@@ -229,23 +229,17 @@ HEADER_BASE = r'''
  * {header}, autogenerated on {moment}
  *
  * Provides fastest access to the Unicode Character Database.
- * Properties of a single Unicode character
- * are accessed by its code point value.
+ * Properties of a single Unicode character are accessed by its code point value.
  *
- * Available properties:
- *  See struct 'uniprops'
- *
- * Project location
- *  {folder}
- *
- * Format conventions: https://www.unicode.org/reports/tr44/
+ * Format conventions
+ *  https://www.unicode.org/reports/tr44/
  *
  * Character presentation width rules
  *  EAW:    https://www.unicode.org/reports/tr11
  *  Emoji:  https://www.unicode.org/reports/tr51
  *
- * Boundaries rules
- *  Grapheme Cluster: https://www.unicode.org/reports/tr29
+ * Grapheme clusterization
+ *  https://www.unicode.org/reports/tr29
  *
  * Unicode Character Database properties
  *  https://www.unicode.org/reports/tr44/#Property_Index
@@ -268,7 +262,7 @@ HEADER_BASE = r'''
  *  https://www.unicode.org/reports/tr11/#Recommendations
  *
  * Categories of the character width
- *  0 - non-printable
+ *  0 - Non-printable
  *  1 - Halfwidth
  *  2 - Fullwidth
  *
@@ -287,10 +281,10 @@ HEADER_BASE = r'''
  *  https://en.wikipedia.org/wiki/C0_and_C1_control_codes#Unicode
  *
  * Soft Hyphen
- *  Two variants:
- *    1. interpret it as a command and divide the text
- *       strings into two independent once
- *    2. append it to the last grapheme cluster
+ *  Two ways:
+ *    1. Interpret it as a command and divide the text
+ *       strings into two independent once.
+ *    2. Append it to the last grapheme cluster.
  *
  * Printable format characters
  *  A 'Prepend' characters always have the width 'Narrow' to be
@@ -316,17 +310,14 @@ HEADER_BASE = r'''
  *  https://unicode.org/reports/tr9/
  *
  *
- *  control (should be enumerated with ascending)
- *    command: <NON_CONTROL (possible cause the paragraph endings)
+ * Controls (should be enumerated in ascending order)
+ *    command: <NON_CONTROL (paragraph break possible)
  *            c0
  *            c1
  *            \u2029 PARAGRAPH SEPARATOR
  *    visible: =NON_CONTROL - non control chars
  *     format: >NON_CONTROL
  *             all other enumarated controls
- *
- *
- *
  *
  **/
 
@@ -335,10 +326,6 @@ HEADER_BASE = r'''
 #include <cstdint>
 #include <vector>
 #include <iterator>
-
-#ifndef faux
-    #define faux (false)
-#endif
 
 namespace netxs::{module}
 {{
@@ -367,7 +354,7 @@ namespace netxs::{module}
     }}
 
     struct {module};
-    inline {module} const& select(uint32_t cp);
+    inline {module} const& select(ui32 cp);
 
     struct {module}
     {{
@@ -376,24 +363,20 @@ namespace netxs::{module}
         {cclass}::type  control;
         unsigned char padding = {{}};
 
-        constexpr
-        {module}()
-            : ucwidth ({ucwidth_0}),
-              brgroup ({brgroup_0}),
-              control ({control_0})
+        constexpr {module}()
+            : ucwidth{{ {ucwidth_0} }},
+              brgroup{{ {brgroup_0} }},
+              control{{ {control_0} }}
         {{ }}
 
-        constexpr
-        {module}({wclass}::type ucwidth,
-                {bclass}::type brgroup,
-                {cclass}::type control)
-            : ucwidth (ucwidth),
-              brgroup (brgroup),
-              control (control)
+        constexpr {module}({wclass}::type ucwidth, {bclass}::type brgroup, {cclass}::type control)
+            : ucwidth{{ ucwidth }},
+              brgroup{{ brgroup }},
+              control{{ control }}
         {{ }}
 
-        {module}(uint32_t cp)
-            : {module}(select(cp))
+        {module}(ui32 cp)
+            : {module}{{ select(cp) }}
         {{ }}
 
         {module}({module} const&) = default;
@@ -412,14 +395,14 @@ namespace netxs::{module}
 
     struct base
     {{
-        static constexpr auto    blocks_size = size_t{{ {blocks_size} }};
-        static constexpr int32_t blocks_pack[] =
+        static constexpr auto blocks_size = size_t{{ {blocks_size} }};
+        static constexpr si32 blocks_pack[] =
         {{
             {blocks}
         }};
 
-        static constexpr auto    offset_size = size_t{{ {offset_size} }};
-        static constexpr int32_t offset_pack[] =
+        static constexpr auto offset_size = size_t{{ {offset_size} }};
+        static constexpr si32 offset_pack[] =
         {{
             {offset}
         }};
@@ -433,7 +416,7 @@ namespace netxs::{module}
     template<class T, class D>
     auto unpack(D const& pack, size_t size)
     {{
-        auto data = std::vector<T>{};
+        auto data = std::vector<T>{{}};
         data.reserve(size);
         auto iter = pack;
         auto tail = pack + std::size(pack);
@@ -446,12 +429,10 @@ namespace netxs::{module}
         return data;
     }}
 
-    inline {module} const& select(uint32_t cp)
+    inline {module} const& select(ui32 cp)
     {{
-        using blocks_t = uint16_t;
-        using offset_t = uint8_t;
-        static std::vector<offset_t> offset = unpack<offset_t>(base::offset_pack, base::offset_size);
-        static std::vector<blocks_t> blocks = unpack<blocks_t>(base::blocks_pack, base::blocks_size);
+        static auto offset = unpack<byte>(base::offset_pack, base::offset_size);
+        static auto blocks = unpack<ui16>(base::blocks_pack, base::blocks_size);
 
         return cp > 0x10FFFF
             ? base::ucspec[0]
@@ -677,7 +658,7 @@ noncmd_id = apply_commands  (set(CONTROLCP), NONCTRLCP, set(PRINTABLE), chrs)
 #control_list.update({ cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None})
 #control_list = { cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None}
 
-control_list = { -1 : (noncmd_id, 'NON CONTROL', 'NON_CONTROL', -1 ) }
+control_list = { -1 : (noncmd_id, 'NON CONTROL', 'non_control', -1 ) }
 control_list.update({ cp.code: (cp.ctrl_index, cp.name, cp.alias, cp.code) for cp in chrs if not cp.ctrl_index is None })
 
 cntrls = ''
@@ -692,9 +673,9 @@ for i, (cpval, (cpctrlidx, cpname, cpalias, cpcode)) in mass:
     alias = cpalias if cpalias else get_name(cpname)
     control_idx.append(alias)
     cntrls += '            ' if i != 0 else ''
-    cntrls += '{:<42},  // {:>3} {:>5} {}\n'.format(alias, cpctrlidx, '%X' % cpcode, cpname)
+    cntrls += '{:<42},  // {:>3} {:>5} {}\n'.format(alias.lower(), cpctrlidx, '%X' % cpcode, cpname)
     #cntrls += '\n' if i != len(control_list) - 1 else ''
-cntrls += '            {:<42},  // {:>3}'.format('COUNT', len(b))
+cntrls += '            {:<42},  // {:>3}'.format('count', len(b))
 
 base = uniprop(0)
 ucspec_index = collections.OrderedDict([ (base.hash(), base.prop()) ])
@@ -709,7 +690,7 @@ for i, (key, (wide, brgroup, ctrl_id)) in enumerate(ucspec_index.items()):
     ucspec += '            ' if i != 0 else ''
     ucspec += '{{ {}, {:<12}, {:<30} }},  // {:>3}'.format(WCWIDTHTYPE + '::%s' % wide,
                                                            BREAKSCLASS + '::%s' % BREAKCAT[brgroup][0],
-                                                           CNTRLCLSASS + '::%s' % ctrlname, i)
+                                                           CNTRLCLSASS + '::%s' % ctrlname.lower(), i)
     ucspec += '\n' if i != len(ucspec_index) - 1 else ''
 
 breaks = ''

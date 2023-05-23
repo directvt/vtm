@@ -3,7 +3,7 @@
 
 #pragma once
 
-#if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__)
+#if (defined(__unix__) || defined(__APPLE__)) && !defined(__linux__) && !defined(__BSD__)
     #define __BSD__
 #endif
 
@@ -13,13 +13,15 @@
 
 #if defined(_WIN32)
 
-    #ifndef NOMINMAX
+    #if not defined(NOMINMAX)
         #define NOMINMAX
     #endif
 
     #pragma warning(disable:4996) // disable std::getenv warnimg
 
     #include <Windows.h>
+    #include <userenv.h>    // ::GetUserProfileDirectoryW
+    #pragma comment(lib, "Userenv.lib")
     #include <Psapi.h>      // ::GetModuleFileNameEx
     #include <winternl.h>   // ::NtOpenFile
 
@@ -79,28 +81,26 @@ namespace netxs::os
     using pipe = ui::pipe;
     using xipc = ui::pipe::xipc;
 
-    enum role { client, server };
+    enum class role { client, server };
 
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
+    static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
+    static constexpr auto unexpected_msg = " returns unexpected result"sv;
 
     #if defined(_WIN32)
 
-        #if defined(_DEBUG)
-            #define APP_WAIT_TIMEOUT 1000000
-        #else
-            #define APP_WAIT_TIMEOUT 10000
-        #endif
         using sigt = DWORD;
         using pidt = DWORD;
         using fd_t = HANDLE;
-        using conmode = DWORD[2];
-        static const auto INVALID_FD   = fd_t{ INVALID_HANDLE_VALUE              };
-        static const auto STDIN_FD     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
-        static const auto STDOUT_FD    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
-        static const auto STDERR_FD    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto WR_PIPE_PATH = "\\\\.\\pipe\\w_";
-        static const auto RD_PIPE_PATH = "\\\\.\\pipe\\r_";
+        struct conmode { DWORD omode, imode, opage, ipage; };
+        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE              };
+        static const auto stdin_fd     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
+        static const auto stdout_fd    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
+        static const auto stderr_fd    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
+        static const auto codepage     = ui32{ ::GetOEMCP()                      };
+        static const auto wr_pipe_path = "\\\\.\\pipe\\w_";
+        static const auto rd_pipe_path = "\\\\.\\pipe\\r_";
 
     #else
 
@@ -108,15 +108,15 @@ namespace netxs::os
         using pidt = pid_t;
         using fd_t = int;
         using conmode = ::termios;
-        static const auto INVALID_FD = fd_t{ -1            };
-        static const auto STDIN_FD   = fd_t{ STDIN_FILENO  };
-        static const auto STDOUT_FD  = fd_t{ STDOUT_FILENO };
-        static const auto STDERR_FD  = fd_t{ STDERR_FILENO };
+        static const auto invalid_fd = fd_t{ -1            };
+        static const auto stdin_fd   = fd_t{ STDIN_FILENO  };
+        static const auto stdout_fd  = fd_t{ STDOUT_FILENO };
+        static const auto stderr_fd  = fd_t{ STDERR_FILENO };
 
         void fdcleanup() // Close all file descriptors except the standard ones.
         {
             auto maxfd = ::sysconf(_SC_OPEN_MAX);
-            auto minfd = std::max({ STDIN_FD, STDOUT_FD, STDERR_FD });
+            auto minfd = std::max({ os::stdin_fd, os::stdout_fd, os::stderr_fd });
             while (++minfd < maxfd)
             {
                 ::close(minfd);
@@ -138,8 +138,8 @@ namespace netxs::os
     {
         log("  os: ", ansi::err(msg..., " (", os::error(), ") "));
     };
-    template<class T>
-    auto ok(T error_condition, text msg = {})
+    template<class T, class ...Args>
+    auto ok(T error_condition, Args&&... msg)
     {
         if (
             #if defined(_WIN32)
@@ -149,7 +149,7 @@ namespace netxs::os
             #endif
         )
         {
-            os::fail(msg);
+            os::fail(std::forward<Args>(msg)...);
             return faux;
         }
         else return true;
@@ -263,7 +263,7 @@ namespace netxs::os
                                ULONG       opts = {},
                                HANDLE      boss = {})
             {
-                auto hndl = INVALID_FD;
+                auto hndl = os::invalid_fd;
                 auto wtxt = utf::to_utf(path);
                 auto size = wtxt.size() * sizeof(wtxt[0]);
                 auto attr = OBJECT_ATTRIBUTES{};
@@ -280,7 +280,7 @@ namespace netxs::os
                 if (status != nt::status::success)
                 {
                     log("  os: unexpected result when access system object '", path, "', ntstatus ", status);
-                    return INVALID_FD;
+                    return os::invalid_fd;
                 }
                 else return hndl;
             }
@@ -355,7 +355,7 @@ namespace netxs::os
                 }
                 static auto handle(fd_t cloned_handle)
                 {
-                    auto handle_clone = INVALID_FD;
+                    auto handle_clone = os::invalid_fd;
                     auto ok = ::DuplicateHandle(::GetCurrentProcess(),
                                                 cloned_handle,
                                                 ::GetCurrentProcess(),
@@ -367,7 +367,7 @@ namespace netxs::os
                     else
                     {
                         log("  os: unexpected result when duplicate system object handle, errcode ", os::error());
-                        return INVALID_FD;
+                        return os::invalid_fd;
                     }
                 }
             };
@@ -438,14 +438,14 @@ namespace netxs::os
     {
         void close(fd_t& h)
         {
-            if (h != INVALID_FD)
+            if (h != os::invalid_fd)
             {
                 #if defined(_WIN32)
                     ::CloseHandle(h);
                 #else
                     ::close(h);
                 #endif
-                h = INVALID_FD;
+                h = os::invalid_fd;
             }
         }
 
@@ -456,7 +456,7 @@ namespace netxs::os
 
             operator bool ()
             {
-                return r != INVALID_FD && w != INVALID_FD;
+                return r != os::invalid_fd && w != os::invalid_fd;
             }
             void close()
             {
@@ -491,8 +491,8 @@ namespace netxs::os
             {
                 r = f.r;
                 w = f.w;
-                f.r = INVALID_FD;
-                f.w = INVALID_FD;
+                f.r = os::invalid_fd;
+                f.w = os::invalid_fd;
                 return *this;
             }
 
@@ -501,10 +501,10 @@ namespace netxs::os
                 : r{ f.r },
                   w{ f.w }
             {
-                f.r = INVALID_FD;
-                f.w = INVALID_FD;
+                f.r = os::invalid_fd;
+                f.w = os::invalid_fd;
             }
-            file(fd_t r = INVALID_FD, fd_t w = INVALID_FD)
+            file(fd_t r = os::invalid_fd, fd_t w = os::invalid_fd)
                 : r{ r },
                   w{ w }
             { }
@@ -560,7 +560,7 @@ namespace netxs::os
         template<class View>
         auto send(View&& buffer)
         {
-            return io::send(STDOUT_FD, std::forward<View>(buffer));
+            return io::send(os::stdout_fd, std::forward<View>(buffer));
         }
         template<class ...Args>
         auto recv(file& handle, Args&&... args)
@@ -584,15 +584,15 @@ namespace netxs::os
                 }
                 template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
-                {   // Clang 11.0.1 don't allow sizeof...(args) as bool
-                    if constexpr (!!sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
-                    else                             return _repack(h, a, Index{});
+                {
+                    if constexpr (sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
+                    else                           return _repack(h, a, Index{});
                 }
                 template<class P, class ...Args>
                 constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
                 {
-                    if constexpr (!!sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
-                    else                             return std::array{ handle };
+                    if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
+                    else                           return std::array{ handle };
                 }
                 template<class R, class P, class ...Args>
                 constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
@@ -604,8 +604,8 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
-                        else                             return faux;
+                        if constexpr (sizeof...(args)) return _handle(--i, std::forward<Args>(args)...);
+                        else                           return faux;
                     }
                 }
 
@@ -615,7 +615,7 @@ namespace netxs::os
                 auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
                 {
                     FD_SET(handle, &socks);
-                    if constexpr (!!sizeof...(args))
+                    if constexpr (sizeof...(args))
                     {
                         return std::max(handle, _fd_set(socks, std::forward<Args>(args)...));
                     }
@@ -633,7 +633,7 @@ namespace netxs::os
                     }
                     else
                     {
-                        if constexpr (!!sizeof...(args)) _select(socks, std::forward<Args>(args)...);
+                        if constexpr (sizeof...(args)) _select(socks, std::forward<Args>(args)...);
                     }
                 }
 
@@ -675,17 +675,17 @@ namespace netxs::os
                 fd_t h; // fire: Descriptor for IO interrupt.
 
                 operator auto () { return h; }
-                fire(bool i = 1) { ok(h = ::CreateEvent(NULL, i, FALSE, NULL), "CreateEvent error"); }
+                fire(bool i = 1) { ok(h = ::CreateEventW(NULL, i, FALSE, NULL), "::CreateEventW()", os::unexpected_msg); }
                ~fire()           { io::close(h); }
-                void reset()     { ok(::SetEvent(h), "SetEvent error"); }
-                void flush()     { ok(::ResetEvent(h), "ResetEvent error"); }
+                void reset()     { ok(::SetEvent(h), "::SetEvent()", os::unexpected_msg); }
+                void flush()     { ok(::ResetEvent(h), "::ResetEvent()", os::unexpected_msg); }
 
             #else
 
-                fd_t h[2] = { INVALID_FD, INVALID_FD }; // fire: Descriptors for IO interrupt.
+                fd_t h[2] = { os::invalid_fd, os::invalid_fd }; // fire: Descriptors for IO interrupt.
 
                 operator auto () { return h[0]; }
-                fire()           { ok(::pipe(h), "pipe[2] creation failed"); }
+                fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected_msg); }
                ~fire()           { for (auto& f : h) io::close(f); }
                 void reset()     { static auto c = ' '; io::send(h[1], &c, sizeof(c)); }
                 void flush()     { static auto c = ' '; io::recv(h[0], &c, sizeof(c)); }
@@ -700,20 +700,30 @@ namespace netxs::os
         // os::env: Get envvar value.
         auto get(view variable)
         {
-            auto var = text{ variable };
-            auto val = std::getenv(var.c_str());
-            return val ? text{ val }
-                       : text{};
+            #if defined(_WIN32)
+                auto var = utf::to_utf(variable);
+                auto len = ::GetEnvironmentVariableW(var.c_str(), 0, 0);
+                auto val = wide(len, 0);
+                ::GetEnvironmentVariableW(var.c_str(), val.data(), len);
+                if (len && val.back() == 0) val.pop_back();
+                return utf::to_utf(val);
+            #else
+                auto var = text{ variable };
+                auto val = std::getenv(var.c_str());
+                return val ? text{ val } : text{};
+            #endif
         }
         // os::env: Set envvar value.
         auto set(view variable, view value)
         {
-            auto var = text{ variable };
-            auto val = text{ value    };
             #if defined(_WIN32)
-                ok(::SetEnvironmentVariableA(var.c_str(), val.c_str()), "::SetEnvironmentVariableA unexpected result");
+                auto var = utf::to_utf(variable);
+                auto val = utf::to_utf(value);
+                ok(::SetEnvironmentVariableW(var.c_str(), val.c_str()), "::SetEnvironmentVariableW()", os::unexpected_msg);
             #else
-                ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv unexpected result");
+                auto var = text{ variable };
+                auto val = text{ value    };
+                ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv()", os::unexpected_msg);
             #endif
         }
         // os::env: Get list of envvars using wildcard.
@@ -736,7 +746,18 @@ namespace netxs::os
         auto homepath()
         {
             #if defined(_WIN32)
-                return fs::path{ os::env::get("HOMEDRIVE") } / fs::path{ os::env::get("HOMEPATH") };
+                auto handle = ::GetCurrentProcessToken();
+                auto length = DWORD{};
+                auto buffer = wide{};
+                ::GetUserProfileDirectoryW(handle, nullptr, &length);
+                if (length)
+                {
+                    buffer.resize(length);
+                    ::GetUserProfileDirectoryW(handle, buffer.data(), &length);
+                    if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
+                }
+                else os::fail("can't detect user profile path");
+                return fs::path{ utf::to_utf(buffer) };
             #else
                 return fs::path{ os::env::get("HOME") };
             #endif
@@ -766,23 +787,16 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                static constexpr auto INFO_BUFFER_SIZE = 32767UL;
-                char infoBuf[INFO_BUFFER_SIZE];
-                auto bufCharCount = DWORD{ INFO_BUFFER_SIZE };
-
-                if (::GetUserNameA(infoBuf, &bufCharCount))
+                auto buffer = wide{};
+                auto length = DWORD{};
+                ::GetUserNameW(buffer.data(), &length);
+                buffer.resize(length);
+                if(ok(::GetUserNameW(buffer.data(), &length), "::GetUserNameW()", os::unexpected_msg))
                 {
-                    if (bufCharCount && infoBuf[bufCharCount - 1] == 0)
-                    {
-                        bufCharCount--;
-                    }
-                    return text(infoBuf, bufCharCount);
+                    if (length && buffer.back() == 0) buffer.pop_back();
+                    return utf::to_utf(buffer);
                 }
-                else
-                {
-                    os::fail("GetUserName error");
-                    return text{};
-                }
+                else return text{};
 
             #else
 
@@ -863,20 +877,20 @@ namespace netxs::os
                             {
                                 std::memcpy(dest, data.data(), size);
                                 ::GlobalUnlock(gmem);
-                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "unexpected result from ::SetClipboardData cf_format=" + std::to_string(cf_format));
+                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "::SetClipboardData()", os::unexpected_msg, ", cf_format=", cf_format);
                             }
-                            else log("  os: ::GlobalLock returns unexpected result");
+                            else log("  os: ::GlobalLock()", os::unexpected_msg);
                             ::GlobalFree(gmem);
                         }
-                        else log("  os: ::GlobalAlloc returns unexpected result");
+                        else log("  os: ::GlobalAlloc()", os::unexpected_msg);
                     };
                     cf_format == cf_text ? _send(utf::to_utf(data))
                                          : _send(data);
                 };
 
                 auto lock = std::lock_guard{ os::clipboard::mutex };
-                ok(::OpenClipboard(nullptr), "::OpenClipboard");
-                ok(::EmptyClipboard(), "::EmptyClipboard");
+                ok(::OpenClipboard(nullptr), "::OpenClipboard()", os::unexpected_msg);
+                ok(::EmptyClipboard(), "::EmptyClipboard()", os::unexpected_msg);
                 if (utf8.size())
                 {
                     if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
@@ -887,7 +901,7 @@ namespace netxs::os
                     {
                         auto post = page{ utf8 };
                         auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
-                        ::GetCurrentConsoleFontEx(STDOUT_FD, faux, &info);
+                        ::GetCurrentConsoleFontEx(os::stdout_fd, faux, &info);
                         auto font = utf::to_utf(info.FaceName);
                         if (mime.starts_with(ansi::mimerich))
                         {
@@ -927,7 +941,7 @@ namespace netxs::os
                 {
                     success = true;
                 }
-                ok(::CloseClipboard(), "::CloseClipboard");
+                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
                 os::clipboard::sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
 
             #elif defined(__APPLE__)
@@ -981,7 +995,7 @@ namespace netxs::os
                 {
                     yield.clipbuf(size, utf8, clip::textonly);
                 }
-                io::send(STDOUT_FD, yield);
+                io::send(os::stdout_fd, yield);
                 success = true;
 
                 #if defined(__ANDROID__)
@@ -1035,14 +1049,14 @@ namespace netxs::os
                     }
                     else yield.remove_prefix(start);
 
-                    if (auto p = yield.find(ansi::C0_BEL); p != view::npos)
+                    if (auto p = yield.find(ansi::c0_bel); p != view::npos)
                     {
                         auto temp = view{ cache };
                         auto skip = ocs52head.size() + brand.size() + 1/*;*/;
                         auto data = temp.substr(skip, p + start - skip);
                         if (os::clipboard::set(brand, utf::unbase64(data)))
                         {
-                            yield.remove_prefix(p + 1/* C0_BEL */);
+                            yield.remove_prefix(p + 1/* c0_bel */);
                         }
                         else yield = temp; // Forward all out;
                         cache.clear();
@@ -1084,11 +1098,11 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
-                    auto handle = ::CreateFileMappingA(os::INVALID_FD, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA() returns unexpected result");
-                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile() returns unexpected result");
+                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA()", os::unexpected_msg);
+                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile()", os::unexpected_msg);
                     std::copy(std::begin(source), std::end(source), (char*)buffer);
-                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile() returns unexpected result");
-                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation() returns unexpected result");
+                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected_msg);
+                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation()", os::unexpected_msg);
                     return handle;
 
                 #endif
@@ -1121,12 +1135,13 @@ namespace netxs::os
             {
                 handle = std::move(p.handle);
                 buffer = std::move(p.buffer);
-                active = p.active;
-                p.active = faux;
+                pipe::active.exchange(p.pipe::active);
+                p.pipe::active = faux;
             }
 
             virtual bool send(view buff) override
             {
+                pipe::isbusy = faux; // io::send blocks until the send is complete.
                 return io::send(handle.w, buff);
             }
             virtual qiew recv(char* buff, size_t size) override
@@ -1137,14 +1152,15 @@ namespace netxs::os
             {
                 return recv(buffer.data(), buffer.size());
             }
-            virtual void shut() override
+            virtual bool shut() override
             {
-                active = faux;
+                auto state = pipe::shut();
                 handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+                return state;
             }
-            virtual void stop() override
+            virtual bool stop() override
             {
-                shut();
+                return shut();
             }
             virtual flux& show(flux& s) const override
             {
@@ -1155,29 +1171,29 @@ namespace netxs::os
         struct xcross
             : public stdcon
         {
-            class fifo
+            struct fifo
             {
                 using lock = std::mutex;
                 using sync = std::condition_variable;
 
-                bool alive;
-                text store;
-                lock mutex;
-                sync wsync;
-                sync rsync;
+                bool  alive; // fifo: .
+                lock  mutex; // fifo: .
+                sync  wsync; // fifo: .
+                sync  rsync; // fifo: .
+                text  store; // fifo: .
+                flag& going; // fifo: Sending not completed.
 
-            public:
-                fifo()
-                    : alive{ true }
+                fifo(flag& busy)
+                    : alive{ true },
+                      going{ busy }
                 { }
 
                 auto send(view block)
                 {
                     auto guard = std::unique_lock{ mutex };
-                    if (store.size() && alive) rsync.wait(guard, [&]{ return store.empty() || !alive; });
                     if (alive)
                     {
-                        store = block;
+                        store += block;
                         wsync.notify_one();
                     }
                     return alive;
@@ -1189,8 +1205,9 @@ namespace netxs::os
                     if (alive)
                     {
                         std::swap(store, yield);
+                        going = faux;
+                        going.notify_all();
                         store.clear();
-                        rsync.notify_one();
                         return qiew{ yield };
                     }
                     else return qiew{};
@@ -1199,19 +1216,26 @@ namespace netxs::os
                 {
                     auto guard = std::lock_guard{ mutex };
                     alive = faux;
+                    going = faux;
+                    going.notify_all();
                     wsync.notify_one();
-                    rsync.notify_one();
                 }
             };
 
-            sptr<fifo> server;
-            sptr<fifo> client;
+            sptr<fifo>   client;
+            sptr<fifo>   server;
+            sptr<xcross> remote;
 
-            xcross(sptr<fifo> s_queue = std::make_shared<fifo>(),
-                   sptr<fifo> c_queue = std::make_shared<fifo>())
-                : server{ s_queue },
-                  client{ c_queue }
+            xcross()
+            { }
+            xcross(sptr<xcross> remote)
+                : client{ ptr::shared<fifo>(isbusy)         },
+                  server{ ptr::shared<fifo>(remote->isbusy) },
+                  remote{ remote }
             {
+                remote->client = server;
+                remote->server = client;
+                remote->active = true;
                 active = true;
             }
 
@@ -1227,11 +1251,12 @@ namespace netxs::os
             {
                 return s << "local pipe: server=" << server.get() << " client=" << client.get();
             }
-            void shut() override
+            bool shut() override
             {
-                stdcon::shut();
+                auto state = stdcon::shut();
                 server->stop();
                 client->stop();
+                return state;
             }
         };
 
@@ -1278,7 +1303,7 @@ namespace netxs::os
                         auto size = unsigned{ sizeof(cred) };
                     #endif
 
-                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET) failed"))
+                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET)", os::unexpected_msg))
                     {
                         return faux;
                     }
@@ -1299,7 +1324,7 @@ namespace netxs::os
                     auto euid = uid_t{};
                     auto egid = gid_t{};
 
-                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid() failed"))
+                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid()", os::unexpected_msg))
                     {
                         return faux;
                     }
@@ -1324,19 +1349,19 @@ namespace netxs::os
                 auto client = sptr<ipc::socket>{};
                 #if defined(_WIN32)
 
-                    auto to_server = RD_PIPE_PATH + scpath;
-                    auto to_client = WR_PIPE_PATH + scpath;
+                    auto to_server = os::rd_pipe_path + scpath;
+                    auto to_client = os::wr_pipe_path + scpath;
                     auto next_link = [&](auto h, auto const& path, auto type)
                     {
-                        auto next_waiting_point = INVALID_FD;
+                        auto next_waiting_point = os::invalid_fd;
                         auto connected = ::ConnectNamedPipe(h, NULL)
                             ? true
                             : (::GetLastError() == ERROR_PIPE_CONNECTED);
 
-                        if (active && connected) // Recreate the waiting point for the next client.
+                        if (pipe::active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
-                                ::CreateNamedPipeA(path.c_str(),             // pipe path
+                                ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
                                                    type,                     // read/write access
                                                    PIPE_TYPE_BYTE |          // message type pipe
                                                    PIPE_READMODE_BYTE |      // message-read mode
@@ -1352,27 +1377,27 @@ namespace netxs::os
                             //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
                         }
-                        else if (active) os::fail("meet: not active");
+                        else if (pipe::active) os::fail("meet: not active");
 
                         return next_waiting_point;
                     };
 
                     auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
-                    if (r == INVALID_FD)
+                    if (r == os::invalid_fd)
                     {
-                        if (active) os::fail("meet: ::CreateNamedPipe unexpected (read)");
+                        if (pipe::active) os::fail("meet: ::CreateNamedPipe(r)", os::unexpected_msg);
                     }
                     else
                     {
                         auto w = next_link(handle.w, to_client, PIPE_ACCESS_OUTBOUND);
-                        if (w == INVALID_FD)
+                        if (w == os::invalid_fd)
                         {
                             ::CloseHandle(r);
-                            if (active) os::fail("meet: ::CreateNamedPipe unexpected (write)");
+                            if (pipe::active) os::fail("meet: ::CreateNamedPipe(w)", os::unexpected_msg);
                         }
                         else
                         {
-                            client = std::make_shared<ipc::socket>(handle);
+                            client = ptr::shared<ipc::socket>(handle);
                             handle = { r, w };
                         }
                     }
@@ -1383,7 +1408,7 @@ namespace netxs::os
                     {
                         auto h = ::accept(handle.r, 0, 0);
                         auto s = io::file{ h, h };
-                        if (s) client = std::make_shared<ipc::socket>(s);
+                        if (s) client = ptr::shared<ipc::socket>(s);
                     };
                     auto f_proc = [&]
                     {
@@ -1396,44 +1421,50 @@ namespace netxs::os
                 #endif
                 return client;
             }
-            void stop() override
+            bool stop() override
             {
-                if (!active) return;
-                active = faux;
-                log("xipc: server shuts down: ", handle);
-                #if defined(_WIN32)
-                    auto to_client = WR_PIPE_PATH + scpath;
-                    auto to_server = RD_PIPE_PATH + scpath;
-                    if (handle.w != INVALID_FD) ::DeleteFileA(to_client.c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
-                    if (handle.r != INVALID_FD) ::DeleteFileA(to_server.c_str()); // This may fail, but this is ok - it means the client is already disconnected.
-                #else
-                    signal.reset();
-                #endif
+                auto state = pipe::stop();
+                if (state)
+                {
+                    log("xipc: server shuts down: ", handle);
+                    #if defined(_WIN32)
+                        auto to_client = os::wr_pipe_path + scpath;
+                        auto to_server = os::rd_pipe_path + scpath;
+                        if (handle.w != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_client).c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
+                        if (handle.r != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_server).c_str()); // This may fail, but this is ok - it means the client is already disconnected.
+                    #else
+                        signal.reset();
+                    #endif
+                }
+                return state;
             }
-            void shut() override
+            bool shut() override
             {
-                if (!active) return;
-                active = faux;
-                log("xipc: client disconnects: ", handle);
-                #if defined(_WIN32)
-                    ::DisconnectNamedPipe(handle.w);
-                    handle.shutdown(); // To trigger the read end to close.
-                #else
-                    ok(::shutdown(handle.w, SHUT_RDWR), "descriptor shutdown error"); // Further sends and receives are disallowed.
-                    // An important conceptual reason to want to use shutdown:
-                    //    To signal EOF to the peer and still be able
-                    //    to receive pending data the peer sent.
-                    //    "shutdown() doesn't actually close the file descriptor
-                    //     — it just changes its usability.
-                    // To free a socket descriptor, you need to use io::close().
-                    // Note: .r == .w, it is a full duplex socket handle on POSIX.
-                #endif
+                auto state = pipe::shut();
+                if (state)
+                {
+                    log("xipc: client disconnects: ", handle);
+                    #if defined(_WIN32)
+                        ::DisconnectNamedPipe(handle.w);
+                        handle.shutdown(); // To trigger the read end to close.
+                    #else
+                        ok(::shutdown(handle.w, SHUT_RDWR), "::shutdown()", os::unexpected_msg); // Further sends and receives are disallowed.
+                        // An important conceptual reason to want to use shutdown:
+                        //    To signal EOF to the peer and still be able
+                        //    to receive pending data the peer sent.
+                        //    "shutdown() doesn't actually close the file descriptor
+                        //     — it just changes its usability.
+                        // To free a socket descriptor, you need to use io::close().
+                        // Note: .r == .w, it is a full duplex socket handle on POSIX.
+                    #endif
+                }
+                return state;
             }
             template<role Role, bool Log = true, class P = noop>
             static auto open(text path, span retry_timeout = {}, P retry_proc = P())
             {
-                auto r = INVALID_FD;
-                auto w = INVALID_FD;
+                auto r = os::invalid_fd;
+                auto w = os::invalid_fd;
                 auto socket = sptr<ipc::socket>{};
                 auto try_start = [&](auto play, auto retry_proc)
                 {
@@ -1464,22 +1495,22 @@ namespace netxs::os
                     //log("pipe: DACL=", pipe_acl.security_string);
                     // https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
 
-                    auto to_server = RD_PIPE_PATH + path;
-                    auto to_client = WR_PIPE_PATH + path;
+                    auto to_server = os::rd_pipe_path + path;
+                    auto to_client = os::wr_pipe_path + path;
 
                     if constexpr (Role == role::server)
                     {
                         auto test = [](text const& path, text prefix = "\\\\.\\pipe\\")
                         {
                             auto hits = faux;
-                            auto next = WIN32_FIND_DATAA{};
-                            auto name = path.substr(prefix.size());
-                            auto what = prefix + '*';
-                            auto hndl = ::FindFirstFileA(what.c_str(), &next);
-                            if (hndl != INVALID_FD)
+                            auto next = WIN32_FIND_DATAW{};
+                            auto name = utf::to_utf(path.substr(prefix.size()));
+                            auto what = utf::to_utf(prefix + '*');
+                            auto hndl = ::FindFirstFileW(what.c_str(), &next);
+                            if (hndl != os::invalid_fd)
                             {
                                 do hits = next.cFileName == name;
-                                while (!hits && ::FindNextFileA(hndl, &next));
+                                while (!hits && ::FindNextFileW(hndl, &next));
 
                                 if (hits) log("path: ", path);
                                 ::FindClose(hndl);
@@ -1494,7 +1525,7 @@ namespace netxs::os
 
                         auto pipe = [](auto const& path, auto type)
                         {
-                            return ::CreateNamedPipeA(path.c_str(),             // pipe path
+                            return ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
                                                       type,                     // read/write access
                                                       PIPE_TYPE_BYTE |          // message type pipe
                                                       PIPE_READMODE_BYTE |      // message-read mode
@@ -1507,33 +1538,33 @@ namespace netxs::os
                         };
 
                         r = pipe(to_server, PIPE_ACCESS_INBOUND);
-                        if (r == INVALID_FD)
+                        if (r == os::invalid_fd)
                         {
-                            os::fail("::CreateNamedPipe unexpected (read)");
+                            os::fail("::CreateNamedPipe(r)", os::unexpected_msg);
                         }
                         else
                         {
                             w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
-                            if (w == INVALID_FD)
+                            if (w == os::invalid_fd)
                             {
-                                os::fail("::CreateNamedPipe unexpected (write)");
+                                os::fail("::CreateNamedPipe(w)", os::unexpected_msg);
                                 io::close(r);
                             }
                             else
                             {
-                                DWORD inpmode = 0;
-                                ok(::GetConsoleMode(STDIN_FD , &inpmode), "::GetConsoleMode(STDIN_FD) unexpected");
+                                auto inpmode = DWORD{ 0 };
+                                ok(::GetConsoleMode(os::stdin_fd, &inpmode), "::GetConsoleMode(os::stdin_fd)", os::unexpected_msg);
                                 inpmode |= 0
                                         | nt::console::inmode::quickedit
                                         ;
-                                ok(::SetConsoleMode(STDIN_FD, inpmode), "::SetConsoleMode(STDIN_FD) unexpected");
+                                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
 
-                                DWORD outmode = 0
+                                auto outmode = DWORD{ 0 }
                                             | nt::console::outmode::preprocess
                                             | nt::console::outmode::vt
                                             | nt::console::outmode::no_auto_cr
                                             ;
-                                ok(::SetConsoleMode(STDOUT_FD, outmode), "::SetConsoleMode(STDOUT_FD) unexpected");
+                                ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected_msg);
                             }
                         }
                     }
@@ -1541,7 +1572,7 @@ namespace netxs::os
                     {
                         auto pipe = [](auto const& path, auto type)
                         {
-                            return ::CreateFileA(path.c_str(),  // pipe path
+                            return ::CreateFileW(utf::to_utf(path).c_str(),
                                                  type,
                                                  0,             // no sharing
                                                  NULL,          // default security attributes
@@ -1552,13 +1583,13 @@ namespace netxs::os
                         auto play = [&]
                         {
                             w = pipe(to_server, GENERIC_WRITE);
-                            if (w == INVALID_FD)
+                            if (w == os::invalid_fd)
                             {
                                 return faux;
                             }
 
                             r = pipe(to_client, GENERIC_READ);
-                            if (r == INVALID_FD)
+                            if (r == os::invalid_fd)
                             {
                                 io::close(w);
                                 return faux;
@@ -1598,11 +1629,11 @@ namespace netxs::os
 
                     if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
                     {
-                        if constexpr (Log) os::fail("socket path too long");
+                        if constexpr (Log) os::fail("unix socket path too long");
                     }
-                    else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == INVALID_FD)
+                    else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == os::invalid_fd)
                     {
-                        if constexpr (Log) os::fail("open unix domain socket error");
+                        if constexpr (Log) os::fail("unix socket opening error");
                     }
                     else
                     {
@@ -1628,20 +1659,20 @@ namespace netxs::os
                                     }
                                     else
                                     {
-                                        log("path: remove file system socket file ", path);
+                                        log("path: removing file system socket file ", path);
                                         ::unlink(path.c_str()); // Cleanup file system socket.
                                     }
                                 }
                             #endif
 
-                            if (r != INVALID_FD && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                            if (r != os::invalid_fd && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
                             {
-                                os::fail("error unix socket bind for ", path);
+                                os::fail("unix socket binding error for ", path);
                                 io::close(r);
                             }
                             else if (::listen(r, 5) == -1)
                             {
-                                os::fail("error listen socket for ", path);
+                                os::fail("unix socket listening error for ", path);
                                 io::close(r);
                             }
                         }
@@ -1650,16 +1681,16 @@ namespace netxs::os
                             path.clear(); // No need to unlink a file system socket on client disconnect.
                             if (!try_start(play, retry_proc))
                             {
-                                if constexpr (Log) os::fail("connection error");
+                                if constexpr (Log) os::fail("connection failed");
                                 io::close(r);
                             }
                         }
                     }
 
                 #endif
-                if (r != INVALID_FD && w != INVALID_FD)
+                if (r != os::invalid_fd && w != os::invalid_fd)
                 {
-                    socket = std::make_shared<ipc::socket>(r, w, path);
+                    socket = ptr::shared<ipc::socket>(r, w, path);
                 }
                 return socket;
             }
@@ -1667,12 +1698,12 @@ namespace netxs::os
 
         auto stdio()
         {
-            return std::make_shared<ipc::stdcon>(STDIN_FD, STDOUT_FD);
+            return ptr::shared<ipc::stdcon>(os::stdin_fd, os::stdout_fd);
         }
         auto xlink()
         {
-            auto a = std::make_shared<ipc::xcross>();
-            auto b = std::make_shared<ipc::xcross>(a->client, a->server); // Swap queues for xlink.
+            auto a = ptr::shared<ipc::xcross>();
+            auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
             return std::pair{ a, b };
         }
     }
@@ -1713,12 +1744,21 @@ namespace netxs::os
         public:
             args(int argc, char** argv)
             {
-                process::arg0 = text{ *argv };
-                auto head = argv + 1;
-                auto tail = argv + argc;
-                while (head != tail)
+                #if defined(_WIN32)
+                    auto line = utf::to_utf(::GetCommandLineW());
+                    data.splice(data.end(), split(line));
+                #else
+                    auto head = argv;
+                    auto tail = argv + argc;
+                    while (head != tail)
+                    {
+                        data.splice(data.end(), split(*head++));
+                    }
+                #endif
+                if (data.size())
                 {
-                    data.splice(data.end(), split(*head++));
+                    process::arg0 = data.front();
+                    data.pop_front();
                 }
                 reset();
             }
@@ -1795,9 +1835,9 @@ namespace netxs::os
                 auto guard = std::unique_lock{ mutex };
                 log("pool: session control started");
 
-                while (alive)
+                while (alive || index.size())
                 {
-                    synch.wait(guard);
+                    if (alive) synch.wait(guard);
                     for (auto it = index.begin(); it != index.end();)
                     {
                         auto& [sid, session] = *it;
@@ -1831,6 +1871,7 @@ namespace netxs::os
             void run(Proc process)
             {
                 auto guard = std::lock_guard{ mutex };
+                if (!alive) return;
                 auto next_id = count++;
                 auto session = std::thread([&, process, next_id]
                 {
@@ -1848,8 +1889,8 @@ namespace netxs::os
 
             pool()
                 : count{ 0    },
-                alive{ true },
-                agent{ &pool::worker, this }
+                  alive{ true },
+                  agent{ &pool::worker, this }
             { }
            ~pool()
             {
@@ -1874,22 +1915,19 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto handle = ::GetCurrentProcess();
-                auto buffer = std::vector<char>(MAX_PATH);
-
+                auto buffer = wide(MAX_PATH, 0);
                 while (buffer.size() <= 32768)
                 {
-                    auto length = ::GetModuleFileNameEx(handle,         // hProcess
-                                                        NULL,           // hModule
-                                                        buffer.data(),  // lpFilename
-                                     static_cast<DWORD>(buffer.size()));// nSize
+                    auto length = ::GetModuleFileNameExW(handle,         // hProcess
+                                                         NULL,           // hModule
+                                                         buffer.data(),  // lpFilename
+                                      static_cast<DWORD>(buffer.size()));// nSize
                     if (length == 0) break;
-
                     if (buffer.size() > length + 1)
                     {
-                        result = text(buffer.data(), length);
+                        result = utf::to_utf(buffer.data(), length);
                         break;
                     }
-
                     buffer.resize(buffer.size() << 1);
                 }
 
@@ -2041,9 +2079,9 @@ namespace netxs::os
                     if constexpr (Daemon)
                     {
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                        ::close(STDIN_FD);
-                        ::close(STDOUT_FD);
-                        ::close(STDERR_FD);
+                        ::close(os::stdin_fd );
+                        ::close(os::stdout_fd);
+                        ::close(os::stderr_fd);
                     }
                     os::process::execvp(cmdline);
                     auto errcode = errno;
@@ -2070,10 +2108,10 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto handle = os::ipc::memory::set(config);
-                auto cmdarg = utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s");
+                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
-                auto srtinf = STARTUPINFOEXA{ sizeof(STARTUPINFOEXA) };
-                auto buffer = std::vector<uint8_t>{};
+                auto srtinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto buffer = std::vector<byte>{};
                 auto buflen = SIZE_T{ 0 };
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
                 result = buflen;
@@ -2081,7 +2119,7 @@ namespace netxs::os
                 srtinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
                 result = result && ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
                 result = result && ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
-                result = result && ::CreateProcessA(nullptr,                      // lpApplicationName
+                result = result && ::CreateProcessW(nullptr,                      // lpApplicationName
                                                     cmdarg.data(),                // lpCommandLine
                                                     nullptr,                      // lpProcessAttributes
                                                     nullptr,                      // lpThreadAttributes
@@ -2112,9 +2150,9 @@ namespace netxs::os
                     {
                         process::id = process::getid();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                        ::close(STDIN_FD);
-                        ::close(STDOUT_FD);
-                        ::close(STDERR_FD);
+                        ::close(os::stdin_fd );
+                        ::close(os::stdout_fd);
+                        ::close(os::stderr_fd);
                         return true;
                     }
                     else if (p_id > 0) os::process::exit(0);
@@ -2153,7 +2191,7 @@ namespace netxs::os
             static auto logs = directvt::binary::logs_t{};
             //todo view -> text
             logs.set(os::process::id.first, os::process::id.second, text{ data });
-            logs.send([&](auto& block){ io::send(STDOUT_FD, block); });
+            logs.send([&](auto& block){ io::send(os::stdout_fd, block); });
         }
         void syslog(view data)
         {
@@ -2197,7 +2235,7 @@ namespace netxs::os
             auto conmode = -1;
             #if defined(__linux__)
 
-                if (-1 != ::ioctl(STDOUT_FD, KDGETMODE, &conmode))
+                if (-1 != ::ioctl(os::stdout_fd, KDGETMODE, &conmode))
                 {
                     switch (conmode)
                     {
@@ -2223,7 +2261,7 @@ namespace netxs::os
                                                   .height    = 32,
                                                   .charcount = 512,
                                                   .data      = chars.data() };
-                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "first KDFONTOP + KD_FONT_OP_GET failed")) return;
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_GET)", os::unexpected_msg)) return;
 
                     auto slice_bytes = (fdata.width + 7) / 8;
                     auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
@@ -2240,7 +2278,7 @@ namespace netxs::os
                         lowhalf_ptr+= slice_bytes;
                     }
                     fdata.op = KD_FONT_OP_SET;
-                    if (!ok(::ioctl(STDOUT_FD, KDFONTOP, &fdata), "second KDFONTOP + KD_FONT_OP_SET failed")) return;
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected_msg)) return;
 
                     auto max_sz = std::numeric_limits<unsigned short>::max();
                     auto spairs = std::vector<unipair>(max_sz);
@@ -2249,7 +2287,7 @@ namespace netxs::os
                     auto dstmap = unimapdesc{ max_sz, dpairs.data() };
                     auto dstptr = dstmap.entries;
                     auto srcptr = srcmap.entries;
-                    if (!ok(::ioctl(STDOUT_FD, GIO_UNIMAP, &srcmap), "ioctl(STDOUT_FD, GIO_UNIMAP) failed")) return;
+                    if (!ok(::ioctl(os::stdout_fd, GIO_UNIMAP, &srcmap), "::ioctl(os::stdout_fd, GIO_UNIMAP)", os::unexpected_msg)) return;
                     auto srcend = srcmap.entries + srcmap.entry_ct;
                     while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
                     {
@@ -2272,7 +2310,7 @@ namespace netxs::os
                     {
                         for (auto& p : new_recs) *dstptr++ = p;
                         dstmap.entry_ct += std::size(new_recs);
-                        if (!ok(::ioctl(STDOUT_FD, PIO_UNIMAP, &dstmap), "ioctl(STDOUT_FD, PIO_UNIMAP) failed")) return;
+                        if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected_msg)) return;
                     }
                     else log("  os: vgafont loading failed - UNIMAP is full");
                 }
@@ -2305,11 +2343,11 @@ namespace netxs::os
 
         public:
             vtty(Term& uiterminal)
-                : terminal{ uiterminal },
-                  prochndl{ INVALID_FD },
-                  srv_hndl{ INVALID_FD },
-                  ref_hndl{ INVALID_FD },
-                  proc_pid{            }
+                : terminal{ uiterminal     },
+                  prochndl{ os::invalid_fd },
+                  srv_hndl{ os::invalid_fd },
+                  ref_hndl{ os::invalid_fd },
+                  proc_pid{                }
             { }
            ~vtty()
             {
@@ -2323,7 +2361,7 @@ namespace netxs::os
             bool connected()
             {
                 #if defined(_WIN32)
-                    return srv_hndl != INVALID_FD;
+                    return srv_hndl != os::invalid_fd;
                 #else
                     return !!termlink;
                 #endif
@@ -2367,12 +2405,12 @@ namespace netxs::os
                     auto code = DWORD{ 0 };
                     if (!::GetExitCodeProcess(prochndl, &code))
                     {
-                        log("vtty: GetExitCodeProcess() return code: ", ::GetLastError());
+                        log("vtty: ::GetExitCodeProcess() return code: ", ::GetLastError());
                     }
                     else if (code == STILL_ACTIVE)
                     {
                         log("vtty: child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                         if (!result || !::GetExitCodeProcess(prochndl, &code))
                         {
                             ::TerminateProcess(prochndl, 0);
@@ -2387,8 +2425,8 @@ namespace netxs::os
 
                     termlink.stop();
                     auto status = int{};
-                    ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                    ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
+                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
                     if (WIFEXITED(status))
                     {
                         exit_code = WEXITSTATUS(status);
@@ -2411,13 +2449,13 @@ namespace netxs::os
                 auto cmdline = terminal.cmdarg;
                 utf::change(cmdline, "\\\"", "\"");
                 log("vtty: new child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                                : "'" + cwd + "'");
+                                                                                                 : "'" + cwd + "'");
                 #if defined(_WIN32)
 
                     termsize(winsz);
-                    auto startinf = STARTUPINFOEX{ sizeof(STARTUPINFOEX) };
+                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
 
                     srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
@@ -2465,15 +2503,16 @@ namespace netxs::os
                                          sizeof(ref_hndl),
                                                 nullptr,
                                                 nullptr);
-                    auto ret = ::CreateProcessA(nullptr,                             // lpApplicationName
-                                                cmdline.data(),                      // lpCommandLine
+                    auto wide_cmdline = utf::to_utf(cmdline);
+                    auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
+                                                wide_cmdline.data(),                 // lpCommandLine
                                                 nullptr,                             // lpProcessAttributes
                                                 nullptr,                             // lpThreadAttributes
                                                 TRUE,                                // bInheritHandles
                                                 EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
                                                 nullptr,                             // lpEnvironment
-                                                cwd.empty() ? nullptr
-                                                            : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                                           : nullptr,
                                                &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
                                                &procsinf);                           // lpProcessInformation
                     if (ret == 0)
@@ -2495,7 +2534,7 @@ namespace netxs::os
                     waitexit = std::thread([&]
                     {
                         io::select(prochndl, []{ log("vtty: child process terminated"); });
-                        if (srv_hndl != INVALID_FD)
+                        if (srv_hndl != os::invalid_fd)
                         {
                             auto exit_code = wait_child();
                             terminal.onexit(exit_code);
@@ -2542,9 +2581,9 @@ namespace netxs::os
                             else     std::cerr << "vtty: change current working directory to '" << cwd << "'" << "\n" << std::flush;
                         }
 
-                        ::dup2(fds, STDIN_FD ); // Assign stdio lines atomically
-                        ::dup2(fds, STDOUT_FD); // = close(new);
-                        ::dup2(fds, STDERR_FD); // fcntl(old, F_DUPFD, new)
+                        ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
+                        ::dup2(fds, os::stdout_fd); // = close(new);
+                        ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
                         os::fdcleanup();
 
                         ::setenv("TERM", "xterm-256color", 1); //todo too hacky
@@ -2645,7 +2684,7 @@ namespace netxs::os
                         auto winsz = winsize{};
                         winsz.ws_col = newsize.x;
                         winsz.ws_row = newsize.y;
-                        ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "ioctl(termlink.get(), TIOCSWINSZ) failed");
+                        ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "::ioctl(termlink.get(), TIOCSWINSZ)", os::unexpected_msg);
 
                     #endif
                 }
@@ -2654,6 +2693,12 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
                     con_serv.reset();
+                #endif
+            }
+            void focus(bool state)
+            {
+                #if defined(_WIN32)
+                    con_serv.events.focus(state);
                 #endif
             }
             void keybd(input::hids& gear, bool decckm)
@@ -2799,7 +2844,7 @@ namespace netxs::os
 
         class vtty
         {
-            fd_t                      prochndl{ INVALID_FD };
+            fd_t                      prochndl{ os::invalid_fd };
             pidt                      proc_pid{};
             ipc::stdcon               termlink{};
             std::thread               stdinput{};
@@ -2833,13 +2878,13 @@ namespace netxs::os
                                                                                                  : "'" + cwd + "'");
                 #if defined(_WIN32)
 
-                    auto s_pipe_r = INVALID_FD;
-                    auto s_pipe_w = INVALID_FD;
-                    auto m_pipe_r = INVALID_FD;
-                    auto m_pipe_w = INVALID_FD;
-                    auto startinf = STARTUPINFOEXA{ sizeof(STARTUPINFOEXA) };
+                    auto s_pipe_r = os::invalid_fd;
+                    auto s_pipe_w = os::invalid_fd;
+                    auto m_pipe_r = os::invalid_fd;
+                    auto m_pipe_w = os::invalid_fd;
+                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<uint8_t>{};
+                    auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
                     auto stdhndls = std::array<HANDLE, 2>{};
 
@@ -2890,16 +2935,17 @@ namespace netxs::os
                     };
                     auto create = [&]
                     {
-                        return ::CreateProcessA(nullptr,                             // lpApplicationName
-                                                cmdline.data(),                      // lpCommandLine
+                        auto wide_cmdline = utf::to_utf(cmdline);
+                        return ::CreateProcessW(nullptr,                             // lpApplicationName
+                                                wide_cmdline.data(),                 // lpCommandLine
                                                 nullptr,                             // lpProcessAttributes
                                                 nullptr,                             // lpThreadAttributes
                                                 TRUE,                                // bInheritHandles
                                                 DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
                                                 nullptr,                             // lpEnvironment
-                                                cwd.empty() ? nullptr
-                                                            : (LPCSTR)(cwd.c_str()), // lpCurrentDirectory
+                                                cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                                           : nullptr,
                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                                 &procsinf);                          // lpProcessInformation
                     };
@@ -2920,10 +2966,10 @@ namespace netxs::os
 
                 #else
 
-                    fd_t to_server[2] = { INVALID_FD, INVALID_FD };
-                    fd_t to_client[2] = { INVALID_FD, INVALID_FD };
-                    ok(::pipe(to_server), "dtvt: server ipc unexpected result");
-                    ok(::pipe(to_client), "dtvt: client ipc unexpected result");
+                    fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
+                    fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
+                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
+                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
 
                     termlink = { to_server[0], to_client[1] };
                     os::dtvt::send(to_client[1], config);
@@ -2941,8 +2987,8 @@ namespace netxs::os
                         ::signal(SIGTTOU, SIG_DFL); //
                         ::signal(SIGCHLD, SIG_DFL); //
 
-                        ::dup2(to_client[0], STDIN_FD ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], STDOUT_FD); // = close(new); fcntl(old, F_DUPFD, new).
+                        ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
+                        ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
                         os::fdcleanup();
 
                         if (cwd.size())
@@ -2958,8 +3004,8 @@ namespace netxs::os
                         auto errcode = errno;
                         //todo use dtvt to log
                         //os::fail("dtvt: exec error");
-                        ::close(STDOUT_FD);
-                        ::close(STDIN_FD );
+                        ::close(os::stdout_fd);
+                        ::close(os::stdin_fd );
                         os::process::exit(errcode);
                     }
 
@@ -2995,12 +3041,12 @@ namespace netxs::os
                         auto code = DWORD{ 0 };
                         if (!::GetExitCodeProcess(prochndl, &code))
                         {
-                            log("dtvt: GetExitCodeProcess() return code: ", ::GetLastError());
+                            log("dtvt: ::GetExitCodeProcess() return code: ", ::GetLastError());
                         }
                         else if (code == STILL_ACTIVE)
                         {
                             log("dtvt: child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, APP_WAIT_TIMEOUT /*10 seconds*/);
+                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
                             if (!result || !::GetExitCodeProcess(prochndl, &code))
                             {
                                 ::TerminateProcess(prochndl, 0);
@@ -3014,9 +3060,9 @@ namespace netxs::os
                     #else
 
                         int status;
-                        //todo wait APP_WAIT_TIMEOUT before kill
-                        ok(::kill(proc_pid, SIGKILL), "kill(pid, SIGKILL) failed");
-                        ok(::waitpid(proc_pid, &status, 0), "waitpid(pid) failed"); // Wait for the child to avoid zombies.
+                        //todo wait app_wait_timeout before kill
+                        ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
+                        ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
                         if (WIFEXITED(status))
                         {
                             exit_code = WEXITSTATUS(status);
@@ -3108,28 +3154,59 @@ namespace netxs::os
             static vars;
             return vars;
         }
+        void repair()
+        {
+            auto& state = globals().state;
+            #if defined(_WIN32)
+                ok(::SetConsoleMode(os::stdout_fd, state.omode), "::SetConsoleMode(revert_o)", os::unexpected_msg);
+                ok(::SetConsoleMode(os::stdin_fd , state.imode), "::SetConsoleMode(revert_i)", os::unexpected_msg);
+                ok(::SetConsoleOutputCP(           state.opage), "::SetConsoleOutputCP(revert_o)", os::unexpected_msg);
+                ok(::SetConsoleCP(                 state.ipage), "::SetConsoleCP(revert_i)", os::unexpected_msg);
+            #else
+                ::tcsetattr(os::stdin_fd, TCSANOW, &state);
+            #endif
+        }
         auto vtmode()
         {
             auto mode = si32{ vt::clean };
-            if (os::dtvt::peek(STDIN_FD))
+            if (os::dtvt::peek(os::stdin_fd))
             {
                 log("  os: DirectVT detected");
                 mode |= vt::direct;
             }
             else
             {
-                #if defined(_WIN32) // Set vt-mode and UTF-8 codepage unconditionally.
+                auto& state = globals().state;
+                #if defined(_WIN32)
 
-                    auto outmode = DWORD{};
-                    if(::GetConsoleMode(STDOUT_FD, &outmode))
+                    ok(::GetConsoleMode(os::stdout_fd, &state.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected_msg);
+                    ok(::GetConsoleMode(os::stdin_fd , &state.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected_msg);
+                    state.opage = ::GetConsoleOutputCP();
+                    state.ipage = ::GetConsoleCP();
+                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected_msg);
+                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected_msg);
+                    auto inpmode = DWORD{ 0
+                                | nt::console::inmode::preprocess
+                                | nt::console::inmode::extended
+                                | nt::console::inmode::winsize
+                                };
+                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
+                    auto outmode = DWORD{ 0
+                                | nt::console::outmode::preprocess
+                                | nt::console::outmode::vt
+                                };
+                    ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected_msg);
+
+                #else
+
+                    if (!ok(::tcgetattr(os::stdin_fd, &state), "::tcgetattr(os::stdin_fd)", os::unexpected_msg))
                     {
-                        outmode |= nt::console::outmode::vt;
-                        ::SetConsoleMode(STDOUT_FD, outmode);
-                        ::SetConsoleOutputCP(65001);
-                        ::SetConsoleCP(65001);
+                        os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
                     }
 
                 #endif
+                std::atexit(repair);
+
                 if (auto term = os::env::get("TERM"); term.size())
                 {
                     log("  os: terminal type \"", term, "\"");
@@ -3199,7 +3276,7 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
-                if (ok(::GetConsoleScreenBufferInfo(STDOUT_FD, &cinfo), "GetConsoleScreenBufferInfo failed"))
+                if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
                 {
                     winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
                             cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
@@ -3208,7 +3285,7 @@ namespace netxs::os
             #else
 
                 auto size = winsize{};
-                if (ok(::ioctl(STDOUT_FD, TIOCGWINSZ, &size), "ioctl(STDOUT_FD, TIOCGWINSZ) failed"))
+                if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected_msg))
                 {
                     winsz({ size.ws_col, size.ws_row });
                 }
@@ -3221,16 +3298,6 @@ namespace netxs::os
                 winsz(winsz_fallback);
             }
             wired.winsz.send(ipcio, 0, winsz.last);
-        }
-        void repair()
-        {
-            auto& state = globals().state;
-            #if defined(_WIN32)
-                ok(::SetConsoleMode(STDOUT_FD, state[0]), "SetConsoleMode failed (revert_o)");
-                ok(::SetConsoleMode(STDIN_FD , state[1]), "SetConsoleMode failed (revert_i)");
-            #else
-                ::tcsetattr(STDIN_FD, TCSANOW, &state);
-            #endif
         }
         auto signal(sigt what)
         {
@@ -3262,17 +3329,15 @@ namespace netxs::os
                             bKeyDown,
                             wRepeatCount,
                             UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
-                            UnicodeChar);
+                            UnicodeChar,
+                            faux);
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
-                        /* do nothing */
-                        break;
                     case CTRL_LOGOFF_EVENT:
-                        /* todo signal global */
-                        break;
                     case CTRL_SHUTDOWN_EVENT:
-                        /* todo signal global */
+                        g.ipcio->shut();
+                        std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
                         break;
                     default:
                         break;
@@ -3283,7 +3348,7 @@ namespace netxs::os
 
                 auto shutdown = [](auto what)
                 {
-                    globals().ipcio->stop();
+                    globals().ipcio->shut();
                     ::signal(what, SIG_DFL);
                     ::raise(what);
                 };
@@ -3334,27 +3399,25 @@ namespace netxs::os
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
                 auto stamp = ui32{};
-                fd_t waits[] = { STDIN_FD, alarm };
+                fd_t waits[] = { os::stdin_fd, alarm };
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
-                    if (!::GetNumberOfConsoleInputEvents(STDIN_FD, &count))
+                    if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count))
                     {
                         // ERROR_PIPE_NOT_CONNECTED
                         // 233 (0xE9)
                         // No process is on the other end of the pipe.
-                        //defeat("GetNumberOfConsoleInputEvents error");
-                        os::process::exit(-1, " tty: GetNumberOfConsoleInputEvents error ", ::GetLastError());
+                        os::process::exit(-1, " tty: ::GetNumberOfConsoleInputEvents()", os::unexpected_msg, " ", ::GetLastError());
                         break;
                     }
                     else if (count)
                     {
                         if (count > reply.size()) reply.resize(count);
 
-                        if (!::ReadConsoleInputW(STDIN_FD, reply.data(), (DWORD)reply.size(), &count))
+                        if (!::ReadConsoleInputW(os::stdin_fd, reply.data(), (DWORD)reply.size(), &count))
                         {
                             //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
-                            //defeat("ReadConsoleInput error");
-                            os::process::exit(-1, " tty: ReadConsoleInput error ", ::GetLastError());
+                            os::process::exit(-1, " tty: ::ReadConsoleInput()", os::unexpected_msg, " ", ::GetLastError());
                             break;
                         }
                         else
@@ -3376,12 +3439,13 @@ namespace netxs::os
                                             reply.Event.KeyEvent.bKeyDown,
                                             reply.Event.KeyEvent.wRepeatCount,
                                             reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{},
-                                            reply.Event.KeyEvent.uChar.UnicodeChar);
+                                            reply.Event.KeyEvent.uChar.UnicodeChar,
+                                            faux);
                                         break;
                                     case MOUSE_EVENT:
                                         wired.sysmouse.send(ipcio,
                                             0,
-                                            input::hids::ok,
+                                            input::hids::stat::ok,
                                             os::nt::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
                                             reply.Event.MouseEvent.dwControlKeyState,
                                             reply.Event.MouseEvent.dwButtonState & 0b00011111,
@@ -3414,7 +3478,7 @@ namespace netxs::os
 
                 auto legacy_mouse = !!(mode & os::vt::mouse);
                 auto legacy_color = !!(mode & os::vt::vga16);
-                auto micefd = INVALID_FD;
+                auto micefd = os::invalid_fd;
                 auto mcoord = twod{};
                 auto buffer = text(os::pipebuf, '\0');
                 auto ttynum = si32{ 0 };
@@ -3424,7 +3488,7 @@ namespace netxs::os
                     auto state = si32{ 0 };
                     #if defined(__linux__)
                         auto shift_state = si32{ 6 };
-                        ok(::ioctl(STDIN_FD, TIOCLINUX, &shift_state), "ioctl(STDIN_FD, TIOCLINUX) failed");
+                        ok(::ioctl(os::stdin_fd, TIOCLINUX, &shift_state), "::ioctl(os::stdin_fd, TIOCLINUX)", os::unexpected_msg);
                         state = 0
                             | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
                             | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
@@ -3435,7 +3499,7 @@ namespace netxs::os
                     #endif
                     return state;
                 };
-                ok(::ttyname_r(STDOUT_FD, buffer.data(), buffer.size()), "ttyname_r(STDOUT_FD) failed");
+                ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected_msg);
                 auto tty_name = view(buffer.data());
                 log(" tty: pseudoterminal ", tty_name);
                 if (legacy_mouse)
@@ -3562,14 +3626,14 @@ namespace netxs::os
                                 if (strv.at(pos) == 'I')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = true;
+                                    f.state = true;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
                                 else if (strv.at(pos) == 'O')
                                 {
                                     f.gear_id = 0;
-                                    f.enabled = faux;
+                                    f.state = faux;
                                     wired.sysfocus.send(ipcio, f);
                                     ++pos;
                                 }
@@ -3709,8 +3773,8 @@ namespace netxs::os
 
                 auto h_proc = [&]
                 {
-                    auto data = io::recv(STDIN_FD, buffer.data(), buffer.size());
-                    if (micefd != INVALID_FD)
+                    auto data = io::recv(os::stdin_fd, buffer.data(), buffer.size());
+                    if (micefd != os::invalid_fd)
                     {
                         auto kb_state = get_kb_state();
                         if (m.ctlstat != kb_state)
@@ -3732,7 +3796,7 @@ namespace netxs::os
                     {
                     #if defined(__linux__)
                         auto vt_state = vt_stat{};
-                        ok(::ioctl(STDOUT_FD, VT_GETSTATE, &vt_state), "ioctl(VT_GETSTATE) failed");
+                        ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected_msg);
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
@@ -3759,16 +3823,16 @@ namespace netxs::os
 
                 while (ipcio)
                 {
-                    if (micefd != INVALID_FD)
+                    if (micefd != os::invalid_fd)
                     {
-                        io::select(STDIN_FD, h_proc,
-                                   micefd,   m_proc,
-                                   alarm,    f_proc);
+                        io::select(os::stdin_fd, h_proc,
+                                   micefd,       m_proc,
+                                   alarm,        f_proc);
                     }
                     else
                     {
-                        io::select(STDIN_FD, h_proc,
-                                   alarm,    f_proc);
+                        io::select(os::stdin_fd, h_proc,
+                                   alarm,        f_proc);
                     }
                 }
 
@@ -3787,7 +3851,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                auto wndname = text{ "vtmWindowClass" };
+                auto wndname = utf::to_utf("vtmWindowClass");
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
                     auto& g = globals();
@@ -3797,7 +3861,7 @@ namespace netxs::os
                     switch (uMsg)
                     {
                         case WM_CREATE:
-                            ok(::AddClipboardFormatListener(hwnd), "unexpected result from ::AddClipboardFormatListener()");
+                            ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected_msg);
                         case WM_CLIPBOARDUPDATE:
                         {
                             auto lock = std::lock_guard{ os::clipboard::mutex };
@@ -3805,7 +3869,7 @@ namespace netxs::os
                             {
                                 if (os::error() != ERROR_ACCESS_DENIED)
                                 {
-                                    auto error = "OpenClipboard() returns unexpected result, code "s + std::to_string(os::error());
+                                    auto error = utf::concat("::OpenClipboard()", os::unexpected_msg, " code ", os::error());
                                     wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
                                     return (LRESULT) NULL;
                                 }
@@ -3830,7 +3894,7 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
                                             wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
                                         }
                                     }
@@ -3847,7 +3911,7 @@ namespace netxs::os
                                                 ::GlobalUnlock(hglb);
                                                 break;
                                             }
-                                            auto error = "GlobalLock() returns unexpected result, code "s + std::to_string(os::error());
+                                            auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
                                             wired.osclipdata.send(ipcio, gear_id, error, ansi::clip::textonly);
                                         }
                                         else
@@ -3859,27 +3923,27 @@ namespace netxs::os
                                 }
                                 else wired.osclipdata.send(ipcio, gear_id, text{}, ansi::clip::textonly);
                             }
-                            ok(::CloseClipboard(), "::CloseClipboard");
+                            ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
                             break;
                         }
                         case WM_DESTROY:
-                            ok(::RemoveClipboardFormatListener(hwnd), "unexpected result from ::RemoveClipboardFormatListener()");
+                            ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected_msg);
                             ::PostQuitMessage(0);
                             break;
                         default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
                     }
                     return (LRESULT) NULL;
                 };
-                auto wnddata = WNDCLASSEXA
+                auto wnddata = WNDCLASSEXW
                 {
-                    .cbSize        = sizeof(WNDCLASSEX),
+                    .cbSize        = sizeof(WNDCLASSEXW),
                     .lpfnWndProc   = wndproc,
                     .lpszClassName = wndname.c_str(),
                 };
-                if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()"))
+                if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected_msg))
                 {
                     auto& alarm = globals().alarm;
-                    auto hwnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                    auto hwnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
@@ -3889,9 +3953,9 @@ namespace netxs::os
                             ::DestroyWindow(hwnd);
                             break;
                         }
-                        while (::PeekMessageA(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                        while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
                         {
-                            ::DispatchMessageA(&next);
+                            ::DispatchMessageW(&next);
                         }
                     }
                 }
@@ -3918,51 +3982,33 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                auto& omode = globals().state[0];
-                auto& imode = globals().state[1];
-
-                ok(::GetConsoleMode(STDOUT_FD, &omode), "GetConsoleMode(STDOUT_FD) failed");
-                ok(::GetConsoleMode(STDIN_FD , &imode), "GetConsoleMode(STDIN_FD) failed");
-
                 auto inpmode = DWORD{ 0
-                              | nt::console::inmode::extended
-                              | nt::console::inmode::winsize
-                              | nt::console::inmode::mouse
-                              };
-                ok(::SetConsoleMode(STDIN_FD, inpmode), "SetConsoleMode(STDIN_FD) failed");
-
+                            | nt::console::inmode::extended
+                            | nt::console::inmode::winsize
+                            | nt::console::inmode::mouse
+                            };
+                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd, ignite)", os::unexpected_msg);
                 auto outmode = DWORD{ 0
-                              | nt::console::outmode::preprocess
-                              | nt::console::outmode::vt
-                              | nt::console::outmode::no_auto_cr
-                              };
-
-                ok(::SetConsoleMode(STDOUT_FD, outmode), "SetConsoleMode(STDOUT_FD) failed");
-                ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "SetConsoleCtrlHandler failed");
+                            | nt::console::outmode::no_auto_cr
+                            | nt::console::outmode::preprocess
+                            | nt::console::outmode::vt
+                            };
+                ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd, ignite)", os::unexpected_msg);
+                ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "::SetConsoleCtrlHandler()", os::unexpected_msg);
 
             #else
 
-                auto& state = g.state;
-                if (ok(::tcgetattr(STDIN_FD, &state), "tcgetattr(STDIN_FD) failed")) // Set stdin raw mode.
-                {
-                    auto raw_mode = state;
-                    ::cfmakeraw(&raw_mode);
-                    ok(::tcsetattr(STDIN_FD, TCSANOW, &raw_mode), "tcsetattr(STDIN_FD, TCSANOW) failed");
-                }
-                else
-                {
-                    os::fail("warning: check you are using the proper tty device, try `ssh -tt ...` option");
-                }
-
-                ok(::signal(SIGPIPE , SIG_IGN ), "set signal(SIGPIPE ) failed");
-                ok(::signal(SIGWINCH, sig_hndl), "set signal(SIGWINCH) failed");
-                ok(::signal(SIGTERM , sig_hndl), "set signal(SIGTERM ) failed");
-                ok(::signal(SIGHUP  , sig_hndl), "set signal(SIGHUP  ) failed");
+                auto raw_mode = g.state;
+                ::cfmakeraw(&raw_mode);
+                ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
+                ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)", os::unexpected_msg);
+                ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
+                ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
+                ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
 
             #endif
 
             os::vt::vgafont(mode);
-            ::atexit(repair);
             resize();
             wired.sysfocus.send(ipcio, id_t{}, true, faux, faux);
         }
@@ -3973,20 +4019,20 @@ namespace netxs::os
             auto& alarm = globals().alarm;
             auto  proxy = os::clipboard::proxy{};
             auto  vga16 = mode & os::vt::vga16;
-            auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).setutf(true).set_palette(vga16);
+            auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).set_palette(vga16);
             auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
-            vtrun.vmouse(true);
-            vtend.vmouse(faux);
+                vtrun.vmouse(true).setutf(true);
+                vtend.vmouse(faux);
             #endif
 
-            io::send(STDOUT_FD, vtrun);
+            io::send(os::stdout_fd, vtrun);
 
             auto input = std::thread{ [&]{ reader(mode); } };
             auto clips = std::thread{ [&]{ clipbd(mode); } }; //todo move to os::clipboard::proxy (globals())
             while (auto yield = ipcio.recv())
             {
-                if (proxy(yield) && !io::send(STDOUT_FD, yield)) break;
+                if (proxy(yield) && !io::send(os::stdout_fd, yield)) break;
             }
 
             ipcio.shut();
@@ -3994,7 +4040,7 @@ namespace netxs::os
             clips.join();
             input.join();
 
-            io::send(STDOUT_FD, vtend);
+            io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
     };

@@ -8,8 +8,6 @@
 
 namespace netxs::xml
 {
-    static constexpr auto spaces = " \n\r\t"sv;
-
     auto escape(qiew line)
     {
         auto crop = text{};
@@ -230,7 +228,7 @@ namespace netxs::xml
             empty_tag,     // '/>'    ex: ... />
             equal,         // '='     ex: name=value
             defaults,      // '*'     ex: name*
-            whitespaces,   // ' '     ex: \s\t\r\n...
+            spaces,        // ' '     ex: \s\t\r\n...
             unknown,       //
             tag_value,     //
             error,         // Inline error message.
@@ -265,7 +263,7 @@ namespace netxs::xml
 
             suit(suit&&) = default;
             suit(view file = {})
-                : data{ std::make_shared<literal>(type::na) },
+                : data{ ptr::shared<literal>(type::na) },
                   fail{ faux },
                   file{ file },
                   back{ data }
@@ -274,7 +272,7 @@ namespace netxs::xml
             template<class ...Args>
             auto append(type kind, Args&&... args)
             {
-                auto item = std::make_shared<literal>(kind, std::forward<Args>(args)...);
+                auto item = ptr::shared<literal>(kind, std::forward<Args>(args)...);
                 item->prev = back;
                 back->next = item;
                 back = item;
@@ -407,6 +405,7 @@ namespace netxs::xml
                 attr,
                 flat,
             };
+
             frag from; // elem: First fragment in document.
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
@@ -604,7 +603,7 @@ namespace netxs::xml
                 {
                     auto size = crop.size();
                     auto temp = view{ crop };
-                    auto dent = text{ utf::trim_front(temp, spaces) };
+                    auto dent = text{ utf::trim_front(temp, whitespaces) };
                     crop = temp;
                     utf::change(crop, dent, "\n");
                 }
@@ -632,7 +631,7 @@ namespace netxs::xml
         document(document&&) = default;
         document(view data, view file = {})
             : page{ file },
-              root{ std::make_shared<elem>()}
+              root{ ptr::shared<elem>()}
         {
             read(data);
             if (page.fail) log(" xml: inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
@@ -750,7 +749,7 @@ namespace netxs::xml
             else if (data.starts_with(view_equal        )) what = type::equal;
             else if (data.starts_with(view_defaults     )
                   && last == type::token)                  what = type::defaults;
-            else if (utf::view_spaces.find(data.front()) != view::npos) what = type::whitespaces;
+            else if (whitespaces.find(data.front()) != view::npos) what = type::spaces;
             else if (last == type::close_tag
                   || last == type::begin_tag
                   || last == type::token
@@ -810,7 +809,7 @@ namespace netxs::xml
                 case type::raw_text:
                 case type::quotes:
                 case type::tag_value:     body(data, type::raw_text);             break;
-                case type::whitespaces:   utf::trim_front(data, spaces);          break;
+                case type::spaces:        utf::trim_front(data, whitespaces);     break;
                 case type::na:            utf::get_tail<faux>(data, find_start);  break;
                 case type::unknown:       if (data.size()) data.remove_prefix(1); break;
                 default: break;
@@ -819,12 +818,12 @@ namespace netxs::xml
         }
         auto trim(view& data)
         {
-            auto temp = utf::trim_front(data, spaces);
+            auto temp = utf::trim_front(data, whitespaces);
             auto crop = !temp.empty();
-            if (crop) page.append(type::whitespaces, std::move(temp));
+            if (crop) page.append(type::spaces, std::move(temp));
             return crop;
         }
-        auto diff(view& data, view& temp, type kind = type::whitespaces)
+        auto diff(view& data, view& temp, type kind = type::spaces)
         {
             auto delta = temp.size() - data.size();
                  if (delta > 0) page.append(kind, temp.substr(0, delta));
@@ -834,7 +833,7 @@ namespace netxs::xml
         {
             item->name = page.append(kind, name(data));
             auto temp = data;
-            utf::trim_front(temp, spaces);
+            utf::trim_front(temp, whitespaces);
             peek(temp, what, last);
             if (what == type::defaults)
             {
@@ -848,13 +847,13 @@ namespace netxs::xml
                 }
                 page.append(type::defaults, skip(data, what));
                 temp = data;
-                utf::trim_front(temp, spaces);
+                utf::trim_front(temp, whitespaces);
                 peek(temp, what, last);
                 item->base = what == type::empty_tag;
             }
             if (what == type::equal)
             {
-                diff(temp, data, type::whitespaces);
+                diff(temp, data, type::spaces);
                 data = temp;
                 page.append(type::equal, skip(data, what));
                 trim(data);
@@ -875,9 +874,9 @@ namespace netxs::xml
         }
         auto open(sptr& item)
         {
-            if (!page.data || page.back->kind != type::whitespaces)
+            if (!page.data || page.back->kind != type::spaces)
             {
-                page.append(type::whitespaces);
+                page.append(type::spaces);
             }
             item->from = page.back;
         }
@@ -923,7 +922,7 @@ namespace netxs::xml
                     {
                         do // Proceed inlined subs.
                         {
-                            auto next = std::make_shared<elem>(item);
+                            auto next = ptr::shared<elem>(item);
                             next->mode = elem::form::attr;
                             open(next);
                             pair(next, data, what, last, type::token);
@@ -938,19 +937,19 @@ namespace netxs::xml
                     if (what == type::empty_tag) // Proceed '/>'.
                     {
                         item->mode = elem::form::flat;
-                        item->insA = last == type::whitespaces ? page.back
-                                                               : page.append(type::whitespaces);
+                        item->insA = last == type::spaces ? page.back
+                                                          : page.append(type::spaces);
                         page.append(type::empty_tag, skip(data, what));
                     }
                     else if (what == type::close_inline) // Proceed nested subs.
                     {
-                        item->insA = last == type::whitespaces ? page.back
-                                                               : page.append(type::whitespaces);
+                        item->insA = last == type::spaces ? page.back
+                                                          : page.append(type::spaces);
                         page.append(type::close_inline, skip(data, what));
                         do
                         {
                             auto temp = data;
-                            utf::trim_front(temp, spaces);
+                            utf::trim_front(temp, whitespaces);
                             peek(temp, what, last);
                             do
                             {
@@ -981,11 +980,11 @@ namespace netxs::xml
                                 {
                                     trim(data);
                                     data = temp;
-                                    auto next = std::make_shared<elem>(item);
+                                    auto next = ptr::shared<elem>(item);
                                     read(next, data, deep + 1);
                                     push(next);
                                     temp = data;
-                                    utf::trim_front(temp, spaces);
+                                    utf::trim_front(temp, whitespaces);
                                 }
                                 else if (what == type::comment_begin) // Proceed '<!--'.
                                 {
@@ -1002,7 +1001,7 @@ namespace netxs::xml
                                     page.append(type::comment_begin, data.substr(0, size));
                                     data.remove_prefix(size);
                                     temp = data;
-                                    utf::trim_front(temp, spaces);
+                                    utf::trim_front(temp, whitespaces);
                                 }
                                 else if (what != type::close_tag
                                       && what != type::eof)
@@ -1019,8 +1018,8 @@ namespace netxs::xml
                             if (what == type::close_tag) // Proceed '</token>'.
                             {
                                 auto skip_frag = skip(temp, what);
-                                auto trim_frag = utf::trim_front(temp, spaces);
-                                auto spaced = last == type::whitespaces;
+                                auto trim_frag = utf::trim_front(temp, whitespaces);
+                                auto spaced = last == type::spaces;
                                 peek(temp, what, last);
                                 if (what == type::token)
                                 {
@@ -1029,9 +1028,9 @@ namespace netxs::xml
                                     if (object == item->name->utf8)
                                     {
                                         item->insB = spaced ? page.back
-                                                            : page.append(type::whitespaces);
+                                                            : page.append(type::spaces);
                                                               page.append(type::close_tag, skip_frag);
-                                        if (trim_frag.size()) page.append(type::whitespaces, trim_frag);
+                                        if (trim_frag.size()) page.append(type::spaces, trim_frag);
                                                               page.append(type::end_token, item->name->utf8);
                                         data = temp;
                                         auto tail = data.find('>');
@@ -1099,7 +1098,7 @@ namespace netxs::xml
             auto what = type::na;
             auto last = type::na;
             auto deep = si32{};
-            auto idle = utf::trim_front(temp, spaces);
+            auto idle = utf::trim_front(temp, whitespaces);
             peek(temp, what, last);
             while (what != type::begin_tag && what != type::eof) // Skip all non-xml data.
             {
@@ -1108,7 +1107,7 @@ namespace netxs::xml
                 page.append(type::unknown, idle);
                 page.append(type::unknown, skip(temp, what));
                 data = temp;
-                idle = utf::trim_front(temp, spaces);
+                idle = utf::trim_front(temp, whitespaces);
                 peek(temp, what, last);
             }
             read(root, data);
@@ -1129,7 +1128,7 @@ namespace netxs::xml
         settings() = default;
         settings(settings const&) = default;
         settings(view utf8_xml)
-            : document{ std::make_shared<xml::document>(utf8_xml, "") }
+            : document{ ptr::shared<xml::document>(utf8_xml, "") }
         { }
 
         auto cd(text gotopath, view fallback = {})

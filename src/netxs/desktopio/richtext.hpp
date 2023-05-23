@@ -36,7 +36,7 @@ namespace netxs::ui
         }
 
         operator auto& () const { return basis; }
-        auto& operator [] (uint8_t k) const
+        auto& operator [] (byte k) const
         {
             return grade[k];
         }
@@ -582,7 +582,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -609,7 +609,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    c.txt(utf::replacement);
                     do fuse(*dest++, c);
                     while (--w && dest != tail + 1);
                 }
@@ -620,7 +620,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*dest, c);
                 else if (w == 2) fuse(*dest, c.wdt(3));
-                else if (w >  2) fuse(*dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*dest, c.txt(utf::replacement));
             }
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -638,7 +638,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -670,7 +670,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do set(c);
                     //while (--w && size > 0);
                 }
@@ -691,7 +691,7 @@ namespace netxs::ui
             //  + while (--wide)
             //    {
             //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, ui::whitespace);
+            //        lyric.emplace_back(cluster, whitespace);
             //    }
             //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
 
@@ -718,7 +718,7 @@ namespace netxs::ui
                 else if (w > 2)
                 {
                     // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW);
+                    //c.txt(utf::replacement);
                     //do *--dest = c;
                     //while (--w && dest != tail - 1);
                 }
@@ -729,7 +729,7 @@ namespace netxs::ui
                 auto w = c.wdt();
                      if (w == 1) fuse(*--dest, c);
                 else if (w == 2) fuse(*--dest, c.wdt(3));
-                else if (w >  2) fuse(*--dest, c.txt(utf::REPLACEMENT_CHARACTER_UTF8_VIEW));
+                else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
             }
         }
         // rich: Splice proto with auto grow.
@@ -1015,7 +1015,7 @@ namespace netxs::ui
         si32 caret = 0; // para: Cursor position inside lyric.
         ui32 index = 0;
         writ locus;
-        corx lyric = std::make_shared<rich>();
+        corx lyric = ptr::shared<rich>();
 
         using parser::parser;
         para()                         = default;
@@ -1034,7 +1034,7 @@ namespace netxs::ui
 
         operator writ const& () const { return locus; }
 
-        void decouple() { lyric = std::make_shared<rich>(*lyric); } // para: Make canvas isolated copy.
+        void decouple() { lyric = ptr::shared<rich>(*lyric); } // para: Make canvas isolated copy.
         void  content(rich& r){ *lyric = r; caret = r.length(); } // para: Set paragraph content.
         auto& content() const { return *lyric; } // para: Return paragraph content.
         shot   shadow() const { return *lyric; } // para: Return paragraph shadow.
@@ -1068,6 +1068,20 @@ namespace netxs::ui
         {
             lyric->splice(caret, count, proto, cell::shaders::full);
             caret += count;
+        }
+        //todo unify: see ui::page::post
+        void post(utf::frag const& cluster)
+        {
+            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
+            {
+                auto c = cluster;
+                c.attr.ucwidth = netxs::unidata::widths::slim;
+                ansi::parser::post(c);
+            }
+            else
+            {
+                ansi::parser::post(cluster);
+            }
         }
         void id(ui32 newid) { index = newid; }
         auto id() const     { return index;  }
@@ -1475,12 +1489,14 @@ namespace netxs::ui
         using list = std::list<sptr<para>>;
         using iter = list::iterator;
         using pmap = std::map<si32, wptr<para>>;
+        using redo = std::list<std::pair<deco, ansi::mark>>;
 
     public:
         ui32 index = {};              // page: Current paragraph id.
-        list batch = { std::make_shared<para>(index) }; // page: Paragraph list.
+        list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
-        pmap parts;                   // page: Paragraph index.
+        pmap parts = {};              // page: Paragraph index.
+        redo stack = {};              // paпу: Style state stack.
 
         //todo use ring
         si32 limit = std::numeric_limits<si32>::max(); // page: Paragraphs number limit.
@@ -1514,14 +1530,20 @@ namespace netxs::ui
         static void parser_config(T& vt)
         {
             using namespace netxs::ansi;
-            vt.intro[ctrl::CR ]              = VT_PROC{ q.pop_if(ctrl::EOL); p->task({ fn::nl,1 }); };
-            vt.intro[ctrl::TAB]              = VT_PROC{ p->task({ fn::tb, q.pop_all(ctrl::TAB) }); };
-            vt.intro[ctrl::EOL]              = VT_PROC{ p->task({ fn::nl, q.pop_all(ctrl::EOL) }); };
-            vt.csier.table[CSI__ED]          = VT_PROC{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
-            vt.csier.table[CSI__EL]          = VT_PROC{ p->task({ fn::el, q(0) }); }; // CSI Ps K
-            vt.csier.table[CSI_CCC][CCC_NOP] = VT_PROC{ p->fork(); };
-            vt.csier.table[CSI_CCC][CCC_IDX] = VT_PROC{ p->fork(q(0)); };
-            vt.csier.table[CSI_CCC][CCC_REF] = VT_PROC{ p->bind(q(0)); };
+
+            #define V [](auto& q, auto& p)
+            //vt.intro[ctrl::nul]             = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
+            vt.intro[ctrl::cr ]              = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
+            vt.intro[ctrl::tab]              = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
+            vt.intro[ctrl::eol]              = V{ p->task({ fn::nl, q.pop_all(ctrl::eol) }); };
+            vt.csier.table[csi__ed]          = V{ p->task({ fn::ed, q(0) }); }; // CSI Ps J
+            vt.csier.table[csi__el]          = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
+            vt.csier.table[csi_ccc][ccc_nop] = V{ p->fork(); };
+            vt.csier.table[csi_ccc][ccc_idx] = V{ p->fork(q(0)); };
+            vt.csier.table[csi_ccc][ccc_ref] = V{ p->bind(q(0)); };
+            vt.csier.table_hash[csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
+            vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
+            #undef V
         }
         page              (view utf8) {          ansi::parse(utf8, this);               }
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
@@ -1554,6 +1576,26 @@ namespace netxs::ui
             fork(id);
             parts.emplace(id, *layer);
             return **layer;
+        }
+        // page: CSI # {  Push SGR attributes.
+        void pushsgr()
+        {
+            parser::flush();
+            stack.push_back({ parser::style, parser::brush });
+            if (stack.size() == 10) stack.pop_front();
+        }
+        // page: CSI # }  Pop SGR attributes.
+        void popsgr()
+        {
+            parser::flush();
+            if (stack.size())
+            {
+                auto& [s, b] = stack.back();
+                parser::style = s;
+                parser::brush = b;
+                parser::flush_style();
+                stack.pop_back();
+            }
         }
         // page: Clear the list of paragraphs.
         page& clear(bool preserve_state = faux)
@@ -1606,7 +1648,7 @@ namespace netxs::ui
         void fork()
         {
             if constexpr (Flush) parser::flush();
-            layer = batch.insert(std::next(layer), std::make_shared<para>(parser::style));
+            layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
             (**layer).id(++index);
             shrink();
         }
@@ -1647,6 +1689,19 @@ namespace netxs::ui
         {
             auto& item = **layer;
             item.style = parser::style;
+        }
+        void post(utf::frag const& cluster)
+        {
+            if (cluster.attr.cdpoint == 0) // Override null character - set a narrow width.
+            {
+                auto c = cluster;
+                c.attr.ucwidth = netxs::unidata::widths::slim;
+                ansi::parser::post(c);
+            }
+            else
+            {
+                ansi::parser::post(cluster);
+            }
         }
         void data(si32 count, grid const& proto) override
         {
@@ -1998,7 +2053,9 @@ namespace netxs::ui
 
             // Override vt-functionality.
             using namespace netxs::ansi;
-            vt.intro[ctrl::TAB] = VT_PROC{ p->tabs(q.pop_all(ctrl::TAB)); };
+            #define V [](auto& q, auto& p)
+            vt.intro[ctrl::tab] = V{ p->tabs(q.pop_all(ctrl::tab)); };
+            #undef V
         }
 
         derived_from_page (view utf8) {          ansi::parse(utf8, this);               }
@@ -2012,7 +2069,7 @@ namespace netxs::ui
     {
     public:
 
-        #define PROP_LIST                              \
+        #define prop_list                              \
         X(kb_focus  , "Keyboard focus indicator")      \
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
@@ -2028,13 +2085,13 @@ namespace netxs::ui
         X(menu_black, "Dark menu color")
 
         #define X(a, b) a,
-        enum prop { PROP_LIST count };
+        enum prop { prop_list count };
         #undef X
 
         //#define X(a, b) b,
-        //text description[prop::count] = { PROP_LIST };
+        //text description[prop::count] = { prop_list };
         //#undef X
-        #undef PROP_LIST
+        #undef prop_list
 
         prop active  = prop::brighter;
         prop passive = prop::shadower;

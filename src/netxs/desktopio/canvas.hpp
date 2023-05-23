@@ -11,10 +11,7 @@
 
 namespace netxs
 {
-    static constexpr auto whitespace = char{ 0x20 };
-    //static constexpr auto whitespace = '.';
-
-    enum svga
+    enum class svga
     {
         truecolor,
         vga16    ,
@@ -22,7 +19,7 @@ namespace netxs
         dtvt     ,
     };
 
-    enum Z_order : si32
+    enum class zpos : si32
     {
         backmost = -1,
         plain    =  0,
@@ -34,6 +31,7 @@ namespace netxs
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
     };
+
     struct tint16
     {
         enum : si32
@@ -97,11 +95,14 @@ namespace netxs
                 switch (fifo::desub(mode))
                 {
                     case mode_RGB:
-                        chan.r = queue.subarg(0);
+                    {
+                        auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
+                        chan.r = r == -1 ? queue.subarg(0) : r;
                         chan.g = queue.subarg(0);
                         chan.b = queue.subarg(0);
                         chan.a = queue.subarg(0xFF);
                         break;
+                    }
                     case mode_256:
                         token = netxs::letoh(color256[queue.subarg(0)]);
                         break;
@@ -533,8 +534,8 @@ namespace netxs
             {
                 byte jumbo : 1;                  // grapheme cluster length overflow bit
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                byte width : WCWIDTH_FIELD_SIZE; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-                byte count : CLUSTER_FIELD_SIZE; // grapheme cluster length (utf-8 encoded) (max GRAPHEME_CLUSTER_LIMIT)
+                byte width : utf::wcwidth_field_size; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
             };
 
             // There is no need to reset/clear/flush the map because
@@ -674,6 +675,10 @@ namespace netxs
             auto is_space() const
             {
                 return static_cast<byte>(glyph[1]) <= whitespace;
+            }
+            auto is_null() const
+            {
+                return static_cast<byte>(glyph[1]) == 0;
             }
             auto tkn() const
             {
@@ -990,7 +995,7 @@ namespace netxs
         }
         auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
-        // cell: Merge the two cells according to visibility and other attributes.
+        // cell: Merge two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
             //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
@@ -1005,7 +1010,7 @@ namespace netxs
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Merge the two cells if text part != '\0'.
+        // cell: Merge two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
             if (c.gc.glyph[1] != 0) fuse(c);
@@ -1042,13 +1047,13 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fuse(cell const& c, id_t oid)//, twod const& pos)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge the two cells and update ID with COOR.
+        // cell: Merge two cells and update ID with COOR.
         void fusefull(cell const& c)
         {
             fuse(c);
@@ -1137,7 +1142,7 @@ namespace netxs
                     return view{ "^" };
                 }
             }
-            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+            return utf::replacement;
         }
         // cell: Take the right half of the C0 cluster or the replacement if it is not C0.
         auto get_c0_right() const
@@ -1150,7 +1155,7 @@ namespace netxs
                     return shadow.substr(1, 1);
                 }
             }
-            return utf::REPLACEMENT_CHARACTER_UTF8_VIEW;
+            return utf::replacement;
         }
         // cell: Convert non-printable chars to escaped.
         template<class C>
@@ -1220,13 +1225,14 @@ namespace netxs
         auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
         auto& link(cell const& c) { id = c.id;          return *this; } // cell: Set link object ID.
         auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
+        auto& txt (view c, si32 w){ gc.set(c, w);       return *this; } // cell: Set Grapheme cluster.
         auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
         auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
         auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
         auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
         {
-            static cell empty{ whitespace };
+            static auto empty = cell{ whitespace };
             uv = empty.uv;
             st = empty.st;
             gc = empty.gc;
@@ -1278,6 +1284,7 @@ namespace netxs
         auto link() const  { return id;            } // cell: Return link object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
+        auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
             if (gc == c.gc)
@@ -1363,6 +1370,7 @@ namespace netxs
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
+                    if (src.isnul()) return;
                     auto& fgc = src.fgc();
                     if (fgc.chan.a == 0x00) dst.fgc(invert(dst.bgc())).fusefull(src);
                     else                    dst.fusefull(src);
@@ -1387,6 +1395,11 @@ namespace netxs
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst = src; }
+            };
+            struct nonzero_t : public brush_t<nonzero_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { if (!src.isnul()) dst = src; }
             };
             struct fuse_t : public brush_t<fuse_t>
             {
@@ -1501,6 +1514,7 @@ namespace netxs
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
+            static constexpr auto  nonzero =  nonzero_t{};
             static constexpr auto     text =     text_t{};
             static constexpr auto     meta =     meta_t{};
             static constexpr auto   xlight =   xlight_t{};
@@ -1790,10 +1804,10 @@ namespace netxs
             {
                 auto dt = std::sqrt(x * x + z);
                 auto& chan = c.bgc().chan;
-                chan.r = (uint8_t)((float)c1.chan.r + dr * dt);
-                chan.g = (uint8_t)((float)c1.chan.g + dg * dt);
-                chan.b = (uint8_t)((float)c1.chan.b + db * dt);
-                chan.a = (uint8_t)((float)c1.chan.a + da * dt);
+                chan.r = (byte)((float)c1.chan.r + dr * dt);
+                chan.g = (byte)((float)c1.chan.g + dg * dt);
+                chan.b = (byte)((float)c1.chan.b + db * dt);
+                chan.a = (byte)((float)c1.chan.a + da * dt);
                 ++x;
             };
             auto eolfx = [&]

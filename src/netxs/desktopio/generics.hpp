@@ -16,10 +16,6 @@
 #include <thread>
 #include <functional>
 
-#ifndef faux
-    #define faux (false)
-#endif
-
 namespace netxs::generics
 {
     // generics: .
@@ -41,9 +37,11 @@ namespace netxs::generics
         static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 1) };
 
     public:
+        static constexpr auto skip = unsigned{ 0x3fff'ffff };
         static inline bool issub(Item const& value) { return (value & subbit) != (value & sigbit) >> 1; }
         static inline auto desub(Item const& value) { return static_cast<Item>((value & ~subbit) | (value & sigbit) >> 1); }
         static inline auto insub(Item const& value) { return static_cast<Item>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
+        static inline auto isdef(Item const& value) { return (value & fifo::skip) == fifo::skip; }
 
         static auto& fake() { static fifo empty; return empty; }
 
@@ -92,9 +90,18 @@ namespace netxs::generics
                 item++;
             }
         }
-        constexpr size_t   length ()    const             { return size;                }
-        constexpr operator bool   ()    const             { return size;                }
-        constexpr Item     front  (Item const& dflt = {}) { return size ? *item : dflt; }
+        constexpr operator bool () const { return size; }
+        constexpr auto length() const { return size; }
+        constexpr Item front(Item const& dflt = {})
+        {
+            if (size)
+            {
+                auto value = *item;
+                return isdef(value) ? issub(value) ? insub(dflt) : dflt
+                                    : value;
+            }
+            else return dflt;
+        }
         constexpr
         Item operator () (Item const& dflt = {})
         {
@@ -102,7 +109,8 @@ namespace netxs::generics
             {
                 size--;
                 auto result = *item++;
-                return issub(result) ? desub(result)
+                return isdef(result) ? dflt :
+                       issub(result) ? desub(result)
                                      : result;
             }
             else return dflt;
@@ -133,7 +141,7 @@ namespace netxs::generics
                 {
                     size--;
                     item++;
-                    return desub(result);
+                    return isdef(result) ? dflt : desub(result);
                 }
                 else return dflt;
             }
@@ -260,8 +268,8 @@ namespace netxs::generics
             auto guard = std::unique_lock{ mutex };
             while (alive)
             {
-                if (queue.empty()) synch.wait(guard);
-                while (alive && queue.size())
+                if (queue.empty() /* Not empty at startup */) synch.wait(guard);
+                while (queue.size())
                 {
                     auto& [token, proc] = queue.front();
                     guard.unlock();
@@ -278,30 +286,40 @@ namespace netxs::generics
         { }
        ~jobs()
         {
-            mutex.lock();
-            alive = faux;
-            synch.notify_one();
-            mutex.unlock();
-            agent.join();
+            stop();
         }
         template<class TT, class P>
         void add(TT&& token, P&& proc)
         {
             auto guard = std::lock_guard{ mutex };
-            if constexpr (std::is_copy_constructible_v<P>)
+            if (alive)
             {
-                queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
-            }
-            else
-            {
-                //todo issue with MSVC: Generalized lambda capture does't work.
-                auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
-                queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
+                if constexpr (std::is_copy_constructible_v<P>)
                 {
-                    return (*proxy)(decltype(args)(args)...);
-                });
+                    queue.emplace_back(std::forward<TT>(token), std::forward<P>(proc));
+                }
+                else
+                {
+                    //todo issue with MSVC: Generalized lambda capture does't work.
+                    auto proxy = std::make_shared<std::decay_t<P>>(std::forward<P>(proc));
+                    queue.emplace_back(std::forward<TT>(token), [proxy](auto&&... args)->decltype(auto)
+                    {
+                        return (*proxy)(decltype(args)(args)...);
+                    });
+                }
             }
             synch.notify_one();
+        }
+        void stop()
+        {
+            auto guard = std::unique_lock{ mutex };
+            if (alive)
+            {
+                alive = faux;
+                synch.notify_one();
+                guard.unlock();
+                agent.join();
+            }
         }
     };
 
@@ -905,10 +923,10 @@ namespace netxs
         }
     }
     template<class Map, class Key, class FBKey>
-    auto& map_or(Map& map, Key const& key, FBKey const& fallback)
+    auto& map_or(Map& map, Key const& key, FBKey const& fallback) // Note: The map must contain a fallback.
     {
         auto const it = map.find(key);
-        return it == map.end() ? map[fallback]
+        return it == map.end() ? map.at(fallback)
                                : it->second;
     }
 }

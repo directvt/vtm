@@ -462,7 +462,7 @@ namespace netxs::directvt
             void send(T&& sender, Args&&... args)
             {
                 auto lock = freeze();
-                if constexpr (!!sizeof...(args))
+                if constexpr (sizeof...(args))
                 {
                     thing.set(std::forward<Args>(args)...);
                 }
@@ -571,121 +571,125 @@ namespace netxs::directvt
         };
         static constexpr auto _counter_base = __COUNTER__;
         // Definition of plain objects.
-        #define MACROGEN_DEF
+        #define DEFINE_macro
         #include "macrogen.hpp"
-        #define STRUCT(struct_name, struct_members)                               \
-            struct CAT(struct_name, _t) : public stream                           \
-            {                                                                     \
-                static constexpr auto kind = type{ __COUNTER__ - _counter_base }; \
-                SEQ_ATTR(WRAP(struct_members))                                    \
-                CAT(struct_name, _t)()                                            \
-                    : stream{ kind }                                              \
-                { }                                                               \
-                void set(SEQ_SIGN(WRAP(struct_members)) int _tmp = {})            \
-                {                                                                 \
-                    SEQ_INIT(WRAP(struct_members))                                \
-                    stream::reset();                                              \
-                    stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
-                }                                                                 \
-                template<class T>                                                 \
-                void set(T&& source)                                              \
-                {                                                                 \
-                    SEQ_TEMP(WRAP(struct_members))                                \
-                    stream::reset();                                              \
-                    stream::add(SEQ_NAME(WRAP(struct_members)) noop{});           \
-                }                                                                 \
-                void get(view& _data)                                             \
-                {                                                                 \
-                    int _tmp;                                                     \
-                    std::tie(SEQ_NAME(WRAP(struct_members)) _tmp) =               \
-                        stream::take<SEQ_TYPE(WRAP(struct_members)) noop>(_data); \
-                }                                                                 \
-                template<class P>                                                 \
-                auto load(P recv)                                                 \
-                {                                                                 \
-                    return stream::read_block(*this, recv);                       \
-                }                                                                 \
-                void wipe()                                                       \
-                {                                                                 \
-                    SEQ_WIPE(WRAP(struct_members))                                \
-                    stream::reset();                                              \
-                }                                                                 \
-                friend std::ostream& operator << (std::ostream& s,                \
-                                                    CAT(struct_name, _t) const& o)\
-                {                                                                 \
-                    s << #struct_name " {";                                       \
-                    SEQ_LOGS(WRAP(struct_members))                                \
-                    s << " }";                                                    \
-                    return s;                                                     \
-                }                                                                 \
-            };                                                                    \
-            using struct_name = wrapper<CAT(struct_name, _t)>;
+        #define STRUCT_macro(struct_name, struct_members)                                   \
+            struct CAT_macro(struct_name, _t) : public stream                               \
+            {                                                                               \
+                static constexpr auto kind = type{ __COUNTER__ - _counter_base };           \
+                SEQ_ATTR_macro(WRAP_macro(struct_members))                                  \
+                CAT_macro(struct_name, _t)()                                                \
+                    : stream{ kind }                                                        \
+                { }                                                                         \
+                void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int _tmp = {})          \
+                {                                                                           \
+                    SEQ_INIT_macro(WRAP_macro(struct_members))                              \
+                    stream::reset();                                                        \
+                    stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
+                }                                                                           \
+                template<class T>                                                           \
+                void set(T&& source)                                                        \
+                {                                                                           \
+                    SEQ_TEMP_macro(WRAP_macro(struct_members))                              \
+                    stream::reset();                                                        \
+                    stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
+                }                                                                           \
+                void get(view& _data)                                                       \
+                {                                                                           \
+                    int _tmp;                                                               \
+                    std::tie(SEQ_NAME_macro(WRAP_macro(struct_members)) _tmp) =             \
+                      stream::take<SEQ_TYPE_macro(WRAP_macro(struct_members)) noop>(_data); \
+                }                                                                           \
+                template<class P>                                                           \
+                auto load(P recv)                                                           \
+                {                                                                           \
+                    return stream::read_block(*this, recv);                                 \
+                }                                                                           \
+                void wipe()                                                                 \
+                {                                                                           \
+                    SEQ_WIPE_macro(WRAP_macro(struct_members))                              \
+                    stream::reset();                                                        \
+                }                                                                           \
+                friend std::ostream& operator << (std::ostream& s,                          \
+                                             CAT_macro(struct_name, _t) const& o)           \
+                {                                                                           \
+                    s << #struct_name " {";                                                 \
+                    SEQ_LOGS_macro(WRAP_macro(struct_members))                              \
+                    s << " }";                                                              \
+                    return s;                                                               \
+                }                                                                           \
+            };                                                                              \
+            using struct_name = wrapper<CAT_macro(struct_name, _t)>;
         //todo use C++20 __VA_OPT__ (MSVC not ready yet)
-        #define STRUCT_LITE(struct_name)                                          \
-            struct CAT(struct_name, _t) : public stream                           \
+        #define STRUCT_macro_lite(struct_name)                                    \
+            struct CAT_macro(struct_name, _t) : public stream                     \
             {                                                                     \
                 static constexpr auto kind = type{ __COUNTER__ - _counter_base }; \
-                CAT(struct_name, _t)()                                            \
+                CAT_macro(struct_name, _t)()                                      \
                     : stream{ kind }                                              \
                 { }                                                               \
                 void set() {}                                                     \
                 void get(view& data) {}                                           \
                                                                                   \
                 friend std::ostream& operator << (std::ostream& s,                \
-                                                    CAT(struct_name, _t) const& o)\
+                                             CAT_macro(struct_name, _t) const& o) \
                 {                                                                 \
                     return s << #struct_name " { }";                              \
                 }                                                                 \
             };                                                                    \
-            using struct_name = wrapper<CAT(struct_name, _t)>;
+            using struct_name = wrapper<CAT_macro(struct_name, _t)>;
         //todo unify
         static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
         static auto& operator << (std::ostream& s, time const& o) { return s << "0x" << utf::to_hex(o.time_since_epoch().count()); }
         // Output stream.
-        STRUCT(frame_element,     (frag, data))
-        STRUCT(jgc_element,       (ui64, token) (text, cluster))
-        STRUCT(tooltip_element,   (id_t, gear_id) (text, tip_text))
-        STRUCT(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
-        STRUCT(request_clipboard, (id_t, gear_id))
-        STRUCT(set_focus,         (id_t, gear_id) (bool, combine_focus) (bool, force_group_focus))
-        STRUCT(off_focus,         (id_t, gear_id))
-        STRUCT(maximize,          (id_t, gear_id))
-        STRUCT(form_header,       (id_t, window_id) (text, new_header))
-        STRUCT(form_footer,       (id_t, window_id) (text, new_footer))
-        STRUCT(warping,           (id_t, window_id) (dent, warpdata))
-        STRUCT(vt_command,        (text, command))
-        STRUCT(logs,              (ui32, id) (time, guid) (text, data))
-        STRUCT_LITE(expose)
+        STRUCT_macro(frame_element,     (frag, data))
+        STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
+        STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
+        STRUCT_macro(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
+        STRUCT_macro(request_clipboard, (id_t, gear_id))
+        //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        STRUCT_macro(focus_cut,         (id_t, gear_id))
+        STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
+        STRUCT_macro(fullscreen,        (id_t, gear_id))
+        STRUCT_macro(form_header,       (id_t, window_id) (text, new_header))
+        STRUCT_macro(form_footer,       (id_t, window_id) (text, new_footer))
+        STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
+        STRUCT_macro(vt_command,        (text, command))
+        STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
+        STRUCT_macro(minimize,          (id_t, gear_id))
+        STRUCT_macro_lite(expose)
         // Input stream.
-        STRUCT(sysfocus,          (id_t, gear_id) (bool, enabled) (bool, combine_focus) (bool, force_group_focus))
-        STRUCT(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar))
-        STRUCT(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
-                                  (ui32, enabled)  // sysmouse: Mouse device health status.
-                                  (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
-                                  (ui32, winctrl)  // sysmouse: Windows specific keybd modifier state.
-                                  (ui32, buttons)  // sysmouse: Buttons bit state.
-                                  (bool, doubled)  // sysmouse: Double click.
-                                  (bool, wheeled)  // sysmouse: Vertical scroll wheel.
-                                  (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
-                                  (si32, wheeldt)  // sysmouse: Scroll delta.
-                                  (twod, coordxy)  // sysmouse: Cursor coordinates.
-                                  (ui32, changed)) // sysmouse: Update stamp.
-        STRUCT(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
-        STRUCT(winsz,             (id_t, gear_id) (twod, winsize))
-        STRUCT(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
-        STRUCT(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
-        STRUCT(plain,             (id_t, gear_id) (text, utf8txt))
-        STRUCT(ctrls,             (id_t, gear_id) (ui32, ctlstat))
-        STRUCT(unknown_gc,        (ui64, token))
-        STRUCT(fps,               (si32, frame_rate))
-        STRUCT(bgc,               (rgba, color))
-        STRUCT(fgc,               (rgba, color))
-        STRUCT(slimmenu,          (bool, menusize))
-        STRUCT(init,              (text, user) (si32, mode) (text, config))
-        #undef STRUCT
-        #undef STRUCT_LITE
-        #define MACROGEN_UNDEF
+        STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
+        STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
+        STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
+                                        (ui32, enabled)  // sysmouse: Mouse device health status.
+                                        (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
+                                        (ui32, winctrl)  // sysmouse: Windows specific keybd modifier state.
+                                        (ui32, buttons)  // sysmouse: Buttons bit state.
+                                        (bool, doubled)  // sysmouse: Double click.
+                                        (bool, wheeled)  // sysmouse: Vertical scroll wheel.
+                                        (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
+                                        (si32, wheeldt)  // sysmouse: Scroll delta.
+                                        (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                        (ui32, changed)) // sysmouse: Update stamp.
+        STRUCT_macro(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
+        STRUCT_macro(winsz,             (id_t, gear_id) (twod, winsize))
+        STRUCT_macro(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
+        STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
+        STRUCT_macro(plain,             (id_t, gear_id) (text, utf8txt))
+        STRUCT_macro(ctrls,             (id_t, gear_id) (ui32, ctlstat))
+        STRUCT_macro(unknown_gc,        (ui64, token))
+        STRUCT_macro(fps,               (si32, frame_rate))
+        STRUCT_macro(bgc,               (rgba, color))
+        STRUCT_macro(fgc,               (rgba, color))
+        STRUCT_macro(slimmenu,          (bool, menusize))
+        STRUCT_macro(init,              (text, user) (si32, mode) (text, config))
+        #undef STRUCT_macro
+        #undef STRUCT_macro_lite
+        #define UNDEFINE_macro
         #include "macrogen.hpp"
         // Definition of complex objects.
         class bitmap_t
@@ -714,7 +718,7 @@ namespace netxs::directvt
                 style = 1 << 3,
                 glyph = 1 << 4,
             };
-            void set(id_t winid, twod const& coord, core& cache, bool& abort, sz_t& delta)
+            void set(id_t winid, twod const& coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
@@ -914,20 +918,22 @@ namespace netxs::directvt
         using request_gc = wrapper<request_gc_t>;
         struct s11n
         {
-            #define OBJECT_LIST \
+            #define object_list \
             /* Output stream                                                      */\
             X(bitmap           ) /* Canvas data.                                  */\
             X(mouse_event      ) /* Mouse events.                                 */\
+            X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(set_clipboard    ) /* Set main clipboard using following data.      */\
             X(request_clipboard) /* Request main clipboard data.                  */\
-            X(off_focus        ) /* Request to remove focus.                      */\
-            X(set_focus        ) /* Request to set focus.                         */\
-            X(maximize         ) /* Request to maximize/restore                   */\
+            X(focus_cut        ) /* Request to focus cut.                         */\
+            X(focus_set        ) /* Request to focus set.                         */\
+            X(fullscreen       ) /* Request to fullscreen                         */\
             X(form_header      ) /* Set window title.                             */\
             X(form_footer      ) /* Set window footer.                            */\
             X(warping          ) /* Warp resize.                                  */\
+            X(minimize         ) /* Minimize window.                              */\
             X(expose           ) /* Bring the form to the front.                  */\
             X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
             X(frames           ) /* Received frames.                              */\
@@ -938,6 +944,7 @@ namespace netxs::directvt
             X(sysfocus         ) /* System focus state.                           */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
+            X(focusbus         ) /* Focus bus events.                             */\
             X(mouse_show       ) /* Show mouse cursor.                            */\
             X(winsz            ) /* Window resize.                                */\
             X(clipdata         ) /* Clipboard raw data.                           */\
@@ -951,14 +958,16 @@ namespace netxs::directvt
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
+            //X(focus            ) /* Request to set focus.                         */\
+
             struct xs
             {
                 #define X(_object) using _object = binary::_object::access;
-                OBJECT_LIST
+                object_list
                 #undef X
             };
             #define X(_object) binary::_object _object;
-            OBJECT_LIST
+            object_list
             #undef X
             std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
             void sync(view& data)
@@ -981,12 +990,12 @@ namespace netxs::directvt
                 #define X(_object) \
                     if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
                         exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); };
-                OBJECT_LIST
+                object_list
                 #undef X
                 auto lock = bitmap.freeze();
                 lock.thing.image.link(boss_id);
             }
-            #undef OBJECT_LIST
+            #undef object_list
         };
     }
     namespace ascii
@@ -1032,7 +1041,7 @@ namespace netxs::directvt
                 return length();
             }
             // ascii::bitmap: .
-            void set(id_t winid, twod const& winxy, core& cache, bool& abort, sz_t& delta)
+            void set(id_t winid, twod const& winxy, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
                 auto saved = state;

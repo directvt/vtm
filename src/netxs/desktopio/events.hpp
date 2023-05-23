@@ -21,6 +21,7 @@ namespace netxs::events
         forward, // Execute concrete event  first. Forward means from particular to general: 1. event_group::item, 2. event_group::any
         reverse, // Execute global   events first. Reverse means from general to particular: 1. event_group::any , 2. event_group::item
     };
+
     enum class tier
     {
         release, // events: Run forwrad handlers with fixed param. Preserve subscription order.
@@ -30,8 +31,19 @@ namespace netxs::events
         anycast, // events: Run reverse handlers along the entire visual tree. Preserve subscription order.
     };
 
-    template<class V> struct _globals { static std::recursive_mutex              mutex; };
-    template<class V>                          std::recursive_mutex _globals<V>::mutex;
+    struct globals
+    {
+        static auto& mutex()
+        {
+            static auto m = std::recursive_mutex{};
+            return m;
+        }
+        static auto& queue()
+        {
+            static auto q = std::vector<void*>{};
+            return q;
+        }
+    };
 
     struct sync
     {
@@ -40,12 +52,12 @@ namespace netxs::events
         sync             (sync const&) = delete; // deleted copy constructor.
         sync& operator = (sync const&) = delete; // deleted copy assignment operator.
 
-        sync() : lock(_globals<void>::mutex) { }
+        sync() : lock(globals::mutex()) { }
        ~sync() { }
     };
     static auto unique_lock()
     {
-        return std::unique_lock{ _globals<void>::mutex };
+        return std::unique_lock{ globals::mutex() };
     }
     struct try_sync
     {
@@ -56,7 +68,7 @@ namespace netxs::events
         try_sync             (try_sync const&) = delete; // deleted copy constructor.
         try_sync& operator = (try_sync const&) = delete; // deleted copy assignment operator.
 
-        try_sync() : lock(_globals<void>::mutex, std::try_to_lock) { }
+        try_sync() : lock(globals::mutex(), std::try_to_lock) { }
        ~try_sync() { }
     };
 
@@ -106,6 +118,20 @@ namespace netxs::events
     {
         return (event & level_mask(branch, block)) == branch;
     }
+    // events: Return event index inside the group.
+    static constexpr inline auto subindex(hint event)
+    {
+        auto offset = level(event) * block;
+        auto number = (event >> (offset - block)) - 1;
+        return number;
+    }
+    // events: Return event id by group + index.
+    static constexpr inline auto makeid(hint group, hint index)
+    {
+        auto offset = level(group) * block;
+        auto entity = group | ((index + 1) <<  offset);
+        return entity;
+    }
     template<hint Event>             constexpr auto offset = level(Event) * block;                                  // events: Item/msg bit shift.
     template<hint Event>             constexpr auto parent =          Event & ((1 << (offset<Event> - block)) - 1); // events: Event group ID.
     template<hint Event>             constexpr auto number =               (Event >> (offset<Event> - block)) - 1;  // events: Item index inside the group by its ID.
@@ -144,7 +170,8 @@ namespace netxs::events
                 : proc{ proc }
             { }
         };
-        enum branch
+
+        enum class branch
         {
             fullstop,
             nothandled,
@@ -271,7 +298,7 @@ namespace netxs::events
         static wptr<T>                 empty;
         static std::map<id_t, wptr<T>> store;
 
-        // indexer: Return shared_ptr of the object by its id.
+        // indexer: Return sptr of the object by its id.
         template<class TT = T>
         static auto getref(id_t id)
         {
@@ -283,7 +310,7 @@ namespace netxs::events
             }
             return sptr<TT>{};
         }
-        // indexer: Create a new object of the specified subtype and return its shared_ptr.
+        // indexer: Create a new object of the specified subtype and return its sptr.
         template<class TT, class ...Args>
         static auto create(Args&&... args) -> sptr<TT>
         {
@@ -358,21 +385,37 @@ namespace netxs::events
                                 static constexpr auto index()               { return events::number<id>;                  }
     };
 
-    #define ARGsEVAL(...) __VA_ARGS__
-    #define ARG_EVAL(...) ARGsEVAL(__VA_ARGS__)
-    #define GET_LAST(a, b, c, d, e, last, ...) last
+    #define ARGsEVAL_XS(...) __VA_ARGS__
+    #define ARG_EVAL_XS(...) ARGsEVAL_XS(__VA_ARGS__)
+    #define GET_END1_XS(a, b, c, d, e, last, ...) last
+    #define GET_END2_XS(a, b, c, d,    last, ...) last
 
-    #define RISEUP(        level, event,   ...              ) base::template riseup<level>(event, __VA_ARGS__)
-    #define SIGNAL(        level, event, param              ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
-    #define LISTEN_S_BYREF(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
-    #define LISTEN_T_BYREF(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
-    #define LISTEN_T_BYVAL(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL byval ] (typename decltype( event )::type&& param) mutable
-    #define LISTEN_X_BYREF(...) ARG_EVAL(GET_LAST(__VA_ARGS__, LISTEN_T_BYVAL, LISTEN_T_BYREF, LISTEN_S_BYREF))
-
+    #define LISTEN_S(level, event, param              ) bell::template submit<level>( event )           = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_T(level, event, param, token       ) bell::template submit<level>( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
+    #define LISTEN_V(level, event, param, token, byval) bell::template submit<level>( event, token -0 ) = [&, ARG_EVAL_XS byval ] (typename decltype( event )::type&& param) mutable
+    #define LISTEN_X(...) ARG_EVAL_XS(GET_END1_XS(__VA_ARGS__, LISTEN_V, LISTEN_T, LISTEN_S))
     #if defined(_WIN32)
-        #define LISTEN(...) ARG_EVAL(LISTEN_X_BYREF(__VA_ARGS__))ARG_EVAL((__VA_ARGS__))
+        #define LISTEN(...) ARG_EVAL_XS(LISTEN_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
     #else
-        #define LISTEN(...) LISTEN_X_BYREF(__VA_ARGS__)(__VA_ARGS__)
+        #define LISTEN(...) LISTEN_X(__VA_ARGS__)(__VA_ARGS__)
+    #endif
+
+    #define SIGNAL_S(level, event, var       ) bell::template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var))
+    #define SIGNAL_N(level, event, var, inits) bell::_saveme(); auto var = event.param ARG_EVAL_XS(inits); bell::_revive()->template signal<level>(decltype( event )::id, static_cast<typename decltype( event )::type &&>(var)); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define SIGNAL_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, SIGNAL_N, SIGNAL_S))
+    #if defined(_WIN32)
+        #define SIGNAL(...) ARG_EVAL_XS(SIGNAL_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
+    #else
+        #define SIGNAL(...) SIGNAL_X(__VA_ARGS__)(__VA_ARGS__)
+    #endif
+
+    #define RISEUP_S(level, event, var       ) base::template riseup<level>(event, var)
+    #define RISEUP_N(level, event, var, inits) base::_saveme(); auto var = event.param ARG_EVAL_XS(inits); static_cast<base*>(bell::_revive())->template riseup<level>(event, var); bell::_unlock() // Multi-statement macro. Use with caution.
+    #define RISEUP_X(...) ARG_EVAL_XS(GET_END2_XS(__VA_ARGS__, RISEUP_N, RISEUP_S))
+    #if defined(_WIN32)
+        #define RISEUP(...) ARG_EVAL_XS(RISEUP_X(__VA_ARGS__))ARG_EVAL_XS((__VA_ARGS__))
+    #else
+        #define RISEUP(...) RISEUP_X(__VA_ARGS__)(__VA_ARGS__)
     #endif
 
     //todo deprecated?
@@ -429,9 +472,13 @@ namespace netxs::events
         using fwd_reactor = reactor<execution_order::forward>;
         using rev_reactor = reactor<execution_order::reverse>;
 
-        template<class V> struct _globals { static fwd_reactor general; };
+        static fwd_reactor& _general()
+        {
+            static auto g = fwd_reactor{};
+            return g;
+        }
 
-        fwd_reactor& general{ _globals<void>::general };
+        fwd_reactor& general{ _general() };
         fwd_reactor  release;
         fwd_reactor  request;
         rev_reactor  preview;
@@ -513,7 +560,7 @@ namespace netxs::events
             template<class F>
             void operator = (F h)
             {
-                token = _globals<void>::general.subscribe(Event::id, std::function<void(typename Event::type &&)>{ h });
+                token = _general().subscribe(Event::id, std::function<void(typename Event::type &&)>{ h });
             }
         };
 
@@ -554,11 +601,11 @@ namespace netxs::events
             else            /* Tier == tier::anycast */
             {
                 auto root = gettop();
-                ftor proc = [&](auto boss_ptr) -> bool
+                auto proc = ftor{ [&](auto boss_ptr)
                 {
                     boss_ptr->anycast.notify(event, std::forward<F>(data));
                     return true;
-                };
+                }};
                 return root->release.notify(userland::root::cascade.id, proc);
             }
         }
@@ -597,7 +644,7 @@ namespace netxs::events
         }
         // bell: Sync with UI thread.
         template<class P>
-        void trysync(bool& active, P proc)
+        void trysync(flag& active, P proc)
         {
             while (active)
             {
@@ -608,6 +655,22 @@ namespace netxs::events
                 }
                 std::this_thread::yield();
             }            
+        }
+        void _saveme()
+        {
+            globals::mutex().lock();
+            globals::queue().push_back(this);
+        }
+        static auto _revive()
+        {
+            auto& queue = globals::queue();
+            auto ptr = queue.back();
+                       queue.pop_back();
+            return static_cast<bell*>(ptr);
+        }
+        static void _unlock()
+        {
+            globals::mutex().unlock();
         }
 
         bell()
@@ -650,8 +713,11 @@ namespace netxs::events
             }
         });
     }
-
-    template<class T> bell::fwd_reactor bell::_globals<T>::general;
+    void dequeue()
+    {
+        auto& agent = _agent<void>();
+        agent.stop();
+    }
 }
 namespace netxs
 {
