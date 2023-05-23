@@ -1,6 +1,6 @@
 # vtm
 
-Text-based multi-user desktop environment inside your terminal.
+Live shared desktop inside text console.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
