@@ -7139,13 +7139,13 @@ namespace netxs::ui
                     {
                         auto d = std::stringstream{};
                         auto v = view{ data };
-                        d << ansi::hi(utf::debase<faux, faux>(v)) << "\n\t";
+                        d << ansi::hi(utf::debase<faux, faux>(v)) << " : ";
                         while (v.size())
                         {
-                            d << (byte)v.front() << " ";
+                            d << (si32)(byte)v.front() << " ";
                             v.remove_prefix(1);
                         }
-                        log("stdin:\n\t", d.str());
+                        log("stdin: ", d.str());
                     }
 
                 #endif
