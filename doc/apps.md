@@ -8,35 +8,35 @@
 ## Features
 
 - UTF-8 Everywhere
-- Unicode clustering
-- TrueColor/256-color
+- TrueColor aware
 - Horizontal scrolling
-- Unlimited* scrollback buffer (20000 wrapped lines by default, * `< max_int32`)
+- Infinite* scrollback (20000 wrapped lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
-- Linear/rectangular scrollback buffer selection (See #149 for details)
+- Line-based/rect-block text selection (See #149 for details)
 - Widely used clipboard formats support
   - Plain text
   - RTF
   - HTML
   - ANSI/VT
   - Protected (Windows only: `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`)
-- Builtin Windows Console API server
-  - No conhost.exe/OpenConsole.exe dependencies
-  - Fullduplex pass-through VT I/O piping
-  - UTF-8 and UTF-16 support, even in cmd.exe
-  - OEM/National code pages support
-  - Writtable via win32 Console API console buffer (limited by viewport)
+- [VT-100 terminal emulation](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) compatible (pass vttest 1 and 2 sections)
+- Built-in Windows Console API server
+  - Legacy Win32 Console API support
+  - No Windows Console Host (conhost.exe) dependency
+  - Fullduplex pass-through VT input/output
+  - OEM/National, UTF-8 and UTF-16 encoding, even in cmd.exe
   - Enforced ENABLE_WINDOW_INPUT mode  
     Note: In fact it is a viewport resize event reporting. Viewport dimensions is always equal to the win32 console buffer dimensions.
   - Enforced ENABLE_PROCESSED_OUTPUT and ENABLE_VIRTUAL_TERMINAL_PROCESSING modes
   - Disabled ENABLE_QUICK_EDIT_MODE mode
-  - cmd.exe input history (aka "line input"/"cooked read") per process instance, not process name
+  - Per process instance (not per process name) cmd.exe input history, aka "line input"/"cooked read"
   - Disabled DOSKEY functionality (cmd.exe's F7 input history popups too)  
     Note: Sharing the input history as well as a bunch of command aliases among processes (which could have different elevation levels) is a huge security threat. So DOSKEY functionality is absolutely incompatible with any sort of sudo-like commands/applications.
-- [VT-100 terminal emulation](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) almost compatible (pass vttest 1 and 2 sections)
 - Outside terminal viewport mouse tracking (See #62 for details)
 - Configurable at startup via `settings.xml`
 - Configurable in runtime using VT-sequences
+
+## VT Runtime configuraion sequences
 
 Name         | Sequence                         | Description
 -------------|----------------------------------|-------------
