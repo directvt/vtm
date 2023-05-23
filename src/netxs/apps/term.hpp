@@ -24,6 +24,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( align    , si32 ),
                 EVENT_XS( wrapln   , si32 ),
+                EVENT_XS( io_log   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , rgba ),
 
@@ -42,6 +43,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( align    , si32 ),
                 EVENT_XS( wrapln   , si32 ),
+                EVENT_XS( io_log   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , rgba ),
 
@@ -215,6 +217,7 @@ namespace netxs::app::term
             X(TerminalViewportTop       ) /* */ \
             X(TerminalViewportEnd       ) /* */ \
             X(TerminalViewportCopy      ) /* */ \
+            X(TerminalStdioLog          ) /* */ \
             X(TerminalLogStart          ) /* */ \
             X(TerminalLogPause          ) /* */ \
             X(TerminalLogStop           ) /* */ \
@@ -475,6 +478,18 @@ namespace netxs::app::term
                 {
                     boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = -std::abs(item.views[item.taken].value) }));
                 });
+            }
+            static void TerminalStdioLog(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
+                _submit(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, preview::io_log, item.views[item.taken].value);
+                });
+                boss.LISTEN(tier::anycast, release::io_log, state)
+                {
+                    _update_to(boss, item, state);
+                };
             }
             static void TerminalLogStart(ui::pads& boss, menu::item& item)
             {
@@ -751,6 +766,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::colors::fg,      app::term::events::release::colors::fg)
                 ->attach_property(ui::term::events::selmod,          app::term::events::release::selection::mode)
                 ->attach_property(ui::term::events::selalt,          app::term::events::release::selection::box)
+                ->attach_property(ui::term::events::io_log,          app::term::events::release::io_log)
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
@@ -803,6 +819,10 @@ namespace netxs::app::term
                     boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
                     {
                         boss.set_wrapln(wrapln);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::io_log, state)
+                    {
+                        boss.set_log(state);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
                     {

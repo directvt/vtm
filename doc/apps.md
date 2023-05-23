@@ -120,6 +120,7 @@ TerminalViewportColumnLeft   | Scroll N cells to the left.
 TerminalViewportColumnRight  | Scroll N cells to the right.
 TerminalViewportTop          | Scroll to the scrollback top.
 TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
+TerminalStdioLog             | Stdin/stdout log toggle.
 *TerminalLogStart            | Start logging to file.
 *TerminalLogPause            | Pause logging.
 *TerminalLogStop             | Stop logging.

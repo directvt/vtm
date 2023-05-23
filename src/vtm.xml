@@ -268,6 +268,9 @@ R"==(
                 </notes>
             </item>
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+            <item label="Log" notes=" Toggle stdin/stdout log \n Run Logs to see output  " type=Option action=TerminalStdioLog data="off">
+                <label="\e[38:2:0:255:0mLog\e[m" data="on"/>
+            </item>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
             <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
