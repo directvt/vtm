@@ -726,7 +726,7 @@ namespace netxs::input
         ui32        tooltip_digest = 0; // hids: Tooltip digest.
         time        tooltip_time = {}; // hids: The moment to show tooltip.
         bool        tooltip_show = faux; // hids: Show tooltip or not.
-        bool        tooltip_stop = faux; // hids: Disable tooltip.
+        bool        tooltip_stop = true; // hids: Disable tooltip.
         testy<twod> tooltip_coor = {}; // hids: .
 
         base& owner;
@@ -857,27 +857,37 @@ namespace netxs::input
             return data;
         }
 
-        auto tooltip_enabled()
+        auto tooltip_enabled(time const& now)
         {
             return !mouse::m.buttons
                 && !disabled
                 && !tooltip_stop
                 && tooltip_show
                 && tooltip_data.size()
+                && tooltip_time < now
                 && !captured();
         }
-        void set_tooltip(id_t src_id, view data)
+        void set_tooltip(view data, bool update = faux)
         {
-            if (src_id == 0 || tooltip_data.empty())
+            if (!update || data != tooltip_data)
             {
                 tooltip_data = data;
+                if (update)
+                {
+                    if (tooltip_digest == digest) // To show tooltip even after clicks.
+                    {
+                        ++tooltip_digest;
+                    }
+                    if (!tooltip_stop) tooltip_stop = data.empty();
+                }
+                else
+                {
+                    tooltip_show = faux;
+                    tooltip_stop = data.empty();
+                    tooltip_time = datetime::now() + tooltip_timeout;
+                }
                 digest++;
             }
-        }
-        void set_tooltip(view data, ui32 set_digest)
-        {
-            tooltip_data = data;
-            digest = set_digest;
         }
         auto is_tooltip_changed()
         {
@@ -885,43 +895,41 @@ namespace netxs::input
         }
         auto get_tooltip()
         {
-            return qiew{ tooltip_data };
+            return std::pair{ qiew{ tooltip_data }, tooltip_digest == digest };
         }
         void tooltip_recalc(hint deed)
         {
-            if (tooltip_digest != digest) // Welcome new object.
+            if (deed == hids::events::mouse::move.id)
             {
-                tooltip_stop = faux;
-            }
-
-            if (!tooltip_stop)
-            {
-                if (deed == hids::events::mouse::move.id)
+                if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
                 {
-                    if (tooltip_coor(mouse::coord) || (tooltip_show && tooltip_digest != digest)) // Do nothing on shuffle.
+                    if (tooltip_show && tooltip_digest == digest) // Drop tooltip if moved.
                     {
-                        if (tooltip_show && tooltip_digest == digest) // Drop tooltip if moved.
-                        {
-                            tooltip_stop = true;
-                        }
-                        else
-                        {
-                            tooltip_time = datetime::now() + tooltip_timeout;
-                            tooltip_show = faux;
-                        }
+                        tooltip_stop = true;
+                    }
+                    else
+                    {
+                        tooltip_time = datetime::now() + tooltip_timeout;
                     }
                 }
-                else // Drop tooltip on any other event.
+            }
+            else if (deed == hids::events::mouse::scroll::up.id
+                  || deed == hids::events::mouse::scroll::down.id) // Drop tooltip away.
+            {
+                tooltip_stop = true;
+            }
+            else
+            {
+                if (tooltip_show == faux) // Reset timer to begin,
                 {
-                    tooltip_stop = true;
-                    tooltip_digest = digest;
+                    tooltip_time = datetime::now() + tooltip_timeout;
                 }
             }
         }
-        auto tooltip_check(time now)
+        auto tooltip_check(time now) // Called every timer tick.
         {
-            if (!tooltip_stop
-             && !tooltip_show
+            if (tooltip_stop) return faux;
+            if (!tooltip_show
              &&  tooltip_time < now
              && !captured())
             {
@@ -932,10 +940,16 @@ namespace netxs::input
                     return true;
                 }
             }
-            else if (tooltip_show == true && captured())
+            else if (captured())
             {
-                tooltip_show = faux;
-                tooltip_stop = faux;
+                if (!tooltip_show) // If not shown then drop tooltip.
+                {
+                    tooltip_stop = true;
+                }
+                //else if (tooltip_time < now) // Give time to update tooltip text after mouse button release.
+                //{
+                //    tooltip_time = now + 100ms;
+                //}
             }
             return faux;
         }
@@ -995,12 +1009,14 @@ namespace netxs::input
         }
         void take(syskeybd& k)
         {
+            tooltip_stop = true;
             ctlstate = k.ctlstat;
             winctrl  = k.winctrl;
             keybd::update(k);
         }
         void take(sysfocus& f)
         {
+            tooltip_stop = true;
             //if constexpr (debugmode) log("foci: take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
             if (f.state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
@@ -1046,6 +1062,7 @@ namespace netxs::input
                 {
                     digest++;
                     tooltip_data.clear();
+                    tooltip_stop = true;
                 }
 
                 // Firing the leave event right after the enter allows us
@@ -1102,7 +1119,7 @@ namespace netxs::input
             }
             else
             {
-                tooltip_recalc(cause);
+                if (!tooltip_stop) tooltip_recalc(cause);
                 owner.bell::template signal<tier::preview>(cause, *this);
 
                 if (!alive) return;

@@ -6431,7 +6431,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6440,7 +6440,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -7277,7 +7277,7 @@ namespace netxs::ui
                     {
                         if (auto gear_ptr = bell::getref<hids>(tooltip.gear_id))
                         {
-                            gear_ptr->set_tooltip(0, tooltip.tip_text);
+                            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                         }
                     }
                 });

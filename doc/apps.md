@@ -104,7 +104,7 @@ TerminalRestart              | Kill all runnning console apps and restart curren
 TerminalFullscreen           | Toggle fullscreen mode.
 TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-TerminalPaste                | Paste from clipboard.
+TerminalClipboardPaste       | Paste from clipboard.
 TerminalSelectionCopy        | Сopy selection to clipboard.
 TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
 TerminalSelectionClear       | Deselect a selection.
@@ -146,6 +146,22 @@ TerminalStdioLog             | Stdin/stdout log toggle.
       <autohide=true />  <!-- If true, show menu only on hover. -->
       <enabled=1 />
       <slim=1 />
+      <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+          <label="\e[38:2:0:255:0m<\e[m"/>
+          <notes>
+              " Previous match                                \n"
+              " - Clipboard data will be used if no selection \n"
+              " - Scroll one page up if clipboard is empty    "
+          </notes>
+      </item>
+      <item label=">" action=TerminalFindNext>
+          <label="\e[38:2:0:255:0m>\e[m"/>
+          <notes>
+              " Next match                                    \n"
+              " - Clipboard data will be used if no selection \n"
+              " - Scroll one page down if clipboard is empty  "
+          </notes>
+      </item>
       <item label="Wrap" type=Option action=TerminalWrapMode data="off">
           <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
           <notes>
@@ -170,21 +186,8 @@ TerminalStdioLog             | Stdin/stdout log toggle.
           <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
           <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
       </item>
-      <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-          <label="\e[38:2:0:255:0m<\e[m"/>
-          <notes>
-              " Previous match                    \n"
-              " - using clipboard if no selection \n"
-              " - page up if no clipboard data    "
-          </notes>
-      </item>
-      <item label=">" action=TerminalFindNext>
-          <label="\e[38:2:0:255:0m>\e[m"/>
-          <notes>
-              " Next match                        \n"
-              " - using clipboard if no selection \n"
-              " - page up if no clipboard data    "
-          </notes>
+      <item label="Log" notes=" Stdin/out logging is off " type=Option action=TerminalStdioLog data="off">
+          <label="\e[38:2:0:255:0mLog\e[m" notes=" Stdin/out logging is on \n Run Logs to see output  " data="on"/>
       </item>
       <item label="  "    notes=" ...empty menu block/splitter for safety "/>
       <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
@@ -210,7 +213,7 @@ TerminalStdioLog             | Stdin/stdout log toggle.
           <label="Rect" data="true"/>
       </item>
       <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
-      <item label="Paste" type=Repeat action=TerminalPaste/>
+      <item label="Paste" type=Repeat action=TerminalClipboardPaste/>
       <item label="Undo" type=Command action=TerminalUndo/>
       <item label="Redo" type=Command action=TerminalRedo/>
       <item label="Quit" type=Command action=TerminalQuit/>

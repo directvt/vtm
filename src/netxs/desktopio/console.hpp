@@ -2309,7 +2309,7 @@ namespace netxs::ui
                 {
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
                     {
-                         gear.set_tooltip(boss.id, note);
+                        gear.set_tooltip(note);
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
@@ -3131,19 +3131,19 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(face& canvas)
+        void draw_tooltips(face& canvas, time const& stamp)
         {
             auto full = canvas.full();
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                if (gear.tooltip_enabled())
+                if (gear.tooltip_enabled(stamp))
                 {
-                    auto tooltip_data = gear.get_tooltip();
+                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
                     if (tooltip_data)
                     {
-                        //todo optimize
+                        //todo optimize - cache tooltip_page
                         auto tooltip_page = page{ tooltip_data };
                         auto area = full;
                         area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
@@ -3164,7 +3164,8 @@ namespace netxs::ui
                 if (gear.disabled) continue;
                 if (gear.is_tooltip_changed())
                 {
-                    list.thing.push(gear_id, gear.get_tooltip());
+                    auto [tooltip_data, tooltip_update] = gear.get_tooltip();
+                    list.thing.push(gear_id, tooltip_data, tooltip_update);
                 }
             }
             list.thing.sendby<true>(conio);
@@ -3206,7 +3207,7 @@ namespace netxs::ui
                 if (props.tooltip_enabled)
                 {
                     if (direct) send_tooltips(conio);
-                    else        draw_tooltips(canvas);
+                    else        draw_tooltips(canvas, stamp);
                 }
                 if (debug)
                 {
