@@ -105,6 +105,7 @@ TerminalFullscreen           | Toggle fullscreen mode.
 TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
 TerminalClipboardPaste       | Paste from clipboard.
+TerminalClipboardWipe        | Reset clipboard.
 TerminalSelectionCopy        | Сopy selection to clipboard.
 TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
 TerminalSelectionClear       | Deselect a selection.
