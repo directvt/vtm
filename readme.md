@@ -24,12 +24,10 @@ Desktop inside text console.
 ### POSIX-oriented
 
 Build-time dependencies
- - `git`
- - `cmake`
- - C++20 compiler (GCC 11, Clang 13, MSVC 2019)
+ - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
  - Minimal requirements to compile
-   - Using [`GCC`](https://gcc.gnu.org/projects/cxx-status.html) — `4GB` of RAM
-   - Using [`Clang`](https://clang.llvm.org/cxx_status.html) — `9GB` of RAM
+   - Compiling with GCC — 4GB of RAM
+   - Compiling with Clang — 9GB of RAM
 
 ```bash
 git clone https://github.com/netxs-group/vtm.git
@@ -43,9 +41,7 @@ vtm
 ### Windows
 
 Build-time dependencies
- - [`git`](https://git-scm.com/download/win)
- - [`cmake`](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation)
- - [`Visual Studio 2019`](https://visualstudio.microsoft.com/downloads/) or later (Desktop development with C++)
+ - [`git`](https://git-scm.com/download/win), [`cmake`](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/) (Desktop Development with C++)
 
 Use `Developer Command Prompt` as a build environment
 
