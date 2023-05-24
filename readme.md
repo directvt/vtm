@@ -8,11 +8,6 @@ Desktop inside text console.
 
 # Requirements
 
-- Minimal memory requirements to run
-  - Windows --  of RAM
-  - POSIX -- 
-- [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
-
 ### Supported Platforms
 
 - Windows
@@ -24,6 +19,11 @@ Desktop inside text console.
   - NetBSD
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
+- [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
+
+### Memory
+
+- 20 Mb of RAM
 
 # Building from Source
 
