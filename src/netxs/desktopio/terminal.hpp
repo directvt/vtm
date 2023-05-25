@@ -11,6 +11,7 @@ namespace netxs::events::userland
     {
         EVENTPACK( uiterm, ui::e2::extra::slot5 )
         {
+            EVENT_XS( io_log, bool ),
             EVENT_XS( selmod, si32 ),
             EVENT_XS( selalt, si32 ),
             GROUP_XS( colors, rgba ),
@@ -183,7 +184,7 @@ namespace netxs::ui
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
-                def_length = std::max(1, config.take("scrollback/size",      si32{ 20000 }));
+                def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
                 def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
@@ -6116,6 +6117,7 @@ namespace netxs::ui
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
+        bool       io_log; // term: Stdio logging.
         si32       selmod; // term: Selection mode (ansi::clip::mime).
         si32       altscr; // term: Alternate scroll mode.
         vtty       ptycon; // term: PTY device. Should be destroyed first.
@@ -6429,8 +6431,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                //todo Developer Mode
-                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6439,8 +6440,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                //todo Developer Mode
-                if constexpr (debugmode) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6925,6 +6925,11 @@ namespace netxs::ui
             if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
             ondata(""); // Recalc trigger.
         }
+        void set_log(bool state)
+        {
+            io_log = state;
+            SIGNAL(tier::release, ui::term::events::io_log, state);
+        }
         void exec_cmd(commands::ui::commands cmd)
         {
             log("term: tier::preview, ui::commands, ", cmd);
@@ -7034,6 +7039,7 @@ namespace netxs::ui
               onlogs{  faux },
               unsync{  faux },
               invert{  faux },
+              io_log{  faux },
               curdir{ cwd   },
               cmdarg{ cmd   },
               selmod{ config.def_selmod },
@@ -7043,6 +7049,7 @@ namespace netxs::ui
             linux_console = os::vt::console();
             //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
+            publish_property(ui::term::events::io_log,         [&](auto& v){ v = io_log; });
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
             publish_property(ui::term::events::selalt,         [&](auto& v){ v = selalt; });
             publish_property(ui::term::events::colors::bg,     [&](auto& v){ v = target->brush.bgc(); });
@@ -7128,18 +7135,20 @@ namespace netxs::ui
                     }
                     ptycon.write(data);
 
-                #endif
+                    if (io_log)
+                    {
+                        auto d = std::stringstream{};
+                        auto v = view{ data };
+                        d << ansi::hi(utf::debase<faux, faux>(v)) << " : ";
+                        while (v.size())
+                        {
+                            d << (si32)(byte)v.front() << " ";
+                            v.remove_prefix(1);
+                        }
+                        log("stdin: ", d.str());
+                    }
 
-                //todo Terminal Developer Mode
-                //auto d = std::stringstream{};
-                //auto v = view{ data };
-                //log("key strokes raw: ", utf::debase(v));
-                //while (v.size())
-                //{
-                //    d << (int)v.front() << " ";
-                //    v.remove_prefix(1);
-                //}
-                //log("key strokes bin: ", d.str());
+                #endif
             };
             LISTEN(tier::general, e2::timer::tick, timestamp)
             {
@@ -7268,7 +7277,7 @@ namespace netxs::ui
                     {
                         if (auto gear_ptr = bell::getref<hids>(tooltip.gear_id))
                         {
-                            gear_ptr->set_tooltip(0, tooltip.tip_text);
+                            gear_ptr->set_tooltip(tooltip.tip_text, tooltip.update);
                         }
                     }
                 });

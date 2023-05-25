@@ -67,10 +67,56 @@ R"==(
                         <size=5000/>
                         <wrap="off"/>
                     </scrollback>
-                    <menu>
+)=="
+R"==(
+                    <menu item*>
                         <autohide = on/>
                         <slim = true/>
+                        <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                            <label="\e[38:2:0:255:0m<\e[m"/>
+                            <notes>
+                                " Previous match                                \n"
+                                " - Clipboard data will be used if no selection \n"
+                                " - Scroll one page up if clipboard is empty    "
+                            </notes>
+                        </item>
+                        <item label=">" action=TerminalFindNext>
+                            <label="\e[38:2:0:255:0m>\e[m"/>
+                            <notes>
+                                " Next match                                    \n"
+                                " - Clipboard data will be used if no selection \n"
+                                " - Scroll one page down if clipboard is empty  "
+                            </notes>
+                        </item>
+                        <item label="Wrap" type=Option action=TerminalWrapMode data="off">
+                            <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
+                            <notes>
+                                " Wrapping text lines on/off      \n"
+                                " - Applied to selection if it is "
+                            </notes>
+                        </item>
+                        <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
+                            <label="\e[38:2:0:255:0mPlaintext\e[m" data="text"/>
+                            <label="\e[38:2:255:255:0mANSI-text\e[m" data="ansi"/>
+                            <label data="rich">
+                                "\e[38:2:109:231:237m""R"
+                                "\e[38:2:109:237:186m""T"
+                                "\e[38:2:60:255:60m"  "F"
+                                "\e[38:2:189:255:53m" "-"
+                                "\e[38:2:255:255:49m" "s"
+                                "\e[38:2:255:189:79m" "t"
+                                "\e[38:2:255:114:94m" "y"
+                                "\e[38:2:255:60:157m" "l"
+                                "\e[38:2:255:49:214m" "e" "\e[m"
+                            </label>
+                            <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
+                            <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+                        </item>
+                        <item label="  "    notes=" ...empty menu block/splitter for safety "/>
+                        <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
                     </menu>
+)=="
+R"==(
                     <selection>
                         <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
@@ -178,7 +224,7 @@ R"==(
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
-            <size=20000    />   <!-- Scrollback buffer length. -->
+            <size=40000    />   <!-- Scrollback buffer length. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->
@@ -227,11 +273,27 @@ R"==(
             <autohide=true/>  <!-- If true, show menu only on hover. -->
             <enabled=1/>
             <slim=1/>
+            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+                <label="\e[38:2:0:255:0m<\e[m"/>
+                <notes>
+                    " Previous match                                \n"
+                    " - Clipboard data will be used if no selection \n"
+                    " - Scroll one page up if clipboard is empty    "
+                </notes>
+            </item>
+            <item label=">" action=TerminalFindNext>
+                <label="\e[38:2:0:255:0m>\e[m"/>
+                <notes>
+                    " Next match                                    \n"
+                    " - Clipboard data will be used if no selection \n"
+                    " - Scroll one page down if clipboard is empty  "
+                </notes>
+            </item>
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
-                    " - applied to selection if it is "
+                    " - Applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
@@ -251,21 +313,8 @@ R"==(
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
             </item>
-            <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-                <label="\e[38:2:0:255:0m<\e[m"/>
-                <notes>
-                    " Previous match                    \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
-                </notes>
-            </item>
-            <item label=">" action=TerminalFindNext>
-                <label="\e[38:2:0:255:0m>\e[m"/>
-                <notes>
-                    " Next match                        \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
-                </notes>
+            <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
+                <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
