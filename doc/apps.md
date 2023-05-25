@@ -9,10 +9,8 @@
 
 - UTF-8 Everywhere
 - TrueColor aware
-- Lock-free performance
-- Stdin/stdout logging
 - Horizontal scrolling
-- Infinite* scrollback (20000 wrapped lines by default, * `< max_int32`)
+- Infinite* scrollback (40k lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
 - Line-based/rect-block text selection (See #149 for details)
 - Widely used clipboard formats support
@@ -35,6 +33,7 @@
   - Disabled DOSKEY functionality (cmd.exe's F7 input history popups too)  
     Note: Sharing the input history as well as a bunch of command aliases among processes (which could have different elevation levels) is a huge security threat. So DOSKEY functionality is absolutely incompatible with any sort of sudo-like commands/applications.
 - Outside terminal viewport mouse tracking (See #62 for details)
+- Stdin/stdout parser log on demand
 - Configurable at startup via `settings.xml`
 - Configurable in runtime using VT-sequences
 
@@ -105,7 +104,8 @@ TerminalRestart              | Kill all runnning console apps and restart curren
 TerminalFullscreen           | Toggle fullscreen mode.
 TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.
 TerminalRedo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last Undo command.
-TerminalPaste                | Paste from clipboard.
+TerminalClipboardPaste       | Paste from clipboard.
+TerminalClipboardWipe        | Reset clipboard.
 TerminalSelectionCopy        | Сopy selection to clipboard.
 TerminalSelectionRect        | Set linear(false) or rectangular(true) selection form using boolean value.
 TerminalSelectionClear       | Deselect a selection.
@@ -120,6 +120,7 @@ TerminalViewportColumnLeft   | Scroll N cells to the left.
 TerminalViewportColumnRight  | Scroll N cells to the right.
 TerminalViewportTop          | Scroll to the scrollback top.
 TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport position).
+TerminalStdioLog             | Stdin/stdout log toggle.
 *TerminalLogStart            | Start logging to file.
 *TerminalLogPause            | Pause logging.
 *TerminalLogStop             | Stop logging.
@@ -146,6 +147,22 @@ TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport p
       <autohide=true />  <!-- If true, show menu only on hover. -->
       <enabled=1 />
       <slim=1 />
+      <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
+          <label="\e[38:2:0:255:0m<\e[m"/>
+          <notes>
+              " Previous match                                \n"
+              " - Clipboard data will be used if no selection \n"
+              " - Scroll one page up if clipboard is empty    "
+          </notes>
+      </item>
+      <item label=">" action=TerminalFindNext>
+          <label="\e[38:2:0:255:0m>\e[m"/>
+          <notes>
+              " Next match                                    \n"
+              " - Clipboard data will be used if no selection \n"
+              " - Scroll one page down if clipboard is empty  "
+          </notes>
+      </item>
       <item label="Wrap" type=Option action=TerminalWrapMode data="off">
           <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
           <notes>
@@ -170,21 +187,8 @@ TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport p
           <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
           <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
       </item>
-      <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
-          <label="\e[38:2:0:255:0m<\e[m"/>
-          <notes>
-              " Previous match                    \n"
-              " - using clipboard if no selection \n"
-              " - page up if no clipboard data    "
-          </notes>
-      </item>
-      <item label=">" action=TerminalFindNext>
-          <label="\e[38:2:0:255:0m>\e[m"/>
-          <notes>
-              " Next match                        \n"
-              " - using clipboard if no selection \n"
-              " - page up if no clipboard data    "
-          </notes>
+      <item label="Log" notes=" Stdin/out logging is off " type=Option action=TerminalStdioLog data="off">
+          <label="\e[38:2:0:255:0mLog\e[m" notes=" Stdin/out logging is on \n Run Logs to see output  " data="on"/>
       </item>
       <item label="  "    notes=" ...empty menu block/splitter for safety "/>
       <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
@@ -210,7 +214,7 @@ TerminalViewportEnd          | Scroll to the scrollback bottom (reset viewport p
           <label="Rect" data="true"/>
       </item>
       <item label="Copy" type=Repeat action=TerminalSelectionCopy/>
-      <item label="Paste" type=Repeat action=TerminalPaste/>
+      <item label="Paste" type=Repeat action=TerminalClipboardPaste/>
       <item label="Undo" type=Command action=TerminalUndo/>
       <item label="Redo" type=Command action=TerminalRedo/>
       <item label="Quit" type=Command action=TerminalQuit/>

@@ -138,7 +138,7 @@ namespace netxs::os
     {
         log("  os: ", ansi::err(msg..., " (", os::error(), ") "));
     };
-    template<class T, class ...Args>
+    template<bool Alert = true, class T, class ...Args>
     auto ok(T error_condition, Args&&... msg)
     {
         if (
@@ -149,7 +149,8 @@ namespace netxs::os
             #endif
         )
         {
-            os::fail(std::forward<Args>(msg)...);
+            if constexpr (Alert) os::fail(std::forward<Args>(msg)...);
+            else                 log(std::forward<Args>(msg)...);
             return faux;
         }
         else return true;

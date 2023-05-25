@@ -3,10 +3,6 @@
 
 #pragma once
 
-#ifndef _DEBUG
-    #define log(...)
-#endif
-
 #ifndef VK_AGAIN
     #define VK_AGAIN 65481
 #endif
@@ -305,7 +301,7 @@ struct consrv
             auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
             if (rc != ERROR_SUCCESS)
             {
-                log("\tabort: read_input (condrv, request) rc=", rc);
+                if constexpr (debugmode) log("\tabort: read_input (condrv, request) rc=", rc);
                 status = nt::status::unsuccessful;
                 return faux;
             }
@@ -324,7 +320,7 @@ struct consrv
             auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
             if (rc != ERROR_SUCCESS)
             {
-                log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
+                if constexpr (debugmode) log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
                 status = nt::status::unsuccessful;
                 result.length = 0;
             }
@@ -338,7 +334,7 @@ struct consrv
         {
             status = nt::status::invalid_handle;
             auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
-            log("\tpending operation aborted");
+            if constexpr (debugmode) log("\tpending operation aborted");
         }
     };
 
@@ -417,17 +413,20 @@ struct consrv
         }
         void alert(si32 what, ui32 pgroup = 0)
         {
-            log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
-                             : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
-                             : what == CTRL_CLOSE_EVENT ? "CtrlClose"
-                                                        : "unknown", " event");
+            if (server.io_log)
+            {
+                log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
+                                 : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
+                                 : what == CTRL_CLOSE_EVENT ? "CtrlClose"
+                                                            : "unknown", " event");
+            }
             for (auto& client : server.joined)
             {
                 if (!pgroup || pgroup == client.pgroup)
                 {
                     auto task = nttask{ .procid = client.procid, .action = what };
                     auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
-                    log("\tclient proc id ", client.procid,  ", control status 0x", utf::to_hex(stat));
+                    if (server.io_log) log("\tclient proc id ", client.procid,  ", control status 0x", utf::to_hex(stat));
                 }
             }
         }
@@ -822,15 +821,16 @@ struct consrv
                 auto pops = 0_sz;
                 for (auto& rec : buffer)
                 {
-                    if (rec.EventType == KEY_EVENT && rec.Event.KeyEvent.bKeyDown)
+                    if (server.io_log)
                     {
-                        //log(" ============================",
-                        //    "\n cooked.ctrl ", utf::to_hex(cooked.ctrl),
-                        //    "\n rec.Event.KeyEvent.uChar.UnicodeChar ", (int)rec.Event.KeyEvent.uChar.UnicodeChar,
-                        //    "\n rec.Event.KeyEvent.wVirtualKeyCode   ", (int)rec.Event.KeyEvent.wVirtualKeyCode,
-                        //    "\n rec.Event.KeyEvent.wVirtualScanCode  ", (int)rec.Event.KeyEvent.wVirtualScanCode,
-                        //    "\n rec.Event.KeyEvent.wRepeatCount      ", (int)rec.Event.KeyEvent.wRepeatCount,
-                        //    "\n rec.Event.KeyEvent.Pressed           ", rec.Event.KeyEvent.bKeyDown ? "true" : "faux");
+                        if (rec.EventType == KEY_EVENT)
+                        log("stdin: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                            " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
+                            " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
+                            " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
+                            " virt: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualKeyCode),
+                            " scan: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualScanCode),
+                            " rept: ",                rec.Event.KeyEvent.wRepeatCount);
                     }
 
                     auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
@@ -1054,15 +1054,15 @@ struct consrv
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
             auto& inpenc = *server.inpenc;
-            log("\thandle 0x", utf::to_hex(packet.target), ":",
-              "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
-              "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
+            if (server.io_log) log("\thandle 0x", utf::to_hex(packet.target), ":",
+                                 "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
+                                 "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
             if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
             {
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
-                log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                              : data)));
+                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                                                 : data)));
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1072,7 +1072,7 @@ struct consrv
             {
                 auto data = inpenc.encode(cooked.rest, readstep);
                 auto size = (ui32)data.size();
-                log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
+                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
@@ -1113,7 +1113,7 @@ struct consrv
                     }
                     if (closed || cancel)
                     {
-                        log("\thandle 0x", utf::to_hex(packet.target), ": task canceled");
+                        if (server.io_log) log("\thandle 0x", utf::to_hex(packet.target), ": task canceled");
                         cooked.drop();
                         return;
                     }
@@ -1176,7 +1176,7 @@ struct consrv
             if (!server.size_check(packet.echosz, answer.sendoffset())) return;
             auto avail = packet.echosz - answer.sendoffset();
             auto limit = avail / (ui32)sizeof(recbuf.front());
-            log("\tuser limit: ", limit);
+            if (server.io_log) log("\tuser limit: ", limit);
             auto head = buffer.begin();
             if (packet.input.utf16)
             {
@@ -1261,10 +1261,10 @@ struct consrv
             auto lock = std::lock_guard{ locker };
             if (buffer.empty())
             {
-                log("\tevents buffer is empty");
+                if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
                 {
-                    log("\treply.count = 0");
+                    if (server.io_log) log("\treply.count = 0");
                     packet.reply.count = 0;
                     return;
                 }
@@ -1284,7 +1284,7 @@ struct consrv
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
+                        if (server.io_log) log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
                     });
                     server.answer = {};
                 }
@@ -1292,7 +1292,7 @@ struct consrv
             else
             {
                 readevents(packet, server.answer);
-                log("\treply.count = ", packet.reply.count);
+                if (server.io_log) log("\treply.count = ", packet.reply.count);
             }
         }
     };
@@ -1315,7 +1315,7 @@ struct consrv
         {
             return !!leadbyte[c];
         }
-        auto load(ui32 cp)
+        auto load(consrv& server, ui32 cp)
         {
             if (cp == codepage) return true;
             leadbyte.fill(0);
@@ -1341,7 +1341,7 @@ struct consrv
                     auto a = *head++;
                     if (!a) break;
                     auto b = *head++;
-                    log("\tcodepage range: ", (int)a, "-", (int)b);
+                    if (server.io_log) log("\tcodepage range: ", (int)a, "-", (int)b);
                     do leadbyte[a] = 1;
                     while (a++ != b);
                 }
@@ -1384,7 +1384,7 @@ struct consrv
                     }
                 }
                 ::MultiByteToWideChar(codepage, 0, (char *)oem.data(), (si32)oem.size(), OEMtoBMP.data(), (si32)OEMtoBMP.size());
-                if constexpr (debugmode)
+                if (server.io_log)
                 {
                     auto t = "OEM to BMP lookup table:\n"s;
                     auto n = 0;
@@ -1619,14 +1619,16 @@ struct consrv
         }
 
         decoder() = default;
-        decoder(ui32 cp)
+        decoder(consrv& server, ui32 cp)
         {
-            load(cp);
+            load(server, cp);
         }
     };
 
     //enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
     enum type : ui32 { undefined, ansiOEM, realUTF16, attribute, fakeUTF16 };
+
+    #define log(...) if (io_log) log(__VA_ARGS__)
 
     auto& langmap()
     {
@@ -2149,7 +2151,7 @@ struct consrv
             if (i->codepage == c) o = i; // Reuse existing decoder.
             else
             {
-                if (auto p = ptr::shared<decoder>(); p->load(c)) o = p;
+                if (auto p = ptr::shared<decoder>(); p->load(*this, c)) o = p;
                 else answer.status = nt::status::not_supported;
             }
         }
@@ -4025,6 +4027,7 @@ struct consrv
 
     Term&       uiterm; // consrv: Terminal reference.
     fd_t&       condrv; // consrv: Console driver handle.
+    bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
     view        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
@@ -4058,7 +4061,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                log("vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, "vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4182,12 +4185,13 @@ struct consrv
     consrv(Term& uiterm, fd_t& condrv)
         : uiterm{ uiterm },
           condrv{ condrv },
+          io_log{ uiterm.io_log },
           events{ *this  },
           impcls{ faux   },
           answer{        },
           winhnd{        },
           prompt{ "vtty: consrv: " },
-          inpenc{ std::make_shared<decoder>(os::codepage) },
+          inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {
         using _ = consrv;
@@ -4254,6 +4258,4 @@ struct consrv
     }
 };
 
-#ifndef _DEBUG
-    #undef log
-#endif
+#undef log

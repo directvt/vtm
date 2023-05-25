@@ -24,6 +24,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( align    , si32 ),
                 EVENT_XS( wrapln   , si32 ),
+                EVENT_XS( io_log   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , rgba ),
 
@@ -42,6 +43,7 @@ namespace netxs::events::userland
             {
                 EVENT_XS( align    , si32 ),
                 EVENT_XS( wrapln   , si32 ),
+                EVENT_XS( io_log   , bool ),
                 GROUP_XS( selection, si32 ),
                 GROUP_XS( colors   , rgba ),
 
@@ -96,6 +98,12 @@ namespace netxs::app::term
                 item.reflow();
             }
         }
+        static auto _update_gear(ui::pads& boss, menu::item& item, hids& gear)
+        {
+            auto& look = item.views[item.taken];
+            gear.set_tooltip(look.notes, true);
+            _update(boss, item);
+        }
         static auto _update_to(ui::pads& boss, menu::item& item, si32 i)
         {
             item.select(i);
@@ -112,7 +120,6 @@ namespace netxs::app::term
                     if (item.views.size())
                     {
                         item.taken = (item.taken + 1) % item.views.size();
-                        _update(boss, item);
                     }
                     if (gear.capture(boss.id))
                     {
@@ -129,6 +136,10 @@ namespace netxs::app::term
                         });
                         gear.dismiss(true);
                     }
+                    if (item.views.size())
+                    {
+                        _update_gear(boss, item, gear);
+                    }
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::up::left, gear)
                 {
@@ -138,7 +149,7 @@ namespace netxs::app::term
                     if (item.views.size() && item.taken)
                     {
                         item.taken = 0;
-                        _update(boss, item);
+                        _update_gear(boss, item, gear);
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::state::mouse, active)
@@ -161,7 +172,7 @@ namespace netxs::app::term
                     proc(boss, item, gear);
                     if constexpr (AutoUpdate)
                     {
-                        if (item.brand == menu::item::Option) _update(boss, item);
+                        if (item.brand == menu::item::Option) _update_gear(boss, item, gear);
                     }
                     gear.dismiss(true);
                 };
@@ -199,7 +210,8 @@ namespace netxs::app::term
             X(TerminalFindPrev          ) /* */ \
             X(TerminalUndo              ) /* Undo/Redo for cooked read under win32 */ \
             X(TerminalRedo              ) /* */ \
-            X(TerminalPaste             ) /* */ \
+            X(TerminalClipboardPaste    ) /* */ \
+            X(TerminalClipboardWipe     ) /* */ \
             X(TerminalSelectionCopy     ) /* */ \
             X(TerminalSelectionMode     ) /* */ \
             X(TerminalSelectionRect     ) /* Linear/Rectangular */ \
@@ -215,6 +227,7 @@ namespace netxs::app::term
             X(TerminalViewportTop       ) /* */ \
             X(TerminalViewportEnd       ) /* */ \
             X(TerminalViewportCopy      ) /* */ \
+            X(TerminalStdioLog          ) /* */ \
             X(TerminalLogStart          ) /* */ \
             X(TerminalLogPause          ) /* */ \
             X(TerminalLogStop           ) /* */ \
@@ -350,11 +363,18 @@ namespace netxs::app::term
                     boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::redo);
                 });
             }
-            static void TerminalPaste(ui::pads& boss, menu::item& item)
+            static void TerminalClipboardPaste(ui::pads& boss, menu::item& item)
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, app::term::events::data::paste, gear);
+                });
+            }
+            static void TerminalClipboardWipe(ui::pads& boss, menu::item& item)
+            {
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    gear.clear_clip_data();
                 });
             }
             static void TerminalSelectionCopy(ui::pads& boss, menu::item& item)
@@ -475,6 +495,18 @@ namespace netxs::app::term
                 {
                     boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = -std::abs(item.views[item.taken].value) }));
                 });
+            }
+            static void TerminalStdioLog(ui::pads& boss, menu::item& item)
+            {
+                item.reindex([](auto& utf8){ return xml::take<bool>(utf8).value(); });
+                _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
+                {
+                    boss.SIGNAL(tier::anycast, preview::io_log, item.views[item.taken].value);
+                });
+                boss.LISTEN(tier::anycast, release::io_log, state)
+                {
+                    _update_to(boss, item, state);
+                };
             }
             static void TerminalLogStart(ui::pads& boss, menu::item& item)
             {
@@ -751,6 +783,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::colors::fg,      app::term::events::release::colors::fg)
                 ->attach_property(ui::term::events::selmod,          app::term::events::release::selection::mode)
                 ->attach_property(ui::term::events::selalt,          app::term::events::release::selection::box)
+                ->attach_property(ui::term::events::io_log,          app::term::events::release::io_log)
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
@@ -803,6 +836,10 @@ namespace netxs::app::term
                     boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
                     {
                         boss.set_wrapln(wrapln);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::io_log, state)
+                    {
+                        boss.set_log(state);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
                     {
