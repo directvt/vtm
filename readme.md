@@ -21,7 +21,7 @@ Desktop inside text console.
 
 # Runtime Requirements
 
-- 100MB of RAM per built-in 40k lines terminal instance #147
+- 100MB of RAM per built-in 40k lines terminal instance [#147](https://github.com/netxs-group/vtm/issues/147)
 
 # Building from Source
 
