@@ -382,7 +382,7 @@ Note: The following configuration sections are not implemented yet
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
-            <size=20000    />   <!-- Scrollback buffer length. -->
+            <size=40000    />   <!-- Scrollback buffer length. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
             <maxline=65535 />   <!-- Max line length. Line splits if it exceeds the limit. -->
             <wrap="on"     />   <!-- Lines wrapping mode. -->

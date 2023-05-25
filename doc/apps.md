@@ -10,7 +10,7 @@
 - UTF-8 Everywhere
 - TrueColor aware
 - Horizontal scrolling
-- Infinite* scrollback (20000 wrapped lines by default, * `< max_int32`)
+- Infinite* scrollback (40k lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
 - Line-based/rect-block text selection (See #149 for details)
 - Widely used clipboard formats support

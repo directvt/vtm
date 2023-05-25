@@ -184,7 +184,7 @@ namespace netxs::ui
 
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
-                def_length = std::max(1, config.take("scrollback/size",      si32{ 20000 }));
+                def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
                 def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);

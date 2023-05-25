@@ -6,9 +6,7 @@ Desktop inside text console.
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
-# Requirements
-
-### Supported Platforms
+# Supported Platforms
 
 - Windows
   - Server/Workstation
@@ -21,9 +19,9 @@ Desktop inside text console.
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
 
-### Memory
+# Runtime Requirements
 
-- 20 Mb of RAM
+- 100MB of RAM per built-in 40k lines terminal instance #147
 
 # Building from Source
 
