@@ -2549,7 +2549,7 @@ namespace netxs::ui
             template<class Bitmap>
             void render()
             {
-                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "Rendering thread started");
+                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "rendering thread started");
                 auto start = time{};
                 auto image = Bitmap{};
                 auto guard = std::unique_lock{ mutex };
@@ -2569,7 +2569,7 @@ namespace netxs::ui
                     }
                     debug.watch = datetime::now() - start;
                 }
-                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "Rendering thread ended");
+                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "rendering thread ended");
             }
             // diff: Get rendering statistics.
             auto status()
@@ -2647,7 +2647,7 @@ namespace netxs::ui
                     std::this_thread::yield();
                 }
                 paint.join();
-                log(prompt::diff, "Id:", id, ' ', "Rendering thread joined");
+                log(prompt::diff, "Id:", id, ' ', "rendering thread joined");
             }
         };
 
