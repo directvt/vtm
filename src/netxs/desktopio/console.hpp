@@ -1176,7 +1176,7 @@ namespace netxs::ui
             hook pong; // watch: Alibi subsciption token.
             hook ping; // watch: Zombie check countdown token.
             time stop; // watch: Timeout for zombies.
-            text desc = "no mouse clicking events";
+            text desc = "No mouse clicking events";
 
         public:
             watch(base&&) = delete;
@@ -2549,7 +2549,7 @@ namespace netxs::ui
             template<class Bitmap>
             void render()
             {
-                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "rendering thread started");
+                log(prompt::diff, "Rendering thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto start = time{};
                 auto image = Bitmap{};
                 auto guard = std::unique_lock{ mutex };
@@ -2569,7 +2569,7 @@ namespace netxs::ui
                     }
                     debug.watch = datetime::now() - start;
                 }
-                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "rendering thread ended");
+                log(prompt::diff, "Rendering thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             // diff: Get rendering statistics.
             auto status()
@@ -2647,7 +2647,7 @@ namespace netxs::ui
                     std::this_thread::yield();
                 }
                 paint.join();
-                log(prompt::diff, "Id:", id, ' ', "rendering thread joined");
+                log(prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(id));
             }
         };
 
@@ -3281,7 +3281,7 @@ namespace netxs::ui
         {
             SIGNAL(tier::anycast, e2::form::upon::started, This());
             directvt::binary::stream::reading_loop(canal, [&](view data){ conio.sync(data); });
-            SIGNAL(tier::release, e2::conio::quit, "exit from a stream reading loop");
+            SIGNAL(tier::release, e2::conio::quit, "DirectVT I/O session complete");
         }
 
     protected:
@@ -3456,7 +3456,7 @@ namespace netxs::ui
 
             LISTEN(tier::release, e2::form::proceed::quit::any, initiator, tokens)
             {
-                auto msg = ansi::add(prompt::gate, "Quit message from id:", initiator->id);
+                auto msg = utf::concat(prompt::gate, "Quit message from id:", initiator->id);
                 canal.shut();
                 this->SIGNAL(tier::general, e2::shutdown, msg);
             };
@@ -3551,7 +3551,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::conio::quit, msg, tokens)
             {
-                log(prompt::gate, "Global shutdown: ", msg);
+                log(prompt::gate, msg);
                 canal.shut();
             };
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
@@ -3575,12 +3575,12 @@ namespace netxs::ui
                     auto window_id = 0;
                     conio.form_header.send(canal, window_id, newheader);
                 }
-                else
+                else if (newheader.length())
                 {
                     auto temp = text{};
                     temp.reserve(newheader.length());
                     para{ newheader }.lyric->utf8(temp);
-                    log(prompt::gate, "Title changed to ", ansi::hi(utf::debase<faux, faux>(temp)));
+                    log(prompt::gate, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(temp)));
                     conio.output(ansi::header(temp));
                 }
             };
@@ -3817,7 +3817,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
-                log(prompt::host, "Shutdown: ", msg);
+                log(prompt::host, msg);
                 canal.stop();
             };
             LISTEN(tier::general, hids::events::device::user::login, props, tokens)
@@ -3834,7 +3834,7 @@ namespace netxs::ui
             };
 
             quartz.ignite(maxfps);
-            log(prompt::host, "Started at ", maxfps, "fps");
+            log(prompt::host, "Started at ", maxfps, " fps");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)

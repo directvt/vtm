@@ -1668,7 +1668,7 @@ namespace netxs::app::vtm
             if constexpr (debugmode)
             {
                 SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (0,0));
-                log(prompt::hall, "Autofocused items count:", gear_test.second);
+                if (gear_test.second) log(prompt::hall, "Autofocused items count", ": ", gear_test.second);
             }
         }
         void redraw(face& canvas) override

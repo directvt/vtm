@@ -247,22 +247,23 @@ int main(int argc, char* argv[])
         auto thread = os::process::pool{};
         domain->autorun();
 
-        log(prompt::main, "Listening socket ", server,
+        log(prompt::main, "Server started",
           "\n      user: ", userid,
           "\n      pipe: ", prefix);
 
         auto stdlog = std::thread{ [&]
         {
-            while (auto stream = logger->meet())
+            while (auto monitor = logger->meet())
             {
-                thread.run([&, stream](auto session_id)
+                thread.run([&, monitor](auto session_id)
                 {
-                    log(prompt::logs, "Monitor ", stream, " connected");
+                    auto id = utf::concat(*monitor);
+                    log(prompt::logs, "Monitor connected ", id);
                     auto tokens = subs{};
-                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
-                    stream->recv();
-                    log(prompt::logs, "Monitor ", stream, " disconnected");
+                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { monitor->shut(); };
+                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { monitor->send(utf8); };
+                    monitor->recv();
+                    log(prompt::logs, "Monitor disconnected ", id);
                 });
             }
         }};
@@ -274,12 +275,13 @@ int main(int argc, char* argv[])
             {
                 thread.run([&, client, settings](auto session_id)
                 {
-                    log(prompt::user, "New gate for ", client);
+                    auto id = utf::concat(*client);
+                    log(prompt::user, "Client connected ", id);
                     auto config = xmls{ settings };
                     auto packet = os::tty::globals().wired.init.recv(client);
                     config.fuse(packet.config);
                     domain->invite(client, packet.user, packet.mode, config, session_id);
-                    log(prompt::user, "Client \"", client, "\" logged out");
+                    log(prompt::user, "Client disconnected ", id);
                 });
             }
         }

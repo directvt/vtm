@@ -485,8 +485,8 @@ namespace netxs::os
             }
             friend auto& operator << (std::ostream& s, file const& handle)
             {
-                if (handle.w != handle.r) s << handle.r << ",";
-                return s << handle.w;
+                if (handle.w != handle.r) s << utf::to_hex_0x(handle.r) << '-';
+                return                    s << utf::to_hex_0x(handle.w);
             }
             auto& operator = (file&& f)
             {
@@ -1250,7 +1250,7 @@ namespace netxs::os
             }
             flux& show(flux& s) const override
             {
-                return s << "local pipe: server=" << server.get() << " client=" << client.get();
+                return s << "local pipe: server=0x" << std::hex << server.get() << " client=0x" << std::hex << client.get();
             }
             bool shut() override
             {
@@ -1347,6 +1347,7 @@ namespace netxs::os
             }
             auto meet()
             {
+                log(prompt::xipc, "Active server side link ", handle);
                 auto client = sptr<ipc::socket>{};
                 #if defined(_WIN32)
 
@@ -1427,7 +1428,7 @@ namespace netxs::os
                 auto state = pipe::stop();
                 if (state)
                 {
-                    log(prompt::xipc, "Server shuts down: ", handle);
+                    log(prompt::xipc, "Closing server side link ", handle);
                     #if defined(_WIN32)
                         auto to_client = os::wr_pipe_path + scpath;
                         auto to_server = os::rd_pipe_path + scpath;
@@ -1834,7 +1835,7 @@ namespace netxs::os
             void worker()
             {
                 auto guard = std::unique_lock{ mutex };
-                log(prompt::pool, "Session control started");
+                log(prompt::pool, "Session control thread started");
 
                 while (alive || index.size())
                 {
@@ -1850,7 +1851,7 @@ namespace netxs::os
                                 guard.unlock();
                                 guest.join();
                                 guard.lock();
-                                log(prompt::pool, "Id: ", sid, " session joined");
+                                log(prompt::pool, "Session joined", ' ', utf::to_hex_0x(sid));
                             }
                             it = index.erase(it);
                         }
@@ -1864,7 +1865,7 @@ namespace netxs::os
                 auto session_id = std::this_thread::get_id();
                 index[session_id].state = faux;
                 synch.notify_one();
-                log(prompt::pool, "Id: ", session_id, " session deleted");
+                log(prompt::pool, "Session deleted", ' ', utf::to_hex_0x(session_id));
             }
 
         public:
@@ -1881,7 +1882,7 @@ namespace netxs::os
                 });
                 auto session_id = session.get_id();
                 index[session_id] = { true, std::move(session) };
-                log(prompt::pool, "Id: ", session_id, " session created");
+                log(prompt::pool, "Session created", ' ', utf::to_hex_0x(session_id));
             }
             auto size()
             {
@@ -1902,10 +1903,10 @@ namespace netxs::os
 
                 if (agent.joinable())
                 {
-                    log(prompt::pool, "Joining agent");
+                    log(prompt::pool, "Session agent joining");
                     agent.join();
                 }
-                log(prompt::pool, "Session control ended");
+                log(prompt::pool, "Session control thread ended");
             }
         };
 
@@ -2373,17 +2374,17 @@ namespace netxs::os
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
-                    log(prompt::vtty, "Id: ", stdwrite.get_id(), " writing thread joining");
+                    log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
                 if (stdinput.joinable())
                 {
-                    log(prompt::vtty, "Id: ", stdinput.get_id(), " reading thread joining");
+                    log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                     stdinput.join();
                 }
                 if (waitexit.joinable())
                 {
-                    log(prompt::vtty, "Id: ", waitexit.get_id(), " child process waiter thread joining");
+                    log(prompt::vtty, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -2418,7 +2419,7 @@ namespace netxs::os
                             code = 0;
                         }
                     }
-                    else log(prompt::vtty, "Child process exit code 0x", utf::to_hex(code), " (", code, ")");
+                    else log(prompt::vtty, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
                     exit_code = code;
                     io::close(prochndl);
 
@@ -2431,7 +2432,7 @@ namespace netxs::os
                     if (WIFEXITED(status))
                     {
                         exit_code = WEXITSTATUS(status);
-                        log(prompt::vtty, "Child process exit code ", exit_code);
+                        log(prompt::vtty, "Child process exit code", ' ', exit_code);
                     }
                     else
                     {
@@ -2625,7 +2626,7 @@ namespace netxs::os
             {
                 #if not defined(_WIN32)
 
-                    log(prompt::vtty, "Id: ", stdinput.get_id(), " reading thread started");
+                    log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
                     auto flow = text{};
                     while (termlink)
                     {
@@ -2644,13 +2645,13 @@ namespace netxs::os
                         auto exit_code = wait_child();
                         terminal.onexit(exit_code);
                     }
-                    log(prompt::vtty, "Id: ", stdinput.get_id(), " reading thread ended");
+                    log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
 
                 #endif
             }
             void send_socket_thread()
             {
-                log(prompt::vtty, "Id: ", stdwrite.get_id(), " writing thread started");
+                log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
@@ -2670,7 +2671,7 @@ namespace netxs::os
                     #endif
                     guard.lock();
                 }
-                log(prompt::vtty, "Id: ", stdwrite.get_id(), " writing thread ended");
+                log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
             }
             void resize(twod const& newsize)
             {
@@ -3025,7 +3026,7 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
-                if (termlink) log(prompt::dtvt, "Console created: pid ", proc_pid);
+                if (termlink) log(prompt::dtvt, "Console created for pid ", proc_pid);
                 writesyn.notify_one(); // Flush temp buffer.
 
                 return proc_pid;
@@ -3054,7 +3055,7 @@ namespace netxs::os
                                 code = 0;
                             }
                         }
-                        else log(prompt::dtvt, "Child process exit code ", code);
+                        else log(prompt::dtvt, "Child process exit code", ' ', code);
                         exit_code = code;
                         io::close(prochndl);
 
@@ -3067,7 +3068,7 @@ namespace netxs::os
                         if (WIFEXITED(status))
                         {
                             exit_code = WEXITSTATUS(status);
-                            log(prompt::dtvt, "Child process exit code ", exit_code);
+                            log(prompt::dtvt, "Child process exit code", ' ', exit_code);
                         }
                         else
                         {
@@ -3086,12 +3087,12 @@ namespace netxs::os
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
-                    log(prompt::dtvt, "Id: ", stdwrite.get_id(), " writing thread joining");
+                    log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
                 if (stdinput.joinable())
                 {
-                    log(prompt::dtvt, "Id: ", stdinput.get_id(), " reading thread joining");
+                    log(prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                     stdinput.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -3107,16 +3108,16 @@ namespace netxs::os
             }
             void read_socket_thread()
             {
-                log(prompt::dtvt, "Id: ", stdinput.get_id(), " reading thread started");
+                log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
                 directvt::binary::stream::reading_loop(termlink, receiver);
                 preclose(0);
                 auto exit_code = wait_child();
                 shutdown(exit_code);
-                log(prompt::dtvt, "Id: ", stdinput.get_id(), " reading thread ended");
+                log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
             }
             void send_socket_thread()
             {
-                log(prompt::dtvt, "Id: ", stdwrite.get_id(), " writing thread started");
+                log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
@@ -3128,7 +3129,7 @@ namespace netxs::os
                     guard.lock();
                 }
                 //if (termlink) termlink.shut();
-                log(prompt::dtvt, "Id: ", stdwrite.get_id(), " writing thread ended");
+                log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
             }
             void output(view data)
             {
@@ -3386,7 +3387,7 @@ namespace netxs::os
         }
         void reader(si32 mode)
         {
-            log(prompt::tty, "Id: ", std::this_thread::get_id(), " reading thread started");
+            log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto& g = globals();
             auto& ipcio =*g.ipcio;
             auto& wired = g.wired;
@@ -3841,14 +3842,14 @@ namespace netxs::os
 
             #endif
 
-            log(prompt::tty, "Id: ", std::this_thread::get_id(), " reading thread ended");
+            log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
         }
         void clipbd(si32 mode)
         {
             using namespace os::clipboard;
 
             if (mode & vt::direct) return;
-            log(prompt::tty, "Id: ", std::this_thread::get_id(), " clipboard watcher thread started");
+            log(prompt::tty, "Clipboard watcher thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
             #if defined(_WIN32)
 
@@ -3971,7 +3972,7 @@ namespace netxs::os
 
             #endif
 
-            log(prompt::tty, "Id: ", std::this_thread::get_id(), " clipboard watcher thread ended");
+            log(prompt::tty, "Clipboard watcher thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
         }
         void ignite(xipc pipe, si32 mode)
         {

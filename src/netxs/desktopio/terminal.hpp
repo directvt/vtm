@@ -6449,7 +6449,7 @@ namespace netxs::ui
         {
             bell::trysync(active, [&]
             {
-                log(prompt::term, "Exit code 0x", utf::to_hex(code));
+                log(prompt::term, "Exit code ", utf::to_hex_0x(code));
                 auto close_proc = [&]
                 {
                     netxs::events::enqueue(This(), [&](auto& boss)
@@ -6460,7 +6460,7 @@ namespace netxs::ui
                 auto chose_proc = [&]
                 {
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\n", prompt::term, "Exit code 0x", utf::to_hex(code), " ").nil()
+                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
                     this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
@@ -6478,7 +6478,7 @@ namespace netxs::ui
                 auto start_proc = [&]
                 {
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
+                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil().add("\r\n\n");
                     ondata(error);
                     netxs::events::enqueue(This(), [&](auto& boss)
                     {
@@ -7665,7 +7665,7 @@ namespace netxs::ui
         {
             netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::term, "Exit code 0x", utf::to_hex(code), ' ').nil());
+                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::term, "Exit code ", utf::to_hex_0x(code), ' ').nil());
                 else      log(prompt::dtvt, "Exit code 0");
                 backup.reset(); // Call dtvt::dtor.
             });

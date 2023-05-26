@@ -825,11 +825,11 @@ struct consrv
                     {
                         if (rec.EventType == KEY_EVENT)
                         log(prompt::cin, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
-                            " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
-                            " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
-                            " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
-                            " virt: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualKeyCode),
-                            " scan: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualScanCode),
+                            " ", rec.Event.KeyEvent.bKeyDown ? "Pressed " : "Released",
+                            " ctrl: ", utf::to_hex_0x(rec.Event.KeyEvent.dwControlKeyState),
+                            " char: ", utf::to_hex_0x(rec.Event.KeyEvent.uChar.UnicodeChar),
+                            " virt: ", utf::to_hex_0x(rec.Event.KeyEvent.wVirtualKeyCode),
+                            " scan: ", utf::to_hex_0x(rec.Event.KeyEvent.wVirtualScanCode),
                             " rept: ",                rec.Event.KeyEvent.wRepeatCount);
                     }
 
@@ -1962,7 +1962,7 @@ struct consrv
         { };
         auto& packet = payload::cast(upload);
         auto client_ptr = packet.client;
-        log(prompt, "Detach process from console: 0x", utf::to_hex(client_ptr));
+        log(prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
         {
@@ -1971,7 +1971,7 @@ struct consrv
             for (auto& handle : client.tokens)
             {
                 auto handle_ptr = &handle;
-                log("\tdeactivate handle: 0x", utf::to_hex(handle_ptr));
+                log("\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
                 events.abort(handle_ptr);
             }
             uiterm.target->brush = client.backup;
@@ -1985,9 +1985,9 @@ struct consrv
             }
             client.tokens.clear();
             joined.erase(iter);
-            log("\tprocess 0x", utf::to_hex(client_ptr), " detached");
+            log("\tprocess ", utf::to_hex_0x(client_ptr), " detached");
         }
-        else log("\trequested process 0x", utf::to_hex(client_ptr), " not found");
+        else log("\trequested process ", utf::to_hex_0x(client_ptr), " not found");
     }
     auto api_process_enlist                  ()
     {
@@ -2347,7 +2347,7 @@ struct consrv
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
                                                        : "ReadConsoleInput",
-            "\n\tinput.flags: ", utf::to_hex(packet.input.flags),
+            "\n\tinput.flags: 0x", utf::to_hex(packet.input.flags),
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
         auto client_ptr = packet.client;
         if (client_ptr == nullptr)
@@ -3353,7 +3353,7 @@ struct consrv
         log("\tbuffer size: ", buffsize);
         log("\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy });
         log("\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy });
-        log("\tattributes : ", utf::to_hex(packet.input.attributes));
+        log("\tattributes : ", utf::to_hex_0x(packet.input.attributes));
         log("\twindow size: ", windowsz);
         log("\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
         log("\tpopup color: ", packet.input.popupcolor);
@@ -4136,7 +4136,7 @@ struct consrv
                     default:                       log(prompt, "Unexpected nt::ioctl result ", rc); break;
                 }
             }
-            log(prompt, "Console server thread ended");
+            log(prompt, "Server thread ended");
         }};
     }
     void resize(twod const& newsize)
@@ -4149,7 +4149,7 @@ struct consrv
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
-        log(prompt, "Console server stopped");
+        log(prompt, "Console API server shut down");
     }
     template<class T>
     auto size_check(T upto, T from)

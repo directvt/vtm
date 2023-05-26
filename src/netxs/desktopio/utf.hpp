@@ -1238,7 +1238,7 @@ namespace netxs::utf
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
     template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
-    auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2, char filler = '0')
+    auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2)
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
@@ -1631,11 +1631,11 @@ namespace netxs::utf
         trim_front_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
         return temp.substr(0, temp.size() - utf8.size());
     }
-    auto trim_front(view& utf8)
+    auto trim_front(view& utf8, char c = ' ')
     {
         auto head = utf8.begin();
         auto tail = utf8.end();
-        while (head != tail && *head == ' ')
+        while (head != tail && *head == c)
         {
             ++head;
         }
@@ -1797,6 +1797,18 @@ namespace netxs::utf
             utf8.replace(spot, what_sz, fill);
             spot += what_sz;
         }
+    }
+    template<class V>
+    auto to_hex_0x(V const& num)
+    {
+        auto result = (flux{} << std::hex << num).str();
+        auto shadow = view{ result };
+        trim_front(shadow, '0');
+        return "0x" + text{ shadow };
+    }
+    auto to_hex_0x(wchr num)
+    {
+        return to_hex_0x((int)num);
     }
 }
 
