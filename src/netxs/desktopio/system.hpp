@@ -2354,7 +2354,7 @@ namespace netxs::os
             {
                 log(prompt::vtty, "Destructor started");
                 stop();
-                log(prompt::vtty, "Destructor ended");
+                log(prompt::vtty, "Destructor complete");
             }
 
             operator bool () { return connected(); }
@@ -2862,7 +2862,7 @@ namespace netxs::os
             {
                 log(prompt::vtty, "Destructor started");
                 cleanup();
-                log(prompt::vtty, "Destructor ended");
+                log(prompt::vtty, "Destructor complete");
             }
 
             operator bool () { return termlink; }
