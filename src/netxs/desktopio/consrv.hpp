@@ -824,7 +824,7 @@ struct consrv
                     if (server.io_log)
                     {
                         if (rec.EventType == KEY_EVENT)
-                        log(prompt::cinp, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                        log(prompt::cin, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
                             " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
                             " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
                             " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
@@ -4029,7 +4029,7 @@ struct consrv
     fd_t&       condrv; // consrv: Console driver handle.
     bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
-    view        prompt; // consrv: Log prompt.
+    text        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
     std::thread window; // consrv: Win32 window message loop.
@@ -4061,7 +4061,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok<faux>(!debugmode, netxs::prompt::vtty, netxs::prompt::consrv, "GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4190,7 +4190,7 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ utf::concat(netxs::prompt::vtty, netxs::prompt::consrv) },
+          prompt{ utf::concat(netxs::prompt::win32) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {

@@ -7145,7 +7145,7 @@ namespace netxs::ui
                             d << (si32)(byte)v.front() << " ";
                             v.remove_prefix(1);
                         }
-                        log(prompt::cinp, d.str());
+                        log(prompt::cin, d.str());
                     }
 
                 #endif

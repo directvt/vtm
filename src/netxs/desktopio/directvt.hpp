@@ -8,16 +8,15 @@
 
 namespace netxs::prompt
 {
-    static constexpr auto pads = "      "sv;
-    static constexpr auto   os = "  os: "sv;
-    static constexpr auto  tty = " tty: "sv;
-    static constexpr auto  ack = " ack: "sv;
-    static constexpr auto  xml = " xml: "sv;
-    static constexpr auto  vtm = " vtm: "sv;
-    static constexpr auto consrv = "consrv: "sv;
-    static constexpr auto bitmap = "bitmap: "sv;
-    static constexpr auto cout = "stdout: "sv;
-    static constexpr auto cinp = "stdin: "sv;
+    static constexpr auto  pads = "      "sv;
+    static constexpr auto    os = "  os: "sv;
+    static constexpr auto   tty = " tty: "sv;
+    static constexpr auto   ack = " ack: "sv;
+    static constexpr auto   xml = " xml: "sv;
+    static constexpr auto   vtm = " vtm: "sv;
+    static constexpr auto   cin = "stdin: "sv;
+    static constexpr auto  cout = "stdout: "sv;
+    static constexpr auto win32 = "win32: "sv;
 
     #define prompt_list \
         X(apps) /* */ \
@@ -928,7 +927,7 @@ namespace netxs::directvt
                         auto [count] = stream::take<sz_t>(data);
                         if (count > tail - iter)
                         {
-                            log(prompt::dtvt, prompt::bitmap, "Corrupted data, subtype: ", what);
+                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         auto from = iter;
@@ -940,14 +939,14 @@ namespace netxs::directvt
                         auto [offset] = stream::take<sz_t>(data);
                         if (offset >= size)
                         {
-                            log(prompt::dtvt, prompt::bitmap, "Corrupted data, subtype: ", what);
+                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         iter = head + offset;
                     }
                     else // Unknown subtype.
                     {
-                        log(prompt::dtvt, prompt::bitmap, "Unknown data, subtype: ", what);
+                        log(prompt::dtvt, "bitmap: ", "Unknown data, subtype: ", what);
                         break;
                     }
                 }
