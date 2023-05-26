@@ -3025,7 +3025,7 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
-                if (termlink) log(prompt::dtvt, "Console created: proc_pid ", proc_pid);
+                if (termlink) log(prompt::dtvt, "Console created: pid ", proc_pid);
                 writesyn.notify_one(); // Flush temp buffer.
 
                 return proc_pid;
