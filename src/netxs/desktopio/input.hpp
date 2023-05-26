@@ -1017,7 +1017,7 @@ namespace netxs::input
         void take(sysfocus& f)
         {
             tooltip_stop = true;
-            //if constexpr (debugmode) log("foci: take focus hid:", id, " state:", f.state ? "on":"off");
+            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
             if (f.state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
             else         owner.SIGNAL(tier::release, hids::events::focus::off, *this);
@@ -1051,7 +1051,7 @@ namespace netxs::input
                     last->SIGNAL(tier::release, events::notify::mouse::leave, *this);
                     mouse::start = start;
                 }
-                else log("hids: error condition: Clients count is broken, dangling ", last_id);
+                else log(prompt::hids, "Error condition: Clients count is broken, dangling ", last_id);
             }
         }
         void redirect_mouse_focus(base& boss)

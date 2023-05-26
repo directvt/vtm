@@ -65,7 +65,7 @@ namespace netxs::ui
 
                     if constexpr (ConstWarn)
                     {
-                        log("sock: error: access to unregistered input device, ", gear.id);
+                        log(prompt::sock, "Access to unregistered input device, ", gear.id);
                     }
 
                     return items.emplace_back(gear.id);
@@ -1259,7 +1259,7 @@ namespace netxs::ui
                         auto iter = gears.find(gear.id);
                         if (iter != gears.end())
                         {
-                            //if constexpr (debugmode) log("foci: gears cleanup boss:", boss.id, " hid:", gear.id);
+                            //if constexpr (debugmode) log(prompt::foci, "Gears cleanup boss:", boss.id, " hid:", gear.id);
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
                             if (route.active) // Keep only the active branch.
@@ -1295,7 +1295,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
-                    //if constexpr (debugmode) log("foci: focus set gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1306,7 +1306,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
-                    //if constexpr (debugmode) log("foci: focus off gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1315,7 +1315,7 @@ namespace netxs::ui
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 pro::focus::off(item_ptr, gear_id_list);
-                //if constexpr (debugmode) log("foci: full defocus item:", item_ptr->id);
+                //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
             }
             static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
@@ -1323,7 +1323,7 @@ namespace netxs::ui
                 for (auto next_id : gear_id_list)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
-                    //if constexpr (debugmode) log("foci: focus get gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log(prompt::foci, "Focus get gear:", seed.id, " item:", item_ptr->id);
                 }
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
@@ -1365,7 +1365,7 @@ namespace netxs::ui
                 // Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
                 {
-                    //if constexpr (debugmode) log("foci: data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log(prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = get_route(gear.id);
                     if (route.active)
@@ -1387,13 +1387,13 @@ namespace netxs::ui
                 {
                     auto& route = get_route(seed.id);
                     auto deed = boss.bell::template protos<tier::release>();
-                    //if constexpr (debugmode) log("foci: ", text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
                     route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
-                    //if constexpr (debugmode) log("foci: ", text(--seed.deep * 4, ' '), "----------------");
+                    //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------");
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
-                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
                     auto iter = gears.find(seed.id);
                     if (iter == gears.end())
                     {
@@ -1422,11 +1422,11 @@ namespace netxs::ui
                         boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
                         signal_state<faux>();
                     }
-                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
                 {
-                    //if constexpr (debugmode) log("foci: ", text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
                     {
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
@@ -2549,7 +2549,7 @@ namespace netxs::ui
             template<class Bitmap>
             void render()
             {
-                log("diff: id: ", std::this_thread::get_id(), " rendering thread started");
+                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "Rendering thread started");
                 auto start = time{};
                 auto image = Bitmap{};
                 auto guard = std::unique_lock{ mutex };
@@ -2569,7 +2569,7 @@ namespace netxs::ui
                     }
                     debug.watch = datetime::now() - start;
                 }
-                log("diff: id: ", std::this_thread::get_id(), " rendering thread ended");
+                log(prompt::diff, "Id:", std::this_thread::get_id(), ' ', "Rendering thread ended");
             }
             // diff: Get rendering statistics.
             auto status()
@@ -2647,7 +2647,7 @@ namespace netxs::ui
                     std::this_thread::yield();
                 }
                 paint.join();
-                log("diff: id: ", id, " rendering thread joined");
+                log(prompt::diff, "Id:", id, ' ', "Rendering thread joined");
             }
         };
 
@@ -3377,13 +3377,13 @@ namespace netxs::ui
                 }
 
                 auto deed = this->bell::template protos<tier::release>();
-                //if constexpr (debugmode) log("foci: ", text(seed.deep++ * 4, ' '), "foci: ---gate bus::any gear:", seed.id, " hub:", this->id);
+                //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
                     target->bell::template signal<tier::release>(deed, seed);
                 }
-                //if constexpr (debugmode) log("foci: ", text(--seed.deep * 4, ' '), "foci: ----------------gate");
+                //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
             {
@@ -3456,7 +3456,7 @@ namespace netxs::ui
 
             LISTEN(tier::release, e2::form::proceed::quit::any, initiator, tokens)
             {
-                auto msg = ansi::add("gate: quit message from: ", initiator->id);
+                auto msg = ansi::add(prompt::gate, "Quit message from id:", initiator->id);
                 canal.shut();
                 this->SIGNAL(tier::general, e2::shutdown, msg);
             };
@@ -3531,14 +3531,13 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
-                auto msg = ansi::bgc(reddk).fgc(whitelt).add("\n\rgate: Term error: ", errcode, "\r\n");
-                log("gate: error byemsg: ", msg);
+                log(prompt::gate, "Console error: ", errcode);
                 canal.shut();
             };
             LISTEN(tier::release, e2::conio::quit, msg, tokens)
             {
                 this->SIGNAL(tier::preview, e2::form::proceed::quit::one, this->This());
-                log("gate: ", msg);
+                log(prompt::gate, msg);
                 canal.shut();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
@@ -3547,12 +3546,12 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, e2::conio::quit, msg, tokens)
             {
-                log("gate: ", msg);
+                log(prompt::gate, msg);
                 canal.shut();
             };
             LISTEN(tier::general, e2::conio::quit, msg, tokens)
             {
-                log("gate: global shutdown: ", msg);
+                log(prompt::gate, "Global shutdown: ", msg);
                 canal.shut();
             };
             LISTEN(tier::anycast, e2::form::upon::started, item_ptr, tokens)
@@ -3581,7 +3580,7 @@ namespace netxs::ui
                     auto temp = text{};
                     temp.reserve(newheader.length());
                     para{ newheader }.lyric->utf8(temp);
-                    log("gate: title changed to '", temp, ansi::nil().add("'"));
+                    log(prompt::gate, "Title changed to ", ansi::hi(utf::debase<faux, faux>(temp)));
                     conio.output(ansi::header(temp));
                 }
             };
@@ -3602,7 +3601,7 @@ namespace netxs::ui
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                 if (gear_ptr && !conio.request_clip_data(ext_gear_id, gear_ptr->clip_rawdata))
                 {
-                    log("gate: timeout: no clipboard data reply");
+                    log(prompt::gate, "Timeout: no clipboard data reply");
                 }
             };
             LISTEN(tier::preview, hids::events::mouse::button::tplclick::leftright, gear, tokens)
@@ -3818,7 +3817,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
-                log("host: shutdown: ", msg);
+                log(prompt::host, "Shutdown: ", msg);
                 canal.stop();
             };
             LISTEN(tier::general, hids::events::device::user::login, props, tokens)
@@ -3831,11 +3830,11 @@ namespace netxs::ui
             LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
             {
                 if (props < user_numbering.size()) user_numbering[props] = faux;
-                else log(ansi::err("hall: user accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                else log(ansi::err(prompt::host, "User accounting error: ring size:", user_numbering.size(), " user_number:", props));
             };
 
             quartz.ignite(maxfps);
-            log("host: started at ", maxfps, "fps");
+            log(prompt::host, "Started at ", maxfps, "fps");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)

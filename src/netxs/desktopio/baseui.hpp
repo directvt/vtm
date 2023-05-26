@@ -1111,7 +1111,7 @@ namespace netxs::ui
         // base: Initiate redrawing.
         virtual void redraw(face& canvas)
         {
-            SIGNAL(tier::general, e2::shutdown, "base: rendering is not provided");
+            SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::base, "Rendering not supported")));
         }
         // base: Syntax sugar helper.
         void _saveme()

@@ -29,6 +29,8 @@ namespace netxs
     using namespace std::literals;
 
     static constexpr auto whitespaces = " \n\r\t"sv;
+    static constexpr auto alphabetic  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"sv;
+    static constexpr auto base64code  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     static constexpr auto whitespace  = ' '; // '.';
     static constexpr auto emptyspace  = "\0"sv;
 }
@@ -1421,8 +1423,7 @@ namespace netxs::utf
 
     auto base64(view utf8)
     {
-        static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
+        auto code = base64code;
         auto data = text{};
         if (auto size = utf8.size())
         {
@@ -1469,7 +1470,7 @@ namespace netxs::utf
 
     auto unbase64(view bs64)
     {
-        static constexpr auto code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        auto code = base64code;
         auto is64 = [](auto c) { return (c > 0x2E && c < 0x3A) // '/' and digits
                                      || (c > 0x40 && c < 0x5B) // Uppercase letters
                                      || (c > 0x60 && c < 0x7B) // Lowercase letters

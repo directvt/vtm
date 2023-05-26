@@ -301,7 +301,7 @@ struct consrv
             auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
             if (rc != ERROR_SUCCESS)
             {
-                if constexpr (debugmode) log("\tabort: read_input (condrv, request) rc=", rc);
+                if constexpr (debugmode) log("\tAbort reading input (condrv, request) rc=", rc);
                 status = nt::status::unsuccessful;
                 return faux;
             }
@@ -334,7 +334,7 @@ struct consrv
         {
             status = nt::status::invalid_handle;
             auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
-            if constexpr (debugmode) log("\tpending operation aborted");
+            if constexpr (debugmode) log("\tPending operation aborted");
         }
     };
 
@@ -418,7 +418,7 @@ struct consrv
                 log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
                                  : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
                                  : what == CTRL_CLOSE_EVENT ? "CtrlClose"
-                                                            : "unknown", " event");
+                                                            : "Unknown", " event");
             }
             for (auto& client : server.joined)
             {
@@ -824,7 +824,7 @@ struct consrv
                     if (server.io_log)
                     {
                         if (rec.EventType == KEY_EVENT)
-                        log("stdin: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                        log(prompt::cinp, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
                             " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
                             " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
                             " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
@@ -1821,7 +1821,7 @@ struct consrv
     }
     auto api_unsupported                     ()
     {
-        log(prompt, "unsupported consrv request code ", upload.fxtype);
+        log(prompt, "Unsupported consrv request code ", upload.fxtype);
         answer.status = nt::status::illegal_function;
     }
     auto api_system_langid_get               ()
@@ -1865,7 +1865,7 @@ struct consrv
     }
     auto api_process_attach                  ()
     {
-        log(prompt, "attach process to console");
+        log(prompt, "Attach process to console");
         struct payload : wrap<payload>
         {
             ui64 taskid;
@@ -1962,7 +1962,7 @@ struct consrv
         { };
         auto& packet = payload::cast(upload);
         auto client_ptr = packet.client;
-        log(prompt, "detach process from console: 0x", utf::to_hex(client_ptr));
+        log(prompt, "Detach process from console: 0x", utf::to_hex(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
         {
@@ -2023,7 +2023,7 @@ struct consrv
     }
     auto api_process_create_handle           ()
     {
-        log(prompt, "create console handle");
+        log(prompt, "Create console handle");
         enum type : ui32
         {
             undefined,
@@ -2078,7 +2078,7 @@ struct consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        log(prompt, "delete console handle");
+        log(prompt, "Delete console handle");
         auto handle_ptr = packet.target;
         if (handle_ptr == nullptr)
         {
@@ -4061,7 +4061,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok<faux>(!debugmode, "vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, netxs::prompt::vtty, netxs::prompt::consrv, "GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4097,7 +4097,7 @@ struct consrv
             }
             else
             {
-                os::fail(prompt, "failed to create win32 window object");
+                os::fail(prompt, "Failed to create win32 window object");
                 winhnd = reinterpret_cast<HWND>(-1);
                 return;
             }
@@ -4131,12 +4131,12 @@ struct consrv
                         });
                         break;
                     }
-                    case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
-                    case ERROR_PIPE_NOT_CONNECTED: log(prompt, "client disconnected"); return;
-                    default:                       log(prompt, "unexpected nt::ioctl result ", rc); break;
+                    case ERROR_IO_PENDING:         log(prompt, "Operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
+                    case ERROR_PIPE_NOT_CONNECTED: log(prompt, "Client disconnected"); return;
+                    default:                       log(prompt, "Unexpected nt::ioctl result ", rc); break;
                 }
             }
-            log(prompt, "condrv main loop ended");
+            log(prompt, "Console server thread ended");
         }};
     }
     void resize(twod const& newsize)
@@ -4149,7 +4149,7 @@ struct consrv
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
-        log(prompt, "stop()");
+        log(prompt, "Console server stopped");
     }
     template<class T>
     auto size_check(T upto, T from)
@@ -4190,7 +4190,7 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ "vtty: consrv: " },
+          prompt{ utf::concat(netxs::prompt::vtty, netxs::prompt::consrv) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {
