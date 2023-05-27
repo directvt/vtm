@@ -2727,11 +2727,12 @@ namespace netxs::ui
                 // buff: Clear scrollback, add one empty line, and reset all metrics.
                 void clear()
                 {
+                    auto auto_wrap = current().wrapped();
                     ring::clear();
                     caret = 0;
                     basis = 0;
                     slide = 0;
-                    invite(0); // At least one line must exist.
+                    invite(0, deco{}.wrp(auto_wrap)); // At least one line must exist.
                     ancid = back().index;
                     ancdy = 0;
                     set_width(width);
@@ -2771,7 +2772,7 @@ namespace netxs::ui
                        shore{ boss.config.def_margin }
             {
                 parser::style.wrp(boss.config.def_wrpmod);
-                batch.invite(0); // At least one line must exist.
+                batch.invite(0, boss.config.def_wrpmod == wrap::on); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
 

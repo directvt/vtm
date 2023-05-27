@@ -989,8 +989,6 @@ struct consrv
                         data.crop(line.length() + 1, zero); // To avoid pending cursor.
                         term.move(-coor);
                         term.data(data);
-                        using erase = std::decay_t<decltype(server.uiterm)>::commands::erase;
-                        term.el(erase::line::wraps);
 
                         if (done && crlf && server.inpmod & nt::console::inmode::preprocess) // On PROCESSED_INPUT + ECHO_INPUT only.
                         {
