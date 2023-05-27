@@ -1804,7 +1804,8 @@ namespace netxs::utf
         auto result = (flux{} << std::hex << num).str();
         auto shadow = view{ result };
         trim_front(shadow, '0');
-        return "0x" + text{ shadow };
+        return shadow.empty() ? "0x0"s
+                              : "0x" + text{ shadow };
     }
     auto to_hex_0x(wchr num)
     {

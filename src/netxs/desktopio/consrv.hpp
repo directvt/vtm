@@ -1171,6 +1171,44 @@ struct consrv
                 signal.notify_one();
             }
         }
+        template<class T>
+        void logbuf(T&& recs)
+        {
+            if (recs.empty()) return;
+            auto crop = ansi::add("\treply.count: ", recs.size(), '\n');
+            for (auto& r : recs)
+            {
+                switch (r.EventType)
+                {
+                    case KEY_EVENT:
+                        crop.add("\ttype: key",
+                                " ctrl:", utf::to_hex_0x(r.Event.KeyEvent.dwControlKeyState),
+                                " vcod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualKeyCode),
+                                " scod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualScanCode),
+                                " wchr:", utf::to_hex_0x(r.Event.KeyEvent.uChar.UnicodeChar),
+                                " down:",                r.Event.KeyEvent.bKeyDown ? '1':'0',
+                                " count:",               r.Event.KeyEvent.wRepeatCount, '\n');
+                        break;
+                    case MOUSE_EVENT:
+                        crop.add("\ttype: mouse",
+                                " ctrl:", utf::to_hex_0x(r.Event.MouseEvent.dwControlKeyState),
+                                " coor:",          twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y },
+                                " bttn:", utf::to_hex_0x(r.Event.MouseEvent.dwButtonState),
+                                " flag:", utf::to_hex_0x(r.Event.MouseEvent.dwEventFlags), '\n');
+                        break;
+                    case WINDOW_BUFFER_SIZE_EVENT:
+                        crop.add("\ttype: winsize ", twod{ r.Event.WindowBufferSizeEvent.dwSize.X, r.Event.WindowBufferSizeEvent.dwSize.Y }, '\n');
+                        break;
+                    case MENU_EVENT:
+                        crop.add("\ttype: menu command:", r.Event.MenuEvent.dwCommandId, '\n');
+                        break;
+                    case FOCUS_EVENT:
+                        crop.add("\ttype: focus ", r.Event.FocusEvent.bSetFocus ? "on" : "off", '\n');
+                        break;
+                }
+            }
+            log(crop);
+        }
         template<bool Complete = faux, class Payload>
         auto readevents(Payload& packet, cdrw& answer)
         {
@@ -1246,11 +1284,13 @@ struct consrv
             }
             if (size == recbuf.size())
             {
+                if (server.io_log) logbuf(recbuf);
                 answer.send_data<Complete>(server.condrv, recbuf);
                 recbuf.clear();
             }
             else
             {
+                if (server.io_log) logbuf(std::span{ recbuf.data(), size });
                 answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
                 if (peek) recbuf.clear();
                 else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
@@ -1265,7 +1305,7 @@ struct consrv
                 if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
                 {
-                    if (server.io_log) log("\treply.count = 0");
+                    if (server.io_log) log("\treply.count: 0");
                     packet.reply.count = 0;
                     return;
                 }
@@ -1285,7 +1325,7 @@ struct consrv
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        if (server.io_log) log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
+                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x(packet.taskid));
                     });
                     server.answer = {};
                 }
@@ -1293,7 +1333,6 @@ struct consrv
             else
             {
                 readevents(packet, server.answer);
-                if (server.io_log) log("\treply.count = ", packet.reply.count);
             }
         }
     };
