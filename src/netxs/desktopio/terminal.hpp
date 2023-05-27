@@ -2250,7 +2250,8 @@ namespace netxs::ui
             // alt_screen: Parser callback.
             void data(si32 count, grid const& proto) override
             {
-                _data(count, proto, cell::shaders::full);
+                //_data(count, proto, cell::shaders::full);
+                _data(count, proto, cell::shaders::skipnuls);
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -4033,7 +4034,12 @@ namespace netxs::ui
                         if (coord.x < 0)
                         {
                             wrapup();
-                            if (coord.y < 0) coord = dot_00;
+                            if (coord.y < 0)
+                            {
+                                coord.y += coord.x / panel.x;
+                                coord.x  = coord.x % panel.x;
+                                if (coord.y < 0) coord = dot_00;
+                            }
                         }
                     }
                     else if (coord.y <= y_end)
@@ -4045,10 +4051,15 @@ namespace netxs::ui
                             wrapup();
                             if (coord.y < y_top)
                             {
-                                batch.basis -= std::abs(y_top - coord.y);
-                                if (batch.basis < 0) batch.basis = 0;
-                                coord.y = y_top;
-                                index_rebuild();
+                                coord.y += coord.x / panel.x;
+                                coord.x  = coord.x % panel.x;
+                                if (coord.y < y_top)
+                                {
+                                    batch.basis -= y_top - coord.y;
+                                    if (batch.basis < 0) batch.basis = 0;
+                                    coord.y = y_top;
+                                    index_rebuild();
+                                }
                             }
                         }
                     }
@@ -4374,7 +4385,7 @@ namespace netxs::ui
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 count, grid const& proto) override
             {
-                _data(count, proto, cell::shaders::full);
+                _data(count, proto, cell::shaders::skipnuls);
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -7012,7 +7023,20 @@ namespace netxs::ui
             RISEUP(tier::preview, e2::form::layout::swarp, warp);
             RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
-
+        // term: Custom data output (ConSrv callback).
+        template<class Fx>
+        void data(rich& cooked, Fx fx)
+        {
+            if (auto count = cooked.size().x)
+            {
+                auto& proto = cooked.pick();
+                auto& brush = target == &normal ? normal.parser::brush
+                                                : altbuf.parser::brush;
+                cooked.each([&](cell& c) { c.meta(brush); });
+                if (target == &normal) normal._data(count, proto, fx);
+                else                   altbuf._data(count, proto, fx);
+            }
+        }
         //todo
         bool linux_console{};
 

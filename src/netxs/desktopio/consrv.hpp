@@ -817,7 +817,7 @@ struct consrv
             do
             {
                 auto coor = line.caret;
-                auto size = line.length();
+                auto last = line.length();
                 auto pops = 0_sz;
                 for (auto& rec : buffer)
                 {
@@ -983,10 +983,13 @@ struct consrv
                     lock.unlock();
                     server.uiterm.update([&]
                     {
-                        static auto zero = cell{ '\0' }.wdt(1);
+                        static auto empty = cell{ emptyspace }.wdt(1);
+                        static auto erase = cell{ whitespace }.wdt(1);
                         auto& term = *server.uiterm.target;
                         auto& data = line.content();
-                        data.crop(line.length() + 1, zero); // To avoid pending cursor.
+                        auto  size = line.length();
+                             if (size < last)        data.crop(last + 0, erase); // Erase trailing cells when shrinking.
+                        else if (size == line.caret) data.crop(size + 1, empty); // Avoid pending cursor.
                         term.move(-coor);
                         term.data(data);
 
@@ -998,7 +1001,7 @@ struct consrv
                         else term.move(line.caret - line.length());
 
                         if (mode.reset()) server.uiterm.cursor.toggle();
-                        data.crop(line.length() - 1);
+                        data.crop(size);
                     });
                     lock.lock();
                 }
@@ -1581,8 +1584,9 @@ struct consrv
                 while (iter && rest)
                 {
                     auto next = iter.next();
-                    auto code = next.correct ? BMPtoOEM[next.cdpoint]
-                                             : defchar();
+                    auto code = next.correct
+                             && next.cdpoint < 65536 ? BMPtoOEM[next.cdpoint]
+                                                     : defchar();
                     auto size = code < 256 ? 1u : 2u;
                     if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
                     {
@@ -2764,7 +2768,7 @@ struct consrv
             netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::nonzero for transparency?
+                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
             });
             if (!success) crop = {};
         }
