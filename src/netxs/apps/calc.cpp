@@ -30,13 +30,13 @@ int main(int argc, char* argv[])
             cfpath = getopt.next();
             if (cfpath.empty())
             {
-                errmsg = "config file path not specified";
+                errmsg = "Config file path not specified";
                 break;
             }
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("show help message");
+            errmsg = ansi::nil().add("Show help message");
             break;
         }
         else if (getopt.match("-v", "--version"))
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            errmsg = utf::concat("unknown option '", getopt.next(), "'");
+            errmsg = utf::concat("Unknown option '", getopt.next(), "'");
             break;
         }
     }
@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
         if (result) return 0;
         else
         {
-            log("main: app initialization error");
+            log(prompt::main, "App initialization error");
             return 1;
         }
     }

@@ -301,7 +301,7 @@ struct consrv
             auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
             if (rc != ERROR_SUCCESS)
             {
-                if constexpr (debugmode) log("\tabort: read_input (condrv, request) rc=", rc);
+                if constexpr (debugmode) log("\tAbort reading input (condrv, request) rc=", rc);
                 status = nt::status::unsuccessful;
                 return faux;
             }
@@ -334,7 +334,7 @@ struct consrv
         {
             status = nt::status::invalid_handle;
             auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
-            if constexpr (debugmode) log("\tpending operation aborted");
+            if constexpr (debugmode) log("\tPending operation aborted");
         }
     };
 
@@ -418,7 +418,7 @@ struct consrv
                 log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
                                  : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
                                  : what == CTRL_CLOSE_EVENT ? "CtrlClose"
-                                                            : "unknown", " event");
+                                                            : "Unknown", " event");
             }
             for (auto& client : server.joined)
             {
@@ -445,7 +445,7 @@ struct consrv
             recbuf.clear();
             cooked.drop();
         }
-        auto generate(wchr c, ui32 s = 0, ui16 v = 0)
+        auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0, ui16 rc = 1)
         {
             buffer.emplace_back(INPUT_RECORD
             {
@@ -454,12 +454,12 @@ struct consrv
                 {
                     .KeyEvent =
                     {
-                        .bKeyDown               = 1,
-                        .wRepeatCount           = 1,
-                        .wVirtualKeyCode        = v,
-                        .wVirtualScanCode       = 0,
-                        .uChar = { .UnicodeChar = c },
-                        .dwControlKeyState      = s,
+                        .bKeyDown               = dn,
+                        .wRepeatCount           = rc,
+                        .wVirtualKeyCode        = vc,
+                        .wVirtualScanCode       = sc,
+                        .uChar = { .UnicodeChar = ch },
+                        .dwControlKeyState      = st,
                     }
                 }
             });
@@ -607,7 +607,7 @@ struct consrv
         {
             return v != VK_CONTROL && v != VK_SHIFT && (c = ::MapVirtualKeyW(v, MAPVK_VK_TO_CHAR) & 0xffff);
         }
-        auto vtencode(input::hids& gear, bool decckm)
+        auto vtencode(input::hids& gear, bool decckm, wchr c)
         {
             static auto truenull = takevkey<'\0'>().vkey;
             static auto alonekey = std::unordered_map<ui16, wide>
@@ -692,7 +692,6 @@ struct consrv
             {
                 auto& s = gear.winctrl;
                 auto& v = gear.virtcod;
-                auto& c = gear.winchar;
 
                 if (s & LEFT_CTRL_PRESSED && s & RIGHT_ALT_PRESSED) // This combination is already translated.
                 {
@@ -744,27 +743,28 @@ struct consrv
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
-            if (!vtencode(gear, decckm))
+            toWIDE.clear();
+            utf::to_utf(gear.cluster, toWIDE);
+            if (toWIDE.empty()) toWIDE.push_back(0);
+            auto c = toWIDE.front();
+
+            if (toWIDE.size() > 1) // Surrogate pair special case or clipboard paste.
             {
-                buffer.emplace_back(INPUT_RECORD
+                if (gear.pressed) // Proceed push events only.
                 {
-                    .EventType = KEY_EVENT,
-                    .Event =
+                    for (auto c : toWIDE)
                     {
-                        .KeyEvent =
-                        {
-                            .bKeyDown               = gear.pressed,
-                            .wRepeatCount           = gear.imitate,
-                            .wVirtualKeyCode        = gear.virtcod,
-                            .wVirtualScanCode       = gear.scancod,
-                            .uChar = { .UnicodeChar = gear.winchar },
-                            .dwControlKeyState      = gear.winctrl,
-                        }
+                        generate(c, gear.winctrl, gear.virtcod, 1, gear.scancod, gear.imitate);
+                        generate(c, gear.winctrl, gear.virtcod, 0, gear.scancod, gear.imitate);
                     }
-                });
+                }
+            }
+            else if (!vtencode(gear, decckm, c))
+            {
+                generate(c, gear.winctrl, gear.virtcod, gear.pressed, gear.scancod, gear.imitate);
             }
 
-            if (gear.keybd::winchar == ansi::c0_etx)
+            if (c == ansi::c0_etx)
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
@@ -817,19 +817,19 @@ struct consrv
             do
             {
                 auto coor = line.caret;
-                auto size = line.length();
+                auto last = line.length();
                 auto pops = 0_sz;
                 for (auto& rec : buffer)
                 {
                     if (server.io_log)
                     {
                         if (rec.EventType == KEY_EVENT)
-                        log("stdin: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
-                            " ", rec.Event.KeyEvent.bKeyDown ? "dn" : "up",
-                            " ctrl: 0x",  utf::to_hex(rec.Event.KeyEvent.dwControlKeyState),
-                            " char: 0x",  utf::to_hex(rec.Event.KeyEvent.uChar.UnicodeChar),
-                            " virt: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualKeyCode),
-                            " scan: 0x",  utf::to_hex(rec.Event.KeyEvent.wVirtualScanCode),
+                        log(prompt::cin, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                            " ", rec.Event.KeyEvent.bKeyDown ? "Pressed " : "Released",
+                            " ctrl: ", utf::to_hex_0x(rec.Event.KeyEvent.dwControlKeyState),
+                            " char: ", utf::to_hex_0x(rec.Event.KeyEvent.uChar.UnicodeChar),
+                            " virt: ", utf::to_hex_0x(rec.Event.KeyEvent.wVirtualKeyCode),
+                            " scan: ", utf::to_hex_0x(rec.Event.KeyEvent.wVirtualScanCode),
                             " rept: ",                rec.Event.KeyEvent.wRepeatCount);
                     }
 
@@ -983,14 +983,15 @@ struct consrv
                     lock.unlock();
                     server.uiterm.update([&]
                     {
-                        static auto zero = cell{ '\0' }.wdt(1);
+                        static auto empty = cell{ emptyspace }.wdt(1);
+                        static auto erase = cell{ whitespace }.wdt(1);
                         auto& term = *server.uiterm.target;
                         auto& data = line.content();
-                        data.crop(line.length() + 1, zero); // To avoid pending cursor.
+                        auto  size = line.length();
+                             if (size < last)        data.crop(last + 0, erase); // Erase trailing cells when shrinking.
+                        else if (size == line.caret) data.crop(size + 1, empty); // Avoid pending cursor.
                         term.move(-coor);
                         term.data(data);
-                        using erase = std::decay_t<decltype(server.uiterm)>::commands::erase;
-                        term.el(erase::line::wraps);
 
                         if (done && crlf && server.inpmod & nt::console::inmode::preprocess) // On PROCESSED_INPUT + ECHO_INPUT only.
                         {
@@ -1000,7 +1001,7 @@ struct consrv
                         else term.move(line.caret - line.length());
 
                         if (mode.reset()) server.uiterm.cursor.toggle();
-                        data.crop(line.length() - 1);
+                        data.crop(size);
                     });
                     lock.lock();
                 }
@@ -1170,6 +1171,44 @@ struct consrv
                 signal.notify_one();
             }
         }
+        template<class T>
+        void logbuf(T&& recs)
+        {
+            if (recs.empty()) return;
+            auto crop = ansi::add("\treply.count: ", recs.size(), '\n');
+            for (auto& r : recs)
+            {
+                switch (r.EventType)
+                {
+                    case KEY_EVENT:
+                        crop.add("\ttype: key",
+                                " ctrl:", utf::to_hex_0x(r.Event.KeyEvent.dwControlKeyState),
+                                " vcod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualKeyCode),
+                                " scod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualScanCode),
+                                " wchr:", utf::to_hex_0x(r.Event.KeyEvent.uChar.UnicodeChar),
+                                " down:",                r.Event.KeyEvent.bKeyDown ? '1':'0',
+                                " count:",               r.Event.KeyEvent.wRepeatCount, '\n');
+                        break;
+                    case MOUSE_EVENT:
+                        crop.add("\ttype: mouse",
+                                " ctrl:", utf::to_hex_0x(r.Event.MouseEvent.dwControlKeyState),
+                                " coor:",          twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y },
+                                " bttn:", utf::to_hex_0x(r.Event.MouseEvent.dwButtonState),
+                                " flag:", utf::to_hex_0x(r.Event.MouseEvent.dwEventFlags), '\n');
+                        break;
+                    case WINDOW_BUFFER_SIZE_EVENT:
+                        crop.add("\ttype: winsize ", twod{ r.Event.WindowBufferSizeEvent.dwSize.X, r.Event.WindowBufferSizeEvent.dwSize.Y }, '\n');
+                        break;
+                    case MENU_EVENT:
+                        crop.add("\ttype: menu command:", r.Event.MenuEvent.dwCommandId, '\n');
+                        break;
+                    case FOCUS_EVENT:
+                        crop.add("\ttype: focus ", r.Event.FocusEvent.bSetFocus ? "on" : "off", '\n');
+                        break;
+                }
+            }
+            log(crop);
+        }
         template<bool Complete = faux, class Payload>
         auto readevents(Payload& packet, cdrw& answer)
         {
@@ -1245,11 +1284,13 @@ struct consrv
             }
             if (size == recbuf.size())
             {
+                if (server.io_log) logbuf(recbuf);
                 answer.send_data<Complete>(server.condrv, recbuf);
                 recbuf.clear();
             }
             else
             {
+                if (server.io_log) logbuf(std::span{ recbuf.data(), size });
                 answer.send_data<Complete>(server.condrv, std::span{ recbuf.data(), size });
                 if (peek) recbuf.clear();
                 else      recbuf.erase(recbuf.begin(), recbuf.begin() + size);
@@ -1264,7 +1305,7 @@ struct consrv
                 if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
                 {
-                    if (server.io_log) log("\treply.count = 0");
+                    if (server.io_log) log("\treply.count: 0");
                     packet.reply.count = 0;
                     return;
                 }
@@ -1284,7 +1325,7 @@ struct consrv
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        if (server.io_log) log("\tdeferred task ", utf::to_hex(packet.taskid), " completed, reply.count ", packet.reply.count);
+                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x(packet.taskid));
                     });
                     server.answer = {};
                 }
@@ -1292,7 +1333,6 @@ struct consrv
             else
             {
                 readevents(packet, server.answer);
-                if (server.io_log) log("\treply.count = ", packet.reply.count);
             }
         }
     };
@@ -1583,8 +1623,9 @@ struct consrv
                 while (iter && rest)
                 {
                     auto next = iter.next();
-                    auto code = next.correct ? BMPtoOEM[next.cdpoint]
-                                             : defchar();
+                    auto code = next.correct
+                             && next.cdpoint < 65536 ? BMPtoOEM[next.cdpoint]
+                                                     : defchar();
                     auto size = code < 256 ? 1u : 2u;
                     if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
                     {
@@ -1821,7 +1862,7 @@ struct consrv
     }
     auto api_unsupported                     ()
     {
-        log(prompt, "unsupported consrv request code ", upload.fxtype);
+        log(prompt, "Unsupported consrv request code ", upload.fxtype);
         answer.status = nt::status::illegal_function;
     }
     auto api_system_langid_get               ()
@@ -1865,7 +1906,7 @@ struct consrv
     }
     auto api_process_attach                  ()
     {
-        log(prompt, "attach process to console");
+        log(prompt, "Attach process to console");
         struct payload : wrap<payload>
         {
             ui64 taskid;
@@ -1962,7 +2003,7 @@ struct consrv
         { };
         auto& packet = payload::cast(upload);
         auto client_ptr = packet.client;
-        log(prompt, "detach process from console: 0x", utf::to_hex(client_ptr));
+        log(prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
         {
@@ -1971,7 +2012,7 @@ struct consrv
             for (auto& handle : client.tokens)
             {
                 auto handle_ptr = &handle;
-                log("\tdeactivate handle: 0x", utf::to_hex(handle_ptr));
+                log("\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
                 events.abort(handle_ptr);
             }
             uiterm.target->brush = client.backup;
@@ -1985,9 +2026,9 @@ struct consrv
             }
             client.tokens.clear();
             joined.erase(iter);
-            log("\tprocess 0x", utf::to_hex(client_ptr), " detached");
+            log("\tprocess ", utf::to_hex_0x(client_ptr), " detached");
         }
-        else log("\trequested process 0x", utf::to_hex(client_ptr), " not found");
+        else log("\trequested process ", utf::to_hex_0x(client_ptr), " not found");
     }
     auto api_process_enlist                  ()
     {
@@ -2023,7 +2064,7 @@ struct consrv
     }
     auto api_process_create_handle           ()
     {
-        log(prompt, "create console handle");
+        log(prompt, "Create console handle");
         enum type : ui32
         {
             undefined,
@@ -2078,7 +2119,7 @@ struct consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        log(prompt, "delete console handle");
+        log(prompt, "Delete console handle");
         auto handle_ptr = packet.target;
         if (handle_ptr == nullptr)
         {
@@ -2347,7 +2388,7 @@ struct consrv
         auto& packet = payload::cast(upload);
         log(prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
                                                        : "ReadConsoleInput",
-            "\n\tinput.flags: ", utf::to_hex(packet.input.flags),
+            "\n\tinput.flags: 0x", utf::to_hex(packet.input.flags),
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
         auto client_ptr = packet.client;
         if (client_ptr == nullptr)
@@ -2766,7 +2807,7 @@ struct consrv
             netxs::onbody(dest, copy, allfx, eolfx);
             auto success = direct(packet.target, [&](auto& scrollback)
             {
-                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::nonzero for transparency?
+                write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
             });
             if (!success) crop = {};
         }
@@ -3353,7 +3394,7 @@ struct consrv
         log("\tbuffer size: ", buffsize);
         log("\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy });
         log("\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy });
-        log("\tattributes : ", utf::to_hex(packet.input.attributes));
+        log("\tattributes : ", utf::to_hex_0x(packet.input.attributes));
         log("\twindow size: ", windowsz);
         log("\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
         log("\tpopup color: ", packet.input.popupcolor);
@@ -4029,7 +4070,7 @@ struct consrv
     fd_t&       condrv; // consrv: Console driver handle.
     bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
-    view        prompt; // consrv: Log prompt.
+    text        prompt; // consrv: Log prompt.
     list        joined; // consrv: Attached processes list.
     std::thread server; // consrv: Main thread.
     std::thread window; // consrv: Win32 window message loop.
@@ -4061,7 +4102,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok<faux>(!debugmode, "vtty: consrv: GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4097,7 +4138,7 @@ struct consrv
             }
             else
             {
-                os::fail(prompt, "failed to create win32 window object");
+                os::fail(prompt, "Failed to create win32 window object");
                 winhnd = reinterpret_cast<HWND>(-1);
                 return;
             }
@@ -4131,12 +4172,12 @@ struct consrv
                         });
                         break;
                     }
-                    case ERROR_IO_PENDING:         log(prompt, "operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
-                    case ERROR_PIPE_NOT_CONNECTED: log(prompt, "client disconnected"); return;
-                    default:                       log(prompt, "unexpected nt::ioctl result ", rc); break;
+                    case ERROR_IO_PENDING:         log(prompt, "Operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
+                    case ERROR_PIPE_NOT_CONNECTED: log(prompt, "Client disconnected"); return;
+                    default:                       log(prompt, "Unexpected nt::ioctl result ", rc); break;
                 }
             }
-            log(prompt, "condrv main loop ended");
+            log(prompt, "Server thread ended");
         }};
     }
     void resize(twod const& newsize)
@@ -4149,7 +4190,7 @@ struct consrv
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
-        log(prompt, "stop()");
+        log(prompt, "Console API server shut down");
     }
     template<class T>
     auto size_check(T upto, T from)
@@ -4190,7 +4231,7 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
-          prompt{ "vtty: consrv: " },
+          prompt{ utf::concat(netxs::prompt::win32) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {

@@ -43,7 +43,7 @@ namespace netxs::events::userland
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
-            EVENT_XS( shutdown  , const view     ), // general: Server shutdown.
+            EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
@@ -140,7 +140,6 @@ namespace netxs::events::userland
             };
             SUBSET_XS( command )
             {
-                EVENT_XS( quit       , const view  ), // return bye msg, arg: errcode.
                 EVENT_XS( cout       , const text  ), // Append extra data to output.
                 EVENT_XS( custom     , si32        ), // Custom command, arg: cmd_id.
                 EVENT_XS( printscreen, input::hids ), // Copy screen area to clipboard.
@@ -1111,7 +1110,7 @@ namespace netxs::ui
         // base: Initiate redrawing.
         virtual void redraw(face& canvas)
         {
-            SIGNAL(tier::general, e2::shutdown, "base: rendering is not provided");
+            SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::base, "Rendering not supported")));
         }
         // base: Syntax sugar helper.
         void _saveme()
@@ -1205,7 +1204,7 @@ namespace netxs::ui
         }
         friend auto& operator << (flux& s, pipe const& sock)
         {
-            return sock.show(s << "{ xipc: ") << " }";
+            return sock.show(s << "{ " << prompt::xipc) << " }";
         }
         friend auto& operator << (flux& s, xipc const& sock)
         {

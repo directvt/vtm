@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
     #include "vtm.xml"
 
     auto vtmode = os::tty::vtmode();
-    auto banner = [&]{ log(app::vtm::desc, ' ', app::shared::version); };
+    auto banner = [&]{ log(prompt::vtm, app::shared::version); };
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};
@@ -53,7 +53,7 @@ int main(int argc, char* argv[])
             vtpipe = getopt.next();
             if (vtpipe.empty())
             {
-                errmsg = "custom pipe not specified";
+                errmsg = "Custom pipe not specified";
                 break;
             }
         }
@@ -70,13 +70,13 @@ int main(int argc, char* argv[])
             cfpath = getopt.next();
             if (cfpath.empty())
             {
-                errmsg = "config file path not specified";
+                errmsg = "Config file path not specified";
                 break;
             }
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("show help message");
+            errmsg = ansi::nil().add("Show help message");
             break;
         }
         else if (getopt.match("-v", "--version"))
@@ -91,7 +91,7 @@ int main(int argc, char* argv[])
         }
         else
         {
-            errmsg = utf::concat("unknown option '", getopt.next(), "'");
+            errmsg = utf::concat("Unknown option '", getopt.next(), "'");
             break;
         }
     }
@@ -139,12 +139,12 @@ int main(int argc, char* argv[])
     {
         auto userid = os::env::user();
         auto prefix = (vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe) + app::shared::logsuffix;
-        log("main: waiting for server...");
+        log(prompt::main, "Waiting for server...");
         while (true)
         {
             if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
             {
-                log("main: connected");
+                log(prompt::main, "Connected");
                 while (os::io::send(stream->recv()))
                 { }
                 return 0;
@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
         auto success = app::shared::start(params, app::vtm::id, vtmode, config);
         if (!success)
         {
-            os::fail("console initialization error");
+            os::fail("Console initialization error");
             return 1;
         }
     }
@@ -188,7 +188,7 @@ int main(int argc, char* argv[])
         {
             auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
             {
-                log("main: new vtm session for ", userid);
+                log(prompt::main, "New vtm session for ", userid);
                 auto success = faux;
                 if (os::process::fork(success, prefix, config.utf8())) whoami = type::server;
                 return success;
@@ -209,7 +209,7 @@ int main(int argc, char* argv[])
             }
             else if (whoami != type::server)
             {
-                os::fail("no vtm server connection");
+                os::fail("No vtm server connection");
                 return 1;
             }
         }
@@ -223,7 +223,7 @@ int main(int argc, char* argv[])
             }
             else 
             {
-                if (!success) os::fail("failed to daemonize");
+                if (!success) os::fail("Failed to daemonize");
                 return !success;
             }
         }
@@ -231,13 +231,13 @@ int main(int argc, char* argv[])
         auto server = os::ipc::socket::open<os::role::server>(prefix);
         if (!server)
         {
-            os::fail("can't start vtm server");
+            os::fail("Can't start vtm server");
             return 1;
         }
         auto logger = os::ipc::socket::open<os::role::server>(prefix + app::shared::logsuffix);
         if (!logger)
         {
-            os::fail("can't start vtm logger");
+            os::fail("Can't start vtm logger");
             return 1;
         }
         using e2 = netxs::ui::e2;
@@ -247,22 +247,23 @@ int main(int argc, char* argv[])
         auto thread = os::process::pool{};
         domain->autorun();
 
-        log("main: listening socket ", server,
+        log(prompt::main, "Server started",
           "\n      user: ", userid,
           "\n      pipe: ", prefix);
 
         auto stdlog = std::thread{ [&]
         {
-            while (auto stream = logger->meet())
+            while (auto monitor = logger->meet())
             {
-                thread.run([&, stream](auto session_id)
+                thread.run([&, monitor](auto session_id)
                 {
-                    log("logs: monitor ", stream, " connected");
+                    auto id = utf::concat(*monitor);
+                    log(prompt::logs, "Monitor connected ", id);
                     auto tokens = subs{};
-                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { stream->shut(); };
-                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { stream->send(utf8); };
-                    stream->recv();
-                    log("logs: monitor ", stream, " disconnected");
+                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { monitor->shut(); };
+                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { monitor->send(utf8); };
+                    monitor->recv();
+                    log(prompt::logs, "Monitor disconnected ", id);
                 });
             }
         }};
@@ -274,17 +275,18 @@ int main(int argc, char* argv[])
             {
                 thread.run([&, client, settings](auto session_id)
                 {
-                    log("user: new gate for ", client);
+                    auto id = utf::concat(*client);
+                    log(prompt::user, "Client connected ", id);
                     auto config = xmls{ settings };
                     auto packet = os::tty::globals().wired.init.recv(client);
                     config.fuse(packet.config);
                     domain->invite(client, packet.user, packet.mode, config, session_id);
-                    log("user: ", client, " logged out");
+                    log(prompt::user, "Client disconnected ", id);
                 });
             }
         }
         logger->stop(); // Logger must be stopped first to prevent reconnection.
-        domain->SIGNAL(tier::general, e2::conio::quit, "main: server shutdown");
+        domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));
         events::dequeue();
         domain->shutdown();
         stdlog.join();

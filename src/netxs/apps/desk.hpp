@@ -331,13 +331,13 @@ namespace netxs::app::desk
             auto user_info = utf::divide(v, ";");
             if (user_info.size() < 2)
             {
-                log("desk: bad window arguments: args=", utf::debase(v));
+                log(prompt::desk, "Bad window arguments: args=", utf::debase(v));
                 return window;
             }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
             auto& menu_selected  = user_info[2];
-            log("desk: id: ", user_id___view, ", user name: ", user_name_view);
+            log(prompt::desk, "Id: ", user_id___view, ", user name: ", user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
@@ -579,7 +579,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            gear.owner.SIGNAL(tier::preview, e2::conio::quit, "taskbar: logout by button");
+                            gear.owner.SIGNAL(tier::preview, e2::conio::quit, msg, (utf::concat(prompt::desk, "Logout by button")));
                             gear.dismiss();
                         };
                     });
@@ -592,7 +592,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.SIGNAL(tier::general, e2::shutdown, "desk: server shutdown");
+                            boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
                         };
                     });
                 auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::tail, snap::center);

@@ -6,6 +6,57 @@
 
 #pragma once
 
+namespace netxs::prompt
+{
+    static constexpr auto  pads = "      "sv;
+    static constexpr auto    os = "  os: "sv;
+    static constexpr auto   tty = " tty: "sv;
+    static constexpr auto   ack = " ack: "sv;
+    static constexpr auto   xml = " xml: "sv;
+    static constexpr auto   vtm = " vtm: "sv;
+    static constexpr auto   cin = "stdin: "sv;
+    static constexpr auto  cout = "stdout: "sv;
+    static constexpr auto win32 = "win32api: "sv;
+
+    #define prompt_list \
+        X(apps) /* */ \
+        X(base) /* */ \
+        X(calc) /* */ \
+        X(desk) /* */ \
+        X(diff) /* */ \
+        X(dtvt) /* */ \
+        X(exec) /* */ \
+        X(foci) /* */ \
+        X(gate) /* */ \
+        X(hall) /* */ \
+        X(hids) /* */ \
+        X(host) /* */ \
+        X(logs) /* */ \
+        X(main) /* */ \
+        X(meet) /* */ \
+        X(open) /* */ \
+        X(page) /* */ \
+        X(para) /* */ \
+        X(path) /* */ \
+        X(pipe) /* */ \
+        X(pool) /* */ \
+        X(rail) /* */ \
+        X(s11n) /* */ \
+        X(sock) /* */ \
+        X(term) /* */ \
+        X(text) /* */ \
+        X(tile) /* */ \
+        X(user) /* */ \
+        X(vtty) /* */ \
+        X(xipc) /* */ \
+        X(xtty) /* */
+
+    #define X(prompt) static constexpr auto prompt = #prompt": "sv;
+        prompt_list
+    #undef X
+    #undef prompt_list
+}
+
 namespace netxs::directvt
 {
     using namespace netxs::ansi;
@@ -107,7 +158,7 @@ namespace netxs::directvt
                 {
                     // Noop.
                 }
-                else log("dtvt: unsupported data type");
+                else log(prompt::dtvt, "Unsupported data type");
             }
             // stream: Replace bytes at specified position.
             template<class T>
@@ -127,13 +178,13 @@ namespace netxs::directvt
                 {
                     if (data.size() < sizeof(sz_t))
                     {
-                        log("dtvt: corrupted view frame");
+                        log(prompt::dtvt, "Corrupted frame header");
                         return view{};
                     }
                     auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
                     if (data.size() < size + sizeof(size))
                     {
-                        log("dtvt: corrupted data");
+                        log(prompt::dtvt, "Corrupted frame data");
                         return view{};
                     }
                     auto crop = view{ data.data() + sizeof(sz_t), (size_t)size };
@@ -162,7 +213,7 @@ namespace netxs::directvt
                     using type = decltype(span{}.count());
                     if (data.size() < sizeof(type))
                     {
-                        log("dtvt: corrupted time data");
+                        log(prompt::dtvt, "Corrupted datetime data");
                         return D{};
                     }
                     auto temp = *reinterpret_cast<type const*>(data.data());
@@ -177,7 +228,7 @@ namespace netxs::directvt
                 {
                     if (data.size() < sizeof(D))
                     {
-                        log("dtvt: corrupted integer data");
+                        log(prompt::dtvt, "Corrupted integer data");
                         return D{};
                     }
                     auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
@@ -245,7 +296,7 @@ namespace netxs::directvt
             {
                 if (size > data.size())
                 {
-                    log("dtvt: wrong data size");
+                    log(prompt::dtvt, "Wrong data size");
                     return view{};
                 }
                 auto crop = data.substr(0, size);
@@ -263,7 +314,7 @@ namespace netxs::directvt
                     auto step = *reinterpret_cast<sz_t const*>(iter);
                     if (step < sizeof(sz_t))
                     {
-                        log("dtvt: stream corrupted, frame size: ", step);
+                        log(prompt::dtvt, "Stream corrupted", ", frame size: ", step);
                         break;
                     }
                     if (size < step) break;
@@ -353,14 +404,14 @@ namespace netxs::directvt
                 auto shot = input(buff.data(), buff.size());
                 if (shot.size() != buff.size())
                 {
-                    log("dtvt: stream corrupted");
+                    log(prompt::dtvt, "Stream corrupted");
                     return faux;
                 }
                 auto rest = size_t{};
                 rest = *reinterpret_cast<sz_t const*>(buff.data());
                 if (rest < sizeof(sz_t))
                 {
-                    log("dtvt: stream corrupted, frame size: ", rest);
+                    log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;
                 }
                 rest -= shot.size();
@@ -371,7 +422,7 @@ namespace netxs::directvt
                     shot = input(head, rest);
                     if (!shot)
                     {
-                        log("dtvt: stream corrupted");
+                        log(prompt::dtvt, "Stream corrupted");
                         return faux;
                     }
                     rest -= shot.size();
@@ -381,7 +432,7 @@ namespace netxs::directvt
                 auto kind = *reinterpret_cast<type const*>(data.data());
                 if (kind != object.kind)
                 {
-                    log("dtvt: object type mismatch");
+                    log(prompt::dtvt, "Object type mismatch");
                     return faux;
                 }
                 data.remove_prefix(sizeof(type));
@@ -532,7 +583,7 @@ namespace netxs::directvt
                         auto size = sz_t{};
                         std::tie(size, item.next) = stream::template take<sz_t, type>(rest);
                         stop = size > rest.size() + head;
-                        if (stop) log("dtvt: corrupted data");
+                        if (stop) log(prompt::dtvt, "Corrupted data");
                         else
                         {
                             crop = rest.substr(0, size - head);
@@ -646,7 +697,7 @@ namespace netxs::directvt
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
         STRUCT_macro(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT_macro(request_clipboard, (id_t, gear_id))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -663,7 +714,7 @@ namespace netxs::directvt
         // Input stream.
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
-        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (wchr, winchar) (bool, handled))
+        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (ui32, enabled)  // sysmouse: Mouse device health status.
                                         (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
@@ -876,7 +927,7 @@ namespace netxs::directvt
                         auto [count] = stream::take<sz_t>(data);
                         if (count > tail - iter)
                         {
-                            log("dtvt: bitmap: corrupted data, subtype: ", what);
+                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         auto from = iter;
@@ -888,22 +939,22 @@ namespace netxs::directvt
                         auto [offset] = stream::take<sz_t>(data);
                         if (offset >= size)
                         {
-                            log("dtvt: bitmap: corrupted data, subtype: ", what);
+                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         iter = head + offset;
                     }
                     else // Unknown subtype.
                     {
-                        log("dtvt: bitmap: unknown data, subtype: ", what);
+                        log(prompt::dtvt, "bitmap: ", "Unknown data, subtype: ", what);
                         break;
                     }
                 }
                 image.mark(mark);
-                //log("dtvt: frame len: ", frame_len);
-                //log("dtvt: nop count: ", nop_count);
-                //log("dtvt: rep count: ", rep_count);
-                //log("dtvt: dif count: ", dif_count);
+                //log(prompt::dtvt, "frame len: ", frame_len);
+                //log(prompt::dtvt, "nop count: ", nop_count);
+                //log(prompt::dtvt, "rep count: ", rep_count);
+                //log(prompt::dtvt, "dif count: ", dif_count);
                 //log("----------------------------");
             }
         };
@@ -980,7 +1031,7 @@ namespace netxs::directvt
                     {
                         iter->second(frame.data);
                     }
-                    else log("s11n: unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
+                    else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                 }
             }
             s11n() = default;
