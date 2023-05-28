@@ -7376,7 +7376,6 @@ namespace netxs::ui
                         gear.pressed  = k.pressed;
                         gear.imitate  = k.imitate;
                         gear.cluster  = k.cluster;
-                        gear.winchar  = k.winchar;
                         gear.handled  = k.handled;
                         do
                         {
@@ -7586,7 +7585,6 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.imitate,
                                                gear.cluster,
-                                               gear.winchar,
                                                gear.handled);
                     gear.dismiss();
                 };

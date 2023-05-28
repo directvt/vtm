@@ -3321,7 +3321,7 @@ namespace netxs::os
                         auto wVirtualScanCode = ansi::ctrl_break;
                         auto bKeyDown = faux;
                         auto wRepeatCount = 1;
-                        auto UnicodeChar = L'\x03'; // ansi::C0_ETX
+                        auto UnicodeChar = "\x03"s; // ansi::C0_ETX
                         g.wired.syskeybd.send(*g.ipcio,
                             0,
                             os::nt::kbstate(g.kbmod, dwControlKeyState),
@@ -3330,7 +3330,6 @@ namespace netxs::os
                             wVirtualScanCode,
                             bKeyDown,
                             wRepeatCount,
-                            UnicodeChar ? utf::to_utf(UnicodeChar) : text{},
                             UnicodeChar,
                             faux);
                         break;
@@ -3401,6 +3400,8 @@ namespace netxs::os
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
                 auto stamp = ui32{};
+                auto point = utfx{};
+                auto toutf = text{};
                 fd_t waits[] = { os::stdin_fd, alarm };
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
@@ -3428,34 +3429,73 @@ namespace netxs::os
                             auto limit = entry + count;
                             while (entry != limit)
                             {
-                                auto& reply = *entry++;
-                                switch (reply.EventType)
+                                auto& r = *entry++;
+                                switch (r.EventType)
                                 {
                                     case KEY_EVENT:
-                                        wired.syskeybd.send(ipcio,
-                                            0,
-                                            os::nt::kbstate(g.kbmod, reply.Event.KeyEvent.dwControlKeyState, reply.Event.KeyEvent.wVirtualScanCode, reply.Event.KeyEvent.bKeyDown),
-                                            reply.Event.KeyEvent.dwControlKeyState,
-                                            reply.Event.KeyEvent.wVirtualKeyCode,
-                                            reply.Event.KeyEvent.wVirtualScanCode,
-                                            reply.Event.KeyEvent.bKeyDown,
-                                            reply.Event.KeyEvent.wRepeatCount,
-                                            reply.Event.KeyEvent.uChar.UnicodeChar ? utf::to_utf(reply.Event.KeyEvent.uChar.UnicodeChar) : text{},
-                                            reply.Event.KeyEvent.uChar.UnicodeChar,
-                                            faux);
+                                        if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
+                                        {
+                                            if (point) utf::to_utf_from_code(point, toutf);
+                                            wired.syskeybd.send(ipcio,
+                                                0,
+                                                os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
+                                                r.Event.KeyEvent.dwControlKeyState,
+                                                r.Event.KeyEvent.wVirtualKeyCode,
+                                                r.Event.KeyEvent.wVirtualScanCode,
+                                                r.Event.KeyEvent.bKeyDown,
+                                                r.Event.KeyEvent.wRepeatCount,
+                                                toutf,
+                                                faux);
+                                        }
+                                        else if (std::distance(entry, limit) > 2) // Surrogate pairs special case.
+                                        {
+                                            auto& dn_1 = r;
+                                            auto& up_1 = *entry;
+                                            auto& dn_2 = *(entry + 1);
+                                            auto& up_2 = *(entry + 2);
+                                            if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
+                                                && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
+                                                && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
+                                            {
+                                                entry += 3;
+                                                utf::to_utf_from_code(point, toutf);
+                                                wired.syskeybd.send(ipcio,
+                                                    0,
+                                                    os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
+                                                    r.Event.KeyEvent.dwControlKeyState,
+                                                    r.Event.KeyEvent.wVirtualKeyCode,
+                                                    r.Event.KeyEvent.wVirtualScanCode,
+                                                    true, // Pressed
+                                                    r.Event.KeyEvent.wRepeatCount,
+                                                    toutf,
+                                                    faux);
+                                                wired.syskeybd.send(ipcio,
+                                                    0,
+                                                    os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
+                                                    r.Event.KeyEvent.dwControlKeyState,
+                                                    r.Event.KeyEvent.wVirtualKeyCode,
+                                                    r.Event.KeyEvent.wVirtualScanCode,
+                                                    faux, // Released
+                                                    r.Event.KeyEvent.wRepeatCount,
+                                                    toutf,
+                                                    faux);
+                                            }
+                                        }
+                                        point = {};
+                                        toutf.clear();
                                         break;
                                     case MOUSE_EVENT:
                                         wired.sysmouse.send(ipcio,
                                             0,
                                             input::hids::stat::ok,
-                                            os::nt::kbstate(g.kbmod, reply.Event.MouseEvent.dwControlKeyState),
-                                            reply.Event.MouseEvent.dwControlKeyState,
-                                            reply.Event.MouseEvent.dwButtonState & 0b00011111,
-                                            reply.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
-                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED,
-                                            reply.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED,
-                                            static_cast<int16_t>((0xFFFF0000 & reply.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
-                                            twod{ reply.Event.MouseEvent.dwMousePosition.X, reply.Event.MouseEvent.dwMousePosition.Y },
+                                            os::nt::kbstate(g.kbmod, r.Event.MouseEvent.dwControlKeyState),
+                                            r.Event.MouseEvent.dwControlKeyState,
+                                            r.Event.MouseEvent.dwButtonState & 0b00011111,
+                                            r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
+                                            r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED,
+                                            r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED,
+                                            static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16), // dwButtonState too large when mouse scrolls
+                                            twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y },
                                             stamp++);
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
@@ -3464,7 +3504,7 @@ namespace netxs::os
                                     case FOCUS_EVENT:
                                         wired.sysfocus.send(ipcio,
                                             0,
-                                            reply.Event.FocusEvent.bSetFocus,
+                                            r.Event.FocusEvent.bSetFocus,
                                             faux,
                                             faux);
                                         break;

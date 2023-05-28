@@ -679,7 +679,6 @@ namespace netxs::input
             };
         };
 
-        wchr winchar = {}; // MS Windows specific.
         text cluster = {};
         bool pressed = {};
         ui16 imitate = {};
@@ -696,7 +695,6 @@ namespace netxs::input
             virtcod = k.virtcod;
             scancod = k.scancod;
             cluster = k.cluster;
-            winchar = k.winchar;
             handled = k.handled;
             fire_keybd();
         }

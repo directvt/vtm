@@ -445,7 +445,7 @@ struct consrv
             recbuf.clear();
             cooked.drop();
         }
-        auto generate(wchr c, ui32 s = 0, ui16 v = 0)
+        auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0, ui16 rc = 1)
         {
             buffer.emplace_back(INPUT_RECORD
             {
@@ -454,12 +454,12 @@ struct consrv
                 {
                     .KeyEvent =
                     {
-                        .bKeyDown               = 1,
-                        .wRepeatCount           = 1,
-                        .wVirtualKeyCode        = v,
-                        .wVirtualScanCode       = 0,
-                        .uChar = { .UnicodeChar = c },
-                        .dwControlKeyState      = s,
+                        .bKeyDown               = dn,
+                        .wRepeatCount           = rc,
+                        .wVirtualKeyCode        = vc,
+                        .wVirtualScanCode       = sc,
+                        .uChar = { .UnicodeChar = ch },
+                        .dwControlKeyState      = st,
                     }
                 }
             });
@@ -607,7 +607,7 @@ struct consrv
         {
             return v != VK_CONTROL && v != VK_SHIFT && (c = ::MapVirtualKeyW(v, MAPVK_VK_TO_CHAR) & 0xffff);
         }
-        auto vtencode(input::hids& gear, bool decckm)
+        auto vtencode(input::hids& gear, bool decckm, wchr c)
         {
             static auto truenull = takevkey<'\0'>().vkey;
             static auto alonekey = std::unordered_map<ui16, wide>
@@ -692,7 +692,6 @@ struct consrv
             {
                 auto& s = gear.winctrl;
                 auto& v = gear.virtcod;
-                auto& c = gear.winchar;
 
                 if (s & LEFT_CTRL_PRESSED && s & RIGHT_ALT_PRESSED) // This combination is already translated.
                 {
@@ -744,27 +743,28 @@ struct consrv
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
-            if (!vtencode(gear, decckm))
+            toWIDE.clear();
+            utf::to_utf(gear.cluster, toWIDE);
+            if (toWIDE.empty()) toWIDE.push_back(0);
+            auto c = toWIDE.front();
+
+            if (toWIDE.size() > 1) // Surrogate pair special case or clipboard paste.
             {
-                buffer.emplace_back(INPUT_RECORD
+                if (gear.pressed) // Proceed push events only.
                 {
-                    .EventType = KEY_EVENT,
-                    .Event =
+                    for (auto c : toWIDE)
                     {
-                        .KeyEvent =
-                        {
-                            .bKeyDown               = gear.pressed,
-                            .wRepeatCount           = gear.imitate,
-                            .wVirtualKeyCode        = gear.virtcod,
-                            .wVirtualScanCode       = gear.scancod,
-                            .uChar = { .UnicodeChar = gear.winchar },
-                            .dwControlKeyState      = gear.winctrl,
-                        }
+                        generate(c, gear.winctrl, gear.virtcod, 1, gear.scancod, gear.imitate);
+                        generate(c, gear.winctrl, gear.virtcod, 0, gear.scancod, gear.imitate);
                     }
-                });
+                }
+            }
+            else if (!vtencode(gear, decckm, c))
+            {
+                generate(c, gear.winctrl, gear.virtcod, gear.pressed, gear.scancod, gear.imitate);
             }
 
-            if (gear.keybd::winchar == ansi::c0_etx)
+            if (c == ansi::c0_etx)
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
@@ -4102,7 +4102,7 @@ struct consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=0x", utf::to_hex(hwnd), " uMsg=0x", utf::to_hex(uMsg), " wParam=0x", utf::to_hex(wParam), " lParam=0x", utf::to_hex(lParam));
+                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;

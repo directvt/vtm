@@ -2440,6 +2440,11 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::conio::clipdata, clip{ dot_00, item.data, static_cast<clip::mime>(item.mimetype) });
             }
+            void handle(s11n::xs::logs        lock)
+            {
+                auto& logs = lock.thing;
+                log(logs.data);
+            }
             void handle(s11n::xs::syskeybd    lock)
             {
                 auto& keybd = lock.thing;
@@ -3446,7 +3451,6 @@ namespace netxs::ui
                                                           gear.pressed,
                                                           gear.imitate,
                                                           gear.cluster,
-                                                          gear.winchar,
                                                           gear.handled);
                         }
                     }
