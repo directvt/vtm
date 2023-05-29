@@ -9,7 +9,6 @@
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";
-    static constexpr auto desc = " vtm:";
 
     struct link
     {
@@ -730,7 +729,7 @@ namespace netxs::app::vtm
 
         gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
-              notes{*this, ansi::add("Gate: ", props.title) }
+              notes{*this, ansi::add(prompt::gate, props.title) }
         {
             //todo local=>nexthop
             local = faux;
@@ -1309,7 +1308,7 @@ namespace netxs::app::vtm
                         auto start = datetime::now();
                         boss.SIGNAL(tier::general, e2::cleanup, counter, ());
                         auto stop = datetime::now() - start;
-                        log("hall: garbage collection",
+                        log(prompt::hall, "Garbage collection",
                         "\n\ttime ", utf::format(stop.count()), "ns",
                         "\n\tobjs ", counter.obj_count,
                         "\n\trefs ", counter.ref_count,
@@ -1337,7 +1336,7 @@ namespace netxs::app::vtm
             if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
             else                             slot->extend(what.square);
             slot->attach(what.applet);
-            log("hall: app type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+            log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
             this->branch(what.menuid, slot, !cfg.hidden);
             slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return slot;
@@ -1395,7 +1394,7 @@ namespace netxs::app::vtm
                 }
                 else if (conf_rec.menuid.empty())
                 {
-                    log("hall: attribute '", utf::debase(attr_id), "' is missing, skip item");
+                    log(prompt::hall, "Attribute '", utf::debase(attr_id), "' is missing, skip item");
                     continue;
                 }
                 auto label        = item.take(attr_label, ""s);
@@ -1556,7 +1555,7 @@ namespace netxs::app::vtm
                 auto location = gear.slot;
                 if (gear.meta(hids::anyCtrl))
                 {
-                    log("hall: area copied to clipboard ", location);
+                    log(prompt::hall, "Area copied to clipboard ", location);
                     gate.SIGNAL(tier::release, e2::command::printscreen, gear);
                 }
                 else
@@ -1569,7 +1568,7 @@ namespace netxs::app::vtm
                         window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
                         {
                             insts_count--;
-                            log("hall: detached: ", insts_count);
+                            log(prompt::hall, "Detached: ", insts_count);
                         };
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
@@ -1582,7 +1581,7 @@ namespace netxs::app::vtm
                 auto slot = window(what);
                 slot->extend(what.square);
                 slot->attach(what.applet);
-                log("hall: attach type=", utf::debase(cfg.type), " menuid=", utf::debase(what.menuid));
+                log(prompt::hall, "Attach type=", utf::debase(cfg.type), " menuid=", utf::debase(what.menuid));
                 this->branch(what.menuid, slot, !cfg.hidden);
                 slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.applet = slot;
@@ -1657,7 +1656,7 @@ namespace netxs::app::vtm
                         auto window_ptr = create(what);
                         if (focused) foci.push_back(window_ptr);
                     }
-                    else log("hall: Unexpected empty app id in autorun configuration");
+                    else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }
             }
             auto count = 0;
@@ -1669,7 +1668,7 @@ namespace netxs::app::vtm
             if constexpr (debugmode)
             {
                 SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (0,0));
-                log("hall: autofocused items count:", gear_test.second);
+                if (gear_test.second) log(prompt::hall, "Autofocused items count", ": ", gear_test.second);
             }
         }
         void redraw(face& canvas) override

@@ -1613,7 +1613,7 @@ namespace netxs::ui
         // rail: Update nested object.
         void update(sptr old_item_ptr, sptr new_item_ptr)
         {
-            if (client != old_item_ptr) log(" rail: WARNING! Wrong DOM structure. rail.id=", id);
+            if (client != old_item_ptr) log(prompt::rail, "Wrong DOM structure. rail.id=", id);
             if (client)
             {
                 auto current_position = client->base::coor();

@@ -565,7 +565,7 @@ namespace netxs::ui
                         break;
                     }
                     default:
-                        log("term: CSI ", option, "... t (XTWINOPS) is not supported");
+                        log(prompt::term, "CSI ", option, "... t (XTWINOPS) is not supported");
                         break;
                 }
             }
@@ -614,7 +614,7 @@ namespace netxs::ui
             }
             void notsupported(text const& property, view data)
             {
-                log("term: not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
+                log(prompt::term, "Not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
             }
 
             c_tracking(term& owner)
@@ -717,7 +717,7 @@ namespace netxs::ui
                 {
                     proc->second(data);
                 }
-                else log("term: not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
+                else log(prompt::term, "Not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
             }
             void fgc(tint c) { owner.target->brush.fgc(color[c]); }
             void bgc(tint c) { owner.target->brush.bgc(color[c]); }
@@ -1203,7 +1203,7 @@ namespace netxs::ui
             void task(ansi::rule const& property)
             {
                 parser::flush();
-                log("term: bufferbase: locus extensions are not supported");
+                log(prompt::term, "Desktopio extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -1231,7 +1231,7 @@ namespace netxs::ui
             template<class T>
             void na(T&& note)
             {
-                log("term: not implemented: ", note);
+                log(prompt::term, "Not implemented: ", note);
             }
             void not_implemented_CSI(si32 i, fifo& q)
             {
@@ -1246,7 +1246,7 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("term: CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
+                log(prompt::term, "CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
             }
             void not_implemented_ESC(si32 c, qiew& q)
             {
@@ -1260,7 +1260,7 @@ namespace netxs::ui
                     case ansi::esc_pm    :
                     case ansi::esc_apc   :
                     case ansi::esc_st    :
-                        log("term: ESC ", (char)c, " (", c, ") is unexpected");
+                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unexpected");
                         break;
                     // Unsupported ESC + byte + rest
                     case ansi::esc_g0set :
@@ -1274,7 +1274,7 @@ namespace netxs::ui
                     case ansi::esc_decdhl:
                     case ansi::esc_chrset:
                     {
-                        if (!q) log("term: ESC ", (char)c, " (", c, ") is incomplete");
+                        if (!q) log(prompt::term, "ESC ", (char)c, " (", c, ") is incomplete");
                         auto b = q.front();
                         q.pop_front();
                         switch (b)
@@ -1303,7 +1303,7 @@ namespace netxs::ui
                             case '9':
                             case '`':
                             case 'U':
-                                log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
+                                log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
                                 break;
                             case '%':
                             case '"':
@@ -1311,18 +1311,18 @@ namespace netxs::ui
                                 if (q.size() < 2)
                                 {
                                     if (q) q.pop_front();
-                                    log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
+                                    log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
                                 }
                                 else
                                 {
                                      auto d = q.front();
                                      q.pop_front();
-                                     log("term: ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
+                                     log(prompt::term, "ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
                                 }
                                 break;
                             }
                             default:
-                                log("term: ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
+                                log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
                                 break;
                         }
                         break;
@@ -1353,10 +1353,10 @@ namespace netxs::ui
                     case ansi::esc_spa   :
                     case ansi::esc_epa   :
                     case ansi::esc_rid   :
-                        log("term: ESC ", (char)c, " (", c, ") is unsupported");
+                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
-                        log("term: ESC ", (char)c, " (", c, ") is unknown");
+                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1369,13 +1369,13 @@ namespace netxs::ui
                 switch (c)
                 {
                     case -1:
-                        log("term: ESC #  is unexpected");
+                        log(prompt::term, "ESC #  is unexpected");
                         break;
                     case '3':
                     case '4':
                     case '5':
                     case '6':
-                        log("term: ESC # ", (char)c, " (", c, ") is unsupported");
+                        log(prompt::term, "ESC # ", (char)c, " (", c, ") is unsupported");
                         break;
                     case '8':
                     {
@@ -1390,7 +1390,7 @@ namespace netxs::ui
                         break;
                     }
                     default:
-                        log("term: ESC # ", (char)c, " (", c, ") is unknown");
+                        log(prompt::term, "ESC # ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1415,7 +1415,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                log("term: Unsupported Message/Command: '\\e", (char)c, utf::debase<faux>(data), "'");
+                log(prompt::term, "Unsupported message/command: '\\e", (char)c, utf::debase<faux>(data), "'");
             }
             // bufferbase: Clear buffer.
     virtual void clear_all()
@@ -1731,7 +1731,7 @@ namespace netxs::ui
             // bufferbase: Shift left n columns(s).
             void shl(si32 n)
             {
-                log("term: bufferbase: SHL(n=", n, ") is not implemented.");
+                log(prompt::term, "SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(si32 n, char c = '\0') = 0;
@@ -2250,7 +2250,8 @@ namespace netxs::ui
             // alt_screen: Parser callback.
             void data(si32 count, grid const& proto) override
             {
-                _data(count, proto, cell::shaders::full);
+                //_data(count, proto, cell::shaders::full);
+                _data(count, proto, cell::shaders::skipnuls);
             }
             // alt_screen: Clear viewport.
             void clear_all() override
@@ -2727,11 +2728,12 @@ namespace netxs::ui
                 // buff: Clear scrollback, add one empty line, and reset all metrics.
                 void clear()
                 {
+                    auto auto_wrap = current().wrapped();
                     ring::clear();
                     caret = 0;
                     basis = 0;
                     slide = 0;
-                    invite(0); // At least one line must exist.
+                    invite(0, deco{}.wrp(auto_wrap)); // At least one line must exist.
                     ancid = back().index;
                     ancdy = 0;
                     set_width(width);
@@ -2771,7 +2773,7 @@ namespace netxs::ui
                        shore{ boss.config.def_margin }
             {
                 parser::style.wrp(boss.config.def_wrpmod);
-                batch.invite(0); // At least one line must exist.
+                batch.invite(0, boss.config.def_wrpmod == wrap::on); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
 
@@ -3365,7 +3367,7 @@ namespace netxs::ui
             {
                 if (batch.basis >= batch.vsize)
                 {
-                    assert((log("term: batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                    assert((log(prompt::term, "batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
                     batch.basis = batch.vsize - 1;
                 }
 
@@ -4032,7 +4034,12 @@ namespace netxs::ui
                         if (coord.x < 0)
                         {
                             wrapup();
-                            if (coord.y < 0) coord = dot_00;
+                            if (coord.y < 0)
+                            {
+                                coord.y += coord.x / panel.x;
+                                coord.x  = coord.x % panel.x;
+                                if (coord.y < 0) coord = dot_00;
+                            }
                         }
                     }
                     else if (coord.y <= y_end)
@@ -4044,10 +4051,15 @@ namespace netxs::ui
                             wrapup();
                             if (coord.y < y_top)
                             {
-                                batch.basis -= std::abs(y_top - coord.y);
-                                if (batch.basis < 0) batch.basis = 0;
-                                coord.y = y_top;
-                                index_rebuild();
+                                coord.y += coord.x / panel.x;
+                                coord.x  = coord.x % panel.x;
+                                if (coord.y < y_top)
+                                {
+                                    batch.basis -= y_top - coord.y;
+                                    if (batch.basis < 0) batch.basis = 0;
+                                    coord.y = y_top;
+                                    index_rebuild();
+                                }
                             }
                         }
                     }
@@ -4373,7 +4385,7 @@ namespace netxs::ui
             // scroll_buf: Proceed new text (parser callback).
             void data(si32 count, grid const& proto) override
             {
-                _data(count, proto, cell::shaders::full);
+                _data(count, proto, cell::shaders::skipnuls);
             }
             // scroll_buf: Clear scrollback.
             void clear_all() override
@@ -6184,13 +6196,13 @@ namespace netxs::ui
                     cursor.show();
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
-                    log("term: decset: CSI ? 9 h  X10 Mouse reporting protocol is not supported");
+                    log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
                 case 1000: // Enable mouse buttons reporting mode.
                     mtrack.enable(m_tracking::buttons_press);
                     break;
                 case 1001: // Use Hilite mouse tracking mode.
-                    log("term: decset: CSI ? 1001 h  Hilite mouse tracking mode is not supported");
+                    log(prompt::term, "CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Enable mouse buttons and drags reporting mode.
                     mtrack.enable(m_tracking::buttons_drags);
@@ -6214,10 +6226,10 @@ namespace netxs::ui
                     mtrack.enable(m_tracking::negative_args);
                     break;
                 case 1015: // Enable URXVT mouse reporting protocol.
-                    log("term: decset: CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
+                    log(prompt::term, "CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Enable Pixels (subcell) mouse mode.
-                    log("term: decset: CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                    log(prompt::term, "CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Save cursor pos.
                     target->scp();
@@ -6294,13 +6306,13 @@ namespace netxs::ui
                     cursor.hide();
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
-                    log("term: decset: CSI ? 9 l  X10 Mouse tracking protocol is not supported");
+                    log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                     break;
                 case 1000: // Disable mouse buttons reporting mode.
                     mtrack.disable(m_tracking::buttons_press);
                     break;
                 case 1001: // Don't use Hilite(c) mouse tracking mode.
-                    log("term: decset: CSI ? 1001 l  Hilite mouse tracking mode is not supported");
+                    log(prompt::term, "CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Disable mouse buttons and drags reporting mode.
                     mtrack.disable(m_tracking::buttons_drags);
@@ -6325,10 +6337,10 @@ namespace netxs::ui
                     mtrack.disable(m_tracking::negative_args);
                     break;
                 case 1015: // Disable URXVT mouse reporting protocol.
-                    log("term: decset: CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
+                    log(prompt::term, "CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Disable Pixels (subcell) mouse mode.
-                    log("term: decset: CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
+                    log(prompt::term, "CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Restore cursor pos.
                     target->rcp();
@@ -6431,7 +6443,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6440,7 +6452,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log && data.size()) log("stdout:\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6449,7 +6461,7 @@ namespace netxs::ui
         {
             bell::trysync(active, [&]
             {
-                log("term: exit code 0x", utf::to_hex(code));
+                log(prompt::term, "Exit code ", utf::to_hex_0x(code));
                 auto close_proc = [&]
                 {
                     netxs::events::enqueue(This(), [&](auto& boss)
@@ -6460,7 +6472,7 @@ namespace netxs::ui
                 auto chose_proc = [&]
                 {
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil()
+                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil()
                         .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
                     ondata(error);
                     this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
@@ -6478,7 +6490,7 @@ namespace netxs::ui
                 auto start_proc = [&]
                 {
                     auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\nterm: exit code 0x", utf::to_hex(code), " ").nil().add("\r\n\n");
+                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil().add("\r\n\n");
                     ondata(error);
                     netxs::events::enqueue(This(), [&](auto& boss)
                     {
@@ -6932,7 +6944,7 @@ namespace netxs::ui
         }
         void exec_cmd(commands::ui::commands cmd)
         {
-            log("term: tier::preview, ui::commands, ", cmd);
+            if constexpr (debugmode) log(prompt::term, "tier::preview, ui::commands, ", cmd);
             auto& console = *target;
             //todo reorganize - group commands
             if (console.selection_active())
@@ -7011,7 +7023,20 @@ namespace netxs::ui
             RISEUP(tier::preview, e2::form::layout::swarp, warp);
             RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
-
+        // term: Custom data output (ConSrv callback).
+        template<class Fx>
+        void data(rich& cooked, Fx fx)
+        {
+            if (auto count = cooked.size().x)
+            {
+                auto& proto = cooked.pick();
+                auto& brush = target == &normal ? normal.parser::brush
+                                                : altbuf.parser::brush;
+                cooked.each([&](cell& c) { c.meta(brush); });
+                if (target == &normal) normal._data(count, proto, fx);
+                else                   altbuf._data(count, proto, fx);
+            }
+        }
         //todo
         bool linux_console{};
 
@@ -7145,7 +7170,7 @@ namespace netxs::ui
                             d << (si32)(byte)v.front() << " ";
                             v.remove_prefix(1);
                         }
-                        log("stdin: ", d.str());
+                        log(prompt::cin, d.str());
                     }
 
                 #endif
@@ -7287,7 +7312,7 @@ namespace netxs::ui
                 for (auto& jgc : lock.thing)
                 {
                     cell::gc_set_data(jgc.token, jgc.cluster);
-                    log("term: new gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    if constexpr (debugmode) log(prompt::term, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
                 netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
                 {
@@ -7351,7 +7376,6 @@ namespace netxs::ui
                         gear.pressed  = k.pressed;
                         gear.imitate  = k.imitate;
                         gear.cluster  = k.cluster;
-                        gear.winchar  = k.winchar;
                         gear.handled  = k.handled;
                         do
                         {
@@ -7375,7 +7399,7 @@ namespace netxs::ui
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
                         gear.replay(m.cause, m.coord - basis, m.delta, m.buttons);
-                        gear.pass<tier::release>(parent_ptr, basis);
+                        gear.pass<tier::release>(parent_ptr, dot_00, true);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
                             gear.coord -= basis; // Restore gate mouse position.
@@ -7561,7 +7585,6 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.imitate,
                                                gear.cluster,
-                                               gear.winchar,
                                                gear.handled);
                     gear.dismiss();
                 };
@@ -7665,8 +7688,8 @@ namespace netxs::ui
         {
             netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                if (code) log(ansi::bgc(reddk).fgc(whitelt).add("\ndtvt: exit code 0x", utf::to_hex(code), " ").nil());
-                else      log("dtvt: exit code 0");
+                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::term, "Exit code ", utf::to_hex_0x(code), ' ').nil());
+                else      log(prompt::dtvt, "Exit code 0");
                 backup.reset(); // Call dtvt::dtor.
             });
         }

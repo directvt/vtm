@@ -1396,7 +1396,7 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst = src; }
             };
-            struct nonzero_t : public brush_t<nonzero_t>
+            struct skipnuls_t : public brush_t<skipnuls_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { if (!src.isnul()) dst = src; }
@@ -1514,7 +1514,7 @@ namespace netxs
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
             static constexpr auto     full =     full_t{};
-            static constexpr auto  nonzero =  nonzero_t{};
+            static constexpr auto skipnuls = skipnuls_t{};
             static constexpr auto     text =     text_t{};
             static constexpr auto     meta =     meta_t{};
             static constexpr auto   xlight =   xlight_t{};

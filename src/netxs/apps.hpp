@@ -453,7 +453,7 @@ namespace netxs::app::shared
         };
         auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)
         {
-            if (param.empty()) log("apps: nothing to run, use 'type=SHELL' to run instance without arguments");
+            if (param.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
 
             auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
