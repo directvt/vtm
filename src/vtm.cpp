@@ -102,7 +102,7 @@ int main(int argc, char* argv[])
     {
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
-        log("\nTerminal multiplexer with window manager and session sharing.\n\n"s
+        log("\nVirtual terminal multiplexer with window manager and session sharing.\n\n"s
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
             + "  Options:\n\n"s
