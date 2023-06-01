@@ -3729,7 +3729,7 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
-        repl engine; // host:: Scripting engine.
+        repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
 

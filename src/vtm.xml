@@ -7,17 +7,18 @@ R"==(
         <lua        cwd="" cmd="lua -i"        main="print \"Hello World!\""/>
         <js         cwd="" cmd="node -i">
             <main>
-                public class HelloWorld
-                {
-                    public void printHelloWorld()
-                    {
-                        System.out.println("Hello World!");
-                    }
-                    public static void main(String[] args)
-                    {
-                        printHelloWorld();
-                    }
-                }
+                console.log("Hello, World!");
+                //public class HelloWorld
+                //{
+                //    public void printHelloWorld()
+                //    {
+                //        System.out.println("Hello World!");
+                //    }
+                //    public static void main(String[] args)
+                //    {
+                //        printHelloWorld();
+                //    }
+                //}
             </main>
         </js>
     </scripting>
