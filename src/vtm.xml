@@ -1,5 +1,26 @@
 R"==(
 <config>
+    <scripting enabled=true engine="python">
+        <python     cwd="" cmd="python -i"     main="print(\"Hello World!\")"/>
+        <powershell cwd="" cmd="powershell -i" main="Hello World!"/>
+        <pwsh       cwd="" cmd="pwsh -i"       main="Hello World!"/>
+        <lua        cwd="" cmd="lua -i"        main="print \"Hello World!\""/>
+        <js         cwd="" cmd="node -i">
+            <main>
+                public class HelloWorld
+                {
+                    public void printHelloWorld()
+                    {
+                        System.out.println("Hello World!");
+                    }
+                    public static void main(String[] args)
+                    {
+                        printHelloWorld();
+                    }
+                }
+            </main>
+        </js>
+    </scripting>
     <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes

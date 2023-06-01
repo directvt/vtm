@@ -228,7 +228,7 @@ namespace netxs::xml
             empty_tag,     // '/>'    ex: ... />
             equal,         // '='     ex: name=value
             defaults,      // '*'     ex: name*
-            compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
+            //compact,       // '/[^>]' ex: compact syntax: <name/nested_block1/nested_block2=value param=value />
             include,       // ':'     ex: <name:...=value param=value />
             localpath,     //         ex: <name:/path/path=value param=value />
             filepath,      //         ex: <name:"/filepath/filepath"=value param=value />
@@ -344,7 +344,7 @@ namespace netxs::xml
                         case eof:           fgc = redlt;        break;
                         case top_token:     fgc = top_token_fg; break;
                         case end_token:     fgc = end_token_fg; break;
-                        case compact:       fgc = end_token_fg; break;
+                        //case compact:       fgc = end_token_fg; break;
                         case token:         fgc = token_fg;     break;
                         case raw_text:      fgc = yellowdk;     break;
                         case quoted_text:   fgc = yellowdk;     break;
@@ -719,7 +719,7 @@ namespace netxs::xml
                     case type::eof:           return view{ "{EOF}" }     ;
                     case type::token:         return view{ "{token}" }   ;
                     case type::raw_text:      return view{ "{raw text}" };
-                    case type::compact:       return view{ "{compact}" } ;
+                    //case type::compact:       return view{ "{compact}" } ;
                     case type::quoted_text:   return view_quoted_text    ;
                     case type::begin_tag:     return view_begin_tag      ;
                     case type::close_tag:     return view_close_tag      ;
@@ -749,11 +749,12 @@ namespace netxs::xml
             else if (data.starts_with(view_close_tag    )) what = type::close_tag;
             else if (data.starts_with(view_begin_tag    )) what = type::begin_tag;
             else if (data.starts_with(view_empty_tag    )) what = type::empty_tag;
-            else if (data.starts_with(view_slash        ))
-            {
-                if (last == type::token) what = type::compact;
-                else                     what = type::unknown;
-            }
+            else if (data.starts_with(view_slash        )) what = type::unknown;
+            //else if (data.starts_with(view_slash        ))
+            //{
+            //    if (last == type::token) what = type::compact;
+            //    else                     what = type::unknown;
+            //}
             else if (data.starts_with(view_close_inline )) what = type::close_inline;
             else if (data.starts_with(view_quoted_text  )) what = type::quoted_text;
             else if (data.starts_with(view_equal        )) what = type::equal;
@@ -821,7 +822,7 @@ namespace netxs::xml
                 case type::tag_value:     body(data, type::raw_text);             break;
                 case type::spaces:        utf::trim_front(data, whitespaces);     break;
                 case type::na:            utf::get_tail<faux>(data, find_start);  break;
-                case type::compact:
+                //case type::compact:
                 case type::unknown:       if (data.size()) data.remove_prefix(1); break;
                 default: break;
             }
@@ -844,7 +845,6 @@ namespace netxs::xml
         {
             //todo
             //include external blocks if name contains ':'s.
-            // if name contains '/'s ...
             item->name = page.append(kind, name(data));
             auto temp = data;
             utf::trim_front(temp, whitespaces);
@@ -1132,12 +1132,14 @@ namespace netxs::xml
     {
         using vect = xml::document::vect;
         using sptr = netxs::sptr<xml::document>;
+        using hist = std::list<std::pair<text, text>>;
 
         sptr document; // settings: XML document.
         vect tempbuff; // settings: Temp buffer.
         vect homelist; // settings: Current directory item list.
         text homepath; // settings: Current working directory.
         text backpath; // settings: Fallback path.
+        hist cwdstack; // settings: Stack for saving current cwd.
 
         settings() = default;
         settings(settings const&) = default;
@@ -1168,9 +1170,27 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log(prompt::xml, ansi::err(" xml path not found: ") + homepath);
+                log(prompt::xml, ansi::err("xml path not found: ") + homepath);
             }
             return test;
+        }
+        void popd()
+        {
+            if (cwdstack.empty())
+            {
+                log(prompt::xml, "CWD stack is empty");
+            }
+            else
+            {
+                auto& [gotopath, fallback] = cwdstack.back();
+                cd(gotopath, fallback);
+                cwdstack.pop_back();
+            }
+        }
+        void pushd(text gotopath, view fallback = {})
+        {
+            cwdstack.push_back({ homepath, backpath });
+            cd(gotopath, fallback);
         }
         template<bool Quiet = faux, class T = si32>
         auto take(text frompath, T defval = {})
@@ -1194,7 +1214,7 @@ namespace netxs::xml
                 else frompath = homepath + "/" + frompath;
             }
             if (tempbuff.size()) crop = tempbuff.back()->value();
-            else if constexpr (!Quiet) log(prompt::xml, ansi::fgc(redlt) + " xml path not found: " + ansi::nil() + frompath);
+            else if constexpr (!Quiet) log(prompt::xml, ansi::fgc(redlt) + "xml path not found: " + ansi::nil() + frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
             if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);

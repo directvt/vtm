@@ -5,6 +5,7 @@
 
 #include "input.hpp"
 #include "system.hpp"
+#include "scripting.hpp"
 
 namespace netxs::ui
 {
@@ -3716,6 +3717,7 @@ namespace netxs::ui
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
         using gptr = sptr<gate>;
+        using repl = scripting::repl<host>;
 
         //pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
@@ -3727,6 +3729,7 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
+        repl engine; // host:: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
 
@@ -3739,10 +3742,26 @@ namespace netxs::ui
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{*this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
-              config{ config }
+              config{ config },
+              engine{ *this }
         {
             using namespace std::chrono;
             auto& canal = *server;
+
+            config.pushd("/config/scripting/");
+            if (config.take("enabled", faux))
+            {
+                auto lang = config.take("engine", ""s);
+                config.cd(lang);
+                auto path = config.take("cwd", ""s);
+                auto exec = config.take("cmd", ""s);
+                auto main = config.take("main", ""s);
+                engine.start(path, exec);
+                engine.write(main + "\n");
+                //todo run integration script
+            }
+            config.popd();
+
             auto& g = skin::globals();
             g.brighter       = config.take("brighter"              , cell{});//120);
             g.kb_focus       = config.take("kb_focus"              , cell{});//60
