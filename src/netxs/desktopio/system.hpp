@@ -2445,13 +2445,11 @@ namespace netxs::os
                 log(prompt::vtty, "Child waiting complete");
                 return exit_code;
             }
-            void start(twod winsz)
+            auto start(text cwd, text cmdline, twod winsz)
             {
-                auto cwd     = terminal.curdir;
-                auto cmdline = terminal.cmdarg;
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                                 : "'" + cwd + "'");
+                                                                                                         : "'" + cwd + "'");
                 #if defined(_WIN32)
 
                     termsize(winsz);
@@ -2468,7 +2466,7 @@ namespace netxs::os
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Console server creation error");
                         terminal.onexit(errcode, "Console server creation error");
-                        return;
+                        return proc_pid;
                     }
 
                     con_serv.start();
@@ -2527,7 +2525,7 @@ namespace netxs::os
                         terminal.onexit(errcode, "Process creation error \n"s
                                                  " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                                  " cmd: "s + cmdline + " "s);
-                        return;
+                        return proc_pid;
                     }
 
                     io::close( procsinf.hThread );
@@ -2613,6 +2611,7 @@ namespace netxs::os
                 writesyn.notify_one(); // Flush temp buffer.
 
                 log(prompt::vtty, "New vtty created with size ", winsz);
+                return proc_pid;
             }
             void stop()
             {
@@ -2727,6 +2726,12 @@ namespace netxs::os
                     con_serv.events.undo(undoredo);
                 #endif
             }
+            //void set_cp(ui32 codepage)
+            //{
+            //    #if defined(_WIN32)
+            //        con_serv.set_cp(codepage);
+            //    #endif
+            //}
         };
     }
 
@@ -2852,8 +2857,8 @@ namespace netxs::os
             std::thread               stdinput{};
             std::thread               stdwrite{};
             std::function<void(view)> receiver{};
-            std::function<void(si32)> shutdown{};
             std::function<void(si32)> preclose{};
+            std::function<void(si32)> shutdown{};
             text                      writebuf{};
             std::mutex                writemtx{};
             std::condition_variable   writesyn{};
@@ -3141,322 +3146,363 @@ namespace netxs::os
         };
     }
 
-    struct task
+    namespace runspace
     {
-        ipc::stdcon               termlink;
-        std::thread               stdinput;
-        std::thread               stdwrite;
-        std::thread               waitexit;
-        pidt                      proc_pid;
-        fd_t                      prochndl;
-        text                      writebuf;
-        std::mutex                writemtx;
-        std::condition_variable   writesyn;
-        std::function<void(view)> receiver;
-        std::function<void(si32)> shutdown;
-
-        task()
-            : prochndl{ os::invalid_fd },
-              proc_pid{                }
-        { }
-       ~task()
+        struct basetty
         {
-            log(prompt::task, "Destructor started");
-            stop();
-            log(prompt::task, "Destructor complete");
-        }
-
-        operator bool () { return termlink; }
-
-        // task: Cleaning in order to be able to restart.
-        void cleanup()
+            virtual void write(view data) = 0;
+            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+                                                                   std::function<void(si32, view)> shutdown_hndl) = 0;
+            virtual void shut() = 0;
+            virtual bool connected() = 0;
+        };
+        struct raw : public basetty
         {
-            if (stdwrite.joinable())
-            {
-                writesyn.notify_one();
-                log(prompt::task, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                stdwrite.join();
-            }
-            if (stdinput.joinable())
-            {
-                log(prompt::task, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-                stdinput.join();
-            }
-            if (waitexit.joinable())
-            {
-                log(prompt::task, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
-                waitexit.join();
-            }
-            auto guard = std::lock_guard{ writemtx };
-            termlink = {};
-            writebuf = {};
-        }
-        void shut()
-        {
-            if (termlink)
-            {
-                termlink.shut();
-            }
-        }
-        auto wait_child()
-        {
-            auto guard = std::lock_guard{ writemtx };
-            auto exit_code = si32{};
-            log(prompt::task, "Wait child process ", proc_pid);
-            termlink.stop();
-            if (proc_pid != 0)
-            {
-            #if defined(_WIN32)
+            ipc::stdcon               termlink;
+            std::thread               stdinput;
+            std::thread               stdwrite;
+            std::thread               waitexit;
+            pidt                      proc_pid;
+            fd_t                      prochndl;
+            text                      writebuf;
+            std::mutex                writemtx;
+            std::condition_variable   writesyn;
+            std::function<void(view)> receiver;
+            std::function<void(si32, view)> shutdown;
 
-                auto code = DWORD{ 0 };
-                if (!::GetExitCodeProcess(prochndl, &code))
+            raw()
+                : prochndl{ os::invalid_fd },
+                  proc_pid{                }
+            { }
+           ~raw()
+            {
+                log(prompt::task, "Destructor started");
+                stop();
+                log(prompt::task, "Destructor complete");
+            }
+
+            operator bool () { return termlink; }
+
+            virtual bool connected() override
+            {
+                return !!termlink;
+            }
+            // task: Cleaning in order to be able to restart.
+            void cleanup()
+            {
+                if (stdwrite.joinable())
                 {
-                    log(prompt::task, "::GetExitCodeProcess() return code: ", ::GetLastError());
+                    writesyn.notify_one();
+                    log(prompt::task, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    stdwrite.join();
                 }
-                else if (code == STILL_ACTIVE)
+                if (stdinput.joinable())
                 {
-                    log(prompt::task, "Child process still running");
-                    auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                    if (!result || !::GetExitCodeProcess(prochndl, &code))
+                    log(prompt::task, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    stdinput.join();
+                }
+                if (waitexit.joinable())
+                {
+                    log(prompt::task, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    waitexit.join();
+                }
+                auto guard = std::lock_guard{ writemtx };
+                termlink = {};
+                writebuf = {};
+            }
+            virtual void shut() override
+            {
+                if (termlink)
+                {
+                    termlink.shut();
+                }
+            }
+            auto wait_child()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                auto exit_code = si32{};
+                log(prompt::task, "Wait child process ", proc_pid);
+                termlink.stop();
+                if (proc_pid != 0)
+                {
+                #if defined(_WIN32)
+
+                    auto code = DWORD{ 0 };
+                    if (!::GetExitCodeProcess(prochndl, &code))
                     {
-                        ::TerminateProcess(prochndl, 0);
-                        code = 0;
+                        log(prompt::task, "::GetExitCodeProcess() return code: ", ::GetLastError());
                     }
-                }
-                else log(prompt::task, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
-                exit_code = code;
-                io::close(prochndl);
-
-            #else
-
-                auto status = int{};
-                ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                if (WIFEXITED(status))
-                {
-                    exit_code = WEXITSTATUS(status);
-                    log(prompt::task, "Child process exit code", ' ', exit_code);
-                }
-                else
-                {
-                    exit_code = 0;
-                    log(prompt::task, "Child process exit code not detected");
-                }
-
-            #endif
-            }
-            log(prompt::task, "Child waiting complete");
-            return exit_code;
-        }
-        auto start(text cwd, text cmdline, std::function<void(view)> input_hndl,
-                                           std::function<void(si32)> shutdown_hndl)
-        {
-            receiver = input_hndl;
-            shutdown = shutdown_hndl;
-            utf::change(cmdline, "\\\"", "'");
-            log(prompt::task, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                                     : "'" + cwd + "'");
-            #if defined(_WIN32)
-
-                auto s_pipe_r = os::invalid_fd;
-                auto s_pipe_w = os::invalid_fd;
-                auto m_pipe_r = os::invalid_fd;
-                auto m_pipe_w = os::invalid_fd;
-                auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto procsinf = PROCESS_INFORMATION{};
-                auto attrbuff = std::vector<byte>{};
-                auto attrsize = SIZE_T{ 0 };
-                auto stdhndls = std::array<HANDLE, 2>{};
-
-                auto tunnel = [&]
-                {
-                    auto sa = SECURITY_ATTRIBUTES{};
-                    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                    sa.lpSecurityDescriptor = NULL;
-                    sa.bInheritHandle = TRUE;
-                    if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                     && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                    else if (code == STILL_ACTIVE)
                     {
-                        startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                        startinf.StartupInfo.hStdInput  = s_pipe_r;
-                        startinf.StartupInfo.hStdOutput = s_pipe_w;
-                        startinf.StartupInfo.hStdError  = s_pipe_w;
-                        return true;
+                        log(prompt::task, "Child process still running");
+                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
+                        if (!result || !::GetExitCodeProcess(prochndl, &code))
+                        {
+                            ::TerminateProcess(prochndl, 0);
+                            code = 0;
+                        }
+                    }
+                    else log(prompt::task, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
+                    exit_code = code;
+                    io::close(prochndl);
+
+                #else
+
+                    auto status = int{};
+                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
+                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
+                    if (WIFEXITED(status))
+                    {
+                        exit_code = WEXITSTATUS(status);
+                        log(prompt::task, "Child process exit code", ' ', exit_code);
                     }
                     else
                     {
-                        io::close(m_pipe_w);
-                        io::close(m_pipe_r);
-                        io::close(s_pipe_w);
-                        io::close(s_pipe_r);
-                        return faux;
+                        exit_code = 0;
+                        log(prompt::task, "Child process exit code not detected");
                     }
-                };
-                auto fillup = [&]
-                {
-                    stdhndls[0] = s_pipe_r;
-                    stdhndls[1] = s_pipe_w;
-                    ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
-                    attrbuff.resize(attrsize);
-                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
 
-                    if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                     && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                    0,
-                                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                    &stdhndls,
-                                                    sizeof(stdhndls),
-                                                    nullptr,
-                                                    nullptr))
-                    {
-                        return true;
-                    }
-                    else return faux;
-                };
-                auto create = [&]
-                {
-                    auto wide_cmdline = utf::to_utf(cmdline);
-                    return ::CreateProcessW(nullptr,                             // lpApplicationName
-                                            wide_cmdline.data(),                 // lpCommandLine
-                                            nullptr,                             // lpProcessAttributes
-                                            nullptr,                             // lpThreadAttributes
-                                            TRUE,                                // bInheritHandles
-                                            DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                            EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
-                                            nullptr,                             // lpEnvironment
-                                            cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                                       : nullptr,
-                                            &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                            &procsinf);                          // lpProcessInformation
-                };
-
-                if (tunnel()
-                 && fillup()
-                 && create())
-                {
-                    io::close( procsinf.hThread );
-                    prochndl = procsinf.hProcess;
-                    proc_pid = procsinf.dwProcessId;
-                    termlink = { m_pipe_r, m_pipe_w };
+                #endif
                 }
-                else os::fail(prompt::task, "Child process creation error");
+                log(prompt::task, "Child waiting complete");
+                return exit_code;
+            }
+            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+                                                           std::function<void(si32, view)> shutdown_hndl) override
+            {
+                receiver = input_hndl;
+                shutdown = shutdown_hndl;
+                utf::change(cmdline, "\\\"", "'");
+                log(prompt::task, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                                                                                                         : "'" + cwd + "'");
+                #if defined(_WIN32)
 
-                io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+                    auto s_pipe_r = os::invalid_fd;
+                    auto s_pipe_w = os::invalid_fd;
+                    auto m_pipe_r = os::invalid_fd;
+                    auto m_pipe_w = os::invalid_fd;
+                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                    auto procsinf = PROCESS_INFORMATION{};
+                    auto attrbuff = std::vector<byte>{};
+                    auto attrsize = SIZE_T{ 0 };
+                    auto stdhndls = std::array<HANDLE, 2>{};
 
-            #else
-
-                fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
-                fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
-                ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
-                ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
-
-                termlink = { to_server[0], to_client[1] };
-
-                proc_pid = ::fork();
-                if (proc_pid == 0) // Child branch.
-                {
-                    io::close(to_client[1]);
-                    io::close(to_server[0]);
-
-                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                    ::signal(SIGQUIT, SIG_DFL); //
-                    ::signal(SIGTSTP, SIG_DFL); //
-                    ::signal(SIGTTIN, SIG_DFL); //
-                    ::signal(SIGTTOU, SIG_DFL); //
-                    ::signal(SIGCHLD, SIG_DFL); //
-
-                    ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
-                    ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
-                    ::dup2(to_server[1], os::stderr_fd); //
-                    os::fdcleanup();
-
-                    if (cwd.size())
+                    auto tunnel = [&]
                     {
-                        auto err = std::error_code{};
-                        fs::current_path(cwd, err);
+                        auto sa = SECURITY_ATTRIBUTES{};
+                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                        sa.lpSecurityDescriptor = NULL;
+                        sa.bInheritHandle = TRUE;
+                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
+                        && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                        {
+                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                            startinf.StartupInfo.hStdInput  = s_pipe_r;
+                            startinf.StartupInfo.hStdOutput = s_pipe_w;
+                            startinf.StartupInfo.hStdError  = s_pipe_w;
+                            return true;
+                        }
+                        else
+                        {
+                            io::close(m_pipe_w);
+                            io::close(m_pipe_r);
+                            io::close(s_pipe_w);
+                            io::close(s_pipe_r);
+                            return faux;
+                        }
+                    };
+                    auto fillup = [&]
+                    {
+                        stdhndls[0] = s_pipe_r;
+                        stdhndls[1] = s_pipe_w;
+                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+                        attrbuff.resize(attrsize);
+                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+
+                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                        0,
+                                                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                        &stdhndls,
+                                                        sizeof(stdhndls),
+                                                        nullptr,
+                                                        nullptr))
+                        {
+                            return true;
+                        }
+                        else return faux;
+                    };
+                    auto create = [&]
+                    {
+                        auto wide_cmdline = utf::to_utf(cmdline);
+                        return ::CreateProcessW(nullptr,                             // lpApplicationName
+                                                wide_cmdline.data(),                 // lpCommandLine
+                                                nullptr,                             // lpProcessAttributes
+                                                nullptr,                             // lpThreadAttributes
+                                                TRUE,                                // bInheritHandles
+                                                DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                                EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
+                                                nullptr,                             // lpEnvironment
+                                                cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                                        : nullptr,
+                                                &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                                &procsinf);                          // lpProcessInformation
+                    };
+
+                    if (tunnel()
+                     && fillup()
+                     && create())
+                    {
+                        io::close( procsinf.hThread );
+                        prochndl = procsinf.hProcess;
+                        proc_pid = procsinf.dwProcessId;
+                        termlink = { m_pipe_r, m_pipe_w };
+                    }
+                    else os::fail(prompt::task, "Child process creation error");
+
+                    io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                    io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+
+                #else
+
+                    fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
+                    fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
+                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
+                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
+
+                    termlink = { to_server[0], to_client[1] };
+
+                    proc_pid = ::fork();
+                    if (proc_pid == 0) // Child branch.
+                    {
+                        io::close(to_client[1]);
+                        io::close(to_server[0]);
+
+                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+                        ::signal(SIGQUIT, SIG_DFL); //
+                        ::signal(SIGTSTP, SIG_DFL); //
+                        ::signal(SIGTTIN, SIG_DFL); //
+                        ::signal(SIGTTOU, SIG_DFL); //
+                        ::signal(SIGCHLD, SIG_DFL); //
+
+                        ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
+                        ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
+                        ::dup2(to_server[1], os::stderr_fd); //
+                        os::fdcleanup();
+
+                        if (cwd.size())
+                        {
+                            auto err = std::error_code{};
+                            fs::current_path(cwd, err);
+                            //todo use dtvt to log
+                            //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
+                            //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                        }
+
+                        os::process::execvp(cmdline);
+                        auto errcode = errno;
                         //todo use dtvt to log
-                        //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                        //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                        //os::fail(prompt::dtvt, "Exec error");
+                        ::close(os::stderr_fd);
+                        ::close(os::stdout_fd);
+                        ::close(os::stdin_fd );
+                        os::process::exit(errcode);
                     }
 
-                    os::process::execvp(cmdline);
-                    auto errcode = errno;
-                    //todo use dtvt to log
-                    //os::fail(prompt::dtvt, "Exec error");
-                    ::close(os::stderr_fd);
-                    ::close(os::stdout_fd);
-                    ::close(os::stdin_fd );
-                    os::process::exit(errcode);
-                }
+                    // Parent branch.
+                    io::close(to_client[0]);
+                    io::close(to_server[1]);
 
-                // Parent branch.
-                io::close(to_client[0]);
-                io::close(to_server[1]);
+                #endif
 
-            #endif
+                stdinput = std::thread([&] { read_socket_thread(); });
+                stdwrite = std::thread([&] { send_socket_thread(); });
 
-            stdinput = std::thread([&] { read_socket_thread(); });
-            stdwrite = std::thread([&] { send_socket_thread(); });
+                if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
 
-            if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
-
-            return proc_pid;
-        }
-        void stop()
-        {
-            if (termlink)
-            {
-                wait_child();
+                return proc_pid;
             }
-            cleanup();
-        }
-        void read_socket_thread()
-        {
-            log(prompt::task, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-            auto flow = text{};
-            while (termlink)
+            void stop()
             {
-                auto shot = termlink.recv();
-                if (shot && termlink)
+                if (termlink)
                 {
-                    flow += shot;
-                    auto crop = view{ flow };
-                    utf::purify(crop);
-                    receiver(crop);
-                    flow.erase(0, crop.size()); // Delete processed data.
+                    wait_child();
                 }
-                else break;
+                cleanup();
             }
-            if (termlink) // Skip if stop was called via dtor.
+            void read_socket_thread()
             {
-                auto exit_code = wait_child();
-                shutdown(exit_code);
+                log(prompt::task, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+                auto flow = text{};
+                while (termlink)
+                {
+                    auto shot = termlink.recv();
+                    if (shot && termlink)
+                    {
+                        flow += shot;
+                        auto crop = view{ flow };
+                        utf::purify(crop);
+                        receiver(crop);
+                        flow.erase(0, crop.size()); // Delete processed data.
+                    }
+                    else break;
+                }
+                if (termlink) // Skip if stop was called via dtor.
+                {
+                    auto exit_code = wait_child();
+                    shutdown(exit_code, "");
+                }
+                log(prompt::task, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
             }
-            log(prompt::task, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
-        }
-        void send_socket_thread()
-        {
-            log(prompt::task, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-            auto guard = std::unique_lock{ writemtx };
-            auto cache = text{};
-            while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+            void send_socket_thread()
             {
-                std::swap(cache, writebuf);
-                guard.unlock();
-                if (termlink.send(cache)) cache.clear();
-                else                      break;
-                guard.lock();
+                log(prompt::task, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                auto guard = std::unique_lock{ writemtx };
+                auto cache = text{};
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+                {
+                    std::swap(cache, writebuf);
+                    guard.unlock();
+                    if (termlink.send(cache)) cache.clear();
+                    else                      break;
+                    guard.lock();
+                }
+                log(prompt::task, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
             }
-            log(prompt::task, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
-        }
-        void write(view data)
+            virtual void write(view data) override
+            {
+                auto guard = std::lock_guard{ writemtx };
+                writebuf += data;
+                if (termlink) writesyn.notify_one();
+            }
+        };
+
+        template<class Term>
+        struct tty : public basetty, vt::vtty<Term>
         {
-            auto guard = std::lock_guard{ writemtx };
-            writebuf += data;
-            if (termlink) writesyn.notify_one();
-        }
-    };
+            using vtty = vt::vtty<Term>;
+            virtual void write(view data) override
+            {
+                vtty::write(data);
+            }
+            virtual bool connected() override
+            {
+                return vtty::operator bool();
+            }
+            virtual void shut() override
+            {
+                return vtty::stop();
+            }
+            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+                                                                   std::function<void(si32, view)> shutdown_hndl) override
+            {
+                return vtty::start(cwd, cmdline, winsz);
+            }
+            tty(Term& uiterminal)
+                : vtty{ uiterminal }
+            { }
+        };
+    }
 
     namespace tty
     {

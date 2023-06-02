@@ -1684,6 +1684,29 @@ struct consrv
         return langmap;
     }
 
+    void set_cp(ui32 c)
+    {
+        auto lock = std::lock_guard{ events.locker };
+        auto& o = outenc;
+        auto& i = inpenc;
+        if (o->codepage != c)
+        {
+            if (i->codepage == c) o = i; // Reuse existing decoder.
+            else
+            {
+                if (auto p = ptr::shared<decoder>(); p->load(*this, c)) o = p;
+            }
+        }
+        i = o;
+        for (auto& client : joined) // Reset trailing/hanging bytes.
+        for (auto& handle : client.tokens)
+        {
+            handle.toWIDE.clear();
+            handle.toANSI.clear();
+            handle.toUTF8.clear();
+        }
+        inpenc->reset();
+    }
     auto attr_to_brush(ui16 attr)
     {
         auto& colors = uiterm.ctrack.color;
@@ -2624,7 +2647,7 @@ struct consrv
             auto success = direct(packet.target, [&](auto& scrollback)
             {
                 auto& line = celler.content();
-                count = line.length();
+                count = static_cast<ui32>(line.length());
                 if (count > maxsz)
                 {
                     count = maxsz;

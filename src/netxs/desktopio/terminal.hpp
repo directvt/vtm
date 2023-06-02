@@ -7000,7 +7000,7 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
-                    ptycon.start(initsz);
+                    ptycon.start(curdir, cmdarg, initsz);
                 });
             }
         }
