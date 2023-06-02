@@ -9,6 +9,19 @@ namespace netxs::scripting
 {
     using namespace ui;
 
+    namespace attr
+    {
+        static constexpr auto cwd = "cwd";
+        static constexpr auto cmd = "cmd";
+        static constexpr auto run = "run";
+        static constexpr auto tty = "tty";
+        static constexpr auto rse = "engine"; // Runtime Scripting Engine.
+    }
+    namespace path
+    {
+        static constexpr auto scripting = "/config/scripting/";
+    }
+
     template<class Host>
     class repl
     {
@@ -127,6 +140,21 @@ namespace netxs::scripting
               stream{owner },
               active{ true }
         {
+            auto& config = owner.config;
+            if (config.take(path::scripting, faux))
+            {
+                config.pushd(path::scripting);
+                auto rse = config.take(attr::rse, ""s);
+                config.cd(rse);
+                auto cwd = config.take(attr::cwd, ""s);
+                auto cmd = config.take(attr::cmd, ""s);
+                auto run = config.take(attr::run, ""s);
+                auto tty = config.take(attr::tty, faux);
+                start(cwd, cmd);
+                //todo run integration script
+                if (run.size()) write(run + "\n");
+                config.popd();
+            }
 
         }
     };

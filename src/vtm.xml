@@ -1,25 +1,14 @@
 R"==(
 <config>
-    <scripting enabled=true engine="python">
-        <python     cwd="" cmd="python -i"     main="print(\"Hello World!\")"/>
-        <powershell cwd="" cmd="powershell -i" main="Hello World!"/>
-        <pwsh       cwd="" cmd="pwsh -i"       main="Hello World!"/>
-        <lua        cwd="" cmd="lua -i"        main="print \"Hello World!\""/>
+    <scripting=on engine="python">
+        <python     cwd="" cmd="python -i"           run="print(\"Hello World!\")"/>
+        <powershell cwd="" cmd="powershell -i -noni" run="\"Hello World!\"" tty=true/>
+        <pwsh       cwd="" cmd="pwsh -i -noni"       run="\"Hello World!\"" tty=true/>
+        <lua        cwd="" cmd="lua -i"              run="print \"Hello World!\""/>
         <js         cwd="" cmd="node -i">
-            <main>
+            <run>
                 console.log("Hello, World!");
-                //public class HelloWorld
-                //{
-                //    public void printHelloWorld()
-                //    {
-                //        System.out.println("Hello World!");
-                //    }
-                //    public static void main(String[] args)
-                //    {
-                //        printHelloWorld();
-                //    }
-                //}
-            </main>
+            </run>
         </js>
     </scripting>
     <menu selected=Term>  <!-- Set selected using menu item id. -->

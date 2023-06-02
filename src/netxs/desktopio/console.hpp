@@ -3713,7 +3713,7 @@ namespace netxs::ui
     class host
         : public base
     {
-    protected:
+    public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
         using gptr = sptr<gate>;
@@ -3738,7 +3738,6 @@ namespace netxs::ui
             if (client) client->rebuild_scene(*this, damaged);
         }
 
-    public:
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{*this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
@@ -3747,20 +3746,6 @@ namespace netxs::ui
         {
             using namespace std::chrono;
             auto& canal = *server;
-
-            config.pushd("/config/scripting/");
-            if (config.take("enabled", faux))
-            {
-                auto lang = config.take("engine", ""s);
-                config.cd(lang);
-                auto path = config.take("cwd", ""s);
-                auto exec = config.take("cmd", ""s);
-                auto main = config.take("main", ""s);
-                engine.start(path, exec);
-                engine.write(main + "\n");
-                //todo run integration script
-            }
-            config.popd();
 
             auto& g = skin::globals();
             g.brighter       = config.take("brighter"              , cell{});//120);

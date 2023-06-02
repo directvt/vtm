@@ -3026,7 +3026,7 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
-                if (termlink) log(prompt::dtvt, "Console created for pid ", proc_pid);
+                if (termlink) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
                 writesyn.notify_one(); // Flush temp buffer.
 
                 return proc_pid;
@@ -3399,7 +3399,7 @@ namespace netxs::os
             stdinput = std::thread([&] { read_socket_thread(); });
             stdwrite = std::thread([&] { send_socket_thread(); });
 
-            if (termlink) log(prompt::task, "Console created for pid ", proc_pid);
+            if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
 
             return proc_pid;
         }
