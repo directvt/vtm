@@ -1,6 +1,6 @@
 R"==(
 <config>
-    <scripting=on engine="python">
+    <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"                  run="print(\"Hello World!\")"/>
         <powershell cwd="" usetty=yes cmd="powershell -NonInteractive" run="\"Hello World!\""/>
         <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive"       run="\"Hello World!\""/>
