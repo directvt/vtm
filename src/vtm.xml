@@ -5,11 +5,11 @@ R"==(
         <powershell cwd="" tty=y cmd="powershell -NonInteractive" run="\"Hello World!\""/>
         <pwsh       cwd="" tty=y cmd="pwsh -NonInteractive"       run="\"Hello World!\""/>
         <lua        cwd="" tty=n cmd="lua -i"                     run="print \"Hello World!\""/>
-        <js         cwd="" tty=n cmd="node -i">
+        <javascript cwd="" tty=n cmd="node -i">
             <run>
                 console.log("Hello, World!");
             </run>
-        </js>
+        </javascript>
     </scripting>
     <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.

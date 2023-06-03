@@ -195,9 +195,9 @@ namespace netxs::scripting
         // repl: Proceed input.
         void ondata(view data)
         {
-            if (active)
+            //if (active)
             {
-                log(prompt::repl, ansi::hi(utf::debase<faux, faux>(data)));
+                log(data, faux);
                 //stream.s11n::sync(data);
             }
         }
@@ -205,7 +205,8 @@ namespace netxs::scripting
         template<class T>
         void ondata(view data, T target)
         {
-            log(prompt::repl, ansi::hi(utf::debase<faux, faux>(data)));
+            //log(prompt::repl, ansi::hi(utf::debase<faux, faux>(data)));
+            log(data, faux);
         }
         // repl: Shutdown callback handler.
         void onexit(si32 code, view msg = {})
