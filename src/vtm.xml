@@ -1,10 +1,11 @@
 R"==(
 <config>
     <scripting=on engine="python">
-        <python cwd="" tty=n cmd="python -i"     run="print(\"Hello World!\")"/>
-        <pwsh   cwd="" tty=y cmd="pwsh -i -noni" run="\"Hello World!\""/>
-        <lua    cwd="" tty=n cmd="lua -i"        run="print \"Hello World!\""/>
-        <js     cwd="" tty=n cmd="node -i">
+        <python     cwd="" tty=n cmd="python -i"                  run="print(\"Hello World!\")"/>
+        <powershell cwd="" tty=y cmd="powershell -NonInteractive" run="\"Hello World!\""/>
+        <pwsh       cwd="" tty=y cmd="pwsh -NonInteractive"       run="\"Hello World!\""/>
+        <lua        cwd="" tty=n cmd="lua -i"                     run="print \"Hello World!\""/>
+        <js         cwd="" tty=n cmd="node -i">
             <run>
                 console.log("Hello, World!");
             </run>
