@@ -477,19 +477,20 @@ struct consrv
             buffer.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
+            auto noni = server.inpmod & nt::console::inmode::preprocess; // `-NonInteractive` powershell mode.
             while (head != tail)
             {
                 auto c = *head++;
-                if (c == '\n')
+                if (c == '\n' || c == '\r')
                 {
-                    if (head != tail && *head == '\r') head++;
+                    if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
+                    if (noni) generate('\n', s);
+                    else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
-                else if (c == '\r')
+                else
                 {
-                    if (head != tail && *head == '\n') head++;
-                    c = '\n';
+                    generate(c, s);
                 }
-                generate(c, s);
             }
             return true;
         }
@@ -748,7 +749,7 @@ struct consrv
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
-            if (toWIDE.size() > 1) // Surrogate pair special case or clipboard paste.
+            if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.pressed) // Proceed push events only.
                 {
@@ -1684,6 +1685,29 @@ struct consrv
         return langmap;
     }
 
+    void set_cp(ui32 c)
+    {
+        auto lock = std::lock_guard{ events.locker };
+        auto& o = outenc;
+        auto& i = inpenc;
+        if (o->codepage != c)
+        {
+            if (i->codepage == c) o = i; // Reuse existing decoder.
+            else
+            {
+                if (auto p = ptr::shared<decoder>(); p->load(*this, c)) o = p;
+            }
+        }
+        i = o;
+        for (auto& client : joined) // Reset trailing/hanging bytes.
+        for (auto& handle : client.tokens)
+        {
+            handle.toWIDE.clear();
+            handle.toANSI.clear();
+            handle.toUTF8.clear();
+        }
+        inpenc->reset();
+    }
     auto attr_to_brush(ui16 attr)
     {
         auto& colors = uiterm.ctrack.color;
@@ -2624,7 +2648,7 @@ struct consrv
             auto success = direct(packet.target, [&](auto& scrollback)
             {
                 auto& line = celler.content();
-                count = line.length();
+                count = static_cast<ui32>(line.length());
                 if (count > maxsz)
                 {
                     count = maxsz;

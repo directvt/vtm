@@ -7000,7 +7000,7 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
-                    ptycon.start(initsz);
+                    ptycon.start(curdir, cmdarg, initsz);
                 });
             }
         }
@@ -7258,7 +7258,6 @@ namespace netxs::ui
     class dtvt
         : public ui::form<dtvt>
     {
-        using sync = std::condition_variable;
         using s11n = directvt::binary::s11n;
 
         // dtvt: Event handler.
@@ -7312,7 +7311,7 @@ namespace netxs::ui
                 for (auto& jgc : lock.thing)
                 {
                     cell::gc_set_data(jgc.token, jgc.cluster);
-                    if constexpr (debugmode) log(prompt::term, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
                 netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
                 {
@@ -7688,7 +7687,7 @@ namespace netxs::ui
         {
             netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::term, "Exit code ", utf::to_hex_0x(code), ' ').nil());
+                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::dtvt, "Exit code ", utf::to_hex_0x(code), ' ').nil());
                 else      log(prompt::dtvt, "Exit code 0");
                 backup.reset(); // Call dtvt::dtor.
             });

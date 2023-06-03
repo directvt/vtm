@@ -1,5 +1,16 @@
 R"==(
 <config>
+    <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
+        <python     cwd="" usetty=no  cmd="python -i"                  run="print(\"Hello World!\")"/>
+        <powershell cwd="" usetty=yes cmd="powershell -NonInteractive" run="\"Hello World!\""/>
+        <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive"       run="\"Hello World!\""/>
+        <lua        cwd="" usetty=no  cmd="lua -i"                     run="print \"Hello World!\""/>
+        <javascript cwd="" usetty=no  cmd="node -i">
+            <run>
+                console.log("Hello, World!");
+            </run>
+        </javascript>
+    </scripting>
     <menu selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes

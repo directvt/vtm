@@ -22,29 +22,35 @@ namespace netxs::app::vtm
         sptr applet{};
     };
 
-    static constexpr auto attr_id       = "id";
-    static constexpr auto attr_alias    = "alias";
-    static constexpr auto attr_hidden   = "hidden";
-    static constexpr auto attr_label    = "label";
-    static constexpr auto attr_notes    = "notes";
-    static constexpr auto attr_title    = "title";
-    static constexpr auto attr_footer   = "footer";
-    static constexpr auto attr_bgc      = "bgc";
-    static constexpr auto attr_fgc      = "fgc";
-    static constexpr auto attr_winsize  = "winsize";
-    static constexpr auto attr_wincoor  = "wincoor";
-    static constexpr auto attr_focused  = "focused";
-    static constexpr auto attr_slimmenu = "slimmenu";
-    static constexpr auto attr_hotkey   = "hotkey";
-    static constexpr auto attr_type     = "type";
-    static constexpr auto attr_cwd      = "cwd";
-    static constexpr auto attr_param    = "param";
-    static constexpr auto attr_splitter = "splitter";
-    static constexpr auto attr_config   = "config";
+    namespace attr
+    {
+        static constexpr auto id       = "id";
+        static constexpr auto alias    = "alias";
+        static constexpr auto hidden   = "hidden";
+        static constexpr auto label    = "label";
+        static constexpr auto notes    = "notes";
+        static constexpr auto title    = "title";
+        static constexpr auto footer   = "footer";
+        static constexpr auto bgc      = "bgc";
+        static constexpr auto fgc      = "fgc";
+        static constexpr auto winsize  = "winsize";
+        static constexpr auto wincoor  = "wincoor";
+        static constexpr auto focused  = "focused";
+        static constexpr auto slimmenu = "slimmenu";
+        static constexpr auto hotkey   = "hotkey";
+        static constexpr auto type     = "type";
+        static constexpr auto cwd      = "cwd";
+        static constexpr auto param    = "param";
+        static constexpr auto splitter = "splitter";
+        static constexpr auto config   = "config";
+    }
+    namespace path
+    {
+        static constexpr auto item     = "/config/menu/item";
+        static constexpr auto autorun  = "/config/menu/autorun/item";
+        static constexpr auto viewport = "/config/menu/viewport/coor";
+    }
 
-    static constexpr auto path_item     = "/config/menu/item";
-    static constexpr auto path_autorun  = "/config/menu/autorun/item";
-    static constexpr auto path_viewport = "/config/menu/viewport/coor";
 
     struct events
     {
@@ -1381,41 +1387,41 @@ namespace netxs::app::vtm
             };
 
             auto splitter_count = 0;
-            for (auto item_ptr : host::config.list(path_item))
+            for (auto item_ptr : host::config.list(path::item))
             {
                 auto& item = *item_ptr;
                 auto conf_rec = desk::spec{};
                 //todo autogen id if absent
-                conf_rec.splitter = item.take(attr_splitter, faux);
-                conf_rec.menuid   = item.take(attr_id,       ""s );
+                conf_rec.splitter = item.take(attr::splitter, faux);
+                conf_rec.menuid   = item.take(attr::id,       ""s );
                 if (conf_rec.splitter)
                 {
                     conf_rec.menuid = "splitter_" + std::to_string(splitter_count++);
                 }
                 else if (conf_rec.menuid.empty())
                 {
-                    log(prompt::hall, "Attribute '", utf::debase(attr_id), "' is missing, skip item");
+                    log(prompt::hall, "Attribute '", utf::debase(attr::id), "' is missing, skip item");
                     continue;
                 }
-                auto label        = item.take(attr_label, ""s);
+                auto label        = item.take(attr::label, ""s);
                 conf_rec.label    = label.empty() ? conf_rec.menuid : label;
-                conf_rec.alias    = item.take(attr_alias, ""s);
+                conf_rec.alias    = item.take(attr::alias, ""s);
                 auto& fallback = conf_rec.alias.empty() ? dflt_spec
                                                         : find(conf_rec.alias);
-                conf_rec.hidden   = item.take(attr_hidden,   fallback.hidden  );
-                conf_rec.notes    = item.take(attr_notes,    fallback.notes   );
-                conf_rec.title    = item.take(attr_title,    fallback.title   );
-                conf_rec.footer   = item.take(attr_footer,   fallback.footer  );
-                conf_rec.bgc      = item.take(attr_bgc,      fallback.bgc     );
-                conf_rec.fgc      = item.take(attr_fgc,      fallback.fgc     );
-                conf_rec.winsize  = item.take(attr_winsize,  fallback.winsize );
-                conf_rec.wincoor  = item.take(attr_wincoor,  fallback.wincoor );
-                conf_rec.slimmenu = item.take(attr_slimmenu, fallback.slimmenu);
-                conf_rec.hotkey   = item.take(attr_hotkey,   fallback.hotkey  ); //todo register hotkey
-                conf_rec.cwd      = item.take(attr_cwd,      fallback.cwd     );
-                conf_rec.param    = item.take(attr_param,    fallback.param   );
-                conf_rec.type     = item.take(attr_type,     fallback.type    );
-                auto patch        = item.list(attr_config);
+                conf_rec.hidden   = item.take(attr::hidden,   fallback.hidden  );
+                conf_rec.notes    = item.take(attr::notes,    fallback.notes   );
+                conf_rec.title    = item.take(attr::title,    fallback.title   );
+                conf_rec.footer   = item.take(attr::footer,   fallback.footer  );
+                conf_rec.bgc      = item.take(attr::bgc,      fallback.bgc     );
+                conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
+                conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
+                conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
+                conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
+                conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
+                conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
+                conf_rec.param    = item.take(attr::param,    fallback.param   );
+                conf_rec.type     = item.take(attr::type,     fallback.type    );
+                auto patch        = item.list(attr::config);
                 if (patch.size()) conf_rec.patch = patch.front()->snapshot();
                 if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
 
@@ -1636,9 +1642,9 @@ namespace netxs::app::vtm
         // hall: Autorun apps from config.
         void autorun()
         {
-            vport = host::config.take(path_viewport, dot_00);
+            vport = host::config.take(path::viewport, dot_00);
             auto what = link{};
-            auto apps = host::config.list(path_autorun);
+            auto apps = host::config.list(path::autorun);
             auto foci = std::vector<sptr<base>>();
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
@@ -1646,10 +1652,10 @@ namespace netxs::app::vtm
                 auto& app = *app_ptr;
                 if (!app.fake)
                 {
-                    what.menuid =   app.take(attr_id, ""s);
-                    what.square = { app.take(attr_wincoor, dot_00),
-                                    app.take(attr_winsize, twod{ 80,25 }) };
-                    auto focused =  app.take(attr_focused, faux);
+                    what.menuid =   app.take(attr::id, ""s);
+                    what.square = { app.take(attr::wincoor, dot_00),
+                                    app.take(attr::winsize, twod{ 80,25 }) };
+                    auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
