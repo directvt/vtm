@@ -18,7 +18,7 @@ namespace netxs::scripting
         static constexpr auto cwd = "cwd";
         static constexpr auto cmd = "cmd";
         static constexpr auto run = "run";
-        static constexpr auto tty = "tty";
+        static constexpr auto tty = "usetty";
         static constexpr auto rse = "engine"; // Runtime Scripting Engine.
     }
 
