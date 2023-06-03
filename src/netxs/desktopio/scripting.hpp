@@ -197,7 +197,7 @@ namespace netxs::scripting
         {
             //if (active)
             {
-                log(data, faux);
+                log(ansi::fgc(greenlt).add(data).nil(), faux);
                 //stream.s11n::sync(data);
             }
         }
@@ -206,7 +206,7 @@ namespace netxs::scripting
         void ondata(view data, T target)
         {
             //log(prompt::repl, ansi::hi(utf::debase<faux, faux>(data)));
-            log(data, faux);
+            log(ansi::fgc(greenlt).add(data).nil(), faux);
         }
         // repl: Shutdown callback handler.
         void onexit(si32 code, view msg = {})
