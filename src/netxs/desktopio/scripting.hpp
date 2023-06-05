@@ -24,10 +24,10 @@ namespace netxs::scripting
 
     struct nullterm
     {
+        bool  io_log{}; // nullterm: Stdio logging flag.
         bool  altbuf{}; // nullterm: Altbuf buffer stub.
         bool  normal{}; // nullterm: Normal buffer stub.
-        bool  io_log{}; // nullterm: Stdio logging flag.
-        bool* target{&normal}; // nullterm: Current buffer stub.
+        bool* target{ &normal }; // nullterm: Current buffer stub.
     };
 
     template<class Host>
@@ -92,6 +92,7 @@ namespace netxs::scripting
             }
         };
 
+        subs tokens; // repl: Event subsription tokens.
         xlat stream; // repl: Event tracker.
         text curdir; // repl: Current working directory.
         text cmdarg; // repl: Startup command line arguments.
@@ -102,18 +103,15 @@ namespace netxs::scripting
         // repl: Proceed input.
         void ondata(view data)
         {
-            //if (active)
-            {
-                log(ansi::fgc(greenlt).add(data).nil(), faux);
-                //stream.s11n::sync(data);
-            }
+            log(ansi::fgc(greenlt).add(data).nil(), faux);
         }
         // repl: Cooked read input.
         void data(rich& data)
         {
             owner.bell::trysync(active, [&]
             {
-                log(ansi::fgc(cyanlt).add(data.utf8()).nil(), faux);
+                // It is a powershell readline echo.
+                //log(ansi::fgc(cyanlt).add(data.utf8()).nil(), faux);
             });
         }
         // repl: Shutdown callback handler.
@@ -138,11 +136,15 @@ namespace netxs::scripting
             });
         }
         // repl: Write client data.
-        void write(view data)
+        template<bool Echo = true>
+        void write(text data)
         {
             if (!engine) return;
-            log(prompt::repl, "exec: ", ansi::hi(utf::debase<faux, faux>(data)));
-            engine->write(data);
+            if constexpr (Echo)
+            {
+                log(ansi::fgc(yellowlt).add(data).nil());
+            }
+            engine->write(data + '\n');
         }
         // repl: Start a new process.
         void start(text cwd, text cmd)
@@ -182,8 +184,13 @@ namespace netxs::scripting
                 else     engine = ptr::shared<os::runspace::raw>();
                 start(cwd, cmd);
                 //todo run integration script
-                if (run.size()) write(run + "\n");
+                if (run.size()) write(run);
                 config.popd();
+
+                owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
+                {
+                    write(utf8);
+                };
             }
         }
     };

@@ -145,8 +145,16 @@ int main(int argc, char* argv[])
             if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
             {
                 log(prompt::main, "Connected");
+                auto input = std::thread{ [&]
+                {
+                    auto buffer = text{};
+                    while (stream->send(os::tty::readline(buffer))) { }
+                    stream->shut();
+                }};
                 while (os::io::send(stream->recv()))
                 { }
+                os::tty::readstop();
+                input.join();
                 return 0;
             }
             std::this_thread::sleep_for(500ms);
@@ -263,12 +271,29 @@ int main(int argc, char* argv[])
                     domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { monitor->shut(); };
                     domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { monitor->send(utf8); };
                     monitor->recv();
+                    while (auto line = monitor->recv())
+                    {
+                        domain->SIGNAL(tier::release, e2::conio::readline, line);
+                    }
                     log(prompt::logs, "Monitor disconnected ", id);
                 });
             }
         }};
 
         auto settings = config.utf8();
+        auto readln = std::thread{ [&]
+        {
+            //todo check interactivity
+            //if (os::is_daemon == faux)
+            //{
+            //    auto buffer = text{};
+            //    while (auto line = os::tty::readline(buffer))
+            //    {
+            //        domain->SIGNAL(tier::release, e2::conio::readline, line);
+            //    }
+            //}
+        }};
+
         while (auto client = server->meet())
         {
             if (client->auth(userid))
@@ -285,6 +310,8 @@ int main(int argc, char* argv[])
                 });
             }
         }
+        os::tty::readstop();
+        readln.join();
         logger->stop(); // Logger must be stopped first to prevent reconnection.
         domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));
         events::dequeue();

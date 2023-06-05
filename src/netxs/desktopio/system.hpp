@@ -672,6 +672,8 @@ namespace netxs::os
 
         struct fire
         {
+            bool fired{};
+
             #if defined(_WIN32)
 
                 fd_t h; // fire: Descriptor for IO interrupt.
@@ -679,8 +681,8 @@ namespace netxs::os
                 operator auto () { return h; }
                 fire(bool i = 1) { ok(h = ::CreateEventW(NULL, i, FALSE, NULL), "::CreateEventW()", os::unexpected_msg); }
                ~fire()           { io::close(h); }
-                void reset()     { ok(::SetEvent(h), "::SetEvent()", os::unexpected_msg); }
-                void flush()     { ok(::ResetEvent(h), "::ResetEvent()", os::unexpected_msg); }
+                void reset()     { ok(::SetEvent(h),   "::SetEvent()",   os::unexpected_msg); fired = true; }
+                void flush()     { ok(::ResetEvent(h), "::ResetEvent()", os::unexpected_msg); fired = faux; }
 
             #else
 
@@ -689,8 +691,8 @@ namespace netxs::os
                 operator auto () { return h[0]; }
                 fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected_msg); }
                ~fire()           { for (auto& f : h) io::close(f); }
-                void reset()     { static auto c = ' '; io::send(h[1], &c, sizeof(c)); }
-                void flush()     { static auto c = ' '; io::recv(h[0], &c, sizeof(c)); }
+                void reset()     { static auto c = ' '; io::send(h[1], &c, sizeof(c));  fired = true; }
+                void flush()     { static auto c = ' '; io::recv(h[0], &c, sizeof(c));  fired = faux; }
 
             #endif
             void bell() { reset(); }
@@ -2462,7 +2464,7 @@ namespace netxs::os
                     srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
                     ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
 
-                    if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, con_serv.events.ondata))
+                    if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, (fd_t)con_serv.events.ondata))
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Console server creation error");
@@ -4449,6 +4451,20 @@ namespace netxs::os
 
             io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
+        }
+        auto readstop()
+        {
+            auto& alarm = globals().alarm;
+            alarm.bell();
+        }
+        auto readline(text& buff)
+        {
+            auto& alarm = globals().alarm;
+            if (alarm.fired) return qiew{};
+            std::this_thread::sleep_for(5s);
+            //buff = "print(\"Hello World!\")";
+            buff = "\"Hello World!\""; // pwsh and python test command
+            return qiew{ buff };
         }
     };
 }
