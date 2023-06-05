@@ -2302,11 +2302,11 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data, dent wrap = { maxsi32 })
+            notes(base& boss, view data, dent wrap = { si32max })
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == maxsi32))
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == si32max))
                 {
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
                     {

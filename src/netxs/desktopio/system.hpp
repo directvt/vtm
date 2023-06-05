@@ -85,6 +85,7 @@ namespace netxs::os
 
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
+    static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
     static constexpr auto unexpected_msg = " returns unexpected result"sv;
 

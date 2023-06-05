@@ -41,12 +41,10 @@ namespace netxs::events::userland
 // terminal: Terminal UI control.
 namespace netxs::ui
 {
-    class term
+    struct term
         : public ui::form<term>
     {
-    public:
         using events = netxs::events::userland::uiterm;
-        using face = ui::face; // Reference for consrv.
 
         struct commands
         {

@@ -86,10 +86,10 @@ namespace netxs
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D> duplet<D> operator / (D i) const { return { x / i, y / i }; }
-        template<class D> duplet<D> operator + (D i) const { return { x + i, y + i }; }
-        template<class D> duplet<D> operator - (D i) const { return { x - i, y - i }; }
-        template<class D> duplet<D> operator * (D i) const { return { x * i, y * i }; }
+        template<class D> duplet<D> constexpr operator / (D i) const { return { x / i, y / i }; }
+        template<class D> duplet<D> constexpr operator + (D i) const { return { x + i, y + i }; }
+        template<class D> duplet<D> constexpr operator - (D i) const { return { x - i, y - i }; }
+        template<class D> duplet<D> constexpr operator * (D i) const { return { x * i, y * i }; }
 
         bool operator () (duplet const& p)
         {
