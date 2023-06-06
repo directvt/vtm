@@ -3560,6 +3560,8 @@ namespace netxs::os
                                 | nt::console::inmode::preprocess
                                 | nt::console::inmode::extended
                                 | nt::console::inmode::winsize
+                                //todo intro spec mode / emit ^[[?1000;1006h
+                                //| nt::console::inmode::mouse
                                 };
                     ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
                     auto outmode = DWORD{ 0
@@ -4454,18 +4456,50 @@ namespace netxs::os
             io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
-        auto readstop()
+        auto stopread()
         {
             auto& alarm = globals().alarm;
             alarm.bell();
         }
+        auto readkey(text& buff)
+        {
+
+        }
         auto readline(text& buff)
         {
+            #if not defined(_WIN32)
+
+                //auto state = conmode{};
+                //if (ok(::tcgetattr(os::stdin_fd, &state), "::tcgetattr(os::stdin_fd)", os::unexpected_msg))
+                //{
+                //    auto raw_mode = state;
+                //    ::cfmakeraw(&raw_mode);
+                //    ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
+                //}
+                //else
+                //{
+                //    os::fail("Check you are using the proper tty device, try `ssh -tt ...` option");
+                //}
+
+            #endif
+
+            //todo track double Ctrl+C
+
             auto& alarm = globals().alarm;
             if (alarm.fired) return qiew{};
             std::this_thread::sleep_for(5s);
             //buff = "print(\"Hello World!\")";
             buff = "\"Hello World!\""; // pwsh and python test command
+
+
+            #if not defined(_WIN32)
+
+                //if (!ok(::tcsetattr(os::stdin_fd, TCSANOW, &state), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg))
+                //{
+                //    os::fail("Check you are using the proper tty device, try `ssh -tt ...` option");
+                //}
+
+            #endif
             return qiew{ buff };
         }
     };

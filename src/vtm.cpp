@@ -150,7 +150,7 @@ int main(int argc, char* argv[])
             if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
             {
                 log(prompt::main, "Connected");
-                auto input = std::thread{ [&]
+                auto readln = std::thread{ [&]
                 {
                     auto onlylog = vtmode & os::vt::onlylog;
                     if (!onlylog)
@@ -162,8 +162,8 @@ int main(int argc, char* argv[])
                 }};
                 while (os::io::send(stream->recv()))
                 { }
-                os::tty::readstop();
-                input.join();
+                os::tty::stopread();
+                readln.join();
                 return 0;
             }
             std::this_thread::sleep_for(500ms);
@@ -324,7 +324,7 @@ int main(int argc, char* argv[])
                 });
             }
         }
-        os::tty::readstop();
+        os::tty::stopread();
         readln.join();
         logger->stop(); // Logger must be stopped first to prevent reconnection.
         domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));
