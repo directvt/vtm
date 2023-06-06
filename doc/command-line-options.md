@@ -15,3 +15,4 @@ No arguments               | Run client (auto start server)
 ` -r \| --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
 ` -v \| --version `        | Show version and exit
 ` -? \| -h \| --help `     | Show usage message
+` --onlylog  `             | Disable interactive user input

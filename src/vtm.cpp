@@ -85,6 +85,10 @@ int main(int argc, char* argv[])
             log(app::shared::version);
             return 0;
         }
+        else if (getopt.match("--onlylog"))
+        {
+            vtmode |= os::vt::onlylog;
+        }
         else if (getopt.match("--"))
         {
             break;
@@ -117,6 +121,7 @@ int main(int argc, char* argv[])
             + "    -r | --runapp <..>  Run standalone application.\n"s
             + "    -v | --version      Show version and exit.\n"s
             + "    -? | -h | --help    Show usage message.\n"s
+            + "    --onlylog           Disable interactive user input.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
             + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
@@ -147,9 +152,13 @@ int main(int argc, char* argv[])
                 log(prompt::main, "Connected");
                 auto input = std::thread{ [&]
                 {
-                    auto buffer = text{};
-                    while (stream->send(os::tty::readline(buffer))) { }
-                    stream->shut();
+                    auto onlylog = vtmode & os::vt::onlylog;
+                    if (!onlylog)
+                    {
+                        auto buffer = text{};
+                        while (stream->send(os::tty::readline(buffer))) { }
+                        stream->shut();
+                    }
                 }};
                 while (os::io::send(stream->recv()))
                 { }
@@ -198,7 +207,11 @@ int main(int argc, char* argv[])
             {
                 log(prompt::main, "New vtm session for ", userid);
                 auto success = faux;
-                if (os::process::fork(success, prefix, config.utf8())) whoami = type::server;
+                if (os::process::fork(success, prefix, config.utf8()))
+                {
+                    vtmode |= os::vt::onlylog;
+                    whoami = type::server;
+                }
                 return success;
             });
             if (client)
@@ -227,6 +240,7 @@ int main(int argc, char* argv[])
             auto success = faux;
             if (os::process::fork(success, prefix, config.utf8()))
             {
+                vtmode |= os::vt::onlylog;
                 whoami = type::server;
             }
             else 
@@ -283,15 +297,15 @@ int main(int argc, char* argv[])
         auto settings = config.utf8();
         auto readln = std::thread{ [&]
         {
-            //todo check interactivity
-            //if (os::is_daemon == faux)
-            //{
-            //    auto buffer = text{};
-            //    while (auto line = os::tty::readline(buffer))
-            //    {
-            //        domain->SIGNAL(tier::release, e2::conio::readline, line);
-            //    }
-            //}
+            auto onlylog = vtmode & os::vt::onlylog;
+            if (!onlylog)
+            {
+                auto buffer = text{};
+                while (auto line = os::tty::readline(buffer))
+                {
+                    domain->SIGNAL(tier::release, e2::conio::readline, line);
+                }
+            }
         }};
 
         while (auto client = server->meet())

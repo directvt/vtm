@@ -2113,7 +2113,7 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto handle = os::ipc::memory::set(config);
-                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -p ", prefix, " -c :", handle, " -s"));
+                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", handle, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
                 auto srtinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                 auto buffer = std::vector<byte>{};
@@ -2215,21 +2215,23 @@ namespace netxs::os
 
     namespace vt
     {
-        static constexpr auto clean  = 0;
-        static constexpr auto mouse  = 1 << 0;
-        static constexpr auto vga16  = 1 << 1;
-        static constexpr auto vga256 = 1 << 2;
-        static constexpr auto direct = 1 << 3;
+        static constexpr auto clean   = 0;
+        static constexpr auto mouse   = 1 << 0;
+        static constexpr auto vga16   = 1 << 1;
+        static constexpr auto vga256  = 1 << 2;
+        static constexpr auto direct  = 1 << 3;
+        static constexpr auto onlylog = 1 << 4;
         template<class T>
         static auto str(T mode)
         {
             auto result = text{};
             if (mode)
             {
-                if (mode & mouse ) result += "mouse ";
-                if (mode & vga16 ) result += "vga16 ";
-                if (mode & vga256) result += "vga256 ";
-                if (mode & direct) result += "direct ";
+                if (mode & mouse  ) result += "mouse ";
+                if (mode & vga16  ) result += "vga16 ";
+                if (mode & vga256 ) result += "vga256 ";
+                if (mode & direct ) result += "direct ";
+                if (mode & onlylog) result += "onlylog ";
                 if (result.size()) result.pop_back();
             }
             else result = "fresh";
@@ -4351,12 +4353,12 @@ namespace netxs::os
                 };
                 if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected_msg))
                 {
-                    auto& alarm = globals().alarm;
+                    auto alarm = fd_t{ globals().alarm };
                     auto hwnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
-                        if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&alarm, FALSE, INFINITE, QS_ALLINPUT);
+                        if (auto yield = ::MsgWaitForMultipleObjects(1, &alarm, FALSE, INFINITE, QS_ALLINPUT);
                                  yield == WAIT_OBJECT_0)
                         {
                             ::DestroyWindow(hwnd);

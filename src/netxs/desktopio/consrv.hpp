@@ -4454,7 +4454,8 @@ struct consrv
                 auto next = MSG{};
                 while (next.message != WM_QUIT)
                 {
-                    if (auto yield = ::MsgWaitForMultipleObjects(1, (fd_t*)&signal, FALSE, INFINITE, QS_ALLINPUT);
+                    auto abort = fd_t{ signal };
+                    if (auto yield = ::MsgWaitForMultipleObjects(1, &abort, FALSE, INFINITE, QS_ALLINPUT);
                              yield == WAIT_OBJECT_0)
                     {
                         ::DestroyWindow(winhnd);
