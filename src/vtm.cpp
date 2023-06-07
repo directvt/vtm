@@ -155,14 +155,15 @@ int main(int argc, char* argv[])
                     auto onlylog = vtmode & os::vt::onlylog;
                     if (!onlylog)
                     {
+                        os::tty::readline::ignite();
                         auto buffer = text{};
-                        while (stream->send(os::tty::readline(buffer))) { }
+                        while (stream->send(os::tty::readline::readln(buffer))) { }
                         stream->shut();
                     }
                 }};
                 while (os::io::send(stream->recv()))
                 { }
-                os::tty::stopread();
+                os::tty::readline::finish();
                 readln.join();
                 return 0;
             }
@@ -300,8 +301,9 @@ int main(int argc, char* argv[])
             auto onlylog = vtmode & os::vt::onlylog;
             if (!onlylog)
             {
+                os::tty::readline::ignite();
                 auto buffer = text{};
-                while (auto line = os::tty::readline(buffer))
+                while (auto line = os::tty::readline::readln(buffer))
                 {
                     domain->SIGNAL(tier::release, e2::conio::readline, line);
                 }
@@ -324,7 +326,7 @@ int main(int argc, char* argv[])
                 });
             }
         }
-        os::tty::stopread();
+        os::tty::readline::finish();
         readln.join();
         logger->stop(); // Logger must be stopped first to prevent reconnection.
         domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));

@@ -3560,8 +3560,6 @@ namespace netxs::os
                                 | nt::console::inmode::preprocess
                                 | nt::console::inmode::extended
                                 | nt::console::inmode::winsize
-                                //todo intro spec mode / emit ^[[?1000;1006h
-                                //| nt::console::inmode::mouse
                                 };
                     ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
                     auto outmode = DWORD{ 0
@@ -4456,51 +4454,194 @@ namespace netxs::os
             io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
-        auto stopread()
+
+        namespace readline
         {
-            auto& alarm = globals().alarm;
-            alarm.bell();
+            auto resize()
+            {
+                static constexpr auto winsz_fallback = twod{ 132, 60 };
+                auto& g = globals();
+                auto& winsz = g.winsz;
+                //auto& wired = g.wired;
+
+                #if defined(_WIN32)
+
+                    auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
+                    if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
+                    {
+                        winsz({ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                                cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 });
+                    }
+
+                #else
+
+                    auto size = winsize{};
+                    if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected_msg))
+                    {
+                        winsz({ size.ws_col, size.ws_row });
+                    }
+
+                #endif
+
+                if (winsz == dot_00)
+                {
+                    log(prompt::tty, "Fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                    winsz(winsz_fallback);
+                }
+                //wired.winsz.send(ipcio, 0, winsz.last);
+            }
+            auto signal(sigt what)
+            {
+                //todo track double Ctrl+C
+                #if defined(_WIN32)
+
+                    auto& g = globals();
+                    switch (what)
+                    {
+                        case CTRL_C_EVENT:
+                        {
+                            /* placed to the input buffer - ENABLE_PROCESSED_INPUT is disabled */
+                            //todo handle SIGINT
+                            return FALSE; // Not handled.
+                            break;
+                        }
+                        case CTRL_BREAK_EVENT:
+                        {
+                            auto dwControlKeyState = g.kbmod;
+                            auto kbState = os::nt::kbstate(g.kbmod, dwControlKeyState);
+                            auto wVirtualKeyCode  = ansi::ctrl_break;
+                            auto wVirtualScanCode = ansi::ctrl_break;
+                            auto bKeyDown = faux;
+                            auto wRepeatCount = 1;
+                            auto UnicodeChar = "\x03"s; // ansi::C0_ETX
+                            //g.wired.syskeybd.send(*g.ipcio,
+                            //    0,
+                            //    os::nt::kbstate(g.kbmod, dwControlKeyState),
+                            //    dwControlKeyState,
+                            //    wVirtualKeyCode,
+                            //    wVirtualScanCode,
+                            //    bKeyDown,
+                            //    wRepeatCount,
+                            //    UnicodeChar,
+                            //    faux);
+                            break;
+                        }
+                        case CTRL_CLOSE_EVENT:
+                        case CTRL_LOGOFF_EVENT:
+                        case CTRL_SHUTDOWN_EVENT:
+                            //g.ipcio->shut();
+                            std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
+                            break;
+                        default:
+                            break;
+                    }
+                    return TRUE;
+
+                #else
+
+                    auto shutdown = [](auto what)
+                    {
+                        //globals().ipcio->shut();
+                        ::signal(what, SIG_DFL);
+                        ::raise(what);
+                    };
+                    switch (what)
+                    {
+                        case SIGWINCH: readline::resize(); return;
+                        case SIGHUP:   log(prompt::tty, "SIGHUP");  shutdown(what); break;
+                        case SIGTERM:  log(prompt::tty, "SIGTERM"); shutdown(what); break;
+                        case SIGINT:   log(prompt::tty, "SIGINT");
+                            ::signal(what, SIG_DFL);
+                            ::raise(what);
+                            break;
+                        default: log(prompt::tty, "Signal ", what); break;
+                    }
+
+                #endif
+            }
+            auto ignite()
+            {
+                auto& sig_hndl = readline::signal;
+                #if defined(_WIN32)
+
+                    auto inpmode = DWORD{ 0
+                                | nt::console::inmode::preprocess
+                                | nt::console::inmode::extended
+                                | nt::console::inmode::winsize
+                                };
+                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
+                    auto outmode = DWORD{ 0
+                                | nt::console::outmode::preprocess
+                                | nt::console::outmode::vt
+                                };
+                    ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected_msg);
+                    ok(::SetConsoleCtrlHandler(reinterpret_cast<PHANDLER_ROUTINE>(sig_hndl), TRUE), "::SetConsoleCtrlHandler()", os::unexpected_msg);
+
+                #else
+
+                    auto state = conmode{};
+                    if (ok(::tcgetattr(os::stdin_fd, &state), "::tcgetattr(os::stdin_fd)", os::unexpected_msg))
+                    {
+                        auto raw_mode = state;
+                        ::cfmakeraw(&raw_mode);
+                        raw_mode.c_oflag |= OPOST; // Post-processing output. Convert LF to CRLF.
+                        raw_mode.c_lflag |= ISIG; // Controls whether the INTR, QUIT, and SUSP characters trigger a process signal. (Ctrl+C)
+                        //raw_mode.c_iflag &= ~( 0
+                        //    | PARMRK // Erroneous bytes are marker.
+                        //    | ISTRIP // 7-bit only input (c & 0x7F).
+                        //    | IGNCR  // Drop CR.
+                        //    | ICRNL  // Convert CR to NL(LF).
+                        //    | INLCR  // Convert NL to CR.
+                        //    | IXON   // Suspends output on a STOP character until a START character is received.
+                        //    | IGNBRK // Ignore break conditions.
+                        //    | BRKINT // Raises a SIGINT signal for the foreground process group.
+                        //    );
+                        //raw_mode.c_oflag &= ~OPOST; // Deactivates post-processing output.
+                        //raw_mode.c_lflag &= ~(0
+                        //    | ECHO    // Echoing of input characters.
+                        //    | ECHONL  // Echoing of NL characters.
+                        //    | ICANON  // Canonical input processing mode. A-la line input.
+                        //    | ISIG    // Controls whether the INTR, QUIT, and SUSP characters trigger a process signal.
+                        //    | IEXTEN  // Enables the LNEXT and DISCARD characters.
+                        //    );
+                        //raw_mode.c_cflag &= ~(0 // Control mode.
+                        //    | CSIZE  // Bit per character mask.
+                        //    | PARENB // Generation and detection of a parity bit.
+                        //    );
+                        //raw_mode.c_cflag |= CS8; // Eight bits per byte.
+                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
+                    }
+                    else
+                    {
+                        os::fail("Check you are using the proper tty device, try `ssh -tt ...` option");
+                    }
+                    //ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)", os::unexpected_msg);
+                    //ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
+                    //ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
+                    //ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+                    ok(::signal(SIGINT, sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+
+                #endif
+                //log(ansi::shellmouse(true));
+            }
+            auto finish()
+            {
+                auto& alarm = globals().alarm;
+                alarm.bell();
+                //log(ansi::shellmouse(faux));
+            }
+            auto readch(text& buff)
+            {
+
+            }
+            auto readln(text& buff)
+            {
+                auto& alarm = globals().alarm;
+                if (alarm.fired) return qiew{};
+                std::this_thread::sleep_for(5s);
+                buff = "\"Hello World!\""; // pwsh and python test command
+                return qiew{ buff };
+            }
         }
-        auto readkey(text& buff)
-        {
-
-        }
-        auto readline(text& buff)
-        {
-            #if not defined(_WIN32)
-
-                //auto state = conmode{};
-                //if (ok(::tcgetattr(os::stdin_fd, &state), "::tcgetattr(os::stdin_fd)", os::unexpected_msg))
-                //{
-                //    auto raw_mode = state;
-                //    ::cfmakeraw(&raw_mode);
-                //    ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
-                //}
-                //else
-                //{
-                //    os::fail("Check you are using the proper tty device, try `ssh -tt ...` option");
-                //}
-
-            #endif
-
-            //todo track double Ctrl+C
-
-            auto& alarm = globals().alarm;
-            if (alarm.fired) return qiew{};
-            std::this_thread::sleep_for(5s);
-            //buff = "print(\"Hello World!\")";
-            buff = "\"Hello World!\""; // pwsh and python test command
-
-
-            #if not defined(_WIN32)
-
-                //if (!ok(::tcsetattr(os::stdin_fd, TCSANOW, &state), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg))
-                //{
-                //    os::fail("Check you are using the proper tty device, try `ssh -tt ...` option");
-                //}
-
-            #endif
-            return qiew{ buff };
-        }
-    };
+    }
 }
