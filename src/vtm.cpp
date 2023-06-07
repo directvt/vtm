@@ -110,18 +110,18 @@ int main(int argc, char* argv[])
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
             + "  Options:\n\n"s
-            + "    No arguments        Run client, auto start server if it is not running.\n"s
-            + "    -c | --config <..>  Use specified configuration file.\n"s
-            + "    -p | --pipe   <..>  Set the pipe to connect to.\n"s
-            + "    -q | --quiet        Disable logging.\n"s
-            + "    -l | --listconfig   Show configuration and exit.\n"s
-            + "    -m | --monitor      Monitor server log.\n"s
-            + "    -d | --daemon       Run server in background.\n"s
-            + "    -s | --server       Run server in interactive mode.\n"s
-            + "    -r | --runapp <..>  Run standalone application.\n"s
-            + "    -v | --version      Show version and exit.\n"s
-            + "    -? | -h | --help    Show usage message.\n"s
-            + "    --onlylog           Disable interactive user input.\n"s
+            + "    No arguments       Run client, auto start server if it is not running.\n"s
+            + "    -c, --config <..>  Use specified configuration file.\n"s
+            + "    -p, --pipe   <..>  Set the pipe to connect to.\n"s
+            + "    -q, --quiet        Disable logging.\n"s
+            + "    -l, --listconfig   Show configuration and exit.\n"s
+            + "    -m, --monitor      Monitor server log.\n"s
+            + "    -d, --daemon       Run server in background.\n"s
+            + "    -s, --server       Run server in interactive mode.\n"s
+            + "    -r, --runapp <..>  Run standalone application.\n"s
+            + "    -v, --version      Show version and exit.\n"s
+            + "    -?, -h, --help     Show usage message.\n"s
+            + "    --onlylog          Disable interactive user input.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
             + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
