@@ -6621,16 +6621,28 @@ namespace netxs::ui
                 {
                     auto post = page{ data.utf8 };
                     auto rich = post.to_rich();
+                    if (bpmode)
+                    {
+                        rich = "\033[200~" + rich + "\033[201~";
+                    }
                     data_out(rich);
                 }
                 else if (data.kind == clip::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
+                    if (bpmode)
+                    {
+                        code = "\033[200~" + code + "\033[201~";
+                    }
                     data_out(code);
                 }
                 else
                 {
+                    if (bpmode)
+                    {
+                        data.utf8 = "\033[200~" + data.utf8 + "\033[201~";
+                    }
                     data_out(data.utf8);
                 }
                 return true;
