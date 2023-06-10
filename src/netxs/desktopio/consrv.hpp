@@ -486,15 +486,17 @@ struct consrv
             buffer.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
-            auto noni = server.inpmod & nt::console::inmode::preprocess; // `-NonInteractive` powershell mode.
+            //auto noni = server.inpmod & nt::console::inmode::preprocess; // `-NonInteractive` powershell mode.
             while (head != tail)
             {
                 auto c = *head++;
                 if (c == '\n' || c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    if (noni) generate('\n', s);
-                    else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting enter. Pressed Shift to soft line break when pasting from clipboard.
+                    generate('\r', s, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
+                    // Far Manager treats Shift+Enter as its own macro not a soft break.
+                    //if (noni) generate('\n', s);
+                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else
                 {
@@ -808,6 +810,10 @@ struct consrv
         template<class L>
         auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
         {
+            //todo bracketed paste support
+            // save server.uiterm.bpmode
+            // server.uiterm.bpmode = true;
+            // restore at exit
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
             auto nums = utfx{};
@@ -935,9 +941,9 @@ struct consrv
                                         }
                                         if (n == 0) pops++;
                                     };
-                                         if (stops & 1 << c)                { cook(c, 0); hist.save(line);                                }
-                                    else if (c == '\r' || c == '\n')        { cook(c, 1); hist.done(line);                                }
-                                    else if (c == 'I' - '@' && v == VK_TAB) { burn();     hist.save(line); line.insert("        ", mode); }
+                                         if (stops & 1 << c && (c != '\t' || c == '\t' && v == VK_TAB)) { cook(c, 0); hist.save(line);                            }
+                                    else if (c == '\r' || c == '\n')                                    { cook(c, 1); hist.done(line);                            }
+                                    else if (c == '\t')                                                 { burn();     hist.save(line); line.insert("    ", mode); }
                                     else if (c == 'C' - '@')
                                     {
                                         hist.save(line);
