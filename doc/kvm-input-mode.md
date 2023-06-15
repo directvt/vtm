@@ -123,7 +123,7 @@ This sequence block is used to pass an arbitrary string of unmodified text, main
 
 ## Scan Codes
 
-Scan codes for the keys on a standard 101-key keyboard:
+Scan codes for the keys on a standard 104-key keyboard:
 
 ```
 ┌────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────╥────┐  ┌────╥────╥────┐
