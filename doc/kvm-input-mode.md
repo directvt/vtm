@@ -1,6 +1,4 @@
-# Keyboard/Viewport/Mouse VT Protocol
-
-## `kvm-input-mode`
+# Keyboard/Viewport/Mouse VT Protocol `kvm-input-mode`
 
 The goal is to make command line interactivity cross-platform.  
 
@@ -16,8 +14,8 @@ Reset: ESC [ ? 9001 l
 ```
 
 Note: All values used in this protocol are decimal and zero-based.  
-Note: The bracketed paste mode is mandatory.
-Note: This protocol is backwards-compatible with the `win32-input-mode` protocol. 
+Note: The bracketed paste mode is mandatory.  
+Note: This protocol is backwards-compatible with the `win32-input-mode` protocol.
 
 ## Input Events
 
