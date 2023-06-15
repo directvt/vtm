@@ -144,6 +144,7 @@ namespace netxs::ui
             bool def_cur_on;
             bool resetonkey;
             bool resetonout;
+            bool def_io_log;
             span def_period;
             pals def_colors;
 
@@ -197,6 +198,7 @@ namespace netxs::ui
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
+                def_io_log =             config.take("logs",                 faux);
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -6128,7 +6130,6 @@ namespace netxs::ui
         flag       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
-        bool       onlogs; // term: Developer mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
@@ -7105,12 +7106,11 @@ namespace netxs::ui
               active{  true },
               decckm{  faux },
               bpmode{  faux },
-              onlogs{  faux },
               unsync{  faux },
               invert{  faux },
-              io_log{  faux },
               curdir{ cwd   },
               cmdarg{ cmd   },
+              io_log{ config.def_io_log },
               selmod{ config.def_selmod },
               selalt{ config.def_selalt },
               altscr{ config.def_altscr }
