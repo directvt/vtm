@@ -170,7 +170,7 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 <kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |              |
 <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |              |
 <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |              | Back qoute
-<kbd>Backslash</kbd>          | `220` `0xDC` | ` 43` `0x2B` |              |
+<kbd>\</kbd>                  | `220` `0xDC` | ` 43` `0x2B` |              |
 <kbd>0</kbd>                  | ` 48` `0x30` | ` 11` `0x0B` |              |
 <kbd>1</kbd>                  | ` 49` `0x31` | `  2` `0x02` |              |
 <kbd>2</kbd>                  | ` 50` `0x32` | `  3` `0x03` |              |
