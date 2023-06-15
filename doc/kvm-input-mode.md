@@ -2,7 +2,6 @@
 
 The goal of the `kvm-input-mode` protocol is to make command line interactivity cross-platform.
 
-Notes:
 - All values used in this protocol are decimal and zero-based.
 - The bracketed paste mode is mandatory.
 - This protocol is backwards-compatible with the `win32-input-mode` protocol.
