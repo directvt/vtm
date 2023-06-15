@@ -131,16 +131,20 @@ Modifier                                | kvm CtrlState   | win32 CtrlState
 ----------------------------------------|-----------------|-----------------
 <kbd>RightAlt</kbd> or <kbd>AltGr</kbd> | `   1` `0x0001` | `   1`  `0x0001`
 <kbd>LeftAlt</kbd>                      | `   2` `0x0002` | `   2`  `0x0002`
+<kbd>Alt</kbd>                          | `   3` `0x0003` | `   3`  `0x0002`
 <kbd>RightCtrl</kbd>                    | `   4` `0x0004` | `   4`  `0x0004`
 <kbd>LeftCtrl</kbd>                     | `   8` `0x0008` | `   8`  `0x0008`
-<kbd>RightShift</kbd>                   | `2064` `0x0810` | `  16`  `0x0010`
+<kbd>Ctrl</kbd>                         | `  12` `0x000C` | `  12`  `0x000C`
+<kbd>RightShift</kbd>                   | `2048` `0x0800` | `  16`  `0x0010`
 <kbd>LeftShift</kbd>                    | `  16` `0x0010` | `  16`  `0x0010`
+<kbd>Shift</kbd>                        | `2064` `0x0810` | `  16`  `0x0010`
 NumLock on                              | `  32` `0x0020` | `  32`  `0X0020`
 ScrollLock mode on                      | `  64` `0x0040` | `  64`  `0X0040`
 CapsLock mode on                        | ` 128` `0x0080` | ` 128`  `0x0080`
 Extended key                            | ` 256` `0x0100` | ` 256`  `0x0100`
 <kbd>RightWin</kbd>                     | ` 512` `0x0200` |
 <kbd>LeftWin</kbd>                      | `1024` `0x0400` |
+<kbd>Win</kbd>                          | `1536` `0x0600` |
 
 ## Physical Key Detection
 
