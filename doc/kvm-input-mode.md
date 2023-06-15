@@ -1,6 +1,9 @@
 # Keyboard/Viewport/Mouse VT Protocol
 
-The introduced `kvm-input-mode` protocol is backwards-compatible with the `win32-input-mode` protocol. The goal of this protocol is to raise the interactivity level of the cross-platform command line interface.
+## `kvm-input-mode`
+
+The goal is to make command line interactivity cross-platform.  
+This protocol is backwards-compatible with the `win32-input-mode` protocol. 
 
 ## Audience
 
