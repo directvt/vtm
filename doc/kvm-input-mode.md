@@ -140,9 +140,9 @@ Modifier                                | kvm CtrlState   | win32 CtrlState
 <kbd>RightShift</kbd>                   | `2048` `0x0800` | `  16`  `0x0010`
 <kbd>LeftShift</kbd>                    | `  16` `0x0010` | `  16`  `0x0010`
 <kbd>Shift</kbd>                        | `2064` `0x0810` | `  16`  `0x0010`
-NumLock On                              | `  32` `0x0020` | `  32`  `0X0020`
-ScrollLock On                           | `  64` `0x0040` | `  64`  `0X0040`
-CapsLock On                             | ` 128` `0x0080` | ` 128`  `0x0080`
+NumLock Mode                            | `  32` `0x0020` | `  32`  `0X0020`
+ScrollLock Mode                         | `  64` `0x0040` | `  64`  `0X0040`
+CapsLock Mode                           | ` 128` `0x0080` | ` 128`  `0x0080`
 Extended Key                            | ` 256` `0x0100` | ` 256`  `0x0100`
 <kbd>RightWin</kbd>                     | ` 512` `0x0200` |
 <kbd>LeftWin</kbd>                      | `1024` `0x0400` |
@@ -150,7 +150,7 @@ Extended Key                            | ` 256` `0x0100` | ` 256`  `0x0100`
 
 ## Physical Key Detection
 
-Key                           | VirtCode     | ScanCode     | CtrlState    | Note
+Key                           | VirtCode     | ScanCode     | CtrlState    | Notes
 ------------------------------|--------------|--------------|--------------|-------------
 <kbd>Esc</kbd>                | ` 27` `0x1B` | `  1` `0x01` |              |
 <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
@@ -208,22 +208,22 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 <kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` | Extended Key |
 <kbd>Numpad Down Arrow</kbd>  | ` 40` `0x28` | ` 80` `0x50` |              |
 <kbd>Select</kbd>             | ` 41` `0x29` |              |              |
-<kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` | NumLock On   |
-<kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` | NumLock On   |
-<kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` | NumLock On   |
-<kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` | NumLock On   |
-<kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` | NumLock On   |
-<kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` | NumLock On   |
-<kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` | NumLock On   |
-<kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` | NumLock On   |
-<kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` | NumLock On   |
-<kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` | NumLock On   |
-<kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 with NumLock off
+<kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` | NumLock Mode |
+<kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` | NumLock Mode |
+<kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` | NumLock Mode |
+<kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` | NumLock Mode |
+<kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` | NumLock Mode |
+<kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` | NumLock Mode |
+<kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` | NumLock Mode |
+<kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` | NumLock Mode |
+<kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` | NumLock Mode |
+<kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` | NumLock Mode |
+<kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 key when NumLock Mode off
 <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
 <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
 <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
 <kbd>Numpad -</kbd>           | `109` `0x6D` |              |              |
-<kbd>Numpad .</kbd>           | `110` `0x6E` |              | NumLock On   |
+<kbd>Numpad .</kbd>           | `110` `0x6E` |              | NumLock Mode |
 <kbd>Numpad /</kbd>           | `111` `0x6F` |              | Extended Key |
 <kbd>/</kbd>                  | `191` `0xBF` |              |              |
 <kbd>,</kbd>                  | `188` `0xBC` |              |              | Comma
