@@ -7,10 +7,14 @@ The introduced `kvm-input-mode` protocol is backwards-compatible with the `win32
 ...
 
 ## Initialization
+
 ```
 Set:   ESC [ ? 9001 h
 Reset: ESC [ ? 9001 l
 ```
+
+Note: All values used in this protocol are decimal and zero-based.  
+Note: The bracketed paste mode is mandatory.
 
 ## Input Events
 
@@ -19,9 +23,6 @@ Reset: ESC [ ? 9001 l
 - Mouse
 - Selection
 - Clipboard
-
-All values used in this protocol are decimal and zero-based.  
-The bracketed paste mode is mandatory.
 
 ### Keyboard
 
