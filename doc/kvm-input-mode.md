@@ -157,10 +157,10 @@ Modifier                                | kvm CtrlState   | win32 CtrlState
 <kbd>RightShift</kbd>                   | `2048` `0x0800` | `  16`  `0x0010`
 <kbd>LeftShift</kbd>                    | `  16` `0x0010` | `  16`  `0x0010`
 <kbd>Shift</kbd>                        | `2064` `0x0810` | `  16`  `0x0010`
-NumLock Mode                            | `  32` `0x0020` | `  32`  `0X0020`
-ScrollLock Mode                         | `  64` `0x0040` | `  64`  `0X0040`
-CapsLock Mode                           | ` 128` `0x0080` | ` 128`  `0x0080`
-Extended Key                            | ` 256` `0x0100` | ` 256`  `0x0100`
+<kbd>NumLock Mode</kbd>                 | `  32` `0x0020` | `  32`  `0X0020`
+<kbd>ScrollLock Mode</kbd>              | `  64` `0x0040` | `  64`  `0X0040`
+<kbd>CapsLock Mode</kbd>                | ` 128` `0x0080` | ` 128`  `0x0080`
+<kbd>Extended Key</kbd>                 | ` 256` `0x0100` | ` 256`  `0x0100`
 <kbd>RightWin</kbd>                     | ` 512` `0x0200` |
 <kbd>LeftWin</kbd>                      | `1024` `0x0400` |
 <kbd>Win</kbd>                          | `1536` `0x0600` |
@@ -173,19 +173,19 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
 <kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |              | Ctrl + Pause
 <kbd>SysRq</kbd>              | ` 44` `0x2C` | ` 84` `0x54` |              | Alt + PrintScreen
-<kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` | Extended Key |
+<kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` |`Extended Key`|
 <kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |              |
 <kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |              |
 <kbd>ScrollLock</kbd>         | `145` `0x91` | ` 69` `0x45` |              |
 <kbd>LeftShift</kbd>          | ` 16` `0x10` | ` 42` `0x2A` |              |
 <kbd>RightShift</kbd>         | ` 16` `0x10` | ` 54` `0x36` |              |
 <kbd>LeftCtrl</kbd>           | ` 17` `0x11` | ` 29` `0x1D` |              |
-<kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` | Extended Key |
+<kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` |`Extended Key`|
 <kbd>LeftAlt</kbd>            | ` 18` `0x12` | ` 56` `0x38` |              |
-<kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` | Extended Key |
-<kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` | Extended Key |
-<kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` | Extended Key |
-<kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` | Extended Key |
+<kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` |`Extended Key`|
+<kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` |`Extended Key`|
+<kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` |`Extended Key`|
+<kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` |`Extended Key`|
 <kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |              |
 <kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |              |
 <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |              |
@@ -204,45 +204,45 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 <kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |              |
 <kbd>+</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
 <kbd>Enter</kbd>              | ` 13` `0x0D` | ` 28` `0x1C` |              |
-<kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` | Extended Key |
-<kbd>Insert</kbd>             | ` 45` `0x2D` | ` 82` `0x52` | Extended Key |
+<kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` |`Extended Key`|
+<kbd>Insert</kbd>             | ` 45` `0x2D` | ` 82` `0x52` |`Extended Key`|
 <kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |              |
-<kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` | Extended Key |
+<kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` |`Extended Key`|
 <kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |              |
-<kbd>Home</kbd>               | ` 36` `0x24` | ` 71` `0x47` | Extended Key |
+<kbd>Home</kbd>               | ` 36` `0x24` | ` 71` `0x47` |`Extended Key`|
 <kbd>Numpad Home</kbd>        | ` 36` `0x24` | ` 71` `0x47` |              |
-<kbd>End</kbd>                | ` 35` `0x23` | ` 79` `0x4F` | Extended Key |
+<kbd>End</kbd>                | ` 35` `0x23` | ` 79` `0x4F` |`Extended Key`|
 <kbd>Numpad End</kbd>         | ` 35` `0x23` | ` 79` `0x4F` |              |
-<kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` | Extended Key |
+<kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` |`Extended Key`|
 <kbd>Numpad PageUp</kbd>      | ` 33` `0x21` | ` 73` `0x49` |              |
-<kbd>PageDown</kbd>           | ` 34` `0x22` | ` 81` `0x51` | Extended Key |
+<kbd>PageDown</kbd>           | ` 34` `0x22` | ` 81` `0x51` |`Extended Key`|
 <kbd>Numpad PageDown</kbd>    | ` 34` `0x22` | ` 81` `0x51` |              |
-<kbd>Left Arrow</kbd>         | ` 37` `0x25` | ` 75` `0x4B` | Extended Key |
+<kbd>Left Arrow</kbd>         | ` 37` `0x25` | ` 75` `0x4B` |`Extended Key`|
 <kbd>Numpad Left Arrow</kbd>  | ` 37` `0x25` | ` 75` `0x4B` |              |
-<kbd>Up Arrow</kbd>           | ` 38` `0x26` | ` 72` `0x48` | Extended Key |
+<kbd>Up Arrow</kbd>           | ` 38` `0x26` | ` 72` `0x48` |`Extended Key`|
 <kbd>Numpad Up Arrow</kbd>    | ` 38` `0x26` | ` 72` `0x48` |              |
-<kbd>Right Arrow</kbd>        | ` 39` `0x27` | ` 77` `0x4D` | Extended Key |
+<kbd>Right Arrow</kbd>        | ` 39` `0x27` | ` 77` `0x4D` |`Extended Key`|
 <kbd>Numpad Right Arrow</kbd> | ` 39` `0x27` | ` 77` `0x4D` |              |
-<kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` | Extended Key |
+<kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` |`Extended Key`|
 <kbd>Numpad Down Arrow</kbd>  | ` 40` `0x28` | ` 80` `0x50` |              |
 <kbd>Select</kbd>             | ` 41` `0x29` |              |              |
-<kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` | NumLock Mode |
-<kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` | NumLock Mode |
-<kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` | NumLock Mode |
-<kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` | NumLock Mode |
-<kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` | NumLock Mode |
-<kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` | NumLock Mode |
-<kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` | NumLock Mode |
-<kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` | NumLock Mode |
-<kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` | NumLock Mode |
-<kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` | NumLock Mode |
+<kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` |`NumLock Mode`|
+<kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` |`NumLock Mode`|
+<kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` |`NumLock Mode`|
+<kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` |`NumLock Mode`|
+<kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` |`NumLock Mode`|
+<kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` |`NumLock Mode`|
+<kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` |`NumLock Mode`|
+<kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` |`NumLock Mode`|
+<kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` |`NumLock Mode`|
+<kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` |`NumLock Mode`|
 <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 key when NumLock Mode off
 <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
 <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
 <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
 <kbd>Numpad -</kbd>           | `109` `0x6D` |              |              |
-<kbd>Numpad .</kbd>           | `110` `0x6E` |              | NumLock Mode |
-<kbd>Numpad /</kbd>           | `111` `0x6F` |              | Extended Key |
+<kbd>Numpad .</kbd>           | `110` `0x6E` |              |`NumLock Mode`|
+<kbd>Numpad /</kbd>           | `111` `0x6F` |              |`Extended Key`|
 <kbd>/</kbd>                  | `191` `0xBF` |              |              |
 <kbd>,</kbd>                  | `188` `0xBC` |              |              | Comma
 <kbd>.</kbd>                  | `190` `0xBE` |              |              | Period
@@ -300,25 +300,25 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 <kbd>X</kbd>                  | ` 88` `0x58` |              |              |
 <kbd>Y</kbd>                  | ` 89` `0x59` |              |              |
 <kbd>Z</kbd>                  | ` 90` `0x5A` |              |              |
-<kbd>Sleep</kbd>              | ` 95` `0x5F` |              | Extended Key |
-<kbd>Calculator</kbd>         | `183` `0xB7` |              | Extended Key | App2
-<kbd>WWW</kbd>                | `172` `0xAC` |              | Extended Key |
-<kbd>Mail</kbd>               | `184` `0x48` |              | Extended Key |
-<kbd>Media</kbd>              | `181` `0xB5` |              | Extended Key |
-<kbd>Media Vol Mute</kbd>     | `173` `0xAD` |              | Extended Key |
-<kbd>Media Vol Down</kbd>     | `174` `0xAE` |              | Extended Key |
-<kbd>Media Vol Up</kbd>       | `175` `0xAF` |              | Extended Key |
-<kbd>Media Next</kbd>         | `176` `0xB0` |              | Extended Key |
-<kbd>Media Prev</kbd>         | `177` `0xB1` |              | Extended Key |
-<kbd>Media Stop</kbd>         | `178` `0xB2` |              | Extended Key |
-<kbd>Media Play/Pause</kbd>   | `179` `0xB3` |              | Extended Key |
-<kbd>Browser Back</kbd>       | `166` `0xA6` |              | Extended Key |
-<kbd>Browser Forward</kbd>    | `167` `0xA7` |              | Extended Key |
-<kbd>Browser Refresh</kbd>    | `168` `0xA8` |              | Extended Key |
-<kbd>Browser Stop</kbd>       | `169` `0xA9` |              | Extended Key |
-<kbd>Browser Search</kbd>     | `170` `0xAA` |              | Extended Key |
-<kbd>Browser Favorites</kbd>  | `171` `0xAB` |              | Extended Key |
-<kbd>Browser Home</kbd>       | `172` `0xAC` |              | Extended Key |
+<kbd>Sleep</kbd>              | ` 95` `0x5F` |              |`Extended Key`|
+<kbd>Calculator</kbd>         | `183` `0xB7` |              |`Extended Key`| App2
+<kbd>WWW</kbd>                | `172` `0xAC` |              |`Extended Key`|
+<kbd>Mail</kbd>               | `184` `0x48` |              |`Extended Key`|
+<kbd>Media</kbd>              | `181` `0xB5` |              |`Extended Key`|
+<kbd>Media Vol Mute</kbd>     | `173` `0xAD` |              |`Extended Key`|
+<kbd>Media Vol Down</kbd>     | `174` `0xAE` |              |`Extended Key`|
+<kbd>Media Vol Up</kbd>       | `175` `0xAF` |              |`Extended Key`|
+<kbd>Media Next</kbd>         | `176` `0xB0` |              |`Extended Key`|
+<kbd>Media Prev</kbd>         | `177` `0xB1` |              |`Extended Key`|
+<kbd>Media Stop</kbd>         | `178` `0xB2` |              |`Extended Key`|
+<kbd>Media Play/Pause</kbd>   | `179` `0xB3` |              |`Extended Key`|
+<kbd>Browser Back</kbd>       | `166` `0xA6` |              |`Extended Key`|
+<kbd>Browser Forward</kbd>    | `167` `0xA7` |              |`Extended Key`|
+<kbd>Browser Refresh</kbd>    | `168` `0xA8` |              |`Extended Key`|
+<kbd>Browser Stop</kbd>       | `169` `0xA9` |              |`Extended Key`|
+<kbd>Browser Search</kbd>     | `170` `0xAA` |              |`Extended Key`|
+<kbd>Browser Favorites</kbd>  | `171` `0xAB` |              |`Extended Key`|
+<kbd>Browser Home</kbd>       | `172` `0xAC` |              |`Extended Key`|
 
 ...
 
