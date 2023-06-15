@@ -413,6 +413,7 @@ Key                           | VirtCode     | ScanCode     | CtrlState  | Note
 ------------------------------|--------------|--------------|------------|------
 <kbd>Esc</kbd>                | ` 27` `0x1B` | `  1` `0x01` |            |
 <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |            |
+<kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |            | Ctrl + Break
 <kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` | & `0x0100` |
 <kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |            |
 <kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |            |
@@ -427,6 +428,7 @@ Key                           | VirtCode     | ScanCode     | CtrlState  | Note
 <kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` | & `0x0100` |
 <kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` | & `0x0100` |
 <kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |            |
+<kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |            |
 <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |            |
 <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |            | Back qoute
 <kbd>Backslash</kbd>          | `220` `0xDC` | ` 43` `0x2B` |            |
@@ -474,7 +476,7 @@ Key                           | VirtCode     | ScanCode     | CtrlState  | Note
 <kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` | & `0x0020` |
 <kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` | & `0x0020` |
 <kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` | & `0x0020` |
-<kbd>Numpad Center</kbd>      | ` 12` `0x0C` | ` 76` `0x4C` |            |
+<kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |            |
 <kbd>Numpad *</kbd>           | `106` `0x6A` |              |            |
 <kbd>Numpad +</kbd>           | `107` `0x6B` |              |            |
 <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |            |
