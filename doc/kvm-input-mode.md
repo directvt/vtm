@@ -409,24 +409,142 @@ Dec  | Hex  | Name                  | Key
 
 ### Physical Key Detection
 
-Key                      | VirtCode     | ScanCode     | CtrlState
--------------------------|--------------|--------------|-----------
-<kbd>Pause</kbd>         | ` 19` `0x13` | ` 69` `0x45` |
-<kbd>NumLock</kbd>       | `144` `0x90` | ` 69` `0x45` |
-<kbd>ScrollLock</kbd>    | `145` `0x91` | ` 69` `0x45` |
-<kbd>CapsLock</kbd>      | ` 20` `0x14` | ` 58` `0x3A` |
-<kbd>LeftShift</kbd>     | ` 16` `0x10` | ` 42` `0x2A` |
-<kbd>RightShift</kbd>    | ` 16` `0x10` | ` 54` `0x36` |
-<kbd>LeftCtrl</kbd>      | ` 17` `0x11` | ` 29` `0x1D` |
-<kbd>RightCtrl</kbd>     | ` 17` `0x11` | ` 29` `0x1D` | & `0x0100`
-<kbd>LeftAlt</kbd>       | ` 18` `0x12` | ` 56` `0x38` |
-<kbd>RightAlt</kbd>      | ` 18` `0x12` | ` 56` `0x38` | & `0x0100`
-<kbd>LeftWin</kbd>       | ` 91` `0x5B` | ` 91` `0x5B` | & `0x0100`
-<kbd>RightWin</kbd>      | ` 92` `0x5C` | ` 92` `0x5C` | & `0x0100`
-<kbd>Enter</kbd>         | ` 13` `0x0D` | ` 28` `0x1C` |
-<kbd>Numpad Enter</kbd>  | ` 13` `0x0D` | ` 28` `0x1C` | & `0x0100`
-<kbd>Insert</kbd>        | ` 45` `0x2D` | ` 82` `0x52` | & `0x0100`
-<kbd>Numpad Insert</kbd> | ` 45` `0x2D` | ` 82` `0x52` |
+Key                           | VirtCode     | ScanCode     | CtrlState  | Note
+------------------------------|--------------|--------------|------------|------
+<kbd>Esc</kbd>                | ` 27` `0x1B` | `  1` `0x01` |            |
+<kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |            |
+<kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` | & `0x0100` |
+<kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |            |
+<kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |            |
+<kbd>ScrollLock</kbd>         | `145` `0x91` | ` 69` `0x45` |            |
+<kbd>LeftShift</kbd>          | ` 16` `0x10` | ` 42` `0x2A` |            |
+<kbd>RightShift</kbd>         | ` 16` `0x10` | ` 54` `0x36` |            |
+<kbd>LeftCtrl</kbd>           | ` 17` `0x11` | ` 29` `0x1D` |            |
+<kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` | & `0x0100` |
+<kbd>LeftAlt</kbd>            | ` 18` `0x12` | ` 56` `0x38` |            |
+<kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` | & `0x0100` |
+<kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` | & `0x0100` |
+<kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` | & `0x0100` |
+<kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` | & `0x0100` |
+<kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |            |
+<kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |            |
+<kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |            | Back qoute
+<kbd>Backslash</kbd>          | `220` `0xDC` | ` 43` `0x2B` |            |
+<kbd>0</kbd>                  | ` 48` `0x30` | ` 11` `0x0B` |            |
+<kbd>1</kbd>                  | ` 49` `0x31` | `  2` `0x02` |            |
+<kbd>2</kbd>                  | ` 50` `0x32` | `  3` `0x03` |            |
+<kbd>3</kbd>                  | ` 51` `0x33` | `  4` `0x04` |            |
+<kbd>4</kbd>                  | ` 52` `0x34` | `  5` `0x05` |            |
+<kbd>5</kbd>                  | ` 53` `0x35` | `  6` `0x06` |            |
+<kbd>6</kbd>                  | ` 54` `0x36` | `  7` `0x07` |            |
+<kbd>7</kbd>                  | ` 55` `0x37` | `  8` `0x08` |            |
+<kbd>8</kbd>                  | ` 56` `0x38` | `  9` `0x09` |            |
+<kbd>9</kbd>                  | ` 57` `0x39` | ` 10` `0x0A` |            |
+<kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |            |
+<kbd>+</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |            |
+<kbd>Enter</kbd>              | ` 13` `0x0D` | ` 28` `0x1C` |            |
+<kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` | & `0x0100` |
+<kbd>Insert</kbd>             | ` 45` `0x2D` | ` 82` `0x52` | & `0x0100` |
+<kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |            |
+<kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` | & `0x0100` |
+<kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |            |
+<kbd>Home</kbd>               | ` 36` `0x24` | ` 71` `0x47` | & `0x0100` |
+<kbd>Numpad Home</kbd>        | ` 36` `0x24` | ` 71` `0x47` |            |
+<kbd>End</kbd>                | ` 35` `0x23` | ` 79` `0x4F` | & `0x0100` |
+<kbd>Numpad End</kbd>         | ` 35` `0x23` | ` 79` `0x4F` |            |
+<kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` | & `0x0100` |
+<kbd>Numpad PageUp</kbd>      | ` 33` `0x21` | ` 73` `0x49` |            |
+<kbd>PageDown</kbd>           | ` 34` `0x22` | ` 81` `0x51` | & `0x0100` |
+<kbd>Numpad PageDown</kbd>    | ` 34` `0x22` | ` 81` `0x51` |            |
+<kbd>Left Arrow</kbd>         | ` 37` `0x25` | ` 75` `0x4B` | & `0x0100` |
+<kbd>Numpad Left Arrow</kbd>  | ` 37` `0x25` | ` 75` `0x4B` |            |
+<kbd>Up Arrow</kbd>           | ` 38` `0x26` | ` 72` `0x48` | & `0x0100` |
+<kbd>Numpad Up Arrow</kbd>    | ` 38` `0x26` | ` 72` `0x48` |            |
+<kbd>Right Arrow</kbd>        | ` 39` `0x27` | ` 77` `0x4D` | & `0x0100` |
+<kbd>Numpad Right Arrow</kbd> | ` 39` `0x27` | ` 77` `0x4D` |            |
+<kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` | & `0x0100` |
+<kbd>Numpad Down Arrow</kbd>  | ` 40` `0x28` | ` 80` `0x50` |            |
+<kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` | & `0x0020` |
+<kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` | & `0x0020` |
+<kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` | & `0x0020` |
+<kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` | & `0x0020` |
+<kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` | & `0x0020` |
+<kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` | & `0x0020` |
+<kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` | & `0x0020` |
+<kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` | & `0x0020` |
+<kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` | & `0x0020` |
+<kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` | & `0x0020` |
+<kbd>Numpad Center</kbd>      | ` 12` `0x0C` | ` 76` `0x4C` |            |
+<kbd>Numpad *</kbd>           | `106` `0x6A` |              |            |
+<kbd>Numpad +</kbd>           | `107` `0x6B` |              |            |
+<kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |            |
+<kbd>Numpad -</kbd>           | `109` `0x6D` |              |            |
+<kbd>Numpad .</kbd>           | `110` `0x6E` |              | & `0x0020` |
+<kbd>Numpad /</kbd>           | `111` `0x6F` |              | & `0x0100` |
+<kbd>/</kbd>                  | `191` `0xBF` |              |            |
+<kbd>,</kbd>                  | `188` `0xBC` |              |            | Comma
+<kbd>.</kbd>                  | `190` `0xBE` |              |            | Period
+<kbd>[</kbd>                  | `219` `0xDB` |              |            |
+<kbd>]</kbd>                  | `221` `0xDD` |              |            |
+<kbd>;</kbd>                  | `186` `0xBA` |              |            |
+<kbd>'</kbd>                  | `222` `0xDE` |              |            | Single qoute
+<kbd>F1</kbd>                 | `112` `0x70` | ` 59` `0x3B` |            |
+<kbd>F2</kbd>                 | `113` `0x71` | ` 61` `0x3C` |            |
+<kbd>F3</kbd>                 | `114` `0x72` | ` 62` `0x3D` |            |
+<kbd>F4</kbd>                 | `115` `0x73` | ` 63` `0x3E` |            |
+<kbd>F5</kbd>                 | `116` `0x74` | ` 64` `0x3F` |            |
+<kbd>F6</kbd>                 | `117` `0x75` | ` 65` `0x40` |            |
+<kbd>F7</kbd>                 | `118` `0x76` | ` 66` `0x41` |            |
+<kbd>F8</kbd>                 | `119` `0x77` | ` 67` `0x42` |            |
+<kbd>F9</kbd>                 | `120` `0x78` | ` 68` `0x43` |            |
+<kbd>F10</kbd>                | `121` `0x79` | ` 69` `0x44` |            |
+<kbd>F11</kbd>                | `122` `0x7A` | ` 87` `0x57` |            |
+<kbd>F12</kbd>                | `123` `0x7B` | ` 88` `0x5B` |            |
+<kbd>F13</kbd>                | `124` `0x7C` |              |            |
+<kbd>F14</kbd>                | `125` `0x7D` |              |            |
+<kbd>F15</kbd>                | `126` `0x7E` |              |            |
+<kbd>F16</kbd>                | `127` `0x7F` |              |            |
+<kbd>F17</kbd>                | `128` `0x80` |              |            |
+<kbd>F18</kbd>                | `129` `0x81` |              |            |
+<kbd>F19</kbd>                | `130` `0x82` |              |            |
+<kbd>F20</kbd>                | `131` `0x83` |              |            |
+<kbd>F21</kbd>                | `132` `0x84` |              |            |
+<kbd>F22</kbd>                | `133` `0x85` |              |            |
+<kbd>F23</kbd>                | `134` `0x86` |              |            |
+<kbd>F24</kbd>                | `135` `0x87` |              |            |
+<kbd>A</kbd>                  | ` 65` `0x41` |              |            |
+<kbd>B</kbd>                  | ` 66` `0x42` |              |            |
+<kbd>C</kbd>                  | ` 67` `0x43` |              |            |
+<kbd>D</kbd>                  | ` 68` `0x44` |              |            |
+<kbd>E</kbd>                  | ` 69` `0x45` |              |            |
+<kbd>F</kbd>                  | ` 70` `0x46` |              |            |
+<kbd>G</kbd>                  | ` 71` `0x47` |              |            |
+<kbd>H</kbd>                  | ` 72` `0x48` |              |            |
+<kbd>I</kbd>                  | ` 73` `0x49` |              |            |
+<kbd>J</kbd>                  | ` 74` `0x4A` |              |            |
+<kbd>K</kbd>                  | ` 75` `0x4B` |              |            |
+<kbd>L</kbd>                  | ` 76` `0x4C` |              |            |
+<kbd>M</kbd>                  | ` 77` `0x4D` |              |            |
+<kbd>N</kbd>                  | ` 78` `0x4E` |              |            |
+<kbd>O</kbd>                  | ` 79` `0x4F` |              |            |
+<kbd>P</kbd>                  | ` 80` `0x50` |              |            |
+<kbd>Q</kbd>                  | ` 81` `0x51` |              |            |
+<kbd>R</kbd>                  | ` 82` `0x52` |              |            |
+<kbd>S</kbd>                  | ` 83` `0x53` |              |            |
+<kbd>T</kbd>                  | ` 84` `0x54` |              |            |
+<kbd>U</kbd>                  | ` 85` `0x55` |              |            |
+<kbd>V</kbd>                  | ` 86` `0x56` |              |            |
+<kbd>W</kbd>                  | ` 87` `0x57` |              |            |
+<kbd>X</kbd>                  | ` 88` `0x58` |              |            |
+<kbd>Y</kbd>                  | ` 89` `0x59` |              |            |
+<kbd>Z</kbd>                  | ` 90` `0x5A` |              |            |
+<kbd>Calculator</kbd>         | `183` `0xB7` |              | & `0x0100` | App2
+<kbd>WWW</kbd>                | `172` `0xAC` |              | & `0x0100` |
+<kbd>Mail</kbd>               | `184` `0x48` |              | & `0x0100` |
+<kbd>Media</kbd>              | `181` `0xB5` |              | & `0x0100` |
+<kbd>Mute</kbd>               | `173` `0xAD` |              | & `0x0100` |
+<kbd>Volume Down</kbd>        | `174` `0xAE` |              | & `0x0100` |
+<kbd>Volume Up</kbd>          | `175` `0xAF` |              | & `0x0100` |
 
 ...
 
