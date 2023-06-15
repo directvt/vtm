@@ -59,7 +59,7 @@ Handshake steps:
 3. The terminal applies the new size and sends the changes.
 4. Application must reply with the same message.
 
-Between 2 and 4 steps, the application must keep radio silence, as their output may be ignored by the terminal.
+Between steps 2 and 4, the application must keep radio silence, as their output may be ignored by the terminal.
 
 ```
 Terminal:    ESC [ # 0 ; WinSizeX ; WinSizeY _
