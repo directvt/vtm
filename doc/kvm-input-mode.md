@@ -1,6 +1,6 @@
-# Keyboard/Viewport/Mouse VT Protocol `kvm-input-mode`
+# Keyboard/Viewport/Mouse VT Protocol
 
-The goal is to make command line interactivity cross-platform.  
+The goal of the `kvm-input-mode` protocol is to make command line interactivity cross-platform.
 
 ## Audience
 
