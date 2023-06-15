@@ -13,9 +13,10 @@ Set:   ESC [ ? 9001 h
 Reset: ESC [ ? 9001 l
 ```
 
-Note: All values used in this protocol are decimal and zero-based.  
-Note: The bracketed paste mode is mandatory.  
-Note: This protocol is backwards-compatible with the `win32-input-mode` protocol.
+Notes:
+- All values used in this protocol are decimal and zero-based.
+- The bracketed paste mode is mandatory.
+- This protocol is backwards-compatible with the `win32-input-mode` protocol.
 
 ## Input Events
 
