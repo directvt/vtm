@@ -125,7 +125,7 @@ ESC [ 201 ~   to signify the end.
 
 ## Keyboard Modifiers
 
-The state `CtrlState` of keyboard modifiers is the sum of all currently pressed modifiers and enabled modes.
+The state `CtrlState` of keyboard modifiers is the binary OR of all currently pressed modifiers and enabled modes.
 
 Modifier                                | kvm CtrlState   | win32 CtrlState
 ----------------------------------------|-----------------|-----------------
