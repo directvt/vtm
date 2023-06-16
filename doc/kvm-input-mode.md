@@ -19,12 +19,17 @@ Reset: ESC [ ? 9001 l
 
 ## Input Events
 
-- `Keyboard             `: `ESC [ KeyCode ; ScanCode ; UnicodeChar ; KeyDown ; CtrlState ; RepeatCount ; C1 ; … ; Cn _`
-- `Viewport size preview`: `ESC [ # 0 ; WinSizeX ; WinSizeY _`
-- `Viewport size release`: `ESC [ # 1 ; CaretX ; CaretY ; WinSizeX ; WinSizeY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _`
-- `Mouse                `: `ESC [ # 2 ; CaretX ; CaretY ; MouseX ; MouseY ; ButtonState ; VwheelDt ; HwheelDt ; CtrlState ; SelActive _`
-- `Selection            `: `ESC [ # 3 ; CaretX ; CaretY ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _`
-- `Clipboard            `: `ESC [ 200 ~` and `ESC [ 201 ~`
+- Keyboard
+  `ESC [ KeyCode ; ScanCode ; UnicodeChar ; KeyDown ; CtrlState ; RepeatCount ; C1 ; … ; Cn _`
+- Viewport
+   preview: `ESC [ # 0 ; WinSizeX ; WinSizeY _`
+   release: `ESC [ # 1 ; CaretX ; CaretY ; WinSizeX ; WinSizeY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _`
+- Mouse
+  `ESC [ # 2 ; CaretX ; CaretY ; MouseX ; MouseY ; ButtonState ; VwheelDt ; HwheelDt ; CtrlState ; SelActive _`
+- Selection
+  `ESC [ # 3 ; CaretX ; CaretY ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _`
+- Clipboard
+  `ESC [ 200 ~` and `ESC [ 201 ~`
 
 ### Keyboard
 
