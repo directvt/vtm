@@ -104,7 +104,7 @@ Field                            | Description
 
 ### Scan Codes
 
-`ScanCode`s are usually useful for applications that need to know which key is pressed, regardless of the current keyboard layout. For example, the WASD (QWERTY: W = `11 Up`, A = `1E Left`, S = `1F Down`, D = `20 Right`) keys for games, which ensure a consistent key formation across QWERTY, AZERTY or Dvorak keyboard layouts.
+`ScanCode`s are usually useful for applications that need to know which key is pressed, regardless of the current keyboard layout. For example, the WASD (for QWERTY: W = `11 Up`, A = `1E Left`, S = `1F Down`, D = `20 Right`) keys for games, which ensure a consistent key formation across QWERTY, AZERTY or Dvorak keyboard layouts.
 
 Scan codes for the keys on a standard 104-key keyboard:
 
