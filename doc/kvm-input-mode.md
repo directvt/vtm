@@ -321,3 +321,25 @@ Key                           | VirtCode     | ScanCode     | CtrlState    | Not
 ## Mouse Buttons
 
 ...
+
+## Usage Examples
+
+### C++20
+
+```c++
+#include <iostream>
+
+int main()
+{
+    std::cout << "test" << '\n';
+}
+```
+
+### Python
+
+```python
+#!/bin/python
+
+while True:
+    print('test\n')
+```
