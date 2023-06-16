@@ -25,7 +25,6 @@ Reset: ESC [ ? 9001 l
   ```
 - Viewport
   ```
-  ESC [ # 0 ; WinSizeX ; WinSizeY _
   ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
   ```
 - Mouse
@@ -56,26 +55,23 @@ Field            | Description
 ### Viewport
 
 ```
-ESC [ # 0 ; WinSizeX ; WinSizeY _
 ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
 ```
 
-The first sequence is used to start the viewport resize synchronization handshake.
-
-The second sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and mouse tracking.
+This sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and mouse tracking.
 
 #### Viewport tracking
 
 When the terminal window is resized, the viewport is finally changed only after a handshake between the terminal and the application. Successive multiple resizing of the window initiates the same number of handshakes.
 
 Handshake steps:
-1. The terminal requests a new size.
+1. The terminal requests a new size, omitting all other parameters.
 2. Application must reply with the same message.
 3. The terminal applies the new size and sends the changes.
 
 ```
-Terminal:    ESC [ # 0 ; WinSizeX ; WinSizeY _
-Application: ESC [ # 0 ; WinSizeX ; WinSizeY _
+Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY _
+Application: ESC [ # 1 ; WinSizeX ; WinSizeY _
 Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
 ```
 
