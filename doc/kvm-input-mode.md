@@ -104,11 +104,13 @@ Field                            | Description
 
 ### Scan Codes
 
-`ScanCode`s are usually useful for applications that need to know which key is pressed, regardless of the current keyboard layout. For example, the WASD keys for games, which ensure a consistent key formation across QWERTY, AZERTY or Dvorak keyboard layouts.
+`ScanCode`s are usually useful for applications that need to know which key is pressed, regardless of the current keyboard layout. For example, the WASD (Up, Left, Down, Right) keys for games, which ensure a consistent key formation across QWERTY, AZERTY or Dvorak keyboard layouts.
 
-- `QWERTY`: <kbd>W</kbd> = `11 Up`, <kbd>A</kbd> = `1E Left`, <kbd>S</kbd> = `1F Down`, <kbd>D</kbd> = `20 Right`
-- `AZERTY`: <kbd>Z</kbd> = `11 Up`, <kbd>Q</kbd> = `1E Left`, <kbd>S</kbd> = `1F Down`, <kbd>D</kbd> = `20 Right`
-- `Dvorak`: <kbd>,</kbd> = `11 Up`, <kbd>A</kbd> = `1E Left`, <kbd>O</kbd> = `1F Down`, <kbd>E</kbd> = `20 Right`
+```
+QWERTY: "W" = 11  "A" = 1E  "S" = 1F  "D" = 20
+AZERTY: "Z" = 11  "Q" = 1E  "S" = 1F  "D" = 20
+Dvorak: "," = 11  "A" = 1E  "O" = 1F  "E" = 20
+```
 
 Scan codes for the keys on a standard 104-key keyboard:
 
