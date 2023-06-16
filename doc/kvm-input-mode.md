@@ -62,10 +62,13 @@ Field            | Description
 ### Viewport
 
 ```
-ESC [ # 1 ; CaretX ; CaretY ; WinSizeX ; WinSizeY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _
+ESC [ # 0 ; WinSizeX ; WinSizeY _
+ESC [ # 1 ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _
 ```
 
-This sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and mouse tracking.
+The first sequence is used to start the viewport resize synchronization handshake.
+
+The second sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and mouse tracking.
 
 #### Viewport tracking
 
