@@ -59,18 +59,14 @@ Handshake steps:
 1. The terminal requests a new size.
 2. Application must reply with the same message.
 3. The terminal applies the new size and sends the changes.
-4. Application must reply with the same message.
 
-Between steps 2 and 4, the application must keep radio silence, as their output may be ignored by the terminal.
+Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
 
 ```
 Terminal:    ESC [ # 0 ; WinSizeX ; WinSizeY _
 Application: ESC [ # 0 ; WinSizeX ; WinSizeY _
 Terminal:    ESC [ # 1 ; CaretX ; CaretY ; WinSizeX ; WinSizeY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _
-Application: ESC [ # 1 ; CaretX ; CaretY ; WinSizeX ; WinSizeY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ; CtrlState _
 ```
-
-Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrollable region margins, and selection coordinates are changed at step 3 of handshake.
 
 Field                                        | Description
 ---------------------------------------------|------------
