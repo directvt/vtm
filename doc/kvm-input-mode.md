@@ -108,6 +108,7 @@ Field                            | Description
 
 - `QWERTY`: <kbd>W</kbd> = `11 Up`, <kbd>A</kbd> = `1E Left`, <kbd>S</kbd> = `1F Down`, <kbd>D</kbd> = `20 Right`
 - `AZERTY`: <kbd>Z</kbd> = `11 Up`, <kbd>Q</kbd> = `1E Left`, <kbd>S</kbd> = `1F Down`, <kbd>D</kbd> = `20 Right`
+- `Dvorak`: <kbd>,</kbd> = `11 Up`, <kbd>A</kbd> = `1E Left`, <kbd>O</kbd> = `1F Down`, <kbd>E</kbd> = `20 Right`
 
 Scan codes for the keys on a standard 104-key keyboard:
 
