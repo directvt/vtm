@@ -119,6 +119,8 @@ This sequence block is used to pass an arbitrary string of unmodified text, main
 
 ## Scan Codes
 
+Scan codes are typically useful to applications which need to know which key is pressed regardless of the current keyboard layout. For example, the WASD (W = Up, A = Left, S = Down, D = right) keys for games, which ensure a consistent key formation across QWERTY, AZERTY or Dvorak keyboard layouts.
+
 Scan codes for the keys on a standard 104-key keyboard:
 
 ```
