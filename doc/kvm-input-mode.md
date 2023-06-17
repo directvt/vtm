@@ -174,7 +174,7 @@ Each key has a unique `KeyId` which maps to `VirtCode`, `ScanCode` and the `Ctrl
 
 Key ID  | Physical Key                  | VirtCode     | ScanCode     | CtrlState    | Notes
 --------|-------------------------------|--------------|--------------|--------------|-------------
-0       | non-functional key            |              |              |              |
+0       | non-functional                |              |              |              |
 1       | <kbd>Esc</kbd>                | ` 27` `0x1B` | `  1` `0x01` |              |
 2       | <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
 3       | <kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |              | Ctrl + Pause
