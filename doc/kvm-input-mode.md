@@ -107,7 +107,7 @@ ESC [ # 2 ; Reason _
 
 Field    | Description
 ---------|------------
-`Reason` | Shutdown reason:<br>`0` Terminal window closing.<br>`1` Ctrl+Break.<br>`2` Logoff.<br>`3` System shutdown.
+`Reason` | Shutdown reason:<br>`0` Terminal window closing<br>`1` Ctrl+Break<br>`2` Logoff<br>`3` System shutdown
 
 ... five seconds to respond
 ... 
