@@ -1,7 +1,8 @@
-# Keyboard/Viewport/Mouse VT Protocol
+# Next Generation VT Input Mode Protocol
 
-The goal of the `kvm-input-mode` protocol is to make command line interactivity cross-platform.
+The goal of the `ngvt-input-mode` protocol is to make command line interactivity cross-platform.
 
+- No TTY required.
 - All values used in this protocol are decimal and zero-based.
 - The bracketed paste mode is mandatory.
 - This protocol is backwards-compatible with the `win32-input-mode` protocol.
@@ -23,9 +24,9 @@ Reset: ESC [ ? 9001 l
   ```
   ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
   ```
-- Mouse
+- Shutdown
   ```
-  ESC [ # 2 ; CaretX ; CaretY ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+  ESC [ # 2 ; Reason _
   ```
 
 ### Keyboard
@@ -75,7 +76,7 @@ Field                                        | Description
 `SelMode`                                    | Text selection mode: 0 - line-based, 1 - rect-based.
 `CtrlState`                                  | Keyboard modifiers state.
 
-This sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and mouse tracking.
+This sequence is the first one received by the application after `kvm-input-mode` request (a-la mode request acknowledgment). The application can respond with a copy of this message if it needs to enable viewport and signals tracking.
 
 #### Viewport tracking
 
@@ -94,19 +95,22 @@ Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; Scr
 
 Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
 
-### Mouse
+#### Selection Tracking
+
+The viewport state sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
+
+### Shutdown
 
 ```
-ESC [ # 2 ; CaretX ; CaretY ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+ESC [ # 2 ; Reason _
 ```
 
-Field                            | Description
----------------------------------|--------------------------
-`CaretX`<br>`CaretY`             | Current text cursor position.
-`SelStartX`/`Y`<br>`SelEndX`/`Y` | Coordinates of the text selection start/end.
-`SelMode`                        | Text selection mode: 0 - line-based, 1 - rect-based.
+Field    | Description
+---------|------------
+`Reason` | Shutdown reason:<br>`0` Terminal window closing<br>`1` Ctrl+Break<br>`2` Logoff<br>`3` System shutdown.
 
-This sequence fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
+... five seconds to respond
+... 
 
 ## Conventions
 
@@ -250,6 +254,14 @@ Key ID | Name             | Physical Key                  | VirtCode     | ScanC
 89     | NumpadDecimal    | <kbd>Numpad .</kbd>           | `110` `0x6E` |              |`NumLock Mode`|
 90     | Slash            | <kbd>/</kbd>                  | `191` `0xBF` |              |              |
 91     | NumpadSlash      | <kbd>Numpad /</kbd>           | `111` `0x6F` |              |`Extended Key`|
+202    | BackSlash        | <kbd>\\</kbd>                 | `220` `0xDC` | ` 43` `0x2B` |              |
+198    | OpenBracket      | <kbd>[</kbd>                  | `219` `0xDB` |              |              |
+200    | ClosedBracket    | <kbd>]</kbd>                  | `221` `0xDD` |              |              |
+140    | Equal            | <kbd>=</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
+142    | BackQuote        | <kbd>\`</kbd>                 | `192` `0xC0` | ` 41` `0x29` |              |
+144    | SingleQuote      | <kbd>'</kbd>                  | `222` `0xDE` |              |              |
+204    | Comma            | <kbd>,</kbd>                  | `188` `0xBC` |              |              |
+206    | Semicolon        | <kbd>;</kbd>                  | `186` `0xBA` |              |              |
 92     | F1               | <kbd>F1</kbd>                 | `112` `0x70` | ` 59` `0x3B` |              |
 94     | F2               | <kbd>F2</kbd>                 | `113` `0x71` | ` 61` `0x3C` |              |
 96     | F3               | <kbd>F3</kbd>                 | `114` `0x72` | ` 62` `0x3D` |              |
@@ -274,9 +286,6 @@ Key ID | Name             | Physical Key                  | VirtCode     | ScanC
 134    | F22              | <kbd>F22</kbd>                | `133` `0x85` |              |              |
 136    | F23              | <kbd>F23</kbd>                | `134` `0x86` |              |              |
 138    | F24              | <kbd>F24</kbd>                | `135` `0x87` |              |              |
-140    | Equal            | <kbd>=</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
-142    | BackQuote        | <kbd>\`</kbd>                 | `192` `0xC0` | ` 41` `0x29` |              |
-144    | SingleQuote      | <kbd>'</kbd>                  | `222` `0xDE` |              |              |
 146    | KeyA             | <kbd>A</kbd>                  | ` 65` `0x41` |              |              |
 148    | KeyB             | <kbd>B</kbd>                  | ` 66` `0x42` |              |              |
 150    | KeyC             | <kbd>C</kbd>                  | ` 67` `0x43` |              |              |
@@ -303,11 +312,6 @@ Key ID | Name             | Physical Key                  | VirtCode     | ScanC
 192    | KeyX             | <kbd>X</kbd>                  | ` 88` `0x58` |              |              |
 194    | KeyY             | <kbd>Y</kbd>                  | ` 89` `0x59` |              |              |
 196    | KeyZ             | <kbd>Z</kbd>                  | ` 90` `0x5A` |              |              |
-198    | OpenBracket      | <kbd>[</kbd>                  | `219` `0xDB` |              |              |
-200    | ClosedBracket    | <kbd>]</kbd>                  | `221` `0xDD` |              |              |
-202    | BackSlash        | <kbd>\\</kbd>                 | `220` `0xDC` | ` 43` `0x2B` |              |
-204    | Comma            | <kbd>,</kbd>                  | `188` `0xBC` |              |              |
-206    | Semicolon        | <kbd>;</kbd>                  | `186` `0xBA` |              |              |
 208    | Sleep            | <kbd>Sleep</kbd>              | ` 95` `0x5F` |              |`Extended Key`|
 210    | WWW              | <kbd>WWW</kbd>                | `172` `0xAC` |              |`Extended Key`|
 212    | Calculator       | <kbd>Calculator</kbd>         | `183` `0xB7` |              |`Extended Key`|
