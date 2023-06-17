@@ -176,79 +176,79 @@ Key ID  | Physical Key                  | VirtCode     | ScanCode     | CtrlStat
 --------|-------------------------------|--------------|--------------|--------------|-------------
 0       | non-functional                |              |              |              |
 1       | <kbd>Esc</kbd>                | ` 27` `0x1B` | `  1` `0x01` |              |
-2       | <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
-3       | <kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |              | Ctrl + Pause
-4       | <kbd>SysRq</kbd>              | ` 44` `0x2C` | ` 84` `0x54` |              | Alt + PrintScreen
-5       | <kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` |`Extended Key`|
-6       | <kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |              |
-7       | <kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |              |
-8       | <kbd>ScrollLock</kbd>         | `145` `0x91` | ` 69` `0x45` |              |
-9       | <kbd>LeftShift</kbd>          | ` 16` `0x10` | ` 42` `0x2A` |              |
-10      | <kbd>RightShift</kbd>         | ` 16` `0x10` | ` 54` `0x36` |              |
-11      | <kbd>LeftCtrl</kbd>           | ` 17` `0x11` | ` 29` `0x1D` |              |
-12      | <kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` |`Extended Key`|
-13      | <kbd>LeftAlt</kbd>            | ` 18` `0x12` | ` 56` `0x38` |              |
-14      | <kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` |`Extended Key`|
-15      | <kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` |`Extended Key`|
-16      | <kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` |`Extended Key`|
-17      | <kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` |`Extended Key`|
-18      | <kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |              |
-19      | <kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |              |
-20      | <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |              |
-21      | <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |              | Back qoute
-22      | <kbd>\\</kbd>                 | `220` `0xDC` | ` 43` `0x2B` |              |
-23      | <kbd>0</kbd>                  | ` 48` `0x30` | ` 11` `0x0B` |              |
-24      | <kbd>1</kbd>                  | ` 49` `0x31` | `  2` `0x02` |              |
-25      | <kbd>2</kbd>                  | ` 50` `0x32` | `  3` `0x03` |              |
-26      | <kbd>3</kbd>                  | ` 51` `0x33` | `  4` `0x04` |              |
-27      | <kbd>4</kbd>                  | ` 52` `0x34` | `  5` `0x05` |              |
-28      | <kbd>5</kbd>                  | ` 53` `0x35` | `  6` `0x06` |              |
-29      | <kbd>6</kbd>                  | ` 54` `0x36` | `  7` `0x07` |              |
-30      | <kbd>7</kbd>                  | ` 55` `0x37` | `  8` `0x08` |              |
-31      | <kbd>8</kbd>                  | ` 56` `0x38` | `  9` `0x09` |              |
-32      | <kbd>9</kbd>                  | ` 57` `0x39` | ` 10` `0x0A` |              |
-33      | <kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |              |
-34      | <kbd>+</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
-35      | <kbd>Enter</kbd>              | ` 13` `0x0D` | ` 28` `0x1C` |              |
-36      | <kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` |`Extended Key`|
-37      | <kbd>Insert</kbd>             | ` 45` `0x2D` | ` 82` `0x52` |`Extended Key`|
-38      | <kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |              |
-39      | <kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` |`Extended Key`|
-40      | <kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |              |
-41      | <kbd>Home</kbd>               | ` 36` `0x24` | ` 71` `0x47` |`Extended Key`|
-42      | <kbd>Numpad Home</kbd>        | ` 36` `0x24` | ` 71` `0x47` |              |
-43      | <kbd>End</kbd>                | ` 35` `0x23` | ` 79` `0x4F` |`Extended Key`|
-44      | <kbd>Numpad End</kbd>         | ` 35` `0x23` | ` 79` `0x4F` |              |
-45      | <kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` |`Extended Key`|
-46      | <kbd>Numpad PageUp</kbd>      | ` 33` `0x21` | ` 73` `0x49` |              |
-47      | <kbd>PageDown</kbd>           | ` 34` `0x22` | ` 81` `0x51` |`Extended Key`|
-48      | <kbd>Numpad PageDown</kbd>    | ` 34` `0x22` | ` 81` `0x51` |              |
-49      | <kbd>Left Arrow</kbd>         | ` 37` `0x25` | ` 75` `0x4B` |`Extended Key`|
-50      | <kbd>Numpad Left Arrow</kbd>  | ` 37` `0x25` | ` 75` `0x4B` |              |
-51      | <kbd>Up Arrow</kbd>           | ` 38` `0x26` | ` 72` `0x48` |`Extended Key`|
-52      | <kbd>Numpad Up Arrow</kbd>    | ` 38` `0x26` | ` 72` `0x48` |              |
-53      | <kbd>Right Arrow</kbd>        | ` 39` `0x27` | ` 77` `0x4D` |`Extended Key`|
-54      | <kbd>Numpad Right Arrow</kbd> | ` 39` `0x27` | ` 77` `0x4D` |              |
-55      | <kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` |`Extended Key`|
-56      | <kbd>Numpad Down Arrow</kbd>  | ` 40` `0x28` | ` 80` `0x50` |              |
-57      | <kbd>Select</kbd>             | ` 41` `0x29` |              |              |
-58      | <kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` |`NumLock Mode`|
-59      | <kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` |`NumLock Mode`|
-60      | <kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` |`NumLock Mode`|
-61      | <kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` |`NumLock Mode`|
-62      | <kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` |`NumLock Mode`|
-63      | <kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` |`NumLock Mode`|
-64      | <kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` |`NumLock Mode`|
-65      | <kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` |`NumLock Mode`|
-66      | <kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` |`NumLock Mode`|
-67      | <kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` |`NumLock Mode`|
-68      | <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 key when NumLock Mode off
-69      | <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
-70      | <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
-71      | <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
-72      | <kbd>Numpad -</kbd>           | `109` `0x6D` |              |              |
-73      | <kbd>Numpad .</kbd>           | `110` `0x6E` |              |`NumLock Mode`|
-74      | <kbd>Numpad /</kbd>           | `111` `0x6F` |              |`Extended Key`|
+2       | <kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |              |
+3       | <kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |              |
+4       | <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |              |
+5       | <kbd>LeftShift</kbd>          | ` 16` `0x10` | ` 42` `0x2A` |              |
+6       | <kbd>RightShift</kbd>         | ` 16` `0x10` | ` 54` `0x36` |              |
+7       | <kbd>LeftCtrl</kbd>           | ` 17` `0x11` | ` 29` `0x1D` |              |
+8       | <kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` |`Extended Key`|
+9       | <kbd>LeftAlt</kbd>            | ` 18` `0x12` | ` 56` `0x38` |              |
+10      | <kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` |`Extended Key`|
+11      | <kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` |`Extended Key`|
+12      | <kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` |`Extended Key`|
+13      | <kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |              |
+14      | <kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |              |
+15      | <kbd>ScrollLock</kbd>         | `145` `0x91` | ` 69` `0x45` |              |
+16      | <kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` |`Extended Key`|
+17      | <kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |              | Ctrl + Pause
+18      | <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
+19      | <kbd>Select</kbd>             | ` 41` `0x29` |              |              |
+20      | <kbd>SysRq</kbd>              | ` 44` `0x2C` | ` 84` `0x54` |              | Alt + PrintScreen
+21      | <kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` |`Extended Key`|
+22      | <kbd>Enter</kbd>              | ` 13` `0x0D` | ` 28` `0x1C` |              |
+23      | <kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` |`Extended Key`|
+24      | <kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` |`Extended Key`|
+25      | <kbd>Numpad PageUp</kbd>      | ` 33` `0x21` | ` 73` `0x49` |              |
+26      | <kbd>PageDown</kbd>           | ` 34` `0x22` | ` 81` `0x51` |`Extended Key`|
+27      | <kbd>Numpad PageDown</kbd>    | ` 34` `0x22` | ` 81` `0x51` |              |
+28      | <kbd>End</kbd>                | ` 35` `0x23` | ` 79` `0x4F` |`Extended Key`|
+29      | <kbd>Numpad End</kbd>         | ` 35` `0x23` | ` 79` `0x4F` |              |
+30      | <kbd>Home</kbd>               | ` 36` `0x24` | ` 71` `0x47` |`Extended Key`|
+31      | <kbd>Numpad Home</kbd>        | ` 36` `0x24` | ` 71` `0x47` |              |
+32      | <kbd>Left Arrow</kbd>         | ` 37` `0x25` | ` 75` `0x4B` |`Extended Key`|
+33      | <kbd>Numpad Left Arrow</kbd>  | ` 37` `0x25` | ` 75` `0x4B` |              |
+34      | <kbd>Up Arrow</kbd>           | ` 38` `0x26` | ` 72` `0x48` |`Extended Key`|
+35      | <kbd>Numpad Up Arrow</kbd>    | ` 38` `0x26` | ` 72` `0x48` |              |
+36      | <kbd>Right Arrow</kbd>        | ` 39` `0x27` | ` 77` `0x4D` |`Extended Key`|
+37      | <kbd>Numpad Right Arrow</kbd> | ` 39` `0x27` | ` 77` `0x4D` |              |
+38      | <kbd>Down Arrow</kbd>         | ` 40` `0x28` | ` 80` `0x50` |`Extended Key`|
+39      | <kbd>Numpad Down Arrow</kbd>  | ` 40` `0x28` | ` 80` `0x50` |              |
+40      | <kbd>Insert</kbd>             | ` 45` `0x2D` | ` 82` `0x52` |`Extended Key`|
+41      | <kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |              |
+42      | <kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` |`Extended Key`|
+43      | <kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |              |
+44      | <kbd>Numpad 0</kbd>           | ` 96` `0x60` | ` 82` `0x52` |`NumLock Mode`|
+45      | <kbd>Numpad 1</kbd>           | ` 97` `0x61` | ` 79` `0x4F` |`NumLock Mode`|
+46      | <kbd>Numpad 2</kbd>           | ` 98` `0x62` | ` 80` `0x50` |`NumLock Mode`|
+47      | <kbd>Numpad 3</kbd>           | ` 99` `0x63` | ` 81` `0x51` |`NumLock Mode`|
+48      | <kbd>Numpad 4</kbd>           | `100` `0x64` | ` 75` `0x4B` |`NumLock Mode`|
+49      | <kbd>Numpad 5</kbd>           | `101` `0x65` | ` 76` `0x4C` |`NumLock Mode`|
+50      | <kbd>Numpad 6</kbd>           | `102` `0x66` | ` 77` `0x4D` |`NumLock Mode`|
+51      | <kbd>Numpad 7</kbd>           | `103` `0x67` | ` 71` `0x47` |`NumLock Mode`|
+52      | <kbd>Numpad 8</kbd>           | `104` `0x68` | ` 72` `0x48` |`NumLock Mode`|
+53      | <kbd>Numpad 9</kbd>           | `105` `0x69` | ` 73` `0x49` |`NumLock Mode`|
+54      | <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 key when NumLock Mode off
+55      | <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
+56      | <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
+57      | <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
+58      | <kbd>Numpad -</kbd>           | `109` `0x6D` |              |              |
+59      | <kbd>Numpad .</kbd>           | `110` `0x6E` |              |`NumLock Mode`|
+60      | <kbd>Numpad /</kbd>           | `111` `0x6F` |              |`Extended Key`|
+61      | <kbd>0</kbd>                  | ` 48` `0x30` | ` 11` `0x0B` |              |
+62      | <kbd>1</kbd>                  | ` 49` `0x31` | `  2` `0x02` |              |
+63      | <kbd>2</kbd>                  | ` 50` `0x32` | `  3` `0x03` |              |
+64      | <kbd>3</kbd>                  | ` 51` `0x33` | `  4` `0x04` |              |
+65      | <kbd>4</kbd>                  | ` 52` `0x34` | `  5` `0x05` |              |
+66      | <kbd>5</kbd>                  | ` 53` `0x35` | `  6` `0x06` |              |
+67      | <kbd>6</kbd>                  | ` 54` `0x36` | `  7` `0x07` |              |
+68      | <kbd>7</kbd>                  | ` 55` `0x37` | `  8` `0x08` |              |
+69      | <kbd>8</kbd>                  | ` 56` `0x38` | `  9` `0x09` |              |
+70      | <kbd>9</kbd>                  | ` 57` `0x39` | ` 10` `0x0A` |              |
+71      | <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |              | Back qoute
+72      | <kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |              |
+73      | <kbd>+</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
+74      | <kbd>\\</kbd>                 | `220` `0xDC` | ` 43` `0x2B` |              |
 75      | <kbd>/</kbd>                  | `191` `0xBF` |              |              |
 76      | <kbd>,</kbd>                  | `188` `0xBC` |              |              | Comma
 77      | <kbd>.</kbd>                  | `190` `0xBE` |              |              | Period
