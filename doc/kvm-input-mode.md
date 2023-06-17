@@ -271,9 +271,9 @@ Key ID  | Name             | Physical Key                  | VirtCode     | Scan
 94      | F24              | <kbd>F24</kbd>                | `135` `0x87` |              |              |
 95      | Plus             | <kbd>+</kbd>                  | `187` `0xBB` | ` 13` `0x0D` |              |
 96      | Minus            | <kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |              |
-97      | Period           | <kbd>.</kbd>                  | `190` `0xBE` |              |              | Period
-98      | BackQuote        | <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |              | Back quote
-99      | SingleQuote      | <kbd>'</kbd>                  | `222` `0xDE` |              |              | Single quote
+97      | Period           | <kbd>.</kbd>                  | `190` `0xBE` |              |              |
+98      | BackQuote        | <kbd>'</kbd>                  | `192` `0xC0` | ` 41` `0x29` |              |
+99      | SingleQuote      | <kbd>'</kbd>                  | `222` `0xDE` |              |              |
 100     | KeyA             | <kbd>A</kbd>                  | ` 65` `0x41` |              |              |
 101     | KeyB             | <kbd>B</kbd>                  | ` 66` `0x42` |              |              |
 102     | KeyC             | <kbd>C</kbd>                  | ` 67` `0x43` |              |              |
@@ -304,11 +304,11 @@ Key ID  | Name             | Physical Key                  | VirtCode     | Scan
 127     | ClosedBracket    | <kbd>]</kbd>                  | `221` `0xDD` |              |              |
 128     | Slash            | <kbd>/</kbd>                  | `191` `0xBF` |              |              |
 129     | BackSlash        | <kbd>\\</kbd>                 | `220` `0xDC` | ` 43` `0x2B` |              |
-130     | Comma            | <kbd>,</kbd>                  | `188` `0xBC` |              |              | Comma
+130     | Comma            | <kbd>,</kbd>                  | `188` `0xBC` |              |              |
 131     | Semicolon        | <kbd>;</kbd>                  | `186` `0xBA` |              |              |
 132     | Sleep            | <kbd>Sleep</kbd>              | ` 95` `0x5F` |              |`Extended Key`|
 133     | WWW              | <kbd>WWW</kbd>                | `172` `0xAC` |              |`Extended Key`|
-134     | Calculator       | <kbd>Calculator</kbd>         | `183` `0xB7` |              |`Extended Key`| App2
+134     | Calculator       | <kbd>Calculator</kbd>         | `183` `0xB7` |              |`Extended Key`|
 135     | Mail             | <kbd>Mail</kbd>               | `184` `0x48` |              |`Extended Key`|
 136     | MediaVolMute     | <kbd>Media Vol Mute</kbd>     | `173` `0xAD` |              |`Extended Key`|
 137     | MediaVolDown     | <kbd>Media Vol Down</kbd>     | `174` `0xAE` |              |`Extended Key`|
