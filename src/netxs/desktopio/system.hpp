@@ -74,6 +74,7 @@
 namespace netxs::os
 {
     namespace fs = std::filesystem;
+    namespace key = input::key;
     using page = ui::page;
     using para = ui::para;
     using rich = ui::rich;

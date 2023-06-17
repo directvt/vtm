@@ -3,13 +3,6 @@
 
 #pragma once
 
-#ifndef VK_AGAIN
-    #define VK_AGAIN 65481
-#endif
-#ifndef VK_UNDO
-    #define VK_UNDO 65483
-#endif
-
 struct consrv
 {
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
@@ -493,10 +486,10 @@ struct consrv
                 if (c == '\n' || c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
+                    generate('\r', s, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
-                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                    //else      generate('\r', s | SHIFT_PRESSED, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else
                 {
@@ -803,7 +796,7 @@ struct consrv
         void undo(bool undoredo)
         {
             auto lock = std::lock_guard{ locker };
-            generate({}, {}, undoredo ? VK_UNDO : VK_AGAIN);
+            generate({}, {}, undoredo ? key::vk::Undo : key::vk::Redo);
             ondata.reset();
             signal.notify_one();
         }
@@ -887,11 +880,11 @@ struct consrv
                             case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
                             case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
                             case VK_F1:     contrl = faux;
-                            case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
-                            case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
-                            case VK_F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
-                            case VK_UNDO:   while (n--) hist.swap(line, faux); break;
-                            case VK_AGAIN:  while (n--) hist.swap(line, true); break;
+                            case key::vk::RightArrow:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
+                            case key::vk::F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
+                            case key::vk::F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
+                            case key::vk::Undo:  while (n--) hist.swap(line, faux); break;
+                            case key::vk::Redo:  while (n--) hist.swap(line, true); break;
                             case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                             case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                             case VK_F5:
