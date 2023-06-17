@@ -233,6 +233,9 @@ R"==(
         <glowfx=true/>                      <!-- Show glow effect around selected item. -->
         <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
         <regions enabled=0/>             <!-- Highlight UI objects boundaries. -->
+        <keyboard>
+            <layout = QWERTY/>  <!-- QWERTY, AZERTY, Dvorak, etc. -->
+        </keyboard>
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
