@@ -179,23 +179,23 @@ Key ID  | Name             | Physical Key                  | VirtCode     | Scan
 2       | Space            | <kbd>Space</kbd>              | ` 32` `0x20` | ` 57` `0x39` |              |
 3       | Backspace        | <kbd>Backspace</kbd>          | `  8` `0x08` | ` 14` `0x0E` |              |
 4       | Tab              | <kbd>Tab</kbd>                | `  9` `0x09` | ` 15` `0x0F` |              |
-5       | LeftShift        | <kbd>LeftShift</kbd>          | ` 16` `0x10` | ` 42` `0x2A` |              |
-6       | RightShift       | <kbd>RightShift</kbd>         | ` 16` `0x10` | ` 54` `0x36` |              |
-7       | LeftCtrl         | <kbd>LeftCtrl</kbd>           | ` 17` `0x11` | ` 29` `0x1D` |              |
-8       | RightCtrl        | <kbd>RightCtrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` |`Extended Key`|
-9       | LeftAlt          | <kbd>LeftAlt</kbd>            | ` 18` `0x12` | ` 56` `0x38` |              |
-10      | RightAlt         | <kbd>RightAlt</kbd>           | ` 18` `0x12` | ` 56` `0x38` |`Extended Key`|
-11      | LeftWin          | <kbd>LeftWin</kbd>            | ` 91` `0x5B` | ` 91` `0x5B` |`Extended Key`|
-12      | RightWin         | <kbd>RightWin</kbd>           | ` 92` `0x5C` | ` 92` `0x5C` |`Extended Key`|
-13      | CapsLock         | <kbd>CapsLock</kbd>           | ` 20` `0x14` | ` 58` `0x3A` |              |
-14      | NumLock          | <kbd>NumLock</kbd>            | `144` `0x90` | ` 69` `0x45` |              |
-15      | ScrollLock       | <kbd>ScrollLock</kbd>         | `145` `0x91` | ` 69` `0x45` |              |
+5       | LeftShift        | <kbd>Left Shift</kbd>         | ` 16` `0x10` | ` 42` `0x2A` |              |
+6       | RightShift       | <kbd>Right Shift</kbd>        | ` 16` `0x10` | ` 54` `0x36` |              |
+7       | LeftCtrl         | <kbd>Left Ctrl</kbd>          | ` 17` `0x11` | ` 29` `0x1D` |              |
+8       | RightCtrl        | <kbd>Right Ctrl</kbd>         | ` 17` `0x11` | ` 29` `0x1D` |`Extended Key`|
+9       | LeftAlt          | <kbd>Left Alt</kbd>           | ` 18` `0x12` | ` 56` `0x38` |              |
+10      | RightAlt         | <kbd>Right Alt</kbd>          | ` 18` `0x12` | ` 56` `0x38` |`Extended Key`|
+11      | LeftWin          | <kbd>Left Win</kbd>           | ` 91` `0x5B` | ` 91` `0x5B` |`Extended Key`|
+12      | RightWin         | <kbd>Right Win</kbd>          | ` 92` `0x5C` | ` 92` `0x5C` |`Extended Key`|
+13      | CapsLock         | <kbd>Caps Lock</kbd>          | ` 20` `0x14` | ` 58` `0x3A` |              |
+14      | NumLock          | <kbd>Num Lock</kbd>           | `144` `0x90` | ` 69` `0x45` |              |
+15      | ScrollLock       | <kbd>Scroll Lock</kbd>        | `145` `0x91` | ` 69` `0x45` |              |
 16      | Apps             | <kbd>Apps</kbd>               | ` 93` `0x5D` | ` 93` `0x5D` |`Extended Key`|
 17      | Break            | <kbd>Break</kbd>              | `  3` `0x03` | ` 69` `0x45` |              | Ctrl + Pause
 18      | Pause            | <kbd>Pause</kbd>              | ` 19` `0x13` | ` 69` `0x45` |              |
 19      | Select           | <kbd>Select</kbd>             | ` 41` `0x29` |              |              |
 20      | SysRq            | <kbd>SysRq</kbd>              | ` 44` `0x2C` | ` 84` `0x54` |              | Alt + PrintScreen
-21      | PrintScreen      | <kbd>PrintScreen</kbd>        | ` 44` `0x2C` | ` 55` `0x37` |`Extended Key`|
+21      | PrintScreen      | <kbd>Print Screen</kbd>       | ` 44` `0x2C` | ` 55` `0x37` |`Extended Key`|
 22      | Enter            | <kbd>Enter</kbd>              | ` 13` `0x0D` | ` 28` `0x1C` |              |
 23      | NumpadEnter      | <kbd>Numpad Enter</kbd>       | ` 13` `0x0D` | ` 28` `0x1C` |`Extended Key`|
 24      | PageUp           | <kbd>PageUp</kbd>             | ` 33` `0x21` | ` 73` `0x49` |`Extended Key`|
