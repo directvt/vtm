@@ -236,9 +236,13 @@ Key ID | Name             | Physical Key                  | VirtCode     | ScanC
 75     | NumpadInsert     | <kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |              |
 76     | Delete           | <kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` |`Extended Key`|
 77     | NumpadDelete     | <kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |              |
+78     | Clear            | <kbd>Clear</kbd>              | ` 12` `0x0C` | ` 76` `0x4C` |              |
 79     | NumpadClear      | <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5
+80     | Multiply         | <kbd>*</kbd>                  | `106` `0x6A` |              |              |
 81     | NumpadMultiply   | <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
+82     | Plus             | <kbd>+</kbd>                  | `107` `0x6B` |              |              |
 83     | NumpadPlus       | <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
+84     | Separator        | <kbd>Separator</kbd>          | `108` `0x6C` |              |              |
 85     | NumpadSeparator  | <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
 86     | Minus            | <kbd>-</kbd>                  | `189` `0xBD` | ` 12` `0x0C` |              |
 87     | NumpadMinus      | <kbd>Numpad -</kbd>           | `109` `0x6D` |              |              |
