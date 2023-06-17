@@ -6,10 +6,6 @@ The goal of the `kvm-input-mode` protocol is to make command line interactivity 
 - The bracketed paste mode is mandatory.
 - This protocol is backwards-compatible with the `win32-input-mode` protocol.
 
-## Audience
-
-...
-
 ## Initialization
 
 ```
