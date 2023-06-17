@@ -43,7 +43,7 @@ Field            | Description
 `VirtCode`       | Virtual code.
 `ScanCode`       | Scan code.
 `UniCode`        | First codepoint of the generated string.
-`KeyState`       | Key state flag: 1 - Pressed, 0 - Released.
+`KeyState`       | Key state: 1 - Pressed, 0 - Released.
 `CtrlState`      | Keyboard modifiers state.
 `RepeatCount`    | Repeat count.
 `KeyId`          | Key ID.
@@ -238,7 +238,7 @@ Key ID  | Name             | Physical Key                  | VirtCode     | Scan
 61      | NumpadInsert     | <kbd>Numpad Insert</kbd>      | ` 45` `0x2D` | ` 82` `0x52` |              |
 62      | Delete           | <kbd>Delete</kbd>             | ` 46` `0x2E` | ` 83` `0x53` |`Extended Key`|
 63      | NumpadDelete     | <kbd>Numpad Delete</kbd>      | ` 46` `0x2E` | ` 83` `0x55` |              |
-64      | NumpadClear      | <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5 key when NumLock Mode off
+64      | NumpadClear      | <kbd>Numpad Clear</kbd>       | ` 12` `0x0C` | ` 76` `0x4C` |              | Numpad 5
 65      | NumpadMultiply   | <kbd>Numpad *</kbd>           | `106` `0x6A` |              |              |
 66      | NumpadPlus       | <kbd>Numpad +</kbd>           | `107` `0x6B` |              |              |
 67      | NumpadSeparator  | <kbd>Numpad Separator</kbd>   | `108` `0x6C` |              |              |
