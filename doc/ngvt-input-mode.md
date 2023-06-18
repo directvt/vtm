@@ -4,8 +4,22 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 
 - No TTY required.
 - All values used in this protocol are decimal and zero-based.
-- The bracketed paste mode is mandatory.
+- The bracketed paste mode is mandatory. All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 - Backwards-compatible with the `win32-input-mode` protocol.
+
+## Audience
+
+You want to:
+- Track the terminal window size and get consistent output when resizing the terminal window.
+- Work without allocating TTY.
+- Track every key press and key release.
+- Track application closing and system shutdown.
+- Auto restore all terminal modes on exit.
+- Simplify functional key parsing.
+- Distinguish between Left and Right physical keys.
+- Track position dependent keys such as WASD.
+- Be independent of third party libraries.
+- Be cross-platform.
 
 ## Initialization
 
@@ -13,6 +27,8 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 Set:   ESC [ ? 9001 h
 Reset: ESC [ ? 9001 l
 ```
+
+By entering `ngvt-input-mode`, all terminal modes are automatically saved to be restored on exit.
 
 ## Input Events
 
@@ -22,7 +38,7 @@ Reset: ESC [ ? 9001 l
   ```
 - Viewport
   ```
-  ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+  ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; SavedX ; SavedY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
   ```
 - Shutdown
   ```
@@ -64,13 +80,14 @@ For compatibility with the `win32-input-mode` protocol, the non-BMP codepoints c
 ### Viewport
 
 ```
-ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; SavedX ; SavedY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
 ```
 
 Field                                        | Description
 ---------------------------------------------|------------
 `WinSizeX`<br>`WinSizeY`                     | Terminal viewport size.
 `CaretX`<br>`CaretY`                         | Current text cursor position.
+`SavedX`<br>`SavedY`                         | Saved text cursor position (CSI s).
 `ScrollTop`/`Bottom`<br>`ScrollLeft`/`Right` | Scrolling region margins.
 `SelStartX`/`Y`<br>`SelEndX`/`Y`             | Coordinates of the text selection start/end.
 `SelMode`                                    | Text selection mode: 0 - line-based, 1 - rect-based.
@@ -90,10 +107,10 @@ Handshake steps:
 ```
 Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY _
 Application: ESC [ # 1 ; WinSizeX ; WinSizeY _
-Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+Terminal:    ESC [ # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; SavedX ; SavedY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
 ```
 
-Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
+Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor (and saved cursor) position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
 
 #### Selection Tracking
 
