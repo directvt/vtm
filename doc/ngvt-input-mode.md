@@ -14,7 +14,6 @@ You want to:
 - Operate without an allocated TTY.
 - Track every key press and key release.
 - Track application closing and system shutdown.
-- Auto restore all terminal modes on exit.
 - Simplify functional key parsing.
 - Distinguish between Left and Right physical keys.
 - Track position dependent keys such as WASD.
@@ -27,7 +26,7 @@ Set:   ESC [ ? 9001 h
 Reset: ESC [ ? 9001 l
 ```
 
-By entering `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+By entering `ngvt-input-mode`, all terminal modes are switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
 ## Input Events
 
