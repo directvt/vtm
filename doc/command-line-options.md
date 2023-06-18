@@ -12,7 +12,19 @@ No arguments                 | Run client (auto start server)
 ` -m `, ` --monitor `        | Monitor server log
 ` -d `, ` --daemon `         | Run server in background
 ` -s `, ` --server `         | Run server in interactive mode
-` -r `, ` --runapp [<app>] ` | Run the specified `<app>` in offline mode<br>`Term` Terminal emulator (default)<br>`Calc` (Demo) Spreadsheet calculator<br>`Text` (Demo) Text editor<br>`Gems` (Demo) Desktopio application manager
+` -r `, ` --runapp [<app>] ` | Run the specified `<app>` in offline mode
 ` -v `, ` --version `        | Show version and exit
 ` -? `, ` -h `, ` --help `   | Show usage message
 ` --onlylog  `               | Disable interactive user input
+
+Registered `<app>`s:
+
+Application | Description
+------------|------------------------------------------
+`Term`      | Terminal emulator (default)
+`DirectVT`  | DirectVT Proxy Console
+`Calc`      | Spreadsheet calculator (Demo)
+`Text`      | Text editor (Demo)
+`Gems`      | Desktopio application manager (Demo)
+`Test`      | Test page (Demo)
+`Truecolor` | Test page (Demo)

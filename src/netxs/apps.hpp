@@ -36,7 +36,7 @@ namespace netxs::app::ansivt
 namespace netxs::app::directvt
 {
     static constexpr auto id = "directvt";
-    static constexpr auto desc = "directvt";
+    static constexpr auto desc = "DirectVT Proxy Console";
 }
 namespace netxs::app::shell
 {
@@ -427,6 +427,9 @@ namespace netxs::app::shared
         };
         auto build_DirectVT      = [](text cwd, text param, xmls& config, text patch)
         {
+            auto param_shadow = view{ param };
+            auto term_type = shared::app_class(param_shadow);
+            param = param_shadow;
             return ui::dtvt::ctor(cwd, param, patch)
                 ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active)

@@ -130,10 +130,11 @@ int main(int argc, char* argv[])
             + "    4. Hardcoded configuration\n"s
             + "\n"s
             + "  Registered applications:\n\n"s
-            + "    Term  Terminal emulator (default)\n"s
-            + "    Text  (Demo) Text editor\n"s
-            + "    Calc  (Demo) Spreadsheet calculator\n"s
-            + "    Gems  (Demo) Desktopio application manager\n"s
+            + "    Term     Terminal emulator (default)\n"s
+            + "    DirectVT DirectVT Proxy Console\n"s
+            + "    Text     (Demo) Text editor\n"s
+            + "    Calc     (Demo) Spreadsheet calculator\n"s
+            + "    Gems     (Demo) Desktopio application manager\n"s
             );
     }
     else if (whoami == type::config)
@@ -179,6 +180,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::directvt::id))  log(app::directvt::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::textancy::id))  log(app::textancy::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::headless::id))  log(app::headless::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::settings::id))  log(app::settings::desc,  ' ', app::shared::version);
