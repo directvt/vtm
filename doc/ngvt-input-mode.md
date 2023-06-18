@@ -3,15 +3,14 @@
 The goal of the `ngvt-input-mode` protocol is to make command line interactivity cross-platform.
 
 - No TTY required.
-- All values used in this protocol are decimal and zero-based.
-- The bracketed paste mode is mandatory. All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
+- No OS-level signal tracking required.
 - Backwards-compatible with the `win32-input-mode` protocol.
 
 ## Audience
 
 You want to:
 - Track the terminal window size.
-- Get consistent output regardless terminal window resizing.
+- Get consistent output regardless terminal window size.
 - Work without allocating TTY.
 - Track every key press and key release.
 - Track application closing and system shutdown.
@@ -19,8 +18,7 @@ You want to:
 - Simplify functional key parsing.
 - Distinguish between Left and Right physical keys.
 - Track position dependent keys such as WASD.
-- Be independent of third party libraries.
-- Be cross-platform.
+- Be independent of operating system and third party libraries.
 
 ## Initialization
 
@@ -29,7 +27,7 @@ Set:   ESC [ ? 9001 h
 Reset: ESC [ ? 9001 l
 ```
 
-By entering `ngvt-input-mode`, all terminal modes are automatically saved to be restored on exit.
+By entering `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
 ## Input Events
 
@@ -131,6 +129,9 @@ Field    | Description
 ... 
 
 ## Conventions
+
+- All values used in this protocol are decimal and zero-based.
+- The bracketed paste mode is mandatory. All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
 
 ### Scan Codes
 
