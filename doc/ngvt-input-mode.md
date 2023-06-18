@@ -10,7 +10,8 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 ## Audience
 
 You want to:
-- Track the terminal window size and get consistent output when resizing the terminal window.
+- Track the terminal window size.
+- Get consistent output regardless terminal window resizing.
 - Work without allocating TTY.
 - Track every key press and key release.
 - Track application closing and system shutdown.
