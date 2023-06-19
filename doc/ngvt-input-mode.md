@@ -17,6 +17,7 @@ You want to:
 - Auto restore all terminal modes on exit.
 - Simplify functional key parsing.
 - Distinguish between Left and Right physical keys.
+- Track scrollback text selection.
 - Track position dependent keys such as WASD.
 - Be independent of operating system and third party libraries.
 
