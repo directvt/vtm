@@ -17,8 +17,8 @@ You want to:
 - Auto restore all terminal modes on exit.
 - Simplify functional key parsing.
 - Distinguish between Left and Right physical keys.
-- Track scrollback text selection.
 - Track position dependent keys such as WASD.
+- Track scrollback text selection.
 - Be independent of operating system and third party libraries.
 
 ## Initialization
@@ -88,7 +88,7 @@ Field                                        | Description
 `WinSizeX`<br>`WinSizeY`                     | Terminal viewport size.
 `CaretX`<br>`CaretY`                         | Current text cursor position.
 `ScrollTop`/`Bottom`<br>`ScrollLeft`/`Right` | Scrolling region margins.
-`SelStartX`/`Y`<br>`SelEndX`/`Y`             | Coordinates of the text selection start/end.
+`SelStartX`/`Y`<br>`SelEndX`/`Y`             | Coordinates of the text selection start/end (half-open interval).
 `SelMode`                                    | Text selection mode: 0 - line-based, 1 - rect-based.
 `CtrlState`                                  | Keyboard modifiers state.
 
@@ -113,7 +113,7 @@ Note that the terminal window resizing always reflows the scrollback, so the vie
 
 #### Selection Tracking
 
-The viewport state sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
+The viewport tracking sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
 
 ### Shutdown
 
