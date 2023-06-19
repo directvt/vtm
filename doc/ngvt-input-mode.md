@@ -125,8 +125,7 @@ Field    | Description
 ---------|------------
 `Reason` | Shutdown reason:<br>`0` Terminal window closing<br>`1` Ctrl+Break<br>`2` Logoff<br>`3` System shutdown
 
-... five seconds to respond
-... 
+The application must respond to the terminal within 5 seconds with the same message confirming that it will close itself without being forced. For reasons 0 or 1 responses, the application can continue to run if needed. In the absence of confirmation, and also in the case of reasons 2 or 3, the application will be forced to close after 5 seconds if it does not terminate itself.
 
 ## Conventions
 
