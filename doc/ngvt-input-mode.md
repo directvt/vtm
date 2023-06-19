@@ -26,8 +26,8 @@ You want to:
 ## Initialization
 
 ```
-Set:   CSI ? 9001 h
-Reset: CSI ? 9001 l
+Set:   ESC [ ? 9001 h
+Reset: ESC [ ? 9001 l
 ```
 
 By entering `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
@@ -36,21 +36,21 @@ By entering `ngvt-input-mode`, all terminal modes are automatically saved (to be
 
 - Keyboard
   ```
-  CSI VirtCode ; ScanCode ; UniCode ; KeyState ; CtrlState ; RepeatCount ; KeyId ; C1 ; … ; Cn _
+  ESC [ VirtCode ; ScanCode ; UniCode ; KeyState ; CtrlState ; RepeatCount ; KeyId ; C1 ; … ; Cn _
   ```
 - Viewport
   ```
-  CSI # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+  ESC ] n g v t ; 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
   ```
 - Shutdown
   ```
-  CSI # 2 ; Reason _
+  ESC ] n g v t ; 2 ; Reason BEL
   ```
 
 ### Keyboard
 
 ```
-CSI VirtCode ; ScanCode ; UniCode ; KeyState ; CtrlState ; RepeatCount ; KeyId ; C1 ; … ; Cn _
+ESC [ VirtCode ; ScanCode ; UniCode ; KeyState ; CtrlState ; RepeatCount ; KeyId ; C1 ; … ; Cn _
 ```
 
 Field            | Description
@@ -82,7 +82,7 @@ For compatibility with the `win32-input-mode` protocol, the non-BMP codepoints c
 ### Viewport
 
 ```
-CSI # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+ESC ] n g v t ; 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
 ```
 
 Field                                        | Description
@@ -106,9 +106,9 @@ Handshake steps:
 3. The terminal applies the new size and sends the changes.
 
 ```
-Terminal:    CSI # 1 ; WinSizeX ; WinSizeY _
-Application: CSI # 1 ; WinSizeX ; WinSizeY _
-Terminal:    CSI # 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode _
+Terminal:    ESC ] n g v t ; 1 ; WinSizeX ; WinSizeY _
+Application: ESC ] n g v t ; 1 ; WinSizeX ; WinSizeY _
+Terminal:    ESC ] n g v t ; 1 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
@@ -117,12 +117,12 @@ Note that the terminal window resizing always reflows the scrollback, so the vie
 
 The viewport tracking sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
 
-Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values. Minus sign (0x2d) is in the range of intermediary bytes (0x20-0x2f). So using it can break the parsers.
+Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values.
 
 ### Shutdown
 
 ```
-CSI # 2 ; Reason _
+ESC ] n g v t ; 2 ; Reason BEL
 ```
 
 Field    | Description
