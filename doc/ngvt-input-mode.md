@@ -37,7 +37,7 @@ Id   | Events to track
 3    | Focus
 4    | Clipboard
 5    | Viewport
-6    | Signals
+6    | System
 
 This sequence enables `ngvt-input-mode` and event tracking for the specified event Ids. The mode is deactivated if no Id is specified.
 
@@ -65,9 +65,9 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
   ```
   ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
   ```
-- Signals
+- System
   ```
-  ESC ] n g v t ; 6 ; Reason BEL
+  ESC ] n g v t ; 6 ; Signal BEL
   ```
 
 ### Keyboard
@@ -180,7 +180,7 @@ The viewport tracking sequence is fired after every scrollback text selection ch
 
 Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values.
 
-### Signals
+### System
 
 ```
 ESC ] n g v t ; 6 ; Signal BEL
