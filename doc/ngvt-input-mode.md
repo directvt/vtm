@@ -102,16 +102,18 @@ Function keys always have `UniCode` set to zero, and a set of `C1`, ..., `Cn` co
 ### Mouse
 
 ```
-ESC ] n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; CtrlState BEL
+ESC ] n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
 ```
 
 Field          | Description
 ---------------|--------------------------
 `MouseX` / `Y` | Pointer coorinates.
 `ButtonState`  | Button state.
+`VtWheelDt`    | Vertical wheel delta.
+`HzWheelDt`    | Horizontal wheel delta.
 `CtrlState`    | Keyboard modifiers state.
 
-The reason for not using existing mouse tracking modes is the support for negative values.
+The reason for not using the existing mouse tracking modes is the lack of support for negative coordinates and the limited set of buttons.
 
 ### Focus
 
