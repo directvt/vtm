@@ -26,12 +26,11 @@ You want to:
 ## Initialization
 
 ```
-Set:   ESC ] n g v t ; 0 ; 1 ; 2 ; 3 ; 4 ; 5 ; 6 BEL
+Set:   ESC ] n g v t ; 0 ; ID1 ; ... ; IDn BEL
 Reset: ESC ] n g v t ; 0 BEL
 ```
 
-List of modes to set
-Mode | Name
+ID   | Events
 -----|------------
 1    | Keyboard
 2    | Mouse
@@ -40,9 +39,11 @@ Mode | Name
 5    | Viewport
 6    | Signals
 
-By entering `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+This sequence enables `ngvt-input-mode` and event tracking for the specified event IDs. The mode is deactivated if no ID is specified.
 
-## Input Events
+Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+
+## Events
 
 - Keyboard
   ```
@@ -81,7 +82,7 @@ Field            | Description
 `KeyState`       | Key state: 1 - Pressed, 0 - Released.
 `CtrlState`      | Keyboard modifiers state.
 `ScanCode`       | Scan code.
-`KeyCode`        | Key code. (todo: not used)
+`KeyCode`        | Platform dependent key code. (todo: not used)
 `UniCode`        | First codepoint of the generated string.
 `C1`, …, `Cn`    | Continuing codepoints of the generated string.
 
@@ -179,9 +180,12 @@ Note that selected text in the scrollback above the viewport top level will prod
 ESC ] n g v t ; 6 ; Signal BEL
 ```
 
-Field    | Description
----------|------------
-`Signal` | `0` Terminal window closing<br>`1` Ctrl+Break<br>`2` Logoff<br>`3` System shutdown
+Signal | Description
+-------|------------
+`0`    | Terminal window closing
+`1`    | <kbd>Ctrl+Break</kbd> pressed
+`2`    | Log off
+`3`    | System shutdown
 
 The application must respond to the terminal within 5 seconds with the same message confirming that it will close itself without being forced. For reasons 0 or 1 responses, the application can continue to run if needed. In the absence of confirmation, and also in the case of reasons 2 or 3, the application will be forced to close after 5 seconds if it does not terminate itself.
 
