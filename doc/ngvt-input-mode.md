@@ -134,7 +134,7 @@ ESC ] n g v t ; 4 ; ClipFormat ; Data BEL
 
 Field        | Description
 -------------|--------------------------
-`ClipFormat` | Pasted data mime type.
+`ClipFormat` | Clipboard data format.
 `Data`       | Base64 encoded data.
 
 The reason for not using bracketed paste mode is that there is no support for transferring binary data and data containing sequences of the bracketed paste mode itself.
