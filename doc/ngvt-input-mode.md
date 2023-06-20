@@ -30,7 +30,7 @@ Set:   ESC ] n g v t ; 0 ; ID1 ; ... ; IDn BEL
 Reset: ESC ] n g v t ; 0 BEL
 ```
 
-ID   | Events
+ID   | Events to track
 -----|------------
 1    | Keyboard
 2    | Mouse
