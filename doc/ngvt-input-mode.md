@@ -47,7 +47,7 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
 
 - Keyboard
   ```
-  ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; KeyCode ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+  ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
   ```
 - Mouse
   ```
@@ -73,7 +73,7 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
 ### Keyboard
 
 ```
-ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; KeyCode ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
 ```
 
 Field            | Description
@@ -82,7 +82,6 @@ Field            | Description
 `KeyState`       | Key state: 1 - Pressed, 0 - Released.
 `CtrlState`      | Keyboard modifiers state.
 `ScanCode`       | Scan code.
-`KeyCode`        | Platform dependent key code. (todo: not used)
 `UniCode`        | First codepoint of the generated string.
 `C1`, …, `Cn`    | Continuing codepoints of the generated string.
 
