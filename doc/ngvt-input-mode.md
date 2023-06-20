@@ -39,7 +39,7 @@ Id   | Events to track
 5    | Viewport
 6    | Signals
 
-This sequence enables `ngvt-input-mode` and event tracking for the specified event Ids. The mode is deactivated if no ID is specified.
+This sequence enables `ngvt-input-mode` and event tracking for the specified event Ids. The mode is deactivated if no Id is specified.
 
 Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
