@@ -51,7 +51,7 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
   ```
 - Mouse
   ```
-  ESC ] n g v t ; 2 ; MouseX, MouseY, Buttons ; CtrlState BEL
+  ESC ] n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
   ```
 - Focus
   ```
