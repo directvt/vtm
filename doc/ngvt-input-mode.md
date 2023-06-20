@@ -111,7 +111,7 @@ Field          | Description
 `ButtonState`  | Button state.
 `CtrlState`    | Keyboard modifiers state.
 
-...negative values...
+The reason for not using existing mouse tracking modes is the support for negative values.
 
 ### Focus
 
@@ -123,6 +123,8 @@ Field        | Description
 -------------|--------------------------
 `FocusState` | Terminal window focus state.
 
+The reason for not using the existing focus tracking mode is the convenient enabling/disabling of this mode - all tracking modes in one sequence.
+
 ### Clipboard
 
 ```
@@ -133,6 +135,8 @@ Field      | Description
 -----------|--------------------------
 `MimeType` | Pasted data mime type.
 `Data`     | Base64 encoded data.
+
+The reason for not using bracketed paste mode is that there is no support for transferring binary data and data containing sequences of the bracketed paste mode itself.
 
 ### Viewport
 
