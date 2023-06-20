@@ -59,7 +59,7 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
   ```
 - Clipboard
   ```
-  ESC ] n g v t ; 4 ; MimeType ; Data BEL
+  ESC ] n g v t ; 4 ; ClipFormat ; Data BEL
   ```
 - Viewport
   ```
@@ -129,13 +129,13 @@ The reason for not using the existing focus tracking mode is the convenient enab
 ### Clipboard
 
 ```
-ESC ] n g v t ; 4 ; MimeType ; Data BEL
+ESC ] n g v t ; 4 ; ClipFormat ; Data BEL
 ```
 
-Field      | Description
------------|--------------------------
-`MimeType` | Pasted data mime type.
-`Data`     | Base64 encoded data.
+Field        | Description
+-------------|--------------------------
+`ClipFormat` | Pasted data mime type.
+`Data`       | Base64 encoded data.
 
 The reason for not using bracketed paste mode is that there is no support for transferring binary data and data containing sequences of the bracketed paste mode itself.
 
