@@ -26,11 +26,11 @@ You want to:
 ## Initialization
 
 ```
-Set:   ESC ] n g v t ; 0 ; ID1 ; ... ; IDn BEL
+Set:   ESC ] n g v t ; 0 ; Id ; ... ; Id BEL
 Reset: ESC ] n g v t ; 0 BEL
 ```
 
-ID   | Events to track
+Id   | Events to track
 -----|------------
 1    | Keyboard
 2    | Mouse
@@ -39,7 +39,7 @@ ID   | Events to track
 5    | Viewport
 6    | Signals
 
-This sequence enables `ngvt-input-mode` and event tracking for the specified event IDs. The mode is deactivated if no ID is specified.
+This sequence enables `ngvt-input-mode` and event tracking for the specified event Ids. The mode is deactivated if no ID is specified.
 
 Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
