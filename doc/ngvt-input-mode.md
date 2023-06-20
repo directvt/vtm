@@ -78,7 +78,7 @@ ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; KeyCode ; ScanCode ; UniCode 
 
 Field            | Description
 -----------------|--------------------------
-`KeyId`          | Key ID.
+`KeyId`          | Physical key ID.
 `KeyState`       | Key state: 1 - Pressed, 0 - Released.
 `CtrlState`      | Keyboard modifiers state.
 `ScanCode`       | Scan code.
