@@ -155,7 +155,7 @@ Field                                        | Description
 `SelMode`                                    | Text selection mode: 0 - line-based, 1 - rect-based.
 `CtrlState`                                  | Keyboard modifiers state.
 
-This sequence is the first one received by the application right after `ngvt-input-mode` is activated (input redirection from file detection).
+This sequence is the first one received by the application right after `ngvt-input-mode` is activated (input redirection detection).
 
 #### Viewport tracking
 
