@@ -10,6 +10,7 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 ## Audience
 
 You want to:
+- Share you application on LAN via netcat.
 - Track the terminal window size.
 - Get consistent output regardless of terminal window resize.
 - Operate without an allocated TTY.
