@@ -64,9 +64,9 @@ int main(int argc, char* argv[])
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ]\n"s
             + "\n"s
             + "  Options:\n\n"s
-            + "    No arguments        Run application.\n"s
-            + "    -c | --config <..>  Use specified configuration file.\n"s
-            + "    -l | --listconfig   Show configuration and exit.\n"s
+            + "    No arguments       Run application.\n"s
+            + "    -c, --config <..>  Use specified configuration file.\n"s
+            + "    -l, --listconfig   Show configuration and exit.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
             + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s

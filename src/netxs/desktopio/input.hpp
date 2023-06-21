@@ -280,6 +280,210 @@ namespace netxs::input
     using netxs::ui::face;
     using netxs::ui::page;
 
+    namespace key
+    {
+        namespace vk
+        {
+            static constexpr ui16 Backspace  = 0x08;
+            static constexpr ui16 Tab        = 0x09;
+            static constexpr ui16 Clear      = 0x0C;
+            static constexpr ui16 Enter      = 0x0D;
+            static constexpr ui16 Shift      = 0x10;
+            static constexpr ui16 Control    = 0x11;
+            static constexpr ui16 Alt        = 0x12;
+            static constexpr ui16 Pause      = 0x13;
+            static constexpr ui16 Escape     = 0x1B;
+            static constexpr ui16 PageUp     = 0x21;
+            static constexpr ui16 PageDown   = 0x22;
+            static constexpr ui16 End        = 0x23;
+            static constexpr ui16 Home       = 0x24;
+            static constexpr ui16 LeftArrow  = 0x25;
+            static constexpr ui16 UpArrow    = 0x26;
+            static constexpr ui16 RightArrow = 0x27;
+            static constexpr ui16 DownArrow  = 0x28;
+            static constexpr ui16 Insert     = 0x2D;
+            static constexpr ui16 Delete     = 0x2E;
+            static constexpr ui16 F1         = 0x70;
+            static constexpr ui16 F2         = 0x71;
+            static constexpr ui16 F3         = 0x72;
+            static constexpr ui16 F4         = 0x73;
+            static constexpr ui16 F5         = 0x74;
+            static constexpr ui16 F6         = 0x75;
+            static constexpr ui16 F7         = 0x76;
+            static constexpr ui16 F8         = 0x77;
+            static constexpr ui16 F9         = 0x78;
+            static constexpr ui16 F10        = 0x79;
+            static constexpr ui16 F11        = 0x7A;
+            static constexpr ui16 F12        = 0x7B;
+            static constexpr ui16 F13        = 0x7C;
+            static constexpr ui16 F14        = 0x7D;
+            static constexpr ui16 F15        = 0x7E;
+            static constexpr ui16 F16        = 0x7F;
+            static constexpr ui16 F17        = 0x80;
+            static constexpr ui16 F18        = 0x81;
+            static constexpr ui16 F19        = 0x82;
+            static constexpr ui16 F20        = 0x83;
+            static constexpr ui16 F21        = 0x84;
+            static constexpr ui16 F22        = 0x85;
+            static constexpr ui16 F23        = 0x86;
+            static constexpr ui16 F24        = 0x87;
+            static constexpr ui16 Undo       = 0xFFCB;
+            static constexpr ui16 Redo       = 0xFFC9;
+        }
+
+        static constexpr auto undef            = 0;
+        static constexpr auto Esc              = 2;
+        static constexpr auto Space            = 4;
+        static constexpr auto Backspace        = 6;
+        static constexpr auto Tab              = 8;
+        static constexpr auto LeftShift        = 10;
+        static constexpr auto RightShift       = 11;
+        static constexpr auto LeftCtrl         = 12;
+        static constexpr auto RightCtrl        = 13;
+        static constexpr auto LeftAlt          = 14;
+        static constexpr auto RightAlt         = 15;
+        static constexpr auto LeftWin          = 16;
+        static constexpr auto RightWin         = 17;
+        static constexpr auto CapsLock         = 18;
+        static constexpr auto NumLock          = 20;
+        static constexpr auto ScrollLock       = 22;
+        static constexpr auto Apps             = 24;
+        static constexpr auto Break            = 26;
+        static constexpr auto Pause            = 28;
+        static constexpr auto Select           = 30;
+        static constexpr auto SysRq            = 32;
+        static constexpr auto PrintScreen      = 34;
+        static constexpr auto Enter            = 36;
+        static constexpr auto NumpadEnter      = 37;
+        static constexpr auto PageUp           = 38;
+        static constexpr auto NumpadPageUp     = 39;
+        static constexpr auto PageDown         = 40;
+        static constexpr auto NumpadPageDown   = 41;
+        static constexpr auto End              = 42;
+        static constexpr auto NumpadEnd        = 43;
+        static constexpr auto Home             = 44;
+        static constexpr auto NumpadHome       = 45;
+        static constexpr auto LeftArrow        = 46;
+        static constexpr auto NumpadLeftArrow  = 47;
+        static constexpr auto UpArrow          = 48;
+        static constexpr auto NumpadUpArrow    = 49;
+        static constexpr auto RightArrow       = 50;
+        static constexpr auto NumpadRightArrow = 51;
+        static constexpr auto DownArrow        = 52;
+        static constexpr auto NumpadDownArrow  = 53;
+        static constexpr auto Key0             = 54;
+        static constexpr auto Numpad0          = 55;
+        static constexpr auto Key1             = 56;
+        static constexpr auto Numpad1          = 57;
+        static constexpr auto Key2             = 58;
+        static constexpr auto Numpad2          = 59;
+        static constexpr auto Key3             = 60;
+        static constexpr auto Numpad3          = 61;
+        static constexpr auto Key4             = 62;
+        static constexpr auto Numpad4          = 63;
+        static constexpr auto Key5             = 64;
+        static constexpr auto Numpad5          = 65;
+        static constexpr auto Key6             = 66;
+        static constexpr auto Numpad6          = 67;
+        static constexpr auto Key7             = 68;
+        static constexpr auto Numpad7          = 69;
+        static constexpr auto Key8             = 70;
+        static constexpr auto Numpad8          = 71;
+        static constexpr auto Key9             = 72;
+        static constexpr auto Numpad9          = 73;
+        static constexpr auto Insert           = 74;
+        static constexpr auto NumpadInsert     = 75;
+        static constexpr auto Delete           = 76;
+        static constexpr auto NumpadDelete     = 77;
+        static constexpr auto NumpadClear      = 79;
+        static constexpr auto NumpadMultiply   = 81;
+        static constexpr auto NumpadPlus       = 83;
+        static constexpr auto NumpadSeparator  = 85;
+        static constexpr auto Minus            = 86;
+        static constexpr auto NumpadMinus      = 87;
+        static constexpr auto Period           = 88;
+        static constexpr auto NumpadDecimal    = 89;
+        static constexpr auto Slash            = 90;
+        static constexpr auto NumpadSlash      = 91;
+        static constexpr auto F1               = 92;
+        static constexpr auto F2               = 94;
+        static constexpr auto F3               = 96;
+        static constexpr auto F4               = 98;
+        static constexpr auto F5               = 100;
+        static constexpr auto F6               = 102;
+        static constexpr auto F7               = 104;
+        static constexpr auto F8               = 106;
+        static constexpr auto F9               = 108;
+        static constexpr auto F10              = 110;
+        static constexpr auto F11              = 112;
+        static constexpr auto F12              = 114;
+        static constexpr auto F13              = 116;
+        static constexpr auto F14              = 118;
+        static constexpr auto F15              = 120;
+        static constexpr auto F16              = 122;
+        static constexpr auto F17              = 124;
+        static constexpr auto F18              = 126;
+        static constexpr auto F19              = 128;
+        static constexpr auto F20              = 130;
+        static constexpr auto F21              = 132;
+        static constexpr auto F22              = 134;
+        static constexpr auto F23              = 136;
+        static constexpr auto F24              = 138;
+        static constexpr auto Equal            = 140;
+        static constexpr auto BackQuote        = 142;
+        static constexpr auto SingleQuote      = 144;
+        static constexpr auto KeyA             = 146;
+        static constexpr auto KeyB             = 148;
+        static constexpr auto KeyC             = 150;
+        static constexpr auto KeyD             = 152;
+        static constexpr auto KeyE             = 154;
+        static constexpr auto KeyF             = 156;
+        static constexpr auto KeyG             = 158;
+        static constexpr auto KeyH             = 160;
+        static constexpr auto KeyI             = 162;
+        static constexpr auto KeyJ             = 164;
+        static constexpr auto KeyK             = 166;
+        static constexpr auto KeyL             = 168;
+        static constexpr auto KeyM             = 170;
+        static constexpr auto KeyN             = 172;
+        static constexpr auto KeyO             = 174;
+        static constexpr auto KeyP             = 176;
+        static constexpr auto KeyQ             = 178;
+        static constexpr auto KeyR             = 180;
+        static constexpr auto KeyS             = 182;
+        static constexpr auto KeyT             = 184;
+        static constexpr auto KeyU             = 186;
+        static constexpr auto KeyV             = 188;
+        static constexpr auto KeyW             = 190;
+        static constexpr auto KeyX             = 192;
+        static constexpr auto KeyY             = 194;
+        static constexpr auto KeyZ             = 196;
+        static constexpr auto OpenBracket      = 198;
+        static constexpr auto ClosedBracket    = 200;
+        static constexpr auto BackSlash        = 202;
+        static constexpr auto Comma            = 204;
+        static constexpr auto Semicolon        = 206;
+        static constexpr auto Sleep            = 208;
+        static constexpr auto WWW              = 210;
+        static constexpr auto Calculator       = 212;
+        static constexpr auto Mail             = 214;
+        static constexpr auto MediaVolMute     = 216;
+        static constexpr auto MediaVolDown     = 218;
+        static constexpr auto MediaVolUp       = 220;
+        static constexpr auto MediaNext        = 222;
+        static constexpr auto MediaPrev        = 224;
+        static constexpr auto MediaStop        = 226;
+        static constexpr auto MediaPlayPause   = 228;
+        static constexpr auto MediaSelect      = 230;
+        static constexpr auto BrowserBack      = 232;
+        static constexpr auto BrowserForward   = 234;
+        static constexpr auto BrowserRefresh   = 236;
+        static constexpr auto BrowserStop      = 238;
+        static constexpr auto BrowserSearch    = 240;
+        static constexpr auto BrowserFavorites = 242;
+        static constexpr auto BrowserHome      = 244;
+    }
+
     struct foci
     {
         using sptr = netxs::sptr<base>;
@@ -629,56 +833,6 @@ namespace netxs::input
     // console: Keybd tracker.
     struct keybd
     {
-        struct key
-        {
-            enum
-            {
-                Backspace = 0x08,
-                Tab       = 0x09,
-                //CLEAR     = 0x0C,
-                Enter     = 0x0D,
-                Shift     = 0x10,
-                Control   = 0x11,
-                Alt       = 0x12,
-                Pause     = 0x13,
-                Escape    = 0x1B,
-                PageUp    = 0x21,
-                PageDown  = 0x22,
-                End       = 0x23,
-                Home      = 0x24,
-                Left      = 0x25,
-                Up        = 0x26,
-                Right     = 0x27,
-                Down      = 0x28,
-                Insert    = 0x2D,
-                Delete    = 0x2E,
-                F1        = 0x70,
-                F2        = 0x71,
-                F3        = 0x72,
-                F4        = 0x73,
-                F5        = 0x74,
-                F6        = 0x75,
-                F7        = 0x76,
-                F8        = 0x77,
-                F9        = 0x78,
-                F10       = 0x79,
-                F11       = 0x7A,
-                F12       = 0x7B,
-                F13       = 0x7C,
-                F14       = 0x7D,
-                F15       = 0x7E,
-                F16       = 0x7F,
-                F17       = 0x80,
-                F18       = 0x81,
-                F19       = 0x82,
-                F20       = 0x83,
-                F21       = 0x84,
-                F22       = 0x85,
-                F23       = 0x86,
-                F24       = 0x87,
-            };
-        };
-
         text cluster = {};
         bool pressed = {};
         ui16 imitate = {};
@@ -1202,45 +1356,45 @@ namespace netxs::input
                     //     Ctrl+Backspace
                     //     Alt+0..9
                     //     Ctrl/Shift+Enter
-                    case key::Backspace: textline = "\177"; break;
-                    case key::Tab:
+                    case key::vk::Backspace: textline = "\177"; break;
+                    case key::vk::Tab:
                         textline = ctlstate & hids::anyShift ? "\033[Z"
                                                              : "\t";
                         break;
-                    case key::PageUp:    ctrl("[5",  "[5",  "~"); break;
-                    case key::PageDown:  ctrl("[6",  "[6",  "~"); break;
-                    case key::Insert:    ctrl("[2",  "[2",  "~"); break;
-                    case key::Delete:    ctrl("[3",  "[3",  "~"); break;
-                    case key::End:       ctrl("[",   "[1",  "F"); break;
-                    case key::Home:      ctrl("[",   "[1",  "H"); break;
-                    case key::Up:        ctrl("[",   "[1",  "A"); break;
-                    case key::Down:      ctrl("[",   "[1",  "B"); break;
-                    case key::Right:     ctrl("[",   "[1",  "C"); break;
-                    case key::Left:      ctrl("[",   "[1",  "D"); break;
-                    case key::F1:        ctrl("O",   "[1",  "P"); break;
-                    case key::F2:        ctrl("O",   "[1",  "Q"); break;
-                    case key::F3:        ctrl("O",   "[1",  "R"); break;
-                    case key::F4:        ctrl("O",   "[1",  "S"); break;
-                    case key::F5:        ctrl("[15", "[15", "~"); break;
-                    case key::F6:        ctrl("[17", "[17", "~"); break;
-                    case key::F7:        ctrl("[18", "[18", "~"); break;
-                    case key::F8:        ctrl("[19", "[19", "~"); break;
-                    case key::F9:        ctrl("[20", "[20", "~"); break;
-                    case key::F10:       ctrl("[21", "[21", "~"); break;
-                    case key::F11:       ctrl("[23", "[23", "~"); break;
-                    case key::F12:       ctrl("[24", "[24", "~"); break;
-                    case key::F13:       ctrl("[25", "[25", "~"); break;
-                    case key::F14:       ctrl("[26", "[26", "~"); break;
-                    case key::F15:       ctrl("[28", "[28", "~"); break;
-                    case key::F16:       ctrl("[29", "[29", "~"); break;
-                    case key::F17:       ctrl("[31", "[31", "~"); break;
-                    case key::F18:       ctrl("[32", "[32", "~"); break;
-                    case key::F19:       ctrl("[33", "[33", "~"); break;
-                    case key::F20:       ctrl("[34", "[34", "~"); break;
-                    case key::F21:       ctrl("[35", "[35", "~"); break;
-                    case key::F22:       ctrl("[36", "[36", "~"); break;
-                    case key::F23:       ctrl("[37", "[37", "~"); break;
-                    case key::F24:       ctrl("[38", "[38", "~"); break;
+                    case key::vk::PageUp:     ctrl("[5",  "[5",  "~"); break;
+                    case key::vk::PageDown:   ctrl("[6",  "[6",  "~"); break;
+                    case key::vk::Insert:     ctrl("[2",  "[2",  "~"); break;
+                    case key::vk::Delete:     ctrl("[3",  "[3",  "~"); break;
+                    case key::vk::End:        ctrl("[",   "[1",  "F"); break;
+                    case key::vk::Home:       ctrl("[",   "[1",  "H"); break;
+                    case key::vk::UpArrow:    ctrl("[",   "[1",  "A"); break;
+                    case key::vk::DownArrow:  ctrl("[",   "[1",  "B"); break;
+                    case key::vk::RightArrow: ctrl("[",   "[1",  "C"); break;
+                    case key::vk::LeftArrow:  ctrl("[",   "[1",  "D"); break;
+                    case key::vk::F1:         ctrl("O",   "[1",  "P"); break;
+                    case key::vk::F2:         ctrl("O",   "[1",  "Q"); break;
+                    case key::vk::F3:         ctrl("O",   "[1",  "R"); break;
+                    case key::vk::F4:         ctrl("O",   "[1",  "S"); break;
+                    case key::vk::F5:         ctrl("[15", "[15", "~"); break;
+                    case key::vk::F6:         ctrl("[17", "[17", "~"); break;
+                    case key::vk::F7:         ctrl("[18", "[18", "~"); break;
+                    case key::vk::F8:         ctrl("[19", "[19", "~"); break;
+                    case key::vk::F9:         ctrl("[20", "[20", "~"); break;
+                    case key::vk::F10:        ctrl("[21", "[21", "~"); break;
+                    case key::vk::F11:        ctrl("[23", "[23", "~"); break;
+                    case key::vk::F12:        ctrl("[24", "[24", "~"); break;
+                    case key::vk::F13:        ctrl("[25", "[25", "~"); break;
+                    case key::vk::F14:        ctrl("[26", "[26", "~"); break;
+                    case key::vk::F15:        ctrl("[28", "[28", "~"); break;
+                    case key::vk::F16:        ctrl("[29", "[29", "~"); break;
+                    case key::vk::F17:        ctrl("[31", "[31", "~"); break;
+                    case key::vk::F18:        ctrl("[32", "[32", "~"); break;
+                    case key::vk::F19:        ctrl("[33", "[33", "~"); break;
+                    case key::vk::F20:        ctrl("[34", "[34", "~"); break;
+                    case key::vk::F21:        ctrl("[35", "[35", "~"); break;
+                    case key::vk::F22:        ctrl("[36", "[36", "~"); break;
+                    case key::vk::F23:        ctrl("[37", "[37", "~"); break;
+                    case key::vk::F24:        ctrl("[38", "[38", "~"); break;
                     default:
                         textline = cluster;
                         break;

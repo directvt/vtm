@@ -374,7 +374,7 @@ namespace netxs::generics
               buff( peak                         ), // Rounded brackets! Not curly! In oreder to call T::ctor().
               size{ 0                            },
               cart{ 0                            },
-              mxsz{ maxsi32 - step               }
+              mxsz{ si32max - step               }
         { }
 
         virtual void undock_base_front(type&) { };

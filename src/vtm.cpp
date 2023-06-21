@@ -85,6 +85,10 @@ int main(int argc, char* argv[])
             log(app::shared::version);
             return 0;
         }
+        else if (getopt.match("--onlylog"))
+        {
+            vtmode |= os::vt::onlylog;
+        }
         else if (getopt.match("--"))
         {
             break;
@@ -106,17 +110,18 @@ int main(int argc, char* argv[])
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
             + "\n"s
             + "  Options:\n\n"s
-            + "    No arguments        Run client, auto start server if it is not running.\n"s
-            + "    -c | --config <..>  Use specified configuration file.\n"s
-            + "    -p | --pipe   <..>  Set the pipe to connect to.\n"s
-            + "    -q | --quiet        Disable logging.\n"s
-            + "    -l | --listconfig   Show configuration and exit.\n"s
-            + "    -m | --monitor      Monitor server log.\n"s
-            + "    -d | --daemon       Run server in background.\n"s
-            + "    -s | --server       Run server in interactive mode.\n"s
-            + "    -r | --runapp <..>  Run standalone application.\n"s
-            + "    -v | --version      Show version and exit.\n"s
-            + "    -? | -h | --help    Show usage message.\n"s
+            + "    No arguments       Run client, auto start server if it is not running.\n"s
+            + "    -c, --config <..>  Use specified configuration file.\n"s
+            + "    -p, --pipe   <..>  Set the pipe to connect to.\n"s
+            + "    -q, --quiet        Disable logging.\n"s
+            + "    -l, --listconfig   Show configuration and exit.\n"s
+            + "    -m, --monitor      Monitor server log.\n"s
+            + "    -d, --daemon       Run server in background.\n"s
+            + "    -s, --server       Run server in interactive mode.\n"s
+            + "    -r, --runapp <..>  Run standalone application.\n"s
+            + "    -v, --version      Show version and exit.\n"s
+            + "    -?, -h, --help     Show usage message.\n"s
+            + "    --onlylog          Disable interactive user input.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
             + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
@@ -126,6 +131,7 @@ int main(int argc, char* argv[])
             + "\n"s
             + "  Registered applications:\n\n"s
             + "    Term  Terminal emulator (default)\n"s
+            + "    DTVT  DirectVT Proxy Console\n"s
             + "    Text  (Demo) Text editor\n"s
             + "    Calc  (Demo) Spreadsheet calculator\n"s
             + "    Gems  (Demo) Desktopio application manager\n"s
@@ -145,8 +151,21 @@ int main(int argc, char* argv[])
             if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
             {
                 log(prompt::main, "Connected");
+                auto readln = std::thread{ [&]
+                {
+                    auto onlylog = vtmode & os::vt::onlylog;
+                    if (!onlylog)
+                    {
+                        os::tty::readline::ignite();
+                        auto buffer = text{};
+                        while (stream->send(os::tty::readline::readln(buffer))) { }
+                        stream->shut();
+                    }
+                }};
                 while (os::io::send(stream->recv()))
                 { }
+                os::tty::readline::finish();
+                readln.join();
                 return 0;
             }
             std::this_thread::sleep_for(500ms);
@@ -158,9 +177,11 @@ int main(int argc, char* argv[])
         auto shadow = params;
         utf::to_low(shadow);
              if (shadow.starts_with(app::term::id))      log(app::term::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::dtvt::id))      log(app::dtvt::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::directvt::id))  log(app::directvt::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::textancy::id))  log(app::textancy::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::headless::id))  log(app::headless::desc,  ' ', app::shared::version);
         else if (shadow.starts_with(app::settings::id))  log(app::settings::desc,  ' ', app::shared::version);
@@ -190,7 +211,11 @@ int main(int argc, char* argv[])
             {
                 log(prompt::main, "New vtm session for ", userid);
                 auto success = faux;
-                if (os::process::fork(success, prefix, config.utf8())) whoami = type::server;
+                if (os::process::fork(success, prefix, config.utf8()))
+                {
+                    vtmode |= os::vt::onlylog;
+                    whoami = type::server;
+                }
                 return success;
             });
             if (client)
@@ -219,6 +244,7 @@ int main(int argc, char* argv[])
             auto success = faux;
             if (os::process::fork(success, prefix, config.utf8()))
             {
+                vtmode |= os::vt::onlylog;
                 whoami = type::server;
             }
             else 
@@ -263,12 +289,30 @@ int main(int argc, char* argv[])
                     domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { monitor->shut(); };
                     domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { monitor->send(utf8); };
                     monitor->recv();
+                    while (auto line = monitor->recv())
+                    {
+                        domain->SIGNAL(tier::release, e2::conio::readline, line);
+                    }
                     log(prompt::logs, "Monitor disconnected ", id);
                 });
             }
         }};
 
         auto settings = config.utf8();
+        auto readln = std::thread{ [&]
+        {
+            auto onlylog = vtmode & os::vt::onlylog;
+            if (!onlylog)
+            {
+                os::tty::readline::ignite();
+                auto buffer = text{};
+                while (auto line = os::tty::readline::readln(buffer))
+                {
+                    domain->SIGNAL(tier::release, e2::conio::readline, line);
+                }
+            }
+        }};
+
         while (auto client = server->meet())
         {
             if (client->auth(userid))
@@ -285,6 +329,8 @@ int main(int argc, char* argv[])
                 });
             }
         }
+        os::tty::readline::finish();
+        readln.join();
         logger->stop(); // Logger must be stopped first to prevent reconnection.
         domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));
         events::dequeue();

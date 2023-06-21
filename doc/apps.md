@@ -1,7 +1,8 @@
 ## Built-in Applications
-- `▀▄ Term` Terminal Emulator
-- `▀▄ View` Workspace Navigation Helper
-- `▀▄ Tile` Tiling Window anager
+- `▀▄ Term`     Terminal Emulator
+- `▀▄ DirectVT` DirectVT Proxy Console
+- `▀▄ View`     Workspace Navigation Helper
+- `▀▄ Tile`     Tiling Window anager
 
 # Terminal Emulator
 
@@ -228,6 +229,10 @@ TerminalStdioLog             | Stdin/stdout log toggle.
  </term>
 </config>
 ```
+
+# DirectVT Proxy Console
+
+...
 
 # Workspace Navigation Helper
 

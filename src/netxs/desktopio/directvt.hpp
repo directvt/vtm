@@ -41,9 +41,11 @@ namespace netxs::prompt
         X(pipe) /* */ \
         X(pool) /* */ \
         X(rail) /* */ \
+        X(repl) /* */ \
         X(s11n) /* */ \
         X(sock) /* */ \
         X(term) /* */ \
+        X(task) /* */ \
         X(text) /* */ \
         X(tile) /* */ \
         X(user) /* */ \

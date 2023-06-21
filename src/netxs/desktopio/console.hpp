@@ -5,6 +5,7 @@
 
 #include "input.hpp"
 #include "system.hpp"
+#include "scripting.hpp"
 
 namespace netxs::ui
 {
@@ -2301,11 +2302,11 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data, dent wrap = { maxsi32 })
+            notes(base& boss, view data, dent wrap = { si32max })
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == maxsi32))
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == si32max))
                 {
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
                     {
@@ -3712,10 +3713,11 @@ namespace netxs::ui
     class host
         : public base
     {
-    protected:
+    public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
         using gptr = sptr<gate>;
+        using repl = scripting::repl<host>;
 
         //pro::keybd keybd{*this }; // host: Keyboard controller.
         pro::mouse mouse{*this }; // host: Mouse controller.
@@ -3727,6 +3729,7 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
+        repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
 
@@ -3735,14 +3738,15 @@ namespace netxs::ui
             if (client) client->rebuild_scene(*this, damaged);
         }
 
-    public:
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{*this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
-              config{ config }
+              config{ config },
+              engine{ *this }
         {
             using namespace std::chrono;
             auto& canal = *server;
+
             auto& g = skin::globals();
             g.brighter       = config.take("brighter"              , cell{});//120);
             g.kb_focus       = config.take("kb_focus"              , cell{});//60
