@@ -87,6 +87,7 @@ vtm
 - [User Interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Built-in Applications](doc/apps.md)
+- Draft: [Next Generation VT Input Mode](doc/ngvt-input-mode.md)
 
 # Related Repositories
 
