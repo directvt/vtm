@@ -22,110 +22,17 @@ namespace netxs::scripting
         static constexpr auto rse = "engine"; // Runtime Scripting Engine.
     }
 
-    struct faketerm
+    struct nullterm
     {
-        using face = ui::face; // Reference for consrv.
-        struct bufferbase : public ansi::parser
-        {
-            twod panel = {1000, 1000};
-            twod coord = dot_00; // bufferbase: Viewport cursor position; 0-based.
-            template<class T>
-            void resize_viewport(T a) { }
-            template<class T>
-            void set_autocr(T a) { }
-            void cup0(twod p) { }
-            template<bool Copy = faux, class Span, class Shader>
-            void _data(si32 count, Span const& proto, Shader fuse) { }
-            void clear_all() { }
-            void ed(si32) { }
-            template<class T>
-            void do_viewport_copy(T mirror) { }
-            void cr() { }
-            void lf(si32 n) { }
-            void move(si32 n) { }
-        };
-        struct alt_screen : public bufferbase
-        {
-            alt_screen() = default;
-            alt_screen(faketerm&) { }
-        };
-        struct scrollback : public bufferbase
-        { };
-        // repl: Terminal 16/256 color palette tracking functionality.
-        struct c_tracking
-        {
-            using pals = std::remove_const_t<decltype(rgba::color256)>;
-            using func = std::unordered_map<text, std::function<void(view)>>;
-            pals  color; // c_tracking: 16/256 colors palette.
-            func  procs; // c_tracking: Handlers.
-        };
-        // repl: Terminal title tracking functionality.
-        struct w_tracking
-        {
-            std::map<text, text>              props;
-            std::map<text, std::vector<text>> stack;
-            // w_tracking: Get terminal window property.
-            auto& get(text const& property)
-            {
-                auto& utf8 = props[property];
-                return utf8;
-            }
-            // w_tracking: Set terminal window property.
-            void set(text const& property, qiew txt) { }
-        };
-        // repl: VT-style mouse tracking functionality.
-        struct m_tracking
-        {
-            enum mode
-            {
-                none = 0,
-                bttn = 1 << 0,
-                drag = 1 << 1,
-                move = 1 << 2,
-                over = 1 << 3,
-                utf8 = 1 << 4,
-                buttons_press = bttn,
-                buttons_drags = bttn | drag,
-                all_movements = bttn | drag | move,
-                negative_args = bttn | drag | move | over,
-            };
-            enum prot
-            {
-                x11,
-                sgr,
-                w32,
-            };
-            void enable(mode m) { }
-            void disable(mode m) { }
-            void setmode(prot p) { }
-        };
-        struct caret
-        {
-            template<class T = si32>
-            void style(T m) { }
-            auto style() const { return std::pair{ true, faux }; }
-            void hide() { }
-            void show() { }
-            void toggle() { }
-        };
-        alt_screen  altbuf;
-        scrollback  normal;
-        bufferbase* target{&normal};
-        c_tracking  ctrack; // repl: Custom terminal palette tracking object.
-        m_tracking  mtrack; // repl: .
-        w_tracking  wtrack; // repl: .
-        caret       cursor; // repl: Text cursor controller.
-        bool        io_log{ faux }; // repl: Stdio logging.
-        void sb_min(si32 size_y) { }
-        void window_resize(twod windowsz) { }
-        template<class T>
-        void reset_to_altbuf(T& console) { }
-        template<class T>
-        void reset_to_normal(T a) { }
+        bool  io_log{}; // nullterm: Stdio logging flag.
+        bool  altbuf{}; // nullterm: Altbuf buffer stub.
+        bool  normal{}; // nullterm: Normal buffer stub.
+        bool* target{ &normal }; // nullterm: Current buffer stub.
     };
 
     template<class Host>
-    struct repl : public faketerm
+    struct repl
+        : public nullterm
     {
         using s11n = directvt::binary::s11n;
         using pidt = os::pidt;
@@ -185,6 +92,7 @@ namespace netxs::scripting
             }
         };
 
+        subs tokens; // repl: Event subsription tokens.
         xlat stream; // repl: Event tracker.
         text curdir; // repl: Current working directory.
         text cmdarg; // repl: Startup command line arguments.
@@ -195,22 +103,22 @@ namespace netxs::scripting
         // repl: Proceed input.
         void ondata(view data)
         {
-            //if (active)
-            {
-                log(ansi::fgc(greenlt).add(data).nil(), faux);
-                //stream.s11n::sync(data);
-            }
-        }
-        // repl: Proceed input.
-        template<class T>
-        void ondata(view data, T target)
-        {
-            //log(prompt::repl, ansi::hi(utf::debase<faux, faux>(data)));
             log(ansi::fgc(greenlt).add(data).nil(), faux);
+        }
+        // repl: Cooked read input.
+        void data(rich& data)
+        {
+            owner.bell::trysync(active, [&]
+            {
+                // It is a powershell readline echo.
+                //log(ansi::fgc(cyanlt).add(data.utf8()).nil(), faux);
+            });
         }
         // repl: Shutdown callback handler.
         void onexit(si32 code, view msg = {})
         {
+            //todo initiate global shutdown
+
             //netxs::events::enqueue(owner.This(), [&, code](auto& boss) mutable
             //{
             //    if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::repl, "Exit code ", utf::to_hex_0x(code), ' ').nil());
@@ -220,16 +128,23 @@ namespace netxs::scripting
         }
         // repl: .
         template<class P>
-        void update(P proc)
+        void update(P api_proc)
         {
-            proc();
+            owner.bell::trysync(active, [&]
+            {
+                api_proc();
+            });
         }
         // repl: Write client data.
-        void write(view data)
+        template<bool Echo = true>
+        void write(text data)
         {
             if (!engine) return;
-            log(prompt::repl, "exec: ", ansi::hi(utf::debase<faux, faux>(data)));
-            engine->write(data);
+            if constexpr (Echo)
+            {
+                log(ansi::fgc(yellowlt).add(data).nil());
+            }
+            engine->write(data + '\n');
         }
         // repl: Start a new process.
         void start(text cwd, text cmd)
@@ -239,8 +154,8 @@ namespace netxs::scripting
             cmdarg = cmd;
             if (!engine->connected())
             {
-                procid = engine->start(curdir, cmdarg, normal.panel, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                     [&](auto code, auto msg) { onexit(code, msg); });
+                procid = engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                    [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -269,8 +184,13 @@ namespace netxs::scripting
                 else     engine = ptr::shared<os::runspace::raw>();
                 start(cwd, cmd);
                 //todo run integration script
-                if (run.size()) write(run + "\n");
+                if (run.size()) write(run);
                 config.popd();
+
+                owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
+                {
+                    write(utf8);
+                };
             }
         }
     };

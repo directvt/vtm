@@ -673,6 +673,11 @@ namespace netxs::ansi
             return add(other);
         }
 
+        auto& shellmouse(bool b) // esc: Mouse shell integration on/off.
+        {
+            return add(b ? "\033[?1000;1006h"
+                         : "\033[?1000;1006l");
+        }
         auto& vmouse(bool b) // esc: Focus and Mouse position reporting/tracking.
         {
             return add(b ? "\033[?1002;1003;1004;1006;10060h"
@@ -1009,7 +1014,8 @@ namespace netxs::ansi
     static auto wrp_or(wrap n)        { return esc{}.wrp_or(n);     } // ansi: Set text wrapping if it is not set.
     static auto rtl_or(rtol n)        { return esc{}.rtl_or(n);     } // ansi: Set text right-to-left if it is not set.
     static auto rlf_or(feed n)        { return esc{}.rlf_or(n);     } // ansi: Set reverse line feed if it is not set.
-    static auto show_mouse (bool b)   { return esc{}.show_mouse(b); } // ansi: Should the mouse poiner to be drawn.
+    static auto show_mouse(bool b)    { return esc{}.show_mouse(b); } // ansi: Should the mouse poiner to be drawn.
+    static auto shellmouse(bool b)    { return esc{}.shellmouse(b); } // ansi: Mouse shell integration on/off.
     static auto vmouse(bool b)        { return esc{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
     static auto locate(twod const& n) { return esc{}.locate(n);     } // ansi: 1-Based caret position.
     static auto locate_wipe()         { return esc{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).

@@ -127,6 +127,7 @@ namespace netxs::events::userland
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 EVENT_XS( clipdata, ansi::clip      ), // release: OS clipboard update.
                 EVENT_XS( logs    , const view      ), // logs output.
+                EVENT_XS( readline, text            ), // Standard input (scripting).
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )

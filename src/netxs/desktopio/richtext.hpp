@@ -440,7 +440,7 @@ namespace netxs::ui
         { }
 
         constexpr
-        auto substr(si32 begin, si32 piece = netxs::maxsi32) const
+        auto substr(si32 begin, si32 piece = si32max) const
         {
             auto w = basis.size().x;
             auto a = start + std::max(begin, 0);
@@ -514,7 +514,7 @@ namespace netxs::ui
 
         auto length() const                                     { return size().x;                         }
         auto shadow() const                                     { return shot{ *this };                    }
-        auto substr(si32 at, si32 width = netxs::maxsi32) const { return shadow().substr(at, width);       }
+        auto substr(si32 at, si32 width = netxs::si32max) const { return shadow().substr(at, width);       }
         void trimto(si32 max_size)                              { if (length() > max_size) crop(max_size); }
         void resize(si32 oversize)                              { if (oversize > length()) crop(oversize); }
         auto empty()

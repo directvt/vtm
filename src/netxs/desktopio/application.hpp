@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9m";
+    static const auto version = "v0.9.9n";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -424,7 +424,7 @@ namespace netxs::app::shared
                 + ansi::nil().wrp(wrap::on)
                 + "Only the following application types are supported\n\n"
                 + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                + "   type = DirectVT \n"
+                + "   type = DirectVT(dtvt) \n"
                   "   type = ANSIVT   \n"
                   "   type = SHELL    \n"
                   "   type = Group    \n"

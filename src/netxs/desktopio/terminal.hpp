@@ -41,12 +41,10 @@ namespace netxs::events::userland
 // terminal: Terminal UI control.
 namespace netxs::ui
 {
-    class term
+    struct term
         : public ui::form<term>
     {
-    public:
         using events = netxs::events::userland::uiterm;
-        using face = ui::face; // Reference for consrv.
 
         struct commands
         {
@@ -146,6 +144,7 @@ namespace netxs::ui
             bool def_cur_on;
             bool resetonkey;
             bool resetonout;
+            bool def_io_log;
             span def_period;
             pals def_colors;
 
@@ -199,6 +198,7 @@ namespace netxs::ui
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
+                def_io_log =             config.take("logs",                 faux);
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -356,7 +356,9 @@ namespace netxs::ui
                     owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
-                        if (owner.selmod == clip::disabled)
+                        auto buttons_only = !(state & mode::drag);
+                        if (owner.selmod == clip::disabled
+                         || buttons_only) // Allow mouse button reporting along with scrollback selection (mouse shell integration with DECSET 1000).
                         {
                             if (gear.captured(owner.id))
                             {
@@ -383,12 +385,15 @@ namespace netxs::ui
                                 }
                                 owner.answer(queue);
                             }
-                            gear.dismiss();
+                            if (!buttons_only) gear.dismiss();
                         }
                     };
                     smode = owner.selmod;
                 }
-                owner.selection_selmod(clip::disabled);
+                if (state & mode::drag) // Prevent scrollback selection along with mouse drag reporting.
+                {
+                    owner.selection_selmod(clip::disabled);
+                }
             }
             void disable(mode m)
             {
@@ -6125,7 +6130,6 @@ namespace netxs::ui
         flag       active; // term: Terminal lifetime.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
-        bool       onlogs; // term: Developer mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
@@ -6392,7 +6396,7 @@ namespace netxs::ui
         {
             if (queue.length())
             {
-                ptycon.write(queue);
+                data_out<faux>(queue);
                 queue.clear();
             }
         }
@@ -6612,22 +6616,33 @@ namespace netxs::ui
             if (data.utf8.size())
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                //todo respect bracketed paste mode
                 follow[axis::X] = true;
                 if (data.kind == clip::richtext)
                 {
                     auto post = page{ data.utf8 };
                     auto rich = post.to_rich();
+                    if (bpmode)
+                    {
+                        rich = "\033[200~" + rich + "\033[201~";
+                    }
                     data_out(rich);
                 }
                 else if (data.kind == clip::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
+                    if (bpmode)
+                    {
+                        code = "\033[200~" + code + "\033[201~";
+                    }
                     data_out(code);
                 }
                 else
                 {
+                    if (bpmode)
+                    {
+                        data.utf8 = "\033[200~" + data.utf8 + "\033[201~";
+                    }
                     data_out(data.utf8);
                 }
                 return true;
@@ -6697,6 +6712,10 @@ namespace netxs::ui
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
+                if (bpmode)
+                {
+                    utf8 = "\033[200~" + utf8 + "\033[201~";
+                }
                 data_out(utf8);
                 gear.dismiss();
             }
@@ -6985,10 +7004,36 @@ namespace netxs::ui
             follow[axis::Y] = true;
             ondata(data);
         }
+        template<bool ResetViewport = true, bool LFtoCR = true>
         void data_out(view data)
         {
-            follow[axis::Y] = true;
-            ptycon.write(data);
+            if constexpr (LFtoCR) // Clipboard paste. The Return key should send a CR character.
+            {
+                auto utf8 = text{};
+                utf8.reserve(data.size());
+                auto head = data.begin();
+                auto tail = data.end();
+                while (head != tail)
+                {
+                    auto c = *head++;
+                         if (c == '\n') c = '\r'; // LF -> CR.
+                    else if (c == '\r' && head != tail && *head == '\n') head++; // CRLF -> CR.
+                    utf8.push_back(c);
+                }
+                data_out<ResetViewport, faux>(utf8); // Repeat without LFtoCR.
+            }
+            else
+            {
+                if constexpr (ResetViewport)
+                {
+                    follow[axis::Y] = true;
+                }
+                if (io_log)
+                {
+                    log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                }
+                ptycon.write(data);
+            }
         }
         void start()
         {
@@ -7061,12 +7106,11 @@ namespace netxs::ui
               active{  true },
               decckm{  faux },
               bpmode{  faux },
-              onlogs{  faux },
               unsync{  faux },
               invert{  faux },
-              io_log{  faux },
               curdir{ cwd   },
               cmdarg{ cmd   },
+              io_log{ config.def_io_log },
               selmod{ config.def_selmod },
               selalt{ config.def_selalt },
               altscr{ config.def_altscr }
@@ -7125,53 +7169,40 @@ namespace netxs::ui
                 #else
 
                     //todo optimize/unify
-                    auto data = gear.interpret();
+                    auto utf8 = gear.interpret();
                     if (!bpmode)
                     {
-                        utf::change(data, "\033[200~", "");
-                        utf::change(data, "\033[201~", "");
+                        utf::change(utf8, "\033[200~", "");
+                        utf::change(utf8, "\033[201~", "");
                     }
                     if (decckm)
                     {
-                        utf::change(data, "\033[A",  "\033OA");
-                        utf::change(data, "\033[B",  "\033OB");
-                        utf::change(data, "\033[C",  "\033OC");
-                        utf::change(data, "\033[D",  "\033OD");
-                        utf::change(data, "\033[1A", "\033OA");
-                        utf::change(data, "\033[1B", "\033OB");
-                        utf::change(data, "\033[1C", "\033OC");
-                        utf::change(data, "\033[1D", "\033OD");
+                        utf::change(utf8, "\033[A",  "\033OA");
+                        utf::change(utf8, "\033[B",  "\033OB");
+                        utf::change(utf8, "\033[C",  "\033OC");
+                        utf::change(utf8, "\033[D",  "\033OD");
+                        utf::change(utf8, "\033[1A", "\033OA");
+                        utf::change(utf8, "\033[1B", "\033OB");
+                        utf::change(utf8, "\033[1C", "\033OC");
+                        utf::change(utf8, "\033[1D", "\033OD");
                     }
                     if (linux_console)
                     {
-                        utf::change(data, "\033[[A",  "\033OP");     // F1
-                        utf::change(data, "\033[[B",  "\033OQ");     // F2
-                        utf::change(data, "\033[[C",  "\033OR");     // F3
-                        utf::change(data, "\033[[D",  "\033OS");     // F4
-                        utf::change(data, "\033[[E",  "\033[15~");   // F5
-                        utf::change(data, "\033[25~", "\033[1;2P");  // Shift+F1
-                        utf::change(data, "\033[26~", "\033[1;2Q");  // Shift+F2
-                        utf::change(data, "\033[28~", "\033[1;2R");  // Shift+F3
-                        utf::change(data, "\033[29~", "\033[1;2S");  // Shift+F4
-                        utf::change(data, "\033[31~", "\033[15;2~"); // Shift+F5
-                        utf::change(data, "\033[32~", "\033[17;2~"); // Shift+F6
-                        utf::change(data, "\033[33~", "\033[18;2~"); // Shift+F7
-                        utf::change(data, "\033[34~", "\033[19;2~"); // Shift+F8
+                        utf::change(utf8, "\033[[A",  "\033OP");     // F1
+                        utf::change(utf8, "\033[[B",  "\033OQ");     // F2
+                        utf::change(utf8, "\033[[C",  "\033OR");     // F3
+                        utf::change(utf8, "\033[[D",  "\033OS");     // F4
+                        utf::change(utf8, "\033[[E",  "\033[15~");   // F5
+                        utf::change(utf8, "\033[25~", "\033[1;2P");  // Shift+F1
+                        utf::change(utf8, "\033[26~", "\033[1;2Q");  // Shift+F2
+                        utf::change(utf8, "\033[28~", "\033[1;2R");  // Shift+F3
+                        utf::change(utf8, "\033[29~", "\033[1;2S");  // Shift+F4
+                        utf::change(utf8, "\033[31~", "\033[15;2~"); // Shift+F5
+                        utf::change(utf8, "\033[32~", "\033[17;2~"); // Shift+F6
+                        utf::change(utf8, "\033[33~", "\033[18;2~"); // Shift+F7
+                        utf::change(utf8, "\033[34~", "\033[19;2~"); // Shift+F8
                     }
-                    ptycon.write(data);
-
-                    if (io_log)
-                    {
-                        auto d = std::stringstream{};
-                        auto v = view{ data };
-                        d << ansi::hi(utf::debase<faux, faux>(v)) << " : ";
-                        while (v.size())
-                        {
-                            d << (si32)(byte)v.front() << " ";
-                            v.remove_prefix(1);
-                        }
-                        log(prompt::cin, d.str());
-                    }
+                    data_out<faux, faux>(utf8);
 
                 #endif
             };

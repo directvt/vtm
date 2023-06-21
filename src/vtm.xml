@@ -74,6 +74,7 @@ R"==(
         <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" run Logs ">
             <config>
                 <term>
+                    <logs=off/>
                     <scrollback>
                         <size=5000/>
                         <wrap="off"/>
@@ -232,6 +233,9 @@ R"==(
         <glowfx=true/>                      <!-- Show glow effect around selected item. -->
         <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
         <regions enabled=0/>             <!-- Highlight UI objects boundaries. -->
+        <keyboard>
+            <layout = QWERTY/>  <!-- QWERTY, AZERTY, Dvorak, etc. -->
+        </keyboard>
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
@@ -275,6 +279,7 @@ R"==(
             <size=0/>      <!-- Left/right field size (for hz scrolling UX). -->
         </fields>
         <tablen=8/>   <!-- Tab length. -->
+        <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
             <style="underline"/> <!-- block | underline -->
             <blink=400ms/>       <!-- blink period -->

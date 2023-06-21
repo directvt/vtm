@@ -31,8 +31,10 @@ namespace netxs
     using flag = std::atomic<bool>;
 
     constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
-    static constexpr auto maxsi32 = std::numeric_limits<si32>::max();
-    static constexpr auto maxui32 = std::numeric_limits<ui32>::max();
+    static constexpr auto si32max = std::numeric_limits<si32>::max();
+    static constexpr auto ui32max = std::numeric_limits<ui32>::max();
+    static constexpr auto si16max = std::numeric_limits<si16>::max();
+    static constexpr auto ui16max = std::numeric_limits<ui16>::max();
     static constexpr auto debugmode
         #if defined(_DEBUG)
         = true;
@@ -324,13 +326,11 @@ namespace netxs
         mutable twod total; // quadratic: Current point on the path.
 
     public:
-        /*
-        Quadratic fader ctor:
-            speed - distance ΔR over time period ΔT
-            cycle - time period ΔT
-            limit - activity period
-            start - deffered start time
-        */
+        // Quadratic fader:
+        //     speed - distance ΔR over time period ΔT
+        //     cycle - time period ΔT
+        //     limit - activity period
+        //     start - deffered start time
         quadratic(twod const& speed, type cycle, type limit, type start)
             :	speed{ speed         },
                 limit{ limit         },
@@ -380,13 +380,11 @@ namespace netxs
         mutable twod total; // constlinear: Current point on the path.
 
     public:
-        /*
-        Linear constant speed delta generator ctor:
-            speed - distance ΔR over time period ΔT
-            cycle - time period ΔT
-            limit - activity period
-            start - deffered start time
-        */
+        // Linear constant speed delta generator:
+        //     speed - distance ΔR over time period ΔT
+        //     cycle - time period ΔT
+        //     limit - activity period
+        //     start - deffered start time
         constlinear(twod const& speed, type cycle, type limit, type start)
             :	limit{ limit         },
                 phase{ limit * 2     },
