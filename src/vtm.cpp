@@ -130,11 +130,11 @@ int main(int argc, char* argv[])
             + "    4. Hardcoded configuration\n"s
             + "\n"s
             + "  Registered applications:\n\n"s
-            + "    Term     Terminal emulator (default)\n"s
-            + "    DirectVT DirectVT Proxy Console\n"s
-            + "    Text     (Demo) Text editor\n"s
-            + "    Calc     (Demo) Spreadsheet calculator\n"s
-            + "    Gems     (Demo) Desktopio application manager\n"s
+            + "    Term  Terminal emulator (default)\n"s
+            + "    DTVT  DirectVT Proxy Console\n"s
+            + "    Text  (Demo) Text editor\n"s
+            + "    Calc  (Demo) Spreadsheet calculator\n"s
+            + "    Gems  (Demo) Desktopio application manager\n"s
             );
     }
     else if (whoami == type::config)
@@ -177,6 +177,7 @@ int main(int argc, char* argv[])
         auto shadow = params;
         utf::to_low(shadow);
              if (shadow.starts_with(app::term::id))      log(app::term::desc,      ' ', app::shared::version);
+        else if (shadow.starts_with(app::dtvt::id))      log(app::dtvt::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', app::shared::version);
         else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', app::shared::version);

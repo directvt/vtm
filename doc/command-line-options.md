@@ -22,7 +22,7 @@ Registered `<app>`s:
 Application | Description
 ------------|------------------------------------------
 `Term`      | Terminal emulator (default)
-`DirectVT`  | DirectVT Proxy Console
+`DTVT`      | DirectVT Proxy Console
 `Calc`      | Spreadsheet calculator (Demo)
 `Text`      | Text editor (Demo)
 `Gems`      | Desktopio application manager (Demo)

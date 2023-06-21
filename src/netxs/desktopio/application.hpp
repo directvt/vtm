@@ -424,7 +424,7 @@ namespace netxs::app::shared
                 + ansi::nil().wrp(wrap::on)
                 + "Only the following application types are supported\n\n"
                 + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                + "   type = DirectVT \n"
+                + "   type = DirectVT(dtvt) \n"
                   "   type = ANSIVT   \n"
                   "   type = SHELL    \n"
                   "   type = Group    \n"

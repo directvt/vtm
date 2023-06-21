@@ -38,6 +38,11 @@ namespace netxs::app::directvt
     static constexpr auto id = "directvt";
     static constexpr auto desc = "DirectVT Proxy Console";
 }
+namespace netxs::app::dtvt
+{
+    static constexpr auto id = "dtvt";
+    static constexpr auto desc = "DirectVT Proxy Console";
+}
 namespace netxs::app::shell
 {
     static constexpr auto id = "shell";
@@ -500,6 +505,7 @@ namespace netxs::app::shared
         app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
+        app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
         app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
     }
