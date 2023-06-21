@@ -11,17 +11,17 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 
 You want to:
 - Share you application on LAN via netcat.
-- Track the terminal window size.
-- Get consistent output regardless of terminal window resize.
 - Operate without an allocated TTY.
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
 - Simplify functional key parsing.
 - Distinguish between Left and Right physical keys.
-- Auto restore all terminal modes on exit.
+- Track the terminal window size.
+- Get consistent output regardless of terminal window resize.
 - Track mouse outside the terminal window (getting negative coordinates).
 - Track scrollback text selection.
 - Track application closing and system shutdown.
+- Auto restore all terminal modes on exit.
 - Be independent of operating system and third party libraries.
 
 ## Initialization
