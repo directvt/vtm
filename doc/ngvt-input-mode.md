@@ -1,6 +1,6 @@
 status: draft
 
-# Next Generation VT Input Mode Protocol
+# Next Generation VT Input Mode
 
 The goal of the `ngvt-input-mode` protocol is to make command line interactivity cross-platform.
 
