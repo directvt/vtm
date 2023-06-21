@@ -82,6 +82,7 @@ namespace netxs::ansi
     static const auto csi_cup     = 'H'; // CSI n ; m  H  — Caret Position.
     static const auto csi_cht     = 'I'; // CSI n      I  — Caret forward  n tab stops (default = 1).
     static const auto csi_cbt     = 'Z'; // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const auto csi_rep     = 'b'; // CSI n      b  — Repeat the preceding character n times.
     static const auto csi_tbc     = 'g'; // CSI n      g  — Reset tabstop value.
     static const auto csi_sgr     = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
     static const auto csi_dsr     = 'n'; // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R

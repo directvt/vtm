@@ -795,6 +795,7 @@ namespace netxs::ui
                 vt.csier.table[csi_cht]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[csi_cbt]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
                 vt.csier.table[csi_tbc]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table[csi_rep]           = V{ p->rep( q(1)); }; // CSI n b  Repeat the preceding character n times, default n=1.
                 vt.csier.table_quest[csi_qst_rtb] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
                 vt.intro[ctrl::esc][esc_hts]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
@@ -1633,6 +1634,23 @@ namespace netxs::ui
                     default: // Test: print tab stops.
                         print_tabstops("Tabstops index: `CSI " + std::to_string(n) + " g`");
                         break;
+                }
+            }
+            // bufferbase: CSI n b  Repeat prev character n times.
+            void rep(si32 n)
+            {
+                parser::flush();
+                n = std::clamp<si32>(n, 0, si16max);
+                if (n)
+                {
+                    auto c = cell{ parser::brush };
+                    if (c.wdt() != 1)
+                    {
+                        c.wdt(2);
+                    }
+                    parser::proto.assign(n, c);
+                    data(n * c.wdt(), proto);
+                    parser::proto.clear();
                 }
             }
             // bufferbase: CSI # {  Push SGR attributes.
