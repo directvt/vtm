@@ -10,8 +10,8 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 ## Audience
 
 You want to:
-- Share you application on LAN via netcat.
 - Operate without an allocated TTY.
+- Share you application on LAN via netcat.
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
 - Simplify functional key parsing.
