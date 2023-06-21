@@ -69,6 +69,7 @@ namespace netxs::ansi
     static const auto csi_dqt_scp = 'q'; // CSI n "    q  — Select character protection attribute.
     static const auto csi_exl_rst = 'p'; // CSI   !    p  — Reset terminal to initial state.
     static const auto csi_qst_rtb = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
+    static const auto csi_dlr_fra = 'x'; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).
     static const auto csi_cuu     = 'A'; // CSI n      A  — Caret Up.
     static const auto csi_cud     = 'B'; // CSI n      B  — Caret Down.
     static const auto csi_cud2    = 'e'; // CSI n      e  — Caret Down.
