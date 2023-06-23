@@ -27,8 +27,8 @@ You want to:
 ## Initialization
 
 ```
-Set:   ESC _ n g v t ; 0 ; Id ; ... ; Id BEL
-Reset: ESC _ n g v t ; 0 BEL
+Set:   ESC _ n g v t ; 0 ; Id ; ... ; Id ST
+Reset: ESC _ n g v t ; 0 ST
 ```
 
 Id   | Events to track
@@ -48,33 +48,33 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
 
 - Keyboard
   ```
-  ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+  ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn ST
   ```
 - Mouse
   ```
-  ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+  ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState ST
   ```
 - Focus
   ```
-  ESC _ n g v t ; 3 ; FocusState BEL
+  ESC _ n g v t ; 3 ; FocusState ST
   ```
 - Clipboard
   ```
-  ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
+  ESC _ n g v t ; 4 ; ClipFormat ; Data ST
   ```
 - Viewport
   ```
-  ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+  ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
   ```
 - System
   ```
-  ESC _ n g v t ; 6 ; Signal BEL
+  ESC _ n g v t ; 6 ; Signal ST
   ```
 
 ### Keyboard
 
 ```
-ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn ST
 ```
 
 Field            | Description
@@ -102,7 +102,7 @@ Function keys always have `UniCode` set to zero, and a set of `C1`, ..., `Cn` co
 ### Mouse
 
 ```
-ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState ST
 ```
 
 Field          | Description
@@ -118,7 +118,7 @@ The reason for not using the existing mouse tracking modes is the lack of suppor
 ### Focus
 
 ```
-ESC _ n g v t ; 3 ; FocusState BEL
+ESC _ n g v t ; 3 ; FocusState ST
 ```
 
 Field        | Description
@@ -130,7 +130,7 @@ The reason for not using the existing focus tracking mode is the convenient enab
 ### Clipboard
 
 ```
-ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
+ESC _ n g v t ; 4 ; ClipFormat ; Data ST
 ```
 
 Field        | Description
@@ -143,7 +143,7 @@ The reason for not using bracketed paste mode is that there is no support for tr
 ### Viewport
 
 ```
-ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
 ```
 
 Field                                        | Description
@@ -169,7 +169,7 @@ Handshake steps:
 ```
 Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
 Application: ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
-Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
@@ -183,7 +183,7 @@ Note that selected text in the scrollback above the viewport top level will prod
 ### System
 
 ```
-ESC _ n g v t ; 6 ; Signal BEL
+ESC _ n g v t ; 6 ; Signal ST
 ```
 
 Signal | Description
