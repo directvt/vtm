@@ -546,13 +546,13 @@ namespace netxs::app::shared
         if (direct)
         {
             auto server = os::ipc::stdio();
-            runapp(server, ""s);
+            runapp(server, "");
         }
         else
         {
             auto [client, server] = os::ipc::xlink();
             auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
-            runapp(server, "<config isolated=1/>"s);
+            runapp(server, "<config isolated=1/>");
             thread.join();
         }
         return true;
