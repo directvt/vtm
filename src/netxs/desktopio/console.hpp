@@ -3302,6 +3302,9 @@ namespace netxs::ui
              direct{ props.vtmode == svga::dtvt },
              local{ true }
         {
+            auto isolated = config.take("/config/isolated", faux); // Proxy console case.
+            config.set("/config/isolated", faux);
+
             base::root(true);
             limit.set(dot_11);
             title.live = faux;
@@ -3630,7 +3633,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct) // Forward unhandled events outside.
+            if (direct && !isolated) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::layout::minimize, gear, tokens)
                 {

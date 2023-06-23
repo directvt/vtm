@@ -51,7 +51,6 @@ namespace netxs::app::vtm
         static constexpr auto viewport = "/config/menu/viewport/coor";
     }
 
-
     struct events
     {
         EVENTPACK( events, ui::e2::extra::slot1 )
