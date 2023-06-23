@@ -154,7 +154,7 @@ int main(int argc, char* argv[])
                 auto readln = std::thread{ [&]
                 {
                     auto onlylog = vtmode & os::vt::onlylog;
-                    if (!onlylog)
+                    if (faux && !onlylog)
                     {
                         os::tty::readline::ignite();
                         auto buffer = text{};
@@ -302,7 +302,7 @@ int main(int argc, char* argv[])
         auto readln = std::thread{ [&]
         {
             auto onlylog = vtmode & os::vt::onlylog;
-            if (!onlylog)
+            if (faux && !onlylog)
             {
                 os::tty::readline::ignite();
                 auto buffer = text{};
