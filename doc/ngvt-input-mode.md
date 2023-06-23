@@ -1,6 +1,6 @@
 status: draft
 
-# Next Generation VT Input Mode
+# Next Generation VT Input Mode Protocol
 
 The goal of the `ngvt-input-mode` protocol is to make command line interactivity cross-platform.
 
@@ -11,7 +11,7 @@ The goal of the `ngvt-input-mode` protocol is to make command line interactivity
 
 You want to:
 - Operate without an allocated TTY.
-- Share you application on LAN via netcat.
+- Share you application on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
 - Simplify functional key parsing.
@@ -27,8 +27,8 @@ You want to:
 ## Initialization
 
 ```
-Set:   ESC ] n g v t ; 0 ; Id ; ... ; Id BEL
-Reset: ESC ] n g v t ; 0 BEL
+Set:   ESC _ n g v t ; 0 ; Id ; ... ; Id BEL
+Reset: ESC _ n g v t ; 0 BEL
 ```
 
 Id   | Events to track
@@ -48,33 +48,33 @@ Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved 
 
 - Keyboard
   ```
-  ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+  ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
   ```
 - Mouse
   ```
-  ESC ] n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+  ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
   ```
 - Focus
   ```
-  ESC ] n g v t ; 3 ; FocusState BEL
+  ESC _ n g v t ; 3 ; FocusState BEL
   ```
 - Clipboard
   ```
-  ESC ] n g v t ; 4 ; ClipFormat ; Data BEL
+  ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
   ```
 - Viewport
   ```
-  ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+  ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
   ```
 - System
   ```
-  ESC ] n g v t ; 6 ; Signal BEL
+  ESC _ n g v t ; 6 ; Signal BEL
   ```
 
 ### Keyboard
 
 ```
-ESC ] n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
 ```
 
 Field            | Description
@@ -102,7 +102,7 @@ Function keys always have `UniCode` set to zero, and a set of `C1`, ..., `Cn` co
 ### Mouse
 
 ```
-ESC ] n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
 ```
 
 Field          | Description
@@ -118,7 +118,7 @@ The reason for not using the existing mouse tracking modes is the lack of suppor
 ### Focus
 
 ```
-ESC ] n g v t ; 3 ; FocusState BEL
+ESC _ n g v t ; 3 ; FocusState BEL
 ```
 
 Field        | Description
@@ -130,7 +130,7 @@ The reason for not using the existing focus tracking mode is the convenient enab
 ### Clipboard
 
 ```
-ESC ] n g v t ; 4 ; ClipFormat ; Data BEL
+ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
 ```
 
 Field        | Description
@@ -143,7 +143,7 @@ The reason for not using bracketed paste mode is that there is no support for tr
 ### Viewport
 
 ```
-ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
 ```
 
 Field                                        | Description
@@ -167,9 +167,9 @@ Handshake steps:
 3. The terminal applies the new size and sends the changes.
 
 ```
-Terminal:    ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY _
-Application: ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY _
-Terminal:    ESC ] n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
+Application: ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
+Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
@@ -183,7 +183,7 @@ Note that selected text in the scrollback above the viewport top level will prod
 ### System
 
 ```
-ESC ] n g v t ; 6 ; Signal BEL
+ESC _ n g v t ; 6 ; Signal BEL
 ```
 
 Signal | Description
