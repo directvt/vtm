@@ -532,9 +532,8 @@ namespace netxs::app::shared
         utf::to_low(shadow);
         //if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto runapp = [&](auto uplink)
+        auto runapp = [&](auto uplink, auto patch)
         {
-            auto patch = ""s;
             auto domain = base::create<host>(uplink, config);
             auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
             auto params = utf::remain(app_name, ' ');
@@ -547,13 +546,13 @@ namespace netxs::app::shared
         if (direct)
         {
             auto server = os::ipc::stdio();
-            runapp(server);
+            runapp(server, "");
         }
         else
         {
             auto [client, server] = os::ipc::xlink();
             auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
-            runapp(server);
+            runapp(server, "<config isolated=1/>");
             thread.join();
         }
         return true;

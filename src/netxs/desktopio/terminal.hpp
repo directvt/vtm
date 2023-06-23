@@ -752,7 +752,9 @@ namespace netxs::ui
                 vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
                 vt.csier.table_hash [csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes from stack.
-                vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR)
+                vt.csier.table_excl [csi_exl_rst] = V{ p->owner.decstr( ); }; // CSI ! p  Soft terminal reset (DECSTR).
+
+                vt.csier.table_dollarsn[csi_dlr_fra] = V{ p->fra(q); }; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).
 
                 vt.csier.table[csi_sgr][sgr_fg_blk   ] = V{ p->owner.ctrack.fgc(tint::blackdk  ); };
                 vt.csier.table[csi_sgr][sgr_fg_red   ] = V{ p->owner.ctrack.fgc(tint::reddk    ); };
@@ -795,6 +797,7 @@ namespace netxs::ui
                 vt.csier.table[csi_cht]           = V{ p->tab( q(1)); }; // CSI n I  Caret forward  n tabs, default n=1.
                 vt.csier.table[csi_cbt]           = V{ p->tab(-q(1)); }; // CSI n Z  Caret backward n tabs, default n=1.
                 vt.csier.table[csi_tbc]           = V{ p->tbc( q(0)); }; // CSI n g  Clear tabstops, default n=0.
+                vt.csier.table[csi_rep]           = V{ p->rep( q(1)); }; // CSI n b  Repeat the preceding character n times, default n=1.
                 vt.csier.table_quest[csi_qst_rtb] = V{ p->rtb(     ); }; // CSI ? W  Reset tabstops to the 8 column defaults.
                 vt.intro[ctrl::esc][esc_hts]      = V{ p->stb(     ); }; // ESC H    Place tabstop at the current column.
 
@@ -1634,6 +1637,60 @@ namespace netxs::ui
                         print_tabstops("Tabstops index: `CSI " + std::to_string(n) + " g`");
                         break;
                 }
+            }
+            // bufferbase: CSI n b  Repeat prev character n times.
+            template<bool Flush = true>
+            void rep(si32 n)
+            {
+                if constexpr (Flush) parser::flush();
+                n = std::clamp<si32>(n, 0, si16max);
+                if (n)
+                {
+                    auto c = cell{ parser::brush };
+                    if (c.wdt() != 1)
+                    {
+                        c.wdt(2);
+                    }
+                    parser::proto.assign(n, c);
+                    data(n * c.wdt(), proto);
+                    parser::proto.clear();
+                }
+            }
+            // bufferbase: CSI Char ; Top ; Left ; Bottom ; Right $ x  Fill rectangular area (DECFRA).
+            void fra(fifo& queue)
+            {
+                parser::flush();
+                auto c = queue(' ');
+                auto t = queue(1);
+                auto l = queue(1);
+                auto b = queue(panel.y);
+                auto r = queue(panel.x);
+                if (t > b) t = b;
+                if (l > r) l = r;
+                l -= 1;
+                t -= 1;
+                auto region = rect{{ l, t }, { r - l, b - t }};
+                region.trunc(panel);
+                if (c < ' ') c = ' ';
+                auto sym = utf::to_utf_from_code(c);
+                auto tmp = parser::brush;
+                parser::brush.txt(sym);
+                if (parser::brush.wdt() != 1)
+                {
+                    region.size.x /= 2;
+                }
+                if (region)
+                {
+                    auto sav = coord;
+                    while (region.size.y--)
+                    {
+                        set_coord(region.coor);
+                        rep<faux>(region.size.x);
+                        region.coor.y++;
+                    }
+                    set_coord(sav);
+                }
+                parser::brush = tmp;
             }
             // bufferbase: CSI # {  Push SGR attributes.
             void pushsgr()

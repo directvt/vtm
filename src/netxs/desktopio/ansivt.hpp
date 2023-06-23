@@ -69,6 +69,7 @@ namespace netxs::ansi
     static const auto csi_dqt_scp = 'q'; // CSI n "    q  — Select character protection attribute.
     static const auto csi_exl_rst = 'p'; // CSI   !    p  — Reset terminal to initial state.
     static const auto csi_qst_rtb = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
+    static const auto csi_dlr_fra = 'x'; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).
     static const auto csi_cuu     = 'A'; // CSI n      A  — Caret Up.
     static const auto csi_cud     = 'B'; // CSI n      B  — Caret Down.
     static const auto csi_cud2    = 'e'; // CSI n      e  — Caret Down.
@@ -82,6 +83,7 @@ namespace netxs::ansi
     static const auto csi_cup     = 'H'; // CSI n ; m  H  — Caret Position.
     static const auto csi_cht     = 'I'; // CSI n      I  — Caret forward  n tab stops (default = 1).
     static const auto csi_cbt     = 'Z'; // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const auto csi_rep     = 'b'; // CSI n      b  — Repeat the preceding character n times.
     static const auto csi_tbc     = 'g'; // CSI n      g  — Reset tabstop value.
     static const auto csi_sgr     = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
     static const auto csi_dsr     = 'n'; // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
