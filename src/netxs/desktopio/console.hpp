@@ -3302,7 +3302,7 @@ namespace netxs::ui
              direct{ props.vtmode == svga::dtvt },
              local{ true }
         {
-            auto isolated = config.take("/config/isolated", faux); // Proxy console case.
+            auto isolated = config.take("/config/isolated", faux); // DTVT proxy console case.
             config.set("/config/isolated", faux);
 
             base::root(true);
