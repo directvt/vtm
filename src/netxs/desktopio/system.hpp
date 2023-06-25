@@ -439,7 +439,7 @@ namespace netxs::os
 
     namespace io
     {
-        void close(fd_t& h)
+        void close(fd_t const& h)
         {
             if (h != os::invalid_fd)
             {
@@ -448,6 +448,13 @@ namespace netxs::os
                 #else
                     ::close(h);
                 #endif
+            }
+        }
+        void close(fd_t& h)
+        {
+            if (h != os::invalid_fd)
+            {
+                io::close(std::as_const(h));
                 h = os::invalid_fd;
             }
         }
@@ -3545,6 +3552,10 @@ namespace netxs::os
             {
                 log(prompt::os, "DirectVT detected");
                 mode |= vt::direct;
+                io::close(os::stderr_fd); // Close because not in use.
+                #if not defined(_WIN32)
+                fdcleanup();              // There are duplicate stdin/stdout handles among the leaked parent process handles, and this prevents them from being closed. Affected ssh, nc, ncat, socat.
+                #endif
             }
             else
             {
