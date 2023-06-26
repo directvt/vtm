@@ -483,11 +483,17 @@ namespace netxs::os
             }
             void shutdown() // Reset writing end of the pipe to interrupt reading call.
             {
-                if (w == r)
-                {
-                    // Use ::shutdown() for full duplex sockets.
-                }
-                else
+                #if not defined(_wIN32) // Use ::shutdown() for full duplex sockets. Socket the same fd could be assigned as stdin, stdout and stderr, e.g. it is how inetd does.
+
+                    auto statbuf = (struct stat){};
+                    ::fstat(w, &statbuf);
+                    if (S_ISSOCK(statbuf.st_mode))
+                    {
+                        ::shutdown(w, SHUT_WR);
+                    }
+
+                #endif
+                if (w != r)
                 {
                     io::close(w);
                 }
