@@ -127,7 +127,7 @@ Field        | Description
 
 The reason for not using the existing focus tracking mode is the convenient enabling/disabling of this mode - all tracking modes in one sequence.
 
-### Clipboard paste
+### Clipboard Paste
 
 ```
 ESC _ i n p u t ; p a s t e ; ClipFormat ; Data ST
@@ -140,7 +140,7 @@ Field        | Description
 
 The reason for not using bracketed paste mode is that there is no support for transferring binary data and data containing sequences of the bracketed paste mode itself.
 
-### Window size
+### Window Size
 
 ```
 ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
@@ -180,7 +180,7 @@ The viewport tracking sequence is fired after every scrollback text selection ch
 
 Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values.
 
-### Application break
+### Application Break
 
 ```
 ESC _ i n p u t ; b r e a k ; Reason ST
