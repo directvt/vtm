@@ -395,9 +395,13 @@ namespace netxs::input
         static constexpr auto NumpadInsert     = 75;
         static constexpr auto Delete           = 76;
         static constexpr auto NumpadDelete     = 77;
+        static constexpr auto Clear            = 78;
         static constexpr auto NumpadClear      = 79;
+        static constexpr auto Multiply         = 80;
         static constexpr auto NumpadMultiply   = 81;
+        static constexpr auto Plus             = 82;
         static constexpr auto NumpadPlus       = 83;
+        static constexpr auto Separator        = 84;
         static constexpr auto NumpadSeparator  = 85;
         static constexpr auto Minus            = 86;
         static constexpr auto NumpadMinus      = 87;
@@ -405,64 +409,64 @@ namespace netxs::input
         static constexpr auto NumpadDecimal    = 89;
         static constexpr auto Slash            = 90;
         static constexpr auto NumpadSlash      = 91;
-        static constexpr auto F1               = 92;
-        static constexpr auto F2               = 94;
-        static constexpr auto F3               = 96;
-        static constexpr auto F4               = 98;
-        static constexpr auto F5               = 100;
-        static constexpr auto F6               = 102;
-        static constexpr auto F7               = 104;
-        static constexpr auto F8               = 106;
-        static constexpr auto F9               = 108;
-        static constexpr auto F10              = 110;
-        static constexpr auto F11              = 112;
-        static constexpr auto F12              = 114;
-        static constexpr auto F13              = 116;
-        static constexpr auto F14              = 118;
-        static constexpr auto F15              = 120;
-        static constexpr auto F16              = 122;
-        static constexpr auto F17              = 124;
-        static constexpr auto F18              = 126;
-        static constexpr auto F19              = 128;
-        static constexpr auto F20              = 130;
-        static constexpr auto F21              = 132;
-        static constexpr auto F22              = 134;
-        static constexpr auto F23              = 136;
-        static constexpr auto F24              = 138;
-        static constexpr auto Equal            = 140;
-        static constexpr auto BackQuote        = 142;
-        static constexpr auto SingleQuote      = 144;
-        static constexpr auto KeyA             = 146;
-        static constexpr auto KeyB             = 148;
-        static constexpr auto KeyC             = 150;
-        static constexpr auto KeyD             = 152;
-        static constexpr auto KeyE             = 154;
-        static constexpr auto KeyF             = 156;
-        static constexpr auto KeyG             = 158;
-        static constexpr auto KeyH             = 160;
-        static constexpr auto KeyI             = 162;
-        static constexpr auto KeyJ             = 164;
-        static constexpr auto KeyK             = 166;
-        static constexpr auto KeyL             = 168;
-        static constexpr auto KeyM             = 170;
-        static constexpr auto KeyN             = 172;
-        static constexpr auto KeyO             = 174;
-        static constexpr auto KeyP             = 176;
-        static constexpr auto KeyQ             = 178;
-        static constexpr auto KeyR             = 180;
-        static constexpr auto KeyS             = 182;
-        static constexpr auto KeyT             = 184;
-        static constexpr auto KeyU             = 186;
-        static constexpr auto KeyV             = 188;
-        static constexpr auto KeyW             = 190;
-        static constexpr auto KeyX             = 192;
-        static constexpr auto KeyY             = 194;
-        static constexpr auto KeyZ             = 196;
-        static constexpr auto OpenBracket      = 198;
-        static constexpr auto ClosedBracket    = 200;
-        static constexpr auto BackSlash        = 202;
-        static constexpr auto Comma            = 204;
-        static constexpr auto Semicolon        = 206;
+        static constexpr auto BackSlash        = 92;
+        static constexpr auto OpenBracket      = 94;
+        static constexpr auto ClosedBracket    = 96;
+        static constexpr auto Equal            = 98;
+        static constexpr auto BackQuote        = 100;
+        static constexpr auto SingleQuote      = 102;
+        static constexpr auto Comma            = 104;
+        static constexpr auto Semicolon        = 106;
+        static constexpr auto F1               = 108;
+        static constexpr auto F2               = 110;
+        static constexpr auto F3               = 112;
+        static constexpr auto F4               = 114;
+        static constexpr auto F5               = 116;
+        static constexpr auto F6               = 118;
+        static constexpr auto F7               = 120;
+        static constexpr auto F8               = 122;
+        static constexpr auto F9               = 124;
+        static constexpr auto F10              = 126;
+        static constexpr auto F11              = 128;
+        static constexpr auto F12              = 130;
+        static constexpr auto F13              = 132;
+        static constexpr auto F14              = 134;
+        static constexpr auto F15              = 136;
+        static constexpr auto F16              = 138;
+        static constexpr auto F17              = 140;
+        static constexpr auto F18              = 142;
+        static constexpr auto F19              = 144;
+        static constexpr auto F20              = 146;
+        static constexpr auto F21              = 148;
+        static constexpr auto F22              = 150;
+        static constexpr auto F23              = 152;
+        static constexpr auto F24              = 154;
+        static constexpr auto KeyA             = 156;
+        static constexpr auto KeyB             = 158;
+        static constexpr auto KeyC             = 160;
+        static constexpr auto KeyD             = 162;
+        static constexpr auto KeyE             = 164;
+        static constexpr auto KeyF             = 166;
+        static constexpr auto KeyG             = 168;
+        static constexpr auto KeyH             = 170;
+        static constexpr auto KeyI             = 172;
+        static constexpr auto KeyJ             = 174;
+        static constexpr auto KeyK             = 176;
+        static constexpr auto KeyL             = 178;
+        static constexpr auto KeyM             = 180;
+        static constexpr auto KeyN             = 182;
+        static constexpr auto KeyO             = 184;
+        static constexpr auto KeyP             = 186;
+        static constexpr auto KeyQ             = 188;
+        static constexpr auto KeyR             = 190;
+        static constexpr auto KeyS             = 192;
+        static constexpr auto KeyT             = 194;
+        static constexpr auto KeyU             = 196;
+        static constexpr auto KeyV             = 198;
+        static constexpr auto KeyW             = 200;
+        static constexpr auto KeyX             = 202;
+        static constexpr auto KeyY             = 204;
+        static constexpr auto KeyZ             = 206;
         static constexpr auto Sleep            = 208;
         static constexpr auto WWW              = 210;
         static constexpr auto Calculator       = 212;
@@ -482,6 +486,188 @@ namespace netxs::input
         static constexpr auto BrowserSearch    = 240;
         static constexpr auto BrowserFavorites = 242;
         static constexpr auto BrowserHome      = 244;
+
+        static constexpr auto ExtendedKey = 0x0100;
+        static constexpr auto NumLockMode = 0x0020;
+
+        struct mapkey
+        {
+            si32 vk; // mapkey: Virtual code.
+            si32 sc; // mapkey: Scan code.
+            si32 cs; // mapkey: Control state.
+
+            mapkey(si32 vk, si32 sc, si32 cs)
+                : vk{ vk }, sc{ sc }, cs{ cs }
+            { }
+
+            bool operator == (mapkey const&) const = default;
+            struct hash
+            {
+                auto operator()(mapkey const& k) const
+                {
+                    return std::size_t{ (ui64)k.vk | ((ui64)k.sc << 16) | ((ui64)k.sc << 32) };
+                }
+            };
+        };
+
+        static const auto xlat = std::unordered_map<mapkey, si32, mapkey::hash>
+        {
+            {{    0,    0,           0 }, undef            },
+            {{ 0x1B, 0x01,           0 }, Esc              },
+            {{ 0x20, 0x39,           0 }, Space            },
+            {{ 0x08, 0x0E,           0 }, Backspace        },
+            {{ 0x09, 0x0F,           0 }, Tab              },
+            {{ 0x10, 0x2A,           0 }, LeftShift        },
+            {{ 0x10, 0x36,           0 }, RightShift       },
+            {{ 0x11, 0x1D,           0 }, LeftCtrl         },
+            {{ 0x11, 0x1D, ExtendedKey }, RightCtrl        },
+            {{ 0x12, 0x38,           0 }, LeftAlt          },
+            {{ 0x12, 0x38, ExtendedKey }, RightAlt         },
+            {{ 0x5B, 0x5B, ExtendedKey }, LeftWin          },
+            {{ 0x5C, 0x5C, ExtendedKey }, RightWin         },
+            {{ 0x14, 0x3A,           0 }, CapsLock         },
+            {{ 0x90, 0x45,           0 }, NumLock          },
+            {{ 0x91, 0x45,           0 }, ScrollLock       },
+            {{ 0x5D, 0x5D, ExtendedKey }, Apps             },
+            {{ 0x03, 0x45,           0 }, Break            },
+            {{ 0x13, 0x45,           0 }, Pause            },
+            {{ 0x29,    0,           0 }, Select           },
+            {{ 0x2C, 0x54,           0 }, SysRq            },
+            {{ 0x2C, 0x37, ExtendedKey }, PrintScreen      },
+            {{ 0x0D, 0x1C,           0 }, Enter            },
+            {{ 0x0D, 0x1C, ExtendedKey }, NumpadEnter      },
+            {{ 0x21, 0x49, ExtendedKey }, PageUp           },
+            {{ 0x21, 0x49,           0 }, NumpadPageUp     },
+            {{ 0x22, 0x51, ExtendedKey }, PageDown         },
+            {{ 0x22, 0x51,           0 }, NumpadPageDown   },
+            {{ 0x23, 0x4F, ExtendedKey }, End              },
+            {{ 0x23, 0x4F,           0 }, NumpadEnd        },
+            {{ 0x24, 0x47, ExtendedKey }, Home             },
+            {{ 0x24, 0x47,           0 }, NumpadHome       },
+            {{ 0x25, 0x4B, ExtendedKey }, LeftArrow        },
+            {{ 0x25, 0x4B,           0 }, NumpadLeftArrow  },
+            {{ 0x26, 0x48, ExtendedKey }, UpArrow          },
+            {{ 0x26, 0x48,           0 }, NumpadUpArrow    },
+            {{ 0x27, 0x4D, ExtendedKey }, RightArrow       },
+            {{ 0x27, 0x4D,           0 }, NumpadRightArrow },
+            {{ 0x28, 0x50, ExtendedKey }, DownArrow        },
+            {{ 0x28, 0x50,           0 }, NumpadDownArrow  },
+            {{ 0x30, 0x0B,           0 }, Key0             },
+            {{ 0x60, 0x52, NumLockMode }, Numpad0          },
+            {{ 0x31, 0x02,           0 }, Key1             },
+            {{ 0x61, 0x4F, NumLockMode }, Numpad1          },
+            {{ 0x32, 0x03,           0 }, Key2             },
+            {{ 0x62, 0x50, NumLockMode }, Numpad2          },
+            {{ 0x33, 0x04,           0 }, Key3             },
+            {{ 0x63, 0x51, NumLockMode }, Numpad3          },
+            {{ 0x34, 0x05,           0 }, Key4             },
+            {{ 0x64, 0x4B, NumLockMode }, Numpad4          },
+            {{ 0x35, 0x06,           0 }, Key5             },
+            {{ 0x65, 0x4C, NumLockMode }, Numpad5          },
+            {{ 0x36, 0x07,           0 }, Key6             },
+            {{ 0x66, 0x4D, NumLockMode }, Numpad6          },
+            {{ 0x37, 0x08,           0 }, Key7             },
+            {{ 0x67, 0x47, NumLockMode }, Numpad7          },
+            {{ 0x38, 0x09,           0 }, Key8             },
+            {{ 0x68, 0x48, NumLockMode }, Numpad8          },
+            {{ 0x39, 0x0A,           0 }, Key9             },
+            {{ 0x69, 0x49, NumLockMode }, Numpad9          },
+            {{ 0x2D, 0x52, ExtendedKey }, Insert           },
+            {{ 0x2D, 0x52,           0 }, NumpadInsert     },
+            {{ 0x2E, 0x53, ExtendedKey }, Delete           },
+            {{ 0x2E, 0x55,           0 }, NumpadDelete     },
+            {{ 0x0C, 0x4C, ExtendedKey }, Clear            },
+            {{ 0x0C, 0x4C,           0 }, NumpadClear      },
+            {{ 0x6A,    0,           0 }, Multiply         },
+            {{ 0x6A, 0x37,           0 }, NumpadMultiply   },
+            {{ 0x6B,    0,           0 }, Plus             },
+            {{ 0x6B, 0x4E,           0 }, NumpadPlus       },
+            {{ 0x6C,    0,           0 }, Separator        }, //todo revise
+            {{ 0x6C,    0, NumLockMode }, NumpadSeparator  }, //todo revise
+            {{ 0xBD, 0x0C,           0 }, Minus            },
+            {{ 0x6D, 0x4A,           0 }, NumpadMinus      },
+            {{ 0xBE, 0x34,           0 }, Period           },
+            {{ 0x6E, 0x53, NumLockMode }, NumpadDecimal    },
+            {{ 0xBF, 0x35,           0 }, Slash            },
+            {{ 0x6F, 0x35, ExtendedKey }, NumpadSlash      },
+            {{ 0xDC, 0x2B,           0 }, BackSlash        },
+            {{ 0xDB, 0x1A,           0 }, OpenBracket      },
+            {{ 0xDD, 0x1B,           0 }, ClosedBracket    },
+            {{ 0xBB, 0x0D,           0 }, Equal            },
+            {{ 0xC0, 0x29,           0 }, BackQuote        },
+            {{ 0xDE, 0x28,           0 }, SingleQuote      },
+            {{ 0xBC, 0x33,           0 }, Comma            },
+            {{ 0xBA, 0x27,           0 }, Semicolon        },
+            {{ 0x70, 0x3B,           0 }, F1               },
+            {{ 0x71, 0x3C,           0 }, F2               },
+            {{ 0x72, 0x3D,           0 }, F3               },
+            {{ 0x73, 0x3E,           0 }, F4               },
+            {{ 0x74, 0x3F,           0 }, F5               },
+            {{ 0x75, 0x40,           0 }, F6               },
+            {{ 0x76, 0x41,           0 }, F7               },
+            {{ 0x77, 0x42,           0 }, F8               },
+            {{ 0x78, 0x43,           0 }, F9               },
+            {{ 0x79, 0x44,           0 }, F10              },
+            {{ 0x7A, 0x57,           0 }, F11              },
+            {{ 0x7B, 0x5B,           0 }, F12              },
+            {{ 0x7C,    0,           0 }, F13              },
+            {{ 0x7D,    0,           0 }, F14              },
+            {{ 0x7E,    0,           0 }, F15              },
+            {{ 0x7F,    0,           0 }, F16              },
+            {{ 0x80,    0,           0 }, F17              },
+            {{ 0x81,    0,           0 }, F18              },
+            {{ 0x82,    0,           0 }, F19              },
+            {{ 0x83,    0,           0 }, F20              },
+            {{ 0x84,    0,           0 }, F21              },
+            {{ 0x85,    0,           0 }, F22              },
+            {{ 0x86,    0,           0 }, F23              },
+            {{ 0x87,    0,           0 }, F24              },
+            {{ 0x41,    0,           0 }, KeyA             },
+            {{ 0x42,    0,           0 }, KeyB             },
+            {{ 0x43,    0,           0 }, KeyC             },
+            {{ 0x44,    0,           0 }, KeyD             },
+            {{ 0x45,    0,           0 }, KeyE             },
+            {{ 0x46,    0,           0 }, KeyF             },
+            {{ 0x47,    0,           0 }, KeyG             },
+            {{ 0x48,    0,           0 }, KeyH             },
+            {{ 0x49,    0,           0 }, KeyI             },
+            {{ 0x4A,    0,           0 }, KeyJ             },
+            {{ 0x4B,    0,           0 }, KeyK             },
+            {{ 0x4C,    0,           0 }, KeyL             },
+            {{ 0x4D,    0,           0 }, KeyM             },
+            {{ 0x4E,    0,           0 }, KeyN             },
+            {{ 0x4F,    0,           0 }, KeyO             },
+            {{ 0x50,    0,           0 }, KeyP             },
+            {{ 0x51,    0,           0 }, KeyQ             },
+            {{ 0x52,    0,           0 }, KeyR             },
+            {{ 0x53,    0,           0 }, KeyS             },
+            {{ 0x54,    0,           0 }, KeyT             },
+            {{ 0x55,    0,           0 }, KeyU             },
+            {{ 0x56,    0,           0 }, KeyV             },
+            {{ 0x57,    0,           0 }, KeyW             },
+            {{ 0x58,    0,           0 }, KeyX             },
+            {{ 0x59,    0,           0 }, KeyY             },
+            {{ 0x5A,    0,           0 }, KeyZ             },
+            {{ 0x5F,    0, ExtendedKey }, Sleep            },
+            {{ 0xAC,    0, ExtendedKey }, WWW              },
+            {{ 0xB7,    0, ExtendedKey }, Calculator       },
+            {{ 0x48,    0, ExtendedKey }, Mail             },
+            {{ 0xAD,    0, ExtendedKey }, MediaVolMute     },
+            {{ 0xAE,    0, ExtendedKey }, MediaVolDown     },
+            {{ 0xAF,    0, ExtendedKey }, MediaVolUp       },
+            {{ 0xB0,    0, ExtendedKey }, MediaNext        },
+            {{ 0xB1,    0, ExtendedKey }, MediaPrev        },
+            {{ 0xB2,    0, ExtendedKey }, MediaStop        },
+            {{ 0xB3,    0, ExtendedKey }, MediaPlayPause   },
+            {{ 0xB5,    0, ExtendedKey }, MediaSelect      },
+            {{ 0xA6,    0, ExtendedKey }, BrowserBack      },
+            {{ 0xA7,    0, ExtendedKey }, BrowserForward   },
+            {{ 0xA8,    0, ExtendedKey }, BrowserRefresh   },
+            {{ 0xA9,    0, ExtendedKey }, BrowserStop      },
+            {{ 0xAA,    0, ExtendedKey }, BrowserSearch    },
+            {{ 0xAB,    0, ExtendedKey }, BrowserFavorites },
+            {{ 0xAC,    0, ExtendedKey }, BrowserHome      },
+        };
     }
 
     struct foci
