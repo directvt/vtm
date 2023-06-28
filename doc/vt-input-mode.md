@@ -251,8 +251,7 @@ Modifier                                | kvm CtrlState   | win32 CtrlState
 <kbd>RightWin</kbd>                     | ` 512` `0x0200` |
 <kbd>LeftWin</kbd>                      | `1024` `0x0400` |
 <kbd>Win</kbd>                          | `1536` `0x0600` |
-<kbd>Normal Mode</kbd>                  | `4096` `0x1000` |
-<kbd>Application Mode</kbd>             | `8192` `0x2000` |
+<kbd>DECCKM</kbd>                       | `4096` `0x1000` |
 
 ### Physical Keys
 
