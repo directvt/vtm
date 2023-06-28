@@ -37,7 +37,7 @@ Type    | Events to track
 `mouse` | Mouse
 `focus` | Focus
 `winsz` | Window size
-`paste` | Clipoard paste
+`paste` | Clipboard paste
 `break` | Application break
 
 This sequence enables `vt-input-mode` and event tracking for the specified event `Type`s. The `vt-input-mode` is deactivated if none of the `Type`s is specified.
