@@ -27,17 +27,17 @@ Anyone who want to:
 ## Initialization
 
 ```
-Set:   ESC _ i n p u t ; s e t ; Type1 ; ... ; TypeN ST
-Reset: ESC _ i n p u t ; s e t ST
+Set:   ESC _ i n p u t ; s e t u p ; Type1 ; ... ; TypeN ST
+Reset: ESC _ i n p u t ; s e t u p ST
 ```
 
 Type    | Events to track
 --------|----------------
 `keybd` | Keyboard
 `mouse` | Mouse
-`focus` | Focus
+`focus` | Window focus
 `winsz` | Window size
-`paste` | Clipboard paste
+`paste` | Clipoard paste
 `break` | Application break
 
 This sequence enables `vt-input-mode` and event tracking for the specified event `Type`s. The `vt-input-mode` is deactivated if none of the `Type`s is specified.
@@ -148,7 +148,7 @@ ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY 
 
 Field                                        | Description
 ---------------------------------------------|------------
-`WinSizeX`<br>`WinSizeY`                     | Terminal viewport size.
+`WinSizeX`<br>`WinSizeY`                     | Terminal window size in cells.
 `CaretX`<br>`CaretY`                         | Current text cursor position.
 `ScrollTop`/`Bottom`<br>`ScrollLeft`/`Right` | Scrolling region margins.
 `SelStartX`/`Y`<br>`SelEndX`/`Y`             | Coordinates of the text selection start/end (half-open interval).
@@ -157,9 +157,9 @@ Field                                        | Description
 
 This sequence is the first one received by the application right after `vt-input-mode` is activated (input redirection detection).
 
-#### Viewport tracking
+#### Mandatory synchronization
 
-When the terminal window is resized, the viewport is finally changed only after a handshake between the terminal and the application. Successive multiple resizing of the window initiates the same number of handshakes.
+When the terminal window is resized, the changes are only applied after a handshake between the terminal and the application. Successive multiple resizing of the window initiates the same number of handshakes.
 
 Handshake steps:
 1. The terminal requests a new size, omitting all other parameters.
@@ -172,13 +172,13 @@ Application: ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY _
 Terminal:    ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
 ```
 
-Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
+Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
 
-#### Selection Tracking
+#### Selection tracking
 
-The viewport tracking sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
+The window size tracking sequence is fired after every scrollback text selection changed. In the case of using the mouse for selection, a single left click is treated as a special case of selection when the start and end are the same (empty selection).
 
-Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values.
+Note that selected text in the scrollback above the top index row will produce negative Y-coordinate values.
 
 ### Application Break
 
