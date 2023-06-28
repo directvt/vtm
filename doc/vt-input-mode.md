@@ -1,15 +1,15 @@
 status: draft
 
-# Next Generation VT Input Mode Protocol
+# VT Input Mode Protocol
 
-The goal of the `ngvt-input-mode` protocol is to make command line interactivity cross-platform.
+The goal of the `vt-input-mode` protocol is to make command line interactivity cross-platform.
 
 - No TTY required.
 - No OS-level signal tracking required.
 
 ## Audience
 
-You want to:
+Anyone who want to:
 - Operate without an allocated TTY.
 - Share you application on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
@@ -27,54 +27,54 @@ You want to:
 ## Initialization
 
 ```
-Set:   ESC _ n g v t ; 0 ; Id ; ... ; Id BEL
-Reset: ESC _ n g v t ; 0 BEL
+Set:   ESC _ i n p u t ; s e t ; Type1 ; ... ; TypeN ST
+Reset: ESC _ i n p u t ; s e t ST
 ```
 
-Id   | Events to track
------|------------
-1    | Keyboard
-2    | Mouse
-3    | Focus
-4    | Clipboard
-5    | Viewport
-6    | System
+Type    | Events to track
+--------|----------------
+`keybd` | Keyboard
+`mouse` | Mouse
+`focus` | Focus
+`winsz` | Window size
+`paste` | Clipoard paste
+`break` | Application break
 
-This sequence enables `ngvt-input-mode` and event tracking for the specified event Ids. The mode is deactivated if none of the Ids is specified.
+This sequence enables `vt-input-mode` and event tracking for the specified event `Type`s. The `vt-input-mode` is deactivated if none of the `Type`s is specified.
 
-Note: By enabling `ngvt-input-mode`, all terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
+Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
-## Events
+## Input Events
 
 - Keyboard
   ```
-  ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+  ESC _ i n p u t ; k e y b d ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn ST
   ```
 - Mouse
   ```
-  ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+  ESC _ i n p u t ; m o u s e ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState ST
   ```
 - Focus
   ```
-  ESC _ n g v t ; 3 ; FocusState BEL
+  ESC _ i n p u t ; f o c u s ; FocusState ST
   ```
-- Clipboard
+- Clipboard paste
   ```
-  ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
+  ESC _ i n p u t ; p a s t e ; ClipFormat ; Data ST
   ```
-- Viewport
+- Window size
   ```
-  ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+  ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
   ```
-- System
+- Application break
   ```
-  ESC _ n g v t ; 6 ; Signal BEL
+  ESC _ i n p u t ; b r e a k ; Reason ST
   ```
 
 ### Keyboard
 
 ```
-ESC _ n g v t ; 1 ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn BEL
+ESC _ i n p u t ; k e y b d ; KeyId ; KeyState ; CtrlState ; ScanCode ; UniCode ; C0 ; … ; Cn ST
 ```
 
 Field            | Description
@@ -102,7 +102,7 @@ Function keys always have `UniCode` set to zero, and a set of `C1`, ..., `Cn` co
 ### Mouse
 
 ```
-ESC _ n g v t ; 2 ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState BEL
+ESC _ i n p u t ; m o u s e ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ; CtrlState ST
 ```
 
 Field          | Description
@@ -118,7 +118,7 @@ The reason for not using the existing mouse tracking modes is the lack of suppor
 ### Focus
 
 ```
-ESC _ n g v t ; 3 ; FocusState BEL
+ESC _ i n p u t ; f o c u s ; FocusState ST
 ```
 
 Field        | Description
@@ -127,10 +127,10 @@ Field        | Description
 
 The reason for not using the existing focus tracking mode is the convenient enabling/disabling of this mode - all tracking modes in one sequence.
 
-### Clipboard
+### Clipboard Paste
 
 ```
-ESC _ n g v t ; 4 ; ClipFormat ; Data BEL
+ESC _ i n p u t ; p a s t e ; ClipFormat ; Data ST
 ```
 
 Field        | Description
@@ -140,10 +140,10 @@ Field        | Description
 
 The reason for not using bracketed paste mode is that there is no support for transferring binary data and data containing sequences of the bracketed paste mode itself.
 
-### Viewport
+### Window Size
 
 ```
-ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
 ```
 
 Field                                        | Description
@@ -155,7 +155,7 @@ Field                                        | Description
 `SelMode`                                    | Text selection mode: 0 - line-based, 1 - rect-based.
 `CtrlState`                                  | Keyboard modifiers state.
 
-This sequence is the first one received by the application right after `ngvt-input-mode` is activated (input redirection detection).
+This sequence is the first one received by the application right after `vt-input-mode` is activated (input redirection detection).
 
 #### Viewport tracking
 
@@ -167,9 +167,9 @@ Handshake steps:
 3. The terminal applies the new size and sends the changes.
 
 ```
-Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
-Application: ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY _
-Terminal:    ESC _ n g v t ; 5 ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode BEL
+Terminal:    ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY _
+Application: ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY _
+Terminal:    ESC _ i n p u t ; w i n s z ; WinSizeX ; WinSizeY ; CtrlState ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ST
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the viewport size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
@@ -180,13 +180,13 @@ The viewport tracking sequence is fired after every scrollback text selection ch
 
 Note that selected text in the scrollback above the viewport top level will produce negative Y-coordinate values.
 
-### System
+### Application Break
 
 ```
-ESC _ n g v t ; 6 ; Signal BEL
+ESC _ i n p u t ; b r e a k ; Reason ST
 ```
 
-Signal | Description
+Reason | Description
 -------|------------
 `0`    | Terminal window closing
 `1`    | <kbd>Ctrl+Break</kbd> pressed
@@ -441,10 +441,3 @@ while True:
 ```
 
 ### PowerShell
-
-```powershell
-while ($True)
-{
-   "test";
-}
-```
