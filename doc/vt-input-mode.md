@@ -222,7 +222,7 @@ Scan codes for the keys on a standard 104-key keyboard:
 
 The state `CtrlState` of keyboard modifiers is the binary OR of all currently pressed modifiers and enabled modes.
 
-Modifier                                | kvm CtrlState  
+Modifier                                | `CtrlState`
 ----------------------------------------|----------------
 <kbd>RightAlt</kbd> or <kbd>AltGr</kbd> | `   1` `0x0001`
 <kbd>LeftAlt</kbd>                      | `   2` `0x0002`
