@@ -2787,9 +2787,9 @@ namespace netxs::os
             static auto setup = text{};
             return setup;
         }
-        void send(fd_t m_pipe_w, view config)
+        void send(fd_t m_pipe_w, size_t config_size)
         {
-            auto buffer = directvt::binary::marker{ config.size() };
+            auto buffer = directvt::binary::marker{ config_size };
             io::send(m_pipe_w, buffer);
         }
         auto peek(fd_t stdin_fd)
@@ -2923,7 +2923,7 @@ namespace netxs::os
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
                          && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
-                            os::dtvt::send(m_pipe_w, config);
+                            os::dtvt::send(m_pipe_w, config.size());
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
                             startinf.StartupInfo.hStdOutput = s_pipe_w;
@@ -2998,7 +2998,7 @@ namespace netxs::os
                     ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
 
                     termlink = { to_server[0], to_client[1] };
-                    os::dtvt::send(to_client[1], config);
+                    os::dtvt::send(to_client[1], config.size());
 
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.
@@ -3781,9 +3781,6 @@ namespace netxs::os
 
             #if defined(_WIN32)
 
-                // The input codepage to UTF-8 is severely broken in all Windows versions.
-                // ReadFile and ReadConsoleA either replace non-ASCII characters with NUL
-                // or return 0 bytes read.
                 auto reply = std::vector<INPUT_RECORD>(1);
                 auto count = DWORD{};
                 auto stamp = ui32{};
@@ -3794,19 +3791,15 @@ namespace netxs::os
                 {
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count))
                     {
-                        // ERROR_PIPE_NOT_CONNECTED
-                        // 233 (0xE9)
-                        // No process is on the other end of the pipe.
                         os::process::exit(-1, prompt::tty, "::GetNumberOfConsoleInputEvents()", os::unexpected_msg, " ", ::GetLastError());
                         break;
                     }
                     else if (count)
                     {
                         if (count > reply.size()) reply.resize(count);
-
                         if (!::ReadConsoleInputW(os::stdin_fd, reply.data(), (DWORD)reply.size(), &count))
                         {
-                            //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed
+                            //ERROR_PIPE_NOT_CONNECTED = 0xE9 - it's means that the console is gone/crashed.
                             os::process::exit(-1, prompt::tty, "::ReadConsoleInput()", os::unexpected_msg, " ", ::GetLastError());
                             break;
                         }
@@ -3841,8 +3834,8 @@ namespace netxs::os
                                             auto& dn_2 = *(entry + 1);
                                             auto& up_2 = *(entry + 2);
                                             if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
-                                                && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
-                                                && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
+                                             && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
+                                             && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
                                             {
                                                 entry += 3;
                                                 utf::to_utf_from_code(point, toutf);
