@@ -366,7 +366,7 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;                                              }
         };
 
-        ring(si32 ring_size, si32 grow_by = 0)
+        ring(si32 ring_size, si32 grow_by = 0, si32 mxsz = netxs::si32max)
             : step{ grow_by                      },
               head{ 0                            },
               tail{ ring_size ? ring_size : step },
@@ -374,7 +374,7 @@ namespace netxs::generics
               buff( peak                         ), // Rounded brackets! Not curly! In oreder to call T::ctor().
               size{ 0                            },
               cart{ 0                            },
-              mxsz{ si32max - step               }
+              mxsz{ mxsz == netxs::si32max ? mxsz - step : mxsz }
         { }
 
         virtual void undock_base_front(type&) { };

@@ -4536,11 +4536,12 @@ struct consrv
     }
     void reset()
     {
-        inpmod = nt::console::inmode::preprocess
+        inpmod = nt::console::inmode::preprocess & inpmod // Keep the `preprocess` mode, since WSL depends on it (e.g. Ctrl+C after reset in WSL).
                | nt::console::inmode::cooked
                | nt::console::inmode::echo
              //| nt::console::inmode::mouse // Should be disabled in order to selection mode be enabled on startup.
                | nt::console::inmode::insert
+               | nt::console::inmode::vt & inpmod // Keep the `vt` mode, since WSL depends on it (e.g. ArrowKeys after reset in WSL).
                | nt::console::inmode::quickedit;
         outmod = nt::console::outmode::preprocess
                | nt::console::outmode::wrap_at_eol
@@ -4564,6 +4565,8 @@ struct consrv
           impcls{ faux   },
           answer{        },
           winhnd{        },
+          inpmod{ nt::console::inmode::preprocess },
+          outmod{        },
           prompt{ utf::concat(netxs::prompt::win32) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
