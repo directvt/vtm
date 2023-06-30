@@ -43,8 +43,8 @@
 Name         | Sequence                         | Description
 -------------|----------------------------------|-----------
 `CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Scrollback buffer configuration<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
-`CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR parameters (one attribute at once)<br>`Pm` Colon-separated list of attribute parameters, 0 — reset all attributes, _default is 0_
-`CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
+`CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR attributes (one attribute at once)<br>`Pm` Colon-separated list of attributes, 0 — reset all attributes, _default is 0_
+`CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode<br>`n = 0` Selection is off (default)<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
 `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollbuffer side padding<br>`n` Width in cells, _max = 255, default is 0_
 `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
 `CCC_TBS`    | `CSI` 5 : n `p`                  | Set tab length<br>`n` Length in cells, _max = 256, default is 8_
