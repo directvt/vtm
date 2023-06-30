@@ -244,7 +244,7 @@ namespace netxs::ui
             si32 size{}; // term_state: Terminal scrollback current size.
             si32 peak{}; // term_state: Terminal scrollback limit.
             si32 step{}; // term_state: Terminal scrollback increase step.
-            si32 mxsz{}; // term_state: Terminal scrollback increase step.
+            si32 mxsz{}; // term_state: Terminal scrollback increase limit.
             twod area{}; // term_state: Terminal viewport size.
             buff data{}; // term_state: Status string.
             type mode{}; // term_state: Selection mode.
