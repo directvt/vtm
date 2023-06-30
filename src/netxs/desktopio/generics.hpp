@@ -366,15 +366,15 @@ namespace netxs::generics
             auto  operator == (iter const& m) const { return addr == m.addr;                                              }
         };
 
-        ring(si32 ring_size, si32 grow_by = 0)
-            : step{ grow_by                      },
-              head{ 0                            },
-              tail{ ring_size ? ring_size : step },
-              peak{ tail + 1                     },
-              buff( peak                         ), // Rounded brackets! Not curly! In oreder to call T::ctor().
-              size{ 0                            },
-              cart{ 0                            },
-              mxsz{ si32max - step               }
+        ring(si32 ring_size, si32 grow_by = 0, si32 grow_mx = 0)
+            : step{ std::clamp(grow_by, 0, netxs::si32max / 4) },
+              head{ 0 },
+              tail{ ring_size ? std::clamp(ring_size, 0, netxs::si32max / 2) : step },
+              peak{ tail + 1 },
+              buff(peak), // Rounded brackets! Not curly! In oreder to call T::ctor().
+              size{ 0 },
+              cart{ 0 },
+              mxsz{ std::clamp(grow_mx, 0, netxs::si32max - 2) }
         { }
 
         virtual void undock_base_front(type&) { };
@@ -412,8 +412,12 @@ namespace netxs::generics
         {
             if (size == peak - 1)
             {
-                if (step && peak < mxsz) resize(size + step, step);
-                else                     return true;
+                if (step && peak <= mxsz)
+                {
+                    auto new_size = (si32)std::min((ui32)size + (ui32)step, (ui32)mxsz);
+                    resize(new_size);
+                }
+                else return true;
             }
             return faux;
         }
@@ -583,8 +587,9 @@ namespace netxs::generics
             tail = peak - 1;
         }
         template<bool BottomAnchored = true>
-        void resize(si32 new_size, si32 grow_by = 0)
+        void resize(si32 new_size)
         {
+            if (new_size <= 0) new_size = step;
             if (new_size > 0)
             {
                 if constexpr (BottomAnchored)
@@ -628,9 +633,14 @@ namespace netxs::generics
                 peak = new_size;
                 head = 0;
                 tail = size ? size - 1 : peak - 1;
-                step = grow_by;
             }
-            else step = grow_by;
+        }
+        template<bool BottomAnchored = true>
+        void resize(si32 new_size, si32 grow_by, si32 grow_mx)
+        {
+            step = std::clamp(grow_by, 0, netxs::si32max / 4);
+            mxsz = std::clamp(grow_mx, 0, netxs::si32max - 2);
+            resize<BottomAnchored>(new_size);
         }
         template<class P>
         void for_each(si32 from, si32 upto, P proc)
