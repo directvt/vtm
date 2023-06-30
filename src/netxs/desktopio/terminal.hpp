@@ -131,7 +131,7 @@ namespace netxs::ui
             si32 def_mxline;
             si32 def_length;
             si32 def_growdt;
-            si32 def_maxlen;
+            si32 def_growmx;
             wrap def_wrpmod;
             si32 def_tablen;
             si32 def_lucent;
@@ -186,7 +186,7 @@ namespace netxs::ui
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
                 def_growdt = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
-                def_maxlen = std::max(0, config.take("scrollback/growlimit", si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("scrollback/growlimit", si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
@@ -260,7 +260,7 @@ namespace netxs::ui
                     data.clear();
                     if (hash) data.scp();
                     data.jet(bias::right).add(size, "/", peak);
-                    if (size != mxsz) data.add("+", step);
+                    if (step && size != mxsz) data.add("+", step);
                     data.add(" ", area.x, ":", area.y);
                     if (hash)
                     {
@@ -2703,7 +2703,7 @@ namespace netxs::ui
                     if (ring::peak <= new_size.y)
                     {
                         static constexpr auto BOTTOM_ANCHORED = true;
-                        ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
+                        ring::resize<BOTTOM_ANCHORED>(new_size.y);
                     }
                     return old_value != vsize;
                 }
@@ -2834,7 +2834,7 @@ namespace netxs::ui
 
             scroll_buf(term& boss)
                 : bufferbase{ boss },
-                       batch{ boss.config.def_length, boss.config.def_growdt, boss.config.def_maxlen },
+                       batch{ boss.config.def_length, boss.config.def_growdt, boss.config.def_growmx },
                        index{ 0    },
                        place{      },
                        shore{ boss.config.def_margin }
@@ -4461,12 +4461,13 @@ namespace netxs::ui
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
+                resize_history(owner.config.def_length, owner.config.def_growdt, owner.config.def_growmx);
             }
             // scroll_buf: Set scrollback limits.
-            void resize_history(si32 new_size, si32 grow_by = 0)
+            void resize_history(si32 new_size, si32 grow_by = 0, si32 grow_mx = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
-                batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
+                batch.resize<BOTTOM_ANCHORED>(std::max(new_size, panel.y), grow_by, grow_mx);
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
@@ -6443,7 +6444,8 @@ namespace netxs::ui
             target->flush();
             auto ring_size = queue(config.def_length);
             auto grow_step = queue(config.def_growdt);
-            normal.resize_history(ring_size, grow_step);
+            auto grow_mxsz = queue(config.def_growmx);
+            normal.resize_history(ring_size, grow_step, grow_mxsz);
         }
         // term: Check and update scrollback buffer limits.
         void sb_min(si32 min_length)

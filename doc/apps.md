@@ -41,18 +41,18 @@
 ## VT Runtime configuraion sequences
 
 Name         | Sequence                         | Description
--------------|----------------------------------|-------------
-`CCC_SBS`    | `CSI` 24 : n : m `p`             | Set scrollback buffer size, `int32_t`<br>`n` Initial buffer size in lines; 0 — grow step is used for initial size; _default (if omitted) is 20.000_<br>`m` Grow step for unlimited buffer; _default (if omitted) is 0_ — for fixed size buffer
+-------------|----------------------------------|-----------
+`CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Scrollback buffer configuration<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
 `CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR parameters (one attribute at once)<br>`Pm` Colon-separated list of attribute parameters, 0 — reset all attributes, _default is 0_
 `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode, _default is 0_<br>`n = 0` Selection is off<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))
 `CCC_PAD`    | `CSI` 30 : n `p`                 | Set scrollbuffer side padding<br>`n` Width in cells, _max = 255, default is 0_
 `CCC_RST`    | `CSI` 1 `p`                      | Reset all parameters to default
-`CCC_TBS`    | `CSI` 5 : n `p`                  | Set tabulation length<br>`n` Length in cells, _max = 256, default is 8_
+`CCC_TBS`    | `CSI` 5 : n `p`                  | Set tab length<br>`n` Length in cells, _max = 256, default is 8_
 `CCC_JET`    | `CSI` 11 : n `p`                 | Set text alignment, _default is Left_<br>`n = 0` default<br>`n = 1` Left<br>`n = 2` Right<br>`n = 3` Center
 `CCC_WRP`    | `CSI` 12 : n `p`                 | Set text autowrap mode, _default is On_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off (_enable horizontal scrolling_)
 `CCC_RTL`    | `CSI` 13 : n `p`                 | Set text right-to-left mode, _default is Off_<br>`n = 0` default<br>`n = 1` On<br>`n = 2` Off
 
-Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets the background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
+Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
 ## Custom menu configuration
       
@@ -61,7 +61,7 @@ Terminal window menu can be composed from scratch by specifying a list of menu i
 ## Attributes for the `<config/term/menu/item>` object
 
 Attribute  | Description
------------|----------------
+-----------|------------
 type       | Menu item type. `type=Command` is used by default.
 label      | Menu item label list. One or more textual representations selected by `data=` value.
 notes      | Tooltip.
@@ -72,7 +72,7 @@ hotkey     | Keyboard shortcut for this menu item. Inherited by the label attrib
 ## Attributes for the `<config/term/menu/item/label>` sub-object
 
 Attribute        | Description
------------------|----------------
+-----------------|------------
 _internal_value_ | Label display variation `label="_internal_value_"`.
 notes            | Tooltip. Inherited from item if not specified.
 action           | The function name which called on item activation. Inherited from item if not specified.
