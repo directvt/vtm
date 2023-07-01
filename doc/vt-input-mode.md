@@ -11,7 +11,7 @@ The goal of the `vt-input-mode` protocol is to make command line interactivity c
 
 Anyone who want to:
 - Operate without an allocated TTY.
-- Share an application on LAN (using inetd, netcat, etc).
+- Share thier application on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
 - Distinguish between Left and Right physical keys.
@@ -418,7 +418,7 @@ Application: ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY _
 Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
 ```
 
-Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output.
+Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by clipping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
 
 #### Selection tracking
 
