@@ -9,9 +9,9 @@ The goal of the `vt-input-mode` protocol is to make command line interactivity c
 
 ## Audience
 
-Anyone who want to:
-- Operate without an allocated TTY.
-- Share thier application on LAN (using inetd, netcat, etc).
+Anyone who wants to:
+- Operate without TTY.
+- Share applications on LAN (using inetd, netcat, etc).
 - Track every key press and key release.
 - Track position dependent keys such as WASD.
 - Distinguish between Left and Right physical keys.
@@ -44,8 +44,8 @@ Type                | Events to track
 `k e y b o a r d`   | Keyboard.
 `m o u s e`         | Mouse.
 `f o c u s`         | Focus.
-`w i n d o w`       | Window size and selection.
 `c l i p b o a r d` | Clipboard.
+`w i n d o w`       | Window size and selection.
 `s y s t e m`       | System signals.
 
 This sequence enables `vt-input-mode` and event tracking for the specified event `Type`s. The `vt-input-mode` is deactivated if none of the `Type`s is specified.
@@ -66,13 +66,13 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
   ```
   ESC _ i n p u t ; f o c u s ; FocusState ESC \
   ```
-- Window
-  ```
-  ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
-  ```
 - Clipboard
   ```
   ESC _ i n p u t ; c l i p b o a r d ; ClipFormat ; SecLevel ; Data ESC \
+  ```
+- Window
+  ```
+  ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
   ```
 - System
   ```
@@ -408,9 +408,11 @@ In response to the activation of `w i n d o w` tracking, the application receive
 When the terminal window is resized, the changes are only applied after a handshake between the terminal and the application. Successive multiple resizing of the window initiates the same number of handshakes.
 
 Handshake steps:
-1. The terminal requests a new size, omitting all other parameters.
-2. Application must reply with the same message.
-3. The terminal applies the new size and sends the changes.
+1. Terminal requests a new size, omitting all other parameters.
+   - Application adapts to the new size, e.g. by updating, cropping or removing visible lines.
+2. Application replies with the same message.
+3. Terminal applies the new size and sends the changes.
+   - Application updates its UI.
 
 ```
 Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY _
@@ -418,7 +420,7 @@ Application: ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY _
 Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
 ```
 
-Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by clipping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
+Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by cropping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
 
 #### Selection tracking
 
