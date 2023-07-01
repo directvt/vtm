@@ -409,8 +409,8 @@ When the terminal window is resized, the changes are only applied after a handsh
 
 Handshake steps:
 1. Terminal requests a new size, omitting all other parameters.
-   - Application adapts to the new size, e.g. by updating, cropping or removing visible lines.
-2. Application replies with the same message.
+   - Application receives the request and prepares for resizing, e.g. by updating, cropping or deleting visible lines.
+2. Application replies with the same message as the request.
 3. Terminal applies the new size and sends the changes.
    - Application updates its UI.
 
@@ -421,6 +421,20 @@ Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; Care
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by cropping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
+
+Hypothetical case with Far Manager (FM):
+- FM saves visible original scrollback.
+- FM draws its UI on top of the visible original scrollback.
+- Terminal sends a resize request.
+- FM receives request.
+- FM restores the original scrollback.
+- FM replies on resize request.
+- Terminal receives reply.
+- Terminal resizes the window and reflows the scrollback.
+- Terminal sends modified window parameters.
+- FM receives modified window parameters.
+- FM saves the modified scrollback.
+- FM draws its UI on top of the scrollback.
 
 #### Selection tracking
 
