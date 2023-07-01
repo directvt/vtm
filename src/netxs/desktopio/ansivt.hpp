@@ -238,7 +238,7 @@ namespace netxs::ansi
     static const auto ccc_chx    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
     static const auto ccc_chy    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
     static const auto ccc_ref    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
-    static const auto ccc_sbs    = 24 ; // CSI 24: n: m    p  - define scrollback size: n: max size, m: grow_by step.
+    static const auto ccc_sbs    = 24 ; // CSI 24: n: m: q p  - define scrollback size: n: init size, m: grow_by step, q: max limit.
     static const auto ccc_sms    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
     static const auto ccc_sgr    = 28 ; // CSI 28: ...     p  - Set the default SGR attribute for the built-in terminal background (one attribute per command).
     static const auto ccc_sel    = 29 ; // CSI 29: n       p  - Set selection mode for the built-in terminal, n: 0 - off, 1 - plaintext, 2 - ansi-text.

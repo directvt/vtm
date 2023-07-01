@@ -130,7 +130,8 @@ namespace netxs::ui
 
             si32 def_mxline;
             si32 def_length;
-            si32 def_growup;
+            si32 def_growdt;
+            si32 def_growmx;
             wrap def_wrpmod;
             si32 def_tablen;
             si32 def_lucent;
@@ -184,7 +185,8 @@ namespace netxs::ui
                 config.cd("/config/term/");
                 def_mxline = std::max(1, config.take("scrollback/maxline",   si32{ 65535 }));
                 def_length = std::max(1, config.take("scrollback/size",      si32{ 40000 }));
-                def_growup = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
+                def_growdt = std::max(0, config.take("scrollback/growstep",  si32{ 0 }    ));
+                def_growmx = std::max(0, config.take("scrollback/growlimit", si32{ 0 }    ));
                 def_wrpmod =             config.take("scrollback/wrap",      deco::defwrp == wrap::on) ? wrap::on : wrap::off;
                 resetonkey =             config.take("scrollback/reset/onkey",     true);
                 resetonout =             config.take("scrollback/reset/onoutput",  faux);
@@ -242,6 +244,7 @@ namespace netxs::ui
             si32 size{}; // term_state: Terminal scrollback current size.
             si32 peak{}; // term_state: Terminal scrollback limit.
             si32 step{}; // term_state: Terminal scrollback increase step.
+            si32 mxsz{}; // term_state: Terminal scrollback increase limit.
             twod area{}; // term_state: Terminal viewport size.
             buff data{}; // term_state: Status string.
             type mode{}; // term_state: Selection mode.
@@ -256,10 +259,9 @@ namespace netxs::ui
                 {
                     data.clear();
                     if (hash) data.scp();
-                    data.jet(bias::right).add(size,
-                                         "/", peak,
-                                         "+", step,
-                                         " ", area.x, ":", area.y);
+                    data.jet(bias::right).add(size, "/", peak);
+                    if (step && size != mxsz) data.add("+", step);
+                    data.add(" ", area.x, ":", area.y);
                     if (hash)
                     {
                         data.rcp().jet(bias::left);
@@ -1131,6 +1133,7 @@ namespace netxs::ui
             virtual si32 get_size() const                                               = 0;
             virtual si32 get_peak() const                                               = 0;
             virtual si32 get_step() const                                               = 0;
+            virtual si32 get_mxsz() const                                               = 0;
                     auto get_view() const { return panel; }
                     auto get_mode() const { return !selection_active() ? term_state::type::empty:
                                                     selection_selbox() ? term_state::type::block:
@@ -2100,6 +2103,7 @@ namespace netxs::ui
                 auto changed = faux;
                 if (auto v = get_size(); status.size != v) { changed = true; status.size = v; }
                 if (auto v = get_peak(); status.peak != v) { changed = true; status.peak = v; }
+                if (auto v = get_mxsz(); status.mxsz != v) { changed = true; status.mxsz = v; }
                 if (auto v = get_step(); status.step != v) { changed = true; status.step = v; }
                 if (auto v = get_view(); status.area != v) { changed = true; status.area = v; }
                 if (auto v = selection_active(); status.hash != v)
@@ -2140,6 +2144,7 @@ namespace netxs::ui
 
             si32 get_size() const override { return panel.y; }
             si32 get_peak() const override { return panel.y; }
+            si32 get_mxsz() const override { return panel.y; }
             si32 get_step() const override { return 0;       }
 
             // alt_screen: Resize viewport.
@@ -2698,7 +2703,7 @@ namespace netxs::ui
                     if (ring::peak <= new_size.y)
                     {
                         static constexpr auto BOTTOM_ANCHORED = true;
-                        ring::resize<BOTTOM_ANCHORED>(new_size.y, ring::step);
+                        ring::resize<BOTTOM_ANCHORED>(new_size.y);
                     }
                     return old_value != vsize;
                 }
@@ -2829,7 +2834,7 @@ namespace netxs::ui
 
             scroll_buf(term& boss)
                 : bufferbase{ boss },
-                       batch{ boss.config.def_length, boss.config.def_growup },
+                       batch{ boss.config.def_length, boss.config.def_growdt, boss.config.def_growmx },
                        index{ 0    },
                        place{      },
                        shore{ boss.config.def_margin }
@@ -2846,6 +2851,7 @@ namespace netxs::ui
             si32 get_size() const override { return batch.size;     }
             si32 get_peak() const override { return batch.peak - 1; }
             si32 get_step() const override { return batch.step;     }
+            si32 get_mxsz() const override { return batch.mxsz;     }
 
             void print_slide(text msg)
             {
@@ -4455,12 +4461,13 @@ namespace netxs::ui
                 batch.clear();
                 reset_scroll_region();
                 bufferbase::clear_all();
+                resize_history(owner.config.def_length, owner.config.def_growdt, owner.config.def_growmx);
             }
             // scroll_buf: Set scrollback limits.
-            void resize_history(si32 new_size, si32 grow_by = 0)
+            void resize_history(si32 new_size, si32 grow_by = 0, si32 grow_mx = 0)
             {
                 static constexpr auto BOTTOM_ANCHORED = true;
-                batch.resize<BOTTOM_ANCHORED>(new_size, grow_by);
+                batch.resize<BOTTOM_ANCHORED>(std::max(new_size, panel.y), grow_by, grow_mx);
                 index_rebuild();
             }
             // scroll_buf: Render to the canvas.
@@ -6436,8 +6443,9 @@ namespace netxs::ui
         {
             target->flush();
             auto ring_size = queue(config.def_length);
-            auto grow_step = queue(config.def_growup);
-            normal.resize_history(ring_size, grow_step);
+            auto grow_step = queue(config.def_growdt);
+            auto grow_mxsz = queue(config.def_growmx);
+            normal.resize_history(ring_size, grow_step, grow_mxsz);
         }
         // term: Check and update scrollback buffer limits.
         void sb_min(si32 min_length)

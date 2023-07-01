@@ -238,7 +238,7 @@ Note: The following configuration sections are not implemented yet
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
-                        <size=35000    />   <!-- Scrollback buffer length. -->
+                        <size=35000    />   <!-- Initial scrollback buffer length. -->
                         <wrap="on"     />   <!-- Lines wrapping mode. -->
                     </scrollback>
                     <color>
