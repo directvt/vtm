@@ -480,3 +480,10 @@ while True:
 ```
 
 ### PowerShell
+
+```powershell
+while { $True }
+{
+    "test\n";
+}
+```
