@@ -3940,15 +3940,28 @@ namespace netxs::os
                 {
                     auto state = si32{ 0 };
                     #if defined(__linux__)
-                        auto shift_state = si32{ 6 };
+                        auto shift_state = si32{ 6 /*TIOCL_GETSHIFTSTATE*/ };
                         ok(::ioctl(os::stdin_fd, TIOCLINUX, &shift_state), "::ioctl(os::stdin_fd, TIOCLINUX)", os::unexpected_msg);
-                        state = 0
-                            | (shift_state & (1 << KG_ALTGR)) >> 1 // 0x1
-                            | (shift_state & (1 << KG_ALT  )) >> 2 // 0x2
-                            | (shift_state & (1 << KG_CTRLR)) >> 5 // 0x4
-                            | (shift_state & (1 << KG_CTRL )) << 1 // 0x8
-                            | (shift_state & (1 << KG_SHIFT)) << 4 // 0x10
-                            ;
+                        auto lalt   = shift_state & (1 << KG_ALT   );
+                        auto ralt   = shift_state & (1 << KG_ALTGR );
+                        auto ctrl   = shift_state & (1 << KG_CTRL  );
+                        auto rctrl  = shift_state & (1 << KG_CTRLR );
+                        auto lctrl  = shift_state & (1 << KG_CTRLL ) || (!rctrl && ctrl);
+                        auto shift  = shift_state & (1 << KG_SHIFT );
+                        auto rshift = shift_state & (1 << KG_SHIFTR);
+                        auto lshift = shift_state & (1 << KG_SHIFTL) || (!rshift && shift);
+                        if (lalt  ) state |= input::hids::LAlt;
+                        if (ralt  ) state |= input::hids::RAlt;
+                        if (lctrl ) state |= input::hids::LCtrl;
+                        if (rctrl ) state |= input::hids::RCtrl;
+                        if (lshift) state |= input::hids::LShift;
+                        if (rshift) state |= input::hids::RShift;
+                        auto led_state = si32{};
+                        ok(::ioctl(os::stdin_fd, KDGKBLED, &led_state), "::ioctl(os::stdin_fd, KDGKBLED)", os::unexpected_msg);
+                        // CapsLock can always be 0 due to poorly coded drivers.
+                        if (led_state & LED_NUM) state |= input::hids::NumLock;
+                        if (led_state & LED_CAP) state |= input::hids::CapsLock;
+                        if (led_state & LED_SCR) state |= input::hids::ScrlLock;
                     #endif
                     return state;
                 };
@@ -3993,6 +4006,7 @@ namespace netxs::os
                     }
                 }
 
+                auto linux_console = os::vt::console();
                 auto m = input::sysmouse{};
                 auto k = input::syskeybd{};
                 auto f = input::sysfocus{};
@@ -4008,7 +4022,24 @@ namespace netxs::os
                 // ESC [ < 0 ; x ; y M/m
                 auto filter = [&](view accum)
                 {
-                    total += accum;
+                    if (linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.
+                    {
+                             if (accum == "\033[[A"sv ) total += "\033OP"sv;     // F1
+                        else if (accum == "\033[[B"sv ) total += "\033OQ"sv;     // F2
+                        else if (accum == "\033[[C"sv ) total += "\033OR"sv;     // F3
+                        else if (accum == "\033[[D"sv ) total += "\033OS"sv;     // F4
+                        else if (accum == "\033[[E"sv ) total += "\033[15~"sv;   // F5
+                        else if (accum == "\033[25~"sv) total += "\033[1;2P"sv;  // Shift+F1
+                        else if (accum == "\033[26~"sv) total += "\033[1;2Q"sv;  // Shift+F2
+                        else if (accum == "\033[28~"sv) total += "\033[1;2R"sv;  // Shift+F3
+                        else if (accum == "\033[29~"sv) total += "\033[1;2S"sv;  // Shift+F4
+                        else if (accum == "\033[31~"sv) total += "\033[15;2~"sv; // Shift+F5
+                        else if (accum == "\033[32~"sv) total += "\033[17;2~"sv; // Shift+F6
+                        else if (accum == "\033[33~"sv) total += "\033[18;2~"sv; // Shift+F7
+                        else if (accum == "\033[34~"sv) total += "\033[19;2~"sv; // Shift+F8
+                        else total += accum;
+                    }
+                    else total += accum;
                     auto strv = view{ total };
 
                     //#ifndef PROD
@@ -4139,12 +4170,13 @@ namespace netxs::os
                                                             m.ctlstat = {};
                                                             // 000 000 00
                                                             //   | ||| ||
-                                                            //   | ||| ------ button number
-                                                            //   | ---------- ctl state
+                                                            //   | ||| └----- button number
+                                                            //   | └--------- ctl state
                                                             if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
                                                             if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
                                                             if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
                                                             ctl &= ~0b00011100;
+                                                            k.ctlstat = m.ctlstat;
 
                                                             if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
                                                             {
@@ -4228,7 +4260,23 @@ namespace netxs::os
                     auto data = io::recv(os::stdin_fd, buffer.data(), buffer.size());
                     if (micefd != os::invalid_fd)
                     {
-                        k.ctlstat = get_kb_state();
+                        auto kbmod = get_kb_state();
+                        if (k.ctlstat != kbmod)
+                        {
+                            k.ctlstat = kbmod;
+                            auto sysmouse = wired.sysmouse.freeze().thing; // Fire mouse event to update kb modifiers.
+                            wired.sysmouse.send(ipcio,
+                                0,
+                                kbmod,
+                                input::hids::stat::ok,
+                                sysmouse.buttons,
+                                0,
+                                0,
+                                0,
+                                0,
+                                sysmouse.coordxy,
+                                m.changed++);
+                        }
                     }
                     filter(data);
                 };
