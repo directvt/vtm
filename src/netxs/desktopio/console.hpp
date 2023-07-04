@@ -2464,17 +2464,6 @@ namespace netxs::ui
                 keybd.pressed = faux;
                 notify(e2::conio::keybd, keybd);
             }
-            void handle(s11n::xs::ctrls       lock)
-            {
-                auto k = s11n::syskeybd.freeze();
-                auto& keybd = k.thing;
-                auto& item = lock.thing;
-                keybd.wipe();
-                keybd.gear_id = item.gear_id;
-                keybd.ctlstat = item.ctlstat;
-                keybd.pressed = faux;
-                notify(e2::conio::keybd, keybd);
-            }
             void handle(s11n::xs::sysmouse    lock)
             {
                 auto& mouse = lock.thing;
@@ -3449,7 +3438,7 @@ namespace netxs::ui
                         {
                             conio.keybd_event.send(conio, ext_gear_id,
                                                           gear.ctlstate,
-                                                          gear.winctrl,
+                                                          gear.extflag,
                                                           gear.virtcod,
                                                           gear.scancod,
                                                           gear.pressed,
@@ -3643,7 +3632,7 @@ namespace netxs::ui
                 LISTEN(tier::release, hids::events::mouse::scroll::any, gear, tokens, (isvtm))
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                    if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, gear.mouse::cause, gear.coord, gear.delta.get(), gear.take_button_state());
                     gear.dismiss();
                 };
                 LISTEN(tier::release, hids::events::mouse::button::any, gear, tokens, (isvtm))
@@ -3675,7 +3664,7 @@ namespace netxs::ui
                     if (forward)
                     {
                         auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
-                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, cause, gear.coord, gear.delta.get(), gear.take_button_state());
+                        if (gear_ptr) conio.mouse_event.send(canal, ext_gear_id, gear.ctlstate, cause, gear.coord, gear.delta.get(), gear.take_button_state());
                         gear.dismiss();
                     }
                 };

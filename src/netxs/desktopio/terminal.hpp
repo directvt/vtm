@@ -7147,8 +7147,6 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
-        //todo
-        bool linux_console{};
 
        ~term()
         {
@@ -7180,7 +7178,6 @@ namespace netxs::ui
               selalt{ config.def_selalt },
               altscr{ config.def_altscr }
         {
-            linux_console = os::vt::console();
             //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::io_log,         [&](auto& v){ v = io_log; });
@@ -7250,22 +7247,6 @@ namespace netxs::ui
                         utf::change(utf8, "\033[1B", "\033OB");
                         utf::change(utf8, "\033[1C", "\033OC");
                         utf::change(utf8, "\033[1D", "\033OD");
-                    }
-                    if (linux_console)
-                    {
-                        utf::change(utf8, "\033[[A",  "\033OP");     // F1
-                        utf::change(utf8, "\033[[B",  "\033OQ");     // F2
-                        utf::change(utf8, "\033[[C",  "\033OR");     // F3
-                        utf::change(utf8, "\033[[D",  "\033OS");     // F4
-                        utf::change(utf8, "\033[[E",  "\033[15~");   // F5
-                        utf::change(utf8, "\033[25~", "\033[1;2P");  // Shift+F1
-                        utf::change(utf8, "\033[26~", "\033[1;2Q");  // Shift+F2
-                        utf::change(utf8, "\033[28~", "\033[1;2R");  // Shift+F3
-                        utf::change(utf8, "\033[29~", "\033[1;2S");  // Shift+F4
-                        utf::change(utf8, "\033[31~", "\033[15;2~"); // Shift+F5
-                        utf::change(utf8, "\033[32~", "\033[17;2~"); // Shift+F6
-                        utf::change(utf8, "\033[33~", "\033[18;2~"); // Shift+F7
-                        utf::change(utf8, "\033[34~", "\033[19;2~"); // Shift+F8
                     }
                     data_out<faux, faux>(utf8);
 
@@ -7465,7 +7446,7 @@ namespace netxs::ui
                         //todo use temp gear object
                         gear.alive    = true;
                         gear.ctlstate = k.ctlstat;
-                        gear.winctrl  = k.winctrl;
+                        gear.extflag  = k.extflag;
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
@@ -7493,7 +7474,7 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
                         gear.pass<tier::release>(parent_ptr, dot_00, true);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
@@ -7674,7 +7655,7 @@ namespace netxs::ui
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
-                                               gear.winctrl,
+                                               gear.extflag,
                                                gear.virtcod,
                                                gear.scancod,
                                                gear.pressed,

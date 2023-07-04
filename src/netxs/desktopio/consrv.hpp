@@ -533,7 +533,7 @@ struct consrv
         }
         void mouse(input::hids& gear, bool moved, twod const& coord)
         {
-            auto state = gear.m.winctrl;
+            auto state = os::nt::ms_kbstate(gear.ctlstate);
             auto bttns = gear.m.buttons & 0b00011111;
             auto flags = ui32{};
             if (moved         ) flags |= MOUSE_MOVED;
@@ -612,7 +612,7 @@ struct consrv
         {
             return v != VK_CONTROL && v != VK_SHIFT && (c = ::MapVirtualKeyW(v, MAPVK_VK_TO_CHAR) & 0xffff);
         }
-        auto vtencode(input::hids& gear, bool decckm, wchr c)
+        auto vtencode(input::hids& gear, si32 ctrls, bool decckm, wchr c)
         {
             static auto truenull = takevkey<'\0'>().vkey;
             static auto alonekey = std::unordered_map<ui16, wide>
@@ -695,7 +695,7 @@ struct consrv
 
             if (server.inpmod & nt::console::inmode::vt && gear.pressed)
             {
-                auto& s = gear.winctrl;
+                auto& s = ctrls;
                 auto& v = gear.virtcod;
 
                 if (s & LEFT_CTRL_PRESSED && s & RIGHT_ALT_PRESSED) // This combination is already translated.
@@ -753,20 +753,21 @@ struct consrv
             if (toWIDE.empty()) toWIDE.push_back(0);
             auto c = toWIDE.front();
 
+            auto ctrls = os::nt::ms_kbstate(gear.ctlstate) | (gear.extflag ? ENHANCED_KEY : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
                 if (gear.pressed) // Proceed push events only.
                 {
                     for (auto c : toWIDE)
                     {
-                        generate(c, gear.winctrl, gear.virtcod, 1, gear.scancod, gear.imitate);
-                        generate(c, gear.winctrl, gear.virtcod, 0, gear.scancod, gear.imitate);
+                        generate(c, ctrls, gear.virtcod, 1, gear.scancod, gear.imitate);
+                        generate(c, ctrls, gear.virtcod, 0, gear.scancod, gear.imitate);
                     }
                 }
             }
-            else if (!vtencode(gear, decckm, c))
+            else if (!vtencode(gear, ctrls, decckm, c))
             {
-                generate(c, gear.winctrl, gear.virtcod, gear.pressed, gear.scancod, gear.imitate);
+                generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod, gear.imitate);
             }
 
             if (c == ansi::c0_etx)
