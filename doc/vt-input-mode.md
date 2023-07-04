@@ -60,7 +60,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
   ```
 - Mouse
   ```
-  ESC _ i n p u t ; m o u s e ; MouseX ; MouseY ; ButtonState ; CtrlState ; VtWheelDt ; HzWheelDt ESC \
+  ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ESC \
   ```
 - Focus
   ```
@@ -319,20 +319,20 @@ Key ID | Name             | Physical Key                  | Scan Code        | N
 ### Mouse
 
 ```
-ESC _ i n p u t ; m o u s e ; MouseX ; MouseY ; ButtonState ; CtrlState ; VtWheelDt ; HzWheelDt ESC \
+ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ESC \
 ```
 
 Field               | Description
 --------------------|------------
+`CtrlState`         | Keyboard modifiers (see Keyboard event).
 `MouseX` / `MouseY` | Mouse pointer coorinates.
 `ButtonState`       | Mouse button state.
-`CtrlState`         | Keyboard modifiers (see Keyboard event).
 `VtWheelDt`         | Vertical wheel delta.
 `HzWheelDt`         | Horizontal wheel delta.
 
 In response to the activation of `m o u s e` tracking, the application receives a vt-sequence containing current mouse state:
 ```
-ESC _ i n p u t ; m o u s e ; MouseX ; MouseY ; ButtonState ; CtrlState ESC \
+ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ESC \
 ```
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
