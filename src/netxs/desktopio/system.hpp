@@ -378,18 +378,35 @@ namespace netxs::os
             template<class T1, class T2 = si32>
             static auto kbstate(si32& modstate, T1 ms_ctrls, T2 scancode = {}, bool pressed = {})
             {
+                auto prevstate = modstate;
                 if (scancode == 0x2a)
                 {
                     if (pressed) modstate |= input::hids::LShift;
                     else         modstate &=~input::hids::LShift;
                 }
-                if (scancode == 0x36)
+                else if (scancode == 0x36)
                 {
                     if (pressed) modstate |= input::hids::RShift;
                     else         modstate &=~input::hids::RShift;
                 }
+                else if (scancode == 0x5b)
+                {
+                    if (pressed) modstate |= input::hids::LWin;
+                    else         modstate &=~input::hids::LWin;
+                }
+                else if (scancode == 0x5c)
+                {
+                    if (pressed) modstate |= input::hids::RWin;
+                    else         modstate &=~input::hids::RWin;
+                }
+                if (!(modstate & input::hids::anyShift) && ms_ctrls & SHIFT_PRESSED) // Restore Shift after refocusing.
+                {
+                    modstate |= input::hids::LShift;
+                }
                 auto lshift = modstate & input::hids::LShift;
                 auto rshift = modstate & input::hids::RShift;
+                auto lwin   = modstate & input::hids::LWin;
+                auto rwin   = modstate & input::hids::RWin;
                 bool lalt   = ms_ctrls & LEFT_ALT_PRESSED;
                 bool ralt   = ms_ctrls & RIGHT_ALT_PRESSED;
                 bool lctrl  = ms_ctrls & LEFT_CTRL_PRESSED;
@@ -404,10 +421,14 @@ namespace netxs::os
                 if (ralt  ) state |= input::hids::RAlt;
                 if (lctrl ) state |= input::hids::LCtrl;
                 if (rctrl ) state |= input::hids::RCtrl;
+                if (lwin  ) state |= input::hids::LWin;
+                if (rwin  ) state |= input::hids::RWin;
                 if (nums  ) state |= input::hids::NumLock;
                 if (caps  ) state |= input::hids::CapsLock;
                 if (scrl  ) state |= input::hids::ScrlLock;
-                return state;
+                auto changed = prevstate != state;
+                modstate = state;
+                return changed;
             }
             template<class T1>
             static auto ms_kbstate(T1 ctrls)
@@ -422,8 +443,8 @@ namespace netxs::os
                 bool caps   = ctrls & input::hids::CapsLock;
                 bool scrl   = ctrls & input::hids::ScrlLock;
                 auto state  = ui32{};
-                if (lshift) state |= SHIFT_PRESSED;
-                if (rshift) state |= SHIFT_PRESSED;
+                if (lshift
+                 || rshift) state |= SHIFT_PRESSED;
                 if (lalt  ) state |= LEFT_ALT_PRESSED;
                 if (ralt  ) state |= RIGHT_ALT_PRESSED;
                 if (lctrl ) state |= LEFT_CTRL_PRESSED;
@@ -3533,7 +3554,7 @@ namespace netxs::os
                 conmode     state; // globals: Saved console mode to restore at exit.
                 testy<twod> winsz; // globals: Current console window size.
                 s11n        wired; // globals: Serialization buffers.
-                si32        kbmod; // globals: Keyboard modifiers state.
+                si32        kbmod; // globals: Keyboard modifiers.
                 io::fire    alarm; // globals: IO interrupter.
             }
             static vars;
@@ -3703,22 +3724,16 @@ namespace netxs::os
                     }
                     case CTRL_BREAK_EVENT:
                     {
-                        auto dwControlKeyState = g.kbmod;
-                        auto wVirtualKeyCode  = ansi::ctrl_break;
-                        auto wVirtualScanCode = ansi::ctrl_break;
-                        auto bKeyDown = faux;
-                        auto wRepeatCount = 1;
-                        auto UnicodeChar = "\x03"s; // ansi::C0_ETX
                         g.wired.syskeybd.send(*g.ipcio,
                             0,
-                            os::nt::kbstate(g.kbmod, dwControlKeyState),
-                            dwControlKeyState,
-                            wVirtualKeyCode,
-                            wVirtualScanCode,
-                            bKeyDown,
-                            wRepeatCount,
-                            UnicodeChar,
-                            faux);
+                            g.kbmod,          // ctlstat
+                            faux,             // extflag
+                            ansi::ctrl_break, // virtcod
+                            ansi::ctrl_break, // scancod
+                            faux,             // pressed
+                            1,                // imitate
+                            "\x03"s,          // cluster  ansi::C0_ETX
+                            faux);            // handled
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
@@ -3813,13 +3828,28 @@ namespace netxs::os
                                 switch (r.EventType)
                                 {
                                     case KEY_EVENT:
+                                        if (os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown))
+                                        {
+                                            auto sysmouse = wired.sysmouse.freeze().thing; // Fire mouse event to update kb modifiers.
+                                            wired.sysmouse.send(ipcio,
+                                                0,
+                                                g.kbmod,
+                                                input::hids::stat::ok,
+                                                sysmouse.buttons,
+                                                0,
+                                                0,
+                                                0,
+                                                0,
+                                                sysmouse.coordxy,
+                                                stamp++);
+                                        }
                                         if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
                                         {
                                             if (point) utf::to_utf_from_code(point, toutf);
                                             wired.syskeybd.send(ipcio,
                                                 0,
-                                                os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
-                                                r.Event.KeyEvent.dwControlKeyState,
+                                                g.kbmod,
+                                                r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
                                                 r.Event.KeyEvent.wVirtualKeyCode,
                                                 r.Event.KeyEvent.wVirtualScanCode,
                                                 r.Event.KeyEvent.bKeyDown,
@@ -3841,8 +3871,8 @@ namespace netxs::os
                                                 utf::to_utf_from_code(point, toutf);
                                                 wired.syskeybd.send(ipcio,
                                                     0,
-                                                    os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
-                                                    r.Event.KeyEvent.dwControlKeyState,
+                                                    g.kbmod,
+                                                    r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
                                                     r.Event.KeyEvent.wVirtualKeyCode,
                                                     r.Event.KeyEvent.wVirtualScanCode,
                                                     true, // Pressed
@@ -3851,8 +3881,8 @@ namespace netxs::os
                                                     faux);
                                                 wired.syskeybd.send(ipcio,
                                                     0,
-                                                    os::nt::kbstate(g.kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown),
-                                                    r.Event.KeyEvent.dwControlKeyState,
+                                                    g.kbmod,
+                                                    r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
                                                     r.Event.KeyEvent.wVirtualKeyCode,
                                                     r.Event.KeyEvent.wVirtualScanCode,
                                                     faux, // Released
@@ -3865,11 +3895,11 @@ namespace netxs::os
                                         toutf.clear();
                                         break;
                                     case MOUSE_EVENT:
+                                        os::nt::kbstate(g.kbmod, r.Event.MouseEvent.dwControlKeyState);
                                         wired.sysmouse.send(ipcio,
                                             0,
+                                            g.kbmod,
                                             input::hids::stat::ok,
-                                            os::nt::kbstate(g.kbmod, r.Event.MouseEvent.dwControlKeyState),
-                                            r.Event.MouseEvent.dwControlKeyState,
                                             r.Event.MouseEvent.dwButtonState & 0b00011111,
                                             r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK,
                                             r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED,
@@ -3882,6 +3912,7 @@ namespace netxs::os
                                         resize();
                                         break;
                                     case FOCUS_EVENT:
+                                        if (!r.Event.FocusEvent.bSetFocus) g.kbmod = {}; // To keep the modifiers from sticking.
                                         wired.sysfocus.send(ipcio,
                                             0,
                                             r.Event.FocusEvent.bSetFocus,
@@ -4101,7 +4132,6 @@ namespace netxs::os
 
                                                             m.gear_id = {};
                                                             m.enabled = {};
-                                                            m.winctrl = {};
                                                             m.doubled = {};
                                                             m.wheeled = {};
                                                             m.hzwheel = {};
@@ -4198,15 +4228,8 @@ namespace netxs::os
                     auto data = io::recv(os::stdin_fd, buffer.data(), buffer.size());
                     if (micefd != os::invalid_fd)
                     {
-                        auto kb_state = get_kb_state();
-                        if (m.ctlstat != kb_state)
-                        {
-                            m.ctlstat = kb_state;
-                            wired.ctrls.send(ipcio,
-                                m.gear_id,
-                                m.ctlstat);
-                        }
-                     }
+                        k.ctlstat = get_kb_state();
+                    }
                     filter(data);
                 };
                 auto m_proc = [&]
@@ -4518,22 +4541,20 @@ namespace netxs::os
                         }
                         case CTRL_BREAK_EVENT:
                         {
-                            auto dwControlKeyState = g.kbmod;
-                            auto kbState = os::nt::kbstate(g.kbmod, dwControlKeyState);
-                            auto wVirtualKeyCode  = ansi::ctrl_break;
-                            auto wVirtualScanCode = ansi::ctrl_break;
-                            auto bKeyDown = faux;
-                            auto wRepeatCount = 1;
-                            auto UnicodeChar = "\x03"s; // ansi::C0_ETX
+                            auto virtcod = ansi::ctrl_break;
+                            auto scancod = ansi::ctrl_break;
+                            auto pressed = faux;
+                            auto imitate = 1;
+                            auto cluster = "\x03"s; // ansi::C0_ETX
                             //g.wired.syskeybd.send(*g.ipcio,
                             //    0,
-                            //    os::nt::kbstate(g.kbmod, dwControlKeyState),
-                            //    dwControlKeyState,
-                            //    wVirtualKeyCode,
-                            //    wVirtualScanCode,
-                            //    bKeyDown,
-                            //    wRepeatCount,
-                            //    UnicodeChar,
+                            //    g.kmod,
+                            //    faux,
+                            //    virtcod,
+                            //    scancod,
+                            //    pressed,
+                            //    imitate,
+                            //    cluster,
                             //    faux);
                             break;
                         }

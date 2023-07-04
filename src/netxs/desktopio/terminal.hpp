@@ -7465,7 +7465,7 @@ namespace netxs::ui
                         //todo use temp gear object
                         gear.alive    = true;
                         gear.ctlstate = k.ctlstat;
-                        gear.winctrl  = k.winctrl;
+                        gear.extflag  = k.extflag;
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
@@ -7493,7 +7493,7 @@ namespace netxs::ui
                         if (gear.captured(owner.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
                         owner.global(basis);
-                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons);
+                        gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
                         gear.pass<tier::release>(parent_ptr, dot_00, true);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
                         {
@@ -7674,7 +7674,7 @@ namespace netxs::ui
                 {
                     s11n::syskeybd.send(owner, gear.id,
                                                gear.ctlstate,
-                                               gear.winctrl,
+                                               gear.extflag,
                                                gear.virtcod,
                                                gear.scancod,
                                                gear.pressed,

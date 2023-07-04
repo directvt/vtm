@@ -823,9 +823,10 @@ namespace netxs::input
             m_buttons[leftright] = (bttns[leftright].pressed && (m_buttons[left] || m_buttons[right]))
                                                              || (m_buttons[left] && m_buttons[right]);
             m0.buttons = static_cast<ui32>(m_buttons.to_ulong());
+            auto modschanged = m.ctlstat != m0.ctlstat;
             m.set(m0);
             auto busy = captured();
-            if (busy && fire_fast()) //todo fire_fast on mods press
+            if (busy && fire_fast())
             {
                 delta.set(m.coordxy - prime);
                 coord = m.coordxy;
@@ -854,7 +855,7 @@ namespace netxs::input
             bttns[left ].blocked = m_buttons[leftright] || bttns[leftright].pressed;
             bttns[right].blocked = bttns[left].blocked;
 
-            if (m.coordxy != prime)
+            if (m.coordxy != prime || modschanged)
             {
                 delta.set(m.coordxy - prime);
                 auto active = si32{};
@@ -1020,6 +1021,7 @@ namespace netxs::input
     struct keybd
     {
         text cluster = {};
+        bool extflag = {};
         bool pressed = {};
         ui16 imitate = {};
         ui16 virtcod = {};
@@ -1030,6 +1032,7 @@ namespace netxs::input
 
         void update(syskeybd& k)
         {
+            extflag = k.extflag;
             pressed = k.pressed;
             imitate = k.imitate;
             virtcod = k.virtcod;
@@ -1042,10 +1045,25 @@ namespace netxs::input
         virtual void fire_keybd() = 0;
     };
 
+    // console: Focus tracker.
+    struct focus
+    {
+        bool state = {};
+
+        void update(sysfocus& f)
+        {
+            state = f.state;
+            fire_focus();
+        }
+
+        virtual void fire_focus() = 0;
+    };
+
     // console: Human interface device controller.
     struct hids
         : public mouse,
           public keybd,
+          public focus,
           public bell
     {
         using events = netxs::events::userland::hids;
@@ -1068,8 +1086,7 @@ namespace netxs::input
         testy<twod> tooltip_coor = {}; // hids: .
 
         base& owner;
-        ui32 ctlstate = 0;
-        ui32 winctrl = {}; // MS Windows specific.
+        ui32 ctlstate = {};
 
         //todo unify
         rect slot; // slot for pro::maker and e2::createby.
@@ -1292,11 +1309,12 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint cause, twod const& coord, twod const& delta, ui32 button_state)
+        void replay(hint cause, twod const& coord, twod const& delta, ui32 button_state, ui32 ctlstat)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
             alive = true;
+            ctlstate = ctlstat;
             mouse::coord = coord;
             mouse::cause = (cause & ~mask) | base; // Remove the dependency on the event tree root.
             mouse::delta.set(delta);
@@ -1305,26 +1323,27 @@ namespace netxs::input
 
         enum modifiers : ui32
         {
-            LShift   = 1 <<  0, // ⇧ Shift, Left  Shift
-            RShift   = 1 <<  1, //          Right Shift
-            LAlt     = 1 <<  2, // ⎇ Alt, ⌥ Option,   Left  Alt
-            RAlt     = 1 <<  3, // ⇮ AltGr, Alt Graph, Right Alt
-            LCtrl    = 1 <<  4, // ⌃ Ctrl, Left  Ctrl
-            RCtrl    = 1 <<  5, //         Right Ctrl
-            Meta     = 1 <<  6, // ◆ Meta, ⊞ Win, ⌘ Cmd (Apple key), ❖ Super
-            Fn       = 1 <<  7, //
-            CapsLock = 1 <<  8, // ⇪ Caps Lock
-            NumLock  = 1 <<  9, // ⇭ Num Lock
-            ScrlLock = 1 << 10, // ⇳ Scroll Lock (⤓)
-            anyCtrl  = LCtrl  | RCtrl,
+            LAlt     = 1 <<  0, // Left  ⎇ Alt, Left  ⌥ Option
+            RAlt     = 1 <<  1, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
+            LCtrl    = 1 <<  2, // Left  ⌃ Ctrl
+            RCtrl    = 1 <<  3, // Right ⌃ Ctrl
+            LShift   = 1 <<  4, // Left  ⇧ Shift
+            RShift   = 1 <<  5, // Right ⇧ Shift
+            LWin     = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            RWin     = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            NumLock  = 1 << 12, // ⇭ Num Lock
+            CapsLock = 1 << 13, // ⇪ Caps Lock
+            ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
             anyAlt   = LAlt   | RAlt,
+            anyCtrl  = LCtrl  | RCtrl,
             anyShift = LShift | RShift,
+            anyWin   = LWin   | RWin,
         };
 
-        auto meta(ui32 ctl_key = -1) { return hids::ctlstate & ctl_key; }
+        auto meta(ui32 ctl_key = -1) { return ctlstate & ctl_key; }
         auto kbmod()
         {
-            return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift);
+            return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin);
         }
 
         // hids: Stop handeling this event.
@@ -1340,25 +1359,20 @@ namespace netxs::input
 
         void take(sysmouse& m)
         {
-            ctlstate = m.ctlstat;
-            winctrl  = m.winctrl;
             disabled = faux;
+            ctlstate = m.ctlstat;
             mouse::update(m);
         }
         void take(syskeybd& k)
         {
             tooltip_stop = true;
             ctlstate = k.ctlstat;
-            winctrl  = k.winctrl;
             keybd::update(k);
         }
         void take(sysfocus& f)
         {
             tooltip_stop = true;
-            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
-            //todo focus<->seed
-            if (f.state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
-            else         owner.SIGNAL(tier::release, hids::events::focus::off, *this);
+            focus::update(f);
         }
 
         auto& area() const { return idmap.area(); }
@@ -1509,6 +1523,14 @@ namespace netxs::input
             alive = true;
             keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
+        }
+        void fire_focus()
+        {
+            alive = true;
+            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
+            //todo focus<->seed
+            if (focus::state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
+            else              owner.SIGNAL(tier::release, hids::events::focus::off, *this);
         }
         text interpret()
         {

@@ -698,8 +698,8 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (frag, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
         STRUCT_macro(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
         STRUCT_macro(request_clipboard, (id_t, gear_id))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -716,11 +716,10 @@ namespace netxs::directvt
         // Input stream.
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
-        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (ui32, winctrl) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
+        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (ui32, imitate) (text, cluster) (bool, handled))
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
+                                        (ui32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (ui32, enabled)  // sysmouse: Mouse device health status.
-                                        (ui32, ctlstat)  // sysmouse: Keybd modifiers state.
-                                        (ui32, winctrl)  // sysmouse: Windows specific keybd modifier state.
                                         (ui32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, doubled)  // sysmouse: Double click.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
@@ -733,7 +732,6 @@ namespace netxs::directvt
         STRUCT_macro(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
         STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
         STRUCT_macro(plain,             (id_t, gear_id) (text, utf8txt))
-        STRUCT_macro(ctrls,             (id_t, gear_id) (ui32, ctlstat))
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
         STRUCT_macro(bgc,               (rgba, color))
@@ -1003,7 +1001,6 @@ namespace netxs::directvt
             X(clipdata         ) /* Clipboard raw data.                           */\
             X(osclipdata       ) /* OS clipboard data.                            */\
             X(plain            ) /* Raw text input.                               */\
-            X(ctrls            ) /* Keyboard modifiers state.                     */\
             X(request_gc       ) /* Unknown gc token list.                        */\
             X(unknown_gc       ) /* Unknown gc token.                             */\
             X(fps              ) /* Set frame rate.                               */\
