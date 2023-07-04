@@ -485,7 +485,7 @@ while True:
 ### PowerShell
 
 ```powershell
-while { $True }
+while ($True)
 {
     "test\n";
 }
