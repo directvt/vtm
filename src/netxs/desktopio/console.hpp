@@ -2451,19 +2451,11 @@ namespace netxs::ui
                 auto& keybd = lock.thing;
                 notify(e2::conio::keybd, keybd);
             }
-            void handle(s11n::xs::plain       lock)
-            {
-                auto k = s11n::syskeybd.freeze();
-                auto& keybd = k.thing;
-                auto& item = lock.thing;
-                keybd.wipe();
-                keybd.gear_id = item.gear_id;
-                keybd.cluster = item.utf8txt;
-                keybd.pressed = true;
-                notify(e2::conio::keybd, keybd);
-                keybd.pressed = faux;
-                notify(e2::conio::keybd, keybd);
-            }
+            //void handle(s11n::xs::syspaste    lock)
+            //{
+            //    auto& paste = lock.thing;
+            //    notify(e2::conio::paste, paste);
+            //}
             void handle(s11n::xs::sysmouse    lock)
             {
                 auto& mouse = lock.thing;

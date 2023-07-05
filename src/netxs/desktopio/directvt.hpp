@@ -731,7 +731,7 @@ namespace netxs::directvt
         STRUCT_macro(winsz,             (id_t, gear_id) (twod, winsize))
         STRUCT_macro(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
         STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
-        STRUCT_macro(plain,             (id_t, gear_id) (text, utf8txt))
+        //STRUCT_macro(syspaste,          (id_t, gear_id) (ui32, secbits) (ui32, format) (text, data))
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
         STRUCT_macro(bgc,               (rgba, color))
@@ -1000,7 +1000,6 @@ namespace netxs::directvt
             X(winsz            ) /* Window resize.                                */\
             X(clipdata         ) /* Clipboard raw data.                           */\
             X(osclipdata       ) /* OS clipboard data.                            */\
-            X(plain            ) /* Raw text input.                               */\
             X(request_gc       ) /* Unknown gc token list.                        */\
             X(unknown_gc       ) /* Unknown gc token.                             */\
             X(fps              ) /* Set frame rate.                               */\
@@ -1009,6 +1008,7 @@ namespace netxs::directvt
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
             //X(focus            ) /* Request to set focus.                         */\
+            //X(syspaste         ) /* Clipboard paste.                               */\
 
             struct xs
             {
