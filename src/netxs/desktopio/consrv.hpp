@@ -447,7 +447,7 @@ struct consrv
             recbuf.clear();
             cooked.drop();
         }
-        auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0, ui16 rc = 1)
+        auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0)
         {
             buffer.emplace_back(INPUT_RECORD
             {
@@ -457,7 +457,7 @@ struct consrv
                     .KeyEvent =
                     {
                         .bKeyDown               = dn,
-                        .wRepeatCount           = rc,
+                        .wRepeatCount           = 1,
                         .wVirtualKeyCode        = vc,
                         .wVirtualScanCode       = sc,
                         .uChar = { .UnicodeChar = ch },
@@ -760,14 +760,14 @@ struct consrv
                 {
                     for (auto c : toWIDE)
                     {
-                        generate(c, ctrls, gear.virtcod, 1, gear.scancod, gear.imitate);
-                        generate(c, ctrls, gear.virtcod, 0, gear.scancod, gear.imitate);
+                        generate(c, ctrls, gear.virtcod, 1, gear.scancod);
+                        generate(c, ctrls, gear.virtcod, 0, gear.scancod);
                     }
                 }
             }
             else if (!vtencode(gear, ctrls, decckm, c))
             {
-                generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod, gear.imitate);
+                generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
             }
 
             if (c == ansi::c0_etx)

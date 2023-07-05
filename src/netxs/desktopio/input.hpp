@@ -1023,7 +1023,6 @@ namespace netxs::input
         text cluster = {};
         bool extflag = {};
         bool pressed = {};
-        ui16 imitate = {};
         ui16 virtcod = {};
         ui16 scancod = {};
         hint cause = netxs::events::userland::hids::keybd::data::post.id;
@@ -1034,7 +1033,6 @@ namespace netxs::input
         {
             extflag = k.extflag;
             pressed = k.pressed;
-            imitate = k.imitate;
             virtcod = k.virtcod;
             scancod = k.scancod;
             cluster = k.cluster;

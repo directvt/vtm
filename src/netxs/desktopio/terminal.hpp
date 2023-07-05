@@ -7450,7 +7450,6 @@ namespace netxs::ui
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
-                        gear.imitate  = k.imitate;
                         gear.cluster  = k.cluster;
                         gear.handled  = k.handled;
                         do
@@ -7659,7 +7658,6 @@ namespace netxs::ui
                                                gear.virtcod,
                                                gear.scancod,
                                                gear.pressed,
-                                               gear.imitate,
                                                gear.cluster,
                                                gear.handled);
                     gear.dismiss();

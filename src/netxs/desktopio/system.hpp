@@ -3731,7 +3731,6 @@ namespace netxs::os
                             ansi::ctrl_break, // virtcod
                             ansi::ctrl_break, // scancod
                             faux,             // pressed
-                            1,                // imitate
                             "\x03"s,          // cluster  ansi::C0_ETX
                             faux);            // handled
                         break;
@@ -3846,16 +3845,19 @@ namespace netxs::os
                                         if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
                                         {
                                             if (point) utf::to_utf_from_code(point, toutf);
-                                            wired.syskeybd.send(ipcio,
-                                                0,
-                                                g.kbmod,
-                                                r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
-                                                r.Event.KeyEvent.wVirtualKeyCode,
-                                                r.Event.KeyEvent.wVirtualScanCode,
-                                                r.Event.KeyEvent.bKeyDown,
-                                                r.Event.KeyEvent.wRepeatCount,
-                                                toutf,
-                                                faux);
+                                            do
+                                            {
+                                                wired.syskeybd.send(ipcio,
+                                                    0,
+                                                    g.kbmod,
+                                                    r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
+                                                    r.Event.KeyEvent.wVirtualKeyCode,
+                                                    r.Event.KeyEvent.wVirtualScanCode,
+                                                    r.Event.KeyEvent.bKeyDown,
+                                                    toutf,
+                                                    faux);
+                                            }
+                                            while (r.Event.KeyEvent.wRepeatCount-- > 1);
                                         }
                                         else if (std::distance(entry, limit) > 2) // Surrogate pairs special case.
                                         {
@@ -3869,26 +3871,28 @@ namespace netxs::os
                                             {
                                                 entry += 3;
                                                 utf::to_utf_from_code(point, toutf);
-                                                wired.syskeybd.send(ipcio,
-                                                    0,
-                                                    g.kbmod,
-                                                    r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
-                                                    r.Event.KeyEvent.wVirtualKeyCode,
-                                                    r.Event.KeyEvent.wVirtualScanCode,
-                                                    true, // Pressed
-                                                    r.Event.KeyEvent.wRepeatCount,
-                                                    toutf,
-                                                    faux);
-                                                wired.syskeybd.send(ipcio,
-                                                    0,
-                                                    g.kbmod,
-                                                    r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
-                                                    r.Event.KeyEvent.wVirtualKeyCode,
-                                                    r.Event.KeyEvent.wVirtualScanCode,
-                                                    faux, // Released
-                                                    r.Event.KeyEvent.wRepeatCount,
-                                                    toutf,
-                                                    faux);
+                                                do
+                                                {
+                                                    wired.syskeybd.send(ipcio,
+                                                        0,
+                                                        g.kbmod,
+                                                        r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
+                                                        r.Event.KeyEvent.wVirtualKeyCode,
+                                                        r.Event.KeyEvent.wVirtualScanCode,
+                                                        true, // Pressed
+                                                        toutf,
+                                                        faux);
+                                                    wired.syskeybd.send(ipcio,
+                                                        0,
+                                                        g.kbmod,
+                                                        r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY,
+                                                        r.Event.KeyEvent.wVirtualKeyCode,
+                                                        r.Event.KeyEvent.wVirtualScanCode,
+                                                        faux, // Released
+                                                        toutf,
+                                                        faux);
+                                                }
+                                                while (r.Event.KeyEvent.wRepeatCount-- > 1);
                                             }
                                         }
                                         point = {};
@@ -4592,7 +4596,6 @@ namespace netxs::os
                             auto virtcod = ansi::ctrl_break;
                             auto scancod = ansi::ctrl_break;
                             auto pressed = faux;
-                            auto imitate = 1;
                             auto cluster = "\x03"s; // ansi::C0_ETX
                             //g.wired.syskeybd.send(*g.ipcio,
                             //    0,
@@ -4601,7 +4604,6 @@ namespace netxs::os
                             //    virtcod,
                             //    scancod,
                             //    pressed,
-                            //    imitate,
                             //    cluster,
                             //    faux);
                             break;
