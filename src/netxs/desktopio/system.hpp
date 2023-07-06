@@ -3732,7 +3732,8 @@ namespace netxs::os
                             ansi::ctrl_break, // scancod
                             faux,             // pressed
                             "\x03"s,          // cluster  ansi::C0_ETX
-                            faux);            // handled
+                            faux,             // handled
+                            input::key::Break);// keyid
                         break;
                     }
                     case CTRL_CLOSE_EVENT:
@@ -3853,6 +3854,7 @@ namespace netxs::os
                                             k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                             k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                             k.pressed = r.Event.KeyEvent.bKeyDown;
+                                            k.keyid = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
                                             k.cluster = toutf;
                                             do
                                             {
@@ -3876,6 +3878,7 @@ namespace netxs::os
                                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                                 k.cluster = toutf;
+                                                k.keyid = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
                                                 do
                                                 {
                                                     k.pressed = true;
@@ -4577,7 +4580,8 @@ namespace netxs::os
                             //    scancod,
                             //    pressed,
                             //    cluster,
-                            //    faux);
+                            //    faux,
+                            //    input::key::Break);
                             break;
                         }
                         case CTRL_CLOSE_EVENT:

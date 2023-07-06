@@ -716,7 +716,7 @@ namespace netxs::directvt
         // Input stream.
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
-        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
+        STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled) (si32, keyid))
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (ui32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (ui32, enabled)  // sysmouse: Mouse device health status.

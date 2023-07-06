@@ -297,24 +297,23 @@ Key ID | Name             | Physical Key                  | Scan Code        | N
 204    | KeyY             | <kbd>Y</kbd>                  |                  |
 206    | KeyZ             | <kbd>Z</kbd>                  |                  |
 208    | Sleep            | <kbd>Sleep</kbd>              |                  |
-210    | WWW              | <kbd>WWW</kbd>                |                  |
-212    | Calculator       | <kbd>Calculator</kbd>         |                  |
-214    | Mail             | <kbd>Mail</kbd>               |                  |
-216    | MediaVolMute     | <kbd>Media Vol Mute</kbd>     |                  |
-218    | MediaVolDown     | <kbd>Media Vol Down</kbd>     |                  |
-220    | MediaVolUp       | <kbd>Media Vol Up</kbd>       |                  |
-222    | MediaNext        | <kbd>Media Next</kbd>         |                  |
-224    | MediaPrev        | <kbd>Media Prev</kbd>         |                  |
-226    | MediaStop        | <kbd>Media Stop</kbd>         |                  |
-228    | MediaPlayPause   | <kbd>Media Play/Pause</kbd>   |                  |
-230    | MediaSelect      | <kbd>Media Select</kbd>       |                  |
-232    | BrowserBack      | <kbd>Browser Back</kbd>       |                  |
-234    | BrowserForward   | <kbd>Browser Forward</kbd>    |                  |
-236    | BrowserRefresh   | <kbd>Browser Refresh</kbd>    |                  |
-238    | BrowserStop      | <kbd>Browser Stop</kbd>       |                  |
-240    | BrowserSearch    | <kbd>Browser Search</kbd>     |                  |
-242    | BrowserFavorites | <kbd>Browser Favorites</kbd>  |                  |
-244    | BrowserHome      | <kbd>Browser Home</kbd>       |                  |
+210    | Calculator       | <kbd>Calculator</kbd>         |                  |
+212    | Mail             | <kbd>Mail</kbd>               |                  |
+214    | MediaVolMute     | <kbd>Media Vol Mute</kbd>     |                  |
+216    | MediaVolDown     | <kbd>Media Vol Down</kbd>     |                  |
+218    | MediaVolUp       | <kbd>Media Vol Up</kbd>       |                  |
+220    | MediaNext        | <kbd>Media Next</kbd>         |                  |
+222    | MediaPrev        | <kbd>Media Prev</kbd>         |                  |
+224    | MediaStop        | <kbd>Media Stop</kbd>         |                  |
+226    | MediaPlayPause   | <kbd>Media Play/Pause</kbd>   |                  |
+228    | MediaSelect      | <kbd>Media Select</kbd>       |                  |
+230    | BrowserBack      | <kbd>Browser Back</kbd>       |                  |
+232    | BrowserForward   | <kbd>Browser Forward</kbd>    |                  |
+234    | BrowserRefresh   | <kbd>Browser Refresh</kbd>    |                  |
+236    | BrowserStop      | <kbd>Browser Stop</kbd>       |                  |
+238    | BrowserSearch    | <kbd>Browser Search</kbd>     |                  |
+240    | BrowserFavorites | <kbd>Browser Favorites</kbd>  |                  |
+242    | BrowserHome      | <kbd>Browser Home</kbd>       |                  |
 
 ### Mouse
 
