@@ -181,22 +181,22 @@ The `<KeyId>` is incremented by 2 for each generic key, providing two `<KeyId>` 
 Key ID | Name             | Physical Key                  | Scan Code        | Notes
 -------|------------------|-------------------------------|------------------|------
 0      | undef            |                               |                  |
-2      | Esc              | <kbd>Esc</kbd>                | `    1` `0x01`   |
-4      | Space            | <kbd>Space</kbd>              | `   57` `0x39`   |
-6      | Backspace        | <kbd>Backspace</kbd>          | `   14` `0x0E`   |
-8      | Tab              | <kbd>Tab</kbd>                | `   15` `0x0F`   |
-10     | LeftShift        | <kbd>Left Shift</kbd>         | `   42` `0x2A`   |
-11     | RightShift       | <kbd>Right Shift</kbd>        | `   54` `0x36`   |
-12     | LeftCtrl         | <kbd>Left Ctrl</kbd>          | `   29` `0x1D`   |
-13     | RightCtrl        | <kbd>Right Ctrl</kbd>         | `57373` `0xE01D` |
-14     | LeftAlt          | <kbd>Left Alt</kbd>           | `   56` `0x38`   |
-15     | RightAlt         | <kbd>Right Alt</kbd>          | `57400` `0xE038` |
-16     | LeftWin          | <kbd>Left Win</kbd>           | `   91` `0x5B`   |
-17     | RightWin         | <kbd>Right Win</kbd>          | `   92` `0x5C`   |
-18     | CapsLock         | <kbd>Caps Lock</kbd>          | `   58` `0x3A`   |
-20     | NumLock          | <kbd>Num Lock</kbd>           | `   69` `0x45`   |
-22     | ScrollLock       | <kbd>Scroll Lock</kbd>        | `   69` `0x45`   |
-24     | Apps             | <kbd>Apps</kbd>               | `   93` `0x5D`   |
+2      | LeftCtrl         | <kbd>Left Ctrl</kbd>          | `   29` `0x1D`   |
+3      | RightCtrl        | <kbd>Right Ctrl</kbd>         | `57373` `0xE01D` |
+4      | LeftAlt          | <kbd>Left Alt</kbd>           | `   56` `0x38`   |
+5      | RightAlt         | <kbd>Right Alt</kbd>          | `57400` `0xE038` |
+6      | LeftShift        | <kbd>Left Shift</kbd>         | `   42` `0x2A`   |
+7      | RightShift       | <kbd>Right Shift</kbd>        | `   54` `0x36`   |
+8      | LeftWin          | <kbd>Left Win</kbd>           | `   91` `0x5B`   |
+9      | RightWin         | <kbd>Right Win</kbd>          | `   92` `0x5C`   |
+10     | Apps             | <kbd>Apps</kbd>               | `   93` `0x5D`   |
+12     | NumLock          | <kbd>Num Lock</kbd>           | `   69` `0x45`   |
+14     | CapsLock         | <kbd>Caps Lock</kbd>          | `   58` `0x3A`   |
+16     | ScrollLock       | <kbd>Scroll Lock</kbd>        | `   69` `0x45`   |
+18     | Esc              | <kbd>Esc</kbd>                | `    1` `0x01`   |
+20     | Space            | <kbd>Space</kbd>              | `   57` `0x39`   |
+22     | Backspace        | <kbd>Backspace</kbd>          | `   14` `0x0E`   |
+24     | Tab              | <kbd>Tab</kbd>                | `   15` `0x0F`   |
 26     | Break            | <kbd>Break</kbd>              | `57414` `0xE046` | Ctrl + Pause
 28     | Pause            | <kbd>Pause</kbd>              | `57412` `0xE045` |
 30     | Select           | <kbd>Select</kbd>             |                  |

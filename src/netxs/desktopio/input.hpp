@@ -332,22 +332,22 @@ namespace netxs::input
         }
 
         static constexpr auto undef            = 0;
-        static constexpr auto Esc              = 2;
-        static constexpr auto Space            = 4;
-        static constexpr auto Backspace        = 6;
-        static constexpr auto Tab              = 8;
+        static constexpr auto LeftCtrl         = 2;
+        static constexpr auto RightCtrl        = 4;
+        static constexpr auto LeftAlt          = 6;
+        static constexpr auto RightAlt         = 8;
         static constexpr auto LeftShift        = 10;
         static constexpr auto RightShift       = 11;
-        static constexpr auto LeftCtrl         = 12;
-        static constexpr auto RightCtrl        = 13;
-        static constexpr auto LeftAlt          = 14;
-        static constexpr auto RightAlt         = 15;
-        static constexpr auto LeftWin          = 16;
-        static constexpr auto RightWin         = 17;
-        static constexpr auto CapsLock         = 18;
-        static constexpr auto NumLock          = 20;
-        static constexpr auto ScrollLock       = 22;
-        static constexpr auto Apps             = 24;
+        static constexpr auto LeftWin          = 12;
+        static constexpr auto RightWin         = 13;
+        static constexpr auto Apps             = 14;
+        static constexpr auto NumLock          = 15;
+        static constexpr auto CapsLock         = 16;
+        static constexpr auto ScrollLock       = 17;
+        static constexpr auto Esc              = 18;
+        static constexpr auto Space            = 20;
+        static constexpr auto Backspace        = 22;
+        static constexpr auto Tab              = 24;
         static constexpr auto Break            = 26;
         static constexpr auto Pause            = 28;
         static constexpr auto Select           = 30;
@@ -535,22 +535,22 @@ namespace netxs::input
         {
             // Vkey  Scan    CtrlState          Mask   Name                  KeyId
             {{    0,    0,           0, 0x0000'00'FF, "undef"sv            , undef            }, undef            },
-            {{ 0x1B, 0x01,           0, 0x0000'00'FF, "Esc"sv              , Esc              }, Esc              },
-            {{ 0x20, 0x39,           0, 0x0000'00'FF, "Space"sv            , Space            }, Space            },
-            {{ 0x08, 0x0E,           0, 0x0000'00'FF, "Backspace"sv        , Backspace        }, Backspace        },
-            {{ 0x09, 0x0F,           0, 0x0000'00'FF, "Tab"sv              , Tab              }, Tab              },
-            {{ 0x10, 0x2A,           0, 0x0000'FF'FF, "LeftShift"sv        , LeftShift        }, LeftShift        },
-            {{ 0x10, 0x36,           0, 0x0000'FF'FF, "RightShift"sv       , RightShift       }, RightShift       },
             {{ 0x11, 0x1D,           0, 0x0100'00'FF, "LeftCtrl"sv         , LeftCtrl         }, LeftCtrl         },
             {{ 0x11, 0x1D, ExtendedKey, 0x0100'00'FF, "RightCtrl"sv        , RightCtrl        }, RightCtrl        },
             {{ 0x12, 0x38,           0, 0x0100'00'FF, "LeftAlt"sv          , LeftAlt          }, LeftAlt          },
             {{ 0x12, 0x38, ExtendedKey, 0x0100'00'FF, "RightAlt"sv         , RightAlt         }, RightAlt         },
+            {{ 0x10, 0x2A,           0, 0x0000'FF'FF, "LeftShift"sv        , LeftShift        }, LeftShift        },
+            {{ 0x10, 0x36,           0, 0x0000'FF'FF, "RightShift"sv       , RightShift       }, RightShift       },
             {{ 0x5B, 0x5B, ExtendedKey, 0x0000'00'FF, "LeftWin"sv          , LeftWin          }, LeftWin          },
-            {{ 0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, "RightWin"sv         , RightWin         }, RightWin         },
-            {{ 0x14, 0x3A,           0, 0x0000'00'FF, "CapsLock"sv         , CapsLock         }, CapsLock         },
-            {{ 0x90, 0x45,           0, 0x0000'00'FF, "NumLock"sv          , NumLock          }, NumLock          },
-            {{ 0x91, 0x45,           0, 0x0000'00'FF, "ScrollLock"sv       , ScrollLock       }, ScrollLock       },
             {{ 0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, "Apps"sv             , Apps             }, Apps             },
+            {{ 0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, "RightWin"sv         , RightWin         }, RightWin         },
+            {{ 0x90, 0x45,           0, 0x0000'00'FF, "NumLock"sv          , NumLock          }, NumLock          },
+            {{ 0x14, 0x3A,           0, 0x0000'00'FF, "CapsLock"sv         , CapsLock         }, CapsLock         },
+            {{ 0x91, 0x45,           0, 0x0000'00'FF, "ScrollLock"sv       , ScrollLock       }, ScrollLock       },
+            {{ 0x1B, 0x01,           0, 0x0000'00'FF, "Esc"sv              , Esc              }, Esc              },
+            {{ 0x20, 0x39,           0, 0x0000'00'FF, "Space"sv            , Space            }, Space            },
+            {{ 0x08, 0x0E,           0, 0x0000'00'FF, "Backspace"sv        , Backspace        }, Backspace        },
+            {{ 0x09, 0x0F,           0, 0x0000'00'FF, "Tab"sv              , Tab              }, Tab              },
             {{ 0x03, 0x45,           0, 0x0000'FF'FF, "Break"sv            , Break            }, Break            },
             {{ 0x13, 0x45,           0, 0x0000'FF'FF, "Pause"sv            , Pause            }, Pause            },
             {{ 0x29,    0,           0, 0x0000'00'FF, "Select"sv           , Select           }, Select           },
