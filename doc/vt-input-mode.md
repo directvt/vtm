@@ -100,7 +100,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
 ESC _ event=keyboard ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; chord=<KeyId0>,...,<KeyIdN> ; print=<C0>,...,<Cn> ESC \
 ```
 
-> Q: Do we need to keep track of scan codes for chord? `chord=<KeyId0>,<Sc0>,...,<KeyIdN>,<ScN>`?
+> Q: Do we need to track scancode chord? `scanchord=<Code0>,...,<CodeN>`?
 
 Attribute                     | Description
 ------------------------------|------------
