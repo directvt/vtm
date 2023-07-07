@@ -361,7 +361,7 @@ struct consrv
         };
 
         consrv& server; // events_t: Console server reference.
-        vect    buffer; // events_t: Input event list.
+        vect    stream; // events_t: Input event list.
         vect    recbuf; // events_t: Temporary buffer for copying event records.
         sync    signal; // events_t: Input event append signal.
         lock    locker; // events_t: Input event buffer mutex.
@@ -386,13 +386,13 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             closed = faux;
-            buffer.clear();
+            stream.clear();
             ondata.flush();
         }
         auto count()
         {
             auto lock = std::lock_guard{ locker };
-            return static_cast<ui32>(buffer.size());
+            return static_cast<ui32>(stream.size());
         }
         void abort(hndl* handle_ptr)
         {
@@ -443,13 +443,13 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             ondata.flush();
-            buffer.clear();
+            stream.clear();
             recbuf.clear();
             cooked.drop();
         }
         auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0)
         {
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = KEY_EVENT,
                 .Event =
@@ -469,14 +469,14 @@ struct consrv
         }
         auto generate(wchr c1, wchr c2)
         {
-            buffer.reserve(buffer.size() + 2);
+            stream.reserve(stream.size() + 2);
             generate(c1);
             generate(c2);
             return true;
         }
         auto generate(wiew wstr, ui32 s = 0)
         {
-            buffer.reserve(wstr.size());
+            stream.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
             //auto noni = server.inpmod & nt::console::inmode::preprocess; // `-NonInteractive` powershell mode.
@@ -486,10 +486,10 @@ struct consrv
                 if (c == '\n' || c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter.
+                    generate('\r', s, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
-                    //else      generate('\r', s | SHIFT_PRESSED, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else
                 {
@@ -508,7 +508,7 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             generate(ustr);
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -517,7 +517,7 @@ struct consrv
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = FOCUS_EVENT,
                 .Event =
@@ -545,7 +545,7 @@ struct consrv
                 bttns |= gear.m.wheeldt << 16;
             }
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = MOUSE_EVENT,
                 .Event =
@@ -569,7 +569,7 @@ struct consrv
         void winsz(twod const& winsize)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
+            stream.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
             {
                 .EventType = WINDOW_BUFFER_SIZE_EVENT,
                 .Event =
@@ -775,7 +775,7 @@ struct consrv
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
                     alert(CTRL_BREAK_EVENT);
-                    buffer.pop_back();
+                    stream.pop_back();
                 }
                 else
                 {
@@ -783,12 +783,12 @@ struct consrv
                     {
                         if (gear.pressed) alert(CTRL_C_EVENT);
                         //todo revise
-                        //buffer.pop_back();
+                        //stream.pop_back();
                     }
                 }
             }
 
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -797,7 +797,7 @@ struct consrv
         void undo(bool undoredo)
         {
             auto lock = std::lock_guard{ locker };
-            generate({}, {}, undoredo ? key::vk::Undo : key::vk::Redo);
+            generate({}, {}, undoredo ? VK_F23 /*Undo*/: VK_F24 /*Redo*/);
             ondata.reset();
             signal.notify_one();
         }
@@ -829,7 +829,7 @@ struct consrv
                 auto coor = line.caret;
                 auto last = line.length();
                 auto pops = 0_sz;
-                for (auto& rec : buffer)
+                for (auto& rec : stream)
                 {
                     if (server.io_log)
                     {
@@ -881,11 +881,11 @@ struct consrv
                             case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
                             case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
                             case VK_F1:     contrl = faux;
-                            case key::vk::RightArrow:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
-                            case key::vk::F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
-                            case key::vk::F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
-                            case key::vk::Undo:  while (n--) hist.swap(line, faux); break;
-                            case key::vk::Redo:  while (n--) hist.swap(line, true); break;
+                            case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
+                            case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
+                            case VK_F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
+                            case VK_F23: /*Undo*/ while (n--) hist.swap(line, faux); break;
+                            case VK_F24: /*Redo*/ while (n--) hist.swap(line, true); break;
                             case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                             case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                             case VK_F5:
@@ -980,9 +980,9 @@ struct consrv
 
                 if (pops)
                 {
-                    auto head = buffer.begin();
+                    auto head = stream.begin();
                     auto tail = head + pops;
-                    buffer.erase(head, tail);
+                    stream.erase(head, tail);
                     pops = {};
                 }
 
@@ -1030,7 +1030,7 @@ struct consrv
                     lock.lock();
                 }
             }
-            while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
+            while (!done && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
             if (EOFon)
             {
@@ -1040,7 +1040,7 @@ struct consrv
             }
 
             cooked.save(utf16);
-            if (buffer.empty()) ondata.flush();
+            if (stream.empty()) ondata.flush();
 
             server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
         }
@@ -1049,7 +1049,7 @@ struct consrv
         {
             do
             {
-                for (auto& rec : buffer) if (rec.EventType == KEY_EVENT)
+                for (auto& rec : stream) if (rec.EventType == KEY_EVENT)
                 {
                     auto& s = rec.Event.KeyEvent.dwControlKeyState;
                     auto& d = rec.Event.KeyEvent.bKeyDown;
@@ -1068,9 +1068,9 @@ struct consrv
                         }
                     }
                 }
-                buffer.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
+                stream.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
             }
-            while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
+            while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
             cooked.save(utf16);
             ondata.flush();
@@ -1155,7 +1155,7 @@ struct consrv
             auto& inpenc = *server.inpenc;
             if (utf16 || inpenc.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
             {
-                buffer.insert(buffer.end(), recs.begin(), recs.end());
+                stream.insert(stream.end(), recs.begin(), recs.end());
             }
             else
             {
@@ -1186,10 +1186,10 @@ struct consrv
                             else coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(next);
                         }
                     }
-                    buffer.insert(buffer.end(), coming);
+                    stream.insert(stream.end(), coming);
                 }
             }
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -1240,7 +1240,7 @@ struct consrv
             auto avail = packet.echosz - answer.sendoffset();
             auto limit = avail / (ui32)sizeof(recbuf.front());
             if (server.io_log) log("\tuser limit: ", limit);
-            auto head = buffer.begin();
+            auto head = stream.begin();
             if (packet.input.utf16)
             {
                 recbuf.clear();
@@ -1256,7 +1256,7 @@ struct consrv
                 auto splitter = [&](auto codec_proc)
                 {
                     recbuf.reserve(recbuf.size() + count());
-                    auto tail = buffer.end();
+                    auto tail = stream.end();
                     auto code = utfx{};
                     auto left = INPUT_RECORD{};
                     if (recbuf.size() && recbuf.size() <= limit)
@@ -1303,8 +1303,8 @@ struct consrv
             packet.reply.count = size;
             if (!peek)
             {
-                buffer.erase(buffer.begin(), head);
-                if (buffer.empty()) ondata.flush();
+                stream.erase(stream.begin(), head);
+                if (stream.empty()) ondata.flush();
             }
             if (size == recbuf.size())
             {
@@ -1324,7 +1324,7 @@ struct consrv
         auto take(Payload& packet)
         {
             auto lock = std::lock_guard{ locker };
-            if (buffer.empty())
+            if (stream.empty())
             {
                 if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
@@ -1344,7 +1344,7 @@ struct consrv
                         answer.buffer = &packet.reply; // Restore after copy. Payload start address.
 
                         if (closed || cancel) return;
-                        while ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel && buffer.empty())
+                        while ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel && stream.empty())
                         { }
                         if (closed || cancel) return;
 
@@ -1690,7 +1690,6 @@ struct consrv
         }
     };
 
-    //enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
     enum type : ui32 { undefined, ansiOEM, realUTF16, attribute, fakeUTF16 };
 
     #define log(...) if (io_log) log(__VA_ARGS__)
