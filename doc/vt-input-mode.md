@@ -37,14 +37,14 @@ Existing approaches have the following drawbacks:
 
 Signaling uses APC `ESC _ <payload> ESC \` with a specific payload syntax.
 
-The payload consists of lists of attribute names with their values in the following format:
+The payload consists of a list of attributes in the following format:
 ```
-<var>=<val>,...,<val>; ...; <var>=<val>,...,<val>
+<attr>=<val>,...,<val>; ...; <attr>=<val>,...,<val>
 ```
 
 Field               | Descriprtion
 --------------------|-------------
-`<var>`             | Attribute name.
+`<attr>`            | Attribute name.
 `<val>, ..., <val>` | Comma-separated value list.
 
 ## Initialization
