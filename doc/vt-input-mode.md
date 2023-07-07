@@ -106,7 +106,7 @@ Attribute                     | Description
 ------------------------------|------------
 `kbmods=<KeyMods>`            | Keyboard modifiers.
 `keyid=<KeyId>`               | Physical key ID.
-`pressed=<KeyDown>`           | Key state:<br>KeyDown=1 - Pressed<br>KeyDown=0 - Released.
+`pressed=<KeyDown>`           | Key state:<br>\<KeyDown\>=1 - Pressed.<br>\<KeyDown\>=0 - Released.
 `scancode=<ScanCode>`         | Scan code.
 `chord=<KeyId0>,...,<KeyIdN>` | Simultaneously pressed key id's in ascending order.
 `print=<C0>,...,<Cn>`         | Codepoints of the generated string.
@@ -375,7 +375,7 @@ ESC _ event=focus ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`state=<FocusState>` | Terminal window focus state.<br>FocusState=1 - Focused<br>FocusState=0 - Unfocused.
+`state=<FocusState>` | Terminal window focus state:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
 
@@ -420,7 +420,7 @@ Attribute                                   | Description
 `cursor=<X>,<Y>`                            | Current text cursor position.
 `region=<Left>,<Top>,<Right>,<Bottom>`      | Scrolling region margins.
 `selection=<StartX>,<StartY>,<EndX>,<EndY>` | Coordinates of the text selection start/end (half-open interval).
-`<Mode>`                                    | Text selection mode:<br>Mode=0 - line-based<br>Mode=1 - rect-based.
+`<Mode>`                                    | Text selection mode:<br>\<Mode\>=0 - Line-based.<br>\<Mode\>=1 - Rect-based.
 
 In response to the activation of `window` tracking, the application receives a vt-sequence containing current window state.
 
