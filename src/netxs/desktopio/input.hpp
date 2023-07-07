@@ -1351,10 +1351,10 @@ namespace netxs::input
 
         enum modifiers : ui32
         {
-            LAlt     = 1 <<  0, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt     = 1 <<  1, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
-            LCtrl    = 1 <<  2, // Left  ⌃ Ctrl
-            RCtrl    = 1 <<  3, // Right ⌃ Ctrl
+            LCtrl    = 1 <<  0, // Left  ⌃ Ctrl
+            RCtrl    = 1 <<  1, // Right ⌃ Ctrl
+            LAlt     = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
+            RAlt     = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
             LShift   = 1 <<  4, // Left  ⇧ Shift
             RShift   = 1 <<  5, // Right ⇧ Shift
             LWin     = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
@@ -1362,8 +1362,8 @@ namespace netxs::input
             NumLock  = 1 << 12, // ⇭ Num Lock
             CapsLock = 1 << 13, // ⇪ Caps Lock
             ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
-            anyAlt   = LAlt   | RAlt,
             anyCtrl  = LCtrl  | RCtrl,
+            anyAlt   = LAlt   | RAlt,
             anyShift = LShift | RShift,
             anyWin   = LWin   | RWin,
         };

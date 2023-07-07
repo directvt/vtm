@@ -128,10 +128,10 @@ The state `kbmods=<KeyMods>` of keyboard modifiers is the binary OR of all curre
 
  Bit | Side   | Modifier Key                 | Value
  ----|--------|------------------------------|--------------
- 0   | Left   | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd>                       | `0x0001`
- 1   | Right  | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd><br><kbd>⇮ AltGr</kbd> | `0x0002`
- 2   | Left   | <kbd>⌃ Ctrl</kbd>            | `0x0004`
- 3   | Right  | <kbd>⌃ Ctrl</kbd>            | `0x0008`
+ 0   | Left   | <kbd>⌃ Ctrl</kbd>            | `0x0001`
+ 1   | Right  | <kbd>⌃ Ctrl</kbd>            | `0x0002`
+ 2   | Left   | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd>                       | `0x0004`
+ 3   | Right  | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd><br><kbd>⇮ AltGr</kbd> | `0x0008`
  4   | Left   | <kbd>⇧ Shift</kbd>           | `0x0010`
  5   | Right  | <kbd>⇧ Shift</kbd>           | `0x0020`
  6   | Left   | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>◆ Meta</kbd><br><kbd>❖ Super</kbd> | `0x0040`
