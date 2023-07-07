@@ -42,10 +42,10 @@ The payload consists of a list of attributes in the following format:
 <attr>=<val>,...,<val>; ...; <attr>=<val>,...,<val>
 ```
 
-Field               | Descriprtion
---------------------|-------------
-`<attr>`            | Attribute name.
-`<val>, ..., <val>` | Comma-separated value list.
+Field             | Descriprtion
+------------------|-------------
+`<attr>`          | Attribute name.
+`<val>,...,<val>` | Comma-separated value list.
 
 ## Initialization
 
