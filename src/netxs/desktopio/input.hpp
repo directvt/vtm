@@ -327,6 +327,7 @@ namespace netxs::input
                 }
             };
         };
+
         #define key_list \
             /*Id   Vkey  Scan    CtrlState          Mask  Name            */\
             X(0,      0,    0,           0, 0x0000'00'FF, undef            )\
@@ -492,7 +493,7 @@ namespace netxs::input
         static const auto keymap = std::unordered_map<map, si32, map::hashproc>
         {
             #define X(KeyId, Vkey, Scan, CtrlState, Mask, Name) \
-                {{ Vkey, Scan, CtrlState, Mask, #Name, Name }, Name, },
+                { map{ Vkey, Scan, CtrlState, Mask, #Name, Name }, Name, },
                 key_list
             #undef X
         };
