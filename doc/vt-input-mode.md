@@ -87,7 +87,7 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
   ```
 - Window
   ```
-  ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
+  ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; region=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
   ```
 - System
   ```
@@ -411,14 +411,14 @@ Bit    | Description
 ### Window
 
 ```
-ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
+ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; region=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
 ```
 
 Attribute                                   | Description
 --------------------------------------------|------------
 `size=<Width>,<Height>`                     | Terminal window size in cells.
 `cursor=<X>,<Y>`                            | Current text cursor position.
-`scroll=<Left>,<Top>,<Right>,<Bottom>`      | Scrolling region margins.
+`region=<Left>,<Top>,<Right>,<Bottom>`      | Scrolling region margins.
 `selection=<StartX>,<StartY>,<EndX>,<EndY>` | Coordinates of the text selection start/end (half-open interval).
 `<Mode>`                                    | Text selection mode:<br>Mode=0 - line-based<br>Mode=1 - rect-based.
 
@@ -438,7 +438,7 @@ Handshake steps:
 ```
 Terminal:    ESC _ event=window ; size=<Width>,<Height> ESC \
 Application: ESC _ event=window ; size=<Width>,<Height> ESC \
-Terminal:    ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
+Terminal:    ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; region=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by cropping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
