@@ -2748,7 +2748,7 @@ namespace netxs::ui
                     }
                 }
                 // buff: Remove information about the specified line from accounting.
-                void undock_base_back (line& l) override { undock(l._kind, l._size); }
+                void undock_base_back(line& l) override { undock(l._kind, l._size); }
                 // buff: Return the item position in the scrollback using its id.
                 auto index_by_id(ui32 id) const
                 {
@@ -7224,6 +7224,8 @@ namespace netxs::ui
                     follow[axis::Y] = true;
                 }
 
+                if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keycode)));
+
                 #if defined(_WIN32)
 
                     ptycon.keybd(gear, decckm);
@@ -7450,7 +7452,6 @@ namespace netxs::ui
                         gear.virtcod  = k.virtcod;
                         gear.scancod  = k.scancod;
                         gear.pressed  = k.pressed;
-                        gear.imitate  = k.imitate;
                         gear.cluster  = k.cluster;
                         gear.handled  = k.handled;
                         do
@@ -7659,9 +7660,9 @@ namespace netxs::ui
                                                gear.virtcod,
                                                gear.scancod,
                                                gear.pressed,
-                                               gear.imitate,
                                                gear.cluster,
-                                               gear.handled);
+                                               gear.handled,
+                                               gear.keycode);
                     gear.dismiss();
                 };
                 //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)

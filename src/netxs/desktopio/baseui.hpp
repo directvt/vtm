@@ -16,6 +16,7 @@ namespace netxs::input
     using sysmouse = directvt::binary::sysmouse_t;
     using syskeybd = directvt::binary::syskeybd_t;
     using sysfocus = directvt::binary::sysfocus_t;
+    //using syspaste = directvt::binary::syspaste_t;
 }
 namespace netxs::ui
 {
@@ -126,6 +127,7 @@ namespace netxs::events::userland
                 EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 EVENT_XS( clipdata, ansi::clip      ), // release: OS clipboard update.
+                //EVENT_XS( paste   , input::syspaste ), // release: clipboard activity.
                 EVENT_XS( logs    , const view      ), // logs output.
                 EVENT_XS( readline, text            ), // Standard input (scripting).
                 //EVENT_XS( menu  , si32 ),

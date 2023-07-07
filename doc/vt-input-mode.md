@@ -29,26 +29,41 @@ Existing approaches have the following drawbacks:
 
 ## Conventions
 
-- All values used in this protocol are decimal and zero-based.
+- All numeric values used in this protocol are decimal and zero-based.
+- Space characters are not used in sequence payloads and are only used for readability of the description.
 - All unescaped symbols outside of this protocol should be treated as clipboard pasted data.
+
+### Format
+
+Signaling uses APC `ESC _ <payload> ESC \` with a specific payload syntax.
+
+The payload consists of lists of attribute names with their values in the following format:
+```
+<var>=<val>,...,<val>; ...; <var>=<val>,...,<val>
+```
+
+Field               | Descriprtion
+--------------------|-------------
+`<var>`             | Attribute name.
+`<val>, ..., <val>` | Comma-separated value list.
 
 ## Initialization
 
 ```
-Set:   ESC _ i n p u t ; s e t ; Type1 ; ... ; TypeN ESC \
-Reset: ESC _ i n p u t ; s e t ESC \
+Set:   ESC _ events=<Source0>,...,<SourceN> ESC \
+Reset: ESC _ events ESC \
 ```
 
-Type                | Events to track
---------------------|----------------
-`k e y b o a r d`   | Keyboard.
-`m o u s e`         | Mouse.
-`f o c u s`         | Focus.
-`c l i p b o a r d` | Clipboard.
-`w i n d o w`       | Window size and selection.
-`s y s t e m`       | System signals.
+Source     | Events to track
+-----------|----------------
+`keyboard` | Keyboard.
+`mouse`    | Mouse.
+`focus`    | Focus.
+`clipoard` | Clipboard.
+`window`   | Window size and selection.
+`system`   | System signals.
 
-This sequence enables `vt-input-mode` and event tracking for the specified event `Type`s. The `vt-input-mode` is deactivated if none of the `Type`s is specified.
+This sequence enables `vt-input-mode` and event tracking for the specified event `Source`s. The `vt-input-mode` is deactivated if none of the `Source`s is specified.
 
 Note: By enabling `vt-input-mode`, all current terminal modes are automatically saved (to be restored on exit) and switched to something like "raw" mode, in which input is available character by character, echoing is disabled, and all special processing of terminal input and output characters is disabled (except for `LF` to `CR+LF` conversion).
 
@@ -56,60 +71,67 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
 
 - Keyboard
   ```
-  ESC _ i n p u t ; k e y b o a r d ; CtrlState ; KeyId ; KeyDown ; ScanCode ; C0 ; … ; Cn ESC \
+  ESC _ event=keyboard ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; chord=<KeyId0>,...,<KeyIdN> ; print=<C0>,...,<Cn> ESC \
   ```
 - Mouse
   ```
-  ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ESC \
+  ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>,<DeltaX> ESC \
   ```
 - Focus
   ```
-  ESC _ i n p u t ; f o c u s ; FocusState ESC \
+  ESC _ event=focus ; state=<FocusState> ESC \
   ```
 - Clipboard
   ```
-  ESC _ i n p u t ; c l i p b o a r d ; ClipFormat ; SecLevel ; Data ESC \
+  ESC _ event=clipoard ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
   ```
 - Window
   ```
-  ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
+  ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
   ```
 - System
   ```
-  ESC _ i n p u t ; s y s t e m ; Signal ESC \
+  ESC _ event=system ; signal=<Signal> ESC \
   ```
 
 ### Keyboard
 
 ```
-ESC _ i n p u t ; k e y b o a r d ; CtrlState ; KeyId ; KeyDown ; ScanCode ; C0 ; … ; Cn ESC \
+ESC _ event=keyboard ; kbmods=<KeyMods> ; keyid=<KeyId> ; pressed=<KeyDown> ; scancode=<ScanCode> ; chord=<KeyId0>,...,<KeyIdN> ; print=<C0>,...,<Cn> ESC \
 ```
 
-Field            | Description
------------------|------------
-`CtrlState`      | Keyboard modifiers.
-`KeyId`          | Physical key ID.
-`KeyDown`        | Key state: 1 - Pressed, 0 - Released.
-`ScanCode`       | Scan code.
-`C0`, …, `Cn`    | Codepoints of the generated string.
+> Q: Do we need to track scancode chord? `scanchord=<Code0>,...,<CodeN>`?
 
-In response to the activation of `k e y b o a r d` tracking, the application receives a vt-sequence containing keyboard modifiers state:
+Attribute                     | Description
+------------------------------|------------
+`kbmods=<KeyMods>`            | Keyboard modifiers.
+`keyid=<KeyId>`               | Physical key ID.
+`pressed=<KeyDown>`           | Key state: 1 - Pressed, 0 - Released.
+`scancode=<ScanCode>`         | Scan code.
+`chord=<KeyId0>,...,<KeyIdN>` | Simultaneously pressed key id's in ascending order.
+`print=<C0>,...,<Cn>`         | Codepoints of the generated string.
+
+In response to the activation of `keyboard` tracking, the application receives a vt-sequence containing keyboard modifiers state:
 ```
-ESC _ i n p u t ; k e y b o a r d ; CtrlState ESC \
+ESC _ event=keyboard ; kbmods=<KeyMods> ESC \
 ```
 
 The full sequence is fired after every key press and key release. The sequence can contain a string generated by a keystroke as a set of codepoints: `C0 + ... + Cn`. The string can be fragmented and delivered by multiple consecutive events.
 
+The `chord=<KeyId0>,...,<KeyIdN>` attribute contains the set of simultaneously pressed key id's in ascending order and is used to track key combinations. It is possible to track both chord presses (e.g. `Ctrl+A`) and key releases (e.g. `Ctrl-F1` or `Ctrl-Alt`):
+- Pressed chord: The `pressed` attribute has the value `1`.
+- Release chord: The `pressed` attribute has the value `0`.
+
 #### Keyboard modifiers
 
-The state `CtrlState` of keyboard modifiers is the binary OR of all currently pressed modifiers and enabled modes.
+The state `kbmods=<KeyMods>` of keyboard modifiers is the binary OR of all currently pressed modifiers and enabled modes.
 
- Bit | Side   | Modifier Key                 | CtrlState
- ----|--------|------------------------------|----------
- 0   | Left   | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd>                       | `0x0001`
- 1   | Right  | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd><br><kbd>⇮ AltGr</kbd> | `0x0002`
- 2   | Left   | <kbd>⌃ Ctrl</kbd>            | `0x0004`
- 3   | Right  | <kbd>⌃ Ctrl</kbd>            | `0x0008`
+ Bit | Side   | Modifier Key                 | Value
+ ----|--------|------------------------------|--------------
+ 0   | Left   | <kbd>⌃ Ctrl</kbd>            | `0x0001`
+ 1   | Right  | <kbd>⌃ Ctrl</kbd>            | `0x0002`
+ 2   | Left   | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd>                       | `0x0004`
+ 3   | Right  | <kbd>⎇ Alt</kbd><br><kbd>⌥ Option</kbd><br><kbd>⇮ AltGr</kbd> | `0x0008`
  4   | Left   | <kbd>⇧ Shift</kbd>           | `0x0010`
  5   | Right  | <kbd>⇧ Shift</kbd>           | `0x0020`
  6   | Left   | <kbd>⊞ Win</kbd><br><kbd>⌘ Command</kbd><br><kbd>◆ Meta</kbd><br><kbd>❖ Super</kbd> | `0x0040`
@@ -154,29 +176,27 @@ Scan codes for the keys on a standard 104-key keyboard:
 
 #### Physical keys
 
-The strings generated by the keystroke is not mapped wth physical keys because it depends on modifiers state and the national keyboard layout.
-
-The `KeyId` is incremented by 2 for each generic key, providing two `KeyId` placeholders for each physical key to distinguish between Left and Right (or Numpad) in the last bit. Ignore the last bit of `KeyId` for tracking generic keys.
+The `<KeyId>` is incremented by 2 for each generic key, providing two `<KeyId>` placeholders for each physical key to distinguish between Left and Right (or Numpad) in the last bit. Ignore the last bit of `<KeyId>` for tracking generic keys.
 
 Key ID | Name             | Physical Key                  | Scan Code        | Notes
 -------|------------------|-------------------------------|------------------|------
 0      | undef            |                               |                  |
-2      | Esc              | <kbd>Esc</kbd>                | `    1` `0x01`   |
-4      | Space            | <kbd>Space</kbd>              | `   57` `0x39`   |
-6      | Backspace        | <kbd>Backspace</kbd>          | `   14` `0x0E`   |
-8      | Tab              | <kbd>Tab</kbd>                | `   15` `0x0F`   |
-10     | LeftShift        | <kbd>Left Shift</kbd>         | `   42` `0x2A`   |
-11     | RightShift       | <kbd>Right Shift</kbd>        | `   54` `0x36`   |
-12     | LeftCtrl         | <kbd>Left Ctrl</kbd>          | `   29` `0x1D`   |
-13     | RightCtrl        | <kbd>Right Ctrl</kbd>         | `57373` `0xE01D` |
-14     | LeftAlt          | <kbd>Left Alt</kbd>           | `   56` `0x38`   |
-15     | RightAlt         | <kbd>Right Alt</kbd>          | `57400` `0xE038` |
-16     | LeftWin          | <kbd>Left Win</kbd>           | `   91` `0x5B`   |
-17     | RightWin         | <kbd>Right Win</kbd>          | `   92` `0x5C`   |
-18     | CapsLock         | <kbd>Caps Lock</kbd>          | `   58` `0x3A`   |
-20     | NumLock          | <kbd>Num Lock</kbd>           | `   69` `0x45`   |
-22     | ScrollLock       | <kbd>Scroll Lock</kbd>        | `   69` `0x45`   |
-24     | Apps             | <kbd>Apps</kbd>               | `   93` `0x5D`   |
+2      | LeftCtrl         | <kbd>Left Ctrl</kbd>          | `   29` `0x1D`   |
+3      | RightCtrl        | <kbd>Right Ctrl</kbd>         | `57373` `0xE01D` |
+4      | LeftAlt          | <kbd>Left Alt</kbd>           | `   56` `0x38`   |
+5      | RightAlt         | <kbd>Right Alt</kbd>          | `57400` `0xE038` |
+6      | LeftShift        | <kbd>Left Shift</kbd>         | `   42` `0x2A`   |
+7      | RightShift       | <kbd>Right Shift</kbd>        | `   54` `0x36`   |
+8      | LeftWin          | <kbd>Left Win</kbd>           | `   91` `0x5B`   |
+9      | RightWin         | <kbd>Right Win</kbd>          | `   92` `0x5C`   |
+10     | Apps             | <kbd>Apps</kbd>               | `   93` `0x5D`   |
+12     | NumLock          | <kbd>Num Lock</kbd>           | `   69` `0x45`   |
+14     | CapsLock         | <kbd>Caps Lock</kbd>          | `   58` `0x3A`   |
+16     | ScrollLock       | <kbd>Scroll Lock</kbd>        | `   69` `0x45`   |
+18     | Esc              | <kbd>Esc</kbd>                | `    1` `0x01`   |
+20     | Space            | <kbd>Space</kbd>              | `   57` `0x39`   |
+22     | Backspace        | <kbd>Backspace</kbd>          | `   14` `0x0E`   |
+24     | Tab              | <kbd>Tab</kbd>                | `   15` `0x0F`   |
 26     | Break            | <kbd>Break</kbd>              | `57414` `0xE046` | Ctrl + Pause
 28     | Pause            | <kbd>Pause</kbd>              | `57412` `0xE045` |
 30     | Select           | <kbd>Select</kbd>             |                  |
@@ -297,42 +317,40 @@ Key ID | Name             | Physical Key                  | Scan Code        | N
 204    | KeyY             | <kbd>Y</kbd>                  |                  |
 206    | KeyZ             | <kbd>Z</kbd>                  |                  |
 208    | Sleep            | <kbd>Sleep</kbd>              |                  |
-210    | WWW              | <kbd>WWW</kbd>                |                  |
-212    | Calculator       | <kbd>Calculator</kbd>         |                  |
-214    | Mail             | <kbd>Mail</kbd>               |                  |
-216    | MediaVolMute     | <kbd>Media Vol Mute</kbd>     |                  |
-218    | MediaVolDown     | <kbd>Media Vol Down</kbd>     |                  |
-220    | MediaVolUp       | <kbd>Media Vol Up</kbd>       |                  |
-222    | MediaNext        | <kbd>Media Next</kbd>         |                  |
-224    | MediaPrev        | <kbd>Media Prev</kbd>         |                  |
-226    | MediaStop        | <kbd>Media Stop</kbd>         |                  |
-228    | MediaPlayPause   | <kbd>Media Play/Pause</kbd>   |                  |
-230    | MediaSelect      | <kbd>Media Select</kbd>       |                  |
-232    | BrowserBack      | <kbd>Browser Back</kbd>       |                  |
-234    | BrowserForward   | <kbd>Browser Forward</kbd>    |                  |
-236    | BrowserRefresh   | <kbd>Browser Refresh</kbd>    |                  |
-238    | BrowserStop      | <kbd>Browser Stop</kbd>       |                  |
-240    | BrowserSearch    | <kbd>Browser Search</kbd>     |                  |
-242    | BrowserFavorites | <kbd>Browser Favorites</kbd>  |                  |
-244    | BrowserHome      | <kbd>Browser Home</kbd>       |                  |
+210    | Calculator       | <kbd>Calculator</kbd>         |                  |
+212    | Mail             | <kbd>Mail</kbd>               |                  |
+214    | MediaVolMute     | <kbd>Media Vol Mute</kbd>     |                  |
+216    | MediaVolDown     | <kbd>Media Vol Down</kbd>     |                  |
+218    | MediaVolUp       | <kbd>Media Vol Up</kbd>       |                  |
+220    | MediaNext        | <kbd>Media Next</kbd>         |                  |
+222    | MediaPrev        | <kbd>Media Prev</kbd>         |                  |
+224    | MediaStop        | <kbd>Media Stop</kbd>         |                  |
+226    | MediaPlayPause   | <kbd>Media Play/Pause</kbd>   |                  |
+228    | MediaSelect      | <kbd>Media Select</kbd>       |                  |
+230    | BrowserBack      | <kbd>Browser Back</kbd>       |                  |
+232    | BrowserForward   | <kbd>Browser Forward</kbd>    |                  |
+234    | BrowserRefresh   | <kbd>Browser Refresh</kbd>    |                  |
+236    | BrowserStop      | <kbd>Browser Stop</kbd>       |                  |
+238    | BrowserSearch    | <kbd>Browser Search</kbd>     |                  |
+240    | BrowserFavorites | <kbd>Browser Favorites</kbd>  |                  |
+242    | BrowserHome      | <kbd>Browser Home</kbd>       |                  |
 
 ### Mouse
 
 ```
-ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ; VtWheelDt ; HzWheelDt ESC \
+ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ; wheel=<DeltaY>,<DeltaX> ESC \
 ```
 
-Field               | Description
---------------------|------------
-`CtrlState`         | Keyboard modifiers (see Keyboard event).
-`MouseX` / `MouseY` | Mouse pointer coorinates.
-`ButtonState`       | Mouse button state.
-`VtWheelDt`         | Vertical wheel delta.
-`HzWheelDt`         | Horizontal wheel delta.
+Attribute                 | Description
+--------------------------|------------
+`kbmods=<KeyMods>`        | Keyboard modifiers (see Keyboard event).
+`coord=<X>,<Y>`           | Mouse pointer coorinates.
+`buttons=<ButtonState>`   | Mouse button state.
+`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel delta.
 
-In response to the activation of `m o u s e` tracking, the application receives a vt-sequence containing current mouse state:
+In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
 ```
-ESC _ i n p u t ; m o u s e ; CtrlState ; MouseX ; MouseY ; ButtonState ESC \
+ESC _ event=mouse ; kbmods=<KeyMods> ; coord=<X>,<Y> ; buttons=<ButtonState> ESC \
 ```
 
 The mouse tracking event fires on any mouse activity, as well as on keyboard modifier changes.
@@ -352,35 +370,35 @@ Note: Mouse tracking will continue outside the terminal window as long as the mo
 ### Focus
 
 ```
-ESC _ i n p u t ; f o c u s ; FocusState ESC \
+ESC _ event=focus ; state=<FocusState> ESC \
 ```
 
-Field        | Description
--------------|------------
-`FocusState` | Terminal window focus state. 1 - Focused, 0 - Unfocused.
+Attribute            | Description
+---------------------|------------
+`state=<FocusState>` | Terminal window focus state. 1 - Focused, 0 - Unfocused.
 
-In response to the activation of `f o c u s` tracking, the application receives a vt-sequence containing current focus state.
+In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
 
 ### Clipboard
 
 ```
-ESC _ i n p u t ; c l i p b o a r d ; ClipFormat ; SecLevel ; Data ESC \
+ESC _ event=clipoard ; format=<ClipFormat> ; security=<SecLevel> ; data=<Data> ESC \
 ```
 
-Field        | Description
--------------|------------
-`ClipFormat` | Clipboard data format.
-`SecLevel`   | Security level.
-`Data`       | Base64 encoded data.
+Attribute             | Description
+----------------------|------------
+`format=<ClipFormat>` | Clipboard data format.
+`security=<SecLevel>` | Security level.
+`data=<Data>`         | Base64 encoded data.
 
-#### Data format
+#### Clipboard data format
 
-Format    | Description
-----------|------------
-`t e x t` | Plain text.
-`r i c h` | Rich text format.
-`h t m l` | HTML format.
-`a n s i` | ANSI/VT format.
+Format | Description
+-------|------------
+`text` | Plain text.
+`rich` | Rich text format.
+`html` | HTML format.
+`ansi` | ANSI/VT format.
 
 #### Security level
 
@@ -393,18 +411,18 @@ Bit    | Description
 ### Window
 
 ```
-ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
+ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
 ```
 
-Field                 | Description
-----------------------|------------
-`WinSizeX`/`WinSizeY` | Terminal window size in cells.
-`CaretX`/`CaretY`     | Current text cursor position.
-`ScrollTop`/`ScrollBottom`<br>`ScrollLeft`/`ScrollRight` | Scrolling region margins.
-`SelStartX`/`SelStartY`<br>`SelEndX`/`SelEndY`           | Coordinates of the text selection start/end (half-open interval).
-`SelMode`             | Text selection mode: 0 - line-based, 1 - rect-based.
+Attribute                                   | Description
+--------------------------------------------|------------
+`size=<Width>,<Height>`                     | Terminal window size in cells.
+`cursor=<X>,<Y>`                            | Current text cursor position.
+`scroll=<Left>,<Top>,<Right>,<Bottom>`      | Scrolling region margins.
+`selection=<StartX>,<StartY>,<EndX>,<EndY>` | Coordinates of the text selection start/end (half-open interval).
+`<SelMode>`                                 | Text selection mode: 0 - line-based, 1 - rect-based.
 
-In response to the activation of `w i n d o w` tracking, the application receives a vt-sequence containing current window state.
+In response to the activation of `window` tracking, the application receives a vt-sequence containing current window state.
 
 #### Mandatory synchronization
 
@@ -418,9 +436,9 @@ Handshake steps:
    - Application updates its UI.
 
 ```
-Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY _
-Application: ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY _
-Terminal:    ESC _ i n p u t ; w i n d o w ; WinSizeX ; WinSizeY ; CaretX ; CaretY ; ScrollTop ; ScrollBottom ; ScrollLeft ; ScrollRight ; SelStartX ; SelStartY ; SelEndX ; SelEndY ; SelMode ESC \
+Terminal:    ESC _ event=window ; size=<Width>,<Height> ESC \
+Application: ESC _ event=window ; size=<Width>,<Height> ESC \
+Terminal:    ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; scroll=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
 ```
 
 Note that the terminal window resizing always reflows the scrollback, so the window size, cursor position, scrolling regions, and selection coordinates are subject to change during step 3. Upon receiving the resize request (step 1), a full-screen application can prepare a scrollback by cropping visible lines to avoid unwanted line wrapping or line extrusion, then send a resize confirmation (step 2). In case the aplication's output is anchored to the current cursor position or uses scrolling regions, the application should wait after step 2 for the updated values before continuing to output. 
@@ -448,7 +466,7 @@ Note that selected text in the scrollback above the top index row will produce n
 ### System
 
 ```
-ESC _ i n p u t ; s y s t e m ; Signal ESC \
+ESC _ event=system ; signal=<Signal> ESC \
 ```
 
 Signal | Description
