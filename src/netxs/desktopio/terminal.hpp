@@ -7224,7 +7224,7 @@ namespace netxs::ui
                     follow[axis::Y] = true;
                 }
 
-                if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keyid)));
+                if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keycode)));
 
                 #if defined(_WIN32)
 
@@ -7662,7 +7662,7 @@ namespace netxs::ui
                                                gear.pressed,
                                                gear.cluster,
                                                gear.handled,
-                                               gear.keyid);
+                                               gear.keycode);
                     gear.dismiss();
                 };
                 //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)

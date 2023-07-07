@@ -507,9 +507,9 @@ namespace netxs::input
                 static auto n = std::vector<text>(256);
                 return n;
             }
-            static auto& name(si32 keyid)
+            static auto& name(si32 keycode)
             {
-                return name()[keyid];
+                return name()[keycode];
             }
 
             map(si32 vk, si32 sc, ui32 cs)
@@ -1056,7 +1056,7 @@ namespace netxs::input
         hint cause = netxs::events::userland::hids::keybd::data::post.id;
         text keystrokes;
         bool handled = {};
-        si32 keyid;
+        si32 keycode = {};
 
         void update(syskeybd& k)
         {
@@ -1066,7 +1066,7 @@ namespace netxs::input
             scancod = k.scancod;
             cluster = k.cluster;
             handled = k.handled;
-            keyid = k.keyid;
+            keycode = k.keycode;
             fire_keybd();
         }
 
