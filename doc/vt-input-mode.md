@@ -414,13 +414,12 @@ Bit    | Description
 ESC _ event=window ; size=<Width>,<Height> ; cursor=<X>,<Y> ; region=<Left>,<Top>,<Right>,<Bottom> ; selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode> ESC \
 ```
 
-Attribute                                   | Description
---------------------------------------------|------------
-`size=<Width>,<Height>`                     | Terminal window size in cells.
-`cursor=<X>,<Y>`                            | Current text cursor position.
-`region=<Left>,<Top>,<Right>,<Bottom>`      | Scrolling region margins.
-`selection=<StartX>,<StartY>,<EndX>,<EndY>` | Coordinates of the text selection start/end (half-open interval).
-`<Mode>`                                    | Text selection mode:<br>\<Mode\>=0 - Line-based.<br>\<Mode\>=1 - Rect-based.
+Attribute                                          | Description
+---------------------------------------------------|------------
+`size=<Width>,<Height>`                            | Terminal window size in cells.
+`cursor=<X>,<Y>`                                   | Current text cursor position.
+`region=<Left>,<Top>,<Right>,<Bottom>`             | Scrolling region margins.
+`selection=<StartX>,<StartY>,<EndX>,<EndY>,<Mode>` | Coordinates of the text selection start/end (half-open interval) and text selection mode:<br>\<Mode\>=0 - Line-based.<br>\<Mode\>=1 - Rect-based.
 
 In response to the activation of `window` tracking, the application receives a vt-sequence containing current window state.
 
