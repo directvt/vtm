@@ -1499,13 +1499,13 @@ namespace netxs::ui
         redo stack = {};              // paпу: Style state stack.
 
         //todo use ring
-        si32 limit = std::numeric_limits<si32>::max(); // page: Paragraphs number limit.
+        ui32 limit = si32max; // page: Paragraphs number limit.
         void shrink() // page: Remove over limit paragraphs.
         {
             auto size = batch.size();
             if (size > limit)
             {
-                auto item = static_cast<si32>(std::distance(batch.begin(), layer));
+                auto item = static_cast<size_t>(std::distance(batch.begin(), layer));
                 while (batch.size() > limit)
                 {
                     batch.pop_front();
@@ -1515,7 +1515,12 @@ namespace netxs::ui
                 if (item < size - limit) layer = batch.begin();
             }
         }
-        void maxlen(si32 m) { limit = std::max(1, m); shrink(); } // page: Set the limit of paragraphs.
+        // page: Set the limit of paragraphs.
+        void maxlen(ui32 m)
+        {
+            limit = std::clamp<ui32>(m, 1, si32max);
+            shrink();
+        }
         auto maxlen() { return limit; } // page: Get the limit of paragraphs.
 
         using ring = generics::ring<std::vector<para>>;

@@ -31,7 +31,7 @@ namespace netxs
     using sz_t = ui32;
     using flag = std::atomic<bool>;
 
-    constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
+    constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto si32max = std::numeric_limits<si32>::max();
     static constexpr auto ui32max = std::numeric_limits<ui32>::max();
     static constexpr auto si16max = std::numeric_limits<si16>::max();
@@ -48,8 +48,8 @@ namespace netxs
     enum class feed : unsigned char { none, rev, fwd, };
 
     template<class T>
-    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
-                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
+    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
+                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si32max, si32, si64>>;
 
     // intmath: Set a single p-bit to v.
     template<unsigned int P, class T>

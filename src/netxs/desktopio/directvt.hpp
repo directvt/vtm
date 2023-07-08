@@ -892,7 +892,6 @@ namespace netxs::directvt
                 auto head = image.iter();
                 auto tail = image.iend();
                 auto iter = head;
-                auto size = tail - head;
                 auto take = [&](auto what, cell& c)
                 {
                     if (what & bgclr) stream::take(c.bgc(), data);
@@ -929,24 +928,26 @@ namespace netxs::directvt
                     {
                         //rep_count++;
                         auto [count] = stream::take<sz_t>(data);
-                        if (count > tail - iter)
+                        auto upto = iter + count;
+                        if (upto > tail)
                         {
                             log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
-                        auto from = iter;
-                        std::fill(from, iter += count, mark);
+                        std::fill(iter, upto, mark);
+                        iter = upto;
                     }
                     else if (what == subtype::mov)
                     {
                         //mov_count++;
                         auto [offset] = stream::take<sz_t>(data);
-                        if (offset >= size)
+                        auto dest = head + offset;
+                        if (dest >= tail)
                         {
                             log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
-                        iter = head + offset;
+                        iter = dest;
                     }
                     else // Unknown subtype.
                     {

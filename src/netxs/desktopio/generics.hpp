@@ -702,7 +702,7 @@ namespace netxs::generics
             while (queue)
             {
                 auto task = queue.front();
-                if (task >= 0 && task < last->size())
+                if (task >= 0 && (size_t)task < last->size())
                 {
                     if (auto const& next = last->at(task))
                     {
@@ -743,7 +743,7 @@ namespace netxs::generics
                     while (queue)
                     {
                         auto task = queue.front();
-                        if (task >= 0 && task < last->size())
+                        if (task >= 0 && (size_t)task < last->size())
                         {
                             if (auto const& next = last->at(task))
                             {

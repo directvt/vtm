@@ -554,8 +554,8 @@ struct consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>(coord.x, 0, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::clamp<si32>(coord.y, 0, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::clamp<si32>(coord.x, 0, si16max),
+                            .Y = (si16)std::clamp<si32>(coord.y, 0, si16max),
                         },
                         .dwButtonState     = bttns,
                         .dwControlKeyState = state,
@@ -578,8 +578,8 @@ struct consrv
                     {
                         .dwSize =
                         {
-                            .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::min<si32>(winsize.x, si16max),
+                            .Y = (si16)std::min<si32>(winsize.y, si16max),
                         }
                     }
                 }

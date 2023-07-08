@@ -4138,8 +4138,8 @@ namespace netxs::os
                                                             ++pos;
 
                                                             auto clamp = [](auto a) { return std::clamp(a,
-                                                                std::numeric_limits<si32>::min() / 2,
-                                                                std::numeric_limits<si32>::max() / 2); };
+                                                                si32min / 2,
+                                                                si32max / 2); };
 
                                                             auto x = clamp(pos_x.value() - 1);
                                                             auto y = clamp(pos_y.value() - 1);

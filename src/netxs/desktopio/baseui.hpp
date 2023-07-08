@@ -633,7 +633,7 @@ namespace netxs::ui
 
             if (reset)
             {
-                anker.y = std::numeric_limits<si32>::max();
+                anker.y = si32max;
                 textpage.stream(gain);
 
                 decoy = caret && inside(flow::cp());
@@ -768,10 +768,14 @@ namespace netxs::ui
             auto view = core::view();
             auto size = core::size();
 
-            auto w = view.size.x;
-            auto h = view.size.y;
+            auto w = std::max(0, view.size.x);
+            auto h = std::max(0, view.size.y);
+            auto s = w * h;
 
-            if (auto size = w * h; cache.size() < size) cache.resize(size);
+            if (cache.size() < (size_t)s)
+            {
+                cache.resize(s);
+            }
 
             auto s_ptr = core::data(view.coor);
             auto d_ptr = cache.data();

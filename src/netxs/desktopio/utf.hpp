@@ -930,10 +930,10 @@ namespace netxs::utf
         }
     }
 
-    template<class TextOrView>
+    template<class Result = si32, class TextOrView>
     auto length(TextOrView&& utf8)
     {
-        auto length = si32{ 0 };
+        auto length = Result{ 0 };
         for (auto c : utf8)
         {
             length += (c & 0xc0) != 0x80;
@@ -1179,7 +1179,7 @@ namespace netxs::utf
             {
                 crop = substr(data, 0, required_width);
             }
-            auto size = length(crop);
+            auto size = length<size_t>(crop);
             if (required_width > size)
             {
                 if (right_aligned) crop = repeat(fill_char, required_width - size) + crop;

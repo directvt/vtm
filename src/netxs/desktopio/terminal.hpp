@@ -1507,7 +1507,7 @@ namespace netxs::ui
                 auto& last = tail->first;
                 if (coord.x != last)
                 {
-                    auto size = stops.size();
+                    auto size = static_cast<si32>(stops.size());
                     auto base = last;
                     last = coord.x;
                     while (head != tail)

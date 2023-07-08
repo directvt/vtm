@@ -1066,9 +1066,9 @@ namespace netxs::ui
         auto get_entry(twod const& anchor)
         {
             auto& anker = anchor.y;
-            auto pred = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            auto minp = item{ 0, twod{ 0, std::numeric_limits<si32>::max() } };
-            auto mindist = std::numeric_limits<si32>::max();
+            auto pred = item{ 0, twod{ 0, si32max } };
+            auto minp = item{ 0, twod{ 0, si32max } };
+            auto mindist = si32max;
 
             //todo optimize, use binary search
             //start from the end
@@ -1143,9 +1143,10 @@ namespace netxs::ui
         }
         void recalc()
         {
-            if (topic.size() > layout.capacity())
+            auto s = (size_t)topic.size();
+            if (s > layout.capacity())
             {
-                layout.reserve(topic.size() * 2);
+                layout.reserve(s * 2);
             }
 
             auto entry = layout.get_entry(base::anchor); // Take the object under central point

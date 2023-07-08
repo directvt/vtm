@@ -82,7 +82,7 @@ namespace netxs::app::shared
             template<class P>
             void reindex(P take)
             {
-                for (auto i = 0; i < views.size(); i++)
+                for (auto i = 0_sz; i < views.size(); i++)
                 {
                     auto& l = views[i];
                     l.value = static_cast<si32>(take(l.param));
@@ -498,7 +498,7 @@ namespace netxs::app::shared
                     {
                         log(prompt::pads, "Reading configuration: ", config_path_str);
                         auto size = file.tellg();
-                        auto buff = text(size, '\0');
+                        auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
                         conf.fuse<Print>(buff, config_path.string());

@@ -292,7 +292,7 @@ namespace netxs::app::calc
                     if (!(i % 2))
                     {
                         auto c0 = base;
-                        for (auto i = 0; i < label.length(); i++)
+                        for (auto i = 0_sz; i < label.length(); i++)
                         {
                             cellatix_rows += ansi::bgc(c0) + label[i];
                             c0 += step;
@@ -304,7 +304,7 @@ namespace netxs::app::calc
                     else
                     {
                         auto c0 = base + step * (si32)label.length();
-                        for (auto i = 0; i < label.length(); i++)
+                        for (auto i = 0_sz; i < label.length(); i++)
                         {
                             cellatix_rows += ansi::bgc(c0) + label[i];
                             c0 -= step;
