@@ -11,6 +11,7 @@
 #include <cassert>
 #include <bit>
 #include <atomic>
+#include <cstring> // std::memcpy
 
 #ifndef faux
     #define faux (false)
@@ -163,6 +164,7 @@ namespace netxs
                 r = (n & 0x00FF) << 8 |
                     (n & 0xFF00) >> 8;
             }
+            else assert(faux);
             return r;
         }
     }
@@ -170,16 +172,24 @@ namespace netxs
     template<class T, bool BE = std::endian::native == std::endian::big>
     constexpr auto letoh(T i)
     {
-        if constexpr (BE) return _swap_bytes(i);
-        else              return i;
+        if constexpr (BE && sizeof(T) > 1) return _swap_bytes(i);
+        else                               return i;
     }
     // intmath: Convert BE to host endianness.
     template<class T, bool LE = std::endian::native == std::endian::little>
     constexpr auto betoh(T i)
     {
-        if constexpr (LE) return _swap_bytes(i);
-        else              return i;
+        if constexpr (LE && sizeof(T) > 1) return _swap_bytes(i);
+        else                               return i;
     }
+    // intmath: Get the aligned integral value.
+    template<class T>
+    constexpr auto aligned(void const* ptr)
+    {
+        auto i = T{};
+        std::memcpy(&i, ptr, sizeof(T));
+        return letoh(i);
+    };
     // intmath: LE type wrapper. T has an LE format in memory.
     template<class T>
     class le_t

@@ -181,12 +181,14 @@ namespace netxs::directvt
                     if (data.size() < sizeof(sz_t))
                     {
                         log(prompt::dtvt, "Corrupted frame header");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return view{};
                     }
-                    auto size = netxs::letoh(*reinterpret_cast<sz_t const*>(data.data()));
+                    auto size = netxs::aligned<sz_t>(data.data());
                     if (data.size() < size + sizeof(size))
                     {
                         log(prompt::dtvt, "Corrupted frame data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return view{};
                     }
                     auto crop = view{ data.data() + sizeof(sz_t), (size_t)size };
@@ -216,9 +218,10 @@ namespace netxs::directvt
                     if (data.size() < sizeof(type))
                     {
                         log(prompt::dtvt, "Corrupted datetime data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
-                    auto temp = *reinterpret_cast<type const*>(data.data());
+                    auto temp = netxs::aligned<type>(data.data());
                     auto crop = time{ span{ temp }};
                     if constexpr (!PeekOnly)
                     {
@@ -231,9 +234,10 @@ namespace netxs::directvt
                     if (data.size() < sizeof(D))
                     {
                         log(prompt::dtvt, "Corrupted integer data");
+                        if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
-                    auto crop = netxs::letoh(*reinterpret_cast<D const*>(data.data()));
+                    auto crop = netxs::aligned<D>(data.data());
                     if constexpr (!PeekOnly)
                     {
                         data.remove_prefix(sizeof(D));
@@ -313,7 +317,7 @@ namespace netxs::directvt
                 auto iter = head;
                 while (size >= sizeof(sz_t))
                 {
-                    auto step = *reinterpret_cast<sz_t const*>(iter);
+                    auto step = netxs::aligned<sz_t>(iter);
                     if (step < sizeof(sz_t))
                     {
                         log(prompt::dtvt, "Stream corrupted", ", frame size: ", step);
@@ -410,7 +414,7 @@ namespace netxs::directvt
                     return faux;
                 }
                 auto rest = size_t{};
-                rest = *reinterpret_cast<sz_t const*>(buff.data());
+                rest = netxs::aligned<sz_t>(buff.data());
                 if (rest < sizeof(sz_t))
                 {
                     log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
@@ -431,7 +435,7 @@ namespace netxs::directvt
                     head += shot.size();
                 }
                 auto data = view{ buff };
-                auto kind = *reinterpret_cast<type const*>(data.data());
+                auto kind = netxs::aligned<type>(data.data());
                 if (kind != object.kind)
                 {
                     log(prompt::dtvt, "Object type mismatch");

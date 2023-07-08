@@ -6,7 +6,6 @@
 #include "geometry.hpp"
 #include "ptr.hpp"
 
-#include <cstring> // std::memcpy
 #include <span>
 
 namespace netxs
