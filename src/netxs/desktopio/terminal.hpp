@@ -2696,7 +2696,7 @@ namespace netxs::ui
                     dec_height(vsize, kind, size);
                 }
                 // buff: Check buffer size.
-                bool check_size(twod const new_size)
+                bool check_size(twod const& new_size)
                 {
                     auto old_value = vsize;
                     set_width(new_size.x);

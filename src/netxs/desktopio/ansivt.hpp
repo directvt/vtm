@@ -1128,7 +1128,7 @@ namespace netxs::ansi
         dent margin     = {}; // deco: Page margins.
 
         deco() = default;
-        bool operator==(const deco&) const = default;
+        bool operator==(deco const&) const = default;
 
         auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
         auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.

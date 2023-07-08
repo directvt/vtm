@@ -906,7 +906,7 @@ namespace netxs
 
     // do it in place
     //template<class M, class K>
-    //auto on_key_get(const M& map, const K& key)
+    //auto on_key_get(M const& map, K const& key)
     //{
     //	const auto it = map.find(key);
     //	return it == map.end() ? std::nullopt
