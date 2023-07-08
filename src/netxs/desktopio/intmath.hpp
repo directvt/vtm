@@ -36,6 +36,10 @@ namespace netxs
     static constexpr auto ui32max = std::numeric_limits<ui32>::max();
     static constexpr auto si16max = std::numeric_limits<si16>::max();
     static constexpr auto ui16max = std::numeric_limits<ui16>::max();
+    static constexpr auto si32min = std::numeric_limits<si32>::min();
+    static constexpr auto ui32min = std::numeric_limits<ui32>::min();
+    static constexpr auto si16min = std::numeric_limits<si16>::min();
+    static constexpr auto ui16min = std::numeric_limits<ui16>::min();
     static constexpr auto debugmode
         #if defined(_DEBUG)
         = true;
