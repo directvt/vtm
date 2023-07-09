@@ -1336,7 +1336,7 @@ namespace netxs::os
                 #elif defined(__linux__)
 
                     auto cred = ucred{};
-                    #ifndef __ANDROID__
+                    #ifdef __ANDROID__
                         auto size = socklen_t{ sizeof(cred) };
                     #else
                         auto size = unsigned{ sizeof(cred) };
