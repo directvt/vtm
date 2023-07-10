@@ -218,7 +218,7 @@
       ]
     },
     {
-      "name": "x32-Release-Static",
+      "name": "x32-Release-Static-PROD",
       "generator": "Ninja",
       "configurationType": "MinSizeRel",
       "buildRoot": "${projectDir}\\build\\${name}",
@@ -234,6 +234,28 @@
           "type": "STRING"
         }
       ]
+    },
+    {
+      "name": "WSL-32bit-Release-Static-PROD",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x86" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "-pthread -m32 -static -s",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-x86",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0"
     }
   ]
 }
