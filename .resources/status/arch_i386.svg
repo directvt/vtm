@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+  width="120" height="20">
+  <linearGradient id="b" x2="0" y2="100%">
+    <stop offset="0" stop-color="#bbb" stop-opacity=".1"/>
+    <stop offset="1" stop-opacity=".1"/>
+  </linearGradient>
+  <clipPath id="a">
+    <rect width="120" height="20" rx="3" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#a)">
+    <path fill="#555"    d="M0,0 H120 V20 H0 z"/>
+    <path fill="url(#b)" d="M0,0 H120 v20 H0 z"/>
+  </g>
+  <g fill="#fff" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
+    <text x="550" y="150" text-anchor="end" transform="scale(.1)" fill="#010101" fill-opacity=".3"
+    >Intel</text>
+    <text x="550" y="140" text-anchor="end" transform="scale(.1)"
+    >Intel</text>
+    <text x="650" y="150" text-anchor="start" transform="scale(.1)" fill="#010101" fill-opacity=".3"
+    >32-bit</text>
+    <text x="650" y="140" text-anchor="start" transform="scale(.1)"
+    >32-bit</text>
+  </g>
+</svg>
