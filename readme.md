@@ -10,9 +10,9 @@ Text-baased desktop inside your console.
 
 - Windows
   - Server/Desktop
-- POSIX-oriented
+- Unix-like
   - Linux
-  - Android(Linux)
+  - Android <sup><sup>Linux kernel</sup></sup>
   - macOS
   - FreeBSD
   - NetBSD
@@ -26,7 +26,7 @@ Text-baased desktop inside your console.
 
 # Building from Source
 
-### POSIX-oriented
+### Unix-like
 
 Build-time dependencies
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
