@@ -11,8 +11,7 @@ Text-baased desktop inside your console.
 - Windows
   - Server/Workstation
 - POSIX-oriented
-  - Linux
-  - Android
+  - Linux/Android
   - macOS
   - FreeBSD
   - NetBSD
