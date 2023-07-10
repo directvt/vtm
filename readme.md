@@ -9,9 +9,10 @@ Text-baased desktop inside your console.
 # Supported Platforms
 
 - Windows
-  - Server/Workstation
+  - Server/Desktop
 - POSIX-oriented
-  - Linux/Android
+  - Linux
+  - Android(Linux)
   - macOS
   - FreeBSD
   - NetBSD
