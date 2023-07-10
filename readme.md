@@ -29,6 +29,7 @@ Text-baased desktop inside your console.
 ### Unix
 
 Build-time dependencies
+ - 64-bit host system
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
  - Minimal requirements to compile
    - Compiling with GCC — 4GB of RAM
