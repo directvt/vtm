@@ -10,7 +10,7 @@ Text-baased desktop inside your console.
 
 - Windows
   - Server/Desktop
-- Unix-like
+- Unix
   - Linux
   - Android <sup><sup>Linux kernel</sup></sup>
   - macOS
@@ -26,7 +26,7 @@ Text-baased desktop inside your console.
 
 # Building from Source
 
-### Unix-like
+### Unix
 
 Build-time dependencies
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
