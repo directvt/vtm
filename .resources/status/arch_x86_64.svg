@@ -13,9 +13,9 @@
   </g>
   <g fill="#fff" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
     <text x="550" y="150" text-anchor="end" transform="scale(.1)" fill="#010101" fill-opacity=".3"
-    >AMD64</text>
+    >Intel</text>
     <text x="550" y="140" text-anchor="end" transform="scale(.1)"
-    >AMD64</text>
+    >Intel</text>
     <text x="650" y="150" text-anchor="start" transform="scale(.1)" fill="#010101" fill-opacity=".3"
     >64-bit</text>
     <text x="650" y="140" text-anchor="start" transform="scale(.1)"
