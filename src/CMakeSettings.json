@@ -100,7 +100,7 @@
       "intelliSenseMode": "linux-gcc-arm",
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
-      "remoteCopyUseCompilerDefaults": true,
+      "remoteCopyUseCompilerDefaults": true
     },
     {
       "name": "PROD-WSL-ARM64",
@@ -145,6 +145,11 @@
         {
           "name": "CMAKE_CXX_FLAGS",
           "value": "-pthread -m32 -static -s",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/i686-linux-gnu-g++",
           "type": "STRING"
         }
       ],
