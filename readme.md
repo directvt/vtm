@@ -64,7 +64,7 @@ Release\vtm.exe
 
 ![](.resources/status/macos.svg)   [![](.resources/status/arch_any.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
 ![](.resources/status/linux.svg)   [![](.resources/status/arch_amd64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz) [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm64.tar.gz)   [![](.resources/status/arch_i386.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_i386.tar.gz)   [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm32.tar.gz)  
-![](.resources/status/windows.svg) [![](.resources/status/arch_amd64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm64.tar.gz) [![](.resources/status/arch_i386.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_i386.tar.gz)  
+![](.resources/status/windows.svg) [![](.resources/status/arch_amd64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm64.tar.gz) [![](.resources/status/arch_i386.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_i386.tar.gz)  [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm32.tar.gz)  
 
 ---
 

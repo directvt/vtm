@@ -22,6 +22,7 @@
     #include <Windows.h>
     #include <userenv.h>    // ::GetUserProfileDirectoryW
     #pragma comment(lib, "Userenv.lib")
+    #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
     #include <Psapi.h>      // ::GetModuleFileNameEx
     #include <winternl.h>   // ::NtOpenFile
 

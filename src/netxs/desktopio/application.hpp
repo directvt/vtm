@@ -82,7 +82,8 @@ namespace netxs::app::shared
             template<class P>
             void reindex(P take)
             {
-                for (auto i = 0_sz; i < views.size(); i++)
+                auto count = static_cast<si32>(views.size());
+                for (auto i = 0; i < count; i++)
                 {
                     auto& l = views[i];
                     l.value = static_cast<si32>(take(l.param));
