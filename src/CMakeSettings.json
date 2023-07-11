@@ -226,7 +226,7 @@
       "cmakeCommandArgs": "",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "inheritEnvironments": [ "msvc_x86" ],
+      "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
