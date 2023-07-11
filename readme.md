@@ -31,7 +31,7 @@ Text-baased desktop inside your console.
 Build-time dependencies
  - 64-bit system host
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
- - Minimal requirements to compile
+ - Minimum RAM requirements for compilation:
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
 
@@ -62,9 +62,9 @@ Release\vtm.exe
 
 # Binary Downloads
 
-![](.resources/status/macos.svg)   [![](.resources/status/arch_any.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-![](.resources/status/linux.svg)   [![](.resources/status/arch_amd64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz) [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm64.tar.gz)   [![](.resources/status/arch_i386.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_i386.tar.gz)   [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm32.tar.gz)  
-![](.resources/status/windows.svg) [![](.resources/status/arch_amd64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm64.tar.gz) [![](.resources/status/arch_i386.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_i386.tar.gz)  [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm32.tar.gz)  
+![](.resources/status/macos.svg)   [![](.resources/status/arch_any.svg)](/releases/latest/download/vtm_macos_any.tar.gz)  
+![](.resources/status/linux.svg)   [![](.resources/status/arch_x86_64.svg)](/releases/latest/download/vtm_linux_amd64.tar.gz) [![](.resources/status/arch_arm64.svg)](/releases/latest/download/vtm_linux_arm64.tar.gz)   [![](.resources/status/arch_i386.svg)](/releases/latest/download/vtm_linux_x86.tar.gz)   [![](.resources/status/arch_arm32.svg)](/releases/latest/download/vtm_linux_arm32.tar.gz)  
+![](.resources/status/windows.svg) [![](.resources/status/arch_x86_64.svg)](/releases/latest/download/vtm_windows_amd64.zip)  [![](.resources/status/arch_arm64.svg)](/releases/latest/download/vtm_windows_arm64.tar.gz) [![](.resources/status/arch_i386.svg)](/releases/latest/download/vtm_windows_x86.tar.gz)  [![](.resources/status/arch_arm32.svg)](/releases/latest/download/vtm_windows_arm32.tar.gz)  
 
 ---
 
