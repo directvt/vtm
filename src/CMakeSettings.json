@@ -144,7 +144,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -m32 -static -s",
+          "value": "-pthread -static -s",
           "type": "STRING"
         },
         {
