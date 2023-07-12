@@ -10,4 +10,4 @@
 #cmake ./src -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER="/bin/i686-linux-gnu-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s" && cmake --build .
 
 # Compile the ARM32 target binary
-cmake ./src -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER="/bin/arm-linux-gnueabihf-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s" && cmake --build .
+cmake ./src -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER="/bin/arm-linux-gnueabihf-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s -Wno-psabi" && cmake --build .
