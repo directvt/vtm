@@ -52,7 +52,7 @@ Use `Developer Command Prompt` as a build environment
 ```
 git clone https://github.com/netxs-group/vtm.git
 cd vtm
-build64.bat
+build64.cmd
 Release\vtm.exe
 ```
 
