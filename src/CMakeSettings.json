@@ -192,7 +192,7 @@
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
           "value": "/MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
           "type": "STRING"
         }
@@ -211,7 +211,7 @@
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS",
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
           "value": "/EHsc /bigobj /utf-8",
           "type": "STRING"
         }
