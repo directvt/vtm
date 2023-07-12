@@ -34,7 +34,7 @@ Build-time dependencies
 Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system, since building directly on a 32-bit environment is not possible due to compile time RAM requirements.
 
 Use any terminal as a build environment
-```bash
+```
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
 ./build64.sh
@@ -49,7 +49,7 @@ Build-time dependencies
 
 Use `Developer Command Prompt` as a build environment
 
-```cmd
+```
 git clone https://github.com/netxs-group/vtm.git
 cd vtm
 build64.bat
