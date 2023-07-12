@@ -88,7 +88,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s",
+          "value": "-pthread -static -s -Wno-psabi",
           "type": "STRING"
         },
         {
