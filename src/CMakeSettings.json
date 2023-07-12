@@ -181,6 +181,24 @@
       "remoteCopyUseCompilerDefaults": true
     },
     {
+      "name": "Win-x32-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\build\\${name}",
+      "installRoot": "${projectDir}\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "/MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
       "name": "Win-x64-Debug",
       "generator": "Ninja",
       "configurationType": "Debug",

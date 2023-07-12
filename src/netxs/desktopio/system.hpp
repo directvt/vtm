@@ -3575,6 +3575,22 @@ namespace netxs::os
         }
         auto vtmode()
         {
+            #if defined(_WIN32)
+                #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
+                auto isWow64Process = USHORT{};
+                auto nativeMachine = USHORT{};
+                ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
+                isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
+                #else
+                auto isWow64Process = BOOL{};
+                ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
+                #endif
+                if (isWow64Process)
+                {
+                    std::cout << "The vtm process is running under WOW64 or in emulation.\nPlease use the binary that matches your system architecture.\n";
+                    os::process::exit(0);
+                }
+            #endif
             auto mode = si32{ vt::clean };
             if (os::dtvt::peek(os::stdin_fd))
             {
