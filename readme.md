@@ -20,10 +20,6 @@ Text-baased desktop inside your console.
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
 
-# Runtime Requirements
-
-- 100MB of RAM per built-in 40k line-terminal instance [#147](https://github.com/netxs-group/vtm/issues/147)
-
 # Building from Source
 
 ### Unix
