@@ -5,6 +5,12 @@
 
 struct consrv
 {
+    #if defined(_WIN64)
+    using Long = ui64;
+    #else
+    using Long = ui32;
+    #endif
+
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
     static constexpr auto isreal()
     {
@@ -210,9 +216,15 @@ struct consrv
 
     using hndl = clnt::hndl;
 
+    struct tsid
+    {
+        ui32 lo;
+        ui32 hi;
+    };
+
     struct base
     {
-        ui64  taskid;
+        tsid  taskid;
         clnt* client;
         hndl* target;
         ui32  fxtype;
@@ -225,7 +237,7 @@ struct consrv
     {
         ui32 callfx;
         ui32 arglen;
-        byte argbuf[96];
+        byte argbuf[72 + 3 * sizeof(void*)]; // x64:=96  x32:=84
     };
 
     template<class Payload>
@@ -269,16 +281,16 @@ struct consrv
 
         struct order
         {
-            ui64 taskid;
+            tsid taskid;
             cptr buffer;
             ui32 length;
             ui32 offset;
         };
 
-        ui64 taskid;
+        tsid taskid;
         stat status;
         ui32 _pad_1;
-        ui64 report;
+        Long report;
         cptr buffer;
         ui32 length;
         ui32 offset;
@@ -1349,7 +1361,7 @@ struct consrv
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x(packet.taskid));
+                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x((ui64)packet.taskid.lo | ((ui64)packet.taskid.hi << 32)));
                     });
                     server.answer = {};
                 }
@@ -1982,7 +1994,7 @@ struct consrv
         log(prompt, "Attach process to console");
         struct payload : wrap<payload>
         {
-            ui64 taskid;
+            tsid taskid;
             ui32 procid;
             ui32 _pad_1;
             ui32 thread;
@@ -2174,7 +2186,7 @@ struct consrv
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
-            answer.report = reinterpret_cast<ui64>(&h);
+            answer.report = reinterpret_cast<Long>(&h);
             log(msg, &h);
         };
         switch (packet.input.action)
