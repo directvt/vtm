@@ -2493,6 +2493,20 @@ namespace netxs::os
                                                                                                          : "'" + cwd + "'");
                 #if defined(_WIN32)
 
+                    #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
+                    auto isWow64Process = USHORT{};
+                    auto nativeMachine = USHORT{};
+                    ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
+                    isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
+                    #else
+                    auto isWow64Process = BOOL{};
+                    ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
+                    #endif
+                    if (isWow64Process)
+                    {
+                        log("The vtm process is running under WOW64 or in emulation.\nPlease use the binary that matches your system architecture.");
+                    }
+
                     termsize(winsz);
                     auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
@@ -2700,7 +2714,7 @@ namespace netxs::os
                     guard.unlock();
                     #if defined(_WIN32)
 
-                        con_serv.events.write(cache);
+                        con_serv.write(cache);
                         cache.clear();
 
                     #else
@@ -2719,7 +2733,7 @@ namespace netxs::os
                 {
                     #if defined(_WIN32)
 
-                        con_serv.resize(termsize);
+                        con_serv.winsz(termsize);
 
                     #else
 
@@ -2740,19 +2754,19 @@ namespace netxs::os
             void focus(bool state)
             {
                 #if defined(_WIN32)
-                    con_serv.events.focus(state);
+                    con_serv.focus(state);
                 #endif
             }
             void keybd(input::hids& gear, bool decckm)
             {
                 #if defined(_WIN32)
-                    con_serv.events.keybd(gear, decckm);
+                    con_serv.keybd(gear, decckm);
                 #endif
             }
             void mouse(input::hids& gear, bool moved, twod const& coord)
             {
                 #if defined(_WIN32)
-                    con_serv.events.mouse(gear, moved, coord);
+                    con_serv.mouse(gear, moved, coord);
                 #endif
             }
             void write(view data)
@@ -2764,7 +2778,7 @@ namespace netxs::os
             void undo(bool undoredo)
             {
                 #if defined(_WIN32)
-                    con_serv.events.undo(undoredo);
+                    con_serv.undo(undoredo);
                 #endif
             }
             //void set_cp(ui32 codepage)
@@ -3309,7 +3323,7 @@ namespace netxs::os
                 return exit_code;
             }
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
-                                                           std::function<void(si32, view)> shutdown_hndl) override
+                                                                   std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
@@ -3335,7 +3349,7 @@ namespace netxs::os
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                        && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
@@ -3385,7 +3399,7 @@ namespace netxs::os
                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
                                                 nullptr,                             // lpEnvironment
                                                 cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                                        : nullptr,
+                                                           : nullptr,
                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                                 &procsinf);                          // lpProcessInformation
                     };
@@ -3575,22 +3589,6 @@ namespace netxs::os
         }
         auto vtmode()
         {
-            #if defined(_WIN32)
-                #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
-                auto isWow64Process = USHORT{};
-                auto nativeMachine = USHORT{};
-                ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
-                isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
-                #else
-                auto isWow64Process = BOOL{};
-                ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
-                #endif
-                if (isWow64Process)
-                {
-                    std::cout << "The vtm process is running under WOW64 or in emulation.\nPlease use the binary that matches your system architecture.\n";
-                    os::process::exit(0);
-                }
-            #endif
             auto mode = si32{ vt::clean };
             if (os::dtvt::peek(os::stdin_fd))
             {

@@ -4517,10 +4517,6 @@ struct consrv
             log(prompt, "Server thread ended");
         }};
     }
-    void resize(twod const& newsize)
-    {
-        events.winsz(newsize); // We inform about viewport resize only.
-    }
     void stop()
     {
         events.stop();
@@ -4563,6 +4559,13 @@ struct consrv
             }
         }
     }
+
+    template<class ...Args> void winsz(Args&&... args) { events.winsz(std::forward<Args>(args)...); }
+    template<class ...Args> void write(Args&&... args) { events.write(std::forward<Args>(args)...); }
+    template<class ...Args> void focus(Args&&... args) { events.focus(std::forward<Args>(args)...); }
+    template<class ...Args> void keybd(Args&&... args) { events.keybd(std::forward<Args>(args)...); }
+    template<class ...Args> void mouse(Args&&... args) { events.mouse(std::forward<Args>(args)...); }
+    template<class ...Args> void  undo(Args&&... args) { events. undo(std::forward<Args>(args)...); }
 
     consrv(Term& uiterm, fd_t& condrv)
         : uiterm{ uiterm },
