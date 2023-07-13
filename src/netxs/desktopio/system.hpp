@@ -455,6 +455,20 @@ namespace netxs::os
                 if (scrl  ) state |= SCROLLLOCK_ON;
                 return state;
             }
+
+            static auto is_wow64()
+            {
+                #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
+                auto isWow64Process = USHORT{};
+                auto nativeMachine = USHORT{};
+                ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
+                isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
+                #else
+                auto isWow64Process = BOOL{};
+                ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
+                #endif
+                return !!isWow64Process;
+            }
         };
 
     #endif
@@ -2487,29 +2501,25 @@ namespace netxs::os
                                                                                                          : "'" + cwd + "'");
                 #if defined(_WIN32)
 
-                    #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
-                    auto isWow64Process = USHORT{};
-                    auto nativeMachine = USHORT{};
-                    ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
-                    isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
-                    #else
-                    auto isWow64Process = BOOL{};
-                    ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
-                    #endif
-                    if (isWow64Process)
-                    {
-                        log("The vtm process is running under WOW64 or in emulation.\nPlease use the binary that matches your system architecture.");
-                    }
-
                     termsize(winsz);
                     auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
 
-                    if (!con_serv) con_serv = ptr::shared<consrv>(terminal);
-                    auto [success, ref_hndl, hStdInput, hStdOutput, hStdError] = con_serv->start();
-                    if (!success)
+                    if (!con_serv)
+                    {
+                        if (sizeof(void*) > 4 || nt::is_wow64())
+                        {
+                            con_serv = ptr::shared<consrv<ui64>>(terminal);
+                        }
+                        else
+                        {
+                            con_serv = ptr::shared<consrv<ui32>>(terminal);
+                        }
+                    }
+
+                    if (!con_serv->start())
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Console server creation error");
@@ -2524,9 +2534,9 @@ namespace netxs::os
                     startinf.StartupInfo.dwXSize = winsz.x;
                     startinf.StartupInfo.dwYSize = winsz.y;
                     startinf.StartupInfo.dwFillAttribute = 1;
-                    startinf.StartupInfo.hStdInput  = hStdInput;
-                    startinf.StartupInfo.hStdOutput = hStdOutput;
-                    startinf.StartupInfo.hStdError  = hStdError;
+                    startinf.StartupInfo.hStdInput  = con_serv->hStdInput;
+                    startinf.StartupInfo.hStdOutput = con_serv->hStdOutput;
+                    startinf.StartupInfo.hStdError  = con_serv->hStdError;
                     startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                                  | STARTF_USESIZE
                                                  | STARTF_USEPOSITION
@@ -2546,8 +2556,8 @@ namespace netxs::os
                     ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                 0,
                                                 ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
-                                               &ref_hndl,
-                                         sizeof(ref_hndl),
+                                               &con_serv->refdrv,
+                                         sizeof(con_serv->refdrv),
                                                 nullptr,
                                                 nullptr);
                     auto wide_cmdline = utf::to_utf(cmdline);

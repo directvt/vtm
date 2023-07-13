@@ -5,10 +5,15 @@
 
 struct consrv_base
 {
-    using stds = std::tuple<bool, fd_t, fd_t, fd_t, fd_t>;
+    fd_t condrv     = { os::invalid_fd }; // consrv_base: Console driver handle.
+    fd_t refdrv     = { os::invalid_fd }; // consrv_base: Console driver reference.
+    fd_t hStdInput  = { os::invalid_fd }; // consrv_base: .
+    fd_t hStdOutput = { os::invalid_fd }; // consrv_base: .
+    fd_t hStdError  = { os::invalid_fd }; // consrv_base: .
+
     virtual void stop() = 0;
     virtual void undo(bool undo_redo)  = 0;
-    virtual stds start() = 0;
+    virtual bool start() = 0;
     virtual void reset() = 0;
     virtual void write(view utf8) = 0;
     virtual void keybd(input::hids& gear, bool decckm) = 0;
@@ -18,13 +23,14 @@ struct consrv_base
     virtual bool alive() = 0;
 };
 
-struct consrv : consrv_base
+template<class Arch = ui64>
+struct consrv : public consrv_base
 {
-    #if defined(_WIN64)
-    using Long = ui64;
-    #else
-    using Long = ui32;
-    #endif
+    using consrv_base::condrv;
+    using consrv_base::refdrv;
+    using consrv_base::hStdInput;
+    using consrv_base::hStdOutput;
+    using consrv_base::hStdError;
 
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
     static constexpr auto isreal()
@@ -303,7 +309,7 @@ struct consrv : consrv_base
 
         tsid taskid;
         stat status;
-        Long report;
+        Arch report;
         cptr buffer;
         ui32 length;
         ui32 offset;
@@ -2197,7 +2203,7 @@ struct consrv : consrv_base
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
-            answer.report = reinterpret_cast<Long>(&h);
+            answer.report = reinterpret_cast<Arch>(&h);
             log(msg, &h);
         };
         switch (packet.input.action)
@@ -4419,8 +4425,6 @@ struct consrv : consrv_base
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
-    fd_t        condrv; // consrv: Console driver handle.
-    fd_t        refdrv; // consrv: Console driver reference handle.
     bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
     text        prompt; // consrv: Log prompt.
@@ -4587,16 +4591,18 @@ struct consrv : consrv_base
         {
             io::close(condrv);
             io::close(refdrv);
-            return std::tuple{ success, refdrv, os::invalid_fd, os::invalid_fd, os::invalid_fd };
+            hStdInput  = os::invalid_fd;
+            hStdOutput = os::invalid_fd;
+            hStdError  = os::invalid_fd;
         }
         else
         {
             start_thraeds();
-            auto hStdInput  = nt::console::handle(condrv, "\\Input",  true);
-            auto hStdOutput = nt::console::handle(condrv, "\\Output", true);
-            auto hStdError  = nt::console::handle(hStdOutput);
-            return std::tuple{ success, refdrv, hStdInput, hStdOutput, hStdError };
+            hStdInput  = nt::console::handle(condrv, "\\Input",  true);
+            hStdOutput = nt::console::handle(condrv, "\\Output", true);
+            hStdError  = nt::console::handle(hStdOutput);
         }
+        return success;
     }
     auto alive()                                          { return condrv != os::invalid_fd; }
     void winsz(twod newsz)                                { events.winsz(newsz); }
@@ -4608,8 +4614,6 @@ struct consrv : consrv_base
 
     consrv(Term& uiterm)
         : uiterm{ uiterm },
-          condrv{ os::invalid_fd },
-          refdrv{ os::invalid_fd },
           io_log{ uiterm.io_log },
           events{ *this  },
           impcls{ faux   },
