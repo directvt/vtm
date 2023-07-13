@@ -3,7 +3,22 @@
 
 #pragma once
 
-struct consrv
+struct consrv_base
+{
+    using stds = std::tuple<bool, fd_t, fd_t, fd_t, fd_t>;
+    virtual void stop() = 0;
+    virtual void undo(bool undo_redo)  = 0;
+    virtual stds start() = 0;
+    virtual void reset() = 0;
+    virtual void write(view utf8) = 0;
+    virtual void keybd(input::hids& gear, bool decckm) = 0;
+    virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
+    virtual void focus(bool state) = 0;
+    virtual void winsz(twod newsz) = 0;
+    virtual bool alive() = 0;
+};
+
+struct consrv : consrv_base
 {
     #if defined(_WIN64)
     using Long = ui64;
@@ -574,7 +589,7 @@ struct consrv
             ondata.reset();
             signal.notify_one();
         }
-        void winsz(twod const& winsize)
+        void winsz(twod winsize)
         {
             auto lock = std::lock_guard{ locker };
             stream.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
@@ -4404,7 +4419,8 @@ struct consrv
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
-    fd_t&       condrv; // consrv: Console driver handle.
+    fd_t        condrv; // consrv: Console driver handle.
+    fd_t        refdrv; // consrv: Console driver reference handle.
     bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
     text        prompt; // consrv: Log prompt.
@@ -4429,7 +4445,7 @@ struct consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start()
+    void start_thraeds()
     {
         reset();
         events.reset();
@@ -4519,6 +4535,8 @@ struct consrv
     }
     void stop()
     {
+        io::close(condrv);
+        io::close(refdrv);
         events.stop();
         signal.reset();
         if (window.joinable()) window.join();
@@ -4560,16 +4578,38 @@ struct consrv
         }
     }
 
-    template<class ...Args> void winsz(Args&&... args) { events.winsz(std::forward<Args>(args)...); }
-    template<class ...Args> void write(Args&&... args) { events.write(std::forward<Args>(args)...); }
-    template<class ...Args> void focus(Args&&... args) { events.focus(std::forward<Args>(args)...); }
-    template<class ...Args> void keybd(Args&&... args) { events.keybd(std::forward<Args>(args)...); }
-    template<class ...Args> void mouse(Args&&... args) { events.mouse(std::forward<Args>(args)...); }
-    template<class ...Args> void  undo(Args&&... args) { events. undo(std::forward<Args>(args)...); }
+    auto start()
+    {
+        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
+        refdrv = nt::console::handle(condrv, "\\Reference");
+        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (fd_t)events.ondata);
+        if (!success)
+        {
+            io::close(condrv);
+            io::close(refdrv);
+            return std::tuple{ success, refdrv, os::invalid_fd, os::invalid_fd, os::invalid_fd };
+        }
+        else
+        {
+            start_thraeds();
+            auto hStdInput  = nt::console::handle(condrv, "\\Input",  true);
+            auto hStdOutput = nt::console::handle(condrv, "\\Output", true);
+            auto hStdError  = nt::console::handle(hStdOutput);
+            return std::tuple{ success, refdrv, hStdInput, hStdOutput, hStdError };
+        }
+    }
+    auto alive()                                          { return condrv != os::invalid_fd; }
+    void winsz(twod newsz)                                { events.winsz(newsz); }
+    void write(view utf8)                                 { events.write(utf8); }
+    void keybd(input::hids& gear, bool decckm)            { events.keybd(gear, decckm); }
+    void focus(bool state)                                { events.focus(state); }
+    void mouse(input::hids& gear, bool moved, twod coord) { events.mouse(gear, moved, coord); }
+    void  undo(bool undo_redo)                            { events.undo(undo_redo); }
 
-    consrv(Term& uiterm, fd_t& condrv)
+    consrv(Term& uiterm)
         : uiterm{ uiterm },
-          condrv{ condrv },
+          condrv{ os::invalid_fd },
+          refdrv{ os::invalid_fd },
           io_log{ uiterm.io_log },
           events{ *this  },
           impcls{ faux   },
