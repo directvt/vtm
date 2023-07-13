@@ -230,14 +230,13 @@ struct consrv
         ui32  fxtype;
         ui32  packsz;
         ui32  echosz;
-        ui32  _pad_1;
     };
 
     struct task : base
     {
         ui32 callfx;
         ui32 arglen;
-        byte argbuf[72 + 3 * sizeof(void*)]; // x64:=96  x32:=84
+        byte argbuf[88 + sizeof(void*)]; // x64:=96  x32:=92
     };
 
     template<class Payload>
@@ -289,15 +288,12 @@ struct consrv
 
         tsid taskid;
         stat status;
-        ui32 _pad_1;
         Long report;
         cptr buffer;
         ui32 length;
         ui32 offset;
 
-        //auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
-        //auto sendoffset() const { return length; }
-        auto readoffset() const { return _pad_1; }
+        auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
         auto sendoffset() const { return length; }
         template<class T>
         auto recv_data(fd_t condrv, T&& buffer)
@@ -4504,7 +4500,6 @@ struct consrv
                             upload.fxtype = upload.callfx / 0x55555 + upload.callfx;
                             answer.buffer = upload.argbuf;
                             answer.length = upload.arglen;
-                            answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                         }
                         auto proc = apimap[upload.fxtype & 255];
                         uiterm.update([&]
