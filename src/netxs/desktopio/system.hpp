@@ -2509,13 +2509,14 @@ namespace netxs::os
 
                     if (!con_serv)
                     {
-                        if (sizeof(void*) > 4 || nt::is_wow64())
+                        if constexpr (sizeof(void*) > 4)
                         {
                             con_serv = ptr::shared<consrv<ui64>>(terminal);
                         }
                         else
                         {
-                            con_serv = ptr::shared<consrv<ui32>>(terminal);
+                            if (nt::is_wow64()) con_serv = ptr::shared<consrv<ui64>>(terminal);
+                            else                con_serv = ptr::shared<consrv<ui32>>(terminal);
                         }
                     }
 
