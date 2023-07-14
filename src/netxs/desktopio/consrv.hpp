@@ -245,12 +245,12 @@ struct consrv : public consrv_base
 
     struct base
     {
-        tsid  taskid;
-        clnt* client;
-        hndl* target;
-        ui32  fxtype;
-        ui32  packsz;
-        ui32  echosz;
+        tsid taskid;
+        Arch client; // clnt*
+        Arch target; // hndl*
+        ui32 fxtype;
+        ui32 packsz;
+        ui32 echosz;
     };
 
     struct task : base
@@ -296,13 +296,12 @@ struct consrv : public consrv_base
 
     struct cdrw
     {
-        using cptr = void const*;
         using stat = NTSTATUS;
 
         struct order
         {
             tsid taskid;
-            cptr buffer;
+            Arch buffer; // void*
             ui32 length;
             ui32 offset;
         };
@@ -310,7 +309,7 @@ struct consrv : public consrv_base
         tsid taskid;
         stat status;
         Arch report;
-        cptr buffer;
+        Arch buffer; // void*
         ui32 length;
         ui32 offset;
 
@@ -322,7 +321,7 @@ struct consrv : public consrv_base
             auto request = order
             {
                 .taskid = taskid,
-                .buffer = buffer.data(),
+                .buffer = (Arch)buffer.data(),
                 .length = static_cast<decltype(order::length)>(buffer.size() * sizeof(buffer.front())),
                 .offset = readoffset(),
             };
@@ -341,7 +340,7 @@ struct consrv : public consrv_base
             auto result = order
             {
                 .taskid = taskid,
-                .buffer = buffer.data(),
+                .buffer = (Arch)buffer.data(),
                 .length = static_cast<decltype(order::length)>((buffer.size() + inc_nul_terminator) * sizeof(buffer.front())),
                 .offset = sendoffset(),
             };
@@ -368,7 +367,7 @@ struct consrv : public consrv_base
 
     struct evnt
     {
-        using jobs = generics::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
+        using jobs = generics::jobs<std::tuple<cdrw, hndl*, bool>>;
         using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
@@ -1108,7 +1107,7 @@ struct consrv : public consrv_base
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
             auto& inpenc = *server.inpenc;
-            if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ":",
+            if (server.io_log) log("\thandle ", utf::to_hex_0x((hndl*)packet.target), ":",
                                  "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
                                  "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
             if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
@@ -1143,14 +1142,14 @@ struct consrv : public consrv_base
                 //  - input history menu takes keypresses from the shared input buffer
                 //  - '\n' is added to the '\r'
 
-                auto token = jobs::token(server.answer, packet.target, faux);
+                auto token = jobs::token(server.answer, (hndl*)packet.target, faux);
                 worker.add(token, [&, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
                 {
                     auto lock = std::unique_lock{ locker };
                     auto& answer = std::get<0>(token);
                     auto& cancel = std::get<2>(token);
-                    auto& client = *packet.client;
-                    answer.buffer = &packet.input; // Restore after copy. Payload start address.
+                    auto& client = *(clnt*)packet.client;
+                    answer.buffer = (Arch)&packet.input; // Restore after copy. Payload start address.
 
                     if (closed || cancel) return;
 
@@ -1167,7 +1166,7 @@ struct consrv : public consrv_base
                     }
                     if (closed || cancel)
                     {
-                        if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ": task canceled");
+                        if (server.io_log) log("\thandle ", utf::to_hex_0x((hndl*)packet.target), ": task canceled");
                         cooked.drop();
                         return;
                     }
@@ -1364,13 +1363,13 @@ struct consrv : public consrv_base
                 }
                 else
                 {
-                    auto token = jobs::token(server.answer, packet.target, faux);
+                    auto token = jobs::token(server.answer, (hndl*)packet.target, faux);
                     worker.add(token, [&, packet](auto& token) mutable
                     {
                         auto lock = std::unique_lock{ locker };
                         auto& answer = std::get<0>(token);
                         auto& cancel = std::get<2>(token);
-                        answer.buffer = &packet.reply; // Restore after copy. Payload start address.
+                        answer.buffer = (Arch)&packet.reply; // Restore after copy. Payload start address.
 
                         if (closed || cancel) return;
                         while ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel && stream.empty())
@@ -2087,16 +2086,16 @@ struct consrv : public consrv_base
 
         struct connect_info : wrap<connect_info>
         {
-            clnt* client_id;
-            hndl* events_id;
-            hndl* scroll_id;
+            Arch client_id; // clnt*
+            Arch events_id; // hndl*
+            Arch scroll_id; // hndl*
         };
         auto& info = connect_info::cast(buffer);
-        info.client_id = &client;
-        info.events_id = &inphndl;
-        info.scroll_id = &outhndl;
+        info.client_id = (Arch)(&client);
+        info.events_id = (Arch)(&inphndl);
+        info.scroll_id = (Arch)(&outhndl);
 
-        answer.buffer = &info;
+        answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
         //auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
@@ -2107,7 +2106,7 @@ struct consrv : public consrv_base
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         log(prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
@@ -2196,7 +2195,7 @@ struct consrv : public consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto& client = *packet.client;
+        auto& client = *(clnt*)packet.client;
         log("\tclient procid: ", client.procid);
         auto create = [&](auto type, auto msg)
         {
@@ -2221,7 +2220,7 @@ struct consrv : public consrv_base
         { };
         auto& packet = payload::cast(upload);
         log(prompt, "Delete console handle");
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2325,7 +2324,7 @@ struct consrv : public consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2348,7 +2347,7 @@ struct consrv : public consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2462,7 +2461,7 @@ struct consrv : public consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2506,15 +2505,15 @@ struct consrv : public consrv_base
                                                        : "ReadConsoleInput",
             "\n\tinput.flags: ", utf::to_hex_0x(packet.input.flags),
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
             log("\tabort: packet.client = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
-        auto& client = packet.client; //todo validate client
-        auto events_handle_ptr = packet.target;
+        //auto& client = *(clnt*)packet.client; //todo validate client
+        auto events_handle_ptr = (hndl*)packet.target;
         if (events_handle_ptr == nullptr)
         {
             log("\tabort: events_handle_ptr = invalid_value (0)");
@@ -2597,7 +2596,7 @@ struct consrv : public consrv_base
             packet.input = {};
         }
 
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
             log("\tabort: packet.client = invalid_value (0)");
@@ -2606,7 +2605,7 @@ struct consrv : public consrv_base
         }
         auto& client = *client_ptr;
 
-        auto scroll_handle_ptr = packet.target;
+        auto scroll_handle_ptr = (hndl*)packet.target;
         if (scroll_handle_ptr == nullptr)
         {
             log("\tabort: packet.target = invalid_value (0)");
@@ -2708,7 +2707,7 @@ struct consrv : public consrv_base
                 {
                     *iter++ = attr_to_brush(attr);
                 }
-                auto success = direct(packet.target, [&](auto& scrollback)
+                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
                 {
                     scrollback._data(count, filler.pick(), cell::shaders::meta);
                 });
@@ -2746,7 +2745,7 @@ struct consrv : public consrv_base
                     celler = toUTF8;
                     log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
-                auto success = direct(packet.target, [&](auto& scrollback)
+                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
                 {
                     auto& line = celler.content();
                     count = static_cast<ui32>(line.length());
@@ -2831,7 +2830,7 @@ struct consrv : public consrv_base
             };
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr)
         {
             packet.reply = {};
@@ -2977,7 +2976,7 @@ struct consrv : public consrv_base
                     }
                 };
                 netxs::onbody(dest, copy, allfx, eolfx);
-                auto success = direct(packet.target, [&](auto& scrollback)
+                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
                 {
                     write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
                 });
@@ -3007,7 +3006,7 @@ struct consrv : public consrv_base
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
+            if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
             {
                 log("\tunexpected result");
             }
@@ -3075,7 +3074,7 @@ struct consrv : public consrv_base
                     if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+                    if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
                     {
                         count = 0;
                     }
@@ -3123,7 +3122,7 @@ struct consrv : public consrv_base
                             (++head);
                         }
                     }
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
                     {
                         count = 0;
                     }
@@ -3183,7 +3182,7 @@ struct consrv : public consrv_base
         packet.reply.count = {};
         log(prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
                                                           : "ReadConsoleOutputCharacter");
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr)
         {
             return;
@@ -3348,7 +3347,7 @@ struct consrv : public consrv_base
             };
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr)
         {
             packet.reply = {};
@@ -3488,9 +3487,9 @@ struct consrv : public consrv_base
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
-        log("\tset active buffer: ", utf::to_hex_0x(packet.target));
+        log("\tset active buffer: ", utf::to_hex_0x((hndl*)packet.target));
         if constexpr (isreal())
         {
             auto& console = *window_ptr;
@@ -3513,7 +3512,7 @@ struct consrv : public consrv_base
         log("\tinput.cursor_coor: ", caretpos);
         if constexpr (isreal())
         {
-            if (auto console_ptr = select_buffer(packet.target))
+            if (auto console_ptr = select_buffer((hndl*)packet.target))
             {
                 console_ptr->cup0(caretpos);
             }
@@ -3561,7 +3560,8 @@ struct consrv : public consrv_base
         log(prompt, "SetConsoleCursorInfo",
             "\n\tinput.style: ", packet.input.style,
             "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
-        if (packet.target && packet.target->link == &uiterm.target)
+        auto target_ptr = (hndl*)packet.target;
+        if (target_ptr && target_ptr->link == &uiterm.target)
         {
             if constexpr (isreal())
             {
@@ -3572,7 +3572,7 @@ struct consrv : public consrv_base
         }
         else
         {
-            log("\taborted: inactive buffer: ", utf::to_hex_0x(packet.target));
+            log("\taborted: inactive buffer: ", utf::to_hex_0x((hndl*)packet.target));
         }
     }
     auto api_scrollback_info_get             ()
@@ -3595,7 +3595,7 @@ struct consrv : public consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto viewport = dot_00;
@@ -3677,7 +3677,7 @@ struct consrv : public consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
@@ -3735,14 +3735,15 @@ struct consrv : public consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto target_ptr = (hndl*)packet.target;
+        auto window_ptr = select_buffer(target_ptr);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size: ", size);
         if constexpr (isreal())
         {
-            if (packet.target->link != &uiterm.target) // It is additional/alternate buffer.
+            if (target_ptr->link != &uiterm.target) // It is additional/alternate buffer.
             {
                 console.resize_viewport(size);
             }
@@ -3768,7 +3769,7 @@ struct consrv : public consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -3803,7 +3804,7 @@ struct consrv : public consrv_base
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
         log("\tinput.area: ", area,
           "\n\tinput.isabsolute: ", packet.input.isabsolute ? "true" : "faux");
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -3838,7 +3839,7 @@ struct consrv : public consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr)
         {
             return;
@@ -3879,7 +3880,7 @@ struct consrv : public consrv_base
             filler.kill();
             filler.mark(mark);
             filler.size(scrl.size);
-            auto success = direct(packet.target, [&](auto& scrollback)
+            auto success = direct((hndl*)packet.target, [&](auto& scrollback)
             {
                 write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
                 write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
@@ -4128,7 +4129,7 @@ struct consrv : public consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
+        auto window_ptr = select_buffer((hndl*)packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -4518,7 +4519,7 @@ struct consrv : public consrv_base
                         if (upload.fxtype == nt::console::fx::subfx)
                         {
                             upload.fxtype = upload.callfx / 0x55555 + upload.callfx;
-                            answer.buffer = upload.argbuf;
+                            answer.buffer = (Arch)upload.argbuf;
                             answer.length = upload.arglen;
                         }
                         auto proc = apimap[upload.fxtype & 255];
@@ -4586,7 +4587,7 @@ struct consrv : public consrv_base
     {
         condrv = nt::console::handle("\\Device\\ConDrv\\Server");
         refdrv = nt::console::handle(condrv, "\\Reference");
-        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (fd_t)events.ondata);
+        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (Arch)((fd_t)events.ondata));
         if (!success)
         {
             io::close(condrv);
