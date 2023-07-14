@@ -380,7 +380,7 @@ struct consrv : consrv_base
 
     struct evnt
     {
-        using jobs = generics::jobs<std::tuple<cdrw, hndl*, bool>>;
+        using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
         using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
@@ -437,13 +437,14 @@ struct consrv : consrv_base
         }
         void abort(hndl* handle_ptr)
         {
+            auto target_ref = (Arch)handle_ptr;
             auto lock = std::lock_guard{ locker };
             worker.cancel([&](auto& token)
             {
                 auto& answer = std::get<0>(token);
                 auto& target = std::get<1>(token);
                 auto& cancel = std::get<2>(token);
-                if (target == handle_ptr)
+                if (target == target_ref)
                 {
                     cancel = true;
                     answer.interrupt(server.condrv);
@@ -1120,7 +1121,7 @@ struct consrv : consrv_base
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
             auto& inpenc = *server.inpenc;
-            if (server.io_log) log("\thandle ", utf::to_hex_0x((hndl*)packet.target), ":",
+            if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ":",
                                  "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
                                  "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
             if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
@@ -1155,7 +1156,7 @@ struct consrv : consrv_base
                 //  - input history menu takes keypresses from the shared input buffer
                 //  - '\n' is added to the '\r'
 
-                auto token = jobs::token(server.answer, (hndl*)packet.target, faux);
+                auto token = jobs::token(server.answer, packet.target, faux);
                 worker.add(token, [&, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
                 {
                     auto lock = std::unique_lock{ locker };
@@ -1179,7 +1180,7 @@ struct consrv : consrv_base
                     }
                     if (closed || cancel)
                     {
-                        if (server.io_log) log("\thandle ", utf::to_hex_0x((hndl*)packet.target), ": task canceled");
+                        if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ": task canceled");
                         cooked.drop();
                         return;
                     }
@@ -1376,7 +1377,7 @@ struct consrv : consrv_base
                 }
                 else
                 {
-                    auto token = jobs::token(server.answer, (hndl*)packet.target, faux);
+                    auto token = jobs::token(server.answer, packet.target, faux);
                     worker.add(token, [&, packet](auto& token) mutable
                     {
                         auto lock = std::unique_lock{ locker };
@@ -1835,9 +1836,10 @@ struct consrv : consrv_base
         }
         return wrap<RecType>::cast(buffer, count);
     }
-    template<class T, class P>
-    auto direct(T* handle_ptr, P proc)
+    template<class P>
+    auto direct(Arch target_ref, P proc)
     {
+        auto handle_ptr = (hndl*)target_ref;
         if (handle_ptr)
         {
             if (handle_ptr->link == &uiterm.target)
@@ -1871,10 +1873,11 @@ struct consrv : consrv_base
         answer.status = nt::status::invalid_handle;
         return faux;
     }
-    template<class T>
-    auto select_buffer(T* handle_ptr)
+    auto select_buffer(Arch target_ref)
     {
         using base_ptr = decltype(uiterm.target);
+
+        auto handle_ptr = (hndl*)target_ref;
         auto result = base_ptr{};
         if (handle_ptr)
         {
@@ -2657,8 +2660,8 @@ struct consrv : consrv_base
                 if constexpr (isreal())
                 {
                     auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
-                    if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
-                                                                                  : uiterm.ondata(crop, &scrollback); }))
+                    if (!direct(packet.target, [&](auto& scrollback) { active ? uiterm.ondata(crop)
+                                                                              : uiterm.ondata(crop, &scrollback); }))
                     {
                         datasize = 0;
                     }
@@ -2720,7 +2723,7 @@ struct consrv : consrv_base
                 {
                     *iter++ = attr_to_brush(attr);
                 }
-                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
+                auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     scrollback._data(count, filler.pick(), cell::shaders::meta);
                 });
@@ -2758,7 +2761,7 @@ struct consrv : consrv_base
                     celler = toUTF8;
                     log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
-                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
+                auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     auto& line = celler.content();
                     count = static_cast<ui32>(line.length());
@@ -2843,7 +2846,7 @@ struct consrv : consrv_base
             };
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr)
         {
             packet.reply = {};
@@ -2989,7 +2992,7 @@ struct consrv : consrv_base
                     }
                 };
                 netxs::onbody(dest, copy, allfx, eolfx);
-                auto success = direct((hndl*)packet.target, [&](auto& scrollback)
+                auto success = direct(packet.target, [&](auto& scrollback)
                 {
                     write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
                 });
@@ -3019,7 +3022,7 @@ struct consrv : consrv_base
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
+            if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
             {
                 log("\tunexpected result");
             }
@@ -3087,7 +3090,7 @@ struct consrv : consrv_base
                     if ((si32)count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
-                    if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
                     {
                         count = 0;
                     }
@@ -3135,7 +3138,7 @@ struct consrv : consrv_base
                             (++head);
                         }
                     }
-                    if (!direct((hndl*)packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
                     {
                         count = 0;
                     }
@@ -3195,7 +3198,7 @@ struct consrv : consrv_base
         packet.reply.count = {};
         log(prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
                                                           : "ReadConsoleOutputCharacter");
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr)
         {
             return;
@@ -3360,7 +3363,7 @@ struct consrv : consrv_base
             };
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr)
         {
             packet.reply = {};
@@ -3500,9 +3503,9 @@ struct consrv : consrv_base
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
-        log("\tset active buffer: ", utf::to_hex_0x((hndl*)packet.target));
+        log("\tset active buffer: ", utf::to_hex_0x(packet.target));
         if constexpr (isreal())
         {
             auto& console = *window_ptr;
@@ -3525,7 +3528,7 @@ struct consrv : consrv_base
         log("\tinput.cursor_coor: ", caretpos);
         if constexpr (isreal())
         {
-            if (auto console_ptr = select_buffer((hndl*)packet.target))
+            if (auto console_ptr = select_buffer(packet.target))
             {
                 console_ptr->cup0(caretpos);
             }
@@ -3585,7 +3588,7 @@ struct consrv : consrv_base
         }
         else
         {
-            log("\taborted: inactive buffer: ", utf::to_hex_0x((hndl*)packet.target));
+            log("\taborted: inactive buffer: ", utf::to_hex_0x(packet.target));
         }
     }
     auto api_scrollback_info_get             ()
@@ -3608,7 +3611,7 @@ struct consrv : consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto viewport = dot_00;
@@ -3690,7 +3693,7 @@ struct consrv : consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
@@ -3748,14 +3751,14 @@ struct consrv : consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto target_ptr = (hndl*)packet.target;
-        auto window_ptr = select_buffer(target_ptr);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
         log("\tinput.size: ", size);
         if constexpr (isreal())
         {
+            auto target_ptr = (hndl*)packet.target;
             if (target_ptr->link != &uiterm.target) // It is additional/alternate buffer.
             {
                 console.resize_viewport(size);
@@ -3782,7 +3785,7 @@ struct consrv : consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -3817,7 +3820,7 @@ struct consrv : consrv_base
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
         log("\tinput.area: ", area,
           "\n\tinput.isabsolute: ", packet.input.isabsolute ? "true" : "faux");
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -3852,7 +3855,7 @@ struct consrv : consrv_base
             input;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr)
         {
             return;
@@ -3893,7 +3896,7 @@ struct consrv : consrv_base
             filler.kill();
             filler.mark(mark);
             filler.size(scrl.size);
-            auto success = direct((hndl*)packet.target, [&](auto& scrollback)
+            auto success = direct(packet.target, [&](auto& scrollback)
             {
                 write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
                 write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
@@ -4142,7 +4145,7 @@ struct consrv : consrv_base
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer((hndl*)packet.target);
+        auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
         if constexpr (isreal())
         {
@@ -4166,18 +4169,18 @@ struct consrv : consrv_base
         {
             struct
             {
-                HWND handle;
+                Arch handle; // HWND
             }
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = winhnd; // - Fake window handle to tell powershell that everything is under console control.
-                                      // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
-                                      // - "Far.exe" set their icon to all windows in the system if reply=-1.
-                                      // - msys uses the handle to determine what processes are running in the same session.
-                                      // - vim sets the icon of its hosting window.
-                                      // - The handle is used to show/hide GUI console window.
-                                      // - Used for SetConsoleTitle().
+        packet.reply.handle = (Arch)winhnd; // - Fake window handle to tell powershell that everything is under console control.
+                                            // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+                                            // - "Far.exe" set their icon to all windows in the system if reply=-1.
+                                            // - msys uses the handle to determine what processes are running in the same session.
+                                            // - vim sets the icon of its hosting window.
+                                            // - The handle is used to show/hide GUI console window.
+                                            // - Used for SetConsoleTitle().
         log("\tfake window handle: ", utf::to_hex_0x(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
