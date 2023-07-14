@@ -6,7 +6,6 @@
 #include "geometry.hpp"
 #include "ptr.hpp"
 
-#include <cstring> // std::memcpy
 #include <span>
 
 namespace netxs
@@ -1967,8 +1966,8 @@ namespace netxs
         template<class SI32>
         auto find(core const& what, SI32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
-            assert(     canvas.size() <= std::numeric_limits<si32>::max());
-            assert(what.canvas.size() <= std::numeric_limits<si32>::max());
+            assert(     canvas.size() <= si32max);
+            assert(what.canvas.size() <= si32max);
             auto full = static_cast<si32>(     canvas.size());
             auto size = static_cast<si32>(what.canvas.size());
             auto rest = full - from;
@@ -2025,7 +2024,7 @@ namespace netxs
         }
         auto toxy(si32 offset) const // core: Convert offset to coor.
         {
-            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            assert(canvas.size() <= si32max);
             auto maxs = static_cast<si32>(canvas.size());
             if (!maxs) return dot_00;
             offset = std::clamp(offset, 0, maxs - 1);
@@ -2035,7 +2034,7 @@ namespace netxs
         auto line(si32 from, si32 upto) const // core: Get stripe.
         {
             if (from > upto) std::swap(from, upto);
-            assert(canvas.size() <= std::numeric_limits<si32>::max());
+            assert(canvas.size() <= si32max);
             auto maxs = static_cast<si32>(canvas.size());
             from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);

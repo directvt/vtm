@@ -3,8 +3,35 @@
 
 #pragma once
 
-struct consrv
+struct consrv_base
 {
+    fd_t condrv     = { os::invalid_fd }; // consrv_base: Console driver handle.
+    fd_t refdrv     = { os::invalid_fd }; // consrv_base: Console driver reference.
+    fd_t hStdInput  = { os::invalid_fd }; // consrv_base: .
+    fd_t hStdOutput = { os::invalid_fd }; // consrv_base: .
+    fd_t hStdError  = { os::invalid_fd }; // consrv_base: .
+
+    virtual void stop() = 0;
+    virtual void undo(bool undo_redo)  = 0;
+    virtual bool start() = 0;
+    virtual void reset() = 0;
+    virtual void write(view utf8) = 0;
+    virtual void keybd(input::hids& gear, bool decckm) = 0;
+    virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
+    virtual void focus(bool state) = 0;
+    virtual void winsz(twod newsz) = 0;
+    virtual bool alive() = 0;
+};
+
+template<class Arch = ui64>
+struct consrv : consrv_base
+{
+    using consrv_base::condrv;
+    using consrv_base::refdrv;
+    using consrv_base::hStdInput;
+    using consrv_base::hStdOutput;
+    using consrv_base::hStdError;
+
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
     static constexpr auto isreal()
     {
@@ -210,22 +237,40 @@ struct consrv
 
     using hndl = clnt::hndl;
 
+    struct tsid
+    {
+        ui32 lo;
+        ui32 hi;
+    };
+
     struct base
     {
-        ui64  taskid;
-        clnt* client;
-        hndl* target;
-        ui32  fxtype;
-        ui32  packsz;
-        ui32  echosz;
-        ui32  _pad_1;
+        tsid taskid;
+        Arch client; // clnt*
+        Arch target; // hndl*
+        ui32 fxtype;
+        ui32 packsz;
+        ui32 echosz;
+        ui32 _pad_1;
     };
 
     struct task : base
     {
         ui32 callfx;
         ui32 arglen;
-        byte argbuf[96];
+        byte argbuf[88 + sizeof(Arch)]; // x64:=96  x32:=92
+        void print()
+        {
+            log(ansi::hi("taskid:"), " lo=", utf::to_hex_0x(base::taskid.lo), " hi=", utf::to_hex_0x(base::taskid.hi), "\n",
+                ansi::hi("client:"), " ", utf::to_hex_0x(base::client), "\n",
+                ansi::hi("target:"), " ", utf::to_hex_0x(base::target), "\n",
+                ansi::hi("fxtype:"), " ", utf::to_hex_0x(base::fxtype), "\n",
+                ansi::hi("packsz:"), " ", utf::to_hex_0x(base::packsz), "\n",
+                ansi::hi("echosz:"), " ", utf::to_hex_0x(base::echosz), "\n",
+                ansi::hi("callfx:"), " ", utf::to_hex_0x(callfx), "\n",
+                ansi::hi("arglen:"), " ", utf::to_hex_0x(arglen), "\n",
+                ansi::hi("number:"), " ", utf::to_hex_0x((callfx / 0x55555 + callfx) & 255));
+        }
     };
 
     template<class Payload>
@@ -264,28 +309,24 @@ struct consrv
 
     struct cdrw
     {
-        using cptr = void const*;
         using stat = NTSTATUS;
 
         struct order
         {
-            ui64 taskid;
-            cptr buffer;
+            tsid taskid;
+            Arch buffer; // void*
             ui32 length;
             ui32 offset;
         };
 
-        ui64 taskid;
+        tsid taskid;
         stat status;
-        ui32 _pad_1;
-        ui64 report;
-        cptr buffer;
+        Arch report;
+        Arch buffer; // void*
         ui32 length;
         ui32 offset;
 
-        //auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
-        //auto sendoffset() const { return length; }
-        auto readoffset() const { return _pad_1; }
+        auto readoffset() const { return static_cast<ui32>(length ? length + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/ : 0); }
         auto sendoffset() const { return length; }
         template<class T>
         auto recv_data(fd_t condrv, T&& buffer)
@@ -293,7 +334,7 @@ struct consrv
             auto request = order
             {
                 .taskid = taskid,
-                .buffer = buffer.data(),
+                .buffer = (Arch)buffer.data(),
                 .length = static_cast<decltype(order::length)>(buffer.size() * sizeof(buffer.front())),
                 .offset = readoffset(),
             };
@@ -312,7 +353,7 @@ struct consrv
             auto result = order
             {
                 .taskid = taskid,
-                .buffer = buffer.data(),
+                .buffer = (Arch)buffer.data(),
                 .length = static_cast<decltype(order::length)>((buffer.size() + inc_nul_terminator) * sizeof(buffer.front())),
                 .offset = sendoffset(),
             };
@@ -339,7 +380,7 @@ struct consrv
 
     struct evnt
     {
-        using jobs = generics::jobs<std::tuple<cdrw, decltype(base{}.target), bool>>;
+        using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
         using fire = netxs::os::io::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
@@ -353,15 +394,14 @@ struct consrv
 
         struct nttask
         {
-            ui32 procid;
-            ui32 _pad_1;
-            ui64 _pad_2;
-            si32 action;
-            ui32 _pad_3;
+            size_t procid;
+            size_t window;
+            ui32   action;
+            ui32   option;
         };
 
         consrv& server; // events_t: Console server reference.
-        vect    buffer; // events_t: Input event list.
+        vect    stream; // events_t: Input event list.
         vect    recbuf; // events_t: Temporary buffer for copying event records.
         sync    signal; // events_t: Input event append signal.
         lock    locker; // events_t: Input event buffer mutex.
@@ -386,23 +426,24 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             closed = faux;
-            buffer.clear();
+            stream.clear();
             ondata.flush();
         }
         auto count()
         {
             auto lock = std::lock_guard{ locker };
-            return static_cast<ui32>(buffer.size());
+            return static_cast<ui32>(stream.size());
         }
         void abort(hndl* handle_ptr)
         {
+            auto target_ref = (Arch)handle_ptr;
             auto lock = std::lock_guard{ locker };
             worker.cancel([&](auto& token)
             {
                 auto& answer = std::get<0>(token);
                 auto& target = std::get<1>(token);
                 auto& cancel = std::get<2>(token);
-                if (target == handle_ptr)
+                if (target == target_ref)
                 {
                     cancel = true;
                     answer.interrupt(server.condrv);
@@ -410,7 +451,7 @@ struct consrv
             });
             signal.notify_all();
         }
-        void alert(si32 what, ui32 pgroup = 0)
+        void alert(ui32 what, ui32 pgroup = 0)
         {
             if (server.io_log)
             {
@@ -443,13 +484,13 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             ondata.flush();
-            buffer.clear();
+            stream.clear();
             recbuf.clear();
             cooked.drop();
         }
         auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0)
         {
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = KEY_EVENT,
                 .Event =
@@ -469,14 +510,14 @@ struct consrv
         }
         auto generate(wchr c1, wchr c2)
         {
-            buffer.reserve(buffer.size() + 2);
+            stream.reserve(stream.size() + 2);
             generate(c1);
             generate(c2);
             return true;
         }
         auto generate(wiew wstr, ui32 s = 0)
         {
-            buffer.reserve(wstr.size());
+            stream.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
             //auto noni = server.inpmod & nt::console::inmode::preprocess; // `-NonInteractive` powershell mode.
@@ -486,10 +527,10 @@ struct consrv
                 if (c == '\n' || c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter.
+                    generate('\r', s, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
-                    //else      generate('\r', s | SHIFT_PRESSED, key::vk::Enter, 1, 0x1c /*takevkey<key::vk::Enter>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else
                 {
@@ -508,7 +549,7 @@ struct consrv
         {
             auto lock = std::lock_guard{ locker };
             generate(ustr);
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -517,7 +558,7 @@ struct consrv
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = FOCUS_EVENT,
                 .Event =
@@ -545,7 +586,7 @@ struct consrv
                 bttns |= gear.m.wheeldt << 16;
             }
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD
+            stream.emplace_back(INPUT_RECORD
             {
                 .EventType = MOUSE_EVENT,
                 .Event =
@@ -554,8 +595,8 @@ struct consrv
                     {
                         .dwMousePosition =
                         {
-                            .X = (si16)std::clamp<si32>(coord.x, 0, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::clamp<si32>(coord.y, 0, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::clamp<si32>(coord.x, 0, si16max),
+                            .Y = (si16)std::clamp<si32>(coord.y, 0, si16max),
                         },
                         .dwButtonState     = bttns,
                         .dwControlKeyState = state,
@@ -566,10 +607,10 @@ struct consrv
             ondata.reset();
             signal.notify_one();
         }
-        void winsz(twod const& winsize)
+        void winsz(twod winsize)
         {
             auto lock = std::lock_guard{ locker };
-            buffer.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
+            stream.emplace_back(INPUT_RECORD // Ignore ENABLE_WINDOW_INPUT - we only signal a viewport change.
             {
                 .EventType = WINDOW_BUFFER_SIZE_EVENT,
                 .Event =
@@ -578,8 +619,8 @@ struct consrv
                     {
                         .dwSize =
                         {
-                            .X = (si16)std::min<si32>(winsize.x, std::numeric_limits<si16>::max()),
-                            .Y = (si16)std::min<si32>(winsize.y, std::numeric_limits<si16>::max()),
+                            .X = (si16)std::min<si32>(winsize.x, si16max),
+                            .Y = (si16)std::min<si32>(winsize.y, si16max),
                         }
                     }
                 }
@@ -775,7 +816,7 @@ struct consrv
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
                     alert(CTRL_BREAK_EVENT);
-                    buffer.pop_back();
+                    stream.pop_back();
                 }
                 else
                 {
@@ -783,12 +824,12 @@ struct consrv
                     {
                         if (gear.pressed) alert(CTRL_C_EVENT);
                         //todo revise
-                        //buffer.pop_back();
+                        //stream.pop_back();
                     }
                 }
             }
 
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -797,7 +838,7 @@ struct consrv
         void undo(bool undoredo)
         {
             auto lock = std::lock_guard{ locker };
-            generate({}, {}, undoredo ? key::vk::Undo : key::vk::Redo);
+            generate({}, {}, undoredo ? VK_F23 /*Undo*/: VK_F24 /*Redo*/);
             ondata.reset();
             signal.notify_one();
         }
@@ -829,7 +870,7 @@ struct consrv
                 auto coor = line.caret;
                 auto last = line.length();
                 auto pops = 0_sz;
-                for (auto& rec : buffer)
+                for (auto& rec : stream)
                 {
                     if (server.io_log)
                     {
@@ -881,11 +922,11 @@ struct consrv
                             case VK_DELETE: burn(); hist.save(line); while (n-- && line.wipe_fwd(contrl)) { }                      break;
                             case VK_LEFT:   burn();                  while (n-- && line.step_rev(contrl)) { }                      break;
                             case VK_F1:     contrl = faux;
-                            case key::vk::RightArrow:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
-                            case key::vk::F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
-                            case key::vk::F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
-                            case key::vk::Undo:  while (n--) hist.swap(line, faux); break;
-                            case key::vk::Redo:  while (n--) hist.swap(line, true); break;
+                            case VK_RIGHT:  burn(); hist.save(line); while (n-- && line.step_fwd(contrl, hist.fallback())) { }     break;
+                            case VK_F3:     burn(); hist.save(line); while (       line.step_fwd(faux,   hist.fallback())) { }     break;
+                            case VK_F8:     burn();                  while (n-- && hist.find(line)) { };                           break;
+                            case VK_F23: /*Undo*/ while (n--) hist.swap(line, faux); break;
+                            case VK_F24: /*Redo*/ while (n--) hist.swap(line, true); break;
                             case VK_PRIOR:  burn(); hist.pgup(line);                                                               break;
                             case VK_NEXT:   burn(); hist.pgdn(line);                                                               break;
                             case VK_F5:
@@ -980,9 +1021,9 @@ struct consrv
 
                 if (pops)
                 {
-                    auto head = buffer.begin();
+                    auto head = stream.begin();
                     auto tail = head + pops;
-                    buffer.erase(head, tail);
+                    stream.erase(head, tail);
                     pops = {};
                 }
 
@@ -1030,7 +1071,7 @@ struct consrv
                     lock.lock();
                 }
             }
-            while (!done && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
+            while (!done && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
             if (EOFon)
             {
@@ -1040,7 +1081,7 @@ struct consrv
             }
 
             cooked.save(utf16);
-            if (buffer.empty()) ondata.flush();
+            if (stream.empty()) ondata.flush();
 
             server.inpmod = (server.inpmod & ~nt::console::inmode::insert) | (mode ? nt::console::inmode::insert : 0);
         }
@@ -1049,7 +1090,7 @@ struct consrv
         {
             do
             {
-                for (auto& rec : buffer) if (rec.EventType == KEY_EVENT)
+                for (auto& rec : stream) if (rec.EventType == KEY_EVENT)
                 {
                     auto& s = rec.Event.KeyEvent.dwControlKeyState;
                     auto& d = rec.Event.KeyEvent.bKeyDown;
@@ -1068,9 +1109,9 @@ struct consrv
                         }
                     }
                 }
-                buffer.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
+                stream.clear(); // Don't try to catch the next events (we are too fast for IME input; ~1ms between events from IME). 
             }
-            while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel));
+            while (cooked.ustr.empty() && ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel));
 
             cooked.save(utf16);
             ondata.flush();
@@ -1120,8 +1161,8 @@ struct consrv
                     auto lock = std::unique_lock{ locker };
                     auto& answer = std::get<0>(token);
                     auto& cancel = std::get<2>(token);
-                    auto& client = *packet.client;
-                    answer.buffer = &packet.input; // Restore after copy. Payload start address.
+                    auto& client = *(clnt*)packet.client;
+                    answer.buffer = (Arch)&packet.input; // Restore after copy. Payload start address.
 
                     if (closed || cancel) return;
 
@@ -1155,7 +1196,7 @@ struct consrv
             auto& inpenc = *server.inpenc;
             if (utf16 || inpenc.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
             {
-                buffer.insert(buffer.end(), recs.begin(), recs.end());
+                stream.insert(stream.end(), recs.begin(), recs.end());
             }
             else
             {
@@ -1186,10 +1227,10 @@ struct consrv
                             else coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(next);
                         }
                     }
-                    buffer.insert(buffer.end(), coming);
+                    stream.insert(stream.end(), coming);
                 }
             }
-            if (!buffer.empty())
+            if (!stream.empty())
             {
                 ondata.reset();
                 signal.notify_one();
@@ -1240,7 +1281,7 @@ struct consrv
             auto avail = packet.echosz - answer.sendoffset();
             auto limit = avail / (ui32)sizeof(recbuf.front());
             if (server.io_log) log("\tuser limit: ", limit);
-            auto head = buffer.begin();
+            auto head = stream.begin();
             if (packet.input.utf16)
             {
                 recbuf.clear();
@@ -1256,7 +1297,7 @@ struct consrv
                 auto splitter = [&](auto codec_proc)
                 {
                     recbuf.reserve(recbuf.size() + count());
-                    auto tail = buffer.end();
+                    auto tail = stream.end();
                     auto code = utfx{};
                     auto left = INPUT_RECORD{};
                     if (recbuf.size() && recbuf.size() <= limit)
@@ -1303,8 +1344,8 @@ struct consrv
             packet.reply.count = size;
             if (!peek)
             {
-                buffer.erase(buffer.begin(), head);
-                if (buffer.empty()) ondata.flush();
+                stream.erase(stream.begin(), head);
+                if (stream.empty()) ondata.flush();
             }
             if (size == recbuf.size())
             {
@@ -1324,7 +1365,7 @@ struct consrv
         auto take(Payload& packet)
         {
             auto lock = std::lock_guard{ locker };
-            if (buffer.empty())
+            if (stream.empty())
             {
                 if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
@@ -1341,15 +1382,15 @@ struct consrv
                         auto lock = std::unique_lock{ locker };
                         auto& answer = std::get<0>(token);
                         auto& cancel = std::get<2>(token);
-                        answer.buffer = &packet.reply; // Restore after copy. Payload start address.
+                        answer.buffer = (Arch)&packet.reply; // Restore after copy. Payload start address.
 
                         if (closed || cancel) return;
-                        while ((void)signal.wait(lock, [&]{ return buffer.size() || closed || cancel; }), !closed && !cancel && buffer.empty())
+                        while ((void)signal.wait(lock, [&]{ return stream.size() || closed || cancel; }), !closed && !cancel && stream.empty())
                         { }
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x(packet.taskid));
+                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x((ui64)packet.taskid.lo | ((ui64)packet.taskid.hi << 32)));
                     });
                     server.answer = {};
                 }
@@ -1690,7 +1731,6 @@ struct consrv
         }
     };
 
-    //enum type : ui32 { undefined, trueUTF_8, realUTF16, attribute, fakeUTF16 };
     enum type : ui32 { undefined, ansiOEM, realUTF16, attribute, fakeUTF16 };
 
     #define log(...) if (io_log) log(__VA_ARGS__)
@@ -1784,7 +1824,7 @@ struct consrv
         auto length = Input == feed::fwd ? packet.packsz
                                          : packet.echosz;
         auto count = 0_sz;
-        if (auto datasize = size_check(length,  offset))
+        if (auto datasize = size_check(length, offset))
         {
             assert(datasize % sizeof(RecType) == 0);
             buffer.resize(datasize);
@@ -1795,9 +1835,10 @@ struct consrv
         }
         return wrap<RecType>::cast(buffer, count);
     }
-    template<class T, class P>
-    auto direct(T* handle_ptr, P proc)
+    template<class P>
+    auto direct(Arch target_ref, P proc)
     {
+        auto handle_ptr = (hndl*)target_ref;
         if (handle_ptr)
         {
             if (handle_ptr->link == &uiterm.target)
@@ -1831,10 +1872,11 @@ struct consrv
         answer.status = nt::status::invalid_handle;
         return faux;
     }
-    template<class T>
-    auto select_buffer(T* handle_ptr)
+    auto select_buffer(Arch target_ref)
     {
         using base_ptr = decltype(uiterm.target);
+
+        auto handle_ptr = (hndl*)target_ref;
         auto result = base_ptr{};
         if (handle_ptr)
         {
@@ -1983,7 +2025,7 @@ struct consrv
         log(prompt, "Attach process to console");
         struct payload : wrap<payload>
         {
-            ui64 taskid;
+            tsid taskid;
             ui32 procid;
             ui32 _pad_1;
             ui32 thread;
@@ -2059,16 +2101,16 @@ struct consrv
 
         struct connect_info : wrap<connect_info>
         {
-            clnt* client_id;
-            hndl* events_id;
-            hndl* scroll_id;
+            Arch client_id; // clnt*
+            Arch events_id; // hndl*
+            Arch scroll_id; // hndl*
         };
         auto& info = connect_info::cast(buffer);
-        info.client_id = &client;
-        info.events_id = &inphndl;
-        info.scroll_id = &outhndl;
+        info.client_id = (Arch)(&client);
+        info.events_id = (Arch)(&inphndl);
+        info.scroll_id = (Arch)(&outhndl);
 
-        answer.buffer = &info;
+        answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
         //auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
@@ -2079,7 +2121,7 @@ struct consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         log(prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
@@ -2168,14 +2210,14 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto& client = *packet.client;
+        auto& client = *(clnt*)packet.client;
         log("\tclient procid: ", client.procid);
         auto create = [&](auto type, auto msg)
         {
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
-            answer.report = reinterpret_cast<ui64>(&h);
+            answer.report = (Arch)(&h);
             log(msg, &h);
         };
         switch (packet.input.action)
@@ -2193,7 +2235,7 @@ struct consrv
         { };
         auto& packet = payload::cast(upload);
         log(prompt, "Delete console handle");
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2297,7 +2339,7 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2320,7 +2362,7 @@ struct consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2434,7 +2476,7 @@ struct consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        auto handle_ptr = packet.target;
+        auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
             log("\tabort: handle_ptr = invalid_value (0)");
@@ -2478,15 +2520,15 @@ struct consrv
                                                        : "ReadConsoleInput",
             "\n\tinput.flags: ", utf::to_hex_0x(packet.input.flags),
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
             log("\tabort: packet.client = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
-        auto& client = packet.client; //todo validate client
-        auto events_handle_ptr = packet.target;
+        //auto& client = *(clnt*)packet.client; //todo validate client
+        auto events_handle_ptr = (hndl*)packet.target;
         if (events_handle_ptr == nullptr)
         {
             log("\tabort: events_handle_ptr = invalid_value (0)");
@@ -2569,7 +2611,7 @@ struct consrv
             packet.input = {};
         }
 
-        auto client_ptr = packet.client;
+        auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
             log("\tabort: packet.client = invalid_value (0)");
@@ -2578,7 +2620,7 @@ struct consrv
         }
         auto& client = *client_ptr;
 
-        auto scroll_handle_ptr = packet.target;
+        auto scroll_handle_ptr = (hndl*)packet.target;
         if (scroll_handle_ptr == nullptr)
         {
             log("\tabort: packet.target = invalid_value (0)");
@@ -2617,8 +2659,8 @@ struct consrv
                 if constexpr (isreal())
                 {
                     auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
-                    if (!direct(scroll_handle_ptr, [&](auto& scrollback) { active ? uiterm.ondata(crop)
-                                                                                  : uiterm.ondata(crop, &scrollback); }))
+                    if (!direct(packet.target, [&](auto& scrollback) { active ? uiterm.ondata(crop)
+                                                                              : uiterm.ondata(crop, &scrollback); }))
                     {
                         datasize = 0;
                     }
@@ -3533,7 +3575,8 @@ struct consrv
         log(prompt, "SetConsoleCursorInfo",
             "\n\tinput.style: ", packet.input.style,
             "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
-        if (packet.target && packet.target->link == &uiterm.target)
+        auto target_ptr = (hndl*)packet.target;
+        if (target_ptr && target_ptr->link == &uiterm.target)
         {
             if constexpr (isreal())
             {
@@ -3714,7 +3757,8 @@ struct consrv
         log("\tinput.size: ", size);
         if constexpr (isreal())
         {
-            if (packet.target->link != &uiterm.target) // It is additional/alternate buffer.
+            auto target_ptr = (hndl*)packet.target;
+            if (target_ptr->link != &uiterm.target) // It is additional/alternate buffer.
             {
                 console.resize_viewport(size);
             }
@@ -4124,18 +4168,18 @@ struct consrv
         {
             struct
             {
-                HWND handle;
+                Arch handle; // HWND
             }
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.handle = winhnd; // - Fake window handle to tell powershell that everything is under console control.
-                                      // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
-                                      // - "Far.exe" set their icon to all windows in the system if reply=-1.
-                                      // - msys uses the handle to determine what processes are running in the same session.
-                                      // - vim sets the icon of its hosting window.
-                                      // - The handle is used to show/hide GUI console window.
-                                      // - Used for SetConsoleTitle().
+        packet.reply.handle = (Arch)winhnd; // - Fake window handle to tell powershell that everything is under console control.
+                                            // - GH#268: "git log" launches "less.exe" which crashes if reply=NULL.
+                                            // - "Far.exe" set their icon to all windows in the system if reply=-1.
+                                            // - msys uses the handle to determine what processes are running in the same session.
+                                            // - vim sets the icon of its hosting window.
+                                            // - The handle is used to show/hide GUI console window.
+                                            // - Used for SetConsoleTitle().
         log("\tfake window handle: ", utf::to_hex_0x(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
@@ -4397,7 +4441,6 @@ struct consrv
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
-    fd_t&       condrv; // consrv: Console driver handle.
     bool&       io_log; // consrv: Stdio logging state.
     evnt        events; // consrv: Input event list.
     text        prompt; // consrv: Log prompt.
@@ -4422,7 +4465,7 @@ struct consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start()
+    void start_thraeds()
     {
         reset();
         events.reset();
@@ -4484,6 +4527,7 @@ struct consrv
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
+                if constexpr (debugmode) upload.print();
                 switch (rc)
                 {
                     case ERROR_SUCCESS:
@@ -4491,9 +4535,8 @@ struct consrv
                         if (upload.fxtype == nt::console::fx::subfx)
                         {
                             upload.fxtype = upload.callfx / 0x55555 + upload.callfx;
-                            answer.buffer = upload.argbuf;
+                            answer.buffer = (Arch)upload.argbuf;
                             answer.length = upload.arglen;
-                            answer._pad_1 = upload.arglen + sizeof(ui32) * 2 /*sizeof(drvpacket payload)*/;
                         }
                         auto proc = apimap[upload.fxtype & 255];
                         uiterm.update([&]
@@ -4511,12 +4554,10 @@ struct consrv
             log(prompt, "Server thread ended");
         }};
     }
-    void resize(twod const& newsize)
-    {
-        events.winsz(newsize); // We inform about viewport resize only.
-    }
     void stop()
     {
+        io::close(condrv);
+        io::close(refdrv);
         events.stop();
         signal.reset();
         if (window.joinable()) window.join();
@@ -4558,9 +4599,38 @@ struct consrv
         }
     }
 
-    consrv(Term& uiterm, fd_t& condrv)
+    auto start()
+    {
+        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
+        refdrv = nt::console::handle(condrv, "\\Reference");
+        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (Arch)((fd_t)events.ondata));
+        if (!success)
+        {
+            io::close(condrv);
+            io::close(refdrv);
+            hStdInput  = os::invalid_fd;
+            hStdOutput = os::invalid_fd;
+            hStdError  = os::invalid_fd;
+        }
+        else
+        {
+            start_thraeds();
+            hStdInput  = nt::console::handle(condrv, "\\Input",  true);
+            hStdOutput = nt::console::handle(condrv, "\\Output", true);
+            hStdError  = nt::console::handle(hStdOutput);
+        }
+        return success;
+    }
+    auto alive()                                          { return condrv != os::invalid_fd; }
+    void winsz(twod newsz)                                { events.winsz(newsz); }
+    void write(view utf8)                                 { events.write(utf8); }
+    void keybd(input::hids& gear, bool decckm)            { events.keybd(gear, decckm); }
+    void focus(bool state)                                { events.focus(state); }
+    void mouse(input::hids& gear, bool moved, twod coord) { events.mouse(gear, moved, coord); }
+    void  undo(bool undo_redo)                            { events.undo(undo_redo); }
+
+    consrv(Term& uiterm)
         : uiterm{ uiterm },
-          condrv{ condrv },
           io_log{ uiterm.io_log },
           events{ *this  },
           impcls{ faux   },

@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9r";
+    static const auto version = "v0.9.9s";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -82,7 +82,8 @@ namespace netxs::app::shared
             template<class P>
             void reindex(P take)
             {
-                for (auto i = 0; i < views.size(); i++)
+                auto count = static_cast<si32>(views.size());
+                for (auto i = 0; i < count; i++)
                 {
                     auto& l = views[i];
                     l.value = static_cast<si32>(take(l.param));
@@ -498,7 +499,7 @@ namespace netxs::app::shared
                     {
                         log(prompt::pads, "Reading configuration: ", config_path_str);
                         auto size = file.tellg();
-                        auto buff = text(size, '\0');
+                        auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
                         conf.fuse<Print>(buff, config_path.string());

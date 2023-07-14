@@ -282,210 +282,6 @@ namespace netxs::input
 
     namespace key
     {
-        namespace vk
-        {
-            static constexpr ui16 Backspace  = 0x08;
-            static constexpr ui16 Tab        = 0x09;
-            static constexpr ui16 Clear      = 0x0C;
-            static constexpr ui16 Enter      = 0x0D;
-            static constexpr ui16 Shift      = 0x10;
-            static constexpr ui16 Control    = 0x11;
-            static constexpr ui16 Alt        = 0x12;
-            static constexpr ui16 Pause      = 0x13;
-            static constexpr ui16 Escape     = 0x1B;
-            static constexpr ui16 PageUp     = 0x21;
-            static constexpr ui16 PageDown   = 0x22;
-            static constexpr ui16 End        = 0x23;
-            static constexpr ui16 Home       = 0x24;
-            static constexpr ui16 LeftArrow  = 0x25;
-            static constexpr ui16 UpArrow    = 0x26;
-            static constexpr ui16 RightArrow = 0x27;
-            static constexpr ui16 DownArrow  = 0x28;
-            static constexpr ui16 Insert     = 0x2D;
-            static constexpr ui16 Delete     = 0x2E;
-            static constexpr ui16 F1         = 0x70;
-            static constexpr ui16 F2         = 0x71;
-            static constexpr ui16 F3         = 0x72;
-            static constexpr ui16 F4         = 0x73;
-            static constexpr ui16 F5         = 0x74;
-            static constexpr ui16 F6         = 0x75;
-            static constexpr ui16 F7         = 0x76;
-            static constexpr ui16 F8         = 0x77;
-            static constexpr ui16 F9         = 0x78;
-            static constexpr ui16 F10        = 0x79;
-            static constexpr ui16 F11        = 0x7A;
-            static constexpr ui16 F12        = 0x7B;
-            static constexpr ui16 F13        = 0x7C;
-            static constexpr ui16 F14        = 0x7D;
-            static constexpr ui16 F15        = 0x7E;
-            static constexpr ui16 F16        = 0x7F;
-            static constexpr ui16 F17        = 0x80;
-            static constexpr ui16 F18        = 0x81;
-            static constexpr ui16 F19        = 0x82;
-            static constexpr ui16 F20        = 0x83;
-            static constexpr ui16 F21        = 0x84;
-            static constexpr ui16 F22        = 0x85;
-            static constexpr ui16 F23        = 0x86;
-            static constexpr ui16 F24        = 0x87;
-            static constexpr ui16 Undo       = 0xFFCB;
-            static constexpr ui16 Redo       = 0xFFC9;
-        }
-
-        static constexpr auto undef            = 0;
-        static constexpr auto LeftCtrl         = 2;
-        static constexpr auto RightCtrl        = 4;
-        static constexpr auto LeftAlt          = 6;
-        static constexpr auto RightAlt         = 8;
-        static constexpr auto LeftShift        = 10;
-        static constexpr auto RightShift       = 11;
-        static constexpr auto LeftWin          = 12;
-        static constexpr auto RightWin         = 13;
-        static constexpr auto Apps             = 14;
-        static constexpr auto NumLock          = 15;
-        static constexpr auto CapsLock         = 16;
-        static constexpr auto ScrollLock       = 17;
-        static constexpr auto Esc              = 18;
-        static constexpr auto Space            = 20;
-        static constexpr auto Backspace        = 22;
-        static constexpr auto Tab              = 24;
-        static constexpr auto Break            = 26;
-        static constexpr auto Pause            = 28;
-        static constexpr auto Select           = 30;
-        static constexpr auto SysRq            = 32;
-        static constexpr auto PrintScreen      = 34;
-        static constexpr auto Enter            = 36;
-        static constexpr auto NumpadEnter      = 37;
-        static constexpr auto PageUp           = 38;
-        static constexpr auto NumpadPageUp     = 39;
-        static constexpr auto PageDown         = 40;
-        static constexpr auto NumpadPageDown   = 41;
-        static constexpr auto End              = 42;
-        static constexpr auto NumpadEnd        = 43;
-        static constexpr auto Home             = 44;
-        static constexpr auto NumpadHome       = 45;
-        static constexpr auto LeftArrow        = 46;
-        static constexpr auto NumpadLeftArrow  = 47;
-        static constexpr auto UpArrow          = 48;
-        static constexpr auto NumpadUpArrow    = 49;
-        static constexpr auto RightArrow       = 50;
-        static constexpr auto NumpadRightArrow = 51;
-        static constexpr auto DownArrow        = 52;
-        static constexpr auto NumpadDownArrow  = 53;
-        static constexpr auto Key0             = 54;
-        static constexpr auto Numpad0          = 55;
-        static constexpr auto Key1             = 56;
-        static constexpr auto Numpad1          = 57;
-        static constexpr auto Key2             = 58;
-        static constexpr auto Numpad2          = 59;
-        static constexpr auto Key3             = 60;
-        static constexpr auto Numpad3          = 61;
-        static constexpr auto Key4             = 62;
-        static constexpr auto Numpad4          = 63;
-        static constexpr auto Key5             = 64;
-        static constexpr auto Numpad5          = 65;
-        static constexpr auto Key6             = 66;
-        static constexpr auto Numpad6          = 67;
-        static constexpr auto Key7             = 68;
-        static constexpr auto Numpad7          = 69;
-        static constexpr auto Key8             = 70;
-        static constexpr auto Numpad8          = 71;
-        static constexpr auto Key9             = 72;
-        static constexpr auto Numpad9          = 73;
-        static constexpr auto Insert           = 74;
-        static constexpr auto NumpadInsert     = 75;
-        static constexpr auto Delete           = 76;
-        static constexpr auto NumpadDelete     = 77;
-        static constexpr auto Clear            = 78;
-        static constexpr auto NumpadClear      = 79;
-        static constexpr auto Multiply         = 80;
-        static constexpr auto NumpadMultiply   = 81;
-        static constexpr auto Plus             = 82;
-        static constexpr auto NumpadPlus       = 83;
-        static constexpr auto Separator        = 84;
-        static constexpr auto NumpadSeparator  = 85;
-        static constexpr auto Minus            = 86;
-        static constexpr auto NumpadMinus      = 87;
-        static constexpr auto Period           = 88;
-        static constexpr auto NumpadDecimal    = 89;
-        static constexpr auto Slash            = 90;
-        static constexpr auto NumpadSlash      = 91;
-        static constexpr auto BackSlash        = 92;
-        static constexpr auto OpenBracket      = 94;
-        static constexpr auto ClosedBracket    = 96;
-        static constexpr auto Equal            = 98;
-        static constexpr auto BackQuote        = 100;
-        static constexpr auto SingleQuote      = 102;
-        static constexpr auto Comma            = 104;
-        static constexpr auto Semicolon        = 106;
-        static constexpr auto F1               = 108;
-        static constexpr auto F2               = 110;
-        static constexpr auto F3               = 112;
-        static constexpr auto F4               = 114;
-        static constexpr auto F5               = 116;
-        static constexpr auto F6               = 118;
-        static constexpr auto F7               = 120;
-        static constexpr auto F8               = 122;
-        static constexpr auto F9               = 124;
-        static constexpr auto F10              = 126;
-        static constexpr auto F11              = 128;
-        static constexpr auto F12              = 130;
-        static constexpr auto F13              = 132;
-        static constexpr auto F14              = 134;
-        static constexpr auto F15              = 136;
-        static constexpr auto F16              = 138;
-        static constexpr auto F17              = 140;
-        static constexpr auto F18              = 142;
-        static constexpr auto F19              = 144;
-        static constexpr auto F20              = 146;
-        static constexpr auto F21              = 148;
-        static constexpr auto F22              = 150;
-        static constexpr auto F23              = 152;
-        static constexpr auto F24              = 154;
-        static constexpr auto KeyA             = 156;
-        static constexpr auto KeyB             = 158;
-        static constexpr auto KeyC             = 160;
-        static constexpr auto KeyD             = 162;
-        static constexpr auto KeyE             = 164;
-        static constexpr auto KeyF             = 166;
-        static constexpr auto KeyG             = 168;
-        static constexpr auto KeyH             = 170;
-        static constexpr auto KeyI             = 172;
-        static constexpr auto KeyJ             = 174;
-        static constexpr auto KeyK             = 176;
-        static constexpr auto KeyL             = 178;
-        static constexpr auto KeyM             = 180;
-        static constexpr auto KeyN             = 182;
-        static constexpr auto KeyO             = 184;
-        static constexpr auto KeyP             = 186;
-        static constexpr auto KeyQ             = 188;
-        static constexpr auto KeyR             = 190;
-        static constexpr auto KeyS             = 192;
-        static constexpr auto KeyT             = 194;
-        static constexpr auto KeyU             = 196;
-        static constexpr auto KeyV             = 198;
-        static constexpr auto KeyW             = 200;
-        static constexpr auto KeyX             = 202;
-        static constexpr auto KeyY             = 204;
-        static constexpr auto KeyZ             = 206;
-        static constexpr auto Sleep            = 208;
-        static constexpr auto Calculator       = 210;
-        static constexpr auto Mail             = 212;
-        static constexpr auto MediaVolMute     = 214;
-        static constexpr auto MediaVolDown     = 216;
-        static constexpr auto MediaVolUp       = 218;
-        static constexpr auto MediaNext        = 220;
-        static constexpr auto MediaPrev        = 222;
-        static constexpr auto MediaStop        = 224;
-        static constexpr auto MediaPlayPause   = 226;
-        static constexpr auto MediaSelect      = 228;
-        static constexpr auto BrowserBack      = 230;
-        static constexpr auto BrowserForward   = 232;
-        static constexpr auto BrowserRefresh   = 234;
-        static constexpr auto BrowserStop      = 236;
-        static constexpr auto BrowserSearch    = 238;
-        static constexpr auto BrowserFavorites = 240;
-        static constexpr auto BrowserHome      = 242;
-
         static constexpr auto ExtendedKey = 0x0100;
         static constexpr auto NumLockMode = 0x0020;
 
@@ -504,7 +300,7 @@ namespace netxs::input
             }
             static auto& name()
             {
-                static auto n = std::vector<text>(256);
+                static auto n = std::vector<view>(256);
                 return n;
             }
             static auto& name(si32 keycode)
@@ -531,164 +327,178 @@ namespace netxs::input
                 }
             };
         };
+
+        #define key_list \
+            /*Id   Vkey  Scan    CtrlState          Mask  Name            */\
+            X(0,      0,    0,           0, 0x0000'00'FF, undef            )\
+            X(2,   0x11, 0x1D,           0, 0x0100'00'FF, LeftCtrl         )\
+            X(4,   0x11, 0x1D, ExtendedKey, 0x0100'00'FF, RightCtrl        )\
+            X(6,   0x12, 0x38,           0, 0x0100'00'FF, LeftAlt          )\
+            X(8,   0x12, 0x38, ExtendedKey, 0x0100'00'FF, RightAlt         )\
+            X(10,  0x10, 0x2A,           0, 0x0000'FF'FF, LeftShift        )\
+            X(11,  0x10, 0x36,           0, 0x0000'FF'FF, RightShift       )\
+            X(12,  0x5B, 0x5B, ExtendedKey, 0x0000'00'FF, LeftWin          )\
+            X(13,  0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, Apps             )\
+            X(14,  0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, RightWin         )\
+            X(15,  0x90, 0x45,           0, 0x0000'00'FF, NumLock          )\
+            X(16,  0x14, 0x3A,           0, 0x0000'00'FF, CapsLock         )\
+            X(17,  0x91, 0x45,           0, 0x0000'00'FF, ScrollLock       )\
+            X(18,  0x1B, 0x01,           0, 0x0000'00'FF, Esc              )\
+            X(20,  0x20, 0x39,           0, 0x0000'00'FF, Space            )\
+            X(22,  0x08, 0x0E,           0, 0x0000'00'FF, Backspace        )\
+            X(24,  0x09, 0x0F,           0, 0x0000'00'FF, Tab              )\
+            X(26,  0x03, 0x45,           0, 0x0000'FF'FF, Break            )\
+            X(28,  0x13, 0x45,           0, 0x0000'FF'FF, Pause            )\
+            X(30,  0x29,    0,           0, 0x0000'00'FF, Select           )\
+            X(32,  0x2C, 0x54,           0, 0x0000'FF'FF, SysRq            )\
+            X(34,  0x2C, 0x37, ExtendedKey, 0x0100'FF'FF, PrintScreen      )\
+            X(36,  0x0D, 0x1C,           0, 0x0100'00'FF, Enter            )\
+            X(37,  0x0D, 0x1C, ExtendedKey, 0x0100'00'FF, NumpadEnter      )\
+            X(38,  0x21, 0x49, ExtendedKey, 0x0100'00'FF, PageUp           )\
+            X(39,  0x21, 0x49,           0, 0x0100'00'FF, NumpadPageUp     )\
+            X(40,  0x22, 0x51, ExtendedKey, 0x0100'00'FF, PageDown         )\
+            X(41,  0x22, 0x51,           0, 0x0100'00'FF, NumpadPageDown   )\
+            X(42,  0x23, 0x4F, ExtendedKey, 0x0100'00'FF, End              )\
+            X(43,  0x23, 0x4F,           0, 0x0100'00'FF, NumpadEnd        )\
+            X(44,  0x24, 0x47, ExtendedKey, 0x0100'00'FF, Home             )\
+            X(45,  0x24, 0x47,           0, 0x0100'00'FF, NumpadHome       )\
+            X(46,  0x25, 0x4B, ExtendedKey, 0x0100'00'FF, LeftArrow        )\
+            X(47,  0x25, 0x4B,           0, 0x0100'00'FF, NumpadLeftArrow  )\
+            X(48,  0x26, 0x48, ExtendedKey, 0x0100'00'FF, UpArrow          )\
+            X(49,  0x26, 0x48,           0, 0x0100'00'FF, NumpadUpArrow    )\
+            X(50,  0x27, 0x4D, ExtendedKey, 0x0100'00'FF, RightArrow       )\
+            X(51,  0x27, 0x4D,           0, 0x0100'00'FF, NumpadRightArrow )\
+            X(52,  0x28, 0x50, ExtendedKey, 0x0100'00'FF, DownArrow        )\
+            X(53,  0x28, 0x50,           0, 0x0100'00'FF, NumpadDownArrow  )\
+            X(54,  0x30, 0x0B,           0, 0x0000'FF'FF, Key0             )\
+            X(55,  0x60, 0x52, NumLockMode, 0x0000'FF'FF, Numpad0          )\
+            X(56,  0x31, 0x02,           0, 0x0000'FF'FF, Key1             )\
+            X(57,  0x61, 0x4F, NumLockMode, 0x0000'FF'FF, Numpad1          )\
+            X(58,  0x32, 0x03,           0, 0x0000'FF'FF, Key2             )\
+            X(59,  0x62, 0x50, NumLockMode, 0x0000'FF'FF, Numpad2          )\
+            X(60,  0x33, 0x04,           0, 0x0000'FF'FF, Key3             )\
+            X(61,  0x63, 0x51, NumLockMode, 0x0000'FF'FF, Numpad3          )\
+            X(62,  0x34, 0x05,           0, 0x0000'FF'FF, Key4             )\
+            X(63,  0x64, 0x4B, NumLockMode, 0x0000'FF'FF, Numpad4          )\
+            X(64,  0x35, 0x06,           0, 0x0000'FF'FF, Key5             )\
+            X(65,  0x65, 0x4C, NumLockMode, 0x0000'FF'FF, Numpad5          )\
+            X(66,  0x36, 0x07,           0, 0x0000'FF'FF, Key6             )\
+            X(67,  0x66, 0x4D, NumLockMode, 0x0000'FF'FF, Numpad6          )\
+            X(68,  0x37, 0x08,           0, 0x0000'FF'FF, Key7             )\
+            X(69,  0x67, 0x47, NumLockMode, 0x0000'FF'FF, Numpad7          )\
+            X(70,  0x38, 0x09,           0, 0x0000'FF'FF, Key8             )\
+            X(71,  0x68, 0x48, NumLockMode, 0x0000'FF'FF, Numpad8          )\
+            X(72,  0x39, 0x0A,           0, 0x0000'FF'FF, Key9             )\
+            X(73,  0x69, 0x49, NumLockMode, 0x0000'FF'FF, Numpad9          )\
+            X(74,  0x2D, 0x52, ExtendedKey, 0x0100'00'FF, Insert           )\
+            X(75,  0x2D, 0x52,           0, 0x0100'00'FF, NumpadInsert     )\
+            X(76,  0x2E, 0x53, ExtendedKey, 0x0100'00'FF, Delete           )\
+            X(77,  0x2E, 0x55,           0, 0x0100'00'FF, NumpadDelete     )\
+            X(78,  0x0C, 0x4C, ExtendedKey, 0x0100'00'FF, Clear            )\
+            X(79,  0x0C, 0x4C,           0, 0x0100'00'FF, NumpadClear      )\
+            X(80,  0x6A, 0x09,           0, 0x0000'FF'FF, Multiply         )\
+            X(81,  0x6A, 0x37,           0, 0x0000'FF'FF, NumpadMultiply   )\
+            X(82,  0x6B, 0x0D,           0, 0x0000'FF'FF, Plus             )\
+            X(83,  0x6B, 0x4E,           0, 0x0000'FF'FF, NumpadPlus       )\
+            X(84,  0x6C,    0,           0, 0x0020'00'FF, Separator        )\
+            X(85,  0x6C,    0, NumLockMode, 0x0020'00'FF, NumpadSeparator  )\
+            X(86,  0xBD, 0x0C,           0, 0x0000'00'FF, Minus            )\
+            X(87,  0x6D, 0x4A,           0, 0x0000'00'FF, NumpadMinus      )\
+            X(88,  0xBE, 0x34,           0, 0x0000'00'FF, Period           )\
+            X(89,  0x6E, 0x53, NumLockMode, 0x0000'00'FF, NumpadDecimal    )\
+            X(90,  0xBF, 0x35,           0, 0x0000'00'FF, Slash            )\
+            X(91,  0x6F, 0x35, ExtendedKey, 0x0000'00'FF, NumpadSlash      )\
+            X(92,  0xDC, 0x2B,           0, 0x0000'00'FF, BackSlash        )\
+            X(94,  0xDB, 0x1A,           0, 0x0000'00'FF, OpenBracket      )\
+            X(96,  0xDD, 0x1B,           0, 0x0000'00'FF, ClosedBracket    )\
+            X(98,  0xBB, 0x0D,           0, 0x0000'00'FF, Equal            )\
+            X(100, 0xC0, 0x29,           0, 0x0000'00'FF, BackQuote        )\
+            X(102, 0xDE, 0x28,           0, 0x0000'00'FF, SingleQuote      )\
+            X(104, 0xBC, 0x33,           0, 0x0000'00'FF, Comma            )\
+            X(106, 0xBA, 0x27,           0, 0x0000'00'FF, Semicolon        )\
+            X(108, 0x70, 0x3B,           0, 0x0000'00'FF, F1               )\
+            X(110, 0x71, 0x3C,           0, 0x0000'00'FF, F2               )\
+            X(112, 0x72, 0x3D,           0, 0x0000'00'FF, F3               )\
+            X(114, 0x73, 0x3E,           0, 0x0000'00'FF, F4               )\
+            X(116, 0x74, 0x3F,           0, 0x0000'00'FF, F5               )\
+            X(118, 0x75, 0x40,           0, 0x0000'00'FF, F6               )\
+            X(120, 0x76, 0x41,           0, 0x0000'00'FF, F7               )\
+            X(122, 0x77, 0x42,           0, 0x0000'00'FF, F8               )\
+            X(124, 0x78, 0x43,           0, 0x0000'00'FF, F9               )\
+            X(126, 0x79, 0x44,           0, 0x0000'00'FF, F10              )\
+            X(128, 0x7A, 0x57,           0, 0x0000'00'FF, F11              )\
+            X(130, 0x7B, 0x5B,           0, 0x0000'00'FF, F12              )\
+            X(132, 0x7C,    0,           0, 0x0000'00'FF, F13              )\
+            X(134, 0x7D,    0,           0, 0x0000'00'FF, F14              )\
+            X(136, 0x7E,    0,           0, 0x0000'00'FF, F15              )\
+            X(138, 0x7F,    0,           0, 0x0000'00'FF, F16              )\
+            X(140, 0x80,    0,           0, 0x0000'00'FF, F17              )\
+            X(142, 0x81,    0,           0, 0x0000'00'FF, F18              )\
+            X(144, 0x82,    0,           0, 0x0000'00'FF, F19              )\
+            X(146, 0x83,    0,           0, 0x0000'00'FF, F20              )\
+            X(148, 0x84,    0,           0, 0x0000'00'FF, F21              )\
+            X(150, 0x85,    0,           0, 0x0000'00'FF, F22              )\
+            X(152, 0x86,    0,           0, 0x0000'00'FF, F23              )\
+            X(154, 0x87,    0,           0, 0x0000'00'FF, F24              )\
+            X(156, 0x41,    0,           0, 0x0100'00'FF, KeyA             )\
+            X(158, 0x42,    0,           0, 0x0100'00'FF, KeyB             )\
+            X(160, 0x43,    0,           0, 0x0100'00'FF, KeyC             )\
+            X(162, 0x44,    0,           0, 0x0100'00'FF, KeyD             )\
+            X(164, 0x45,    0,           0, 0x0100'00'FF, KeyE             )\
+            X(166, 0x46,    0,           0, 0x0100'00'FF, KeyF             )\
+            X(168, 0x47,    0,           0, 0x0100'00'FF, KeyG             )\
+            X(170, 0x48,    0,           0, 0x0100'00'FF, KeyH             )\
+            X(172, 0x49,    0,           0, 0x0100'00'FF, KeyI             )\
+            X(174, 0x4A,    0,           0, 0x0100'00'FF, KeyJ             )\
+            X(176, 0x4B,    0,           0, 0x0100'00'FF, KeyK             )\
+            X(178, 0x4C,    0,           0, 0x0100'00'FF, KeyL             )\
+            X(180, 0x4D,    0,           0, 0x0100'00'FF, KeyM             )\
+            X(182, 0x4E,    0,           0, 0x0100'00'FF, KeyN             )\
+            X(184, 0x4F,    0,           0, 0x0100'00'FF, KeyO             )\
+            X(186, 0x50,    0,           0, 0x0100'00'FF, KeyP             )\
+            X(188, 0x51,    0,           0, 0x0100'00'FF, KeyQ             )\
+            X(190, 0x52,    0,           0, 0x0100'00'FF, KeyR             )\
+            X(192, 0x53,    0,           0, 0x0100'00'FF, KeyS             )\
+            X(194, 0x54,    0,           0, 0x0100'00'FF, KeyT             )\
+            X(196, 0x55,    0,           0, 0x0100'00'FF, KeyU             )\
+            X(198, 0x56,    0,           0, 0x0100'00'FF, KeyV             )\
+            X(200, 0x57,    0,           0, 0x0100'00'FF, KeyW             )\
+            X(202, 0x58,    0,           0, 0x0100'00'FF, KeyX             )\
+            X(204, 0x59,    0,           0, 0x0100'00'FF, KeyY             )\
+            X(206, 0x5A,    0,           0, 0x0100'00'FF, KeyZ             )\
+            X(208, 0x5F,    0, ExtendedKey, 0x0100'00'FF, Sleep            )\
+            X(210, 0xB7,    0, ExtendedKey, 0x0100'00'FF, Calculator       )\
+            X(212, 0x48,    0, ExtendedKey, 0x0100'00'FF, Mail             )\
+            X(214, 0xAD,    0, ExtendedKey, 0x0100'00'FF, MediaVolMute     )\
+            X(216, 0xAE,    0, ExtendedKey, 0x0100'00'FF, MediaVolDown     )\
+            X(218, 0xAF,    0, ExtendedKey, 0x0100'00'FF, MediaVolUp       )\
+            X(220, 0xB0,    0, ExtendedKey, 0x0100'00'FF, MediaNext        )\
+            X(222, 0xB1,    0, ExtendedKey, 0x0100'00'FF, MediaPrev        )\
+            X(224, 0xB2,    0, ExtendedKey, 0x0100'00'FF, MediaStop        )\
+            X(226, 0xB3,    0, ExtendedKey, 0x0100'00'FF, MediaPlayPause   )\
+            X(228, 0xB5,    0, ExtendedKey, 0x0100'00'FF, MediaSelect      )\
+            X(230, 0xA6,    0, ExtendedKey, 0x0100'00'FF, BrowserBack      )\
+            X(232, 0xA7,    0, ExtendedKey, 0x0100'00'FF, BrowserForward   )\
+            X(234, 0xA8,    0, ExtendedKey, 0x0100'00'FF, BrowserRefresh   )\
+            X(236, 0xA9,    0, ExtendedKey, 0x0100'00'FF, BrowserStop      )\
+            X(238, 0xAA,    0, ExtendedKey, 0x0100'00'FF, BrowserSearch    )\
+            X(240, 0xAB,    0, ExtendedKey, 0x0100'00'FF, BrowserFavorites )\
+            X(242, 0xAC,    0, ExtendedKey, 0x0100'00'FF, BrowserHome      )
+
+        #define X(KeyId, Vkey, Scan, CtrlState, Mask, Name) \
+            static constexpr auto Name = KeyId;
+            key_list
+        #undef X
+
         static const auto keymap = std::unordered_map<map, si32, map::hashproc>
         {
-            // Vkey  Scan    CtrlState          Mask   Name                  KeyId
-            {{    0,    0,           0, 0x0000'00'FF, "undef"sv            , undef            }, undef            },
-            {{ 0x11, 0x1D,           0, 0x0100'00'FF, "LeftCtrl"sv         , LeftCtrl         }, LeftCtrl         },
-            {{ 0x11, 0x1D, ExtendedKey, 0x0100'00'FF, "RightCtrl"sv        , RightCtrl        }, RightCtrl        },
-            {{ 0x12, 0x38,           0, 0x0100'00'FF, "LeftAlt"sv          , LeftAlt          }, LeftAlt          },
-            {{ 0x12, 0x38, ExtendedKey, 0x0100'00'FF, "RightAlt"sv         , RightAlt         }, RightAlt         },
-            {{ 0x10, 0x2A,           0, 0x0000'FF'FF, "LeftShift"sv        , LeftShift        }, LeftShift        },
-            {{ 0x10, 0x36,           0, 0x0000'FF'FF, "RightShift"sv       , RightShift       }, RightShift       },
-            {{ 0x5B, 0x5B, ExtendedKey, 0x0000'00'FF, "LeftWin"sv          , LeftWin          }, LeftWin          },
-            {{ 0x5D, 0x5D, ExtendedKey, 0x0000'00'FF, "Apps"sv             , Apps             }, Apps             },
-            {{ 0x5C, 0x5C, ExtendedKey, 0x0000'00'FF, "RightWin"sv         , RightWin         }, RightWin         },
-            {{ 0x90, 0x45,           0, 0x0000'00'FF, "NumLock"sv          , NumLock          }, NumLock          },
-            {{ 0x14, 0x3A,           0, 0x0000'00'FF, "CapsLock"sv         , CapsLock         }, CapsLock         },
-            {{ 0x91, 0x45,           0, 0x0000'00'FF, "ScrollLock"sv       , ScrollLock       }, ScrollLock       },
-            {{ 0x1B, 0x01,           0, 0x0000'00'FF, "Esc"sv              , Esc              }, Esc              },
-            {{ 0x20, 0x39,           0, 0x0000'00'FF, "Space"sv            , Space            }, Space            },
-            {{ 0x08, 0x0E,           0, 0x0000'00'FF, "Backspace"sv        , Backspace        }, Backspace        },
-            {{ 0x09, 0x0F,           0, 0x0000'00'FF, "Tab"sv              , Tab              }, Tab              },
-            {{ 0x03, 0x45,           0, 0x0000'FF'FF, "Break"sv            , Break            }, Break            },
-            {{ 0x13, 0x45,           0, 0x0000'FF'FF, "Pause"sv            , Pause            }, Pause            },
-            {{ 0x29,    0,           0, 0x0000'00'FF, "Select"sv           , Select           }, Select           },
-            {{ 0x2C, 0x54,           0, 0x0000'FF'FF, "SysRq"sv            , SysRq            }, SysRq            },
-            {{ 0x2C, 0x37, ExtendedKey, 0x0100'FF'FF, "PrintScreen"sv      , PrintScreen      }, PrintScreen      },
-            {{ 0x0D, 0x1C,           0, 0x0100'00'FF, "Enter"sv            , Enter            }, Enter            },
-            {{ 0x0D, 0x1C, ExtendedKey, 0x0100'00'FF, "NumpadEnter"sv      , NumpadEnter      }, NumpadEnter      },
-            {{ 0x21, 0x49, ExtendedKey, 0x0100'00'FF, "PageUp"sv           , PageUp           }, PageUp           },
-            {{ 0x21, 0x49,           0, 0x0100'00'FF, "NumpadPageUp"sv     , NumpadPageUp     }, NumpadPageUp     },
-            {{ 0x22, 0x51, ExtendedKey, 0x0100'00'FF, "PageDown"sv         , PageDown         }, PageDown         },
-            {{ 0x22, 0x51,           0, 0x0100'00'FF, "NumpadPageDown"sv   , NumpadPageDown   }, NumpadPageDown   },
-            {{ 0x23, 0x4F, ExtendedKey, 0x0100'00'FF, "End"sv              , End              }, End              },
-            {{ 0x23, 0x4F,           0, 0x0100'00'FF, "NumpadEnd"sv        , NumpadEnd        }, NumpadEnd        },
-            {{ 0x24, 0x47, ExtendedKey, 0x0100'00'FF, "Home"sv             , Home             }, Home             },
-            {{ 0x24, 0x47,           0, 0x0100'00'FF, "NumpadHome"sv       , NumpadHome       }, NumpadHome       },
-            {{ 0x25, 0x4B, ExtendedKey, 0x0100'00'FF, "LeftArrow"sv        , LeftArrow        }, LeftArrow        },
-            {{ 0x25, 0x4B,           0, 0x0100'00'FF, "NumpadLeftArrow"sv  , NumpadLeftArrow  }, NumpadLeftArrow  },
-            {{ 0x26, 0x48, ExtendedKey, 0x0100'00'FF, "UpArrow"sv          , UpArrow          }, UpArrow          },
-            {{ 0x26, 0x48,           0, 0x0100'00'FF, "NumpadUpArrow"sv    , NumpadUpArrow    }, NumpadUpArrow    },
-            {{ 0x27, 0x4D, ExtendedKey, 0x0100'00'FF, "RightArrow"sv       , RightArrow       }, RightArrow       },
-            {{ 0x27, 0x4D,           0, 0x0100'00'FF, "NumpadRightArrow"sv , NumpadRightArrow }, NumpadRightArrow },
-            {{ 0x28, 0x50, ExtendedKey, 0x0100'00'FF, "DownArrow"sv        , DownArrow        }, DownArrow        },
-            {{ 0x28, 0x50,           0, 0x0100'00'FF, "NumpadDownArrow"sv  , NumpadDownArrow  }, NumpadDownArrow  },
-            {{ 0x30, 0x0B,           0, 0x0000'FF'FF, "Key0"sv             , Key0             }, Key0             },
-            {{ 0x60, 0x52, NumLockMode, 0x0000'FF'FF, "Numpad0"sv          , Numpad0          }, Numpad0          },
-            {{ 0x31, 0x02,           0, 0x0000'FF'FF, "Key1"sv             , Key1             }, Key1             },
-            {{ 0x61, 0x4F, NumLockMode, 0x0000'FF'FF, "Numpad1"sv          , Numpad1          }, Numpad1          },
-            {{ 0x32, 0x03,           0, 0x0000'FF'FF, "Key2"sv             , Key2             }, Key2             },
-            {{ 0x62, 0x50, NumLockMode, 0x0000'FF'FF, "Numpad2"sv          , Numpad2          }, Numpad2          },
-            {{ 0x33, 0x04,           0, 0x0000'FF'FF, "Key3"sv             , Key3             }, Key3             },
-            {{ 0x63, 0x51, NumLockMode, 0x0000'FF'FF, "Numpad3"sv          , Numpad3          }, Numpad3          },
-            {{ 0x34, 0x05,           0, 0x0000'FF'FF, "Key4"sv             , Key4             }, Key4             },
-            {{ 0x64, 0x4B, NumLockMode, 0x0000'FF'FF, "Numpad4"sv          , Numpad4          }, Numpad4          },
-            {{ 0x35, 0x06,           0, 0x0000'FF'FF, "Key5"sv             , Key5             }, Key5             },
-            {{ 0x65, 0x4C, NumLockMode, 0x0000'FF'FF, "Numpad5"sv          , Numpad5          }, Numpad5          },
-            {{ 0x36, 0x07,           0, 0x0000'FF'FF, "Key6"sv             , Key6             }, Key6             },
-            {{ 0x66, 0x4D, NumLockMode, 0x0000'FF'FF, "Numpad6"sv          , Numpad6          }, Numpad6          },
-            {{ 0x37, 0x08,           0, 0x0000'FF'FF, "Key7"sv             , Key7             }, Key7             },
-            {{ 0x67, 0x47, NumLockMode, 0x0000'FF'FF, "Numpad7"sv          , Numpad7          }, Numpad7          },
-            {{ 0x38, 0x09,           0, 0x0000'FF'FF, "Key8"sv             , Key8             }, Key8             },
-            {{ 0x68, 0x48, NumLockMode, 0x0000'FF'FF, "Numpad8"sv          , Numpad8          }, Numpad8          },
-            {{ 0x39, 0x0A,           0, 0x0000'FF'FF, "Key9"sv             , Key9             }, Key9             },
-            {{ 0x69, 0x49, NumLockMode, 0x0000'FF'FF, "Numpad9"sv          , Numpad9          }, Numpad9          },
-            {{ 0x2D, 0x52, ExtendedKey, 0x0100'00'FF, "Insert"sv           , Insert           }, Insert           },
-            {{ 0x2D, 0x52,           0, 0x0100'00'FF, "NumpadInsert"sv     , NumpadInsert     }, NumpadInsert     },
-            {{ 0x2E, 0x53, ExtendedKey, 0x0100'00'FF, "Delete"sv           , Delete           }, Delete           },
-            {{ 0x2E, 0x55,           0, 0x0100'00'FF, "NumpadDelete"sv     , NumpadDelete     }, NumpadDelete     },
-            {{ 0x0C, 0x4C, ExtendedKey, 0x0100'00'FF, "Clear"sv            , Clear            }, Clear            },
-            {{ 0x0C, 0x4C,           0, 0x0100'00'FF, "NumpadClear"sv      , NumpadClear      }, NumpadClear      },
-            {{ 0x6A, 0x09,           0, 0x0000'FF'FF, "Multiply"sv         , Multiply         }, Multiply         },
-            {{ 0x6A, 0x37,           0, 0x0000'FF'FF, "NumpadMultiply"sv   , NumpadMultiply   }, NumpadMultiply   },
-            {{ 0x6B, 0x0D,           0, 0x0000'FF'FF, "Plus"sv             , Plus             }, Plus             },
-            {{ 0x6B, 0x4E,           0, 0x0000'FF'FF, "NumpadPlus"sv       , NumpadPlus       }, NumpadPlus       },
-            {{ 0x6C,    0,           0, 0x0020'00'FF, "Separator"sv        , Separator        }, Separator        }, //todo revise
-            {{ 0x6C,    0, NumLockMode, 0x0020'00'FF, "NumpadSeparator"sv  , NumpadSeparator  }, NumpadSeparator  }, //todo revise
-            {{ 0xBD, 0x0C,           0, 0x0000'00'FF, "Minus"sv            , Minus            }, Minus            },
-            {{ 0x6D, 0x4A,           0, 0x0000'00'FF, "NumpadMinus"sv      , NumpadMinus      }, NumpadMinus      },
-            {{ 0xBE, 0x34,           0, 0x0000'00'FF, "Period"sv           , Period           }, Period           },
-            {{ 0x6E, 0x53, NumLockMode, 0x0000'00'FF, "NumpadDecimal"sv    , NumpadDecimal    }, NumpadDecimal    },
-            {{ 0xBF, 0x35,           0, 0x0000'00'FF, "Slash"sv            , Slash            }, Slash            },
-            {{ 0x6F, 0x35, ExtendedKey, 0x0000'00'FF, "NumpadSlash"sv      , NumpadSlash      }, NumpadSlash      },
-            {{ 0xDC, 0x2B,           0, 0x0000'00'FF, "BackSlash"sv        , BackSlash        }, BackSlash        },
-            {{ 0xDB, 0x1A,           0, 0x0000'00'FF, "OpenBracket"sv      , OpenBracket      }, OpenBracket      },
-            {{ 0xDD, 0x1B,           0, 0x0000'00'FF, "ClosedBracket"sv    , ClosedBracket    }, ClosedBracket    },
-            {{ 0xBB, 0x0D,           0, 0x0000'00'FF, "Equal"sv            , Equal            }, Equal            },
-            {{ 0xC0, 0x29,           0, 0x0000'00'FF, "BackQuote"sv        , BackQuote        }, BackQuote        },
-            {{ 0xDE, 0x28,           0, 0x0000'00'FF, "SingleQuote"sv      , SingleQuote      }, SingleQuote      },
-            {{ 0xBC, 0x33,           0, 0x0000'00'FF, "Comma"sv            , Comma            }, Comma            },
-            {{ 0xBA, 0x27,           0, 0x0000'00'FF, "Semicolon"sv        , Semicolon        }, Semicolon        },
-            {{ 0x70, 0x3B,           0, 0x0000'00'FF, "F1"sv               , F1               }, F1               },
-            {{ 0x71, 0x3C,           0, 0x0000'00'FF, "F2"sv               , F2               }, F2               },
-            {{ 0x72, 0x3D,           0, 0x0000'00'FF, "F3"sv               , F3               }, F3               },
-            {{ 0x73, 0x3E,           0, 0x0000'00'FF, "F4"sv               , F4               }, F4               },
-            {{ 0x74, 0x3F,           0, 0x0000'00'FF, "F5"sv               , F5               }, F5               },
-            {{ 0x75, 0x40,           0, 0x0000'00'FF, "F6"sv               , F6               }, F6               },
-            {{ 0x76, 0x41,           0, 0x0000'00'FF, "F7"sv               , F7               }, F7               },
-            {{ 0x77, 0x42,           0, 0x0000'00'FF, "F8"sv               , F8               }, F8               },
-            {{ 0x78, 0x43,           0, 0x0000'00'FF, "F9"sv               , F9               }, F9               },
-            {{ 0x79, 0x44,           0, 0x0000'00'FF, "F10"sv              , F10              }, F10              },
-            {{ 0x7A, 0x57,           0, 0x0000'00'FF, "F11"sv              , F11              }, F11              },
-            {{ 0x7B, 0x5B,           0, 0x0000'00'FF, "F12"sv              , F12              }, F12              },
-            {{ 0x7C,    0,           0, 0x0000'00'FF, "F13"sv              , F13              }, F13              },
-            {{ 0x7D,    0,           0, 0x0000'00'FF, "F14"sv              , F14              }, F14              },
-            {{ 0x7E,    0,           0, 0x0000'00'FF, "F15"sv              , F15              }, F15              },
-            {{ 0x7F,    0,           0, 0x0000'00'FF, "F16"sv              , F16              }, F16              },
-            {{ 0x80,    0,           0, 0x0000'00'FF, "F17"sv              , F17              }, F17              },
-            {{ 0x81,    0,           0, 0x0000'00'FF, "F18"sv              , F18              }, F18              },
-            {{ 0x82,    0,           0, 0x0000'00'FF, "F19"sv              , F19              }, F19              },
-            {{ 0x83,    0,           0, 0x0000'00'FF, "F20"sv              , F20              }, F20              },
-            {{ 0x84,    0,           0, 0x0000'00'FF, "F21"sv              , F21              }, F21              },
-            {{ 0x85,    0,           0, 0x0000'00'FF, "F22"sv              , F22              }, F22              },
-            {{ 0x86,    0,           0, 0x0000'00'FF, "F23"sv              , F23              }, F23              },
-            {{ 0x87,    0,           0, 0x0000'00'FF, "F24"sv              , F24              }, F24              },
-            {{ 0x41,    0,           0, 0x0100'00'FF, "KeyA"sv             , KeyA             }, KeyA             },
-            {{ 0x42,    0,           0, 0x0100'00'FF, "KeyB"sv             , KeyB             }, KeyB             },
-            {{ 0x43,    0,           0, 0x0100'00'FF, "KeyC"sv             , KeyC             }, KeyC             },
-            {{ 0x44,    0,           0, 0x0100'00'FF, "KeyD"sv             , KeyD             }, KeyD             },
-            {{ 0x45,    0,           0, 0x0100'00'FF, "KeyE"sv             , KeyE             }, KeyE             },
-            {{ 0x46,    0,           0, 0x0100'00'FF, "KeyF"sv             , KeyF             }, KeyF             },
-            {{ 0x47,    0,           0, 0x0100'00'FF, "KeyG"sv             , KeyG             }, KeyG             },
-            {{ 0x48,    0,           0, 0x0100'00'FF, "KeyH"sv             , KeyH             }, KeyH             },
-            {{ 0x49,    0,           0, 0x0100'00'FF, "KeyI"sv             , KeyI             }, KeyI             },
-            {{ 0x4A,    0,           0, 0x0100'00'FF, "KeyJ"sv             , KeyJ             }, KeyJ             },
-            {{ 0x4B,    0,           0, 0x0100'00'FF, "KeyK"sv             , KeyK             }, KeyK             },
-            {{ 0x4C,    0,           0, 0x0100'00'FF, "KeyL"sv             , KeyL             }, KeyL             },
-            {{ 0x4D,    0,           0, 0x0100'00'FF, "KeyM"sv             , KeyM             }, KeyM             },
-            {{ 0x4E,    0,           0, 0x0100'00'FF, "KeyN"sv             , KeyN             }, KeyN             },
-            {{ 0x4F,    0,           0, 0x0100'00'FF, "KeyO"sv             , KeyO             }, KeyO             },
-            {{ 0x50,    0,           0, 0x0100'00'FF, "KeyP"sv             , KeyP             }, KeyP             },
-            {{ 0x51,    0,           0, 0x0100'00'FF, "KeyQ"sv             , KeyQ             }, KeyQ             },
-            {{ 0x52,    0,           0, 0x0100'00'FF, "KeyR"sv             , KeyR             }, KeyR             },
-            {{ 0x53,    0,           0, 0x0100'00'FF, "KeyS"sv             , KeyS             }, KeyS             },
-            {{ 0x54,    0,           0, 0x0100'00'FF, "KeyT"sv             , KeyT             }, KeyT             },
-            {{ 0x55,    0,           0, 0x0100'00'FF, "KeyU"sv             , KeyU             }, KeyU             },
-            {{ 0x56,    0,           0, 0x0100'00'FF, "KeyV"sv             , KeyV             }, KeyV             },
-            {{ 0x57,    0,           0, 0x0100'00'FF, "KeyW"sv             , KeyW             }, KeyW             },
-            {{ 0x58,    0,           0, 0x0100'00'FF, "KeyX"sv             , KeyX             }, KeyX             },
-            {{ 0x59,    0,           0, 0x0100'00'FF, "KeyY"sv             , KeyY             }, KeyY             },
-            {{ 0x5A,    0,           0, 0x0100'00'FF, "KeyZ"sv             , KeyZ             }, KeyZ             },
-            {{ 0x5F,    0, ExtendedKey, 0x0100'00'FF, "Sleep"sv            , Sleep            }, Sleep            },
-            {{ 0xB7,    0, ExtendedKey, 0x0100'00'FF, "Calculator"sv       , Calculator       }, Calculator       },
-            {{ 0x48,    0, ExtendedKey, 0x0100'00'FF, "Mail"sv             , Mail             }, Mail             },
-            {{ 0xAD,    0, ExtendedKey, 0x0100'00'FF, "MediaVolMute"sv     , MediaVolMute     }, MediaVolMute     },
-            {{ 0xAE,    0, ExtendedKey, 0x0100'00'FF, "MediaVolDown"sv     , MediaVolDown     }, MediaVolDown     },
-            {{ 0xAF,    0, ExtendedKey, 0x0100'00'FF, "MediaVolUp"sv       , MediaVolUp       }, MediaVolUp       },
-            {{ 0xB0,    0, ExtendedKey, 0x0100'00'FF, "MediaNext"sv        , MediaNext        }, MediaNext        },
-            {{ 0xB1,    0, ExtendedKey, 0x0100'00'FF, "MediaPrev"sv        , MediaPrev        }, MediaPrev        },
-            {{ 0xB2,    0, ExtendedKey, 0x0100'00'FF, "MediaStop"sv        , MediaStop        }, MediaStop        },
-            {{ 0xB3,    0, ExtendedKey, 0x0100'00'FF, "MediaPlayPause"sv   , MediaPlayPause   }, MediaPlayPause   },
-            {{ 0xB5,    0, ExtendedKey, 0x0100'00'FF, "MediaSelect"sv      , MediaSelect      }, MediaSelect      },
-            {{ 0xA6,    0, ExtendedKey, 0x0100'00'FF, "BrowserBack"sv      , BrowserBack      }, BrowserBack      },
-            {{ 0xA7,    0, ExtendedKey, 0x0100'00'FF, "BrowserForward"sv   , BrowserForward   }, BrowserForward   },
-            {{ 0xA8,    0, ExtendedKey, 0x0100'00'FF, "BrowserRefresh"sv   , BrowserRefresh   }, BrowserRefresh   },
-            {{ 0xA9,    0, ExtendedKey, 0x0100'00'FF, "BrowserStop"sv      , BrowserStop      }, BrowserStop      },
-            {{ 0xAA,    0, ExtendedKey, 0x0100'00'FF, "BrowserSearch"sv    , BrowserSearch    }, BrowserSearch    },
-            {{ 0xAB,    0, ExtendedKey, 0x0100'00'FF, "BrowserFavorites"sv , BrowserFavorites }, BrowserFavorites },
-            {{ 0xAC,    0, ExtendedKey, 0x0100'00'FF, "BrowserHome"sv      , BrowserHome      }, BrowserHome      },
+            #define X(KeyId, Vkey, Scan, CtrlState, Mask, Name) \
+                { map{ Vkey, Scan, CtrlState, Mask, #Name, Name }, Name, },
+                key_list
+            #undef X
         };
+
+        #undef key_list
 
         template<class ...Args>
         auto xlat(Args&&... args)
@@ -1586,51 +1396,51 @@ namespace netxs::input
             };
             if (pressed)
             {
-                switch (virtcod)
+                switch (keycode & -2 /*Generic keys only*/)
                 {
                     //todo Ctrl+Space
                     //     Ctrl+Backspace
                     //     Alt+0..9
                     //     Ctrl/Shift+Enter
-                    case key::vk::Backspace: textline = "\177"; break;
-                    case key::vk::Tab:
+                    case key::Backspace: textline = "\177"; break;
+                    case key::Tab:
                         textline = ctlstate & hids::anyShift ? "\033[Z"
                                                              : "\t";
                         break;
-                    case key::vk::PageUp:     ctrl("[5",  "[5",  "~"); break;
-                    case key::vk::PageDown:   ctrl("[6",  "[6",  "~"); break;
-                    case key::vk::Insert:     ctrl("[2",  "[2",  "~"); break;
-                    case key::vk::Delete:     ctrl("[3",  "[3",  "~"); break;
-                    case key::vk::End:        ctrl("[",   "[1",  "F"); break;
-                    case key::vk::Home:       ctrl("[",   "[1",  "H"); break;
-                    case key::vk::UpArrow:    ctrl("[",   "[1",  "A"); break;
-                    case key::vk::DownArrow:  ctrl("[",   "[1",  "B"); break;
-                    case key::vk::RightArrow: ctrl("[",   "[1",  "C"); break;
-                    case key::vk::LeftArrow:  ctrl("[",   "[1",  "D"); break;
-                    case key::vk::F1:         ctrl("O",   "[1",  "P"); break;
-                    case key::vk::F2:         ctrl("O",   "[1",  "Q"); break;
-                    case key::vk::F3:         ctrl("O",   "[1",  "R"); break;
-                    case key::vk::F4:         ctrl("O",   "[1",  "S"); break;
-                    case key::vk::F5:         ctrl("[15", "[15", "~"); break;
-                    case key::vk::F6:         ctrl("[17", "[17", "~"); break;
-                    case key::vk::F7:         ctrl("[18", "[18", "~"); break;
-                    case key::vk::F8:         ctrl("[19", "[19", "~"); break;
-                    case key::vk::F9:         ctrl("[20", "[20", "~"); break;
-                    case key::vk::F10:        ctrl("[21", "[21", "~"); break;
-                    case key::vk::F11:        ctrl("[23", "[23", "~"); break;
-                    case key::vk::F12:        ctrl("[24", "[24", "~"); break;
-                    case key::vk::F13:        ctrl("[25", "[25", "~"); break;
-                    case key::vk::F14:        ctrl("[26", "[26", "~"); break;
-                    case key::vk::F15:        ctrl("[28", "[28", "~"); break;
-                    case key::vk::F16:        ctrl("[29", "[29", "~"); break;
-                    case key::vk::F17:        ctrl("[31", "[31", "~"); break;
-                    case key::vk::F18:        ctrl("[32", "[32", "~"); break;
-                    case key::vk::F19:        ctrl("[33", "[33", "~"); break;
-                    case key::vk::F20:        ctrl("[34", "[34", "~"); break;
-                    case key::vk::F21:        ctrl("[35", "[35", "~"); break;
-                    case key::vk::F22:        ctrl("[36", "[36", "~"); break;
-                    case key::vk::F23:        ctrl("[37", "[37", "~"); break;
-                    case key::vk::F24:        ctrl("[38", "[38", "~"); break;
+                    case key::PageUp:     ctrl("[5",  "[5",  "~"); break;
+                    case key::PageDown:   ctrl("[6",  "[6",  "~"); break;
+                    case key::Insert:     ctrl("[2",  "[2",  "~"); break;
+                    case key::Delete:     ctrl("[3",  "[3",  "~"); break;
+                    case key::End:        ctrl("[",   "[1",  "F"); break;
+                    case key::Home:       ctrl("[",   "[1",  "H"); break;
+                    case key::UpArrow:    ctrl("[",   "[1",  "A"); break;
+                    case key::DownArrow:  ctrl("[",   "[1",  "B"); break;
+                    case key::RightArrow: ctrl("[",   "[1",  "C"); break;
+                    case key::LeftArrow:  ctrl("[",   "[1",  "D"); break;
+                    case key::F1:         ctrl("O",   "[1",  "P"); break;
+                    case key::F2:         ctrl("O",   "[1",  "Q"); break;
+                    case key::F3:         ctrl("O",   "[1",  "R"); break;
+                    case key::F4:         ctrl("O",   "[1",  "S"); break;
+                    case key::F5:         ctrl("[15", "[15", "~"); break;
+                    case key::F6:         ctrl("[17", "[17", "~"); break;
+                    case key::F7:         ctrl("[18", "[18", "~"); break;
+                    case key::F8:         ctrl("[19", "[19", "~"); break;
+                    case key::F9:         ctrl("[20", "[20", "~"); break;
+                    case key::F10:        ctrl("[21", "[21", "~"); break;
+                    case key::F11:        ctrl("[23", "[23", "~"); break;
+                    case key::F12:        ctrl("[24", "[24", "~"); break;
+                    case key::F13:        ctrl("[25", "[25", "~"); break;
+                    case key::F14:        ctrl("[26", "[26", "~"); break;
+                    case key::F15:        ctrl("[28", "[28", "~"); break;
+                    case key::F16:        ctrl("[29", "[29", "~"); break;
+                    case key::F17:        ctrl("[31", "[31", "~"); break;
+                    case key::F18:        ctrl("[32", "[32", "~"); break;
+                    case key::F19:        ctrl("[33", "[33", "~"); break;
+                    case key::F20:        ctrl("[34", "[34", "~"); break;
+                    case key::F21:        ctrl("[35", "[35", "~"); break;
+                    case key::F22:        ctrl("[36", "[36", "~"); break;
+                    case key::F23:        ctrl("[37", "[37", "~"); break;
+                    case key::F24:        ctrl("[38", "[38", "~"); break;
                     default:
                         textline = cluster;
                         break;

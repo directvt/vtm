@@ -702,7 +702,7 @@ namespace netxs::generics
             while (queue)
             {
                 auto task = queue.front();
-                if (task >= 0 && task < last->size())
+                if (task >= 0 && (size_t)task < last->size())
                 {
                     if (auto const& next = last->at(task))
                     {
@@ -743,7 +743,7 @@ namespace netxs::generics
                     while (queue)
                     {
                         auto task = queue.front();
-                        if (task >= 0 && task < last->size())
+                        if (task >= 0 && (size_t)task < last->size())
                         {
                             if (auto const& next = last->at(task))
                             {
@@ -906,7 +906,7 @@ namespace netxs
 
     // do it in place
     //template<class M, class K>
-    //auto on_key_get(const M& map, const K& key)
+    //auto on_key_get(M const& map, K const& key)
     //{
     //	const auto it = map.find(key);
     //	return it == map.end() ? std::nullopt

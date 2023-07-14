@@ -1,6 +1,6 @@
 # vtm
 
-Desktop inside your text console.
+Text-baased desktop inside your console.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -9,9 +9,10 @@ Desktop inside your text console.
 # Supported Platforms
 
 - Windows
-  - Server/Workstation
-- POSIX-oriented
+  - Server/Desktop
+- Unix
   - Linux
+  - Android <sup><sup>Linux kernel</sup></sup>
   - macOS
   - FreeBSD
   - NetBSD
@@ -19,26 +20,25 @@ Desktop inside your text console.
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
 - [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
 
-# Runtime Requirements
-
-- 100MB of RAM per built-in 40k line-terminal instance [#147](https://github.com/netxs-group/vtm/issues/147)
-
 # Building from Source
 
-### POSIX-oriented
+### Unix
 
 Build-time dependencies
+ - 64-bit system host
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
- - Minimal requirements to compile
+ - Minimum RAM requirements for compilation:
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
 
-```bash
+Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system, since building directly on a 32-bit environment is not possible due to compile time RAM requirements.
+
+Use any terminal as a build environment
+```
 git clone https://github.com/netxs-group/vtm.git
 cd ./vtm
-cmake ./src -DCMAKE_BUILD_TYPE=Release
-cmake --build .
-cmake --install .
+./build64.sh
+./install.sh
 vtm
 ```
 
@@ -49,35 +49,18 @@ Build-time dependencies
 
 Use `Developer Command Prompt` as a build environment
 
-`Visual Studio 2019`:
-```cmd
-git clone https://github.com/netxs-group/vtm.git
-cd ./vtm
-chcp 65001
-cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 16 2019"
-cmake --build . --config Release
-cd Release
-vtm
 ```
-`Visual Studio 2022`:
-```cmd
 git clone https://github.com/netxs-group/vtm.git
-cd ./vtm
-chcp 65001
-cmake ./src -DCMAKE_BUILD_TYPE=Release "-GVisual Studio 17 2022"
-cmake --build . --config Release
-cd Release
-vtm
+cd vtm
+build64.cmd
+Release\vtm.exe
 ```
 
 # Binary Downloads
 
-[![](.resources/status/macos.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
-[![](.resources/status/freebsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_freebsd_amd64.tar.gz)  
-[![](.resources/status/netbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_netbsd_amd64.tar.gz)  
-[![](.resources/status/openbsd.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_openbsd_amd64.tar.gz)  
-[![](.resources/status/linux.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_amd64.tar.gz)  
-[![](.resources/status/windows.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_amd64.zip)  
+![](.resources/status/macos.svg)   [![](.resources/status/arch_any.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.tar.gz)  
+![](.resources/status/linux.svg)   [![](.resources/status/arch_x86_64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_x86_64.tar.gz) [![](.resources/status/arch_x86.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_x86.tar.gz)   [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm64.tar.gz)   [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm32.tar.gz)  
+![](.resources/status/windows.svg) [![](.resources/status/arch_x86_64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_x86_64.zip)  [![](.resources/status/arch_x86.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_x86.tar.gz) [![](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm64.tar.gz) [![](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm32.tar.gz)  
 
 ---
 

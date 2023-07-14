@@ -22,6 +22,7 @@
     #include <Windows.h>
     #include <userenv.h>    // ::GetUserProfileDirectoryW
     #pragma comment(lib, "Userenv.lib")
+    #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
     #include <Psapi.h>      // ::GetModuleFileNameEx
     #include <winternl.h>   // ::NtOpenFile
 
@@ -163,7 +164,7 @@ namespace netxs::os
         class nt
         {
             using NtOpenFile_ptr = std::decay<decltype(::NtOpenFile)>::type;
-            using ConsoleCtl_ptr = NTSTATUS(*)(ui32, void*, ui32);
+            using ConsoleCtl_ptr = NTSTATUS(_stdcall *)(ui32, void*, ui32);
 
             HMODULE         ntdll_dll{};
             HMODULE        user32_dll{};
@@ -453,6 +454,20 @@ namespace netxs::os
                 if (caps  ) state |= CAPSLOCK_ON;
                 if (scrl  ) state |= SCROLLLOCK_ON;
                 return state;
+            }
+
+            static auto is_wow64()
+            {
+                #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
+                auto isWow64Process = USHORT{};
+                auto nativeMachine = USHORT{};
+                ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
+                isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
+                #else
+                auto isWow64Process = BOOL{};
+                ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
+                #endif
+                return !!isWow64Process;
             }
         };
 
@@ -1336,7 +1351,7 @@ namespace netxs::os
                 #elif defined(__linux__)
 
                     auto cred = ucred{};
-                    #ifndef __ANDROID__
+                    #ifdef __ANDROID__
                         auto size = socklen_t{ sizeof(cred) };
                     #else
                         auto size = unsigned{ sizeof(cred) };
@@ -2371,8 +2386,6 @@ namespace netxs::os
             testy<twod>             termsize;
             pidt                    proc_pid;
             fd_t                    prochndl;
-            fd_t                    srv_hndl;
-            fd_t                    ref_hndl;
             text                    writebuf;
             std::mutex              writemtx;
             std::condition_variable writesyn;
@@ -2380,15 +2393,13 @@ namespace netxs::os
             #if defined(_WIN32)
                 #include "consrv.hpp"
                 //todo con_serv is a termlink
-                consrv con_serv{ terminal, srv_hndl };
+                sptr<consrv_base> con_serv;
             #endif
 
         public:
             vtty(Term& uiterminal)
                 : terminal{ uiterminal     },
                   prochndl{ os::invalid_fd },
-                  srv_hndl{ os::invalid_fd },
-                  ref_hndl{ os::invalid_fd },
                   proc_pid{                }
             { }
            ~vtty()
@@ -2403,7 +2414,7 @@ namespace netxs::os
             bool connected()
             {
                 #if defined(_WIN32)
-                    return srv_hndl != os::invalid_fd;
+                    return con_serv && con_serv->alive();
                 #else
                     return !!termlink;
                 #endif
@@ -2441,9 +2452,7 @@ namespace netxs::os
                 {
                 #if defined(_WIN32)
 
-                    io::close( srv_hndl );
-                    io::close( ref_hndl );
-                    con_serv.stop();
+                    if (con_serv) con_serv->stop();
                     auto code = DWORD{ 0 };
                     if (!::GetExitCodeProcess(prochndl, &code))
                     {
@@ -2498,10 +2507,20 @@ namespace netxs::os
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
 
-                    srv_hndl = nt::console::handle("\\Device\\ConDrv\\Server");
-                    ref_hndl = nt::console::handle(srv_hndl, "\\Reference");
+                    if (!con_serv)
+                    {
+                        if constexpr (sizeof(void*) > 4)
+                        {
+                            con_serv = ptr::shared<consrv<ui64>>(terminal);
+                        }
+                        else
+                        {
+                            if (nt::is_wow64()) con_serv = ptr::shared<consrv<ui64>>(terminal);
+                            else                con_serv = ptr::shared<consrv<ui32>>(terminal);
+                        }
+                    }
 
-                    if (ERROR_SUCCESS != nt::ioctl(nt::console::op::set_server_information, srv_hndl, (fd_t)con_serv.events.ondata))
+                    if (!con_serv->start())
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Console server creation error");
@@ -2509,7 +2528,6 @@ namespace netxs::os
                         return proc_pid;
                     }
 
-                    con_serv.start();
                     startinf.StartupInfo.dwX = 0;
                     startinf.StartupInfo.dwY = 0;
                     startinf.StartupInfo.dwXCountChars = 0;
@@ -2517,9 +2535,9 @@ namespace netxs::os
                     startinf.StartupInfo.dwXSize = winsz.x;
                     startinf.StartupInfo.dwYSize = winsz.y;
                     startinf.StartupInfo.dwFillAttribute = 1;
-                    startinf.StartupInfo.hStdInput  = nt::console::handle(srv_hndl, "\\Input",  true);
-                    startinf.StartupInfo.hStdOutput = nt::console::handle(srv_hndl, "\\Output", true);
-                    startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+                    startinf.StartupInfo.hStdInput  = con_serv->hStdInput;
+                    startinf.StartupInfo.hStdOutput = con_serv->hStdOutput;
+                    startinf.StartupInfo.hStdError  = con_serv->hStdError;
                     startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                                  | STARTF_USESIZE
                                                  | STARTF_USEPOSITION
@@ -2539,8 +2557,8 @@ namespace netxs::os
                     ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                 0,
                                                 ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
-                                               &ref_hndl,
-                                         sizeof(ref_hndl),
+                                               &con_serv->refdrv,
+                                         sizeof(con_serv->refdrv),
                                                 nullptr,
                                                 nullptr);
                     auto wide_cmdline = utf::to_utf(cmdline);
@@ -2559,9 +2577,7 @@ namespace netxs::os
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Child process creation error");
-                        io::close( srv_hndl );
-                        io::close( ref_hndl );
-                        con_serv.stop();
+                        con_serv->stop();
                         terminal.onexit(errcode, "Process creation error \n"s
                                                  " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                                  " cmd: "s + cmdline + " "s);
@@ -2574,7 +2590,7 @@ namespace netxs::os
                     waitexit = std::thread([&]
                     {
                         io::select(prochndl, []{ log(prompt::vtty, "Child process terminated"); });
-                        if (srv_hndl != os::invalid_fd)
+                        if (con_serv && con_serv->alive())
                         {
                             auto exit_code = wait_child();
                             terminal.onexit(exit_code);
@@ -2693,13 +2709,16 @@ namespace netxs::os
                 log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
+                #if defined(_WIN32)
+                auto& inst = *con_serv;
+                #endif
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
                     #if defined(_WIN32)
 
-                        con_serv.events.write(cache);
+                        inst.write(cache);
                         cache.clear();
 
                     #else
@@ -2718,7 +2737,7 @@ namespace netxs::os
                 {
                     #if defined(_WIN32)
 
-                        con_serv.resize(termsize);
+                        if (con_serv) con_serv->winsz(termsize);
 
                     #else
 
@@ -2733,25 +2752,25 @@ namespace netxs::os
             void reset()
             {
                 #if defined(_WIN32)
-                    con_serv.reset();
+                    if (con_serv) con_serv->reset();
                 #endif
             }
             void focus(bool state)
             {
                 #if defined(_WIN32)
-                    con_serv.events.focus(state);
+                    if (con_serv) con_serv->focus(state);
                 #endif
             }
             void keybd(input::hids& gear, bool decckm)
             {
                 #if defined(_WIN32)
-                    con_serv.events.keybd(gear, decckm);
+                    if (con_serv) con_serv->keybd(gear, decckm);
                 #endif
             }
             void mouse(input::hids& gear, bool moved, twod const& coord)
             {
                 #if defined(_WIN32)
-                    con_serv.events.mouse(gear, moved, coord);
+                    if (con_serv) con_serv->mouse(gear, moved, coord);
                 #endif
             }
             void write(view data)
@@ -2763,13 +2782,13 @@ namespace netxs::os
             void undo(bool undoredo)
             {
                 #if defined(_WIN32)
-                    con_serv.events.undo(undoredo);
+                    if (con_serv) con_serv->undo(undoredo);
                 #endif
             }
             //void set_cp(ui32 codepage)
             //{
             //    #if defined(_WIN32)
-            //        con_serv.set_cp(codepage);
+            //        if (con_serv) con_serv->setcp(codepage);
             //    #endif
             //}
         };
@@ -3308,7 +3327,7 @@ namespace netxs::os
                 return exit_code;
             }
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
-                                                           std::function<void(si32, view)> shutdown_hndl) override
+                                                                   std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
@@ -3334,7 +3353,7 @@ namespace netxs::os
                         sa.lpSecurityDescriptor = NULL;
                         sa.bInheritHandle = TRUE;
                         if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                        && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
                             startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                             startinf.StartupInfo.hStdInput  = s_pipe_r;
@@ -3384,7 +3403,7 @@ namespace netxs::os
                                                 EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
                                                 nullptr,                             // lpEnvironment
                                                 cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                                        : nullptr,
+                                                           : nullptr,
                                                 &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                                 &procsinf);                          // lpProcessInformation
                     };
@@ -4138,8 +4157,8 @@ namespace netxs::os
                                                             ++pos;
 
                                                             auto clamp = [](auto a) { return std::clamp(a,
-                                                                std::numeric_limits<si32>::min() / 2,
-                                                                std::numeric_limits<si32>::max() / 2); };
+                                                                si32min / 2,
+                                                                si32max / 2); };
 
                                                             auto x = clamp(pos_x.value() - 1);
                                                             auto y = clamp(pos_y.value() - 1);

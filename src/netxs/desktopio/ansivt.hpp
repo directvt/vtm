@@ -890,9 +890,9 @@ namespace netxs::ansi
             if (utf8)
             {
                 add("\033[M");
-                utf::to_utf_from_code(std::clamp(ctrl,       0, std::numeric_limits<si16>::max() - 32) + 32, *this);
-                utf::to_utf_from_code(std::clamp(coor.x + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
-                utf::to_utf_from_code(std::clamp(coor.y + 1, 1, std::numeric_limits<si16>::max() - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(ctrl,       0, si16max - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.x + 1, 1, si16max - 32) + 32, *this);
+                utf::to_utf_from_code(std::clamp(coor.y + 1, 1, si16max - 32) + 32, *this);
             }
             else
             {
@@ -1128,7 +1128,7 @@ namespace netxs::ansi
         dent margin     = {}; // deco: Page margins.
 
         deco() = default;
-        bool operator==(const deco&) const = default;
+        bool operator==(deco const&) const = default;
 
         auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
         auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.

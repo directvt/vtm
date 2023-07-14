@@ -11,6 +11,7 @@
 #include <cassert>
 #include <bit>
 #include <atomic>
+#include <cstring> // std::memcpy
 
 #ifndef faux
     #define faux (false)
@@ -30,11 +31,15 @@ namespace netxs
     using sz_t = ui32;
     using flag = std::atomic<bool>;
 
-    constexpr size_t operator "" _sz (unsigned long long i)	{ return i; }
+    constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
     static constexpr auto si32max = std::numeric_limits<si32>::max();
     static constexpr auto ui32max = std::numeric_limits<ui32>::max();
     static constexpr auto si16max = std::numeric_limits<si16>::max();
     static constexpr auto ui16max = std::numeric_limits<ui16>::max();
+    static constexpr auto si32min = std::numeric_limits<si32>::min();
+    static constexpr auto ui32min = std::numeric_limits<ui32>::min();
+    static constexpr auto si16min = std::numeric_limits<si16>::min();
+    static constexpr auto ui16min = std::numeric_limits<ui16>::min();
     static constexpr auto debugmode
         #if defined(_DEBUG)
         = true;
@@ -47,8 +52,8 @@ namespace netxs
     enum class feed : unsigned char { none, rev, fwd, };
 
     template<class T>
-    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si16>::max(), si16,
-                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= std::numeric_limits<si32>::max(), si32, si64>>;
+    using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
+                        std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si32max, si32, si64>>;
 
     // intmath: Set a single p-bit to v.
     template<unsigned int P, class T>
@@ -163,6 +168,7 @@ namespace netxs
                 r = (n & 0x00FF) << 8 |
                     (n & 0xFF00) >> 8;
             }
+            else assert(faux);
             return r;
         }
     }
@@ -170,16 +176,24 @@ namespace netxs
     template<class T, bool BE = std::endian::native == std::endian::big>
     constexpr auto letoh(T i)
     {
-        if constexpr (BE) return _swap_bytes(i);
-        else              return i;
+        if constexpr (BE && sizeof(T) > 1) return _swap_bytes(i);
+        else                               return i;
     }
     // intmath: Convert BE to host endianness.
     template<class T, bool LE = std::endian::native == std::endian::little>
     constexpr auto betoh(T i)
     {
-        if constexpr (LE) return _swap_bytes(i);
-        else              return i;
+        if constexpr (LE && sizeof(T) > 1) return _swap_bytes(i);
+        else                               return i;
     }
+    // intmath: Get the aligned integral value.
+    template<class T>
+    constexpr auto aligned(void const* ptr)
+    {
+        auto i = T{};
+        std::memcpy(&i, ptr, sizeof(T));
+        return letoh(i);
+    };
     // intmath: LE type wrapper. T has an LE format in memory.
     template<class T>
     class le_t
