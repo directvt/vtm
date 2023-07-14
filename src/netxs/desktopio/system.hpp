@@ -2709,7 +2709,9 @@ namespace netxs::os
                 log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
+                #if defined(_WIN32)
                 auto& inst = *con_serv;
+                #endif
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
                 {
                     std::swap(cache, writebuf);
