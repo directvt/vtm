@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
   width="80" height="20">
   <g fill="#fff" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="110">
-    <text x="700" y="150" text-anchor="end" transform="scale(.1)" fill="#010101" fill-opacity=".3"
-    >Linux</text>
-    <text x="700" y="140" text-anchor="end" transform="scale(.1)"
+    <text x="700" y="140" fill="#888" text-anchor="end" transform="scale(.1)"
     >Linux</text>
   </g>
 </svg>
