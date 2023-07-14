@@ -2217,7 +2217,7 @@ struct consrv : consrv_base
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
-            answer.report = reinterpret_cast<Arch>(&h);
+            answer.report = (Arch)(&h);
             log(msg, &h);
         };
         switch (packet.input.action)
