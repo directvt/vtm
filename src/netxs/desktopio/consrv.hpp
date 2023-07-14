@@ -394,11 +394,10 @@ struct consrv : consrv_base
 
         struct nttask
         {
-            ui32 procid;
-            ui32 _pad_1;
-            ui64 _pad_2;
-            si32 action;
-            ui32 _pad_3;
+            size_t procid;
+            size_t window;
+            ui32   action;
+            ui32   option;
         };
 
         consrv& server; // events_t: Console server reference.
@@ -452,7 +451,7 @@ struct consrv : consrv_base
             });
             signal.notify_all();
         }
-        void alert(si32 what, ui32 pgroup = 0)
+        void alert(ui32 what, ui32 pgroup = 0)
         {
             if (server.io_log)
             {

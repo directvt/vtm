@@ -164,7 +164,7 @@ namespace netxs::os
         class nt
         {
             using NtOpenFile_ptr = std::decay<decltype(::NtOpenFile)>::type;
-            using ConsoleCtl_ptr = NTSTATUS(*)(ui32, void*, ui32);
+            using ConsoleCtl_ptr = NTSTATUS(_stdcall *)(ui32, void*, ui32);
 
             HMODULE         ntdll_dll{};
             HMODULE        user32_dll{};
