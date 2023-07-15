@@ -88,7 +88,7 @@ namespace netxs::os
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
     static constexpr auto ttysize = twod{ 2500, 50 };
-    static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
+    static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected_msg = " returns unexpected result"sv;
 
     #if defined(_WIN32)
@@ -2228,6 +2228,68 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
+        template<class T>
+        auto wait(T& proc_id, bool sighup = true)
+        {
+            auto exit_code = si32{};
+            #if defined(_WIN32)
+
+                auto proc_hndl = proc_id;
+                auto code = DWORD{ 0 };
+                auto rc = ok(::GetExitCodeProcess(proc_hndl, &code), "::GetExitCodeProcess()", os::unexpected_msg);
+                if (rc)
+                {
+                    if (code == STILL_ACTIVE)
+                    {
+                        ::WaitForSingleObject(proc_hndl, app_wait_timeout);
+                        rc = ok(::GetExitCodeProcess(proc_hndl, &code), "::GetExitCodeProcess()", os::unexpected_msg);
+                    }
+                    if (rc)
+                    {
+                        if (code == STILL_ACTIVE)
+                        {
+                            log(prompt::dtvt, "Child process still running");
+                        }
+                        else
+                        {
+                            exit_code = code;
+                            log(prompt::dtvt, "Child process exit code", ' ', exit_code);
+                        }
+                    }
+                }
+                io::close(proc_hndl);
+
+            #else
+
+                auto proc_pid = proc_id;
+                auto status = int{};
+                auto exited = ::waitpid(proc_pid, &status, WNOHANG);
+                if (!exited)
+                {
+                    if (sighup)
+                    {
+                        ok(::kill(proc_pid, SIGHUP), "::kill(pid, SIGHUP)", os::unexpected_msg);
+                    }
+                    auto timeout = datetime::now() + std::chrono::milliseconds{ app_wait_timeout };
+                    while (!exited && timeout > datetime::now())
+                    {
+                        std::this_thread::sleep_for(100ms);
+                        exited = ::waitpid(proc_pid, &status, WNOHANG);
+                    }
+                }
+                if (exited && WIFEXITED(status))
+                {
+                    exit_code = WEXITSTATUS(status);
+                    log(prompt::vtty, "Child process exit code", ' ', exit_code);
+                }
+                else
+                {
+                    log(prompt::dtvt, "Child process still running");
+                }
+
+            #endif
+            return exit_code;
+        }
     }
 
     namespace logging
@@ -2453,45 +2515,15 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     if (con_serv) con_serv->stop();
-                    auto code = DWORD{ 0 };
-                    if (!::GetExitCodeProcess(prochndl, &code))
-                    {
-                        log(prompt::vtty, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                    }
-                    else if (code == STILL_ACTIVE)
-                    {
-                        log(prompt::vtty, "Child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                        if (!result || !::GetExitCodeProcess(prochndl, &code))
-                        {
-                            ::TerminateProcess(prochndl, 0);
-                            code = 0;
-                        }
-                    }
-                    else log(prompt::vtty, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
-                    exit_code = code;
-                    io::close(prochndl);
+                    exit_code = os::process::wait(prochndl);
 
                 #else
 
                     termlink.stop();
-                    auto status = int{};
-                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(status))
-                    {
-                        exit_code = WEXITSTATUS(status);
-                        log(prompt::vtty, "Child process exit code", ' ', exit_code);
-                    }
-                    else
-                    {
-                        exit_code = 0;
-                        log(prompt::vtty, "Child process exit code not detected");
-                    }
+                    exit_code = os::process::wait(proc_pid);
 
                 #endif
                 }
-                log(prompt::vtty, "Child waiting complete");
                 return exit_code;
             }
             auto start(text cwd, text cmdline, twod winsz)
@@ -3097,53 +3129,22 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                //auto guard = std::lock_guard{ writemtx };
                 auto exit_code = si32{};
                 log(prompt::dtvt, "Wait child process, tty=", termlink);
                 if (proc_pid)
                 {
+                    // There is no need for special signaling for DirectVT applications. Enough to close the channel.
                     #if defined(_WIN32)
 
-                        auto code = DWORD{ 0 };
-                        if (!::GetExitCodeProcess(prochndl, &code))
-                        {
-                            log(prompt::dtvt, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                        }
-                        else if (code == STILL_ACTIVE)
-                        {
-                            log(prompt::dtvt, "Child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                            if (!result || !::GetExitCodeProcess(prochndl, &code))
-                            {
-                                ::TerminateProcess(prochndl, 0);
-                                code = 0;
-                            }
-                        }
-                        else log(prompt::dtvt, "Child process exit code", ' ', code);
-                        exit_code = code;
-                        io::close(prochndl);
+                        exit_code = os::process::wait(prochndl, faux);
 
                     #else
 
-                        int status;
-                        //todo wait app_wait_timeout before kill
-                        ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                        ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                        if (WIFEXITED(status))
-                        {
-                            exit_code = WEXITSTATUS(status);
-                            log(prompt::dtvt, "Child process exit code", ' ', exit_code);
-                        }
-                        else
-                        {
-                            exit_code = 0;
-                            log(prompt::dtvt, "Child process exit code not detected");
-                        }
+                        exit_code = os::process::wait(proc_pid, faux);
 
                     #endif
                     proc_pid = 0;
                 }
-                log(prompt::dtvt, "Child waiting complete");
                 return exit_code;
             }
             void cleanup()
@@ -3286,44 +3287,14 @@ namespace netxs::os
                 {
                 #if defined(_WIN32)
 
-                    auto code = DWORD{ 0 };
-                    if (!::GetExitCodeProcess(prochndl, &code))
-                    {
-                        log(prompt::task, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                    }
-                    else if (code == STILL_ACTIVE)
-                    {
-                        log(prompt::task, "Child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                        if (!result || !::GetExitCodeProcess(prochndl, &code))
-                        {
-                            ::TerminateProcess(prochndl, 0);
-                            code = 0;
-                        }
-                    }
-                    else log(prompt::task, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
-                    exit_code = code;
-                    io::close(prochndl);
+                    exit_code = os::process::wait(prochndl);
 
                 #else
 
-                    auto status = int{};
-                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(status))
-                    {
-                        exit_code = WEXITSTATUS(status);
-                        log(prompt::task, "Child process exit code", ' ', exit_code);
-                    }
-                    else
-                    {
-                        exit_code = 0;
-                        log(prompt::task, "Child process exit code not detected");
-                    }
+                    exit_code = os::process::wait(proc_pid);
 
                 #endif
                 }
-                log(prompt::task, "Child waiting complete");
                 return exit_code;
             }
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
@@ -3771,7 +3742,8 @@ namespace netxs::os
                 auto shutdown = [](auto what)
                 {
                     globals().ipcio->shut();
-                    ::signal(what, SIG_DFL);
+                    ::signal(SIGHUP,  SIG_DFL); // To avoid second shutdown.
+                    ::signal(SIGTERM, SIG_DFL);
                     ::raise(what);
                 };
                 switch (what)
@@ -4492,10 +4464,10 @@ namespace netxs::os
                 auto raw_mode = g.state;
                 ::cfmakeraw(&raw_mode);
                 ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
-                ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)", os::unexpected_msg);
+                ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)",  os::unexpected_msg);
                 ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
-                ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
-                ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+                ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)",  os::unexpected_msg);
+                ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)",   os::unexpected_msg);
 
             #endif
 
@@ -4619,7 +4591,8 @@ namespace netxs::os
                     auto shutdown = [](auto what)
                     {
                         //globals().ipcio->shut();
-                        ::signal(what, SIG_DFL);
+                        ::signal(SIGHUP,  SIG_DFL);
+                        ::signal(SIGTERM, SIG_DFL);
                         ::raise(what);
                     };
                     switch (what)
@@ -4696,7 +4669,7 @@ namespace netxs::os
                     //ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
                     //ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
                     //ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
-                    ok(::signal(SIGINT, sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+                    ok(::signal(SIGINT, sig_hndl), "::signal(SIGINT)", os::unexpected_msg);
 
                 #endif
                 //log(ansi::shellmouse(true));
