@@ -287,7 +287,7 @@ namespace netxs::input
 
         struct map
         {
-            std::size_t hash; // map: Key hash.
+            sz_t hash; // map: Key hash.
 
             static auto& mask()
             {
@@ -309,13 +309,13 @@ namespace netxs::input
             }
 
             map(si32 vk, si32 sc, ui32 cs)
-                : hash{ static_cast<std::size_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
+                : hash{ static_cast<sz_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
             { }
             map(si32 vk, si32 sc, ui32 cs, si32 keymask, view keyname, si32 id)
             {
                 mask(vk) = keymask;
                 name(id) = keyname;
-                hash = static_cast<std::size_t>(keymask & (vk | (sc << 8) | (cs << 16)));
+                hash = static_cast<sz_t>(keymask & (vk | (sc << 8) | (cs << 16)));
             }
 
             bool operator == (map const& m) const = default;

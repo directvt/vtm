@@ -251,7 +251,7 @@ struct consrv : consrv_base
         ui32 fxtype;
         ui32 packsz;
         ui32 echosz;
-        ui32 _pad_1;
+        ui32 pad__1;
     };
 
     struct task : base
@@ -2027,9 +2027,9 @@ struct consrv : consrv_base
         {
             tsid taskid;
             ui32 procid;
-            ui32 _pad_1;
+            ui32 pad__1;
             ui32 thread;
-            ui32 _pad_2;
+            ui32 pad__2;
         };
         auto& packet = payload::cast(upload);
         struct exec_info : wrap<exec_info>
@@ -2113,8 +2113,6 @@ struct consrv : consrv_base
         answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
-        //auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
-        //answer = {};
     }
     auto api_process_detach                  ()
     {
@@ -2203,9 +2201,9 @@ struct consrv : consrv_base
                 type action;
                 ui32 shared; // Unused
                 ui32 rights; // GENERIC_READ | GENERIC_WRITE
-                ui32 _pad_1;
-                ui32 _pad_2;
-                ui32 _pad_3;
+                ui32 pad__1;
+                ui32 pad__2;
+                ui32 pad__3;
             }
             input;
         };
@@ -2839,7 +2837,7 @@ struct consrv : consrv_base
                 struct
                 {
                     si16 rectL, rectT, rectR, rectB;
-                    byte _pad1;
+                    byte pad_1;
                 }
                 reply;
             };
@@ -3043,22 +3041,22 @@ struct consrv : consrv_base
                     si16 coorx, coory;
                     type etype;
                     ui16 piece;
-                    ui32 count;
+                    si32 count;
                 }
                 input;
                 struct
                 {
-                    si16 _pad1, _pad2;
-                    ui32 _pad3;
-                    ui16 _pad4;
-                    ui32 count;
+                    si16 pad_1, pad_2;
+                    ui32 pad_3;
+                    ui16 pad_4;
+                    si32 count;
                 }
                 reply;
             };
         };
         auto& packet = payload::cast(upload);
         auto& screen = *uiterm.target;
-        auto count = packet.input.count;
+        auto count = std::max(0, packet.input.count);
         if (!count)
         {
             packet.reply.count = 0;
@@ -3086,7 +3084,7 @@ struct consrv : consrv_base
                 {
                     auto c = attr_to_brush(piece);
                     log("\tfill using attributes: ", (int)c);
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
+                    if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
                     if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
@@ -3103,7 +3101,7 @@ struct consrv : consrv_base
                             "\n\tcount: ", count);
                 impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
-                if (piece == ' ' && (si32)count > maxsz)
+                if (piece == ' ' && count > maxsz)
                 {
                     log("\taction: erase below");
                     screen.ed(0 /*commands::erase::display::below*/);
@@ -3123,7 +3121,7 @@ struct consrv : consrv_base
                     log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     auto c = cell{ toUTF8 };
                     auto w = c.wdt();
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
+                    if (count > maxsz) count = std::max(0, maxsz);
                     count *= w;
                     filler.kill();
                     filler.size(count, c);
@@ -3356,7 +3354,7 @@ struct consrv : consrv_base
                 struct
                 {
                     si16 rectL, rectT, rectR, rectB;
-                    byte _pad1;
+                    byte pad_1;
                 }
                 reply;
             };
@@ -4094,7 +4092,7 @@ struct consrv : consrv_base
                 input;
                 struct
                 {
-                    byte _pad1;
+                    byte pad_1;
                     ui32 index;
                     si16 sizex, sizey;
                     ui32 pitch;
@@ -4214,17 +4212,17 @@ struct consrv : consrv_base
                 struct
                 {
                     ui16 srcsz;
-                    ui16 _pad1;
+                    ui16 pad_1;
                     ui16 exesz;
                     byte utf16;
                 }
                 input;
                 struct
                 {
-                    ui16 _pad1;
+                    ui16 pad_1;
                     ui16 dstsz;
-                    ui16 _pad2;
-                    byte _pad3;
+                    ui16 pad_2;
+                    byte pad_3;
                 }
                 reply;
             };

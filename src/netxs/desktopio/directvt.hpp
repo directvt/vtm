@@ -74,20 +74,20 @@ namespace netxs::directvt
         static constexpr auto initial = char{ '\xFF' };
         struct marker
         {
-            using sz_t = le_t<size_t>;
+            using sz_t = le_t<netxs::sz_t>;
             char mark_FF;
             sz_t cfgsize;
             char mark_FE;
 
             marker()
             { }
-            marker(size_t config_size)
+            marker(netxs::sz_t config_size)
             {
                 mark_FF = initial;
                 cfgsize.set(config_size);
                 mark_FE = initial - 1;
             }
-            auto get_sz(size_t& config_size)
+            auto get_sz(netxs::sz_t& config_size)
             {
                 if (mark_FF == initial
                  && mark_FE == initial - 1)
@@ -413,13 +413,13 @@ namespace netxs::directvt
                     log(prompt::dtvt, "Stream corrupted");
                     return faux;
                 }
-                auto rest = size_t{};
-                rest = netxs::aligned<sz_t>(buff.data());
+                auto rest = netxs::aligned<sz_t>(buff.data());
                 if (rest < sizeof(sz_t))
                 {
                     log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;
                 }
+                assert(rest >= shot.size());
                 rest -= shot.size();
                 buff.resize(rest);
                 auto head = buff.data();

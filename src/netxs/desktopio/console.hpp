@@ -3070,7 +3070,7 @@ namespace netxs::ui
         {
             auto& header = *uname.lyric;
             auto  basexy = base::coor();
-            auto  half_x = (si32)header.size().x / 2;
+            auto  half_x = header.size().x / 2;
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;

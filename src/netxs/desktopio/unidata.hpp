@@ -344,7 +344,7 @@ namespace netxs::unidata
 
     struct base
     {
-        static constexpr auto blocks_size = size_t{ 4352 };
+        static constexpr auto blocks_size = sz_t{ 4352 };
         static constexpr si32 blocks_pack[] =
         {
               0,  -2, 256, 512, 768, 1024, 1280, 1536, 1792, 2048,
@@ -377,7 +377,7 @@ namespace netxs::unidata
             -255, 256, 40448, -255, 256, 40448
         };
 
-        static constexpr auto offset_size = size_t{ 40704 };
+        static constexpr auto offset_size = sz_t{ 40704 };
         static constexpr si32 offset_pack[] =
         {
               1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
@@ -801,7 +801,7 @@ namespace netxs::unidata
     };
 
     template<class T, class D>
-    auto unpack(D const& pack, size_t size)
+    auto unpack(D const& pack, sz_t size)
     {
         auto data = std::vector<T>{};
         data.reserve(size);

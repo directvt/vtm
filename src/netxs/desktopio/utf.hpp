@@ -48,34 +48,33 @@ namespace netxs::utf
     // utf: Grapheme cluster decoded from UTF-8.
     struct prop : public unidata::unidata
     {
-        //todo size_t is too much for that
         size_t utf8len;
         bool   correct;
         size_t cpcount;
         utfx   cdpoint;
 
         constexpr
-        prop(size_t size)
-            : unidata (),
-              utf8len { size },
-              correct { faux },
-              cpcount { 0    },
-              cdpoint { 0    }
+        prop(sz_t size)
+            : unidata(),
+              utf8len{ size },
+              correct{ faux },
+              cpcount{ 0    },
+              cdpoint{ 0    }
         { }
-        prop(utfx code, size_t size)
-            : unidata ( code ),
-              utf8len { size },
-              correct { true },
-              cpcount { 0    },
-              cdpoint { code }
+        prop(utfx code, sz_t size)
+            : unidata( code ),
+              utf8len{ size },
+              correct{ true },
+              cpcount{ 0    },
+              cdpoint{ code }
         { }
         constexpr
         prop(prop const& attr)
-            : unidata (attr),
-              utf8len {attr.utf8len},
-              correct {attr.correct},
-              cpcount {attr.cpcount},
-              cdpoint {attr.cdpoint}
+            : unidata(attr),
+              utf8len{attr.utf8len},
+              correct{attr.correct},
+              cpcount{attr.cpcount},
+              cdpoint{attr.cdpoint}
         { }
 
         auto combine(prop const& next)
@@ -125,9 +124,9 @@ namespace netxs::utf
         size_t utf8len;
 
         cpit(view const& utf8)
-            : textptr { utf8.data() },
-              balance { utf8.size() },
-              utf8len { 0           }
+            : textptr{ utf8.data() },
+              balance{ utf8.size() },
+              utf8len{ 0           }
         { }
 
         void redo(view const& utf8)
@@ -237,7 +236,7 @@ namespace netxs::utf
             }
             else return prop(utf8len = 0);
 
-            return prop{ cp, utf8len };
+            return prop(cp, utf8len);
         }
 
         auto next()

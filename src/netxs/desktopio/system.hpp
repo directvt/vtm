@@ -629,12 +629,12 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                template<class A, std::size_t... I>
+                template<class A, sz_t... I>
                 constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
                 {
                     return std::array{ a[I]..., h };
                 }
-                template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
+                template<sz_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
                 {
                     if constexpr (sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
@@ -2827,7 +2827,7 @@ namespace netxs::os
             static auto setup = text{};
             return setup;
         }
-        void send(fd_t m_pipe_w, size_t config_size)
+        void send(fd_t m_pipe_w, sz_t config_size)
         {
             auto buffer = directvt::binary::marker{ config_size };
             io::send(m_pipe_w, buffer);
@@ -2838,7 +2838,7 @@ namespace netxs::os
             auto& state = _state();
             auto& start = _start();
             auto& setup = config();
-            auto cfsize = size_t{};
+            auto cfsize = sz_t{};
             if (ready) return state;
             ready = true;
             #if defined(_WIN32)
