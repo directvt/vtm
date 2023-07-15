@@ -54,14 +54,14 @@ namespace netxs::utf
         utfx   cdpoint;
 
         constexpr
-        prop(sz_t size)
+        prop(size_t size)
             : unidata(),
               utf8len{ size },
               correct{ faux },
               cpcount{ 0    },
               cdpoint{ 0    }
         { }
-        prop(utfx code, sz_t size)
+        prop(utfx code, size_t size)
             : unidata( code ),
               utf8len{ size },
               correct{ true },
