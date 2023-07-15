@@ -414,12 +414,11 @@ namespace netxs::directvt
                     return faux;
                 }
                 auto rest = netxs::aligned<sz_t>(buff.data());
-                if (rest < sizeof(sz_t))
+                if (rest < sizeof(sz_t) || rest < shot.size())
                 {
                     log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;
                 }
-                assert(rest >= shot.size());
                 rest -= shot.size();
                 buff.resize(rest);
                 auto head = buff.data();
