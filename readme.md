@@ -27,11 +27,11 @@ Text-baased desktop inside your console.
 Build-time dependencies
  - 64-bit system host
  - `git`, `cmake`,  `C++20 compiler` ([`GCC 11`](https://gcc.gnu.org/projects/cxx-status.html), [`Clang 13`](https://clang.llvm.org/cxx_status.html), [`MSVC 2019`](https://visualstudio.microsoft.com/downloads/))
- - Minimum RAM requirements for compilation:
+ - RAM requirements for compilation:
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
 
-Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system, since building directly on a 32-bit environment is not possible due to compile time RAM requirements.
+Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system.
 
 Use any terminal as a build environment
 ```
