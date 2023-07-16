@@ -457,7 +457,7 @@ struct consrv : consrv_base
                     auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
                     if (server.io_log)
                     {
-                        log("\tclient proc id ", client.procid,  ", control status ", utf::to_hex_0x(stat));
+                        log("\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
                     }
                 }
             }

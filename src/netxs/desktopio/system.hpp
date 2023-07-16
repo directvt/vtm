@@ -2290,7 +2290,7 @@ namespace netxs::os
                     if constexpr (debugmode) log(prompt::wait, bystep.count(), "ms for process ", proc_pid);
                 }
             }
-            if (result.exited) log(type, "Child process ", proc_pid, " returns code", ' ', result.retcod);
+            if (result.exited) log(type, "Child process ", proc_pid, " returns code", ' ', utf::to_hex_0x(result.retcod));
             else               log(type, "Child process ", proc_pid, " still running");
             proc_pid = {};
             io::close(prochndl);
@@ -2512,7 +2512,7 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    log(prompt::vtty, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -2620,13 +2620,14 @@ namespace netxs::os
                     proc_pid = procsinf.dwProcessId;
                     waitexit = std::thread([&]
                     {
-                        io::select(prochndl, []{ log(prompt::vtty, "Child process terminated"); });
+                        auto pid = proc_pid;
+                        io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
                         if (con_serv && con_serv->alive())
                         {
                             auto exit_code = wait_child();
                             terminal.onexit(exit_code);
                         }
-                        log(prompt::vtty, "Child process waiter ended");
+                        log(prompt::vtty, "Child process ", pid, " waiter ended");
                     });
 
                 #else
@@ -3252,7 +3253,7 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    log(prompt::task, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    log(prompt::task, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
