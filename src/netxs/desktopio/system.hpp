@@ -2228,7 +2228,7 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
-        auto sighup(pidt proc_pid, fd_t& prochndl)
+        auto sighup(pidt proc_pid, fd_t prochndl)
         {
             #if defined(_WIN32)
 
@@ -2240,7 +2240,7 @@ namespace netxs::os
 
             #endif
         }
-        auto getexitcode(pidt proc_pid, fd_t& prochndl)
+        auto getexitcode(pidt proc_pid, fd_t prochndl)
         {
             struct
             {
@@ -2268,8 +2268,10 @@ namespace netxs::os
             #endif
             return result;
         }
-        auto wait(pidt proc_pid, fd_t& prochndl, bool sighup = true)
+        auto wait(view type, pidt& proc_pid, fd_t& prochndl, bool sighup = true)
         {
+            if (!proc_pid) return si32{};
+            log(type, "Wait child process ", proc_pid);
             auto result = os::process::getexitcode(proc_pid, prochndl);
             if (!result.exited)
             {
@@ -2285,11 +2287,13 @@ namespace netxs::os
                     bystep = std::min(bystep * 2, 1000ms);
                     std::this_thread::sleep_for(bystep);
                     result = os::process::getexitcode(proc_pid, prochndl);
-                    if constexpr (debugmode) log("wait: ", bystep.count(), "ms for process ", proc_pid);
+                    if constexpr (debugmode) log(prompt::wait, bystep.count(), "ms for process ", proc_pid);
                 }
             }
-            if (result.exited) log(prompt::vtty, "Child process ", proc_pid, " exit code", ' ', result.retcod);
-            else               log(prompt::dtvt, "Child process ", proc_pid, " still running");
+            if (result.exited) log(type, "Child process ", proc_pid, " returns code", ' ', result.retcod);
+            else               log(type, "Child process ", proc_pid, " still running");
+            proc_pid = {};
+            io::close(prochndl);
             return result.retcod;
         }
     }
@@ -2483,6 +2487,15 @@ namespace netxs::os
                     return !!termlink;
                 #endif
             }
+            void disconnect()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                #if defined(_WIN32)
+                if (con_serv) con_serv->stop();
+                #else
+                termlink.stop();
+                #endif
+            }
             // vtty: Cleaning in order to be able to restart.
             void cleanup()
             {
@@ -2508,25 +2521,8 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log(prompt::vtty, "Wait child process ", proc_pid);
-
-                if (proc_pid != 0)
-                {
-                #if defined(_WIN32)
-
-                    if (con_serv) con_serv->stop();
-                    exit_code = os::process::wait(proc_pid, prochndl);
-                    io::close(prochndl);
-
-                #else
-
-                    termlink.stop();
-                    exit_code = os::process::wait(proc_pid, prochndl);
-
-                #endif
-                }
+                disconnect();
+                auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
             }
             auto start(text cwd, text cmdline, twod winsz)
@@ -3132,23 +3128,7 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto exit_code = si32{};
-                log(prompt::dtvt, "Wait child process, tty=", termlink);
-                if (proc_pid)
-                {
-                    // There is no need for special signaling for DirectVT applications. Enough to close the channel.
-                    #if defined(_WIN32)
-
-                        exit_code = os::process::wait(proc_pid, prochndl, faux);
-                        io::close(prochndl);
-
-                    #else
-
-                        exit_code = os::process::wait(proc_pid, prochndl, faux);
-
-                    #endif
-                    proc_pid = 0;
-                }
+                auto exit_code = os::process::wait(prompt::dtvt, proc_pid, prochndl, faux);
                 return exit_code;
             }
             void cleanup()
@@ -3251,6 +3231,11 @@ namespace netxs::os
             {
                 return !!termlink;
             }
+            void disconnect()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                termlink.stop();
+            }
             // task: Cleaning in order to be able to restart.
             void cleanup()
             {
@@ -3283,23 +3268,8 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log(prompt::task, "Wait child process ", proc_pid);
-                termlink.stop();
-                if (proc_pid != 0)
-                {
-                #if defined(_WIN32)
-
-                    exit_code = os::process::wait(proc_pid, prochndl);
-                    io::close(prochndl);
-
-                #else
-
-                    exit_code = os::process::wait(proc_pid, prochndl);
-
-                #endif
-                }
+                disconnect();
+                auto exit_code = os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,

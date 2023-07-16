@@ -259,18 +259,6 @@ struct consrv : consrv_base
         ui32 callfx;
         ui32 arglen;
         byte argbuf[88 + sizeof(Arch)]; // x64:=96  x32:=92
-        void print()
-        {
-            log(ansi::hi("taskid:"), " lo=", utf::to_hex_0x(base::taskid.lo), " hi=", utf::to_hex_0x(base::taskid.hi), "\n",
-                ansi::hi("client:"), " ", utf::to_hex_0x(base::client), "\n",
-                ansi::hi("target:"), " ", utf::to_hex_0x(base::target), "\n",
-                ansi::hi("fxtype:"), " ", utf::to_hex_0x(base::fxtype), "\n",
-                ansi::hi("packsz:"), " ", utf::to_hex_0x(base::packsz), "\n",
-                ansi::hi("echosz:"), " ", utf::to_hex_0x(base::echosz), "\n",
-                ansi::hi("callfx:"), " ", utf::to_hex_0x(callfx), "\n",
-                ansi::hi("arglen:"), " ", utf::to_hex_0x(arglen), "\n",
-                ansi::hi("number:"), " ", utf::to_hex_0x((callfx / 0x55555 + callfx) & 255));
-        }
     };
 
     template<class Payload>
@@ -4525,7 +4513,6 @@ struct consrv : consrv_base
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
-                if constexpr (debugmode) upload.print();
                 switch (rc)
                 {
                     case ERROR_SUCCESS:

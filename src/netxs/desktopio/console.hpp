@@ -3821,7 +3821,7 @@ namespace netxs::ui
             LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
             {
                 if (props < user_numbering.size()) user_numbering[props] = faux;
-                else log(ansi::err(prompt::host, "User accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                else log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
             };
 
             quartz.ignite(maxfps);

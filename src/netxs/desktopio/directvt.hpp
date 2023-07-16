@@ -50,6 +50,7 @@ namespace netxs::prompt
         X(tile) /* */ \
         X(user) /* */ \
         X(vtty) /* */ \
+        X(wait) /* */ \
         X(xipc) /* */ \
         X(xtty) /* */
 
