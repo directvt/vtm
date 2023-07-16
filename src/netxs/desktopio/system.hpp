@@ -2228,67 +2228,69 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
-        template<class T>
-        auto wait(T& proc_id, bool sighup = true)
+        auto sighup(pidt proc_pid, fd_t& prochndl)
         {
-            auto exit_code = si32{};
             #if defined(_WIN32)
 
-                auto proc_hndl = proc_id;
-                auto code = DWORD{ 0 };
-                auto rc = ok(::GetExitCodeProcess(proc_hndl, &code), "::GetExitCodeProcess()", os::unexpected_msg);
-                if (rc)
-                {
-                    if (code == STILL_ACTIVE)
-                    {
-                        ::WaitForSingleObject(proc_hndl, app_wait_timeout);
-                        rc = ok(::GetExitCodeProcess(proc_hndl, &code), "::GetExitCodeProcess()", os::unexpected_msg);
-                    }
-                    if (rc)
-                    {
-                        if (code == STILL_ACTIVE)
-                        {
-                            log(prompt::dtvt, "Child process still running");
-                        }
-                        else
-                        {
-                            exit_code = code;
-                            log(prompt::dtvt, "Child process exit code", ' ', exit_code);
-                        }
-                    }
-                }
-                io::close(proc_hndl);
+                //todo
 
             #else
 
-                auto proc_pid = proc_id;
-                auto status = int{};
-                auto exited = ::waitpid(proc_pid, &status, WNOHANG);
-                if (!exited)
+                ok(::kill(proc_pid, SIGHUP), "::kill(pid, SIGHUP)", os::unexpected_msg);
+
+            #endif
+        }
+        auto getexitcode(pidt proc_pid, fd_t& prochndl)
+        {
+            struct
+            {
+                bool exited{};
+                si32 retcod{};
+            }
+            result;
+            auto status = sigt{};
+            #if defined(_WIN32)
+
+                result.exited = ::GetExitCodeProcess(prochndl, &status) && status != STILL_ACTIVE;
+                if (result.exited)
                 {
-                    if (sighup)
-                    {
-                        ok(::kill(proc_pid, SIGHUP), "::kill(pid, SIGHUP)", os::unexpected_msg);
-                    }
-                    auto timeout = datetime::now() + std::chrono::milliseconds{ app_wait_timeout };
-                    while (!exited && timeout > datetime::now())
-                    {
-                        std::this_thread::sleep_for(100ms);
-                        exited = ::waitpid(proc_pid, &status, WNOHANG);
-                    }
+                    result.retcod = status;
                 }
-                if (exited && WIFEXITED(status))
+
+            #else
+
+                result.exited = ::waitpid(proc_pid, &status, WNOHANG) && WIFEXITED(status);
+                if (result.exited)
                 {
-                    exit_code = WEXITSTATUS(status);
-                    log(prompt::vtty, "Child process exit code", ' ', exit_code);
-                }
-                else
-                {
-                    log(prompt::dtvt, "Child process still running");
+                    result.retcod = WEXITSTATUS(status);
                 }
 
             #endif
-            return exit_code;
+            return result;
+        }
+        auto wait(pidt proc_pid, fd_t& prochndl, bool sighup = true)
+        {
+            auto result = os::process::getexitcode(proc_pid, prochndl);
+            if (!result.exited)
+            {
+                if (sighup)
+                {
+                    os::process::sighup(proc_pid, prochndl);
+                    result = os::process::getexitcode(proc_pid, prochndl);
+                }
+                auto bystep = 1ms;
+                auto timeout = datetime::now() + std::chrono::milliseconds{ app_wait_timeout };
+                while (!result.exited && timeout > datetime::now())
+                {
+                    bystep = std::min(bystep * 2, 1000ms);
+                    std::this_thread::sleep_for(bystep);
+                    result = os::process::getexitcode(proc_pid, prochndl);
+                    if constexpr (debugmode) log("wait: ", bystep.count(), "ms for process ", proc_pid);
+                }
+            }
+            if (result.exited) log(prompt::vtty, "Child process ", proc_pid, " exit code", ' ', result.retcod);
+            else               log(prompt::dtvt, "Child process ", proc_pid, " still running");
+            return result.retcod;
         }
     }
 
@@ -2515,12 +2517,13 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     if (con_serv) con_serv->stop();
-                    exit_code = os::process::wait(prochndl);
+                    exit_code = os::process::wait(proc_pid, prochndl);
+                    io::close(prochndl);
 
                 #else
 
                     termlink.stop();
-                    exit_code = os::process::wait(proc_pid);
+                    exit_code = os::process::wait(proc_pid, prochndl);
 
                 #endif
                 }
@@ -3136,11 +3139,12 @@ namespace netxs::os
                     // There is no need for special signaling for DirectVT applications. Enough to close the channel.
                     #if defined(_WIN32)
 
-                        exit_code = os::process::wait(prochndl, faux);
+                        exit_code = os::process::wait(proc_pid, prochndl, faux);
+                        io::close(prochndl);
 
                     #else
 
-                        exit_code = os::process::wait(proc_pid, faux);
+                        exit_code = os::process::wait(proc_pid, prochndl, faux);
 
                     #endif
                     proc_pid = 0;
@@ -3287,11 +3291,12 @@ namespace netxs::os
                 {
                 #if defined(_WIN32)
 
-                    exit_code = os::process::wait(prochndl);
+                    exit_code = os::process::wait(proc_pid, prochndl);
+                    io::close(prochndl);
 
                 #else
 
-                    exit_code = os::process::wait(proc_pid);
+                    exit_code = os::process::wait(proc_pid, prochndl);
 
                 #endif
                 }
