@@ -32,6 +32,7 @@ struct consrv : consrv_base
     using consrv_base::hStdOutput;
     using consrv_base::hStdError;
 
+    static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
     static constexpr auto isreal()
     {
@@ -4461,7 +4462,7 @@ struct consrv : consrv_base
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
             {
-                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                ok<faux>(!debugmode, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4623,7 +4624,7 @@ struct consrv : consrv_base
           winhnd{        },
           inpmod{ nt::console::inmode::preprocess },
           outmod{        },
-          prompt{ utf::concat(netxs::prompt::win32) },
+          prompt{ utf::concat(win32prompt) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {

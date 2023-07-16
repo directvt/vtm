@@ -16,7 +16,6 @@ namespace netxs::prompt
     static constexpr auto   vtm = " vtm: "sv;
     static constexpr auto   cin = "stdin: "sv;
     static constexpr auto  cout = "stdout: "sv;
-    static constexpr auto win32 = "win32api: "sv;
 
     #define prompt_list \
         X(apps) /* */ \
@@ -34,6 +33,8 @@ namespace netxs::prompt
         X(logs) /* */ \
         X(main) /* */ \
         X(meet) /* */ \
+        X(nt32) /* */ \
+        X(nt64) /* */ \
         X(open) /* */ \
         X(page) /* */ \
         X(para) /* */ \
