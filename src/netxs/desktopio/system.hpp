@@ -254,15 +254,12 @@ namespace netxs::os
             //todo: nt native api bug:
             //  We have to make a direct call to ntdll.dll!CsrClientCallServer
             //  due to a user32.dll!ConsoleControl does not work properly under WoW64.
-            //template<class Arch, class ...Args>
+            //template<class ...Args>
             //static auto ConsoleControl(Args... args)
             //{
-            //    if constexpr (sizeof(Arch) == sizeof(void*))
-            //    {
-            //        auto& inst = get_ntdll();
-            //        return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
-            //                    : nt::status::not_found;
-            //    }
+            //    auto& inst = get_ntdll();
+            //    return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
+            //                : nt::status::not_found;
             //}
             //void ConsoleTask(ui32 proc_pid, ui32 what)
             //{
@@ -274,7 +271,7 @@ namespace netxs::os
             //        ui32   option;
             //    };
             //    auto task = nttask{ .procid = proc_pid, .action = what };
-            //    auto stat = nt::ConsoleControl<Arch>((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+            //    auto stat = nt::ConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
             //    if (server.io_log)
             //    {
             //        log("\tclient process ", proc_pid,  ", control status ", utf::to_hex_0x(stat));
