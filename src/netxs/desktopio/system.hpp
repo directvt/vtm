@@ -278,7 +278,7 @@ namespace netxs::os
             //    }
             //}
             template<class Arch>
-            static auto ConsoleTask(ui32 proc_pid, ui32 what)
+            static auto ConsoleTask(Arch proc_pid, ui32 what)
             {
                 static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
                 log(win32prompt, what == CTRL_C_EVENT     ? "Ctrl+C"

@@ -226,8 +226,8 @@ struct consrv : consrv_base
         using bufs = std::list<decltype(Term::altbuf)>;
 
         list tokens; // clnt: Taked handles.
-        ui32 procid; // clnt: Process id.
-        ui32 thread; // clnt: Process thread id.
+        Arch procid; // clnt: Process id.
+        Arch thread; // clnt: Process thread id.
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
         //todo store time stamps for the history items
@@ -2154,7 +2154,7 @@ struct consrv : consrv_base
             auto dest = recs.begin();
             for (auto& client : joined)
             {
-                *dest++ = client.procid;
+                *dest++ = (ui32)client.procid;
                 log("\tpid: ", client.procid);
             }
             answer.send_data(condrv, recs);
