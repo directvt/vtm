@@ -2938,7 +2938,7 @@ namespace netxs::os
             static auto setup = text{};
             return setup;
         }
-        void send(fd_t m_pipe_w, sz_t config_size)
+        void send(fd_t m_pipe_w, size_t config_size)
         {
             auto buffer = directvt::binary::marker{ config_size };
             io::send(m_pipe_w, buffer);

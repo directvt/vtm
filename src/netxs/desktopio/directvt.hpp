@@ -83,10 +83,10 @@ namespace netxs::directvt
 
             marker()
             { }
-            marker(netxs::sz_t config_size)
+            marker(size_t config_size)
             {
                 mark_FF = initial;
-                cfgsize.set(config_size);
+                cfgsize.set((netxs::sz_t)config_size);
                 mark_FE = initial - 1;
             }
             auto get_sz(netxs::sz_t& config_size)
