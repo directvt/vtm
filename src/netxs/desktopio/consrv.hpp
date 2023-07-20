@@ -381,14 +381,6 @@ struct consrv : consrv_base
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        struct nttask
-        {
-            size_t procid;
-            size_t window;
-            ui32   action;
-            ui32   option;
-        };
-
         consrv& server; // events_t: Console server reference.
         vect    stream; // events_t: Input event list.
         vect    recbuf; // events_t: Temporary buffer for copying event records.
@@ -453,8 +445,7 @@ struct consrv : consrv_base
             {
                 if (!pgroup || pgroup == client.pgroup)
                 {
-                    auto task = nttask{ .procid = client.procid, .action = what };
-                    auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+                    auto stat = nt::ConsoleTask<Arch>(client.procid, what);
                     if (server.io_log)
                     {
                         log("\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
@@ -2015,10 +2006,8 @@ struct consrv : consrv_base
         struct payload : wrap<payload>
         {
             tsid taskid;
-            ui32 procid;
-            ui32 pad__1;
-            ui32 thread;
-            ui32 pad__2;
+            Arch procid;
+            Arch thread;
         };
         auto& packet = payload::cast(upload);
         struct exec_info : wrap<exec_info>
@@ -4460,7 +4449,7 @@ struct consrv : consrv_base
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
-            auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+            auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
                 ok<faux>(!debugmode, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
@@ -4468,13 +4457,13 @@ struct consrv : consrv_base
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
                     case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
-                    default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                    default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }
-                return (LRESULT) NULL;
+                return LRESULT{};
             };
             auto wnddata = WNDCLASSEXA
             {
-                .cbSize        = sizeof(WNDCLASSEX),
+                .cbSize        = sizeof(WNDCLASSEXA),
                 .lpfnWndProc   = wndproc,
                 .lpszClassName = wndname.c_str(),
             };

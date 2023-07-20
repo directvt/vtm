@@ -163,57 +163,67 @@ namespace netxs::os
 
         class nt
         {
-            using NtOpenFile_ptr = std::decay<decltype(::NtOpenFile)>::type;
-            using ConsoleCtl_ptr = NTSTATUS(_stdcall *)(ui32, void*, ui32);
-
-            HMODULE         ntdll_dll{};
-            HMODULE        user32_dll{};
-            NtOpenFile_ptr NtOpenFile{};
-            ConsoleCtl_ptr ConsoleCtl{};
-
-            nt()
+            struct refs_t
             {
-                ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
-                else
+                using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
+                using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
+                //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
+                //HMODULE                 user32_dll{};
+                //ConsoleControl_ptr      ConsoleControl{};
+
+                HMODULE                 ntdll_dll{};
+                NtOpenFile_ptr          NtOpenFile{};
+                CsrClientCallServer_ptr CsrClientCallServer{};
+
+                refs_t()
                 {
-                    NtOpenFile = reinterpret_cast<NtOpenFile_ptr>(::GetProcAddress( ntdll_dll, "NtOpenFile"));
-                    ConsoleCtl = reinterpret_cast<ConsoleCtl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
-                    if (!NtOpenFile) os::fail("::GetProcAddress(NtOpenFile)");
-                    if (!ConsoleCtl) os::fail("::GetProcAddress(ConsoleControl)");
+                    //user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                    //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
+                    ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                    if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                    else
+                    {
+                        NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll,  "NtOpenFile"));
+                        CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll,  "CsrClientCallServer"));
+                        if (!NtOpenFile)                os::fail("::GetProcAddress(NtOpenFile)");
+                        if (!CsrClientCallServer)       os::fail("::GetProcAddress(CsrClientCallServer)");
+                        //ConsoleControl      = reinterpret_cast<ConsoleControl_ptr>(     ::GetProcAddress(user32_dll, "ConsoleControl"));
+                        //if (!ConsoleControl)            os::fail("::GetProcAddress(ConsoleControl)");
+                    }
                 }
-            }
 
-            void operator=(nt const&) = delete;
-            nt(nt const&)             = delete;
-            nt(nt&& other)
-                : ntdll_dll{ other.ntdll_dll  },
-                 user32_dll{ other.user32_dll },
-                 NtOpenFile{ other.NtOpenFile },
-                 ConsoleCtl{ other.ConsoleCtl }
-            {
-                other.ntdll_dll  = {};
-                other.user32_dll = {};
-                other.NtOpenFile = {};
-                other.ConsoleCtl = {};
+                void operator=(refs_t const&) = delete;
+                refs_t(refs_t const&)         = delete;
+                refs_t(refs_t&& other)
+                    :           ntdll_dll{ other.ntdll_dll                 },
+                               NtOpenFile{ other.NtOpenFile                },
+                      CsrClientCallServer{ other.CsrClientCallServer       }
+                           //    user32_dll{ other.user32_dll                },
+                           //ConsoleControl{ other.ConsoleControl            }
+                {
+                    other.ntdll_dll                 = {};
+                    other.NtOpenFile                = {};
+                    other.CsrClientCallServer       = {};
+                    //other.user32_dll                = {};
+                    //other.ConsoleControl            = {};
+                }
+               ~refs_t()
+                {
+                    if (ntdll_dll ) ::FreeLibrary(ntdll_dll );
+                    //if (user32_dll) ::FreeLibrary(user32_dll);
+                }
+
+                constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
             }
+            refs;
 
             static auto& get_ntdll()
             {
                 static auto ref = nt{};
-                return ref;
+                return ref.refs;
             }
 
         public:
-           ~nt()
-            {
-                if (ntdll_dll ) ::FreeLibrary(ntdll_dll );
-                if (user32_dll) ::FreeLibrary(user32_dll);
-            }
-
-            constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
-
             struct status
             {
                 static constexpr auto success               = (NTSTATUS)0x00000000L;
@@ -235,11 +245,83 @@ namespace netxs::os
                             : nt::status::not_found;
             }
             template<class ...Args>
-            static auto UserConsoleControl(Args... args)
+            static auto CsrClientCallServer(Args... args)
             {
                 auto& inst = get_ntdll();
-                return inst ? inst.ConsoleCtl(std::forward<Args>(args)...)
+                return inst ? inst.CsrClientCallServer(std::forward<Args>(args)...)
                             : nt::status::not_found;
+            }
+            //todo: nt native api bug:
+            //  We have to make a direct call to ntdll.dll!CsrClientCallServer
+            //  due to a user32.dll!ConsoleControl does not work properly under WoW64.
+            //template<class Arch, class ...Args>
+            //static auto ConsoleControl(Args... args)
+            //{
+            //    if constexpr (sizeof(Arch) == sizeof(void*))
+            //    {
+            //        auto& inst = get_ntdll();
+            //        return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
+            //                    : nt::status::not_found;
+            //    }
+            //}
+            //void ConsoleTask(ui32 proc_pid, ui32 what)
+            //{
+            //    struct nttask
+            //    {
+            //        size_t procid;
+            //        size_t window;
+            //        ui32   action;
+            //        ui32   option;
+            //    };
+            //    auto task = nttask{ .procid = proc_pid, .action = what };
+            //    auto stat = nt::ConsoleControl<Arch>((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+            //    if (server.io_log)
+            //    {
+            //        log("\tclient process ", proc_pid,  ", control status ", utf::to_hex_0x(stat));
+            //    }
+            //}
+            template<class Arch>
+            static auto ConsoleTask(ui32 proc_pid, ui32 what)
+            {
+                static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
+                log(win32prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
+                               : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
+                               : what == CTRL_CLOSE_EVENT ? "CtrlClose"
+                                                          : "Unknown", " event");
+                struct nttask
+                {
+                    struct header
+                    {
+                        ui32 pad___1;
+                        ui32 pad___2;
+                        Arch pad___3;
+                        Arch pad___4;
+                        Arch pad___5;
+                        Arch pad___6;
+                        Arch pad___7;
+                        Arch pad___8;
+                    }
+                    head;
+                    struct payload
+                    {
+                        ui32 pad___1;
+                        ui32 pad___2;
+                        Arch pad___3;
+                        Arch pad___4;
+                        Arch procpid;
+                        ui32 eventid;
+                        ui32 optflag;
+                    }
+                    task;
+                };
+                auto task = nttask{ .task = { .procpid = (Arch)proc_pid,
+                                              .eventid = what,
+                                              .optflag = 0, } };
+                auto stat = nt::CsrClientCallServer(&task,
+                                                    nullptr,
+                                                    0x00030401, // api index
+                                                    sizeof(nttask::payload));
+                return stat;
             }
             template<class I = noop, class O = noop>
             static auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
