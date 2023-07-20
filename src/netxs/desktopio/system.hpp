@@ -88,7 +88,7 @@ namespace netxs::os
     static auto is_daemon = faux;
     static constexpr auto pipebuf = si32{ 65536 };
     static constexpr auto ttysize = twod{ 2500, 50 };
-    static constexpr auto app_wait_timeout = debugmode ? 1000000 : 10000;
+    static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected_msg = " returns unexpected result"sv;
 
     #if defined(_WIN32)
@@ -163,57 +163,67 @@ namespace netxs::os
 
         class nt
         {
-            using NtOpenFile_ptr = std::decay<decltype(::NtOpenFile)>::type;
-            using ConsoleCtl_ptr = NTSTATUS(_stdcall *)(ui32, void*, ui32);
-
-            HMODULE         ntdll_dll{};
-            HMODULE        user32_dll{};
-            NtOpenFile_ptr NtOpenFile{};
-            ConsoleCtl_ptr ConsoleCtl{};
-
-            nt()
+            struct refs_t
             {
-                ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-                if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
-                else
+                using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
+                using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
+                //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
+                //HMODULE                 user32_dll{};
+                //ConsoleControl_ptr      ConsoleControl{};
+
+                HMODULE                 ntdll_dll{};
+                NtOpenFile_ptr          NtOpenFile{};
+                CsrClientCallServer_ptr CsrClientCallServer{};
+
+                refs_t()
                 {
-                    NtOpenFile = reinterpret_cast<NtOpenFile_ptr>(::GetProcAddress( ntdll_dll, "NtOpenFile"));
-                    ConsoleCtl = reinterpret_cast<ConsoleCtl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
-                    if (!NtOpenFile) os::fail("::GetProcAddress(NtOpenFile)");
-                    if (!ConsoleCtl) os::fail("::GetProcAddress(ConsoleControl)");
+                    //user32_dll = ::LoadLibraryExA("user32.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                    //if (!ntdll_dll || !user32_dll) os::fail("LoadLibraryEx(ntdll.dll | user32.dll)");
+                    ntdll_dll  = ::LoadLibraryExA("ntdll.dll",  nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+                    if (!ntdll_dll) os::fail("LoadLibraryEx(ntdll.dll)");
+                    else
+                    {
+                        NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll,  "NtOpenFile"));
+                        CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll,  "CsrClientCallServer"));
+                        if (!NtOpenFile)                os::fail("::GetProcAddress(NtOpenFile)");
+                        if (!CsrClientCallServer)       os::fail("::GetProcAddress(CsrClientCallServer)");
+                        //ConsoleControl      = reinterpret_cast<ConsoleControl_ptr>(     ::GetProcAddress(user32_dll, "ConsoleControl"));
+                        //if (!ConsoleControl)            os::fail("::GetProcAddress(ConsoleControl)");
+                    }
                 }
-            }
 
-            void operator=(nt const&) = delete;
-            nt(nt const&)             = delete;
-            nt(nt&& other)
-                : ntdll_dll{ other.ntdll_dll  },
-                 user32_dll{ other.user32_dll },
-                 NtOpenFile{ other.NtOpenFile },
-                 ConsoleCtl{ other.ConsoleCtl }
-            {
-                other.ntdll_dll  = {};
-                other.user32_dll = {};
-                other.NtOpenFile = {};
-                other.ConsoleCtl = {};
+                void operator=(refs_t const&) = delete;
+                refs_t(refs_t const&)         = delete;
+                refs_t(refs_t&& other)
+                    :           ntdll_dll{ other.ntdll_dll                 },
+                               NtOpenFile{ other.NtOpenFile                },
+                      CsrClientCallServer{ other.CsrClientCallServer       }
+                           //    user32_dll{ other.user32_dll                },
+                           //ConsoleControl{ other.ConsoleControl            }
+                {
+                    other.ntdll_dll                 = {};
+                    other.NtOpenFile                = {};
+                    other.CsrClientCallServer       = {};
+                    //other.user32_dll                = {};
+                    //other.ConsoleControl            = {};
+                }
+               ~refs_t()
+                {
+                    if (ntdll_dll ) ::FreeLibrary(ntdll_dll );
+                    //if (user32_dll) ::FreeLibrary(user32_dll);
+                }
+
+                constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
             }
+            refs;
 
             static auto& get_ntdll()
             {
                 static auto ref = nt{};
-                return ref;
+                return ref.refs;
             }
 
         public:
-           ~nt()
-            {
-                if (ntdll_dll ) ::FreeLibrary(ntdll_dll );
-                if (user32_dll) ::FreeLibrary(user32_dll);
-            }
-
-            constexpr explicit operator bool() const { return NtOpenFile != nullptr; }
-
             struct status
             {
                 static constexpr auto success               = (NTSTATUS)0x00000000L;
@@ -235,11 +245,80 @@ namespace netxs::os
                             : nt::status::not_found;
             }
             template<class ...Args>
-            static auto UserConsoleControl(Args... args)
+            static auto CsrClientCallServer(Args... args)
             {
                 auto& inst = get_ntdll();
-                return inst ? inst.ConsoleCtl(std::forward<Args>(args)...)
+                return inst ? inst.CsrClientCallServer(std::forward<Args>(args)...)
                             : nt::status::not_found;
+            }
+            //todo: nt native api bug:
+            //  We have to make a direct call to ntdll.dll!CsrClientCallServer
+            //  due to a user32.dll!ConsoleControl does not work properly under WoW64.
+            //template<class ...Args>
+            //static auto ConsoleControl(Args... args)
+            //{
+            //    auto& inst = get_ntdll();
+            //    return inst ? inst.ConsoleControl(std::forward<Args>(args)...)
+            //                : nt::status::not_found;
+            //}
+            //void ConsoleTask(ui32 proc_pid, ui32 what)
+            //{
+            //    struct nttask
+            //    {
+            //        size_t procid;
+            //        size_t window;
+            //        ui32   action;
+            //        ui32   option;
+            //    };
+            //    auto task = nttask{ .procid = proc_pid, .action = what };
+            //    auto stat = nt::ConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+            //    if (server.io_log)
+            //    {
+            //        log("\tclient process ", proc_pid,  ", control status ", utf::to_hex_0x(stat));
+            //    }
+            //}
+            template<class Arch>
+            static auto ConsoleTask(Arch proc_pid, ui32 what)
+            {
+                static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
+                log(win32prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
+                               : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
+                               : what == CTRL_CLOSE_EVENT ? "CtrlClose"
+                                                          : "Unknown", " event");
+                struct nttask
+                {
+                    struct header
+                    {
+                        ui32 pad___1;
+                        ui32 pad___2;
+                        Arch pad___3;
+                        Arch pad___4;
+                        Arch pad___5;
+                        Arch pad___6;
+                        Arch pad___7;
+                        Arch pad___8;
+                    }
+                    head;
+                    struct payload
+                    {
+                        ui32 pad___1;
+                        ui32 pad___2;
+                        Arch pad___3;
+                        Arch pad___4;
+                        Arch procpid;
+                        ui32 eventid;
+                        ui32 optflag;
+                    }
+                    task;
+                };
+                auto task = nttask{ .task = { .procpid = (Arch)proc_pid,
+                                              .eventid = what,
+                                              .optflag = 0, } };
+                auto stat = nt::CsrClientCallServer(&task,
+                                                    nullptr,
+                                                    0x00030401, // api index
+                                                    sizeof(nttask::payload));
+                return stat;
             }
             template<class I = noop, class O = noop>
             static auto ioctl(DWORD dwIoControlCode, fd_t hDevice, I&& send = {}, O&& recv = {}) -> NTSTATUS
@@ -629,12 +708,12 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                template<class A, std::size_t... I>
+                template<class A, sz_t... I>
                 constexpr auto _repack(fd_t h, A const& a, std::index_sequence<I...>)
                 {
                     return std::array{ a[I]..., h };
                 }
-                template<std::size_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
+                template<sz_t N, class P, class Index = std::make_index_sequence<N>, class ...Args>
                 constexpr auto _combine(std::array<fd_t, N> const& a, fd_t h, P&& proc, Args&&... args)
                 {
                     if constexpr (sizeof...(args)) return _combine(_repack(h, a, Index{}), std::forward<Args>(args)...);
@@ -2228,6 +2307,74 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
+        auto sighup(pidt proc_pid, fd_t prochndl)
+        {
+            #if defined(_WIN32)
+
+                //todo
+
+            #else
+
+                ok(::kill(proc_pid, SIGHUP), "::kill(pid, SIGHUP)", os::unexpected_msg);
+
+            #endif
+        }
+        auto getexitcode(pidt proc_pid, fd_t prochndl)
+        {
+            struct
+            {
+                bool exited{};
+                si32 retcod{};
+            }
+            result;
+            auto status = sigt{};
+            #if defined(_WIN32)
+
+                result.exited = ::GetExitCodeProcess(prochndl, &status) && status != STILL_ACTIVE;
+                if (result.exited)
+                {
+                    result.retcod = status;
+                }
+
+            #else
+
+                result.exited = ::waitpid(proc_pid, &status, WNOHANG) && WIFEXITED(status);
+                if (result.exited)
+                {
+                    result.retcod = WEXITSTATUS(status);
+                }
+
+            #endif
+            return result;
+        }
+        auto wait(view type, pidt& proc_pid, fd_t& prochndl, bool sighup = true)
+        {
+            if (!proc_pid) return si32{};
+            log(type, "Wait child process ", proc_pid);
+            auto result = os::process::getexitcode(proc_pid, prochndl);
+            if (!result.exited)
+            {
+                if (sighup)
+                {
+                    os::process::sighup(proc_pid, prochndl);
+                    result = os::process::getexitcode(proc_pid, prochndl);
+                }
+                auto bystep = 1ms;
+                auto timeout = datetime::now() + std::chrono::milliseconds{ app_wait_timeout };
+                while (!result.exited && timeout > datetime::now())
+                {
+                    bystep = std::min(bystep * 2, 1000ms);
+                    std::this_thread::sleep_for(bystep);
+                    result = os::process::getexitcode(proc_pid, prochndl);
+                    if constexpr (debugmode) log(prompt::wait, bystep.count(), "ms for process ", proc_pid);
+                }
+            }
+            if (result.exited) log(type, "Child process ", proc_pid, " returns code", ' ', utf::to_hex_0x(result.retcod));
+            else               log(type, "Child process ", proc_pid, " still running");
+            proc_pid = {};
+            io::close(prochndl);
+            return result.retcod;
+        }
     }
 
     namespace logging
@@ -2419,6 +2566,15 @@ namespace netxs::os
                     return !!termlink;
                 #endif
             }
+            void disconnect()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                #if defined(_WIN32)
+                if (con_serv) con_serv->stop();
+                #else
+                termlink.stop();
+                #endif
+            }
             // vtty: Cleaning in order to be able to restart.
             void cleanup()
             {
@@ -2435,7 +2591,7 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    log(prompt::vtty, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -2444,54 +2600,8 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log(prompt::vtty, "Wait child process ", proc_pid);
-
-                if (proc_pid != 0)
-                {
-                #if defined(_WIN32)
-
-                    if (con_serv) con_serv->stop();
-                    auto code = DWORD{ 0 };
-                    if (!::GetExitCodeProcess(prochndl, &code))
-                    {
-                        log(prompt::vtty, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                    }
-                    else if (code == STILL_ACTIVE)
-                    {
-                        log(prompt::vtty, "Child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                        if (!result || !::GetExitCodeProcess(prochndl, &code))
-                        {
-                            ::TerminateProcess(prochndl, 0);
-                            code = 0;
-                        }
-                    }
-                    else log(prompt::vtty, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
-                    exit_code = code;
-                    io::close(prochndl);
-
-                #else
-
-                    termlink.stop();
-                    auto status = int{};
-                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(status))
-                    {
-                        exit_code = WEXITSTATUS(status);
-                        log(prompt::vtty, "Child process exit code", ' ', exit_code);
-                    }
-                    else
-                    {
-                        exit_code = 0;
-                        log(prompt::vtty, "Child process exit code not detected");
-                    }
-
-                #endif
-                }
-                log(prompt::vtty, "Child waiting complete");
+                disconnect();
+                auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
             }
             auto start(text cwd, text cmdline, twod winsz)
@@ -2589,13 +2699,14 @@ namespace netxs::os
                     proc_pid = procsinf.dwProcessId;
                     waitexit = std::thread([&]
                     {
-                        io::select(prochndl, []{ log(prompt::vtty, "Child process terminated"); });
+                        auto pid = proc_pid;
+                        io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
                         if (con_serv && con_serv->alive())
                         {
                             auto exit_code = wait_child();
                             terminal.onexit(exit_code);
                         }
-                        log(prompt::vtty, "Child process waiter ended");
+                        log(prompt::vtty, "Child process ", pid, " waiter ended");
                     });
 
                 #else
@@ -2838,7 +2949,7 @@ namespace netxs::os
             auto& state = _state();
             auto& start = _start();
             auto& setup = config();
-            auto cfsize = size_t{};
+            auto cfsize = sz_t{};
             if (ready) return state;
             ready = true;
             #if defined(_WIN32)
@@ -3097,53 +3208,7 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                //auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log(prompt::dtvt, "Wait child process, tty=", termlink);
-                if (proc_pid)
-                {
-                    #if defined(_WIN32)
-
-                        auto code = DWORD{ 0 };
-                        if (!::GetExitCodeProcess(prochndl, &code))
-                        {
-                            log(prompt::dtvt, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                        }
-                        else if (code == STILL_ACTIVE)
-                        {
-                            log(prompt::dtvt, "Child process still running");
-                            auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                            if (!result || !::GetExitCodeProcess(prochndl, &code))
-                            {
-                                ::TerminateProcess(prochndl, 0);
-                                code = 0;
-                            }
-                        }
-                        else log(prompt::dtvt, "Child process exit code", ' ', code);
-                        exit_code = code;
-                        io::close(prochndl);
-
-                    #else
-
-                        int status;
-                        //todo wait app_wait_timeout before kill
-                        ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                        ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                        if (WIFEXITED(status))
-                        {
-                            exit_code = WEXITSTATUS(status);
-                            log(prompt::dtvt, "Child process exit code", ' ', exit_code);
-                        }
-                        else
-                        {
-                            exit_code = 0;
-                            log(prompt::dtvt, "Child process exit code not detected");
-                        }
-
-                    #endif
-                    proc_pid = 0;
-                }
-                log(prompt::dtvt, "Child waiting complete");
+                auto exit_code = os::process::wait(prompt::dtvt, proc_pid, prochndl, faux);
                 return exit_code;
             }
             void cleanup()
@@ -3246,6 +3311,11 @@ namespace netxs::os
             {
                 return !!termlink;
             }
+            void disconnect()
+            {
+                auto guard = std::lock_guard{ writemtx };
+                termlink.stop();
+            }
             // task: Cleaning in order to be able to restart.
             void cleanup()
             {
@@ -3262,7 +3332,7 @@ namespace netxs::os
                 }
                 if (waitexit.joinable())
                 {
-                    log(prompt::task, "Child process waiter thread joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    log(prompt::task, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -3278,52 +3348,8 @@ namespace netxs::os
             }
             auto wait_child()
             {
-                auto guard = std::lock_guard{ writemtx };
-                auto exit_code = si32{};
-                log(prompt::task, "Wait child process ", proc_pid);
-                termlink.stop();
-                if (proc_pid != 0)
-                {
-                #if defined(_WIN32)
-
-                    auto code = DWORD{ 0 };
-                    if (!::GetExitCodeProcess(prochndl, &code))
-                    {
-                        log(prompt::task, "::GetExitCodeProcess() return code: ", ::GetLastError());
-                    }
-                    else if (code == STILL_ACTIVE)
-                    {
-                        log(prompt::task, "Child process still running");
-                        auto result = WAIT_OBJECT_0 == ::WaitForSingleObject(prochndl, app_wait_timeout /*10 seconds*/);
-                        if (!result || !::GetExitCodeProcess(prochndl, &code))
-                        {
-                            ::TerminateProcess(prochndl, 0);
-                            code = 0;
-                        }
-                    }
-                    else log(prompt::task, "Child process exit code", ' ', utf::to_hex_0x(code), " (", code, ")");
-                    exit_code = code;
-                    io::close(prochndl);
-
-                #else
-
-                    auto status = int{};
-                    ok(::kill(proc_pid, SIGKILL), "::kill(pid, SIGKILL)", os::unexpected_msg);
-                    ok(::waitpid(proc_pid, &status, 0), "::waitpid(pid)", os::unexpected_msg); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(status))
-                    {
-                        exit_code = WEXITSTATUS(status);
-                        log(prompt::task, "Child process exit code", ' ', exit_code);
-                    }
-                    else
-                    {
-                        exit_code = 0;
-                        log(prompt::task, "Child process exit code not detected");
-                    }
-
-                #endif
-                }
-                log(prompt::task, "Child waiting complete");
+                disconnect();
+                auto exit_code = os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
@@ -3771,7 +3797,8 @@ namespace netxs::os
                 auto shutdown = [](auto what)
                 {
                     globals().ipcio->shut();
-                    ::signal(what, SIG_DFL);
+                    ::signal(SIGHUP,  SIG_DFL); // To avoid second shutdown.
+                    ::signal(SIGTERM, SIG_DFL);
                     ::raise(what);
                 };
                 switch (what)
@@ -4492,10 +4519,10 @@ namespace netxs::os
                 auto raw_mode = g.state;
                 ::cfmakeraw(&raw_mode);
                 ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
-                ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)", os::unexpected_msg);
+                ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)",  os::unexpected_msg);
                 ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
-                ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
-                ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+                ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)",  os::unexpected_msg);
+                ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)",   os::unexpected_msg);
 
             #endif
 
@@ -4619,7 +4646,8 @@ namespace netxs::os
                     auto shutdown = [](auto what)
                     {
                         //globals().ipcio->shut();
-                        ::signal(what, SIG_DFL);
+                        ::signal(SIGHUP,  SIG_DFL);
+                        ::signal(SIGTERM, SIG_DFL);
                         ::raise(what);
                     };
                     switch (what)
@@ -4696,7 +4724,7 @@ namespace netxs::os
                     //ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
                     //ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)", os::unexpected_msg);
                     //ok(::signal(SIGHUP  , sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
-                    ok(::signal(SIGINT, sig_hndl), "::signal(SIGHUP)", os::unexpected_msg);
+                    ok(::signal(SIGINT, sig_hndl), "::signal(SIGINT)", os::unexpected_msg);
 
                 #endif
                 //log(ansi::shellmouse(true));

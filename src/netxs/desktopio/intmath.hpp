@@ -41,10 +41,10 @@ namespace netxs
     static constexpr auto si16min = std::numeric_limits<si16>::min();
     static constexpr auto ui16min = std::numeric_limits<ui16>::min();
     static constexpr auto debugmode
-        #if defined(_DEBUG)
-        = true;
-        #else
+        #if defined(NDEBUG)
         = faux;
+        #else
+        = true;
         #endif
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };

@@ -611,7 +611,7 @@ namespace netxs::app::term
             }
             if (item.views.empty())
             {
-                log(ansi::err(prompt::term, "Menu item without label"));
+                log(prompt::term, ansi::err("Menu item without label"));
                 continue;
             }
             auto setup = [route](ui::pads& boss, menu::item& item)

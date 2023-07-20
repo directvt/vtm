@@ -16,7 +16,6 @@ namespace netxs::prompt
     static constexpr auto   vtm = " vtm: "sv;
     static constexpr auto   cin = "stdin: "sv;
     static constexpr auto  cout = "stdout: "sv;
-    static constexpr auto win32 = "win32api: "sv;
 
     #define prompt_list \
         X(apps) /* */ \
@@ -34,6 +33,8 @@ namespace netxs::prompt
         X(logs) /* */ \
         X(main) /* */ \
         X(meet) /* */ \
+        X(nt32) /* */ \
+        X(nt64) /* */ \
         X(open) /* */ \
         X(page) /* */ \
         X(para) /* */ \
@@ -50,6 +51,7 @@ namespace netxs::prompt
         X(tile) /* */ \
         X(user) /* */ \
         X(vtty) /* */ \
+        X(wait) /* */ \
         X(xipc) /* */ \
         X(xtty) /* */
 
@@ -74,7 +76,7 @@ namespace netxs::directvt
         static constexpr auto initial = char{ '\xFF' };
         struct marker
         {
-            using sz_t = le_t<size_t>;
+            using sz_t = le_t<netxs::sz_t>;
             char mark_FF;
             sz_t cfgsize;
             char mark_FE;
@@ -84,10 +86,10 @@ namespace netxs::directvt
             marker(size_t config_size)
             {
                 mark_FF = initial;
-                cfgsize.set(config_size);
+                cfgsize.set((netxs::sz_t)config_size);
                 mark_FE = initial - 1;
             }
-            auto get_sz(size_t& config_size)
+            auto get_sz(netxs::sz_t& config_size)
             {
                 if (mark_FF == initial
                  && mark_FE == initial - 1)
@@ -413,9 +415,8 @@ namespace netxs::directvt
                     log(prompt::dtvt, "Stream corrupted");
                     return faux;
                 }
-                auto rest = size_t{};
-                rest = netxs::aligned<sz_t>(buff.data());
-                if (rest < sizeof(sz_t))
+                auto rest = netxs::aligned<sz_t>(buff.data());
+                if (rest < sizeof(sz_t) || rest < shot.size())
                 {
                     log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;

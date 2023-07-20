@@ -395,13 +395,13 @@ namespace netxs::{module}
 
     struct base
     {{
-        static constexpr auto blocks_size = size_t{{ {blocks_size} }};
+        static constexpr auto blocks_size = sz_t{{ {blocks_size} }};
         static constexpr si32 blocks_pack[] =
         {{
             {blocks}
         }};
 
-        static constexpr auto offset_size = size_t{{ {offset_size} }};
+        static constexpr auto offset_size = sz_t{{ {offset_size} }};
         static constexpr si32 offset_pack[] =
         {{
             {offset}
@@ -414,7 +414,7 @@ namespace netxs::{module}
     }};
 
     template<class T, class D>
-    auto unpack(D const& pack, size_t size)
+    auto unpack(D const& pack, sz_t size)
     {{
         auto data = std::vector<T>{{}};
         data.reserve(size);

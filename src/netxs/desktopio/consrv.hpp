@@ -32,6 +32,7 @@ struct consrv : consrv_base
     using consrv_base::hStdOutput;
     using consrv_base::hStdError;
 
+    static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
     static constexpr auto isreal()
     {
@@ -225,8 +226,8 @@ struct consrv : consrv_base
         using bufs = std::list<decltype(Term::altbuf)>;
 
         list tokens; // clnt: Taked handles.
-        ui32 procid; // clnt: Process id.
-        ui32 thread; // clnt: Process thread id.
+        Arch procid; // clnt: Process id.
+        Arch thread; // clnt: Process thread id.
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
         //todo store time stamps for the history items
@@ -251,7 +252,7 @@ struct consrv : consrv_base
         ui32 fxtype;
         ui32 packsz;
         ui32 echosz;
-        ui32 _pad_1;
+        ui32 pad__1;
     };
 
     struct task : base
@@ -259,18 +260,6 @@ struct consrv : consrv_base
         ui32 callfx;
         ui32 arglen;
         byte argbuf[88 + sizeof(Arch)]; // x64:=96  x32:=92
-        void print()
-        {
-            log(ansi::hi("taskid:"), " lo=", utf::to_hex_0x(base::taskid.lo), " hi=", utf::to_hex_0x(base::taskid.hi), "\n",
-                ansi::hi("client:"), " ", utf::to_hex_0x(base::client), "\n",
-                ansi::hi("target:"), " ", utf::to_hex_0x(base::target), "\n",
-                ansi::hi("fxtype:"), " ", utf::to_hex_0x(base::fxtype), "\n",
-                ansi::hi("packsz:"), " ", utf::to_hex_0x(base::packsz), "\n",
-                ansi::hi("echosz:"), " ", utf::to_hex_0x(base::echosz), "\n",
-                ansi::hi("callfx:"), " ", utf::to_hex_0x(callfx), "\n",
-                ansi::hi("arglen:"), " ", utf::to_hex_0x(arglen), "\n",
-                ansi::hi("number:"), " ", utf::to_hex_0x((callfx / 0x55555 + callfx) & 255));
-        }
     };
 
     template<class Payload>
@@ -392,14 +381,6 @@ struct consrv : consrv_base
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        struct nttask
-        {
-            size_t procid;
-            size_t window;
-            ui32   action;
-            ui32   option;
-        };
-
         consrv& server; // events_t: Console server reference.
         vect    stream; // events_t: Input event list.
         vect    recbuf; // events_t: Temporary buffer for copying event records.
@@ -464,11 +445,10 @@ struct consrv : consrv_base
             {
                 if (!pgroup || pgroup == client.pgroup)
                 {
-                    auto task = nttask{ .procid = client.procid, .action = what };
-                    auto stat = os::nt::UserConsoleControl((ui32)sizeof("Ending"), &task, (ui32)sizeof(task));
+                    auto stat = nt::ConsoleTask<Arch>(client.procid, what);
                     if (server.io_log)
                     {
-                        log("\tclient proc id ", client.procid,  ", control status ", utf::to_hex_0x(stat));
+                        log("\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
                     }
                 }
             }
@@ -2026,10 +2006,8 @@ struct consrv : consrv_base
         struct payload : wrap<payload>
         {
             tsid taskid;
-            ui32 procid;
-            ui32 _pad_1;
-            ui32 thread;
-            ui32 _pad_2;
+            Arch procid;
+            Arch thread;
         };
         auto& packet = payload::cast(upload);
         struct exec_info : wrap<exec_info>
@@ -2113,8 +2091,6 @@ struct consrv : consrv_base
         answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
-        //auto rc = nt::ioctl(nt::console::op::complete_io, condrv, answer);
-        //answer = {};
     }
     auto api_process_detach                  ()
     {
@@ -2178,7 +2154,7 @@ struct consrv : consrv_base
             auto dest = recs.begin();
             for (auto& client : joined)
             {
-                *dest++ = client.procid;
+                *dest++ = (ui32)client.procid;
                 log("\tpid: ", client.procid);
             }
             answer.send_data(condrv, recs);
@@ -2203,9 +2179,9 @@ struct consrv : consrv_base
                 type action;
                 ui32 shared; // Unused
                 ui32 rights; // GENERIC_READ | GENERIC_WRITE
-                ui32 _pad_1;
-                ui32 _pad_2;
-                ui32 _pad_3;
+                ui32 pad__1;
+                ui32 pad__2;
+                ui32 pad__3;
             }
             input;
         };
@@ -2839,7 +2815,7 @@ struct consrv : consrv_base
                 struct
                 {
                     si16 rectL, rectT, rectR, rectB;
-                    byte _pad1;
+                    byte pad_1;
                 }
                 reply;
             };
@@ -3043,22 +3019,22 @@ struct consrv : consrv_base
                     si16 coorx, coory;
                     type etype;
                     ui16 piece;
-                    ui32 count;
+                    si32 count;
                 }
                 input;
                 struct
                 {
-                    si16 _pad1, _pad2;
-                    ui32 _pad3;
-                    ui16 _pad4;
-                    ui32 count;
+                    si16 pad_1, pad_2;
+                    ui32 pad_3;
+                    ui16 pad_4;
+                    si32 count;
                 }
                 reply;
             };
         };
         auto& packet = payload::cast(upload);
         auto& screen = *uiterm.target;
-        auto count = packet.input.count;
+        auto count = std::max(0, packet.input.count);
         if (!count)
         {
             packet.reply.count = 0;
@@ -3086,7 +3062,7 @@ struct consrv : consrv_base
                 {
                     auto c = attr_to_brush(piece);
                     log("\tfill using attributes: ", (int)c);
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
+                    if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
                     if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
@@ -3103,7 +3079,7 @@ struct consrv : consrv_base
                             "\n\tcount: ", count);
                 impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
-                if (piece == ' ' && (si32)count > maxsz)
+                if (piece == ' ' && count > maxsz)
                 {
                     log("\taction: erase below");
                     screen.ed(0 /*commands::erase::display::below*/);
@@ -3123,7 +3099,7 @@ struct consrv : consrv_base
                     log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     auto c = cell{ toUTF8 };
                     auto w = c.wdt();
-                    if ((si32)count > maxsz) count = std::max(0, maxsz);
+                    if (count > maxsz) count = std::max(0, maxsz);
                     count *= w;
                     filler.kill();
                     filler.size(count, c);
@@ -3356,7 +3332,7 @@ struct consrv : consrv_base
                 struct
                 {
                     si16 rectL, rectT, rectR, rectB;
-                    byte _pad1;
+                    byte pad_1;
                 }
                 reply;
             };
@@ -4094,7 +4070,7 @@ struct consrv : consrv_base
                 input;
                 struct
                 {
-                    byte _pad1;
+                    byte pad_1;
                     ui32 index;
                     si16 sizex, sizey;
                     ui32 pitch;
@@ -4214,17 +4190,17 @@ struct consrv : consrv_base
                 struct
                 {
                     ui16 srcsz;
-                    ui16 _pad1;
+                    ui16 pad_1;
                     ui16 exesz;
                     byte utf16;
                 }
                 input;
                 struct
                 {
-                    ui16 _pad1;
+                    ui16 pad_1;
                     ui16 dstsz;
-                    ui16 _pad2;
-                    byte _pad3;
+                    ui16 pad_2;
+                    byte pad_3;
                 }
                 reply;
             };
@@ -4473,21 +4449,21 @@ struct consrv : consrv_base
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
-            auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+            auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                ok<faux>(!debugmode, netxs::prompt::win32, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                ok<faux>(!debugmode, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
                     case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
-                    default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                    default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }
-                return (LRESULT) NULL;
+                return LRESULT{};
             };
             auto wnddata = WNDCLASSEXA
             {
-                .cbSize        = sizeof(WNDCLASSEX),
+                .cbSize        = sizeof(WNDCLASSEXA),
                 .lpfnWndProc   = wndproc,
                 .lpszClassName = wndname.c_str(),
             };
@@ -4527,7 +4503,6 @@ struct consrv : consrv_base
             {
                 auto rc = nt::ioctl(nt::console::op::read_io, condrv, answer, upload);
                 answer = { .taskid = upload.taskid, .status = nt::status::success };
-                if constexpr (debugmode) upload.print();
                 switch (rc)
                 {
                     case ERROR_SUCCESS:
@@ -4638,7 +4613,7 @@ struct consrv : consrv_base
           winhnd{        },
           inpmod{ nt::console::inmode::preprocess },
           outmod{        },
-          prompt{ utf::concat(netxs::prompt::win32) },
+          prompt{ utf::concat(win32prompt) },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc }
     {
