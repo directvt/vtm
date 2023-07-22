@@ -2526,7 +2526,6 @@ namespace netxs::os
         class vtty // Note: STA.
         {
             Term&                   terminal;
-            ipc::stdcon             termlink;
             std::thread             stdinput;
             std::thread             stdwrite;
             std::thread             waitexit;
@@ -2541,6 +2540,18 @@ namespace netxs::os
                 #include "consrv.hpp"
                 //todo con_serv is a termlink
                 sptr<consrv_base> con_serv;
+            #else
+                struct consrv_base : ipc::stdcon
+                {
+                    using stdcon::stdcon;
+                    void winsz(twod const& newsize)
+                    {
+                        using type = decltype(winsize::ws_row);
+                        auto winsz = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+                        ok(::ioctl(handle.w, TIOCSWINSZ, &winsz), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+                    }
+                };
+                consrv_base termlink;
             #endif
 
         public:
@@ -2561,19 +2572,19 @@ namespace netxs::os
             bool connected()
             {
                 #if defined(_WIN32)
-                    return con_serv && con_serv->alive();
-                #else
-                    return !!termlink;
+                if (!con_serv) return faux;
+                auto& termlink = *con_serv;
                 #endif
+                return !!termlink;
             }
             void disconnect()
             {
                 auto guard = std::lock_guard{ writemtx };
                 #if defined(_WIN32)
-                if (con_serv) con_serv->stop();
-                #else
-                termlink.stop();
+                if (!con_serv) return;
+                auto& termlink = *con_serv;
                 #endif
+                termlink.stop();
             }
             // vtty: Cleaning in order to be able to restart.
             void cleanup()
@@ -2595,7 +2606,9 @@ namespace netxs::os
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
+                #if not defined(_WIN32)
                 termlink = {};
+                #endif
                 writebuf = {};
             }
             auto wait_child()
@@ -2708,6 +2721,7 @@ namespace netxs::os
                         }
                         log(prompt::vtty, "Child process ", pid, " waiter ended");
                     });
+                    stdwrite = std::thread([&] { send_socket_thread(*con_serv); });
 
                 #else
 
@@ -2771,12 +2785,11 @@ namespace netxs::os
                     io::close(fds);
 
                     stdinput = std::thread([&] { read_socket_thread(); });
+                    stdwrite = std::thread([&] { send_socket_thread(termlink); });
 
                 #endif
 
-                stdwrite = std::thread([&] { send_socket_thread(); });
                 writesyn.notify_one(); // Flush temp buffer.
-
                 log(prompt::vtty, "New vtty created with size ", winsz);
                 return proc_pid;
             }
@@ -2790,6 +2803,7 @@ namespace netxs::os
             }
             void read_socket_thread()
             {
+                //todo move it inside termlink
                 #if not defined(_WIN32)
 
                     log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
@@ -2815,29 +2829,18 @@ namespace netxs::os
 
                 #endif
             }
-            void send_socket_thread()
+            template<class T>
+            void send_socket_thread(T& termlink)
             {
                 log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
-                #if defined(_WIN32)
-                auto& inst = *con_serv;
-                #endif
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    #if defined(_WIN32)
-
-                        inst.write(cache);
-                        cache.clear();
-
-                    #else
-
-                        if (termlink.send(cache)) cache.clear();
-                        else                      break;
-
-                    #endif
+                    if (termlink.send(cache)) cache.clear();
+                    else                      break;
                     guard.lock();
                 }
                 log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
@@ -2847,17 +2850,10 @@ namespace netxs::os
                 if (connected() && termsize(newsize))
                 {
                     #if defined(_WIN32)
-
-                        if (con_serv) con_serv->winsz(termsize);
-
-                    #else
-
-                        auto winsz = winsize{};
-                        winsz.ws_col = newsize.x;
-                        winsz.ws_row = newsize.y;
-                        ok(::ioctl(termlink.handle.w, TIOCSWINSZ, &winsz), "::ioctl(termlink.get(), TIOCSWINSZ)", os::unexpected_msg);
-
+                    if (!con_serv) return;
+                    auto& termlink = *con_serv;
                     #endif
+                    termlink.winsz(termsize);
                 }
             }
             void reset()
@@ -2872,10 +2868,31 @@ namespace netxs::os
                     if (con_serv) con_serv->focus(state);
                 #endif
             }
-            void keybd(input::hids& gear, bool decckm)
+            void keybd(input::hids& gear, bool decckm, bool bpmode)
             {
+                //todo move it inside termlink
                 #if defined(_WIN32)
-                    if (con_serv) con_serv->keybd(gear, decckm);
+                    if (con_serv) con_serv->keybd(gear, decckm, bpmode);
+                #else
+                    //todo optimize/unify
+                    auto utf8 = gear.interpret();
+                    if (!bpmode)
+                    {
+                        utf::change(utf8, "\033[200~", "");
+                        utf::change(utf8, "\033[201~", "");
+                    }
+                    if (decckm)
+                    {
+                        utf::change(utf8, "\033[A",  "\033OA");
+                        utf::change(utf8, "\033[B",  "\033OB");
+                        utf::change(utf8, "\033[C",  "\033OC");
+                        utf::change(utf8, "\033[D",  "\033OD");
+                        utf::change(utf8, "\033[1A", "\033OA");
+                        utf::change(utf8, "\033[1B", "\033OB");
+                        utf::change(utf8, "\033[1C", "\033OC");
+                        utf::change(utf8, "\033[1D", "\033OD");
+                    }
+                    write<faux>(utf8);
                 #endif
             }
             void mouse(input::hids& gear, bool moved, twod const& coord)
@@ -2884,11 +2901,35 @@ namespace netxs::os
                     if (con_serv) con_serv->mouse(gear, moved, coord);
                 #endif
             }
+            template<bool LFtoCR = true>
             void write(view data)
             {
-                auto guard = std::lock_guard{ writemtx };
-                writebuf += data;
-                if (connected()) writesyn.notify_one();
+                if constexpr (LFtoCR) // Clipboard paste. The Return key should send a CR character.
+                {
+                    auto utf8 = text{};
+                    utf8.reserve(data.size());
+                    auto head = data.begin();
+                    auto tail = data.end();
+                    while (head != tail)
+                    {
+                        auto c = *head++;
+                             if (c == '\n') c = '\r'; // LF -> CR.
+                        else if (c == '\r' && head != tail && *head == '\n') head++; // CRLF -> CR.
+                        utf8.push_back(c);
+                    }
+                    write<faux>(utf8); // Repeat without LFtoCR.
+                }
+                else
+                {
+                    //write(data);
+                    auto guard = std::lock_guard{ writemtx };
+                    if (terminal.io_log)
+                    {
+                        log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    }
+                    writebuf += data;
+                    if (connected()) writesyn.notify_one();
+                }
             }
             void undo(bool undoredo)
             {

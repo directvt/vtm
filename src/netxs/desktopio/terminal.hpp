@@ -6461,7 +6461,7 @@ namespace netxs::ui
         {
             if (queue.length())
             {
-                data_out<faux>(queue);
+                ptycon.write<true>(queue);
                 queue.clear();
             }
         }
@@ -7065,36 +7065,10 @@ namespace netxs::ui
             follow[axis::Y] = true;
             ondata(data);
         }
-        template<bool ResetViewport = true, bool LFtoCR = true>
         void data_out(view data)
         {
-            if constexpr (LFtoCR) // Clipboard paste. The Return key should send a CR character.
-            {
-                auto utf8 = text{};
-                utf8.reserve(data.size());
-                auto head = data.begin();
-                auto tail = data.end();
-                while (head != tail)
-                {
-                    auto c = *head++;
-                         if (c == '\n') c = '\r'; // LF -> CR.
-                    else if (c == '\r' && head != tail && *head == '\n') head++; // CRLF -> CR.
-                    utf8.push_back(c);
-                }
-                data_out<ResetViewport, faux>(utf8); // Repeat without LFtoCR.
-            }
-            else
-            {
-                if constexpr (ResetViewport)
-                {
-                    follow[axis::Y] = true;
-                }
-                if (io_log)
-                {
-                    log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                }
-                ptycon.write(data);
-            }
+            follow[axis::Y] = true;
+            ptycon.write<true>(data);
         }
         void start()
         {
@@ -7223,33 +7197,7 @@ namespace netxs::ui
 
                 if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keycode)));
 
-                #if defined(_WIN32)
-
-                    ptycon.keybd(gear, decckm);
-
-                #else
-
-                    //todo optimize/unify
-                    auto utf8 = gear.interpret();
-                    if (!bpmode)
-                    {
-                        utf::change(utf8, "\033[200~", "");
-                        utf::change(utf8, "\033[201~", "");
-                    }
-                    if (decckm)
-                    {
-                        utf::change(utf8, "\033[A",  "\033OA");
-                        utf::change(utf8, "\033[B",  "\033OB");
-                        utf::change(utf8, "\033[C",  "\033OC");
-                        utf::change(utf8, "\033[D",  "\033OD");
-                        utf::change(utf8, "\033[1A", "\033OA");
-                        utf::change(utf8, "\033[1B", "\033OB");
-                        utf::change(utf8, "\033[1C", "\033OC");
-                        utf::change(utf8, "\033[1D", "\033OD");
-                    }
-                    data_out<faux, faux>(utf8);
-
-                #endif
+                ptycon.keybd(gear, decckm, bpmode);
             };
             LISTEN(tier::general, e2::timer::tick, timestamp)
             {

@@ -15,12 +15,13 @@ struct consrv_base
     virtual void undo(bool undo_redo)  = 0;
     virtual bool start() = 0;
     virtual void reset() = 0;
-    virtual void write(view utf8) = 0;
-    virtual void keybd(input::hids& gear, bool decckm) = 0;
+    virtual bool send(view utf8) = 0;
+    virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
     virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    virtual bool alive() = 0;
+    virtual bool alive() const = 0;
+    operator bool () const { return alive(); }
 };
 
 template<class Arch = ui64>
@@ -4596,13 +4597,13 @@ struct consrv : consrv_base
         }
         return success;
     }
-    auto alive()                                          { return condrv != os::invalid_fd; }
-    void winsz(twod newsz)                                { events.winsz(newsz); }
-    void write(view utf8)                                 { events.write(utf8); }
-    void keybd(input::hids& gear, bool decckm)            { events.keybd(gear, decckm); }
-    void focus(bool state)                                { events.focus(state); }
-    void mouse(input::hids& gear, bool moved, twod coord) { events.mouse(gear, moved, coord); }
-    void  undo(bool undo_redo)                            { events.undo(undo_redo); }
+    auto alive() const                                      { return condrv != os::invalid_fd; }
+    void winsz(twod newsz)                                  { events.winsz(newsz); }
+    bool  send(view utf8)                                   { events.write(utf8); return true; }
+    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm); }
+    void focus(bool state)                                  { events.focus(state); }
+    void mouse(input::hids& gear, bool moved, twod coord)   { events.mouse(gear, moved, coord); }
+    void  undo(bool undo_redo)                              { events.undo(undo_redo); }
 
     consrv(Term& uiterm)
         : uiterm{ uiterm },
