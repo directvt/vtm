@@ -1264,6 +1264,16 @@ namespace netxs::os
                   buffer(os::pipebuf, 0)
             { }
 
+            void start(fd_t fd)
+            {
+                pipe::start();
+                handle = { fd, fd };
+            }
+            void cleanup()
+            {
+                pipe::cleanup();
+                handle = {};
+            }
             void operator = (stdcon&& p)
             {
                 handle = std::move(p.handle);
@@ -2526,7 +2536,6 @@ namespace netxs::os
         class vtty // Note: STA.
         {
             Term&                   terminal;
-            std::thread             stdinput;
             std::thread             stdwrite;
             std::thread             waitexit;
             testy<twod>             termsize;
@@ -2537,22 +2546,89 @@ namespace netxs::os
             std::condition_variable writesyn;
 
             #if defined(_WIN32)
-                #include "consrv.hpp"
-                //todo con_serv is a termlink
-                sptr<consrv_base> con_serv;
+            #include "consrv.hpp"
             #else
-                struct consrv_base : ipc::stdcon
+            struct consrv_base : ipc::stdcon
+            {
+                Term&       terminal;
+                std::thread stdinput;
+
+                consrv_base(Term& terminal)
+                    : terminal{ terminal }
+                { }
+
+                bool alive()
                 {
-                    using stdcon::stdcon;
-                    void winsz(twod const& newsize)
+                    return stdcon::operator bool();
+                }
+                void read_socket_thread()
+                {
+                    log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    auto flow = text{};
+                    while (alive())
                     {
-                        using type = decltype(winsize::ws_row);
-                        auto winsz = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
-                        ok(::ioctl(handle.w, TIOCSWINSZ, &winsz), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+                        auto shot = stdcon::recv();
+                        if (shot && alive())
+                        {
+                            flow += shot;
+                            auto crop = ansi::purify(flow);
+                            terminal.ondata(crop);
+                            flow.erase(0, crop.size()); // Delete processed data.
+                        }
+                        else break;
                     }
-                };
-                consrv_base termlink;
+                    log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+                }
+                void reset()
+                {
+                    //todo
+                }
+                void focus(bool state)
+                {
+                    //todo
+                }
+                void mouse(input::hids& gear, bool moved, twod const& coord)
+                {
+                    //todo
+                }
+                void undo(bool undoredo)
+                {
+                    //todo
+                }
+                void set_cp(ui32 codepage)
+                {
+                    //todo
+                }
+                template<class P>
+                bool start(fd_t fdm, P onexit)
+                {
+                    stdcon::start(fdm);
+                    stdinput = std::thread([&, onexit]
+                    {
+                        read_socket_thread();
+                        onexit();
+                    });
+                    return true;
+                }
+                void winsz(twod const& newsize)
+                {
+                    using type = decltype(winsize::ws_row);
+                    auto winsz = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+                    ok(::ioctl(handle.w, TIOCSWINSZ, &winsz), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+                }
+                void cleanup()
+                {
+                    if (stdinput.joinable())
+                    {
+                        log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                        stdinput.join();
+                    }
+                    stdcon::cleanup();
+                }
+            };
             #endif
+
+            sptr<consrv_base> termlink;
 
         public:
             vtty(Term& uiterminal)
@@ -2571,20 +2647,12 @@ namespace netxs::os
 
             bool connected()
             {
-                #if defined(_WIN32)
-                if (!con_serv) return faux;
-                auto& termlink = *con_serv;
-                #endif
-                return !!termlink;
+                return termlink && termlink->alive();
             }
             void disconnect()
             {
                 auto guard = std::lock_guard{ writemtx };
-                #if defined(_WIN32)
-                if (!con_serv) return;
-                auto& termlink = *con_serv;
-                #endif
-                termlink.stop();
+                if (termlink) termlink->stop();
             }
             // vtty: Cleaning in order to be able to restart.
             void cleanup()
@@ -2595,20 +2663,14 @@ namespace netxs::os
                     log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
-                if (stdinput.joinable())
-                {
-                    log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-                    stdinput.join();
-                }
+                //todo move it to the consrv
                 if (waitexit.joinable())
                 {
                     log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
-                #if not defined(_WIN32)
-                termlink = {};
-                #endif
+                if (termlink) termlink->cleanup();
                 writebuf = {};
             }
             auto wait_child()
@@ -2616,6 +2678,14 @@ namespace netxs::os
                 disconnect();
                 auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
+            }
+            void exit_child()
+            {
+                if (connected())
+                {
+                    auto exit_code = wait_child();
+                    terminal.onexit(exit_code);
+                }
             }
             auto start(text cwd, text cmdline, twod winsz)
             {
@@ -2630,20 +2700,20 @@ namespace netxs::os
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
 
-                    if (!con_serv)
+                    if (!termlink)
                     {
                         if constexpr (sizeof(void*) > 4)
                         {
-                            con_serv = ptr::shared<consrv<ui64>>(terminal);
+                            termlink = ptr::shared<consrv<ui64>>(terminal);
                         }
                         else
                         {
-                            if (nt::is_wow64()) con_serv = ptr::shared<consrv<ui64>>(terminal);
-                            else                con_serv = ptr::shared<consrv<ui32>>(terminal);
+                            if (nt::is_wow64()) termlink = ptr::shared<consrv<ui64>>(terminal);
+                            else                termlink = ptr::shared<consrv<ui32>>(terminal);
                         }
                     }
 
-                    if (!con_serv->start())
+                    if (!termlink->start())
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Console server creation error");
@@ -2658,9 +2728,9 @@ namespace netxs::os
                     startinf.StartupInfo.dwXSize = winsz.x;
                     startinf.StartupInfo.dwYSize = winsz.y;
                     startinf.StartupInfo.dwFillAttribute = 1;
-                    startinf.StartupInfo.hStdInput  = con_serv->hStdInput;
-                    startinf.StartupInfo.hStdOutput = con_serv->hStdOutput;
-                    startinf.StartupInfo.hStdError  = con_serv->hStdError;
+                    startinf.StartupInfo.hStdInput  = termlink->hStdInput;
+                    startinf.StartupInfo.hStdOutput = termlink->hStdOutput;
+                    startinf.StartupInfo.hStdError  = termlink->hStdError;
                     startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                                  | STARTF_USESIZE
                                                  | STARTF_USEPOSITION
@@ -2680,8 +2750,8 @@ namespace netxs::os
                     ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                 0,
                                                 ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
-                                               &con_serv->refdrv,
-                                         sizeof(con_serv->refdrv),
+                                               &termlink->refdrv,
+                                         sizeof(termlink->refdrv),
                                                 nullptr,
                                                 nullptr);
                     auto wide_cmdline = utf::to_utf(cmdline);
@@ -2700,7 +2770,7 @@ namespace netxs::os
                     {
                         auto errcode = os::error();
                         os::fail(prompt::vtty, "Child process creation error");
-                        con_serv->stop();
+                        termlink->stop();
                         terminal.onexit(errcode, "Process creation error \n"s
                                                  " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                                  " cmd: "s + cmdline + " "s);
@@ -2714,14 +2784,9 @@ namespace netxs::os
                     {
                         auto pid = proc_pid;
                         io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
-                        if (con_serv && con_serv->alive())
-                        {
-                            auto exit_code = wait_child();
-                            terminal.onexit(exit_code);
-                        }
+                        exit_child();
                         log(prompt::vtty, "Child process ", pid, " waiter ended");
                     });
-                    stdwrite = std::thread([&] { send_socket_thread(*con_serv); });
 
                 #else
 
@@ -2730,7 +2795,15 @@ namespace netxs::os
                     auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                     auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
 
-                    termlink = { fdm, fdm };
+                    if (!termlink)
+                    {
+                        termlink = ptr::shared<consrv_base>(terminal);
+                    }
+
+                    termlink->start(fdm, [&]
+                    {
+                        exit_child();
+                    });
                     termsize = {};
                     resize(winsz);
 
@@ -2784,11 +2857,9 @@ namespace netxs::os
                     // Parent branch.
                     io::close(fds);
 
-                    stdinput = std::thread([&] { read_socket_thread(); });
-                    stdwrite = std::thread([&] { send_socket_thread(termlink); });
-
                 #endif
 
+                stdwrite = std::thread([&] { send_socket_thread(); });
                 writesyn.notify_one(); // Flush temp buffer.
                 log(prompt::vtty, "New vtty created with size ", winsz);
                 return proc_pid;
@@ -2801,36 +2872,7 @@ namespace netxs::os
                 }
                 cleanup();
             }
-            void read_socket_thread()
-            {
-                //todo move it inside termlink
-                #if not defined(_WIN32)
-
-                    log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-                    auto flow = text{};
-                    while (termlink)
-                    {
-                        auto shot = termlink.recv();
-                        if (shot && termlink)
-                        {
-                            flow += shot;
-                            auto crop = ansi::purify(flow);
-                            terminal.ondata(crop);
-                            flow.erase(0, crop.size()); // Delete processed data.
-                        }
-                        else break;
-                    }
-                    if (termlink)
-                    {
-                        auto exit_code = wait_child();
-                        terminal.onexit(exit_code);
-                    }
-                    log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
-
-                #endif
-            }
-            template<class T>
-            void send_socket_thread(T& termlink)
+            void send_socket_thread()
             {
                 log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
@@ -2839,8 +2881,8 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    if (termlink.send(cache)) cache.clear();
-                    else                      break;
+                    if (termlink->send(cache)) cache.clear();
+                    else                       break;
                     guard.lock();
                 }
                 log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
@@ -2849,30 +2891,22 @@ namespace netxs::os
             {
                 if (connected() && termsize(newsize))
                 {
-                    #if defined(_WIN32)
-                    if (!con_serv) return;
-                    auto& termlink = *con_serv;
-                    #endif
-                    termlink.winsz(termsize);
+                    termlink->winsz(termsize);
                 }
             }
             void reset()
             {
-                #if defined(_WIN32)
-                    if (con_serv) con_serv->reset();
-                #endif
+                if (termlink) termlink->reset();
             }
             void focus(bool state)
             {
-                #if defined(_WIN32)
-                    if (con_serv) con_serv->focus(state);
-                #endif
+                if (termlink) termlink->focus(state);
             }
             void keybd(input::hids& gear, bool decckm, bool bpmode)
             {
                 //todo move it inside termlink
                 #if defined(_WIN32)
-                    if (con_serv) con_serv->keybd(gear, decckm, bpmode);
+                    if (termlink) termlink->keybd(gear, decckm, bpmode);
                 #else
                     //todo optimize/unify
                     auto utf8 = gear.interpret();
@@ -2897,9 +2931,7 @@ namespace netxs::os
             }
             void mouse(input::hids& gear, bool moved, twod const& coord)
             {
-                #if defined(_WIN32)
-                    if (con_serv) con_serv->mouse(gear, moved, coord);
-                #endif
+                if (termlink) termlink->mouse(gear, moved, coord);
             }
             template<bool LFtoCR = true>
             void write(view data)
@@ -2921,7 +2953,6 @@ namespace netxs::os
                 }
                 else
                 {
-                    //write(data);
                     auto guard = std::lock_guard{ writemtx };
                     if (terminal.io_log)
                     {
@@ -2933,15 +2964,11 @@ namespace netxs::os
             }
             void undo(bool undoredo)
             {
-                #if defined(_WIN32)
-                    if (con_serv) con_serv->undo(undoredo);
-                #endif
+                if (termlink) termlink->undo(undoredo);
             }
             //void set_cp(ui32 codepage)
             //{
-            //    #if defined(_WIN32)
-            //        if (con_serv) con_serv->setcp(codepage);
-            //    #endif
+            //    if (termlink) termlink->setcp(codepage);
             //}
         };
     }

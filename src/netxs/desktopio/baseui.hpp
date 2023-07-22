@@ -1193,6 +1193,11 @@ namespace netxs::ui
         { }
         operator bool () { return active; }
 
+        void start()
+        {
+            active.exchange(true);
+            isbusy.exchange(faux);
+        }
         virtual bool send(view buff) = 0;
         virtual qiew recv(char* buff, size_t size) = 0;
         virtual qiew recv() = 0;
@@ -1216,6 +1221,11 @@ namespace netxs::ui
         friend auto& operator << (flux& s, xipc const& sock)
         {
             return s << *sock;
+        }
+        void cleanup()
+        {
+            active.exchange(faux);
+            isbusy.exchange(faux);
         }
     };
 }

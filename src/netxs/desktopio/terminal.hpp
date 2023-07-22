@@ -6554,6 +6554,14 @@ namespace netxs::ui
                                 case ansi::c0_cr:  start();   break;
                             }
                         }
+                        //if (gear.pressed)
+                        //{
+                        //    switch (gear.keybd::generic())
+                        //    {
+                        //        case key::Enter: start();   break;
+                        //        case key::Esc:   onexit(0); break;
+                        //    }
+                        //}
                     };
                 };
                 auto start_proc = [&]

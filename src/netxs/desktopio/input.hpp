@@ -868,6 +868,10 @@ namespace netxs::input
         bool handled = {};
         si32 keycode = {};
 
+        auto generic()
+        {
+            return keycode & -2;
+        }
         void update(syskeybd& k)
         {
             extflag = k.extflag;

@@ -22,6 +22,10 @@ struct consrv_base
     virtual void winsz(twod newsz) = 0;
     virtual bool alive() const = 0;
     operator bool () const { return alive(); }
+    void cleanup()
+    {
+        //todo join waitexit
+    }
 };
 
 template<class Arch = ui64>
