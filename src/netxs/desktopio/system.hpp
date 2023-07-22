@@ -2557,6 +2557,10 @@ namespace netxs::os
                     : terminal{ terminal }
                 { }
 
+                static auto create(Term& terminal)
+                {
+                    return ptr::shared<consrv_base>(terminal);
+                }
                 bool alive()
                 {
                     return stdcon::operator bool();
@@ -2590,6 +2594,28 @@ namespace netxs::os
                 void mouse(input::hids& gear, bool moved, twod const& coord)
                 {
                     //todo
+                }
+                void keybd(input::hids& gear, bool decckm, bool bpmode)
+                {
+                    //todo optimize/unify
+                    auto utf8 = gear.interpret();
+                    if (!bpmode)
+                    {
+                        utf::change(utf8, "\033[200~", "");
+                        utf::change(utf8, "\033[201~", "");
+                    }
+                    if (decckm)
+                    {
+                        utf::change(utf8, "\033[A",  "\033OA");
+                        utf::change(utf8, "\033[B",  "\033OB");
+                        utf::change(utf8, "\033[C",  "\033OC");
+                        utf::change(utf8, "\033[D",  "\033OD");
+                        utf::change(utf8, "\033[1A", "\033OA");
+                        utf::change(utf8, "\033[1B", "\033OB");
+                        utf::change(utf8, "\033[1C", "\033OC");
+                        utf::change(utf8, "\033[1D", "\033OD");
+                    }
+                    terminal.ptycon.template write<faux>(utf8);
                 }
                 void undo(bool undoredo)
                 {
@@ -2692,6 +2718,11 @@ namespace netxs::os
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
                                                                                                          : "'" + cwd + "'");
+                if (!termlink)
+                {
+                    termlink = consrv_base::create(terminal);
+                }
+
                 #if defined(_WIN32)
 
                     termsize(winsz);
@@ -2699,20 +2730,6 @@ namespace netxs::os
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
-
-                    if (!termlink)
-                    {
-                        if constexpr (sizeof(void*) > 4)
-                        {
-                            termlink = ptr::shared<consrv<ui64>>(terminal);
-                        }
-                        else
-                        {
-                            if (nt::is_wow64()) termlink = ptr::shared<consrv<ui64>>(terminal);
-                            else                termlink = ptr::shared<consrv<ui32>>(terminal);
-                        }
-                    }
-
                     if (!termlink->start())
                     {
                         auto errcode = os::error();
@@ -2794,12 +2811,6 @@ namespace netxs::os
                     auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
                     auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
                     auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
-
-                    if (!termlink)
-                    {
-                        termlink = ptr::shared<consrv_base>(terminal);
-                    }
-
                     termlink->start(fdm, [&]
                     {
                         exit_child();
@@ -2904,30 +2915,7 @@ namespace netxs::os
             }
             void keybd(input::hids& gear, bool decckm, bool bpmode)
             {
-                //todo move it inside termlink
-                #if defined(_WIN32)
-                    if (termlink) termlink->keybd(gear, decckm, bpmode);
-                #else
-                    //todo optimize/unify
-                    auto utf8 = gear.interpret();
-                    if (!bpmode)
-                    {
-                        utf::change(utf8, "\033[200~", "");
-                        utf::change(utf8, "\033[201~", "");
-                    }
-                    if (decckm)
-                    {
-                        utf::change(utf8, "\033[A",  "\033OA");
-                        utf::change(utf8, "\033[B",  "\033OB");
-                        utf::change(utf8, "\033[C",  "\033OC");
-                        utf::change(utf8, "\033[D",  "\033OD");
-                        utf::change(utf8, "\033[1A", "\033OA");
-                        utf::change(utf8, "\033[1B", "\033OB");
-                        utf::change(utf8, "\033[1C", "\033OC");
-                        utf::change(utf8, "\033[1D", "\033OD");
-                    }
-                    write<faux>(utf8);
-                #endif
+                if (termlink) termlink->keybd(gear, decckm, bpmode);
             }
             void mouse(input::hids& gear, bool moved, twod const& coord)
             {

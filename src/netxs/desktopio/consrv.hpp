@@ -3,6 +3,9 @@
 
 #pragma once
 
+template<class Arch = ui64>
+struct consrv;
+
 struct consrv_base
 {
     fd_t condrv     = { os::invalid_fd }; // consrv_base: Console driver handle.
@@ -26,9 +29,23 @@ struct consrv_base
     {
         //todo join waitexit
     }
+    static auto create(Term& terminal)
+    {
+        auto inst = sptr<consrv_base>{};
+        if constexpr (sizeof(void*) > 4)
+        {
+            inst = ptr::shared<consrv<ui64>>(terminal);
+        }
+        else
+        {
+            if (nt::is_wow64()) inst = ptr::shared<consrv<ui64>>(terminal);
+            else                inst = ptr::shared<consrv<ui32>>(terminal);
+        }
+        return inst;
+    }
 };
 
-template<class Arch = ui64>
+template<class Arch>
 struct consrv : consrv_base
 {
     using consrv_base::condrv;
