@@ -6674,42 +6674,38 @@ namespace netxs::ui
             }
             return active;
         }
-        auto paste(hids& gear)
+        auto get_clip_text(hids& gear)
         {
-            auto& console = *target;
             auto data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                follow[axis::X] = true;
                 if (data.kind == clip::richtext)
                 {
                     auto post = page{ data.utf8 };
-                    auto rich = post.to_rich();
-                    if (bpmode)
-                    {
-                        rich = "\033[200~" + rich + "\033[201~";
-                    }
-                    data_out(rich);
+                    data.utf8 = post.to_rich();
                 }
                 else if (data.kind == clip::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
-                    if (bpmode)
-                    {
-                        code = "\033[200~" + code + "\033[201~";
-                    }
-                    data_out(code);
+                    data.utf8 = code;
                 }
-                else
+            }
+            return std::move(data.utf8);
+        }
+        auto paste(hids& gear)
+        {
+            auto& console = *target;
+            auto data = get_clip_text(gear);
+            if (data.size())
+            {
+                pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                follow[axis::X] = true;
+                if (bpmode)
                 {
-                    if (bpmode)
-                    {
-                        data.utf8 = "\033[200~" + data.utf8 + "\033[201~";
-                    }
-                    data_out(data.utf8);
+                    data = "\033[200~" + data + "\033[201~";
                 }
+                data_out(data);
                 return true;
             }
             return faux;
@@ -7213,6 +7209,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
+                //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
                 if (gear.cluster.size()) this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
 
