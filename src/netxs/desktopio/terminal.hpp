@@ -6171,7 +6171,7 @@ namespace netxs::ui
         };
 
         using buffer_ptr = bufferbase*;
-        using vtty = os::vt::vtty<term>;
+        using vtty = os::vt::vtty;
 
         termconfig config; // term: Terminal settings.
         pro::timer worker; // term: Linear animation controller.
@@ -7151,7 +7151,6 @@ namespace netxs::ui
               ftrack{ *this },
               wtrack{ *this },
               ctrack{ *this },
-              ptycon{ *this },
               follow{  0, 1 },
               active{  true },
               decckm{  faux },

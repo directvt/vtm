@@ -2534,10 +2534,8 @@ namespace netxs::os
             #endif
         }
 
-        template<class Term>
         class vtty // Note: STA.
         {
-            Term&                   terminal;
             std::thread             stdwrite;
             testy<twod>             termsize;
             pidt                    proc_pid;
@@ -2548,9 +2546,8 @@ namespace netxs::os
             sptr<consrv>            termlink;
 
         public:
-            vtty(Term& uiterminal)
-                : terminal{ uiterminal     },
-                  prochndl{ os::invalid_fd },
+            vtty()
+                : prochndl{ os::invalid_fd },
                   proc_pid{                }
             { }
            ~vtty()
@@ -2590,8 +2587,8 @@ namespace netxs::os
                 auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
             }
-            template<class Term2>
-            auto start(Term2& terminal, text cwd, text cmdline, twod win_size)
+            template<class Term>
+            auto start(Term& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
@@ -3372,9 +3369,9 @@ namespace netxs::os
         };
 
         template<class Term>
-        struct tty : public base_tty<Term>, vt::vtty<Term>
+        struct tty : public base_tty<Term>, vt::vtty
         {
-            using vtty = vt::vtty<Term>;
+            using vtty = vt::vtty;
             using base_tty = runspace::base_tty<Term>;
 
             virtual void write(view data) override
@@ -3395,8 +3392,7 @@ namespace netxs::os
                 return vtty::start(base_tty::terminal, cwd, cmdline, winsz);
             }
             tty(Term& terminal)
-                : base_tty{ terminal },
-                      vtty{ terminal }
+                : base_tty{ terminal }
             { }
         };
     }
