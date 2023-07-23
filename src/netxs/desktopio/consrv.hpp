@@ -3,10 +3,10 @@
 
 #pragma once
 
-#if defined(_WIN32)
-
-template<class Arch = ui64>
+template<class Term, class Arch = ui64>
 struct impl;
+
+#if defined(_WIN32)
 
 struct consrv
 {
@@ -26,8 +26,10 @@ struct consrv
     virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    virtual bool alive() const = 0;
-    operator bool () const { return alive(); }
+    auto alive() const
+    {
+        return condrv != os::invalid_fd;
+    }
     void cleanup()
     {
         if (waitexit.joinable())
@@ -36,33 +38,34 @@ struct consrv
             waitexit.join();
         }
     }
+    template<class Term>
     static auto create(Term& terminal)
     {
         auto inst = sptr<consrv>{};
         if constexpr (sizeof(void*) > 4)
         {
-            inst = ptr::shared<impl<ui64>>(terminal);
+            inst = ptr::shared<impl<Term, ui64>>(terminal);
         }
         else
         {
-            if (nt::is_wow64()) inst = ptr::shared<impl<ui64>>(terminal);
-            else                inst = ptr::shared<impl<ui32>>(terminal);
+            if (nt::is_wow64()) inst = ptr::shared<impl<Term, ui64>>(terminal);
+            else                inst = ptr::shared<impl<Term, ui32>>(terminal);
         }
         return inst;
     }
-    template<class P>
-    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, P trailer)
+    template<class Proc>
+    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
     {
-        auto errcode = 0;
+        auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
         auto procsinf = PROCESS_INFORMATION{};
         auto attrbuff = std::vector<byte>{};
         auto attrsize = SIZE_T{ 0 };
         if (!start())
         {
-            errcode = os::error();
+            err_code = os::error();
             os::fail(prompt::vtty, "Console server creation error");
-            return errcode;
+            return err_code;
         }
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
@@ -111,7 +114,7 @@ struct consrv
                                    &procsinf);                           // lpProcessInformation
         if (ret == 0)
         {
-            errcode = os::error();
+            err_code = os::error();
             os::fail(prompt::vtty, "Child process creation error");
             stop();
         }
@@ -128,11 +131,11 @@ struct consrv
                 log(prompt::vtty, "Child process ", pid, " waiter ended");
             });
         }
-        return errcode;
+        return err_code;
     }
 };
 
-template<class Arch>
+template<class Term, class Arch>
 struct impl : consrv
 {
     using consrv::condrv;
@@ -4550,7 +4553,7 @@ struct impl : consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start_thraeds()
+    void start_threads()
     {
         reset();
         events.reset();
@@ -4682,7 +4685,6 @@ struct impl : consrv
             }
         }
     }
-
     auto start()
     {
         condrv = nt::console::handle("\\Device\\ConDrv\\Server");
@@ -4698,19 +4700,18 @@ struct impl : consrv
         }
         else
         {
-            start_thraeds();
+            start_threads();
             hStdInput  = nt::console::handle(condrv, "\\Input",  true);
             hStdOutput = nt::console::handle(condrv, "\\Output", true);
             hStdError  = nt::console::handle(hStdOutput);
         }
         return success;
     }
-    auto alive() const                                      { return condrv != os::invalid_fd;  }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
     bool  send(view utf8)                                   { events.write(utf8); return true;  }
     void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
-    void focus(bool state)                                  { events.focus(state);              }
     void mouse(input::hids& gear, bool moved, twod coord)   { events.mouse(gear, moved, coord); }
+    void focus(bool state)                                  { events.focus(state);              }
     void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
 
     impl(Term& uiterm)
@@ -4795,21 +4796,108 @@ struct impl : consrv
 
 struct consrv : ipc::stdcon
 {
-    Term&       terminal;
     std::thread stdinput;
 
-    consrv(Term& terminal)
-        : terminal{ terminal }
-    { }
-
-    static auto create(Term& terminal)
-    {
-        return ptr::shared<consrv>(terminal);
-    }
-    bool alive()
+    virtual void undo(bool undo_redo)  = 0;
+    virtual void reset() = 0;
+    virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
+    virtual void mouse(input::hids& gear, bool moved, twod const& coord) = 0;
+    virtual void focus(bool state) = 0;
+    virtual void read_socket_thread() = 0;
+    bool alive() const
     {
         return stdcon::operator bool();
     }
+    void cleanup()
+    {
+        if (stdinput.joinable())
+        {
+            log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            stdinput.join();
+        }
+        stdcon::cleanup();
+    }
+    void winsz(twod const& newsize)
+    {
+        using type = decltype(winsize::ws_row);
+        auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+        ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+    }
+    template<class Term>
+    static auto create(Term& terminal)
+    {
+        return ptr::shared<impl<Term>>(terminal);
+    }
+    template<class Proc>
+    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
+    {
+        auto errcode = 0;
+        auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+        auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+        auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+        auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+        stdcon::start(fdm);
+        stdinput = std::thread([&, trailer]
+        {
+            read_socket_thread();
+            trailer();
+        });
+        winsz(win_size);
+        proc_pid = ::fork();
+        if (proc_pid == 0) // Child branch.
+        {
+            io::close(fdm);
+            auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
+            // In order to receive WINCH signal make fds the controlling
+            // terminal of the current process.
+            // Current process must be a session leader (::setsid()) and not have
+            // a controlling terminal already.
+            // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
+            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
+            ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+            ::signal(SIGQUIT, SIG_DFL); //
+            ::signal(SIGTSTP, SIG_DFL); //
+            ::signal(SIGTTIN, SIG_DFL); //
+            ::signal(SIGTTOU, SIG_DFL); //
+            ::signal(SIGCHLD, SIG_DFL); //
+            if (cwd.size())
+            {
+                auto err = std::error_code{};
+                fs::current_path(cwd, err);
+                if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
+            }
+            ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
+            ::dup2(fds, os::stdout_fd); // = close(new);
+            ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
+            os::fdcleanup();
+            ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+            if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
+            {
+                ::setenv("TERM_PROGRAM", "vtm", 1);
+            }
+            os::process::execvp(cmdline);
+            auto errcode = errno;
+            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
+                                                           " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                           " cmd: "s + cmdline + " "s).nil() << std::flush;
+            os::process::exit(errcode);
+        }
+        // Parent branch.
+        io::close(fds);
+        return errcode;
+    }
+};
+
+template<class Term, class Arch>
+struct impl : consrv
+{
+    Term& terminal;
+
+    impl(Term& terminal)
+        : terminal{ terminal }
+    { }
+
     void read_socket_thread()
     {
         log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
@@ -4860,7 +4948,7 @@ struct consrv : ipc::stdcon
             utf::change(utf8, "\033[1C", "\033OC");
             utf::change(utf8, "\033[1D", "\033OD");
         }
-        terminal.ptycon.template write<faux>(utf8);
+        send(utf8);
     }
     void undo(bool undoredo)
     {
@@ -4869,86 +4957,6 @@ struct consrv : ipc::stdcon
     void set_cp(ui32 codepage)
     {
         //todo
-    }
-    template<class P>
-    bool start(fd_t fdm, P trailer)
-    {
-        stdcon::start(fdm);
-        stdinput = std::thread([&, trailer]
-        {
-            read_socket_thread();
-            trailer();
-        });
-        return true;
-    }
-    void winsz(twod const& newsize)
-    {
-        using type = decltype(winsize::ws_row);
-        auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
-        ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
-    }
-    void cleanup()
-    {
-        if (stdinput.joinable())
-        {
-            log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-            stdinput.join();
-        }
-        stdcon::cleanup();
-    }
-    template<class P>
-    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, P trailer)
-    {
-        auto errcode = 0;
-        auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
-        auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
-        auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
-        auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
-        start(fdm, trailer);
-        winsz(win_size);
-        proc_pid = ::fork();
-        if (proc_pid == 0) // Child branch.
-        {
-            io::close(fdm);
-            auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
-            // In order to receive WINCH signal make fds the controlling
-            // terminal of the current process.
-            // Current process must be a session leader (::setsid()) and not have
-            // a controlling terminal already.
-            // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
-            ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-            ::signal(SIGQUIT, SIG_DFL); //
-            ::signal(SIGTSTP, SIG_DFL); //
-            ::signal(SIGTTIN, SIG_DFL); //
-            ::signal(SIGTTOU, SIG_DFL); //
-            ::signal(SIGCHLD, SIG_DFL); //
-            if (cwd.size())
-            {
-                auto err = std::error_code{};
-                fs::current_path(cwd, err);
-                if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
-            }
-            ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
-            ::dup2(fds, os::stdout_fd); // = close(new);
-            ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
-            os::fdcleanup();
-            ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-            if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-            {
-                ::setenv("TERM_PROGRAM", "vtm", 1);
-            }
-            os::process::execvp(cmdline);
-            auto errcode = errno;
-            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
-                                                           " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                           " cmd: "s + cmdline + " "s).nil() << std::flush;
-            os::process::exit(errcode);
-        }
-        // Parent branch.
-        io::close(fds);
-        return errcode;
     }
 };
 

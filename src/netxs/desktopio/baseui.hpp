@@ -1191,7 +1191,8 @@ namespace netxs::ui
         { }
         virtual ~pipe()
         { }
-        operator bool () { return active; }
+
+        operator bool () const { return active; }
 
         void start()
         {

@@ -2422,6 +2422,8 @@ namespace netxs::os
 
     namespace vt
     {
+        #include "consrv.hpp"
+
         static constexpr auto clean   = 0;
         static constexpr auto mouse   = 1 << 0;
         static constexpr auto vga16   = 1 << 1;
@@ -2543,9 +2545,7 @@ namespace netxs::os
             text                    writebuf;
             std::mutex              writemtx;
             std::condition_variable writesyn;
-
-            #include "consrv.hpp"
-            sptr<consrv> termlink;
+            sptr<consrv>            termlink;
 
         public:
             vtty(Term& uiterminal)
