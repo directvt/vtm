@@ -5,22 +5,20 @@
 
 #if defined(_WIN32)
 
-template<class Term, class Arch = ui64>
+template<class Term, class Arch>
 struct impl;
 
 struct consrv
 {
-    fd_t condrv     = { os::invalid_fd }; // consrv: Console driver handle.
-    fd_t refdrv     = { os::invalid_fd }; // consrv: Console driver reference.
-    fd_t hStdInput  = { os::invalid_fd }; // consrv: .
-    fd_t hStdOutput = { os::invalid_fd }; // consrv: .
-    fd_t hStdError  = { os::invalid_fd }; // consrv: .
-    std::thread waitexit; // consrv: The trailing thread for the child process.
+    fd_t        condrv{ os::invalid_fd }; // consrv: Console driver handle.
+    fd_t        refdrv{ os::invalid_fd }; // consrv: Console driver reference.
+    std::thread waitexit;                 // consrv: The trailing thread for the child process.
 
     virtual void stop() = 0;
     virtual void undo(bool undo_redo)  = 0;
-    virtual bool start() = 0;
+    virtual void start() = 0;
     virtual void reset() = 0;
+    virtual fd_t watch() = 0;
     virtual bool send(view utf8) = 0;
     virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
     virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
@@ -42,31 +40,34 @@ struct consrv
     static auto create(Term& terminal)
     {
         auto inst = sptr<consrv>{};
-        if constexpr (sizeof(void*) > 4)
-        {
-            inst = ptr::shared<impl<Term, ui64>>(terminal);
-        }
-        else
-        {
-            if (nt::is_wow64()) inst = ptr::shared<impl<Term, ui64>>(terminal);
-            else                inst = ptr::shared<impl<Term, ui32>>(terminal);
-        }
+        if (nt::is_wow64()) inst = ptr::shared<impl<Term, ui64>>(terminal);
+        else                inst = ptr::shared<impl<Term, arch>>(terminal);
         return inst;
     }
-    template<class Proc>
-    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
+    template<class Term, class Proc>
+    auto attach(Term& terminal, pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
         auto procsinf = PROCESS_INFORMATION{};
         auto attrbuff = std::vector<byte>{};
         auto attrsize = SIZE_T{ 0 };
-        if (!start())
+        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
+        refdrv = nt::console::handle(condrv, "\\Reference");
+        auto success = nt::is_wow64() ? nt::ioctl(nt::console::op::set_server_information, condrv, (ui64)watch())
+                                      : nt::ioctl(nt::console::op::set_server_information, condrv, (arch)watch());
+        if (success != ERROR_SUCCESS)
         {
+            io::close(condrv);
+            io::close(refdrv);
             err_code = os::error();
             os::fail(prompt::vtty, "Console server creation error");
             return err_code;
         }
+        start();
+        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);
+        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);
+        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
@@ -74,9 +75,6 @@ struct consrv
         startinf.StartupInfo.dwXSize = win_size.x;
         startinf.StartupInfo.dwYSize = win_size.y;
         startinf.StartupInfo.dwFillAttribute = 1;
-        startinf.StartupInfo.hStdInput  = hStdInput;
-        startinf.StartupInfo.hStdOutput = hStdOutput;
-        startinf.StartupInfo.hStdError  = hStdError;
         startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                      | STARTF_USESIZE
                                      | STARTF_USEPOSITION
@@ -140,9 +138,6 @@ struct impl : consrv
 {
     using consrv::condrv;
     using consrv::refdrv;
-    using consrv::hStdInput;
-    using consrv::hStdOutput;
-    using consrv::hStdError;
 
     static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
@@ -4553,7 +4548,7 @@ struct impl : consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start_threads()
+    void start()
     {
         reset();
         events.reset();
@@ -4685,28 +4680,7 @@ struct impl : consrv
             }
         }
     }
-    auto start()
-    {
-        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
-        refdrv = nt::console::handle(condrv, "\\Reference");
-        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (Arch)((fd_t)events.ondata));
-        if (!success)
-        {
-            io::close(condrv);
-            io::close(refdrv);
-            hStdInput  = os::invalid_fd;
-            hStdOutput = os::invalid_fd;
-            hStdError  = os::invalid_fd;
-        }
-        else
-        {
-            start_threads();
-            hStdInput  = nt::console::handle(condrv, "\\Input",  true);
-            hStdOutput = nt::console::handle(condrv, "\\Output", true);
-            hStdError  = nt::console::handle(hStdOutput);
-        }
-        return success;
-    }
+    fd_t watch()                                            { return events.ondata;             }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
     bool  send(view utf8)                                   { events.write(utf8); return true;  }
     void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
@@ -4794,19 +4768,14 @@ struct impl : consrv
 
 #else
 
-template<class Term>
-struct impl;
-
 struct consrv : ipc::stdcon
 {
     std::thread stdinput;
 
-    virtual void undo(bool undo_redo)  = 0;
-    virtual void reset() = 0;
-    virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
-    virtual void mouse(input::hids& gear, bool moved, twod const& coord) = 0;
-    virtual void focus(bool state) = 0;
-    virtual void read_socket_thread() = 0;
+    template<class Term>
+    consrv(Term&)
+    { }
+
     bool alive() const
     {
         return stdcon::operator bool();
@@ -4827,12 +4796,31 @@ struct consrv : ipc::stdcon
         ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
     }
     template<class Term>
+    void read_socket_thread(Term& terminal)
+    {
+        log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+        auto flow = text{};
+        while (alive())
+        {
+            auto shot = stdcon::recv();
+            if (shot && alive())
+            {
+                flow += shot;
+                auto crop = ansi::purify(flow);
+                terminal.ondata(crop);
+                flow.erase(0, crop.size()); // Delete processed data.
+            }
+            else break;
+        }
+        log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+    }
+    template<class Term>
     static auto create(Term& terminal)
     {
-        return ptr::shared<impl<Term>>(terminal);
+        return ptr::shared<consrv>(terminal);
     }
-    template<class Proc>
-    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
+    template<class Term, class Proc>
+    auto attach(Term& terminal, pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
     {
         auto errcode = 0;
         auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
@@ -4842,7 +4830,7 @@ struct consrv : ipc::stdcon
         stdcon::start(fdm);
         stdinput = std::thread([&, trailer]
         {
-            read_socket_thread();
+            read_socket_thread(terminal);
             trailer();
         });
         winsz(win_size);
@@ -4889,35 +4877,6 @@ struct consrv : ipc::stdcon
         // Parent branch.
         io::close(fds);
         return errcode;
-    }
-};
-
-template<class Term>
-struct impl : consrv
-{
-    Term& terminal;
-
-    impl(Term& terminal)
-        : terminal{ terminal }
-    { }
-
-    void read_socket_thread()
-    {
-        log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-        auto flow = text{};
-        while (alive())
-        {
-            auto shot = stdcon::recv();
-            if (shot && alive())
-            {
-                flow += shot;
-                auto crop = ansi::purify(flow);
-                terminal.ondata(crop);
-                flow.erase(0, crop.size()); // Delete processed data.
-            }
-            else break;
-        }
-        log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
     }
     void reset()
     {

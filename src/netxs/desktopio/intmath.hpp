@@ -28,6 +28,7 @@ namespace netxs
     using si64 = int64_t;
     using hint = uint32_t;
     using id_t = uint32_t;
+    using arch = size_t;
     using sz_t = ui32;
     using flag = std::atomic<bool>;
 

@@ -537,16 +537,20 @@ namespace netxs::os
 
             static auto is_wow64()
             {
-                #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
-                auto isWow64Process = USHORT{};
-                auto nativeMachine = USHORT{};
-                ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
-                isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
-                #else
-                auto isWow64Process = BOOL{};
-                ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
-                #endif
-                return !!isWow64Process;
+                if constexpr (sizeof(void*) == 4)
+                {
+                    #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
+                    auto isWow64Process = USHORT{};
+                    auto nativeMachine = USHORT{};
+                    ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
+                    isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
+                    #else
+                    auto isWow64Process = BOOL{};
+                    ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
+                    #endif
+                    return !!isWow64Process;
+                }
+                else return faux;
             }
         };
 
@@ -2606,7 +2610,7 @@ namespace netxs::os
                         terminal.onexit(exit_code);
                     }
                 };
-                auto errcode = termlink->attach(proc_pid, prochndl, win_size, cwd, cmdline, trailer);
+                auto errcode = termlink->attach(terminal, proc_pid, prochndl, win_size, cwd, cmdline, trailer);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \n"s
