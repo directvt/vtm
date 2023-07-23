@@ -2537,7 +2537,6 @@ namespace netxs::os
         {
             Term&                   terminal;
             std::thread             stdwrite;
-            std::thread             waitexit;
             testy<twod>             termsize;
             pidt                    proc_pid;
             fd_t                    prochndl;
@@ -2545,116 +2544,8 @@ namespace netxs::os
             std::mutex              writemtx;
             std::condition_variable writesyn;
 
-            #if defined(_WIN32)
             #include "consrv.hpp"
-            #else
-            struct consrv_base : ipc::stdcon
-            {
-                Term&       terminal;
-                std::thread stdinput;
-
-                consrv_base(Term& terminal)
-                    : terminal{ terminal }
-                { }
-
-                static auto create(Term& terminal)
-                {
-                    return ptr::shared<consrv_base>(terminal);
-                }
-                bool alive()
-                {
-                    return stdcon::operator bool();
-                }
-                void read_socket_thread()
-                {
-                    log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-                    auto flow = text{};
-                    while (alive())
-                    {
-                        auto shot = stdcon::recv();
-                        if (shot && alive())
-                        {
-                            flow += shot;
-                            auto crop = ansi::purify(flow);
-                            terminal.ondata(crop);
-                            flow.erase(0, crop.size()); // Delete processed data.
-                        }
-                        else break;
-                    }
-                    log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
-                }
-                void reset()
-                {
-                    //todo
-                }
-                void focus(bool state)
-                {
-                    //todo
-                }
-                void mouse(input::hids& gear, bool moved, twod const& coord)
-                {
-                    //todo
-                }
-                void keybd(input::hids& gear, bool decckm, bool bpmode)
-                {
-                    //todo optimize/unify
-                    auto utf8 = gear.interpret();
-                    if (!bpmode)
-                    {
-                        utf::change(utf8, "\033[200~", "");
-                        utf::change(utf8, "\033[201~", "");
-                    }
-                    if (decckm)
-                    {
-                        utf::change(utf8, "\033[A",  "\033OA");
-                        utf::change(utf8, "\033[B",  "\033OB");
-                        utf::change(utf8, "\033[C",  "\033OC");
-                        utf::change(utf8, "\033[D",  "\033OD");
-                        utf::change(utf8, "\033[1A", "\033OA");
-                        utf::change(utf8, "\033[1B", "\033OB");
-                        utf::change(utf8, "\033[1C", "\033OC");
-                        utf::change(utf8, "\033[1D", "\033OD");
-                    }
-                    terminal.ptycon.template write<faux>(utf8);
-                }
-                void undo(bool undoredo)
-                {
-                    //todo
-                }
-                void set_cp(ui32 codepage)
-                {
-                    //todo
-                }
-                template<class P>
-                bool start(fd_t fdm, P onexit)
-                {
-                    stdcon::start(fdm);
-                    stdinput = std::thread([&, onexit]
-                    {
-                        read_socket_thread();
-                        onexit();
-                    });
-                    return true;
-                }
-                void winsz(twod const& newsize)
-                {
-                    using type = decltype(winsize::ws_row);
-                    auto winsz = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
-                    ok(::ioctl(handle.w, TIOCSWINSZ, &winsz), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
-                }
-                void cleanup()
-                {
-                    if (stdinput.joinable())
-                    {
-                        log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-                        stdinput.join();
-                    }
-                    stdcon::cleanup();
-                }
-            };
-            #endif
-
-            sptr<consrv_base> termlink;
+            sptr<consrv> termlink;
 
         public:
             vtty(Term& uiterminal)
@@ -2689,12 +2580,6 @@ namespace netxs::os
                     log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
-                //todo move it to the consrv
-                if (waitexit.joinable())
-                {
-                    log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
-                    waitexit.join();
-                }
                 auto guard = std::lock_guard{ writemtx };
                 if (termlink) termlink->cleanup();
                 writebuf = {};
@@ -2705,7 +2590,7 @@ namespace netxs::os
                 auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
             }
-            void exit_child()
+            void trailer()
             {
                 if (connected())
                 {
@@ -2713,166 +2598,25 @@ namespace netxs::os
                     terminal.onexit(exit_code);
                 }
             }
-            auto start(text cwd, text cmdline, twod winsz)
+            auto start(text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
                                                                                                          : "'" + cwd + "'");
                 if (!termlink)
                 {
-                    termlink = consrv_base::create(terminal);
+                    termlink = consrv::create(terminal);
                 }
-
-                #if defined(_WIN32)
-
-                    termsize(winsz);
-                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                    auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<byte>{};
-                    auto attrsize = SIZE_T{ 0 };
-                    if (!termlink->start())
-                    {
-                        auto errcode = os::error();
-                        os::fail(prompt::vtty, "Console server creation error");
-                        terminal.onexit(errcode, "Console server creation error");
-                        return proc_pid;
-                    }
-
-                    startinf.StartupInfo.dwX = 0;
-                    startinf.StartupInfo.dwY = 0;
-                    startinf.StartupInfo.dwXCountChars = 0;
-                    startinf.StartupInfo.dwYCountChars = 0;
-                    startinf.StartupInfo.dwXSize = winsz.x;
-                    startinf.StartupInfo.dwYSize = winsz.y;
-                    startinf.StartupInfo.dwFillAttribute = 1;
-                    startinf.StartupInfo.hStdInput  = termlink->hStdInput;
-                    startinf.StartupInfo.hStdOutput = termlink->hStdOutput;
-                    startinf.StartupInfo.hStdError  = termlink->hStdError;
-                    startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
-                                                 | STARTF_USESIZE
-                                                 | STARTF_USEPOSITION
-                                                 | STARTF_USECOUNTCHARS
-                                                 | STARTF_USEFILLATTRIBUTE;
-                    ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
-                    attrbuff.resize(attrsize);
-                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-                    ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
-                    ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                0,
-                                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                               &startinf.StartupInfo.hStdInput,
-                                         sizeof(startinf.StartupInfo.hStdInput) * 3,
-                                                nullptr,
-                                                nullptr);
-                    ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                0,
-                                                ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
-                                               &termlink->refdrv,
-                                         sizeof(termlink->refdrv),
-                                                nullptr,
-                                                nullptr);
-                    auto wide_cmdline = utf::to_utf(cmdline);
-                    auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
-                                                wide_cmdline.data(),                 // lpCommandLine
-                                                nullptr,                             // lpProcessAttributes
-                                                nullptr,                             // lpThreadAttributes
-                                                TRUE,                                // bInheritHandles
-                                                EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
-                                                nullptr,                             // lpEnvironment
-                                                cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                                           : nullptr,
-                                               &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
-                                               &procsinf);                           // lpProcessInformation
-                    if (ret == 0)
-                    {
-                        auto errcode = os::error();
-                        os::fail(prompt::vtty, "Child process creation error");
-                        termlink->stop();
-                        terminal.onexit(errcode, "Process creation error \n"s
-                                                 " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                 " cmd: "s + cmdline + " "s);
-                        return proc_pid;
-                    }
-
-                    io::close( procsinf.hThread );
-                    prochndl = procsinf.hProcess;
-                    proc_pid = procsinf.dwProcessId;
-                    waitexit = std::thread([&]
-                    {
-                        auto pid = proc_pid;
-                        io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
-                        exit_child();
-                        log(prompt::vtty, "Child process ", pid, " waiter ended");
-                    });
-
-                #else
-
-                    auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
-                    auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
-                    auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
-                    auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
-                    termlink->start(fdm, [&]
-                    {
-                        exit_child();
-                    });
-                    termsize = {};
-                    resize(winsz);
-
-                    proc_pid = ::fork();
-                    if (proc_pid == 0) // Child branch.
-                    {
-                        io::close(fdm);
-                        auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
-
-                        // In order to receive WINCH signal make fds the controlling
-                        // terminal of the current process.
-                        // Current process must be a session leader (::setsid()) and not have
-                        // a controlling terminal already.
-                        // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-                        auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
-
-                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                        ::signal(SIGQUIT, SIG_DFL); //
-                        ::signal(SIGTSTP, SIG_DFL); //
-                        ::signal(SIGTTIN, SIG_DFL); //
-                        ::signal(SIGTTOU, SIG_DFL); //
-                        ::signal(SIGCHLD, SIG_DFL); //
-
-                        if (cwd.size())
-                        {
-                            auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                            else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
-                        }
-
-                        ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
-                        ::dup2(fds, os::stdout_fd); // = close(new);
-                        ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
-                        os::fdcleanup();
-
-                        ::setenv("TERM", "xterm-256color", 1); //todo too hacky
-                        if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-                        {
-                            ::setenv("TERM_PROGRAM", "vtm", 1);
-                        }
-
-                        os::process::execvp(cmdline);
-                        auto errcode = errno;
-                        std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
-                                                                       " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                                       " cmd: "s + cmdline + " "s).nil() << std::flush;
-                        os::process::exit(errcode);
-                    }
-
-                    // Parent branch.
-                    io::close(fds);
-
-                #endif
-
+                termsize(win_size);
+                if (auto errcode = termlink->attach(proc_pid, prochndl, win_size, cwd, cmdline, [&]{ trailer(); }))
+                {
+                    terminal.onexit(errcode, "Process creation error \n"s
+                                             " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                             " cmd: "s + cmdline + " "s);
+                }
                 stdwrite = std::thread([&] { send_socket_thread(); });
                 writesyn.notify_one(); // Flush temp buffer.
-                log(prompt::vtty, "New vtty created with size ", winsz);
+                log(prompt::vtty, "New vtty created with size ", win_size);
                 return proc_pid;
             }
             void stop()

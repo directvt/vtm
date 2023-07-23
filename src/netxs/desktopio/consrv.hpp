@@ -3,16 +3,19 @@
 
 #pragma once
 
-template<class Arch = ui64>
-struct consrv;
+#if defined(_WIN32)
 
-struct consrv_base
+template<class Arch = ui64>
+struct impl;
+
+struct consrv
 {
-    fd_t condrv     = { os::invalid_fd }; // consrv_base: Console driver handle.
-    fd_t refdrv     = { os::invalid_fd }; // consrv_base: Console driver reference.
-    fd_t hStdInput  = { os::invalid_fd }; // consrv_base: .
-    fd_t hStdOutput = { os::invalid_fd }; // consrv_base: .
-    fd_t hStdError  = { os::invalid_fd }; // consrv_base: .
+    fd_t condrv     = { os::invalid_fd }; // consrv: Console driver handle.
+    fd_t refdrv     = { os::invalid_fd }; // consrv: Console driver reference.
+    fd_t hStdInput  = { os::invalid_fd }; // consrv: .
+    fd_t hStdOutput = { os::invalid_fd }; // consrv: .
+    fd_t hStdError  = { os::invalid_fd }; // consrv: .
+    std::thread waitexit; // consrv: The trailing thread for the child process.
 
     virtual void stop() = 0;
     virtual void undo(bool undo_redo)  = 0;
@@ -27,32 +30,116 @@ struct consrv_base
     operator bool () const { return alive(); }
     void cleanup()
     {
-        //todo join waitexit
+        if (waitexit.joinable())
+        {
+            log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            waitexit.join();
+        }
     }
     static auto create(Term& terminal)
     {
-        auto inst = sptr<consrv_base>{};
+        auto inst = sptr<consrv>{};
         if constexpr (sizeof(void*) > 4)
         {
-            inst = ptr::shared<consrv<ui64>>(terminal);
+            inst = ptr::shared<impl<ui64>>(terminal);
         }
         else
         {
-            if (nt::is_wow64()) inst = ptr::shared<consrv<ui64>>(terminal);
-            else                inst = ptr::shared<consrv<ui32>>(terminal);
+            if (nt::is_wow64()) inst = ptr::shared<impl<ui64>>(terminal);
+            else                inst = ptr::shared<impl<ui32>>(terminal);
         }
         return inst;
+    }
+    template<class P>
+    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, P trailer)
+    {
+        auto errcode = 0;
+        auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+        auto procsinf = PROCESS_INFORMATION{};
+        auto attrbuff = std::vector<byte>{};
+        auto attrsize = SIZE_T{ 0 };
+        if (!start())
+        {
+            errcode = os::error();
+            os::fail(prompt::vtty, "Console server creation error");
+            return errcode;
+        }
+        startinf.StartupInfo.dwX = 0;
+        startinf.StartupInfo.dwY = 0;
+        startinf.StartupInfo.dwXCountChars = 0;
+        startinf.StartupInfo.dwYCountChars = 0;
+        startinf.StartupInfo.dwXSize = win_size.x;
+        startinf.StartupInfo.dwYSize = win_size.y;
+        startinf.StartupInfo.dwFillAttribute = 1;
+        startinf.StartupInfo.hStdInput  = hStdInput;
+        startinf.StartupInfo.hStdOutput = hStdOutput;
+        startinf.StartupInfo.hStdError  = hStdError;
+        startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+                                     | STARTF_USESIZE
+                                     | STARTF_USEPOSITION
+                                     | STARTF_USECOUNTCHARS
+                                     | STARTF_USEFILLATTRIBUTE;
+        ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+        attrbuff.resize(attrsize);
+        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                    0,
+                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                   &startinf.StartupInfo.hStdInput,
+                             sizeof(startinf.StartupInfo.hStdInput) * 3,
+                                    nullptr,
+                                    nullptr);
+        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                    0,
+                                    ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
+                                   &refdrv,
+                             sizeof(refdrv),
+                                    nullptr,
+                                    nullptr);
+        auto wide_cmdline = utf::to_utf(cmdline);
+        auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
+                                    wide_cmdline.data(),                 // lpCommandLine
+                                    nullptr,                             // lpProcessAttributes
+                                    nullptr,                             // lpThreadAttributes
+                                    TRUE,                                // bInheritHandles
+                                    EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
+                                    nullptr,                             // lpEnvironment
+                                    cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                               : nullptr,
+                                   &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
+                                   &procsinf);                           // lpProcessInformation
+        if (ret == 0)
+        {
+            errcode = os::error();
+            os::fail(prompt::vtty, "Child process creation error");
+            stop();
+        }
+        else
+        {
+            io::close( procsinf.hThread );
+            prochndl = procsinf.hProcess;
+            proc_pid = procsinf.dwProcessId;
+            waitexit = std::thread([&, trailer]
+            {
+                auto pid = proc_pid; // MSVC don't capture it.
+                io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
+                trailer();
+                log(prompt::vtty, "Child process ", pid, " waiter ended");
+            });
+        }
+        return errcode;
     }
 };
 
 template<class Arch>
-struct consrv : consrv_base
+struct impl : consrv
 {
-    using consrv_base::condrv;
-    using consrv_base::refdrv;
-    using consrv_base::hStdInput;
-    using consrv_base::hStdOutput;
-    using consrv_base::hStdError;
+    using consrv::condrv;
+    using consrv::refdrv;
+    using consrv::hStdInput;
+    using consrv::hStdOutput;
+    using consrv::hStdError;
 
     static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
@@ -403,22 +490,22 @@ struct consrv : consrv_base
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        consrv& server; // events_t: Console server reference.
-        vect    stream; // events_t: Input event list.
-        vect    recbuf; // events_t: Temporary buffer for copying event records.
-        sync    signal; // events_t: Input event append signal.
-        lock    locker; // events_t: Input event buffer mutex.
-        cook    cooked; // events_t: Cooked input string.
-        jobs    worker; // events_t: Background task executer.
-        bool    closed; // events_t: Console server was shutdown.
-        fire    ondata; // events_t: Signal on input buffer data.
-        wide    wcpair; // events_t: Surrogate pair buffer.
-        wide    toWIDE; // events_t: UTF-16 decoder buffer.
-        text    toUTF8; // events_t: UTF-8  decoder buffer.
-        text    toANSI; // events_t: ANSI   decoder buffer.
-        irec    leader; // events_t: Hanging key event record (lead byte).
+        impl& server; // events_t: Console server reference.
+        vect  stream; // events_t: Input event list.
+        vect  recbuf; // events_t: Temporary buffer for copying event records.
+        sync  signal; // events_t: Input event append signal.
+        lock  locker; // events_t: Input event buffer mutex.
+        cook  cooked; // events_t: Cooked input string.
+        jobs  worker; // events_t: Background task executer.
+        bool  closed; // events_t: Console server was shutdown.
+        fire  ondata; // events_t: Signal on input buffer data.
+        wide  wcpair; // events_t: Surrogate pair buffer.
+        wide  toWIDE; // events_t: UTF-16 decoder buffer.
+        text  toUTF8; // events_t: UTF-8  decoder buffer.
+        text  toANSI; // events_t: ANSI   decoder buffer.
+        irec  leader; // events_t: Hanging key event record (lead byte).
 
-        evnt(consrv& serv)
+        evnt(impl& serv)
             :  server{ serv },
                closed{ faux },
                ondata{ true },
@@ -1422,7 +1509,7 @@ struct consrv : consrv_base
         {
             return !!leadbyte[c];
         }
-        auto load(consrv& server, ui32 cp)
+        auto load(impl& server, ui32 cp)
         {
             if (cp == codepage) return true;
             leadbyte.fill(0);
@@ -1727,7 +1814,7 @@ struct consrv : consrv_base
         }
 
         decoder() = default;
-        decoder(consrv& server, ui32 cp)
+        decoder(impl& server, ui32 cp)
         {
             load(server, cp);
         }
@@ -4432,7 +4519,7 @@ struct consrv : consrv_base
 
     }
 
-    using apis = std::vector<void(consrv::*)()>;
+    using apis = std::vector<void(impl::*)()>;
     using list = std::list<clnt>;
     using face = ui::face;
     using fire = netxs::os::io::fire;
@@ -4618,89 +4705,251 @@ struct consrv : consrv_base
         }
         return success;
     }
-    auto alive() const                                      { return condrv != os::invalid_fd; }
-    void winsz(twod newsz)                                  { events.winsz(newsz); }
-    bool  send(view utf8)                                   { events.write(utf8); return true; }
-    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm); }
-    void focus(bool state)                                  { events.focus(state); }
+    auto alive() const                                      { return condrv != os::invalid_fd;  }
+    void winsz(twod newsz)                                  { events.winsz(newsz);              }
+    bool  send(view utf8)                                   { events.write(utf8); return true;  }
+    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
+    void focus(bool state)                                  { events.focus(state);              }
     void mouse(input::hids& gear, bool moved, twod coord)   { events.mouse(gear, moved, coord); }
-    void  undo(bool undo_redo)                              { events.undo(undo_redo); }
+    void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
 
-    consrv(Term& uiterm)
-        : uiterm{ uiterm },
-          io_log{ uiterm.io_log },
-          events{ *this  },
-          impcls{ faux   },
-          answer{        },
-          winhnd{        },
-          inpmod{ nt::console::inmode::preprocess },
-          outmod{        },
-          prompt{ utf::concat(win32prompt) },
+    impl(Term& uiterm)
+        : uiterm{ uiterm                                         },
+          io_log{ uiterm.io_log                                  },
+          events{ *this                                          },
+          impcls{ faux                                           },
+          answer{                                                },
+          winhnd{                                                },
+          inpmod{ nt::console::inmode::preprocess                },
+          outmod{                                                },
+          prompt{ utf::concat(win32prompt)                       },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
-          outenc{ inpenc }
+          outenc{ inpenc                                         }
     {
-        using _ = consrv;
-        apimap.resize(0xFF, &_::api_unsupported);
-        apimap[0x38] = &_::api_system_langid_get;
-        apimap[0x91] = &_::api_system_mouse_buttons_get_count;
-        apimap[0x01] = &_::api_process_attach;
-        apimap[0x02] = &_::api_process_detach;
-        apimap[0xB9] = &_::api_process_enlist;
-        apimap[0x03] = &_::api_process_create_handle;
-        apimap[0x04] = &_::api_process_delete_handle;
-        apimap[0x30] = &_::api_process_codepage_get;
-        apimap[0x64] = &_::api_process_codepage_set;
-        apimap[0x31] = &_::api_process_mode_get;
-        apimap[0x32] = &_::api_process_mode_set;
-        apimap[0x06] = &_::api_events_read_as_text<true>;
-        apimap[0x35] = &_::api_events_read_as_text;
-        apimap[0x08] = &_::api_events_clear;
-        apimap[0x63] = &_::api_events_clear;
-        apimap[0x33] = &_::api_events_count_get;
-        apimap[0x34] = &_::api_events_get;
-        apimap[0x70] = &_::api_events_add;
-        apimap[0x61] = &_::api_events_generate_ctrl_event;
-        apimap[0x05] = &_::api_scrollback_write_text<true>;
-        apimap[0x36] = &_::api_scrollback_write_text;
-        apimap[0x72] = &_::api_scrollback_write_data;
-        apimap[0x71] = &_::api_scrollback_write_block;
-        apimap[0x6D] = &_::api_scrollback_attribute_set;
-        apimap[0x60] = &_::api_scrollback_fill;
-        apimap[0x6F] = &_::api_scrollback_read_data;
-        apimap[0x73] = &_::api_scrollback_read_block;
-        apimap[0x62] = &_::api_scrollback_set_active;
-        apimap[0x6A] = &_::api_scrollback_cursor_coor_set;
-        apimap[0x65] = &_::api_scrollback_cursor_info_get;
-        apimap[0x66] = &_::api_scrollback_cursor_info_set;
-        apimap[0x67] = &_::api_scrollback_info_get;
-        apimap[0x68] = &_::api_scrollback_info_set;
-        apimap[0x69] = &_::api_scrollback_size_set;
-        apimap[0x6B] = &_::api_scrollback_viewport_get_max_size;
-        apimap[0x6E] = &_::api_scrollback_viewport_set;
-        apimap[0x6C] = &_::api_scrollback_scroll;
-        apimap[0xB8] = &_::api_scrollback_selection_info_get;
-        apimap[0x74] = &_::api_window_title_get;
-        apimap[0x75] = &_::api_window_title_set;
-        apimap[0x93] = &_::api_window_font_size_get;
-        apimap[0x94] = &_::api_window_font_get;
-        apimap[0xBC] = &_::api_window_font_set;
-        apimap[0xA1] = &_::api_window_mode_get;
-        apimap[0x9D] = &_::api_window_mode_set;
-        apimap[0xAF] = &_::api_window_handle_get;
-        apimap[0xAC] = &_::api_window_xkeys;
-        apimap[0xA3] = &_::api_alias_get;
-        apimap[0xA2] = &_::api_alias_add;
-        apimap[0xA5] = &_::api_alias_exes_get_volume;
-        apimap[0xA7] = &_::api_alias_exes_get;
-        apimap[0xA4] = &_::api_aliases_get_volume;
-        apimap[0xA6] = &_::api_aliases_get;
-        apimap[0xA8] = &_::api_input_history_clear;
-        apimap[0xA9] = &_::api_input_history_limit_set;
-        apimap[0xAA] = &_::api_input_history_get_volume;
-        apimap[0xAB] = &_::api_input_history_get;
-        apimap[0xBA] = &_::api_input_history_info_get;
-        apimap[0xBB] = &_::api_input_history_info_set;
+        apimap.resize(0xFF, &impl::api_unsupported);
+        apimap[0x38] = &impl::api_system_langid_get;
+        apimap[0x91] = &impl::api_system_mouse_buttons_get_count;
+        apimap[0x01] = &impl::api_process_attach;
+        apimap[0x02] = &impl::api_process_detach;
+        apimap[0xB9] = &impl::api_process_enlist;
+        apimap[0x03] = &impl::api_process_create_handle;
+        apimap[0x04] = &impl::api_process_delete_handle;
+        apimap[0x30] = &impl::api_process_codepage_get;
+        apimap[0x64] = &impl::api_process_codepage_set;
+        apimap[0x31] = &impl::api_process_mode_get;
+        apimap[0x32] = &impl::api_process_mode_set;
+        apimap[0x06] = &impl::api_events_read_as_text<true>;
+        apimap[0x35] = &impl::api_events_read_as_text;
+        apimap[0x08] = &impl::api_events_clear;
+        apimap[0x63] = &impl::api_events_clear;
+        apimap[0x33] = &impl::api_events_count_get;
+        apimap[0x34] = &impl::api_events_get;
+        apimap[0x70] = &impl::api_events_add;
+        apimap[0x61] = &impl::api_events_generate_ctrl_event;
+        apimap[0x05] = &impl::api_scrollback_write_text<true>;
+        apimap[0x36] = &impl::api_scrollback_write_text;
+        apimap[0x72] = &impl::api_scrollback_write_data;
+        apimap[0x71] = &impl::api_scrollback_write_block;
+        apimap[0x6D] = &impl::api_scrollback_attribute_set;
+        apimap[0x60] = &impl::api_scrollback_fill;
+        apimap[0x6F] = &impl::api_scrollback_read_data;
+        apimap[0x73] = &impl::api_scrollback_read_block;
+        apimap[0x62] = &impl::api_scrollback_set_active;
+        apimap[0x6A] = &impl::api_scrollback_cursor_coor_set;
+        apimap[0x65] = &impl::api_scrollback_cursor_info_get;
+        apimap[0x66] = &impl::api_scrollback_cursor_info_set;
+        apimap[0x67] = &impl::api_scrollback_info_get;
+        apimap[0x68] = &impl::api_scrollback_info_set;
+        apimap[0x69] = &impl::api_scrollback_size_set;
+        apimap[0x6B] = &impl::api_scrollback_viewport_get_max_size;
+        apimap[0x6E] = &impl::api_scrollback_viewport_set;
+        apimap[0x6C] = &impl::api_scrollback_scroll;
+        apimap[0xB8] = &impl::api_scrollback_selection_info_get;
+        apimap[0x74] = &impl::api_window_title_get;
+        apimap[0x75] = &impl::api_window_title_set;
+        apimap[0x93] = &impl::api_window_font_size_get;
+        apimap[0x94] = &impl::api_window_font_get;
+        apimap[0xBC] = &impl::api_window_font_set;
+        apimap[0xA1] = &impl::api_window_mode_get;
+        apimap[0x9D] = &impl::api_window_mode_set;
+        apimap[0xAF] = &impl::api_window_handle_get;
+        apimap[0xAC] = &impl::api_window_xkeys;
+        apimap[0xA3] = &impl::api_alias_get;
+        apimap[0xA2] = &impl::api_alias_add;
+        apimap[0xA5] = &impl::api_alias_exes_get_volume;
+        apimap[0xA7] = &impl::api_alias_exes_get;
+        apimap[0xA4] = &impl::api_aliases_get_volume;
+        apimap[0xA6] = &impl::api_aliases_get;
+        apimap[0xA8] = &impl::api_input_history_clear;
+        apimap[0xA9] = &impl::api_input_history_limit_set;
+        apimap[0xAA] = &impl::api_input_history_get_volume;
+        apimap[0xAB] = &impl::api_input_history_get;
+        apimap[0xBA] = &impl::api_input_history_info_get;
+        apimap[0xBB] = &impl::api_input_history_info_set;
+    }
+
+    #undef log
+};
+
+#else
+
+struct consrv : ipc::stdcon
+{
+    Term&       terminal;
+    std::thread stdinput;
+
+    consrv(Term& terminal)
+        : terminal{ terminal }
+    { }
+
+    static auto create(Term& terminal)
+    {
+        return ptr::shared<consrv>(terminal);
+    }
+    bool alive()
+    {
+        return stdcon::operator bool();
+    }
+    void read_socket_thread()
+    {
+        log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+        auto flow = text{};
+        while (alive())
+        {
+            auto shot = stdcon::recv();
+            if (shot && alive())
+            {
+                flow += shot;
+                auto crop = ansi::purify(flow);
+                terminal.ondata(crop);
+                flow.erase(0, crop.size()); // Delete processed data.
+            }
+            else break;
+        }
+        log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+    }
+    void reset()
+    {
+        //todo
+    }
+    void focus(bool state)
+    {
+        //todo
+    }
+    void mouse(input::hids& gear, bool moved, twod const& coord)
+    {
+        //todo
+    }
+    void keybd(input::hids& gear, bool decckm, bool bpmode)
+    {
+        //todo optimize/unify
+        auto utf8 = gear.interpret();
+        if (!bpmode)
+        {
+            utf::change(utf8, "\033[200~", "");
+            utf::change(utf8, "\033[201~", "");
+        }
+        if (decckm)
+        {
+            utf::change(utf8, "\033[A",  "\033OA");
+            utf::change(utf8, "\033[B",  "\033OB");
+            utf::change(utf8, "\033[C",  "\033OC");
+            utf::change(utf8, "\033[D",  "\033OD");
+            utf::change(utf8, "\033[1A", "\033OA");
+            utf::change(utf8, "\033[1B", "\033OB");
+            utf::change(utf8, "\033[1C", "\033OC");
+            utf::change(utf8, "\033[1D", "\033OD");
+        }
+        terminal.ptycon.template write<faux>(utf8);
+    }
+    void undo(bool undoredo)
+    {
+        //todo
+    }
+    void set_cp(ui32 codepage)
+    {
+        //todo
+    }
+    template<class P>
+    bool start(fd_t fdm, P trailer)
+    {
+        stdcon::start(fdm);
+        stdinput = std::thread([&, trailer]
+        {
+            read_socket_thread();
+            trailer();
+        });
+        return true;
+    }
+    void winsz(twod const& newsize)
+    {
+        using type = decltype(winsize::ws_row);
+        auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+        ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+    }
+    void cleanup()
+    {
+        if (stdinput.joinable())
+        {
+            log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            stdinput.join();
+        }
+        stdcon::cleanup();
+    }
+    template<class P>
+    auto attach(pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, P trailer)
+    {
+        auto errcode = 0;
+        auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
+        auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
+        auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
+        auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
+        start(fdm, trailer);
+        winsz(win_size);
+        proc_pid = ::fork();
+        if (proc_pid == 0) // Child branch.
+        {
+            io::close(fdm);
+            auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
+            // In order to receive WINCH signal make fds the controlling
+            // terminal of the current process.
+            // Current process must be a session leader (::setsid()) and not have
+            // a controlling terminal already.
+            // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
+            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
+            ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+            ::signal(SIGQUIT, SIG_DFL); //
+            ::signal(SIGTSTP, SIG_DFL); //
+            ::signal(SIGTTIN, SIG_DFL); //
+            ::signal(SIGTTOU, SIG_DFL); //
+            ::signal(SIGCHLD, SIG_DFL); //
+            if (cwd.size())
+            {
+                auto err = std::error_code{};
+                fs::current_path(cwd, err);
+                if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
+            }
+            ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
+            ::dup2(fds, os::stdout_fd); // = close(new);
+            ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
+            os::fdcleanup();
+            ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+            if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
+            {
+                ::setenv("TERM_PROGRAM", "vtm", 1);
+            }
+            os::process::execvp(cmdline);
+            auto errcode = errno;
+            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
+                                                           " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                           " cmd: "s + cmdline + " "s).nil() << std::flush;
+            os::process::exit(errcode);
+        }
+        // Parent branch.
+        io::close(fds);
+        return errcode;
     }
 };
 
-#undef log
+#endif
