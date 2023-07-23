@@ -6456,12 +6456,21 @@ namespace netxs::ui
                 normal.resize_history(min_length);
             }
         }
+        // term: Write input data.
+        void write(view data)
+        {
+            if (io_log)
+            {
+                log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+            }
+            ptycon.write(data);
+        }
         // term: Write tty data and flush the queue.
         void answer(ansi::esc& queue)
         {
             if (queue.length())
             {
-                ptycon.write<true>(queue);
+                write(queue);
                 queue.clear();
             }
         }
@@ -7076,7 +7085,7 @@ namespace netxs::ui
         void data_out(view data)
         {
             follow[axis::Y] = true;
-            ptycon.write<true>(data);
+            write(data);
         }
         void start()
         {
@@ -7088,7 +7097,7 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
-                    ptycon.start(curdir, cmdarg, initsz);
+                    ptycon.start(*this, curdir, cmdarg, initsz);
                 });
             }
         }

@@ -36,7 +36,7 @@ namespace netxs::scripting
     {
         using s11n = directvt::binary::s11n;
         using pidt = os::pidt;
-        using vtty = sptr<os::runspace::basetty>;
+        using vtty = sptr<os::runspace::base_tty<repl>>;
 
         Host& owner;
         // repl: Event handler.
@@ -166,9 +166,9 @@ namespace netxs::scripting
         }
 
         repl(Host& owner)
-            : owner{ owner },
-              stream{owner },
-              active{ true }
+            :  owner{ owner },
+              stream{ owner },
+              active{ true  }
         {
             auto& config = owner.config;
             if (config.take(path::scripting, faux))
@@ -181,7 +181,7 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 if (tty) engine = ptr::shared<os::runspace::tty<repl>>(*this);
-                else     engine = ptr::shared<os::runspace::raw>();
+                else     engine = ptr::shared<os::runspace::raw<repl>>(*this);
                 start(cwd, cmd);
                 //todo run integration script
                 if (run.size()) write(run);

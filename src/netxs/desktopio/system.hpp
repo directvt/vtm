@@ -2590,15 +2590,8 @@ namespace netxs::os
                 auto exit_code = os::process::wait(prompt::vtty, proc_pid, prochndl);
                 return exit_code;
             }
-            void trailer()
-            {
-                if (connected())
-                {
-                    auto exit_code = wait_child();
-                    terminal.onexit(exit_code);
-                }
-            }
-            auto start(text cwd, text cmdline, twod win_size)
+            template<class Term2>
+            auto start(Term2& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
@@ -2608,7 +2601,16 @@ namespace netxs::os
                     termlink = consrv::create(terminal);
                 }
                 termsize(win_size);
-                if (auto errcode = termlink->attach(proc_pid, prochndl, win_size, cwd, cmdline, [&]{ trailer(); }))
+                auto trailer = [&]
+                {
+                    if (connected())
+                    {
+                        auto exit_code = wait_child();
+                        terminal.onexit(exit_code);
+                    }
+                };
+                auto errcode = termlink->attach(proc_pid, prochndl, win_size, cwd, cmdline, trailer);
+                if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \n"s
                                              " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
@@ -2686,10 +2688,6 @@ namespace netxs::os
                 else
                 {
                     auto guard = std::lock_guard{ writemtx };
-                    if (terminal.io_log)
-                    {
-                        log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                    }
                     writebuf += data;
                     if (connected()) writesyn.notify_one();
                 }
@@ -3072,16 +3070,26 @@ namespace netxs::os
 
     namespace runspace
     {
-        struct basetty
+        template<class Term>
+        struct base_tty
         {
+            Term& terminal;
+
+            base_tty(Term& terminal)
+                : terminal{ terminal }
+            { }
+
             virtual void write(view data) = 0;
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
         };
-        struct raw : public basetty
+        template<class Term>
+        struct raw : public base_tty<Term>
         {
+            using base_tty = runspace::base_tty<Term>;
+
             ipc::stdcon               termlink;
             std::thread               stdinput;
             std::thread               stdwrite;
@@ -3094,8 +3102,9 @@ namespace netxs::os
             std::function<void(view)> receiver;
             std::function<void(si32, view)> shutdown;
 
-            raw()
-                : prochndl{ os::invalid_fd },
+            raw(Term& terminal)
+                : base_tty{ terminal       },
+                  prochndl{ os::invalid_fd },
                   proc_pid{                }
             { }
            ~raw()
@@ -3363,9 +3372,11 @@ namespace netxs::os
         };
 
         template<class Term>
-        struct tty : public basetty, vt::vtty<Term>
+        struct tty : public base_tty<Term>, vt::vtty<Term>
         {
             using vtty = vt::vtty<Term>;
+            using base_tty = runspace::base_tty<Term>;
+
             virtual void write(view data) override
             {
                 vtty::write(data);
@@ -3381,10 +3392,11 @@ namespace netxs::os
             virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) override
             {
-                return vtty::start(cwd, cmdline, winsz);
+                return vtty::start(base_tty::terminal, cwd, cmdline, winsz);
             }
-            tty(Term& uiterminal)
-                : vtty{ uiterminal }
+            tty(Term& terminal)
+                : base_tty{ terminal },
+                      vtty{ terminal }
             { }
         };
     }

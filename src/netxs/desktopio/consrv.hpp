@@ -3,10 +3,10 @@
 
 #pragma once
 
+#if defined(_WIN32)
+
 template<class Term, class Arch = ui64>
 struct impl;
-
-#if defined(_WIN32)
 
 struct consrv
 {
@@ -4794,6 +4794,9 @@ struct impl : consrv
 
 #else
 
+template<class Term>
+struct impl;
+
 struct consrv : ipc::stdcon
 {
     std::thread stdinput;
@@ -4889,7 +4892,7 @@ struct consrv : ipc::stdcon
     }
 };
 
-template<class Term, class Arch>
+template<class Term>
 struct impl : consrv
 {
     Term& terminal;
