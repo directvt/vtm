@@ -2647,9 +2647,13 @@ namespace netxs::os
             }
             void resize(twod const& newsize)
             {
-                if (connected() && termsize(newsize))
+                if (connected())
                 {
-                    termlink->winsz(termsize);
+                    if (termsize(newsize))
+                    {
+                        termlink->winsz(termsize);
+                        //todo vt-input-mode
+                    }
                 }
             }
             void reset()
@@ -2729,10 +2733,10 @@ namespace netxs::os
             template<bool LFtoCR = true>
             void write(view data)
             {
+                auto guard = std::lock_guard{ writemtx };
                 if constexpr (LFtoCR) // Clipboard paste. The Return key should send a CR character.
                 {
-                    auto utf8 = text{};
-                    utf8.reserve(data.size());
+                    writebuf.reserve(writebuf.size() + data.size());
                     auto head = data.begin();
                     auto tail = data.end();
                     while (head != tail)
@@ -2740,17 +2744,15 @@ namespace netxs::os
                         auto c = *head++;
                              if (c == '\n') c = '\r'; // LF -> CR.
                         else if (c == '\r' && head != tail && *head == '\n') head++; // CRLF -> CR.
-                        utf8.push_back(c);
+                        writebuf.push_back(c);
                     }
-                    write<faux>(utf8); // Repeat without LFtoCR.
                 }
                 else
                 {
-                    //todo logging with ui::term::io_log
-                    auto guard = std::lock_guard{ writemtx };
                     writebuf += data;
-                    if (connected()) writesyn.notify_one();
                 }
+                //todo logging with ui::term::io_log
+                if (connected()) writesyn.notify_one();
             }
             void undo(bool undoredo)
             {
