@@ -2882,7 +2882,7 @@ namespace netxs::os
             return state;
         }
 
-        class vtty
+        struct vtty
         {
             fd_t                      prochndl{ os::invalid_fd };
             pidt                      proc_pid{};
@@ -2897,7 +2897,6 @@ namespace netxs::os
             std::mutex                writemtx{};
             std::condition_variable   writesyn{};
 
-        public:
            ~vtty()
             {
                 log(prompt::vtty, "Destructor started");
@@ -2907,7 +2906,7 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            auto start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
+            void start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
                                                             std::function<void(si32)> preclose_hndl,
                                                             std::function<void(si32)> shutdown_hndl)
             {
@@ -3067,7 +3066,6 @@ namespace netxs::os
                 if (termlink) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
                 attached = !!proc_pid;
                 writesyn.notify_one(); // Flush temp buffer.
-                return proc_pid;
             }
             auto wait_child()
             {

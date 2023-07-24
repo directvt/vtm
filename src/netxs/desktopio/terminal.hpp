@@ -7525,8 +7525,9 @@ namespace netxs::ui
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-                    if (master.procid != lock.thing.id) prompt.add("      ", master.procid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
-                    else                                prompt.add("      ", master.procid, ": ");
+                    auto proc_pid = master.ptycon.proc_pid;
+                    if (proc_pid != lock.thing.id) prompt.add(netxs::prompt::pads, proc_pid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
+                    else                           prompt.add(netxs::prompt::pads, proc_pid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
                         output.add(prompt, line, '\n');
@@ -7661,7 +7662,6 @@ namespace netxs::ui
         face        splash; // dtvt: "No signal" splash.
         span        maxoff; // dtvt: Max delay before showing "No signal".
         byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        os::pidt    procid; // dtvt: PTY child process id.
         testy<twod> termsz; // dtvt: PTY device window size.
         vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
         sptr        backup; // dtvt: Instance backup copy while the child process is active.
@@ -7726,9 +7726,9 @@ namespace netxs::ui
                     stream.s11n::winsz.send(*this, 0, base::size());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
-                    procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                  [&](auto exit_reason) { atexit(exit_reason); },
-                                                                  [&](auto exit_reason) { onexit(exit_reason); });
+                    ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                         [&](auto exit_reason) { atexit(exit_reason); },
+                                                         [&](auto exit_reason) { onexit(exit_reason); });
                 });
             }
         }
