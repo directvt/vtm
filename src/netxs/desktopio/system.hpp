@@ -2671,9 +2671,38 @@ namespace netxs::os
                     }
                 }
             }
-            void keybd(input::hids& gear, bool decckm, bool bpmode)
+            void keybd(input::hids& gear, bool decckm, bool bpmode, input::keybd::prot encod)
             {
-                if (termlink) termlink->keybd(gear, decckm, bpmode);
+                using prot = input::keybd::prot;
+
+                if (connected())
+                {
+                    if (encod == prot::w32) termlink->keybd(gear, decckm, bpmode);
+                    else
+                    {
+                        //todo generate vt from keycode
+                        auto utf8 = gear.interpret();
+                        if (!bpmode)
+                        {
+                            utf::change(utf8, "\033[200~", "");
+                            utf::change(utf8, "\033[201~", "");
+                        }
+                        if (decckm)
+                        {
+                            utf::change(utf8, "\033[A",  "\033OA");
+                            utf::change(utf8, "\033[B",  "\033OB");
+                            utf::change(utf8, "\033[C",  "\033OC");
+                            utf::change(utf8, "\033[D",  "\033OD");
+                            utf::change(utf8, "\033[1A", "\033OA");
+                            utf::change(utf8, "\033[1B", "\033OB");
+                            utf::change(utf8, "\033[1C", "\033OC");
+                            utf::change(utf8, "\033[1D", "\033OD");
+                        }
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf += utf8;
+                        writesyn.notify_one();
+                    }
+                }
             }
             void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
             {

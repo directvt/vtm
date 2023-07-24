@@ -877,6 +877,12 @@ namespace netxs::input
     // console: Keybd tracker.
     struct keybd
     {
+        enum prot
+        {
+            vt,
+            w32,
+        };
+
         text cluster = {};
         bool extflag = {};
         bool pressed = {};

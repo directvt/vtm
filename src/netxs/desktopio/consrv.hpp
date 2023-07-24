@@ -4672,6 +4672,7 @@ struct impl : consrv
                | nt::console::outmode::vt;
         if constexpr (isreal())
         {
+            uiterm.kbmode = input::keybd::prot::w32;
             uiterm.normal.set_autocr(!(outmod & nt::console::outmode::no_auto_cr));
             if (inpmod & nt::console::inmode::mouse)
             {
@@ -4792,6 +4793,7 @@ struct consrv : ipc::stdcon
     }
     void winsz(twod const& newsize)
     {
+        //todo win32-input-mode
         using type = decltype(winsize::ws_row);
         auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
         ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
@@ -4893,25 +4895,7 @@ struct consrv : ipc::stdcon
     }
     void keybd(input::hids& gear, bool decckm, bool bpmode)
     {
-        //todo optimize/unify
-        auto utf8 = gear.interpret();
-        if (!bpmode)
-        {
-            utf::change(utf8, "\033[200~", "");
-            utf::change(utf8, "\033[201~", "");
-        }
-        if (decckm)
-        {
-            utf::change(utf8, "\033[A",  "\033OA");
-            utf::change(utf8, "\033[B",  "\033OB");
-            utf::change(utf8, "\033[C",  "\033OC");
-            utf::change(utf8, "\033[D",  "\033OD");
-            utf::change(utf8, "\033[1A", "\033OA");
-            utf::change(utf8, "\033[1B", "\033OB");
-            utf::change(utf8, "\033[1C", "\033OC");
-            utf::change(utf8, "\033[1D", "\033OD");
-        }
-        send(utf8);
+        //todo win32-input-mode
     }
     void undo(bool undoredo)
     {

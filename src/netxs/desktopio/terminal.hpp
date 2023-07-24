@@ -388,7 +388,8 @@ namespace netxs::ui
             testy<bool> state; // f_tracking: Current focus state.
 
             f_tracking(term& owner)
-                : owner{ owner }
+                : owner{ owner },
+                  encod{ prot::w32 }
             {
                 owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
                 {
@@ -6140,6 +6141,7 @@ namespace netxs::ui
             }
         };
 
+        using prot = input::keybd::prot;
         using buffer_ptr = bufferbase*;
         using vtty = os::vt::vtty;
 
@@ -6168,6 +6170,7 @@ namespace netxs::ui
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
         bool       io_log; // term: Stdio logging.
+        prot       kbmode; // term: Keyboard input mode.
         si32       selmod; // term: Selection mode (ansi::clip::mime).
         si32       altscr; // term: Alternate scroll mode.
         vtty       ptycon; // term: PTY device. Should be destroyed first.
@@ -7132,7 +7135,8 @@ namespace netxs::ui
               io_log{ config.def_io_log },
               selmod{ config.def_selmod },
               selalt{ config.def_selalt },
-              altscr{ config.def_altscr }
+              altscr{ config.def_altscr },
+              kbmode{ prot::vt }
         {
             //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
@@ -7183,7 +7187,7 @@ namespace netxs::ui
 
                 if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keycode)));
 
-                ptycon.keybd(gear, decckm, bpmode);
+                ptycon.keybd(gear, decckm, bpmode, kbmode);
             };
             LISTEN(tier::general, e2::timer::tick, timestamp)
             {
