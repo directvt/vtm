@@ -97,7 +97,6 @@ namespace netxs::scripting
         text curdir; // repl: Current working directory.
         text cmdarg; // repl: Startup command line arguments.
         flag active; // repl: Scripting engine lifetime.
-        pidt procid; // repl: PTY child process id.
         vtty engine; // repl: Scripting engine instance.
 
         // repl: Proceed input.
@@ -154,8 +153,8 @@ namespace netxs::scripting
             cmdarg = cmd;
             if (!engine->connected())
             {
-                procid = engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                    [&](auto code, auto msg) { onexit(code, msg); });
+                engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                           [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()

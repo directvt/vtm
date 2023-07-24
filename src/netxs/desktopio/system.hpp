@@ -2590,7 +2590,7 @@ namespace netxs::os
                 return exit_code;
             }
             template<class Term>
-            auto start(Term& terminal, text cwd, text cmdline, twod win_size)
+            void attach(Term& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
@@ -2616,19 +2616,9 @@ namespace netxs::os
                                              " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                              " cmd: "s + cmdline + " "s);
                 }
-                stdwrite = std::thread([&] { send_socket_thread(); });
                 writesyn.notify_one(); // Flush temp buffer.
                 log(prompt::vtty, "New vtty created with size ", win_size);
                 attached = !!proc_pid;
-                return proc_pid;
-            }
-            void stop()
-            {
-                if (attached)
-                {
-                    wait_child();
-                }
-                cleanup();
             }
             void send_socket_thread()
             {
@@ -2644,6 +2634,23 @@ namespace netxs::os
                     guard.lock();
                 }
                 log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
+            }
+            template<class Term>
+            void start(Term& terminal, text cwd, text cmdline, twod win_size)
+            {
+                stdwrite = std::thread([&, cwd, cmdline, win_size]
+                {
+                    attach(terminal, cwd, cmdline, win_size);
+                    send_socket_thread();
+                });
+            }
+            void stop()
+            {
+                if (attached)
+                {
+                    wait_child();
+                }
+                cleanup();
             }
             void resize(twod const& newsize)
             {
@@ -2908,8 +2915,7 @@ namespace netxs::os
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 utf::change(cmdline, "\\\"", "'");
-                log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
-                                                                                                 : "'" + cwd + "'");
+                log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = os::invalid_fd;
@@ -3140,7 +3146,7 @@ namespace netxs::os
             { }
 
             virtual void write(view data) = 0;
-            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+            virtual void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
@@ -3221,7 +3227,7 @@ namespace netxs::os
                 auto exit_code = os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+            virtual void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
@@ -3374,7 +3380,7 @@ namespace netxs::os
 
                 if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
 
-                return proc_pid;
+                //return proc_pid;
             }
             void stop()
             {
@@ -3449,10 +3455,10 @@ namespace netxs::os
             {
                 return vtty::stop();
             }
-            virtual pidt start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
+            virtual void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) override
             {
-                return vtty::start(base_tty::terminal, cwd, cmdline, winsz);
+                vtty::start(base_tty::terminal, cwd, cmdline, winsz);
             }
             tty(Term& terminal)
                 : base_tty{ terminal }

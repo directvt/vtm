@@ -7070,7 +7070,6 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
-                    //todo run it async                    
                     ptycon.start(*this, curdir, cmdarg, initsz);
                 });
             }
@@ -7719,15 +7718,15 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
+                    backup = This(); // Released on exit.
                     this->RISEUP(tier::request, e2::form::prop::ui::header, header, ());
                     this->RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
+                    stream.s11n::winsz.send(*this, 0, base::size());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
                     procid = ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
                                                                   [&](auto exit_reason) { atexit(exit_reason); },
                                                                   [&](auto exit_reason) { onexit(exit_reason); });
-                    pty_resize<true>(base::size());
-                    backup = This(); // Released on exit.
                 });
             }
         }
@@ -7736,10 +7735,9 @@ namespace netxs::ui
             active = faux;
             if (ptycon) ptycon.shut();
         }
-        template<bool Forced = faux>
         void pty_resize(twod const& new_size)
         {
-            if (ptycon && (Forced || termsz(new_size)))
+            if (ptycon && termsz(new_size))
             {
                 stream.s11n::winsz.send(*this, 0, new_size);
             }
