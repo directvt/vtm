@@ -2656,9 +2656,20 @@ namespace netxs::os
             {
                 if (termlink) termlink->reset();
             }
-            void focus(bool state)
+            void focus(bool state, input::focus::prot encod)
             {
-                if (termlink) termlink->focus(state);
+                using prot = input::focus::prot;
+
+                if (connected())
+                {
+                    if (encod == prot::w32) termlink->focus(state);
+                    else
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf.fcs(state);
+                        writesyn.notify_one();
+                    }
+                }
             }
             void keybd(input::hids& gear, bool decckm, bool bpmode)
             {
@@ -2669,7 +2680,7 @@ namespace netxs::os
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;
 
-                if (termlink)
+                if (connected())
                 {
                     if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
                     else
@@ -2681,7 +2692,7 @@ namespace netxs::os
                             auto guard = std::lock_guard{ writemtx };
                                  if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
                             else if (encod == prot::x11) writebuf.mouse_x11(gear, coord, state & mode::utf8);
-                            if (connected()) writesyn.notify_one();
+                            writesyn.notify_one();
                         }
                     }
                 }

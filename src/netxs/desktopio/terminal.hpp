@@ -291,7 +291,6 @@ namespace netxs::ui
 
             term&       owner; // m_tracking: Terminal object reference.
             testy<twod> coord; // m_tracking: Last coord of mouse cursor.
-            ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
             prot        encod; // m_tracking: Mouse encoding protocol.
             mode        state; // m_tracking: Mouse reporting mode.
@@ -381,23 +380,22 @@ namespace netxs::ui
         // term: Keyboard focus tracking functionality.
         struct f_tracking
         {
+            using prot = input::focus::prot;
+
             term&       owner; // f_tracking: Terminal object reference.
-            bool        relay; // f_tracking: Reporting state.
             hook        token; // f_tracking: Subscription token.
-            ansi::esc   queue; // f_tracking: Buffer.
+            prot        encod; // f_tracking: Focus encoding mode.
             testy<bool> state; // f_tracking: Current focus state.
 
             f_tracking(term& owner)
-                : owner{ owner },
-                  relay{ faux  }
+                : owner{ owner }
             {
                 owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
                 {
-                    if (state(s) && relay)
+                    if (state(s))
                     {
-                        owner.answer(queue.fcs(s));
+                        owner.ptycon.focus(s, encod);
                     }
-                    owner.ptycon.focus(s);
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
             }
@@ -405,7 +403,7 @@ namespace netxs::ui
             operator bool () { return state.last; }
             void set(bool enable)
             {
-                relay = enable;
+                encod = enable ? prot::dec : prot::w32;
             }
         };
 

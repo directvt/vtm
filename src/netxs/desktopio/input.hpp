@@ -909,6 +909,12 @@ namespace netxs::input
     // console: Focus tracker.
     struct focus
     {
+        enum prot
+        {
+            w32,
+            dec,
+        };
+
         bool state = {};
 
         void update(sysfocus& f)

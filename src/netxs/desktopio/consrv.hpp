@@ -4885,7 +4885,7 @@ struct consrv : ipc::stdcon
     }
     void focus(bool state)
     {
-        //todo
+        //todo win32-input-mode
     }
     void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
     {
