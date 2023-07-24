@@ -7069,8 +7069,7 @@ namespace netxs::ui
                 netxs::events::enqueue(This(), [&](auto& boss)
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
-                    auto initsz = target->panel;
-                    ptycon.start(*this, curdir, cmdarg, initsz);
+                    ptycon.start(*this, curdir, cmdarg, target->panel);
                 });
             }
         }
@@ -7277,13 +7276,15 @@ namespace netxs::ui
         class events_t
             : public s11n
         {
-            dtvt& owner; // events_t: Terminal object reference.
-            subs  token; // events_t: Subscription token.
+            dtvt&     master; // events_t: Terminal object reference.
+            subs      tokens; // events_t: Subscription tokens.
+            ansi::esc output; // events_t: Logs buffer.
+            ansi::esc prompt; // events_t: Logs prompt.
 
         public:
             void disable()
             {
-                token.clear();
+                tokens.clear();
             }
 
             void handle(s11n::xs::bitmap              lock)
@@ -7297,18 +7298,18 @@ namespace netxs::ui
                         list.thing.push(gc_map.first);
                     }
                     bitmap.newgc.clear();
-                    list.thing.sendby(owner);
+                    list.thing.sendby(master);
                 }
                 lock.unlock();
-                netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
                 {
-                    owner.base::deface();
+                    master.base::deface();
                 });
             }
             void handle(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
-                netxs::events::enqueue(owner.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& boss) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -7326,21 +7327,21 @@ namespace netxs::ui
                     cell::gc_set_data(jgc.token, jgc.cluster);
                     if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
-                netxs::events::enqueue(owner.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
                 {
-                    owner.base::deface();
+                    master.base::deface();
                 });
             }
             void handle(s11n::xs::fullscreen          lock)
             {
                 auto& m = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(master.id)) gear.setfree(true);
                         parent_ptr->RISEUP(tier::release, e2::form::layout::fullscreen, gear);
                     }
                 });
@@ -7348,35 +7349,35 @@ namespace netxs::ui
             void handle(s11n::xs::focus_cut           lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     //todo move it to the static pro::focus::cut(gear_id, item_ptr)
                     if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    if (auto parent_ptr = master.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = owner.This() }));
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed, ({ .id = k.gear_id, .item = master.This() }));
                     }
                 });
             }
             void handle(s11n::xs::focus_set           lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    if (auto parent_ptr = master.base::parent())
                     {
-                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = owner.This() }));
+                        parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = k.gear_id, .solo = k.solo, .item = master.This() }));
                     }
                 });
             }
             void handle(s11n::xs::keybd_event         lock)
             {
                 auto& k = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(k.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
                         //todo use temp gear object
@@ -7400,15 +7401,15 @@ namespace netxs::ui
             void handle(s11n::xs::mouse_event         lock)
             {
                 auto& m = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
-                    if (auto parent_ptr = owner.base::parent())
+                    if (auto parent_ptr = master.base::parent())
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.captured(owner.id)) gear.setfree(true);
+                        if (gear.captured(master.id)) gear.setfree(true);
                         auto basis = gear.owner.base::coor();
-                        owner.global(basis);
+                        master.global(basis);
                         gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
                         gear.pass<tier::release>(parent_ptr, dot_00, true);
                         if (gear && !gear.captured()) // Forward the event to the gate as if it was initiated there.
@@ -7422,26 +7423,26 @@ namespace netxs::ui
             void handle(s11n::xs::minimize            lock)
             {
                 auto& m = lock.thing;
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& boss)
                 {
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        owner.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                        master.RISEUP(tier::release, e2::form::layout::minimize, gear);
                     }
                 });
             }
             void handle(s11n::xs::expose              lock)
             {
-                netxs::events::enqueue(owner.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& boss)
                 {
-                    owner.RISEUP(tier::preview, e2::form::layout::expose, owner);
+                    master.RISEUP(tier::preview, e2::form::layout::expose, master);
                 });
             }
             void handle(s11n::xs::set_clipboard       lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
@@ -7452,58 +7453,58 @@ namespace netxs::ui
             void handle(s11n::xs::request_clipboard   lock)
             {
                 auto& c = lock.thing;
-                owner.trysync(owner.active, [&]
+                master.trysync(master.active, [&]
                 {
                     //todo use gear.raw_clip_data
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
                         auto data = gear_ptr->get_clip_data();
-                        s11n::clipdata.send(owner, c.gear_id, data.utf8, data.kind);
+                        s11n::clipdata.send(master, c.gear_id, data.utf8, data.kind);
                         return;
                     }
-                    s11n::clipdata.send(owner, c.gear_id, text{}, clip::ansitext);
+                    s11n::clipdata.send(master, c.gear_id, text{}, clip::ansitext);
                 });
             }
             //void handle(s11n::xs::focus               lock)
             //{
             //    auto& f = lock.thing;
-            //    owner.trysync(owner.active, [&]
+            //    master.trysync(master.active, [&]
             //    {
             //        if (auto gear_ptr = bell::getref<hids>(f.gear_id))
             //        {
             //            auto& gear = *gear_ptr;
-            //            if (f.state) gear.kb_offer_8(owner.This(), f.focus_force_group);
-            //            else         gear.remove_from_kb_focus(owner.This());
-            //            if (f.state) pro::focus::set(owner.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
-            //            else         pro::focus::off(owner.This(), gear.id);
+            //            if (f.state) gear.kb_offer_8(master.This(), f.focus_force_group);
+            //            else         gear.remove_from_kb_focus(master.This());
+            //            if (f.state) pro::focus::set(master.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
+            //            else         pro::focus::off(master.This(), gear.id);
             //        }
             //    });
             //}
             void handle(s11n::xs::form_header         lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(owner.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::preview, e2::form::prop::ui::header, header);
+                    master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
             void handle(s11n::xs::form_footer         lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(owner.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
+                    master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
             }
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                netxs::events::enqueue(owner.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
+                netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                 {
                     //todo use window_id
-                    owner.RISEUP(tier::release, e2::form::layout::swarp, warp);
+                    master.RISEUP(tier::release, e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::vt_command          lock)
@@ -7513,7 +7514,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fps                 lock)
             {
-                netxs::events::enqueue(owner.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
                 {
                     boss.SIGNAL(tier::general, e2::config::fps, fps);
                 });
@@ -7524,126 +7525,127 @@ namespace netxs::ui
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-                    auto output = ansi::esc{};
-                    auto prompt = owner.procid != lock.thing.id ? ansi::add("      ", owner.procid, '/', lock.thing.id, ": ") // Local pid/remote pid. It is different if sshed.
-                                                                : ansi::add("      ", owner.procid, ": ");
+                    if (master.procid != lock.thing.id) prompt.add("      ", master.procid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
+                    else                                prompt.add("      ", master.procid, ": ");
                     utf::divide(utf8, '\n', [&](auto line)
                     {
                         output.add(prompt, line, '\n');
                     });
                     log(output, faux);
+                    output.clear();
+                    prompt.clear();
                 }
             }
 
-            events_t(dtvt& owner)
-                : s11n{ *this, owner.id },
-                 owner{ owner           }
+            events_t(dtvt& master)
+                :   s11n{ *this, master.id },
+                  master{ master           }
             {
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::header, utf8, token)
+                master.LISTEN(tier::anycast, e2::form::prop::ui::header, utf8, tokens)
                 {
-                    s11n::form_header.send(owner, 0, utf8);
+                    s11n::form_header.send(master, 0, utf8);
                 };
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::footer, utf8, token)
+                master.LISTEN(tier::anycast, e2::form::prop::ui::footer, utf8, tokens)
                 {
-                    s11n::form_footer.send(owner, 0, utf8);
+                    s11n::form_footer.send(master, 0, utf8);
                 };
-                owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
+                master.LISTEN(tier::release, hids::events::device::mouse::any, gear, tokens)
                 {
-                    if (gear.captured(owner.id))
+                    if (gear.captured(master.id))
                     {
                         if (!gear.m.buttons) gear.setfree(true);
                     }
-                    else if (gear.m.buttons) gear.capture(owner.id);
+                    else if (gear.m.buttons) gear.capture(master.id);
                     gear.m.gear_id = gear.id;
-                    s11n::sysmouse.send(owner, gear.m);
+                    s11n::sysmouse.send(master, gear.m);
                     gear.dismiss();
                 };
-                owner.LISTEN(tier::general, hids::events::die, gear, token)
+                master.LISTEN(tier::general, hids::events::die, gear, tokens)
                 {
                     gear.setfree(true);
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::die;
-                    s11n::sysmouse.send(owner, gear.m);
+                    s11n::sysmouse.send(master, gear.m);
                 };
-                owner.LISTEN(tier::general, hids::events::halt, gear, token)
+                master.LISTEN(tier::general, hids::events::halt, gear, tokens)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(owner, gear.m);
+                    s11n::sysmouse.send(master, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, token)
+                master.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, tokens)
                 {
                     gear.m.gear_id = gear.id;
                     gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(owner, gear.m);
+                    s11n::sysmouse.send(master, gear.m);
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, token)
+                master.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
                 {
-                    auto deed = owner.bell::template protos<tier::release>();
+                    auto deed = master.bell::template protos<tier::release>();
                     if (seed.guid == decltype(seed.guid){}) // To avoid focus tree infinite looping.
                     {
                         seed.guid = os::process::id.second;
                     }
-                    s11n::focusbus.send(owner, seed.id, seed.guid, netxs::events::subindex(deed));
+                    s11n::focusbus.send(master, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
-                owner.LISTEN(tier::release, hids::events::keybd::data::post, gear, token)
+                master.LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
                 {
-                    s11n::syskeybd.send(owner, gear.id,
-                                               gear.ctlstate,
-                                               gear.extflag,
-                                               gear.virtcod,
-                                               gear.scancod,
-                                               gear.pressed,
-                                               gear.cluster,
-                                               gear.handled,
-                                               gear.keycode);
+                    s11n::syskeybd.send(master, gear.id,
+                                                gear.ctlstate,
+                                                gear.extflag,
+                                                gear.virtcod,
+                                                gear.scancod,
+                                                gear.pressed,
+                                                gear.cluster,
+                                                gear.handled,
+                                                gear.keycode);
                     gear.dismiss();
                 };
-                //owner.LISTEN(tier::release, hids::events::upevent::kboffer, gear, token)
+                //master.LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
                 //{
                 //    auto focus_state = true;
-                //    s11n::sysfocus.send(owner, gear.id,
-                //                               focus_state,
-                //                               gear.focus_combine,
-                //                               gear.focus_force_group);
+                //    s11n::sysfocus.send(master, gear.id,
+                //                                focus_state,
+                //                                gear.focus_combine,
+                //                                gear.focus_force_group);
                 //};
-                //owner.LISTEN(tier::release, hids::events::upevent::kbannul, gear, token)
+                //master.LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
                 //{
-                //    gear.remove_from_kb_focus(owner.This());
+                //    gear.remove_from_kb_focus(master.This());
                 //    auto focus_state = faux;
-                //    s11n::sysfocus.send(owner, gear.id,
-                //                               focus_state,
-                //                               gear.focus_combine,
-                //                               gear.focus_force_group);
+                //    s11n::sysfocus.send(master, gear.id,
+                //                                focus_state,
+                //                                gear.focus_combine,
+                //                                gear.focus_force_group);
                 //};
-                //owner.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, token)
+                //master.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, tokens)
                 //{
                 //    auto focus_state = faux;
-                //    s11n::sysfocus.send(owner, gear.id,
-                //                               focus_state,
-                //                               gear.focus_combine,
-                //                               gear.focus_force_group);
+                //    s11n::sysfocus.send(master, gear.id,
+                //                                focus_state,
+                //                                gear.focus_combine,
+                //                                gear.focus_force_group);
                 //};
-                owner.LISTEN(tier::general, e2::config::fps, frame_rate, token)
+                master.LISTEN(tier::general, e2::config::fps, frame_rate, tokens)
                 {
                     if (frame_rate > 0)
                     {
-                        s11n::fps.send(owner, frame_rate);
+                        s11n::fps.send(master, frame_rate);
                     }
                 };
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, token)
+                master.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, tokens)
                 {
-                    s11n::slimmenu.send(owner, slim);
+                    s11n::slimmenu.send(master, slim);
                 };
-                owner.LISTEN(tier::anycast, e2::form::prop::colors::any, clr, token)
+                master.LISTEN(tier::anycast, e2::form::prop::colors::any, clr, tokens)
                 {
-                    auto deed = owner.bell::template protos<tier::anycast>();
-                         if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(owner, clr);
-                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(owner, clr);
+                    auto deed = master.bell::template protos<tier::anycast>();
+                         if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
+                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
                 };
-                owner.LISTEN(tier::release, e2::size::any, new_size, token)
+                master.LISTEN(tier::release, e2::size::any, new_size, tokens)
                 {
-                    owner.pty_resize(new_size);
+                    master.pty_resize(new_size);
                 };
             }
         };
