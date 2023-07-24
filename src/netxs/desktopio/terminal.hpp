@@ -7070,6 +7070,7 @@ namespace netxs::ui
                 {
                     this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
                     auto initsz = target->panel;
+                    //todo run it async                    
                     ptycon.start(*this, curdir, cmdarg, initsz);
                 });
             }
@@ -7138,7 +7139,6 @@ namespace netxs::ui
               altscr{ config.def_altscr },
               kbmode{ prot::vt }
         {
-            //form::keybd.accept(true); // Subscribe on keybd offers.
             selection_submit();
             publish_property(ui::term::events::io_log,         [&](auto& v){ v = io_log; });
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });

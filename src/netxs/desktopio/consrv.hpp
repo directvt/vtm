@@ -24,10 +24,6 @@ struct consrv
     virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    auto alive() const
-    {
-        return condrv != os::invalid_fd;
-    }
     void cleanup()
     {
         if (waitexit.joinable())
@@ -4898,10 +4894,6 @@ struct consrv : ipc::stdcon
         //todo win32-input-mode
     }
     void undo(bool undoredo)
-    {
-        //todo
-    }
-    void set_cp(ui32 codepage)
     {
         //todo
     }

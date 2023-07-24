@@ -2542,8 +2542,9 @@ namespace netxs::os
         {
             std::thread             stdwrite;
             testy<twod>             termsize;
-            pidt                    proc_pid;
             fd_t                    prochndl;
+            pidt                    proc_pid;
+            flag                    attached;
             ansi::esc               writebuf;
             std::mutex              writemtx;
             std::condition_variable writesyn;
@@ -2552,7 +2553,8 @@ namespace netxs::os
         public:
             vtty()
                 : prochndl{ os::invalid_fd },
-                  proc_pid{                }
+                  proc_pid{                },
+                  attached{                }
             { }
            ~vtty()
             {
@@ -2561,12 +2563,8 @@ namespace netxs::os
                 log(prompt::vtty, "Destructor complete");
             }
 
-            operator bool () { return connected(); }
+            operator bool () { return attached; }
 
-            bool connected()
-            {
-                return termlink && termlink->alive();
-            }
             void disconnect()
             {
                 auto guard = std::lock_guard{ writemtx };
@@ -2604,8 +2602,9 @@ namespace netxs::os
                 termsize(win_size);
                 auto trailer = [&]
                 {
-                    if (connected())
+                    if (attached)
                     {
+                        attached = {};
                         auto exit_code = wait_child();
                         terminal.onexit(exit_code);
                     }
@@ -2620,11 +2619,12 @@ namespace netxs::os
                 stdwrite = std::thread([&] { send_socket_thread(); });
                 writesyn.notify_one(); // Flush temp buffer.
                 log(prompt::vtty, "New vtty created with size ", win_size);
+                attached = !!proc_pid;
                 return proc_pid;
             }
             void stop()
             {
-                if (connected())
+                if (attached)
                 {
                     wait_child();
                 }
@@ -2635,7 +2635,7 @@ namespace netxs::os
                 log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
-                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !connected(); }), connected())
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
@@ -2647,7 +2647,7 @@ namespace netxs::os
             }
             void resize(twod const& newsize)
             {
-                if (connected())
+                if (attached)
                 {
                     if (termsize(newsize))
                     {
@@ -2664,7 +2664,7 @@ namespace netxs::os
             {
                 using prot = input::focus::prot;
 
-                if (connected())
+                if (attached)
                 {
                     if (encod == prot::w32) termlink->focus(state);
                     else
@@ -2679,7 +2679,7 @@ namespace netxs::os
             {
                 using prot = input::keybd::prot;
 
-                if (connected())
+                if (attached)
                 {
                     if (encod == prot::w32) termlink->keybd(gear, decckm, bpmode);
                     else
@@ -2713,7 +2713,7 @@ namespace netxs::os
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;
 
-                if (connected())
+                if (attached)
                 {
                     if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
                     else
@@ -2752,16 +2752,12 @@ namespace netxs::os
                     writebuf += data;
                 }
                 //todo logging with ui::term::io_log
-                if (connected()) writesyn.notify_one();
+                if (attached) writesyn.notify_one();
             }
             void undo(bool undoredo)
             {
-                if (termlink) termlink->undo(undoredo);
+                if (attached) termlink->undo(undoredo);
             }
-            //void set_cp(ui32 codepage)
-            //{
-            //    if (termlink) termlink->setcp(codepage);
-            //}
         };
     }
 
@@ -2883,6 +2879,7 @@ namespace netxs::os
         {
             fd_t                      prochndl{ os::invalid_fd };
             pidt                      proc_pid{};
+            flag                      attached{};
             ipc::stdcon               termlink{};
             std::thread               stdinput{};
             std::thread               stdwrite{};
@@ -3062,12 +3059,13 @@ namespace netxs::os
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
                 if (termlink) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
+                attached = !!proc_pid;
                 writesyn.notify_one(); // Flush temp buffer.
-
                 return proc_pid;
             }
             auto wait_child()
             {
+                attached = {};
                 auto exit_code = os::process::wait(prompt::dtvt, proc_pid, prochndl, faux);
                 return exit_code;
             }
@@ -3125,7 +3123,7 @@ namespace netxs::os
             {
                 auto guard = std::lock_guard{ writemtx };
                 writebuf += data;
-                if (termlink) writesyn.notify_one();
+                if (attached) writesyn.notify_one();
             }
         };
     }
