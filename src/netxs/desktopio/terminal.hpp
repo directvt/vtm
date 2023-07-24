@@ -286,38 +286,21 @@ namespace netxs::ui
         // term: VT-style mouse tracking functionality.
         struct m_tracking
         {
-            enum mode
-            {
-                none = 0,
-                bttn = 1 << 0,
-                drag = 1 << 1,
-                move = 1 << 2,
-                over = 1 << 3,
-                utf8 = 1 << 4,
-                buttons_press = bttn,
-                buttons_drags = bttn | drag,
-                all_movements = bttn | drag | move,
-                negative_args = bttn | drag | move | over,
-            };
-            enum prot
-            {
-                x11,
-                sgr,
-                w32,
-            };
+            using mode = input::mouse::mode;
+            using prot = input::mouse::prot;
 
             term&       owner; // m_tracking: Terminal object reference.
             testy<twod> coord; // m_tracking: Last coord of mouse cursor.
             ansi::esc   queue; // m_tracking: Buffer.
             subs        token; // m_tracking: Subscription token.
-            si32        proto; // m_tracking: .
-            si32        state; // m_tracking: .
+            prot        encod; // m_tracking: Mouse encoding protocol.
+            mode        state; // m_tracking: Mouse reporting mode.
             si32        smode; // m_tracking: Selection mode state backup.
             si32        bttns; // m_tracking: Last buttons state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
-                  proto{ prot::x11               },
+                  encod{ prot::x11               },
                   state{ mode::none              },
                   smode{ owner.config.def_selmod },
                   bttns{ 0                       }
@@ -352,7 +335,7 @@ namespace netxs::ui
             }
             void enable(mode m)
             {
-                state |= m;
+                state = (mode)(state | m);
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
                     owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
@@ -374,18 +357,7 @@ namespace netxs::ui
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
                             if (gear.s.changed != gear.m.changed)
                             {
-                                if (proto == w32) owner.ptycon.mouse(gear, moved, coord);
-                                else
-                                {
-                                    if (state & mode::move
-                                    || (state & mode::drag && (gear.m.buttons && moved))
-                                    || (state & mode::bttn && (gear.m.buttons != gear.s.buttons || gear.m.wheeled)))
-                                    {
-                                             if (proto == sgr) queue.mouse_sgr(gear, coord);
-                                        else if (proto == x11) queue.mouse_x11(gear, coord, state & mode::utf8);
-                                    }
-                                }
-                                owner.answer(queue);
+                                owner.ptycon.mouse(gear, moved, coord, encod, state);
                             }
                             if (!buttons_only) gear.dismiss();
                         }
@@ -399,11 +371,11 @@ namespace netxs::ui
             }
             void disable(mode m)
             {
-                state &= ~(m);
+                state = (mode)(state & ~(m));
                 if (!state) token.clear();
                 owner.selection_selmod(smode);
             }
-            void setmode(prot p) { proto = p; }
+            void setmode(prot p) { encod = p; }
         };
 
         // term: Keyboard focus tracking functionality.
@@ -6267,31 +6239,31 @@ namespace netxs::ui
                     log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
                 case 1000: // Enable mouse buttons reporting mode.
-                    mtrack.enable(m_tracking::buttons_press);
+                    mtrack.enable(input::mouse::mode::buttons_press);
                     break;
                 case 1001: // Use Hilite mouse tracking mode.
                     log(prompt::term, "CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Enable mouse buttons and drags reporting mode.
-                    mtrack.enable(m_tracking::buttons_drags);
+                    mtrack.enable(input::mouse::mode::buttons_drags);
                     break;
                 case 1003: // Enable all mouse events reporting mode.
-                    mtrack.enable(m_tracking::all_movements);
+                    mtrack.enable(input::mouse::mode::all_movements);
                     break;
                 case 1004: // Enable focus tracking.
                     ftrack.set(true);
                     break;
                 case 1005: // Enable UTF8 mousee position encoding.
-                    mtrack.enable(m_tracking::utf8);
+                    mtrack.enable(input::mouse::mode::utf8);
                     break;
                 case 1006: // Enable SGR mouse reporting protocol.
-                    mtrack.setmode(m_tracking::sgr);
+                    mtrack.setmode(input::mouse::prot::sgr);
                     break;
                 case 1007: // Enable alternate scroll mode.
                     altscr = config.def_altscr;
                     break;
                 case 10060:// Enable mouse reporting outside the viewport (outside+negative coordinates).
-                    mtrack.enable(m_tracking::negative_args);
+                    mtrack.enable(input::mouse::mode::negative_args);
                     break;
                 case 1015: // Enable URXVT mouse reporting protocol.
                     log(prompt::term, "CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
@@ -6377,32 +6349,32 @@ namespace netxs::ui
                     log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                     break;
                 case 1000: // Disable mouse buttons reporting mode.
-                    mtrack.disable(m_tracking::buttons_press);
+                    mtrack.disable(input::mouse::mode::buttons_press);
                     break;
                 case 1001: // Don't use Hilite(c) mouse tracking mode.
                     log(prompt::term, "CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Disable mouse buttons and drags reporting mode.
-                    mtrack.disable(m_tracking::buttons_drags);
+                    mtrack.disable(input::mouse::mode::buttons_drags);
                     break;
                 case 1003: // Disable all mouse events reporting mode.
-                    mtrack.disable(m_tracking::all_movements);
+                    mtrack.disable(input::mouse::mode::all_movements);
                     break;
                 case 1004: // Disable focus tracking.
                     ftrack.set(faux);
                     break;
                 case 1005: // Disable UTF-8 mouse reporting protocol.
-                    mtrack.disable(m_tracking::utf8);
+                    mtrack.disable(input::mouse::mode::utf8);
                     break;
                 case 1006: // Disable SGR mouse reporting protocol (set X11 mode).
-                    mtrack.setmode(m_tracking::x11);
-                    mtrack.disable(m_tracking::all_movements);
+                    mtrack.setmode(input::mouse::prot::x11);
+                    mtrack.disable(input::mouse::mode::all_movements);
                     break;
                 case 1007: // Disable alternate scroll mode.
                     altscr = 0;
                     break;
                 case 10060:// Disable mouse reporting outside the viewport (allow reporting inside the viewport only).
-                    mtrack.disable(m_tracking::negative_args);
+                    mtrack.disable(input::mouse::mode::negative_args);
                     break;
                 case 1015: // Disable URXVT mouse reporting protocol.
                     log(prompt::term, "CSI ? 1015 l  URXVT mouse reporting protocol is not supported");

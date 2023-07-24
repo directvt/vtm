@@ -21,7 +21,7 @@ struct consrv
     virtual fd_t watch() = 0;
     virtual bool send(view utf8) = 0;
     virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
-    virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
+    virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
     auto alive() const
@@ -2474,12 +2474,12 @@ struct impl : consrv
             {
                 if (mouse_mode)
                 {
-                    uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
-                    uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
+                    uiterm.mtrack.enable (input::mouse::mode::negative_args);
+                    uiterm.mtrack.setmode(input::mouse::prot::w32);
                 }
                 else
                 {
-                    uiterm.mtrack.disable(decltype(uiterm.mtrack)::negative_args);
+                    uiterm.mtrack.disable(input::mouse::mode::negative_args);
                 }
             }
             log("\tmouse_input: ", mouse_mode ? "enabled" : "disabled");
@@ -4675,18 +4675,19 @@ struct impl : consrv
             uiterm.normal.set_autocr(!(outmod & nt::console::outmode::no_auto_cr));
             if (inpmod & nt::console::inmode::mouse)
             {
-                uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
-                uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
+                uiterm.mtrack.enable (input::mouse::mode::negative_args);
+                uiterm.mtrack.setmode(input::mouse::prot::w32);
             }
         }
     }
-    fd_t watch()                                            { return events.ondata;             }
+    void mouse(input::hids& gear, bool moved, twod coord,
+        input::mouse::prot encod, input::mouse::mode state) { events.mouse(gear, moved, coord); }
+    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
+    void focus(bool state)                                  { events.focus(state);              }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
     bool  send(view utf8)                                   { events.write(utf8); return true;  }
-    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
-    void mouse(input::hids& gear, bool moved, twod coord)   { events.mouse(gear, moved, coord); }
-    void focus(bool state)                                  { events.focus(state);              }
     void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
+    fd_t watch()                                            { return events.ondata;             }
 
     impl(Term& uiterm)
         : uiterm{ uiterm                                         },
@@ -4886,9 +4887,9 @@ struct consrv : ipc::stdcon
     {
         //todo
     }
-    void mouse(input::hids& gear, bool moved, twod const& coord)
+    void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
     {
-        //todo
+        //todo win32-input-mode
     }
     void keybd(input::hids& gear, bool decckm, bool bpmode)
     {

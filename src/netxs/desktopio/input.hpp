@@ -527,6 +527,25 @@ namespace netxs::input
         using mouse_event = netxs::events::userland::hids::mouse;
         using click = mouse_event::button::click;
 
+        enum mode
+        {
+            none = 0,
+            bttn = 1 << 0,
+            drag = 1 << 1,
+            move = 1 << 2,
+            over = 1 << 3,
+            utf8 = 1 << 4,
+            buttons_press = bttn,
+            buttons_drags = bttn | drag,
+            all_movements = bttn | drag | move,
+            negative_args = bttn | drag | move | over,
+        };
+        enum prot
+        {
+            x11,
+            sgr,
+            w32,
+        };
         enum buttons
         {
             left      = click::left     .index(),

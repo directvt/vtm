@@ -2538,13 +2538,13 @@ namespace netxs::os
             #endif
         }
 
-        class vtty // Note: STA.
+        class vtty
         {
             std::thread             stdwrite;
             testy<twod>             termsize;
             pidt                    proc_pid;
             fd_t                    prochndl;
-            text                    writebuf;
+            ansi::esc               writebuf;
             std::mutex              writemtx;
             std::condition_variable writesyn;
             sptr<consrv>            termlink;
@@ -2664,9 +2664,27 @@ namespace netxs::os
             {
                 if (termlink) termlink->keybd(gear, decckm, bpmode);
             }
-            void mouse(input::hids& gear, bool moved, twod const& coord)
+            void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
             {
-                if (termlink) termlink->mouse(gear, moved, coord);
+                using mode = input::mouse::mode;
+                using prot = input::mouse::prot;
+
+                if (termlink)
+                {
+                    if (encod == prot::w32) termlink->mouse(gear, moved, coord, encod, state);
+                    else
+                    {
+                        if (state & mode::move
+                        || (state & mode::drag && (gear.m.buttons && moved))
+                        || (state & mode::bttn && (gear.m.buttons != gear.s.buttons || gear.m.wheeled)))
+                        {
+                            auto guard = std::lock_guard{ writemtx };
+                                 if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
+                            else if (encod == prot::x11) writebuf.mouse_x11(gear, coord, state & mode::utf8);
+                            if (connected()) writesyn.notify_one();
+                        }
+                    }
+                }
             }
             template<bool LFtoCR = true>
             void write(view data)
@@ -2688,6 +2706,7 @@ namespace netxs::os
                 }
                 else
                 {
+                    //todo logging with ui::term::io_log
                     auto guard = std::lock_guard{ writemtx };
                     writebuf += data;
                     if (connected()) writesyn.notify_one();
