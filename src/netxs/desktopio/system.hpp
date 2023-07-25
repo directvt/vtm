@@ -2902,7 +2902,6 @@ namespace netxs::os
                     if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
                      && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                     {
-                        //os::dtvt::send(m_pipe_w, config_size);
                         io::send(m_pipe_w, marker);
                         startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                         startinf.StartupInfo.hStdInput  = s_pipe_r;
@@ -2962,7 +2961,6 @@ namespace netxs::os
                     io::close( procsinf.hThread );
                     prochndl = procsinf.hProcess;
                     proc_pid = procsinf.dwProcessId;
-                    //termlink = { m_pipe_r, m_pipe_w };
                 }
                 else os::fail(prompt::vtty, "Child process creation error");
 
@@ -2976,10 +2974,7 @@ namespace netxs::os
                 auto s_pipe_w = to_server[1];
                 auto m_pipe_r = to_server[0];
                 auto m_pipe_w = to_client[1];
-                //termlink = { to_server[0], to_client[1] };
-
-                //os::dtvt::send(to_client[1], config_size);
-                io::send(to_client[1], marker);
+                io::send(m_pipe_w, marker);
 
                 proc_pid = ::fork();
                 if (proc_pid == 0) // Child branch.
