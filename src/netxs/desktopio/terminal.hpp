@@ -7525,17 +7525,30 @@ namespace netxs::ui
                 {
                     auto utf8 = view{ lock.thing.data };
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
-                    auto proc_pid = master.ptycon.proc_pid;
-                    if (proc_pid != lock.thing.id) prompt.add(netxs::prompt::pads, proc_pid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
-                    else                           prompt.add(netxs::prompt::pads, proc_pid, ": ");
-                    utf::divide(utf8, '\n', [&](auto line)
+                    if (lock.thing.id == 0) // Message from our process.
                     {
-                        output.add(prompt, line, '\n');
-                    });
-                    log(output, faux);
-                    output.clear();
-                    prompt.clear();
+                        log(utf8);
+                    }
+                    else
+                    {
+                        auto proc_pid = master.ptycon.proc_pid;
+                        if (proc_pid != lock.thing.id) prompt.add(netxs::prompt::pads, proc_pid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
+                        else                           prompt.add(netxs::prompt::pads, proc_pid, ": ");
+                        utf::divide(utf8, '\n', [&](auto line)
+                        {
+                            output.add(prompt, line, '\n');
+                        });
+                        log(output, faux);
+                        output.clear();
+                        prompt.clear();
+                    }
                 }
+            }
+            void handle(s11n::xs::fatal               lock)
+            {
+                auto utf8 = view{ lock.thing.err_msg };
+                master.errmsg(utf8);
+                //master.deface();
             }
 
             events_t(dtvt& master)
@@ -7674,22 +7687,25 @@ namespace netxs::ui
                 stream.s11n::sync(data);
             }
         }
+        // dtvt: Output error message.
+        void errmsg(view message)
+        {
+            auto lock = stream.bitmap.freeze();
+            auto& canvas = lock.thing.image;
+            auto note = page{ message };
+            canvas.copy(splash);
+            splash.output(note);
+            splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+            splash.output(note);
+            canvas.swap(splash);
+        }
         // dtvt: Preclose callback handler.
         void atexit(si32 code)
         {
-            {
-                auto lock = stream.bitmap.freeze();
-                auto& canvas = lock.thing.image;
-                auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+            errmsg(ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
                     .add("              \n",
                          "  Closing...  \n",
-                         "              \n") };
-                canvas.copy(splash);
-                splash.output(note);
-                splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                splash.output(note);
-                canvas.swap(splash);
-            }
+                         "              \n"));
             netxs::events::enqueue(This(), [&](auto& boss)
             {
                 //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
@@ -7701,7 +7717,7 @@ namespace netxs::ui
         {
             netxs::events::enqueue(This(), [&, code](auto& boss) mutable
             {
-                if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::dtvt, "Exit code ", utf::to_hex_0x(code), ' ').nil());
+                if (code) log(prompt::dtvt, ansi::err("Exit code ", utf::to_hex_0x(code)));
                 else      log(prompt::dtvt, "Exit code 0");
                 backup.reset(); // Call dtvt::dtor.
             });
@@ -7726,9 +7742,9 @@ namespace netxs::ui
                     stream.s11n::winsz.send(*this, 0, base::size());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
-                    ptycon.start(curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                         [&](auto exit_reason) { atexit(exit_reason); },
-                                                         [&](auto exit_reason) { onexit(exit_reason); });
+                    ptycon.start(stream, curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                                 [&](auto exit_reason) { atexit(exit_reason); },
+                                                                 [&](auto exit_reason) { onexit(exit_reason); });
                 });
             }
         }

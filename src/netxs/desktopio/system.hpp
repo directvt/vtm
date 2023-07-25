@@ -2155,14 +2155,19 @@ namespace netxs::os
             }
             return result;
         }
+        template<bool Fast = faux>
         void exit(int code)
         {
-            #if defined(_WIN32)
+            if constexpr (Fast) ::_exit(code); // Skip atexit hooks and stdio buffer flushes.
+            else
+            {
+                #if defined(_WIN32)
                 ::ExitProcess(code);
-            #else
+                #else
                 if (os::is_daemon) ::closelog();
                 ::exit(code);
-            #endif
+                #endif
+            }
         }
         template<class ...Args>
         void exit(int code, Args&&... args)
@@ -2224,6 +2229,7 @@ namespace netxs::os
                 auto p_id = ::fork();
                 if (p_id == 0) // Child branch.
                 {
+                    os::process::id = os::process::getid();
                     if constexpr (Daemon)
                     {
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
@@ -2234,7 +2240,7 @@ namespace netxs::os
                     os::process::execvp(cmdline);
                     auto errcode = errno;
                     if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmdline, "'");
-                    os::process::exit(errcode);
+                    os::process::exit<true>(errcode);
                 }
                 else if (p_id > 0) // Parent branch.
                 {
@@ -2296,14 +2302,14 @@ namespace netxs::os
                     p_id = ::fork(); // Second fork to avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        process::id = process::getid();
+                        os::process::id = os::process::getid();
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(os::stdin_fd );
                         ::close(os::stdout_fd);
                         ::close(os::stderr_fd);
                         return true;
                     }
-                    else if (p_id > 0) os::process::exit(0);
+                    else if (p_id > 0) os::process::exit<true>(0);
                 }
                 else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
                 {
@@ -2770,6 +2776,8 @@ namespace netxs::os
 
     namespace dtvt
     {
+        using s11n = directvt::binary::s11n;
+
         namespace
         {
             auto& _state()
@@ -2876,11 +2884,19 @@ namespace netxs::os
             }
             return state;
         }
-        auto exec(fd_t& prochndl, pidt& proc_pid, text cwd, text cmdline, size_t config_size)
+        auto attach(s11n& stream, fd_t& prochndl, pidt& proc_pid, text cwd, text cmdline, size_t config_size)
         {
             auto marker = directvt::binary::marker{ config_size };
             utf::change(cmdline, "\\\"", "'");
             log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+            auto onerror = [&](ipc::stdcon& client)
+            {
+                auto msg = ansi::add(prompt::dtvt, ansi::err("Child process creation error", ' ', utf::to_hex_0x(os::error())),
+                    "\n\tcwd: '", cwd, "'",
+                    "\n\tcmd: '", cmdline, "'");
+                stream.logs.send(client, pidt{}, datetime::now(), (text)msg);
+                stream.fatal.send(client, (text)msg);
+            };
             #if defined(_WIN32)
 
                 auto s_pipe_r = os::invalid_fd;
@@ -2953,16 +2969,20 @@ namespace netxs::os
                                             &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                             &procsinf);                          // lpProcessInformation
                 };
-
-                if (tunnel()
-                 && fillup()
-                 && create())
+                auto result = tunnel() && fillup() && create();
+                if (result)
                 {
+                    io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                    io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
                     io::close( procsinf.hThread );
                     prochndl = procsinf.hProcess;
                     proc_pid = procsinf.dwProcessId;
                 }
-                else os::fail(prompt::vtty, "Child process creation error");
+                else
+                {
+                    auto app = ipc::stdcon{ s_pipe_r, s_pipe_w }; // Will be closed in stdcon::dtor
+                    onerror(app);
+                }
 
             #else
 
@@ -2979,38 +2999,39 @@ namespace netxs::os
                 proc_pid = ::fork();
                 if (proc_pid == 0) // Child branch.
                 {
-                    io::close(to_client[1]);
-                    io::close(to_server[0]);
+                    os::process::id = os::process::getid();
+                    io::close(m_pipe_w);
+                    io::close(m_pipe_r);
                     ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
                     ::signal(SIGQUIT, SIG_DFL); //
                     ::signal(SIGTSTP, SIG_DFL); //
                     ::signal(SIGTTIN, SIG_DFL); //
                     ::signal(SIGTTOU, SIG_DFL); //
                     ::signal(SIGCHLD, SIG_DFL); //
-                    ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
-                    ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
-                    os::fdcleanup();
+                    ::dup2(s_pipe_r, os::stdin_fd ); // Assign stdio lines atomically
+                    ::dup2(s_pipe_w, os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
+                    io::close(s_pipe_w);
+                    io::close(s_pipe_r);
+                    auto app = ipc::stdcon{ os::stdin_fd, os::stdout_fd }; // Will be closed in stdcon::dtor or never on execvp success.
                     if (cwd.size())
                     {
                         auto err = std::error_code{};
                         fs::current_path(cwd, err);
-                        //todo use dtvt to log
-                        //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                        //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                        auto msg = ansi::add(prompt::dtvt);
+                        if (err) msg.add(ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
+                        else     msg.add("Change current working directory to '", cwd, "'");
+                        stream.logs.send(app, pidt{}, os::process::id.second, (text)msg);
                     }
+                    os::fdcleanup();
                     os::process::execvp(cmdline);
-                    auto errcode = errno;
-                    //todo use dtvt to log
-                    //os::fail(prompt::dtvt, "Exec error");
-                    ::close(os::stdout_fd);
-                    ::close(os::stdin_fd );
-                    os::process::exit(errcode);
+                    onerror(app);
+                    os::process::exit<true>(0);
                 }
                 // Parent branch.
+                io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+                io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
 
             #endif
-            io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-            io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
             return ipc::stdcon{ m_pipe_r, m_pipe_w };
         }
 
@@ -3038,15 +3059,15 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            void start(text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
-                                                            std::function<void(si32)> preclose_hndl,
-                                                            std::function<void(si32)> shutdown_hndl)
+            void start(s11n& stream, text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
+                                                                          std::function<void(si32)> preclose_hndl,
+                                                                          std::function<void(si32)> shutdown_hndl)
             {
                 receiver = input_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
                 auto config_size = config.size();
-                termlink = exec(prochndl, proc_pid, cwd, cmdline, config_size);
+                termlink = attach(stream, prochndl, proc_pid, cwd, cmdline, config_size);
                 if (config_size)
                 {
                     auto guard = std::lock_guard{ writemtx };
@@ -3056,8 +3077,8 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
-                if (termlink) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
                 attached = !!proc_pid;
+                if (attached) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
                 writesyn.notify_one(); // Flush temp buffer.
             }
             auto wait_child()
@@ -3326,6 +3347,7 @@ namespace netxs::os
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.
                     {
+                        os::process::id = os::process::getid();
                         io::close(to_client[1]);
                         io::close(to_server[0]);
 
@@ -3357,7 +3379,7 @@ namespace netxs::os
                         ::close(os::stderr_fd);
                         ::close(os::stdout_fd);
                         ::close(os::stdin_fd );
-                        os::process::exit(errcode);
+                        os::process::exit<true>(errcode);
                     }
 
                     // Parent branch.

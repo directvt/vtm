@@ -716,6 +716,7 @@ namespace netxs::directvt
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT_macro(vt_command,        (text, command))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
+        STRUCT_macro(fatal,             (text, err_msg))
         STRUCT_macro(minimize,          (id_t, gear_id))
         STRUCT_macro_lite(expose)
         // Input stream.
@@ -997,6 +998,7 @@ namespace netxs::directvt
             X(tooltip_element  ) /* Tooltip text.                                 */\
             X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
             X(logs             ) /* Debug logs.                                   */\
+            X(fatal            ) /* Fatal error message.                          */\
             /* Input stream                                                       */\
             X(sysfocus         ) /* System focus state.                           */\
             X(syskeybd         ) /* System keybd device.                          */\
@@ -1014,7 +1016,7 @@ namespace netxs::directvt
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
             //X(focus            ) /* Request to set focus.                         */\
-            //X(syspaste         ) /* Clipboard paste.                               */\
+            //X(syspaste         ) /* Clipboard paste.                              */\
 
             struct xs
             {
