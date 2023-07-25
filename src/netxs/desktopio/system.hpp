@@ -2801,11 +2801,6 @@ namespace netxs::os
             static auto setup = text{};
             return setup;
         }
-        void send(fd_t m_pipe_w, size_t config_size)
-        {
-            auto buffer = directvt::binary::marker{ config_size };
-            io::send(m_pipe_w, buffer);
-        }
         auto peek(fd_t stdin_fd)
         {
             auto& ready = _ready();
@@ -2881,6 +2876,148 @@ namespace netxs::os
             }
             return state;
         }
+        auto exec(fd_t& prochndl, pidt& proc_pid, text cwd, text cmdline, size_t config_size)
+        {
+            auto marker = directvt::binary::marker{ config_size };
+            utf::change(cmdline, "\\\"", "'");
+            log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+            #if defined(_WIN32)
+
+                auto s_pipe_r = os::invalid_fd;
+                auto s_pipe_w = os::invalid_fd;
+                auto m_pipe_r = os::invalid_fd;
+                auto m_pipe_w = os::invalid_fd;
+                auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto procsinf = PROCESS_INFORMATION{};
+                auto attrbuff = std::vector<byte>{};
+                auto attrsize = SIZE_T{ 0 };
+                auto stdhndls = std::array<HANDLE, 2>{};
+
+                auto tunnel = [&]
+                {
+                    auto sa = SECURITY_ATTRIBUTES{};
+                    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                    sa.lpSecurityDescriptor = NULL;
+                    sa.bInheritHandle = TRUE;
+                    if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
+                     && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                    {
+                        //os::dtvt::send(m_pipe_w, config_size);
+                        io::send(m_pipe_w, marker);
+                        startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                        startinf.StartupInfo.hStdInput  = s_pipe_r;
+                        startinf.StartupInfo.hStdOutput = s_pipe_w;
+                        return true;
+                    }
+                    else
+                    {
+                        io::close(m_pipe_w);
+                        io::close(m_pipe_r);
+                        io::close(s_pipe_w);
+                        io::close(s_pipe_r);
+                        return faux;
+                    }
+                };
+                auto fillup = [&]
+                {
+                    stdhndls[0] = s_pipe_r;
+                    stdhndls[1] = s_pipe_w;
+                    ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+                    attrbuff.resize(attrsize);
+                    startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+                    if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                     && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                    0,
+                                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                    &stdhndls,
+                                                    sizeof(stdhndls),
+                                                    nullptr,
+                                                    nullptr))
+                    {
+                        return true;
+                    }
+                    else return faux;
+                };
+                auto create = [&]
+                {
+                    auto wide_cmdline = utf::to_utf(cmdline);
+                    return ::CreateProcessW(nullptr,                             // lpApplicationName
+                                            wide_cmdline.data(),                 // lpCommandLine
+                                            nullptr,                             // lpProcessAttributes
+                                            nullptr,                             // lpThreadAttributes
+                                            TRUE,                                // bInheritHandles
+                                            DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                            EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
+                                            nullptr,                             // lpEnvironment
+                                            cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                                       : nullptr,
+                                            &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                            &procsinf);                          // lpProcessInformation
+                };
+
+                if (tunnel()
+                 && fillup()
+                 && create())
+                {
+                    io::close( procsinf.hThread );
+                    prochndl = procsinf.hProcess;
+                    proc_pid = procsinf.dwProcessId;
+                    //termlink = { m_pipe_r, m_pipe_w };
+                }
+                else os::fail(prompt::vtty, "Child process creation error");
+
+            #else
+
+                fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
+                fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
+                ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
+                ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
+                auto s_pipe_r = to_client[0];
+                auto s_pipe_w = to_server[1];
+                auto m_pipe_r = to_server[0];
+                auto m_pipe_w = to_client[1];
+                //termlink = { to_server[0], to_client[1] };
+
+                //os::dtvt::send(to_client[1], config_size);
+                io::send(to_client[1], marker);
+
+                proc_pid = ::fork();
+                if (proc_pid == 0) // Child branch.
+                {
+                    io::close(to_client[1]);
+                    io::close(to_server[0]);
+                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
+                    ::signal(SIGQUIT, SIG_DFL); //
+                    ::signal(SIGTSTP, SIG_DFL); //
+                    ::signal(SIGTTIN, SIG_DFL); //
+                    ::signal(SIGTTOU, SIG_DFL); //
+                    ::signal(SIGCHLD, SIG_DFL); //
+                    ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
+                    ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
+                    os::fdcleanup();
+                    if (cwd.size())
+                    {
+                        auto err = std::error_code{};
+                        fs::current_path(cwd, err);
+                        //todo use dtvt to log
+                        //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
+                        //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                    }
+                    os::process::execvp(cmdline);
+                    auto errcode = errno;
+                    //todo use dtvt to log
+                    //os::fail(prompt::dtvt, "Exec error");
+                    ::close(os::stdout_fd);
+                    ::close(os::stdin_fd );
+                    os::process::exit(errcode);
+                }
+                // Parent branch.
+
+            #endif
+            io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
+            io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+            return ipc::stdcon{ m_pipe_r, m_pipe_w };
+        }
 
         struct vtty
         {
@@ -2913,148 +3050,9 @@ namespace netxs::os
                 receiver = input_hndl;
                 preclose = preclose_hndl;
                 shutdown = shutdown_hndl;
-                utf::change(cmdline, "\\\"", "'");
-                log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
-                #if defined(_WIN32)
-
-                    auto s_pipe_r = os::invalid_fd;
-                    auto s_pipe_w = os::invalid_fd;
-                    auto m_pipe_r = os::invalid_fd;
-                    auto m_pipe_w = os::invalid_fd;
-                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                    auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<byte>{};
-                    auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 2>{};
-
-                    auto tunnel = [&]
-                    {
-                        auto sa = SECURITY_ATTRIBUTES{};
-                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                        sa.lpSecurityDescriptor = NULL;
-                        sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
-                        {
-                            os::dtvt::send(m_pipe_w, config.size());
-                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                            startinf.StartupInfo.hStdInput  = s_pipe_r;
-                            startinf.StartupInfo.hStdOutput = s_pipe_w;
-                            return true;
-                        }
-                        else
-                        {
-                            io::close(m_pipe_w);
-                            io::close(m_pipe_r);
-                            io::close(s_pipe_w);
-                            io::close(s_pipe_r);
-                            return faux;
-                        }
-                    };
-                    auto fillup = [&]
-                    {
-                        stdhndls[0] = s_pipe_r;
-                        stdhndls[1] = s_pipe_w;
-                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
-                        attrbuff.resize(attrsize);
-                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-
-                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                        0,
-                                                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                        &stdhndls,
-                                                        sizeof(stdhndls),
-                                                        nullptr,
-                                                        nullptr))
-                        {
-                            return true;
-                        }
-                        else return faux;
-                    };
-                    auto create = [&]
-                    {
-                        auto wide_cmdline = utf::to_utf(cmdline);
-                        return ::CreateProcessW(nullptr,                             // lpApplicationName
-                                                wide_cmdline.data(),                 // lpCommandLine
-                                                nullptr,                             // lpProcessAttributes
-                                                nullptr,                             // lpThreadAttributes
-                                                TRUE,                                // bInheritHandles
-                                                DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                                EXTENDED_STARTUPINFO_PRESENT,        // override startupInfo type
-                                                nullptr,                             // lpEnvironment
-                                                cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                                           : nullptr,
-                                                &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                                &procsinf);                          // lpProcessInformation
-                    };
-
-                    if (tunnel()
-                     && fillup()
-                     && create())
-                    {
-                        io::close( procsinf.hThread );
-                        prochndl = procsinf.hProcess;
-                        proc_pid = procsinf.dwProcessId;
-                        termlink = { m_pipe_r, m_pipe_w };
-                    }
-                    else os::fail(prompt::vtty, "Child process creation error");
-
-                    io::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                    io::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-
-                #else
-
-                    fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
-                    fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
-                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
-                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
-
-                    termlink = { to_server[0], to_client[1] };
-                    os::dtvt::send(to_client[1], config.size());
-
-                    proc_pid = ::fork();
-                    if (proc_pid == 0) // Child branch.
-                    {
-                        io::close(to_client[1]);
-                        io::close(to_server[0]);
-
-                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                        ::signal(SIGQUIT, SIG_DFL); //
-                        ::signal(SIGTSTP, SIG_DFL); //
-                        ::signal(SIGTTIN, SIG_DFL); //
-                        ::signal(SIGTTOU, SIG_DFL); //
-                        ::signal(SIGCHLD, SIG_DFL); //
-
-                        ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
-                        os::fdcleanup();
-
-                        if (cwd.size())
-                        {
-                            auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            //todo use dtvt to log
-                            //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                            //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
-                        }
-
-                        os::process::execvp(cmdline);
-                        auto errcode = errno;
-                        //todo use dtvt to log
-                        //os::fail(prompt::dtvt, "Exec error");
-                        ::close(os::stdout_fd);
-                        ::close(os::stdin_fd );
-                        os::process::exit(errcode);
-                    }
-
-                    // Parent branch.
-                    io::close(to_client[0]);
-                    io::close(to_server[1]);
-
-                #endif
-
-                if (config.size())
+                auto config_size = config.size();
+                termlink = exec(prochndl, proc_pid, cwd, cmdline, config_size);
+                if (config_size)
                 {
                     auto guard = std::lock_guard{ writemtx };
                     writebuf = config + writebuf;
