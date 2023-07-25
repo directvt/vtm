@@ -3037,18 +3037,15 @@ namespace netxs::os
 
         struct vtty
         {
-            fd_t                      prochndl{ os::invalid_fd };
-            pidt                      proc_pid{};
-            flag                      attached{};
-            ipc::stdcon               termlink{};
-            std::thread               stdinput{};
-            std::thread               stdwrite{};
-            std::function<void(view)> receiver{};
-            std::function<void(si32)> preclose{};
-            std::function<void(si32)> shutdown{};
-            text                      writebuf{};
-            std::mutex                writemtx{};
-            std::condition_variable   writesyn{};
+            fd_t                    prochndl{ os::invalid_fd };
+            pidt                    proc_pid{};
+            flag                    attached{};
+            ipc::stdcon             termlink{};
+            std::thread             stdinput{};
+            std::thread             stdwrite{};
+            text                    writebuf{};
+            std::mutex              writemtx{};
+            std::condition_variable writesyn{};
 
            ~vtty()
             {
@@ -3059,33 +3056,35 @@ namespace netxs::os
 
             operator bool () { return termlink; }
 
-            void start(s11n& stream, text cwd, text cmdline, text config, std::function<void(view)> input_hndl,
-                                                                          std::function<void(si32)> preclose_hndl,
-                                                                          std::function<void(si32)> shutdown_hndl)
-            {
-                receiver = input_hndl;
-                preclose = preclose_hndl;
-                shutdown = shutdown_hndl;
-                auto config_size = config.size();
-                termlink = attach(stream, prochndl, proc_pid, cwd, cmdline, config_size);
-                if (config_size)
-                {
-                    auto guard = std::lock_guard{ writemtx };
-                    writebuf = config + writebuf;
-                }
-
-                stdinput = std::thread([&] { read_socket_thread(); });
-                stdwrite = std::thread([&] { send_socket_thread(); });
-
-                attached = !!proc_pid;
-                if (attached) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
-                writesyn.notify_one(); // Flush temp buffer.
-            }
             auto wait_child()
             {
                 attached = {};
                 auto exit_code = os::process::wait(prompt::dtvt, proc_pid, prochndl, faux);
                 return exit_code;
+            }
+            void start(s11n& stream, text cwd, text cmdline, text config, auto receiver, auto preclose, auto shutdown)
+            {
+                stdinput = std::thread([&, cwd, cmdline, config, receiver, preclose, shutdown]
+                {
+                    auto config_size = config.size();
+                    termlink = attach(stream, prochndl, proc_pid, cwd, cmdline, config_size);
+                    if (config_size)
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf = config + writebuf;
+                    }
+                    attached = !!proc_pid;
+                    if (attached) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
+                    writesyn.notify_one(); // Flush temp buffer.
+
+                    stdwrite = std::thread([&] { send_socket_thread(); });
+                    log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    directvt::binary::stream::reading_loop(termlink, receiver);
+                    preclose();
+                    auto exit_code = wait_child();
+                    shutdown(exit_code);
+                    log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+                });
             }
             void cleanup()
             {
@@ -3110,16 +3109,6 @@ namespace netxs::os
                 {
                     termlink.shut();
                 }
-            }
-            void read_socket_thread()
-            {
-                log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
-                directvt::binary::stream::reading_loop(termlink, receiver);
-                preclose(0);
-                //todo revise if (termlink), see os::task::read_socket_thread()
-                auto exit_code = wait_child();
-                shutdown(exit_code);
-                log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
             }
             void send_socket_thread()
             {

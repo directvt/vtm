@@ -7700,7 +7700,7 @@ namespace netxs::ui
             canvas.swap(splash);
         }
         // dtvt: Preclose callback handler.
-        void atexit(si32 code)
+        void atexit()
         {
             errmsg(ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
                     .add("              \n",
@@ -7742,8 +7742,8 @@ namespace netxs::ui
                     stream.s11n::winsz.send(*this, 0, base::size());
                     stream.s11n::form_header.send(*this, 0, header);
                     stream.s11n::form_footer.send(*this, 0, footer);
-                    ptycon.start(stream, curdir, cmdarg, xmlcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                 [&](auto exit_reason) { atexit(exit_reason); },
+                    ptycon.start(stream, curdir, cmdarg, xmlcfg, [&](view utf8_shadow) { ondata(utf8_shadow); },
+                                                                 [&]                   { atexit();            },
                                                                  [&](auto exit_reason) { onexit(exit_reason); });
                 });
             }
