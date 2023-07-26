@@ -2246,7 +2246,7 @@ namespace netxs::os
                 {
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                    if (WIFEXITED(stat) && WEXITSTATUS(stat) == 0)
                     {
                         return true; // Child forked and exited successfully.
                     }
@@ -2298,24 +2298,27 @@ namespace netxs::os
                 auto p_id = ::fork();
                 if (p_id == 0) // Child process.
                 {
-                    ::setsid(); // Make this process the session leader of a new session.
-                    p_id = ::fork(); // Second fork to avoid zombies.
+                    p_id = ::fork(); // Second fork to detach process and avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
                         os::process::id = os::process::getid();
+                        ::setsid(); // Make this process the session leader of a new session.
+                                    // If the terminal hangups, a SIGHUP is sent to the session leader.
+                                    // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
-                        ::close(os::stdin_fd );
-                        ::close(os::stdout_fd);
-                        ::close(os::stderr_fd);
+                        ::close(os::stdin_fd ); // No stdio needed in daemon mode.
+                        ::close(os::stdout_fd); //
+                        ::close(os::stderr_fd); //
                         return true;
                     }
-                    else if (p_id > 0) os::process::exit<true>(0);
+                    else if (p_id > 0) os::process::exit<true>(0); // Success.
+                    else               os::process::exit<true>(1); // Fail.
                 }
                 else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
                 {
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0);
-                    if (WIFEXITED(stat) && (WEXITSTATUS(stat) == 0))
+                    if (WIFEXITED(stat) && WEXITSTATUS(stat) == 0)
                     {
                         log(prompt::os, "Process forked");
                         result = true;
@@ -2996,7 +2999,10 @@ namespace netxs::os
                 auto m_pipe_w = to_client[1];
                 io::send(m_pipe_w, marker);
 
-                proc_pid = ::fork();
+                proc_pid = ::fork(); // A dtvt-application can be either a real dtvt-application or a proxy
+                                     // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
+                                     // So SIGHUP support is needed.
+                                     // A real dtvt application should ignore SIGHUP on its side.
                 if (proc_pid == 0) // Child branch.
                 {
                     os::process::id = os::process::getid();
@@ -3479,6 +3485,7 @@ namespace netxs::os
                 testy<twod> winsz; // globals: Current console window size.
                 s11n        wired; // globals: Serialization buffers.
                 si32        kbmod; // globals: Keyboard modifiers.
+                si32        vtmod; // globals: VT mode.
                 io::fire    alarm; // globals: IO interrupter.
             }
             static vars;
@@ -3498,7 +3505,8 @@ namespace netxs::os
         }
         auto vtmode()
         {
-            auto mode = si32{ vt::clean };
+            auto& mode = globals().vtmod;
+            mode = vt::clean;
             if (os::dtvt::peek(os::stdin_fd))
             {
                 log(prompt::os, "DirectVT detected");
@@ -3635,9 +3643,10 @@ namespace netxs::os
         }
         auto signal(sigt what)
         {
+            auto& g = globals();
+            auto direct = !!(g.vtmod & vt::direct);
             #if defined(_WIN32)
 
-                auto& g = globals();
                 switch (what)
                 {
                     case CTRL_C_EVENT:
@@ -3660,9 +3669,16 @@ namespace netxs::os
                             input::key::Break);// keycode
                         break;
                     }
-                    case CTRL_CLOSE_EVENT:
-                    case CTRL_LOGOFF_EVENT:
-                    case CTRL_SHUTDOWN_EVENT:
+                    case CTRL_CLOSE_EVENT: // SIGHUP
+                        if (direct)
+                        {
+                            //todo ignore SIGHUP in dtvt mode
+                            //todo notify in dtvt mode
+                            //break;
+                        }
+                    case CTRL_LOGOFF_EVENT:   // SIGTERM
+                    case CTRL_SHUTDOWN_EVENT: //
+                        //todo notify in dtvt mode - do not break connection
                         g.ipcio->shut();
                         std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
                         break;
@@ -3675,6 +3691,7 @@ namespace netxs::os
 
                 auto shutdown = [](auto what)
                 {
+                    //todo notify in dtvt mode - do not break connection
                     globals().ipcio->shut();
                     ::signal(SIGHUP,  SIG_DFL); // To avoid second shutdown.
                     ::signal(SIGTERM, SIG_DFL);
@@ -3682,9 +3699,23 @@ namespace netxs::os
                 };
                 switch (what)
                 {
-                    case SIGWINCH: resize(); return;
-                    case SIGHUP:   log(prompt::tty, "SIGHUP");  shutdown(what); break;
-                    case SIGTERM:  log(prompt::tty, "SIGTERM"); shutdown(what); break;
+                    case SIGWINCH:
+                        resize();
+                        break;
+                    case SIGHUP:
+                        //if (direct)
+                        //{
+                        //    //todo ignore SIGHUP
+                        //    //todo notify in dtvt mode
+                        //    //break;
+                        //}
+                        //else
+                        {
+                            log(prompt::tty, "SIGHUP");
+                            shutdown(what);
+                            break;
+                        }
+                    case SIGTERM:  log(prompt::tty, "SIGTERM"); shutdown(what); break; // System shutdown.
                     default:       log(prompt::tty, "Signal ", what); break;
                 }
 

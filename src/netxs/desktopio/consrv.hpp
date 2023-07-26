@@ -4838,12 +4838,13 @@ struct consrv : ipc::stdcon
         {
             io::close(fdm);
             auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
-            // In order to receive WINCH signal make fds the controlling
-            // terminal of the current process.
-            // Current process must be a session leader (::setsid()) and not have
-            // a controlling terminal already.
-            // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0);
+                                   // If the terminal hangups, a SIGHUP is sent to the session leader.
+                                   // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
+            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0); // In order to receive WINCH signal make fds the controlling
+                                                   // terminal of the current process.
+                                                   // Current process must be a session leader (::setsid()) and not have
+                                                   // a controlling terminal already.
+                                                   // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
             ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
             ::signal(SIGQUIT, SIG_DFL); //
             ::signal(SIGTSTP, SIG_DFL); //
