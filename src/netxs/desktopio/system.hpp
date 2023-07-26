@@ -2596,7 +2596,7 @@ namespace netxs::os
                 return exit_code;
             }
             template<class Term>
-            void attach(Term& terminal, text cwd, text cmdline, twod win_size)
+            void attach_process(Term& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
                 log(prompt::vtty, "New child process: '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
@@ -2646,7 +2646,7 @@ namespace netxs::os
             {
                 stdwrite = std::thread([&, cwd, cmdline, win_size]
                 {
-                    attach(terminal, cwd, cmdline, win_size);
+                    attach_process(terminal, cwd, cmdline, win_size);
                     send_socket_thread();
                 });
             }
@@ -2884,7 +2884,7 @@ namespace netxs::os
             }
             return state;
         }
-        auto attach(s11n& stream, fd_t& prochndl, pidt& proc_pid, text cwd, text cmdline, size_t config_size)
+        auto attach_process(s11n& stream, fd_t& prochndl, pidt& proc_pid, text cwd, text cmdline, size_t config_size)
         {
             auto marker = directvt::binary::marker{ config_size };
             utf::change(cmdline, "\\\"", "'");
@@ -3067,7 +3067,7 @@ namespace netxs::os
                 stdinput = std::thread([&, cwd, cmdline, config, receiver, preclose, shutdown]
                 {
                     auto config_size = config.size();
-                    termlink = attach(stream, prochndl, proc_pid, cwd, cmdline, config_size);
+                    termlink = attach_process(stream, prochndl, proc_pid, cwd, cmdline, config_size);
                     if (config_size)
                     {
                         auto guard = std::lock_guard{ writemtx };
