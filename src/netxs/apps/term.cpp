@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
     #include "term.xml"
 
     auto vtmode = os::tty::vtmode();
-    auto syslog = os::tty::logger(vtmode);
+    auto syslog = os::tty::logger();
     auto banner = [&]{ log(app::term::desc, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};

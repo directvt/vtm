@@ -2444,7 +2444,7 @@ namespace netxs::os
         static constexpr auto direct  = 1 << 3;
         static constexpr auto onlylog = 1 << 4;
         template<class T>
-        static auto str(T mode)
+        auto str(T mode)
         {
             auto result = text{};
             if (mode)
@@ -2458,93 +2458,6 @@ namespace netxs::os
             }
             else result = "fresh";
             return result;
-        }
-        static auto console()
-        {
-            auto conmode = -1;
-            #if defined(__linux__)
-
-                if (-1 != ::ioctl(os::stdout_fd, KDGETMODE, &conmode))
-                {
-                    switch (conmode)
-                    {
-                        case KD_TEXT:     break;
-                        case KD_GRAPHICS: break;
-                        default:          break;
-                    }
-                }
-
-            #endif
-            return conmode != -1;
-        }
-        static auto vgafont(si32 mode)
-        {
-            #if defined(__linux__)
-
-                if (mode & vt::mouse)
-                {
-                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
-                    auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
-                                                  .flags     = 0,
-                                                  .width     = 32,
-                                                  .height    = 32,
-                                                  .charcount = 512,
-                                                  .data      = chars.data() };
-                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_GET)", os::unexpected_msg)) return;
-
-                    auto slice_bytes = (fdata.width + 7) / 8;
-                    auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
-                    auto tophalf_idx = 10;
-                    auto lowhalf_idx = 254;
-                    auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
-                    auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
-                    for (auto row = 0; row < fdata.height; row++)
-                    {
-                        auto is_top = row < fdata.height / 2;
-                       *tophalf_ptr = is_top ? 0xFF : 0x00;
-                       *lowhalf_ptr = is_top ? 0x00 : 0xFF;
-                        tophalf_ptr+= slice_bytes;
-                        lowhalf_ptr+= slice_bytes;
-                    }
-                    fdata.op = KD_FONT_OP_SET;
-                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected_msg)) return;
-
-                    auto max_sz = std::numeric_limits<unsigned short>::max();
-                    auto spairs = std::vector<unipair>(max_sz);
-                    auto dpairs = std::vector<unipair>(max_sz);
-                    auto srcmap = unimapdesc{ max_sz, spairs.data() };
-                    auto dstmap = unimapdesc{ max_sz, dpairs.data() };
-                    auto dstptr = dstmap.entries;
-                    auto srcptr = srcmap.entries;
-                    if (!ok(::ioctl(os::stdout_fd, GIO_UNIMAP, &srcmap), "::ioctl(os::stdout_fd, GIO_UNIMAP)", os::unexpected_msg)) return;
-                    auto srcend = srcmap.entries + srcmap.entry_ct;
-                    while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
-                    {
-                        auto& smap = *srcptr++;
-                        if (smap.fontpos != 10
-                         && smap.fontpos != 211
-                         && smap.fontpos != 254
-                         && smap.unicode != 0x2580
-                         && smap.unicode != 0x2584) *dstptr++ = smap;
-                    }
-                    dstmap.entry_ct = dstptr - dstmap.entries;
-                    unipair new_recs[] = { { 0x2580,  10 },
-                                           { 0x2219, 211 },
-                                           { 0x2022, 211 },
-                                           { 0x25CF, 211 },
-                                           { 0x25A0, 254 },
-                                           { 0x25AE, 254 },
-                                           { 0x2584, 254 } };
-                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
-                    {
-                        for (auto& p : new_recs) *dstptr++ = p;
-                        dstmap.entry_ct += std::size(new_recs);
-                        if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected_msg)) return;
-                    }
-                    else log(prompt::os, "VGA font loading failed - 'UNIMAP' is full");
-                }
-
-            #endif
         }
 
         class vtty
@@ -3491,6 +3404,95 @@ namespace netxs::os
             static vars;
             return vars;
         }
+        auto console()
+        {
+            auto conmode = -1;
+            #if defined(__linux__)
+
+                if (-1 != ::ioctl(os::stdout_fd, KDGETMODE, &conmode))
+                {
+                    switch (conmode)
+                    {
+                        case KD_TEXT:     break;
+                        case KD_GRAPHICS: break;
+                        default:          break;
+                    }
+                }
+
+            #endif
+            return conmode != -1;
+        }
+        auto vgafont()
+        {
+            #if defined(__linux__)
+
+                auto& g = globals();
+                auto& vtmod = g.vtmod;
+                if (vtmod & vt::mouse)
+                {
+                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                    auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
+                                                  .flags     = 0,
+                                                  .width     = 32,
+                                                  .height    = 32,
+                                                  .charcount = 512,
+                                                  .data      = chars.data() };
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_GET)", os::unexpected_msg)) return;
+
+                    auto slice_bytes = (fdata.width + 7) / 8;
+                    auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
+                    auto tophalf_idx = 10;
+                    auto lowhalf_idx = 254;
+                    auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
+                    auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
+                    for (auto row = 0; row < fdata.height; row++)
+                    {
+                        auto is_top = row < fdata.height / 2;
+                       *tophalf_ptr = is_top ? 0xFF : 0x00;
+                       *lowhalf_ptr = is_top ? 0x00 : 0xFF;
+                        tophalf_ptr+= slice_bytes;
+                        lowhalf_ptr+= slice_bytes;
+                    }
+                    fdata.op = KD_FONT_OP_SET;
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected_msg)) return;
+
+                    auto max_sz = std::numeric_limits<unsigned short>::max();
+                    auto spairs = std::vector<unipair>(max_sz);
+                    auto dpairs = std::vector<unipair>(max_sz);
+                    auto srcmap = unimapdesc{ max_sz, spairs.data() };
+                    auto dstmap = unimapdesc{ max_sz, dpairs.data() };
+                    auto dstptr = dstmap.entries;
+                    auto srcptr = srcmap.entries;
+                    if (!ok(::ioctl(os::stdout_fd, GIO_UNIMAP, &srcmap), "::ioctl(os::stdout_fd, GIO_UNIMAP)", os::unexpected_msg)) return;
+                    auto srcend = srcmap.entries + srcmap.entry_ct;
+                    while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
+                    {
+                        auto& smap = *srcptr++;
+                        if (smap.fontpos != 10
+                         && smap.fontpos != 211
+                         && smap.fontpos != 254
+                         && smap.unicode != 0x2580
+                         && smap.unicode != 0x2584) *dstptr++ = smap;
+                    }
+                    dstmap.entry_ct = dstptr - dstmap.entries;
+                    unipair new_recs[] = { { 0x2580,  10 },
+                                           { 0x2219, 211 },
+                                           { 0x2022, 211 },
+                                           { 0x25CF, 211 },
+                                           { 0x25A0, 254 },
+                                           { 0x25AE, 254 },
+                                           { 0x2584, 254 } };
+                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
+                    {
+                        for (auto& p : new_recs) *dstptr++ = p;
+                        dstmap.entry_ct += std::size(new_recs);
+                        if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected_msg)) return;
+                    }
+                    else log(prompt::os, "VGA font loading failed - 'UNIMAP' is full");
+                }
+
+            #endif
+        }
         void repair()
         {
             auto& state = globals().state;
@@ -3597,7 +3599,7 @@ namespace netxs::os
                         if (!(mode & vt::vga16)) mode |= vt::vga256;
                     }
 
-                    if (os::vt::console()) mode |= vt::mouse;
+                    if (os::tty::console()) mode |= vt::mouse;
 
                     log(prompt::os, "Color mode: ", mode & vt::vga16  ? "16-color"
                                                   : mode & vt::vga256 ? "256-color"
@@ -3641,10 +3643,16 @@ namespace netxs::os
             }
             wired.winsz.send(ipcio, 0, winsz.last);
         }
-        auto signal(sigt what)
+        auto isdtvt()
         {
             auto& g = globals();
             auto direct = !!(g.vtmod & vt::direct);
+            return direct;
+        }
+        auto signal(sigt what)
+        {
+            auto& g = globals();
+            auto direct = isdtvt();
             #if defined(_WIN32)
 
                 switch (what)
@@ -3721,12 +3729,11 @@ namespace netxs::os
 
             #endif
         }
-        auto logger(si32 mode, bool wipe = faux)
+        auto logger(bool wipe = faux)
         {
             if (wipe) netxs::logger::wipe();
-            auto direct = !!(mode & os::vt::direct);
-            return direct ? netxs::logger([](auto data) { os::logging::stdlog(data); })
-                          : netxs::logger([](auto data) { os::logging::syslog(data); });
+            return isdtvt() ? netxs::logger([](auto data) { os::logging::stdlog(data); })
+                            : netxs::logger([](auto data) { os::logging::syslog(data); });
         }
         void direct(xipc link)
         {
@@ -3742,13 +3749,14 @@ namespace netxs::os
             ipcio.shut();
             input.join();
         }
-        void reader(si32 mode)
+        void reader()
         {
             log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto& g = globals();
             auto& ipcio =*g.ipcio;
             auto& wired = g.wired;
             auto& alarm = g.alarm;
+            auto& vtmod = g.vtmod;
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
             auto f = input::sysfocus{};
@@ -3876,8 +3884,8 @@ namespace netxs::os
 
             #else
 
-                auto legacy_mouse = !!(mode & os::vt::mouse);
-                auto legacy_color = !!(mode & os::vt::vga16);
+                auto legacy_mouse = !!(vtmod & os::vt::mouse);
+                auto legacy_color = !!(vtmod & os::vt::vga16);
                 auto micefd = os::invalid_fd;
                 auto mcoord = twod{};
                 auto buffer = text(os::pipebuf, '\0');
@@ -3953,7 +3961,7 @@ namespace netxs::os
                     }
                 }
 
-                auto linux_console = os::vt::console();
+                auto linux_console = os::tty::console();
                 auto close = faux;
                 auto total = text{};
                 auto digit = [](auto c) { return c >= '0' && c <= '9'; };
@@ -4270,11 +4278,11 @@ namespace netxs::os
 
             log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
         }
-        void clipbd(si32 mode)
+        void clipbd()
         {
             using namespace os::clipboard;
 
-            if (mode & vt::direct) return;
+            if (isdtvt()) return;
             log(prompt::tty, "Clipboard watcher thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
             #if defined(_WIN32)
@@ -4400,7 +4408,7 @@ namespace netxs::os
 
             log(prompt::tty, "Clipboard watcher thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
         }
-        void ignite(xipc pipe, si32 mode)
+        void ignite(xipc pipe)
         {
             auto& g = globals();
             g.ipcio = pipe;
@@ -4436,17 +4444,19 @@ namespace netxs::os
 
             #endif
 
-            os::vt::vgafont(mode);
+            os::tty::vgafont();
             resize();
             wired.sysfocus.send(ipcio, id_t{}, true, faux, faux);
         }
-        auto splice(xipc pipe, si32 mode)
+        auto splice(xipc pipe)
         {
-            ignite(pipe, mode);
+            ignite(pipe);
+            auto& g = globals();
             auto& ipcio = *pipe;
-            auto& alarm = globals().alarm;
+            auto& alarm = g.alarm;
+            auto& vtmod = g.vtmod;
             auto  proxy = os::clipboard::proxy{};
-            auto  vga16 = mode & os::vt::vga16;
+            auto  vga16 = vtmod & os::vt::vga16;
             auto  vtrun = ansi::save_title().altbuf(true).cursor(faux).bpmode(true).set_palette(vga16);
             auto  vtend = ansi::scrn_reset().altbuf(faux).cursor(true).bpmode(faux).load_title().rst_palette(vga16);
             #if not defined(_WIN32) // Use Win32 Console API for mouse tracking on Windows.
@@ -4456,8 +4466,8 @@ namespace netxs::os
 
             io::send(os::stdout_fd, vtrun);
 
-            auto input = std::thread{ [&]{ reader(mode); } };
-            auto clips = std::thread{ [&]{ clipbd(mode); } }; //todo move to os::clipboard::proxy (globals())
+            auto input = std::thread{ [&]{ reader(); } };
+            auto clips = std::thread{ [&]{ clipbd(); } }; //todo move to os::clipboard::proxy (globals())
             while (auto yield = ipcio.recv())
             {
                 if (proxy(yield) && !io::send(os::stdout_fd, yield)) break;
@@ -4470,6 +4480,17 @@ namespace netxs::os
 
             io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
+        }
+        auto forward(xipc client)
+        {
+            if (isdtvt()) 
+            {
+                os::tty::direct(client);
+            }
+            else
+            {
+                os::tty::splice(client);
+            }
         }
 
         namespace readline

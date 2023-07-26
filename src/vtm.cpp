@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
-            auto syslog = os::tty::logger(vtmode, true);
+            auto syslog = os::tty::logger(true);
             log(app::shared::version);
             return 0;
         }
@@ -100,7 +100,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    auto syslog = os::tty::logger(vtmode);
+    auto syslog = os::tty::logger();
+    auto direct = !!(vtmode & os::vt::direct);
     banner();
     if (errmsg.size())
     {
@@ -191,8 +192,9 @@ int main(int argc, char* argv[])
             params = app::term::id + " "s + params;
             log(app::term::desc, ' ', app::shared::version);
         }
+        if (!direct) os::logging::start(app::vtm::id);
 
-        auto success = app::shared::start(params, app::vtm::id, vtmode, config);
+        auto success = app::shared::start(params, vtmode, config);
         if (!success)
         {
             os::fail("Console initialization error");
@@ -220,16 +222,9 @@ int main(int argc, char* argv[])
             });
             if (client)
             {
+                if (!direct) os::logging::start(app::vtm::id);
                 os::tty::globals().wired.init.send(client, userid, vtmode, config.utf8());;
-                if (vtmode & os::vt::direct)
-                {
-                    os::tty::direct(client);
-                }
-                else
-                {
-                    os::logging::start(app::vtm::id);
-                    os::tty::splice(client, vtmode);
-                }
+                os::tty::forward(client);
                 return 0;
             }
             else if (whoami != type::server)

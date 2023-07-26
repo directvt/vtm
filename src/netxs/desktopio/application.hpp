@@ -522,47 +522,27 @@ namespace netxs::app::shared
             return conf;
         }
     }
-    auto start(text app_name, text log_title, si32 vtmode, xmls& config)
+    auto start(text app_name, si32 vtmode, xmls& config)
     {
         auto direct = !!(vtmode & os::vt::direct);
-        if (!direct) os::logging::start(log_title);
-
-        //std::this_thread::sleep_for(15s);
-
         auto shadow = app_name;
         utf::to_low(shadow);
         //if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto runapp = [&](auto uplink, auto patch)
-        {
-            auto domain = base::create<host>(uplink, config);
-            auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
-            auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            domain->invite(uplink, applet, vtmode);
-            events::dequeue();
-            domain->shutdown();
-        };
 
-        if (direct)
+        auto [client, server] = os::ipc::xlink();
+        auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
-            // Without reconnection support
-            //auto server = os::ipc::stdio();
-            //runapp(server, "");
-
-            // With reconnection support
-            auto [client, server] = os::ipc::xlink();
-            auto thread = std::thread{ [&, &client = client]{ os::tty::direct(client); } }; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
-            runapp(server, "");
-            thread.join();
-        }
-        else
-        {
-            auto [client, server] = os::ipc::xlink();
-            auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); } }; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
-            runapp(server, "<config isolated=1/>");
-            thread.join();
-        }
+            os::tty::forward(client);
+        }};
+        auto domain = base::create<host>(server, config);
+        auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
+        auto params = utf::remain(app_name, ' ');
+        auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        domain->invite(server, applet, vtmode);
+        events::dequeue();
+        domain->shutdown();
+        thread.join();
         return true;
     }
 
