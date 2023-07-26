@@ -4481,7 +4481,7 @@ namespace netxs::os
             io::send(os::stdout_fd, vtend);
             std::this_thread::sleep_for(200ms); // Pause to complete consuming/receiving buffered input (e.g. mouse tracking) that has just been canceled.
         }
-        auto forward(xipc client)
+        auto forward(xipc client, text log_title)
         {
             if (isdtvt()) 
             {
@@ -4489,6 +4489,7 @@ namespace netxs::os
             }
             else
             {
+                os::logging::start(log_title);
                 os::tty::splice(client);
             }
         }
