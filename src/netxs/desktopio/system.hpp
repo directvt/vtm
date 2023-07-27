@@ -2918,8 +2918,6 @@ namespace netxs::os
 
                 proc_pid = ::fork(); // A dtvt-application can be either a real dtvt-application or a proxy
                                      // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
-                                     // So SIGHUP support is needed.
-                                     // A real dtvt application should ignore SIGHUP on its side.
                 if (proc_pid == 0) // Child branch.
                 {
                     os::process::id = os::process::getid();
@@ -3657,8 +3655,20 @@ namespace netxs::os
         {
             auto& g = globals();
             auto direct = isdtvt();
+            auto notify = [](auto ...args)
+            {
+                auto& g = globals();
+                auto msg = ansi::add(prompt::tty, " Process ", os::process::id.first, " received ", args...);
+                g.wired.logs.send(*g.ipcio, os::process::id.first, os::process::id.second, (text)msg);
+            };
+
             #if defined(_WIN32)
 
+                auto shutdown = [](auto what)
+                {
+                    globals().ipcio->shut();
+                    std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
+                };
                 switch (what)
                 {
                     case CTRL_C_EVENT:
@@ -3681,21 +3691,10 @@ namespace netxs::os
                             input::key::Break);// keycode
                         break;
                     }
-                    case CTRL_CLOSE_EVENT: // SIGHUP
-                        if (direct)
-                        {
-                            //todo ignore SIGHUP in dtvt mode
-                            //todo notify in dtvt mode
-                            //break;
-                        }
-                    case CTRL_LOGOFF_EVENT:   // SIGTERM
-                    case CTRL_SHUTDOWN_EVENT: //
-                        //todo notify in dtvt mode - do not break connection
-                        g.ipcio->shut();
-                        std::this_thread::sleep_for(5000ms); // The client will shut down before this timeout expires.
-                        break;
-                    default:
-                        break;
+                    case CTRL_CLOSE_EVENT:    notify("SIGHUP");  shutdown(what); break; // App closing.
+                    case CTRL_LOGOFF_EVENT:   notify("LOGOFF");  shutdown(what); break; // System shutdown.
+                    case CTRL_SHUTDOWN_EVENT: notify("SIGTERM"); shutdown(what); break; //
+                    default:                  notify("signal ", what); break;
                 }
                 return TRUE;
 
@@ -3703,7 +3702,6 @@ namespace netxs::os
 
                 auto shutdown = [](auto what)
                 {
-                    //todo notify in dtvt mode - do not break connection
                     globals().ipcio->shut();
                     ::signal(SIGHUP,  SIG_DFL); // To avoid second shutdown.
                     ::signal(SIGTERM, SIG_DFL);
@@ -3711,24 +3709,10 @@ namespace netxs::os
                 };
                 switch (what)
                 {
-                    case SIGWINCH:
-                        resize();
-                        break;
-                    case SIGHUP:
-                        //if (direct)
-                        //{
-                        //    //todo ignore SIGHUP
-                        //    //todo notify in dtvt mode
-                        //    //break;
-                        //}
-                        //else
-                        {
-                            log(prompt::tty, "SIGHUP");
-                            shutdown(what);
-                            break;
-                        }
-                    case SIGTERM:  log(prompt::tty, "SIGTERM"); shutdown(what); break; // System shutdown.
-                    default:       log(prompt::tty, "Signal ", what); break;
+                    case SIGWINCH: resize(); break;
+                    case SIGHUP:   notify("SIGHUP");  shutdown(what); break; // App closing.
+                    case SIGTERM:  notify("SIGTERM"); shutdown(what); break; // System shutdown.
+                    default:       notify("signal ", what); break;
                 }
 
             #endif
@@ -3750,6 +3734,14 @@ namespace netxs::os
                 extio.shut();
             }};
             while (ipcio && ipcio.send(extio.recv())) { }
+
+            //todo wait extio reconnection
+            //extio.shut();
+            //while (true)
+            //{
+            //    std::this_thread::sleep_for(1s);
+            //}
+
             ipcio.shut();
             input.join();
         }
@@ -4441,6 +4433,7 @@ namespace netxs::os
                 auto raw_mode = g.state;
                 ::cfmakeraw(&raw_mode);
                 ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
+                ok(::signal(SIGCHLD , SIG_IGN ), "::signal(SIGCHLD)",  os::unexpected_msg); // Auto wait child zombies.
                 ok(::signal(SIGPIPE , SIG_IGN ), "::signal(SIGPIPE)",  os::unexpected_msg);
                 ok(::signal(SIGWINCH, sig_hndl), "::signal(SIGWINCH)", os::unexpected_msg);
                 ok(::signal(SIGTERM , sig_hndl), "::signal(SIGTERM)",  os::unexpected_msg);
