@@ -1337,13 +1337,17 @@ namespace netxs::os
 
                 auto send(view block)
                 {
-                    auto guard = std::unique_lock{ mutex };
-                    if (alive)
+                    if (block.size())
                     {
-                        store += block;
-                        wsync.notify_one();
+                        auto guard = std::unique_lock{ mutex };
+                        if (alive)
+                        {
+                            store += block;
+                            wsync.notify_one();
+                        }
+                        return alive;
                     }
-                    return alive;
+                    return faux;
                 }
                 auto read(text& yield)
                 {
