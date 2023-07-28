@@ -4821,36 +4821,37 @@ struct consrv : ipc::stdcon
     template<class Term, class Proc>
     auto attach(Term& terminal, pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
     {
-        auto errcode = 0;
-        auto fdm = ::posix_openpt(O_RDWR | O_NOCTTY); // Get master PTY.
-        auto rc1 = ::grantpt     (fdm);               // Grant master PTY file access.
-        auto rc2 = ::unlockpt    (fdm);               // Unlock master PTY.
-        auto fds = ::open(ptsname(fdm), O_RDWR);      // Open slave PTY via string ptsname(fdm).
-        stdcon::start(fdm);
+        auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
+        auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
+        auto rc2 = os::syscall{ ::unlockpt(fdm.value)             }; // Unlock master TTY.
+        stdcon::start(fdm.value);
         stdinput = std::thread([&, trailer]
         {
             read_socket_thread(terminal);
             trailer();
         });
         winsz(win_size);
-        proc_pid = ::fork();
-        if (proc_pid == 0) // Child branch.
+        auto pid = os::syscall{ ::fork() };
+        if (pid.value == 0) // Child branch.
         {
-            io::close(fdm);
-            auto rc0 = ::setsid(); // Make the current process a new session leader, return process group id.
-                                   // If the terminal hangups, a SIGHUP is sent to the session leader.
-                                   // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
-            auto rc1 = ::ioctl(fds, TIOCSCTTY, 0); // In order to receive WINCH signal make fds the controlling
-                                                   // terminal of the current process.
-                                                   // Current process must be a session leader (::setsid()) and not have
-                                                   // a controlling terminal already.
-                                                   // arg = 0: 1 - to stole fds from another process, it doesn't matter here.
-            ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-            ::signal(SIGQUIT, SIG_DFL); //
-            ::signal(SIGTSTP, SIG_DFL); //
-            ::signal(SIGTTIN, SIG_DFL); //
-            ::signal(SIGTTOU, SIG_DFL); //
-            ::signal(SIGCHLD, SIG_DFL); //
+            // Make the current process a new session leader, return process group id.
+            // If the terminal hangups, a SIGHUP is sent to the session leader.
+            // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
+            auto rc3 = os::syscall{ ::setsid() };
+            // Open slave TTY via string ptsname(fdm) and auto assign it as a controlling TTY (in order to receive WINCH and other signals).
+            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR) };
+            ::dup2(fds.value, os::stdin_fd ); // Assign stdio lines atomically
+            ::dup2(fds.value, os::stdout_fd); // = ::close(new);
+            ::dup2(fds.value, os::stderr_fd); // ::fcntl(old, F_DUPFD, new)
+            os::fdcleanup(); // Close all parent's descriptors (also fdm and fds).
+            if (!fdm || !rc1 || !rc2 || !rc3 || !fds) // Report if something went wrong.
+            {
+                std::cerr << "fdm: "<< fdm.value << " errcode: " << fdm.error << "\n"
+                          << "rc1: "<< rc1.value << " errcode: " << rc1.error << "\n"
+                          << "rc2: "<< rc2.value << " errcode: " << rc2.error << "\n"
+                          << "rc3: "<< rc3.value << " errcode: " << rc3.error << "\n"
+                          << "fds: "<< fds.value << " errcode: " << fds.error << "\n";
+            }
             if (cwd.size())
             {
                 auto err = std::error_code{};
@@ -4858,25 +4859,23 @@ struct consrv : ipc::stdcon
                 if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
                 else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
             }
-            ::dup2(fds, os::stdin_fd ); // Assign stdio lines atomically
-            ::dup2(fds, os::stdout_fd); // = close(new);
-            ::dup2(fds, os::stderr_fd); // fcntl(old, F_DUPFD, new)
-            os::fdcleanup();
             ::setenv("TERM", "xterm-256color", 1); //todo too hacky
             if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
             {
                 ::setenv("TERM_PROGRAM", "vtm", 1);
             }
             os::process::execvp(cmdline);
-            auto errcode = errno;
-            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(errcode).add(" \n"s
+            auto err_code = os::error();
+            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
                                                            " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
                                                            " cmd: "s + cmdline + " "s).nil() << std::flush;
-            os::process::exit(errcode);
+            os::process::exit<true>(err_code);
         }
         // Parent branch.
-        io::close(fds);
-        return errcode;
+        auto err_code = 0;
+        if (pid) proc_pid = pid.value;
+        else     err_code = pid.error;
+        return err_code;
     }
     void reset()
     {

@@ -124,6 +124,13 @@ namespace netxs::os
             {
                 ::close(minfd);
             }
+            // Reset control signals to default values.
+            ::signal(SIGINT,  SIG_DFL);
+            ::signal(SIGHUP,  SIG_DFL);
+            ::signal(SIGPIPE, SIG_DFL);
+            ::signal(SIGTERM, SIG_DFL);
+            ::signal(SIGQUIT, SIG_DFL);
+            ::signal(SIGCHLD, SIG_DFL);
         }
 
     #endif
@@ -158,6 +165,21 @@ namespace netxs::os
         }
         else return true;
     }
+    template<class T>
+    struct syscall
+    {
+        using E = std::invoke_result_t<decltype(os::error)>;
+        T value;
+        E error = os::error();
+        operator bool () const // Return true if success.
+        {
+            #if defined(_WIN32)
+                return value != 0;
+            #else
+                return value != (T)-1;
+            #endif
+        }
+    };
 
     #if defined(_WIN32)
 
@@ -2309,6 +2331,7 @@ namespace netxs::os
                         ::setsid(); // Make this process the session leader of a new session.
                                     // If the terminal hangups, a SIGHUP is sent to the session leader.
                                     // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
+                                    // Daemons don't need for controlling TTY. Initially, the new session has no controlling terminal and it is ok for daemons.
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(os::stdin_fd ); // No stdio needed in daemon mode.
                         ::close(os::stdout_fd); //
@@ -2923,12 +2946,6 @@ namespace netxs::os
                     os::process::id = os::process::getid();
                     io::close(m_pipe_w);
                     io::close(m_pipe_r);
-                    ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                    ::signal(SIGQUIT, SIG_DFL); //
-                    ::signal(SIGTSTP, SIG_DFL); //
-                    ::signal(SIGTTIN, SIG_DFL); //
-                    ::signal(SIGTTOU, SIG_DFL); //
-                    ::signal(SIGCHLD, SIG_DFL); //
                     ::dup2(s_pipe_r, os::stdin_fd ); // Assign stdio lines atomically
                     ::dup2(s_pipe_w, os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
                     io::close(s_pipe_w);
@@ -3260,14 +3277,6 @@ namespace netxs::os
                         os::process::id = os::process::getid();
                         io::close(to_client[1]);
                         io::close(to_server[0]);
-
-                        ::signal(SIGINT,  SIG_DFL); // Reset control signals to default values.
-                        ::signal(SIGQUIT, SIG_DFL); //
-                        ::signal(SIGTSTP, SIG_DFL); //
-                        ::signal(SIGTTIN, SIG_DFL); //
-                        ::signal(SIGTTOU, SIG_DFL); //
-                        ::signal(SIGCHLD, SIG_DFL); //
-
                         ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
                         ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
                         ::dup2(to_server[1], os::stderr_fd); //
@@ -3277,19 +3286,16 @@ namespace netxs::os
                         {
                             auto err = std::error_code{};
                             fs::current_path(cwd, err);
-                            //todo use dtvt to log
-                            //if (err) os::fail(prompt::dtvt, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                            //else          log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                            if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                            else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
                         }
 
                         os::process::execvp(cmdline);
-                        auto errcode = errno;
-                        //todo use dtvt to log
-                        //os::fail(prompt::dtvt, "Exec error");
-                        ::close(os::stderr_fd);
-                        ::close(os::stdout_fd);
-                        ::close(os::stdin_fd );
-                        os::process::exit<true>(errcode);
+                        auto err_code = os::error();
+                        std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
+                                                                       " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                                       " cmd: "s + cmdline + " "s).nil() << std::flush;
+                        os::process::exit<true>(err_code);
                     }
 
                     // Parent branch.
