@@ -2357,6 +2357,30 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
+        void spawn(text cwd, text cmdline, fd_t fd_inp, fd_t fd_out, fd_t fd_err)
+        {
+            #if defined(_WIN32)
+            #else
+
+                ::dup2(fd_inp, os::stdin_fd);  // Assign stdio lines atomically
+                ::dup2(fd_out, os::stdout_fd); // = ::close(new); ::fcntl(old, F_DUPFD, new).
+                ::dup2(fd_err, os::stderr_fd); //
+                os::fdcleanup();
+                if (cwd.size())
+                {
+                    auto err = std::error_code{};
+                    fs::current_path(cwd, err);
+                    if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                }
+                os::process::execvp(cmdline);
+                auto err_code = os::error();
+                std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
+                                                               " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
+                                                               " cmd: "s + cmdline + " "s).nil() << std::flush;
+                os::process::exit<true>(err_code);
+
+            #endif
+        }
         auto sighup(pidt proc_pid, fd_t prochndl)
         {
             #if defined(_WIN32)
@@ -3268,36 +3292,15 @@ namespace netxs::os
                     fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
                     ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
                     ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
-
                     termlink = { to_server[0], to_client[1] };
-
                     proc_pid = ::fork();
                     if (proc_pid == 0) // Child branch.
                     {
-                        os::process::id = os::process::getid();
-                        io::close(to_client[1]);
-                        io::close(to_server[0]);
-                        ::dup2(to_client[0], os::stdin_fd ); // Assign stdio lines atomically
-                        ::dup2(to_server[1], os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
-                        ::dup2(to_server[1], os::stderr_fd); //
-                        os::fdcleanup();
-
-                        if (cwd.size())
-                        {
-                            auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                            else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
-                        }
-
-                        os::process::execvp(cmdline);
-                        auto err_code = os::error();
-                        std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
-                                                                       " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                                       " cmd: "s + cmdline + " "s).nil() << std::flush;
-                        os::process::exit<true>(err_code);
+                        auto inp = to_client[0];
+                        auto out = to_server[1];
+                        auto err = to_server[1];
+                        os::process::spawn(cwd, cmdline, inp, out, err);
                     }
-
                     // Parent branch.
                     io::close(to_client[0]);
                     io::close(to_server[1]);

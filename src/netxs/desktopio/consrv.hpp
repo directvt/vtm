@@ -4834,16 +4834,12 @@ struct consrv : ipc::stdcon
         auto pid = os::syscall{ ::fork() };
         if (pid.value == 0) // Child branch.
         {
-            // Make the current process a new session leader, return process group id.
+            // Make the current process a new session leader.
             // If the terminal hangups, a SIGHUP is sent to the session leader.
-            // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
+            // If the session leader terminates, the OS sends SIGHUP to each process in the process group.
             auto rc3 = os::syscall{ ::setsid() };
             // Open slave TTY via string ptsname(fdm) and auto assign it as a controlling TTY (in order to receive WINCH and other signals).
             auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR) };
-            ::dup2(fds.value, os::stdin_fd ); // Assign stdio lines atomically
-            ::dup2(fds.value, os::stdout_fd); // = ::close(new);
-            ::dup2(fds.value, os::stderr_fd); // ::fcntl(old, F_DUPFD, new)
-            os::fdcleanup(); // Close all parent's descriptors (also fdm and fds).
             if (!fdm || !rc1 || !rc2 || !rc3 || !fds) // Report if something went wrong.
             {
                 std::cerr << "fdm: "<< fdm.value << " errcode: " << fdm.error << "\n"
@@ -4852,24 +4848,15 @@ struct consrv : ipc::stdcon
                           << "rc3: "<< rc3.value << " errcode: " << rc3.error << "\n"
                           << "fds: "<< fds.value << " errcode: " << fds.error << "\n";
             }
-            if (cwd.size())
-            {
-                auto err = std::error_code{};
-                fs::current_path(cwd, err);
-                if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
-                else     std::cerr << prompt::vtty << "Change current working directory to '" << cwd << "'" << "\n" << std::flush;
-            }
-            ::setenv("TERM", "xterm-256color", 1); //todo too hacky
+            os::env::set("TERM", "xterm-256color");
             if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
             {
-                ::setenv("TERM_PROGRAM", "vtm", 1);
+                os::env::set("TERM_PROGRAM", "vtm");
             }
-            os::process::execvp(cmdline);
-            auto err_code = os::error();
-            std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
-                                                           " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                           " cmd: "s + cmdline + " "s).nil() << std::flush;
-            os::process::exit<true>(err_code);
+            auto inp = fds.value;
+            auto out = fds.value;
+            auto err = fds.value;
+            os::process::spawn(cwd, cmdline, inp, out, err);
         }
         // Parent branch.
         auto err_code = 0;
