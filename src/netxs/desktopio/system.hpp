@@ -3764,6 +3764,7 @@ namespace netxs::os
             auto k = input::syskeybd{};
             auto f = input::sysfocus{};
             m.enabled = input::hids::stat::ok;
+            m.coordxy = { si16min, si16min };
             m.gear_id = 0;
             f.gear_id = 0;
             k.gear_id = 0;
