@@ -4831,32 +4831,30 @@ struct consrv : ipc::stdcon
             trailer();
         });
         winsz(win_size);
-        auto pid = os::syscall{ ::fork() };
+        auto pid = os::syscall{ os::process::sysfork() };
         if (pid.value == 0) // Child branch.
         {
-            // Make the current process a new session leader.
-            // If the terminal hangups, a SIGHUP is sent to the session leader.
-            // If the session leader terminates, the OS sends SIGHUP to each process in the process group.
-            auto rc3 = os::syscall{ ::setsid() };
-            // Open slave TTY via string ptsname(fdm) and auto assign it as a controlling TTY (in order to receive WINCH and other signals).
-            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR) };
+            auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
+            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR) }; // Open slave TTY via string ptsname(fdm) and auto assign it as a controlling TTY (in order to receive WINCH and other signals).
+            ::dup2(fds.value, os::stdin_fd);
+            ::dup2(fds.value, os::stdout_fd);
+            ::dup2(fds.value, os::stderr_fd);
+            os::fdcleanup();
+            auto logger = netxs::logger([](view utf8){ std::cerr << utf8 << std::flush; });
             if (!fdm || !rc1 || !rc2 || !rc3 || !fds) // Report if something went wrong.
             {
-                std::cerr << "fdm: "<< fdm.value << " errcode: " << fdm.error << "\n"
-                          << "rc1: "<< rc1.value << " errcode: " << rc1.error << "\n"
-                          << "rc2: "<< rc2.value << " errcode: " << rc2.error << "\n"
-                          << "rc3: "<< rc3.value << " errcode: " << rc3.error << "\n"
-                          << "fds: "<< fds.value << " errcode: " << fds.error << "\n";
+                log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
+                    "rc1: ", rc1.value, " errcode: ", rc1.error, "\n"
+                    "rc2: ", rc2.value, " errcode: ", rc2.error, "\n"
+                    "rc3: ", rc3.value, " errcode: ", rc3.error, "\n"
+                    "fds: ", fds.value, " errcode: ", fds.error);
             }
             os::env::set("TERM", "xterm-256color");
             if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
             {
                 os::env::set("TERM_PROGRAM", "vtm");
             }
-            auto inp = fds.value;
-            auto out = fds.value;
-            auto err = fds.value;
-            os::process::spawn(cwd, cmdline, inp, out, err);
+            os::process::spawn(cwd, cmdline);
         }
         // Parent branch.
         auto err_code = 0;

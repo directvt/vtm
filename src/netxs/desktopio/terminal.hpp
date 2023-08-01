@@ -7538,7 +7538,7 @@ namespace netxs::ui
                         {
                             output.add(prompt, line, '\n');
                         });
-                        log(output, faux);
+                        log<faux>(output);
                         output.clear();
                         prompt.clear();
                     }

@@ -718,6 +718,35 @@ namespace netxs::events
         auto& agent = _agent<void>();
         agent.stop();
     }
+    template<class T, class P>
+    auto synced(T& object_sptr, P proc)
+    {
+        using buff = generics::buff<text>;
+        return [&, proc, buffer = buff{}](auto utf8) mutable
+        {
+            auto lock = buffer.freeze();
+            lock.block += utf8;
+            if (!lock.await)
+            {
+                if (auto sync = events::try_sync{})
+                {
+                    proc(view{ lock.block });
+                    lock.block.clear();
+                }
+                else
+                {
+                    lock.await = true;
+                    events::enqueue(object_sptr, [&](auto& boss)
+                    {
+                        auto lock = buffer.freeze();
+                        lock.await = faux;
+                        proc(view{ lock.block });
+                        lock.block.clear();
+                    });
+                }
+            }
+        };
+    }
 }
 namespace netxs
 {

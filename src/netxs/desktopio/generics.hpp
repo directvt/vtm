@@ -892,6 +892,40 @@ namespace netxs::generics
             for (auto& [key, val] : list) at(key) = val;
         }
     };
+
+    // generics: Multithreaded buffer.
+    template<class Type>
+    class buff
+    {
+        friend class guard;
+        using lock = std::mutex;
+        using sync = std::lock_guard<lock>;
+
+        flag await{};
+        Type block{};
+        lock mutex{};
+
+    public:
+        buff() {};
+        buff(buff&&) {};
+        buff(buff const&) {};
+        void operator = (buff const&) {};
+
+        auto freeze()
+        {
+            struct guard : sync
+            {
+                flag& await;
+                Type& block;
+                guard(buff& inst)
+                    : sync{ inst.mutex },
+                     await{ inst.await },
+                     block{ inst.block }
+                { }
+            };
+            return guard{ *this };
+        }
+    };
 }
 
 // generics: Map helpers.

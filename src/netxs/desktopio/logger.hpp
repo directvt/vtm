@@ -1,258 +1,138 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-// Usage (C++17) 2013
-//
-// Two (or more) log targets example:
-// netxs::logger logger( [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
-//                       file_write,                             //  2nd logger proc
-//                       ...);                                   //  Nth logger proc
-//
-// User defined formatter example:
-// netxs::logger::custom( [](auto& p, auto& v)
-// {
-//      return utf::concat(datetime::now(), ' ', p, '.', "> ", v, '\n');
-// });
-//
-// Automatic prompt changing example:
-// auto proc(...)
-// {
-//      AUTO_PROMPT;                                // auto prompt
-//      ...code...
-//      {
-//          netxs::logger::prompt p("subprompt");   // nested prompt
-//          ...code...
-//      }
-//      ...code...
-//      log("log message: ", some_data);            // prompted output
-//      ...code...
-//      log("log message: ", some_data, !true);     // promptless output
-//      ...code...
-// }
+// Init:
+// auto logger = netxs::logger{ [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
+//                              file_write,                             //  2nd logger proc
+//                              ...         };                          //  Nth logger proc
 
 #pragma once
 
-#include <sstream>
 #include <vector>
 #include <mutex>
 #include <functional>
 #include <unordered_map>
 #include <utility>
 
-//todo revise - drop macro
-//#define AUTO_PROMPT const netxs::logger::prompt __func__##_auto_prompt(__func__)
-
 namespace netxs
 {
-    class logger
+    struct logger
     {
-        using text = std::string;
-        using view = std::string_view;
-        using flux = std::stringstream;
-        using vect = std::vector<text>;
-        using lock = std::recursive_mutex;
+        using lock = std::mutex;
+        using sync = std::lock_guard<lock>;
         using type = std::function<void(view)>;
         using hash = type*;
-        using list = std::vector<type>;
-        using depo = std::unordered_map<hash, list>;
-        using func = std::function<text(vect const&, view)>;
+        using vect = std::vector<type>;
+        using depo = std::unordered_map<hash, vect>;
 
-        list writers;
-        hash token;
-
-        template<class Void>
-        struct globals
+        static auto globals()
         {
-            static vect prompt;
-            static func formatter;
-            static flux builder;
-            static lock mutex;
-            static text buffer;
-            static bool enabled;
-            static depo all_writers;
-
-            static auto form(text const& value)
+            class vars
             {
-                if (formatter)
-                {
-                    return formatter(prompt, value);
-                }
-                else
-                {
-                    auto result = text{};
-                    if (prompt.size())
-                    {
-                        result = prompt.back() + '>' + ' ';
-                    }
-                    result += value + '\n';
-                    return result;
-                }
-            }
-            static void flush(bool prompted)
-            {
-                if (enabled)
-                {
-                    if (prompted) buffer += form(builder.str());
-                    else          buffer +=      builder.str();
+                friend class guard;
+                lock mutex{};
+                flux input{};
+                text block{};
+                bool quiet{};
+                depo procs{};
+            };
 
-                    if (all_writers.size())
+            struct guard : sync
+            {
+                flux& input;
+                text& block;
+                bool& quiet;
+                depo& procs;
+
+                guard(vars& inst)
+                    : sync{ inst.mutex },
+                     input{ inst.input },
+                     block{ inst.block },
+                     quiet{ inst.quiet },
+                     procs{ inst.procs }
+                { }
+
+                void reset()
+                {
+                    input = {};
+                    block = {};
+                    quiet = {};
+                    procs = {};
+                }
+                void flush(bool newline = faux)
+                {
+                    block += input.str();
+                    if (newline) block += '\n';
+                    if (procs.size())
                     {
-                        for (auto& subset : all_writers)
+                        auto shadow = view{ block };
+                        for (auto& subset : procs)
+                        for (auto& writer : subset.second)
                         {
-                            for (auto& writer : subset.second)
-                            {
-                                writer(buffer);
-                            }
+                            writer(shadow);
                         }
-                        buffer.clear();
+                        block.clear();
                     }
+                    input.str({});
                 }
-                builder.str(text{});
-                builder.clear();
-            }
-            static auto checkin(list& writers)
-            {
-                //todo revise
-                auto digest = writers.data();
-                all_writers[digest] = writers;
-                if (builder.tellg() > 0)
+                void checkin(vect& proc_list)
                 {
-                    flush(!true);
+                    auto token = proc_list.data();
+                    procs[token] = proc_list;
+                    if (block.size()) flush();
+               }
+                void checkout(vect& proc_list)
+                {
+                    auto token = proc_list.data();
+                    procs.erase(token);
                 }
-                return digest;
-            }
-            static void checkout(hash token)
-            {
-                all_writers.erase(token);
-            }
-        };
+            };
 
-        using g = globals<void>;
-
-        static auto guard()
-        {
-            return std::lock_guard{ g::mutex };
-        }
-        template<class T>
-        void add(T&& writer)
-        {
-            writers.emplace_back(std::forward<T>(writer));
-            token = g::checkin(writers);
-        }
-        template<class T, class ...Args>
-        void add(T&& writer, Args&&... args)
-        {
-            writers.emplace_back(std::forward<T>(writer));
-            add(std::forward<Args>(args)...);
+            static auto inst = vars{};
+            return guard{ inst };
         }
 
-    public:
-        struct prompt
-        {
-            prompt(view new_prompt)
-            {
-                auto sync = guard();
-                if (new_prompt.size())
-                {
-                    g::prompt.emplace_back(new_prompt);
-                }
-            }
-           ~prompt()
-            {
-                auto sync = guard();
-                if (g::prompt.size())
-                {
-                    g::prompt.pop_back();
-                }
-            }
-        };
+        vect procs;
 
         logger(logger&& l)
-            : writers{ std::    move(l.writers)   },
-              token  { std::exchange(l.token, {}) }
+            : procs{ std::move(l.procs) }
         { }
         template<class ...Args>
-        logger(Args&&... writers)
+        logger(Args&&... proc_list)
+            : procs{{ std::forward<Args>(proc_list)... }}
         {
-            auto sync = guard();
-            add(std::forward<Args>(writers)...);
+            auto state = globals();
+            state.checkin(procs);
         }
        ~logger()
         {
-            auto sync = guard();
-            if (token) g::checkout(token);
-            writers.clear();
+            auto state = globals();
+            state.checkout(procs);
         }
 
-        static void custom(func formatter)
+        static void enabled(bool active)
         {
-            auto sync = guard();
-            g::formatter = formatter;
-        }
-        static void enabled(bool allowed)
-        {
-            auto sync = guard();
-            g::enabled = allowed;
-        }
-        template<class T>
-        static void feed(T&& entity)
-        {
-            auto sync = guard();
-            g::builder << std::forward<T>(entity);
-            g::flush(true);
-        }
-        static void feed(bool prompted)
-        {
-            auto sync = guard();
-            g::flush(prompted);
-        }
-        template<class T, class ...Args>
-        static void feed(T&& entity, Args&&... args)
-        {
-            auto sync = guard();
-            g::builder << std::forward<T>(entity);
-            feed(std::forward<Args>(args)...);
-        }
-        template<class Sync, class P>
-        static auto tee(P writer)
-        {
-            auto inst = logger([writer, buff = text{}](auto utf8) mutable
-            {
-                if (auto sync = Sync{})
-                {
-                    if (buff.size())
-                    {
-                        writer(view{ buff });
-                        buff.clear();
-                    }
-                    writer(utf8);
-                }
-                else buff += utf8;
-            });
-            return inst;
+            auto state = globals();
+            state.quiet = !active;
         }
         static void wipe()
         {
-            auto sync = guard();
-            g::builder.clear();
-            g::buffer.clear();
+            auto state = globals();
+            state.block.clear();
         }
     };
-
-    template<class T> bool         logger::globals<T>::enabled{ true };
-    template<class T> logger::text logger::globals<T>::buffer;
-    template<class T> logger::flux logger::globals<T>::builder;
-    template<class T> logger::lock logger::globals<T>::mutex;
-    template<class T> logger::vect logger::globals<T>::prompt;
-    template<class T> logger::depo logger::globals<T>::all_writers;
-    template<class T> logger::func logger::globals<T>::formatter;
 }
 
 namespace
 {
-    template<class ...Args>
+    template<bool Newline = true, class ...Args>
     void log(Args&&... args)
     {
-        netxs::logger::feed(std::forward<Args>(args)...);
+        auto state = netxs::logger::globals();
+        if (!state.quiet)
+        {
+            (state.input << ... << std::forward<Args>(args));
+            state.flush(Newline);
+        }
     }
 }

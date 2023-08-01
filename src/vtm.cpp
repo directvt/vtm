@@ -274,7 +274,7 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
-        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { domain->SIGNAL(tier::general, e2::conio::logs, utf8); });
+        auto srvlog = netxs::logger{ events::synced(domain, [&](auto utf8) { domain->SIGNAL(tier::general, e2::conio::logs, utf8); }) };
         auto thread = os::process::pool{};
         domain->autorun();
 

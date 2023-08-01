@@ -2201,6 +2201,22 @@ namespace netxs::os
             log(args...);
             process::exit(code);
         }
+        auto sysfork()
+        {
+            #if defined(_WIN32)
+            #else
+
+                auto lock = netxs::logger::globals();
+                auto crop = ::fork();
+                if (!crop)
+                {
+                    os::process::id = os::process::getid();
+                    lock.reset();
+                }
+                return crop;
+
+            #endif
+        }
         auto execvp(text cmdline)
         {
             #if defined(_WIN32)
@@ -2252,10 +2268,9 @@ namespace netxs::os
 
             #else
 
-                auto p_id = ::fork();
+                auto p_id = os::process::sysfork();
                 if (p_id == 0) // Child branch.
                 {
-                    os::process::id = os::process::getid();
                     if constexpr (Daemon)
                     {
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
@@ -2321,13 +2336,12 @@ namespace netxs::os
 
             #else
 
-                auto p_id = ::fork();
+                auto p_id = os::process::sysfork();
                 if (p_id == 0) // Child process.
                 {
-                    p_id = ::fork(); // Second fork to detach process and avoid zombies.
+                    p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        os::process::id = os::process::getid();
                         ::setsid(); // Make this process the session leader of a new session.
                                     // If the terminal hangups, a SIGHUP is sent to the session leader.
                                     // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
@@ -2357,26 +2371,22 @@ namespace netxs::os
             os::fail(prompt::os, "Can't fork process");
             return faux;
         }
-        void spawn(text cwd, text cmdline, fd_t fd_inp, fd_t fd_out, fd_t fd_err)
+        void spawn(text cwd, text cmdline)
         {
             #if defined(_WIN32)
             #else
 
-                ::dup2(fd_inp, os::stdin_fd);  // Assign stdio lines atomically
-                ::dup2(fd_out, os::stdout_fd); // = ::close(new); ::fcntl(old, F_DUPFD, new).
-                ::dup2(fd_err, os::stderr_fd); //
-                os::fdcleanup();
                 if (cwd.size())
                 {
                     auto err = std::error_code{};
                     fs::current_path(cwd, err);
-                    if (err) std::cerr << prompt::vtty << "Failed to change current working directory to '" << cwd << "', error code: " << err.value() << "\n" << std::flush;
+                    if (err) log(prompt::os, "Failed to change current working directory to '", cwd, "', error code: ", err.value(), "\n");
                 }
                 os::process::execvp(cmdline);
                 auto err_code = os::error();
-                std::cerr << ansi::bgc(reddk).fgc(whitelt).add("Process creation error ").add(err_code).add(" \n"s
-                                                               " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \n"s
-                                                               " cmd: "s + cmdline + " "s).nil() << std::flush;
+                log(ansi::bgc(reddk).fgc(whitelt).add("Process creation error ", err_code, " \n"
+                                                      " cwd: ", cwd.empty() ? "not specified"s : cwd, " \n"
+                                                      " cmd: ", cmdline, " ").nil());
                 os::process::exit<true>(err_code);
 
             #endif
@@ -2963,17 +2973,12 @@ namespace netxs::os
                 auto m_pipe_w = to_client[1];
                 io::send(m_pipe_w, marker);
 
-                proc_pid = ::fork(); // A dtvt-application can be either a real dtvt-application or a proxy
-                                     // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
+                proc_pid = os::process::sysfork(); // A dtvt-application can be either a real dtvt-application or a proxy
+                                          // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
                 if (proc_pid == 0) // Child branch.
                 {
-                    os::process::id = os::process::getid();
-                    io::close(m_pipe_w);
-                    io::close(m_pipe_r);
-                    ::dup2(s_pipe_r, os::stdin_fd ); // Assign stdio lines atomically
-                    ::dup2(s_pipe_w, os::stdout_fd); // = close(new); fcntl(old, F_DUPFD, new).
-                    io::close(s_pipe_w);
-                    io::close(s_pipe_r);
+                    ::dup2(s_pipe_r, os::stdin_fd );
+                    ::dup2(s_pipe_w, os::stdout_fd);
                     auto app = ipc::stdcon{ os::stdin_fd, os::stdout_fd }; // Will be closed in stdcon::dtor or never on execvp success.
                     if (cwd.size())
                     {
@@ -3293,13 +3298,15 @@ namespace netxs::os
                     ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
                     ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
                     termlink = { to_server[0], to_client[1] };
-                    proc_pid = ::fork();
+                    proc_pid = os::process::sysfork();
                     if (proc_pid == 0) // Child branch.
                     {
-                        auto inp = to_client[0];
-                        auto out = to_server[1];
-                        auto err = to_server[1];
-                        os::process::spawn(cwd, cmdline, inp, out, err);
+                        ::dup2(to_client[0], os::stdin_fd);
+                        ::dup2(to_server[1], os::stdout_fd);
+                        ::dup2(to_server[1], os::stderr_fd);
+                        os::fdcleanup();
+                        auto logger = netxs::logger([](view utf8){ std::cout << utf8 << std::flush; });
+                        os::process::spawn(cwd, cmdline);
                     }
                     // Parent branch.
                     io::close(to_client[0]);
@@ -3311,8 +3318,6 @@ namespace netxs::os
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
                 if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
-
-                //return proc_pid;
             }
             void stop()
             {

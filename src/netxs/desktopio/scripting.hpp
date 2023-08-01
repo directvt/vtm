@@ -102,7 +102,7 @@ namespace netxs::scripting
         // repl: Proceed input.
         void ondata(view data)
         {
-            log(ansi::fgc(greenlt).add(data).nil(), faux);
+            log<faux>(ansi::fgc(greenlt).add(data).nil());
         }
         // repl: Cooked read input.
         void data(rich& data)
@@ -110,7 +110,7 @@ namespace netxs::scripting
             owner.bell::trysync(active, [&]
             {
                 // It is a powershell readline echo.
-                //log(ansi::fgc(cyanlt).add(data.utf8()).nil(), faux);
+                //log<faux>(ansi::fgc(cyanlt).add(data.utf8()).nil());
             });
         }
         // repl: Shutdown callback handler.
