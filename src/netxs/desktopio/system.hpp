@@ -2342,10 +2342,7 @@ namespace netxs::os
                     p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
                     if (p_id == 0) // GrandChild process.
                     {
-                        ::setsid(); // Make this process the session leader of a new session.
-                                    // If the terminal hangups, a SIGHUP is sent to the session leader.
-                                    // If the session leader terminates, a SIGHUP is sent by OS to every process in the process group.
-                                    // Daemons don't need for controlling TTY. Initially, the new session has no controlling terminal and it is ok for daemons.
+                        ::setsid(); // Open new session and new process group in it.
                         ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         ::close(os::stdin_fd ); // No stdio needed in daemon mode.
                         ::close(os::stdout_fd); //
