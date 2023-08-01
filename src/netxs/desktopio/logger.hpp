@@ -1,7 +1,7 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-// Init:
+// 2023
 // auto logger = netxs::logger{ [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
 //                              file_write,                             //  2nd logger proc
 //                              ...         };                          //  Nth logger proc
@@ -20,9 +20,8 @@ namespace netxs
     {
         using lock = std::mutex;
         using sync = std::lock_guard<lock>;
-        using type = std::function<void(view)>;
-        using hash = type*;
-        using vect = std::vector<type>;
+        using hash = void*;
+        using vect = std::vector<std::function<void(view)>>;
         using depo = std::unordered_map<hash, vect>;
 
         static auto globals()
@@ -75,16 +74,20 @@ namespace netxs
                     }
                     input.str({});
                 }
-                void checkin(vect& proc_list)
+                void handoff(hash new_owner, hash old_owner)
                 {
-                    auto token = proc_list.data();
-                    procs[token] = proc_list;
+                    auto mapnh = procs.extract(old_owner);
+                    mapnh.key() = new_owner;
+                    procs.insert(std::move(mapnh));
+                }
+                void checkin(hash owner, vect&& proc_list)
+                {
+                    procs[owner] = std::move(proc_list);
                     if (block.size()) flush();
-               }
-                void checkout(vect& proc_list)
+                }
+                void checkout(hash owner)
                 {
-                    auto token = proc_list.data();
-                    procs.erase(token);
+                    procs.erase(owner);
                 }
             };
 
@@ -92,22 +95,21 @@ namespace netxs
             return guard{ inst };
         }
 
-        vect procs;
-
         logger(logger&& l)
-            : procs{ std::move(l.procs) }
-        { }
-        template<class ...Args>
-        logger(Args&&... proc_list)
-            : procs{{ std::forward<Args>(proc_list)... }}
         {
             auto state = globals();
-            state.checkin(procs);
+            state.handoff(this, &l);
+        }
+        template<class ...Args>
+        logger(Args&&... proc_list)
+        {
+            auto state = globals();
+            state.checkin(this, { std::forward<Args>(proc_list)... });
         }
        ~logger()
         {
             auto state = globals();
-            state.checkout(procs);
+            state.checkout(this);
         }
 
         static void enabled(bool active)
@@ -131,7 +133,7 @@ namespace
         auto state = netxs::logger::globals();
         if (!state.quiet)
         {
-            (state.input << ... << std::forward<Args>(args));
+           (state.input << ... << std::forward<Args>(args));
             state.flush(Newline);
         }
     }
