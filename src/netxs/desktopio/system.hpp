@@ -2326,12 +2326,10 @@ namespace netxs::os
                                                     &srtinf.StartupInfo,          // lpStartupInfo
                                                     &proinf);                     // lpProcessInformation
                 io::close(handle);
-                if (result)
+                if (result) // Success. The fork concept is not supported on Windows.
                 {
                     io::close(proinf.hProcess);
                     io::close(proinf.hThread);
-                    log(prompt::os, "Process forked");
-                    return faux; // Success. The fork concept is not supported on Windows.
                 }
 
             #else
@@ -2356,17 +2354,15 @@ namespace netxs::os
                 {
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0);
-                    if (WIFEXITED(stat) && WEXITSTATUS(stat) == 0)
-                    {
-                        log(prompt::os, "Process forked");
-                        result = true;
-                        return faux; // Child forked and exited successfully.
-                    }
+                    result = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
                 }
 
             #endif
-            os::fail(prompt::os, "Can't fork process");
-            return faux;
+
+            if (result) log(prompt::os, "Process forked");
+            else   os::fail(prompt::os, "Can't fork process");
+
+            return faux; // Parent branch.
         }
         void spawn(text cwd, text cmdline)
         {
