@@ -12,7 +12,6 @@
 #include <mutex>
 #include <functional>
 #include <unordered_map>
-#include <utility>
 
 namespace netxs
 {
@@ -58,10 +57,9 @@ namespace netxs
                     quiet = {};
                     procs = {};
                 }
-                void flush(bool newline = faux)
+                void flush()
                 {
                     block += input.str();
-                    if (newline) block += '\n';
                     if (procs.size())
                     {
                         auto shadow = view{ block };
@@ -133,8 +131,9 @@ namespace
         auto state = netxs::logger::globals();
         if (!state.quiet)
         {
-           (state.input << ... << std::forward<Args>(args));
-            state.flush(Newline);
+            (state.input << ... << std::forward<Args>(args));
+            if constexpr (Newline) state.input << '\n';
+            state.flush();
         }
     }
 }
