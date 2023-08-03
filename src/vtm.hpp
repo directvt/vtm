@@ -1555,7 +1555,6 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
-                static auto insts_count = si32{ 0 };
                 auto& gate = gear.owner;
                 auto location = gear.slot;
                 if (gear.meta(hids::anyCtrl))
@@ -1569,11 +1568,9 @@ namespace netxs::app::vtm
                     gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
                     if (auto window = create(what))
                     {
-                        insts_count++;
                         window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
                         {
-                            insts_count--;
-                            log(prompt::hall, "Detached: ", insts_count);
+                            log(prompt::hall, "Objects count: ", items.size());
                         };
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
