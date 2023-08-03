@@ -1091,6 +1091,14 @@ namespace netxs::ansi
         cell spare; // mark: Stored  brush.
         cell fresh; // mark: Initial brush.
         mark() = default;
+        mark(mark&&) = default;
+        mark(mark const&) = default;
+        mark& operator = (mark const&) = default;
+        mark& operator = (cell const& c)
+        {
+            cell::operator=(c);
+            return *this;
+        }
         mark(cell const& brush)
             : cell { brush },
               fresh{ brush },
