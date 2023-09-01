@@ -49,6 +49,7 @@ namespace netxs::scripting
         public:
             void disable()
             {
+                s11n::stop();
                 token.clear();
             }
 
@@ -73,14 +74,6 @@ namespace netxs::scripting
                 : s11n{ *this },
                  owner{ owner }
             {
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::header, utf8, token)
-                {
-                    //s11n::form_header.send(owner, 0, utf8);
-                };
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::footer, utf8, token)
-                {
-                    //s11n::form_footer.send(owner, 0, utf8);
-                };
                 owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     //...

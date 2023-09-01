@@ -170,7 +170,8 @@ namespace netxs::app::shared
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, boss.This());
+                                    auto backup = boss.This();
+                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
                                     gear.dismiss();
                                 };
                             })
@@ -326,9 +327,9 @@ namespace netxs::app::shared
     };
     const auto closing_on_quit = [](auto& boss)
     {
-        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -336,13 +337,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
     };
@@ -454,7 +455,7 @@ namespace netxs::app::shared
         auto settings(view defaults, view cli_config_path, view patch)
         {
             auto conf = xmls{ defaults };
-            auto load = [&](view shadow)
+            auto load = [&](qiew shadow)
             {
                 if (shadow.empty()) return faux;
                 if (shadow.starts_with(":"))
@@ -472,7 +473,7 @@ namespace netxs::app::shared
                         return faux;
                     }
                 }
-                auto path = text{ shadow };
+                auto path = shadow.str();
                 log(prompt::apps, "Loading configuration from ", path, "...");
                 if (path.starts_with("$"))
                 {
@@ -531,4 +532,23 @@ namespace netxs::app::shared
             map[app_typename] = builder;
         }
     };
+
+    void start(text params, text aclass, si32 vtmode, twod winsz, xmls& config)
+    {
+        auto [client, server] = os::ipc::xlink();
+        auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        {
+            os::tty::splice(client);
+        }};
+        //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
+        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
+        auto domain = ui::base::create<ui::host>(server, config);
+        auto direct = os::dtvt::active;
+        auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        domain->invite(server, applet, vtmode, winsz);
+        events::dequeue();
+        domain->shutdown();
+        server->shut();
+        thread.join();
+    }
 }

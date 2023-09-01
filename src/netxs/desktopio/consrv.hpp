@@ -12,9 +12,11 @@ struct consrv
 {
     fd_t        condrv{ os::invalid_fd }; // consrv: Console driver handle.
     fd_t        refdrv{ os::invalid_fd }; // consrv: Console driver reference.
+    fd_t        prochndl{ os::invalid_fd };
+    pidt        proc_pid{};
     std::thread waitexit;                 // consrv: The trailing thread for the child process.
 
-    virtual void stop() = 0;
+    virtual si32 wait() = 0;
     virtual void undo(bool undo_redo)  = 0;
     virtual void start() = 0;
     virtual void reset() = 0;
@@ -24,11 +26,13 @@ struct consrv
     virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    void cleanup()
+    virtual void style(ui32 style) = 0;
+    virtual void sighup() = 0;
+    void cleanup(bool io_log)
     {
         if (waitexit.joinable())
         {
-            log(prompt::vtty, "Child process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            if (io_log) log(prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
             waitexit.join();
         }
     }
@@ -41,7 +45,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
+    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -54,8 +58,8 @@ struct consrv
                                       : nt::ioctl(nt::console::op::set_server_information, condrv, (arch)watch());
         if (success != ERROR_SUCCESS)
         {
-            io::close(condrv);
-            io::close(refdrv);
+            os::close(condrv);
+            os::close(refdrv);
             err_code = os::error();
             os::fail(prompt::vtty, "Console server creation error");
             return err_code;
@@ -108,21 +112,23 @@ struct consrv
                                    &procsinf);                           // lpProcessInformation
         if (ret == 0)
         {
+            prochndl = { os::invalid_fd };
+            proc_pid = {};
             err_code = os::error();
-            os::fail(prompt::vtty, "Child process creation error");
-            stop();
+            os::fail(prompt::vtty, "Process creation error");
+            wait();
         }
         else
         {
-            io::close( procsinf.hThread );
+            os::close( procsinf.hThread );
             prochndl = procsinf.hProcess;
             proc_pid = procsinf.dwProcessId;
             waitexit = std::thread([&, trailer]
             {
                 auto pid = proc_pid; // MSVC don't capture it.
-                io::select(prochndl, [pid]{ log(prompt::vtty, "Child process ", pid, " terminated"); });
+                io::select(prochndl, [&terminal, pid]{ if (terminal.io_log) log(prompt::vtty, "Process ", pid, " terminated"); });
                 trailer();
-                log(prompt::vtty, "Child process ", pid, " waiter ended");
+                if (terminal.io_log) log(prompt::vtty, "Process ", pid, " waiter ended");
             });
         }
         return err_code;
@@ -473,11 +479,12 @@ struct impl : consrv
     struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
-        using fire = netxs::os::io::fire;
+        using fire = netxs::os::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
         using irec = INPUT_RECORD;
+        using work = std::thread;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
@@ -491,13 +498,14 @@ struct impl : consrv
         lock  locker; // events_t: Input event buffer mutex.
         cook  cooked; // events_t: Cooked input string.
         jobs  worker; // events_t: Background task executer.
-        bool  closed; // events_t: Console server was shutdown.
+        flag  closed; // events_t: Console server was shutdown.
         fire  ondata; // events_t: Signal on input buffer data.
         wide  wcpair; // events_t: Surrogate pair buffer.
         wide  toWIDE; // events_t: UTF-16 decoder buffer.
         text  toUTF8; // events_t: UTF-8  decoder buffer.
         text  toANSI; // events_t: ANSI   decoder buffer.
         irec  leader; // events_t: Hanging key event record (lead byte).
+        work  ostask; // events_t: Console task thread for the child process.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -509,7 +517,7 @@ struct impl : consrv
         void reset()
         {
             auto lock = std::lock_guard{ locker };
-            closed = faux;
+            closed.exchange(faux);
             stream.clear();
             ondata.flush();
         }
@@ -537,30 +545,38 @@ struct impl : consrv
         }
         void alert(ui32 what, ui32 pgroup = 0)
         {
-            if (server.io_log)
+            static auto index = 0;
+            if (server.io_log) log(server.prompt, "ConsoleTask event index ", ++index);
+            if (ostask.joinable()) ostask.join();
+            ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
-                log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
-                                 : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
-                                 : what == CTRL_CLOSE_EVENT ? "CtrlClose"
-                                                            : "Unknown", " event");
-            }
-            for (auto& client : server.joined)
-            {
-                if (!pgroup || pgroup == client.pgroup)
+                if (io_log) prompt.add(what == nt::console::event::ctrl_c     ? "Ctrl+C"
+                                     : what == nt::console::event::ctrl_break ? "Ctrl+Break"
+                                     : what == nt::console::event::close      ? "Ctrl Close"
+                                     : what == nt::console::event::logoff     ? "Ctrl Logoff"
+                                     : what == nt::console::event::shutdown   ? "Ctrl Shutdown"
+                                                                              : "Unknown", " event index ", index);
+                for (auto& client : joined)
                 {
-                    auto stat = nt::ConsoleTask<Arch>(client.procid, what);
-                    if (server.io_log)
+                    if (!pgroup || pgroup == client.pgroup)
                     {
-                        log("\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
+                        auto stat = nt::ConsoleTask<Arch>(client.procid, what);
+                        if (io_log) prompt.add("\n\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
                     }
                 }
-            }
+                if (io_log) log(prompt, "\n\t-------------------------");
+            }};
         }
-        void stop()
+        void sighup()
         {
             auto lock = std::lock_guard{ locker };
             alert(CTRL_CLOSE_EVENT);
-            closed = true;
+        }
+        void stop()
+        {
+            if (ostask.joinable()) ostask.join();
+            auto lock = std::unique_lock{ locker };
+            closed.exchange(true);
             signal.notify_all();
         }
         void clear()
@@ -641,17 +657,20 @@ struct impl : consrv
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
-            stream.emplace_back(INPUT_RECORD
-            {
-                .EventType = FOCUS_EVENT,
-                .Event =
-                {
-                    .FocusEvent =
-                    {
-                        .bSetFocus = state,
-                    }
-                }
-            });
+            auto data = INPUT_RECORD{ .EventType = FOCUS_EVENT };
+            data.Event.FocusEvent.bSetFocus = state;
+            stream.emplace_back(data);
+            ondata.reset();
+            signal.notify_one();
+        }
+        void style(ui32 format)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::style;
+            stream.emplace_back(data);
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | format;
+            stream.emplace_back(data);
             ondata.reset();
             signal.notify_one();
         }
@@ -898,14 +917,14 @@ struct impl : consrv
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
-                    alert(CTRL_BREAK_EVENT);
                     stream.pop_back();
+                    if (gear.pressed) alert(nt::console::event::ctrl_break);
                 }
                 else
                 {
                     if (server.inpmod & nt::console::inmode::preprocess)
                     {
-                        if (gear.pressed) alert(CTRL_C_EVENT);
+                        if (gear.pressed) alert(nt::console::event::ctrl_c);
                         //todo revise
                         //stream.pop_back();
                     }
@@ -1228,7 +1247,7 @@ struct impl : consrv
             }
         }
         template<class Payload>
-        auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
+        auto placeorder(Payload& packet, wiew nameview, qiew initdata, ui32 readstep)
         {
             auto lock = std::lock_guard{ locker };
             if (cooked.rest.empty())
@@ -1239,7 +1258,7 @@ struct impl : consrv
                 //  - '\n' is added to the '\r'
 
                 auto token = jobs::token(server.answer, packet.target, faux);
-                worker.add(token, [&, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
+                worker.add(token, [&, readstep, packet, initdata = initdata.str(), nameview = utf::to_utf(nameview)](auto& token) mutable
                 {
                     auto lock = std::unique_lock{ locker };
                     auto& answer = std::get<0>(token);
@@ -2194,6 +2213,8 @@ struct impl : consrv
         answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
+        allout.exchange(faux);
+        allout.notify_all();
     }
     auto api_process_detach                  ()
     {
@@ -2227,6 +2248,11 @@ struct impl : consrv
             }
             client.tokens.clear();
             joined.erase(iter);
+            if (joined.empty())
+            {
+                allout.exchange(true);
+                allout.notify_all();
+            }
             log("\tprocess ", utf::to_hex_0x(client_ptr), " detached");
         }
         else log("\trequested process ", utf::to_hex_0x(client_ptr), " not found");
@@ -2737,7 +2763,7 @@ struct impl : consrv
             {
                 if constexpr (isreal())
                 {
-                    auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
+                    auto active = scroll_handle.link == &uiterm.target || scroll_handle.link == uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                     if (!direct(packet.target, [&](auto& scrollback) { active ? uiterm.ondata(crop)
                                                                               : uiterm.ondata(crop, &scrollback); }))
                     {
@@ -3155,7 +3181,8 @@ struct impl : consrv
                 log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
-                impcls = impcls && coord == dot_00 && count == screen.panel.x * screen.panel.y;
+                auto c = attr_to_brush(piece);
+                auto impcls = screen.brush.issame_visual(c) && coord == dot_00 && count == screen.panel.x * screen.panel.y;
                 if (impcls)
                 {
                     log("\timplicit screen clearing detected");
@@ -3163,8 +3190,7 @@ struct impl : consrv
                 }
                 else
                 {
-                    auto c = attr_to_brush(piece);
-                    log("\tfill using attributes: ", (int)c);
+                    log("\tfill using attributes: ", utf::to_hex_0x(piece));
                     if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
@@ -3180,7 +3206,7 @@ struct impl : consrv
                             "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
-                impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
+                auto impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
                 if (piece == ' ' && count > maxsz)
                 {
@@ -3233,7 +3259,7 @@ struct impl : consrv
                 log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count,
-                            "\tfill using attributes: ", (int)attr_to_brush(piece));
+                            "\tfill using attributes: ", utf::to_hex_0x(piece));
             }
             else
             {
@@ -3655,7 +3681,7 @@ struct impl : consrv
             "\n\tinput.style: ", packet.input.style,
             "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
         auto target_ptr = (hndl*)packet.target;
-        if (target_ptr && target_ptr->link == &uiterm.target)
+        if (target_ptr && (target_ptr->link == &uiterm.target || target_ptr->link == uiterm.target)) // Also check if addition screen buffer is active.
         {
             if constexpr (isreal())
             {
@@ -3728,7 +3754,7 @@ struct impl : consrv
             {
                 auto const& c = *head++;
                 auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
-                rgbpalette[m] = c;
+                rgbpalette[m] = c & 0x00FFFFFF; // conhost crashed if alpha non zero.
                 if (c == frgb) fgcx = m;
                 if (c == brgb) bgcx = m + 1;
             }
@@ -3736,7 +3762,7 @@ struct impl : consrv
             {
                 bgcx = 0;
                 uiterm.ctrack.color[bgcx] = brgb;
-                rgbpalette         [bgcx] = brgb;
+                rgbpalette         [bgcx] = brgb & 0x00FFFFFF; // conhost crashed if alpha non zero.
             }
             packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
             if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
@@ -3813,7 +3839,7 @@ struct impl : consrv
             for (auto i = 0; i < 16; i++)
             {
                 auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
-                *head++ = rgbpalette[m];
+                *head++ = rgbpalette[m] | 0xFF000000; // conhost crashed if alpha non zero.
             }
         }
     }
@@ -4516,7 +4542,7 @@ struct impl : consrv
     using apis = std::vector<void(impl::*)()>;
     using list = std::list<clnt>;
     using face = ui::face;
-    using fire = netxs::os::io::fire;
+    using fire = netxs::os::fire;
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
@@ -4539,7 +4565,7 @@ struct impl : consrv
     ui32        inpmod; // consrv: Events mode flag set.
     ui32        outmod; // consrv: Scrollbuffer mode flag set.
     face        mirror; // consrv: Viewport bitmap buffer.
-    bool        impcls; // consrv: Implicit scroll buffer clearing detection.
+    flag        allout; // consrv: All clients detached.
     para        celler; // consrv: Buffer for converting raw text to cells.
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
@@ -4554,7 +4580,7 @@ struct impl : consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                ok<faux>(!debugmode, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4632,15 +4658,32 @@ struct impl : consrv
             log(prompt, "Server thread ended");
         }};
     }
-    void stop()
+    si32 wait()
     {
-        io::close(condrv);
-        io::close(refdrv);
+        allout.wait(faux);
+        auto procstat = sigt{};
+        if (::GetExitCodeProcess(prochndl, &procstat) && (procstat == STILL_ACTIVE || procstat == nt::status::control_c_exit))
+        {
+            if (procstat == STILL_ACTIVE)
+            {
+                log(prompt, ansi::err("Process ", proc_pid, " still running"));
+            }
+            procstat = {};
+        }
+        os::close(prochndl);
+        proc_pid = {};
         events.stop();
+        os::close(condrv);
+        os::close(refdrv);
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
         log(prompt, "Console API server shut down");
+        return procstat;
+    }
+    void sighup()
+    {
+        events.sighup();
     }
     template<class T>
     auto size_check(T upto, T from)
@@ -4682,6 +4725,7 @@ struct impl : consrv
     void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
     void focus(bool state)                                  { events.focus(state);              }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
+    void style(ui32 style)                                  { events.style(style);              }
     bool  send(view utf8)                                   { events.write(utf8); return true;  }
     void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
     fd_t watch()                                            { return events.ondata;             }
@@ -4690,7 +4734,7 @@ struct impl : consrv
         : uiterm{ uiterm                                         },
           io_log{ uiterm.io_log                                  },
           events{ *this                                          },
-          impcls{ faux                                           },
+          allout{ true                                           },
           answer{                                                },
           winhnd{                                                },
           inpmod{ nt::console::inmode::preprocess                },
@@ -4768,7 +4812,8 @@ struct impl : consrv
 
 struct consrv : ipc::stdcon
 {
-    std::thread stdinput;
+    std::thread stdinput{};
+    pidt        group_id{};
 
     template<class Term>
     consrv(Term&)
@@ -4778,11 +4823,11 @@ struct consrv : ipc::stdcon
     {
         return stdcon::operator bool();
     }
-    void cleanup()
+    void cleanup(bool io_log)
     {
         if (stdinput.joinable())
         {
-            log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            if (io_log) log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
             stdinput.join();
         }
         stdcon::cleanup();
@@ -4792,12 +4837,12 @@ struct consrv : ipc::stdcon
         //todo win32-input-mode
         using type = decltype(winsize::ws_row);
         auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
-        ok(::ioctl(handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+        ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
     }
     template<class Term>
     void read_socket_thread(Term& terminal)
     {
-        log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+        if (terminal.io_log) log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
         auto flow = text{};
         while (alive())
         {
@@ -4811,7 +4856,7 @@ struct consrv : ipc::stdcon
             }
             else break;
         }
-        log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+        if (terminal.io_log) log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
     }
     template<class Term>
     static auto create(Term& terminal)
@@ -4819,7 +4864,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, pidt& proc_pid, fd_t& prochndl, twod win_size, text cwd, text cmdline, Proc trailer)
+    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -4830,23 +4875,27 @@ struct consrv : ipc::stdcon
             read_socket_thread(terminal);
             trailer();
         });
-        winsz(win_size);
         auto pid = os::syscall{ os::process::sysfork() };
         if (pid.value == 0) // Child branch.
         {
             auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
-            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR) }; // Open slave TTY via string ptsname(fdm) and auto assign it as a controlling TTY (in order to receive WINCH and other signals).
-            ::dup2(fds.value, os::stdin_fd);
-            ::dup2(fds.value, os::stdout_fd);
-            ::dup2(fds.value, os::stderr_fd);
-            os::fdcleanup();
-            auto logger = netxs::logger([](view utf8){ std::cerr << utf8 << std::flush; });
-            if (!fdm || !rc1 || !rc2 || !rc3 || !fds) // Report if something went wrong.
+            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR | O_NOCTTY) }; // Open slave TTY via string ptsname(fdm) (BSD doesn't auto assign controlling terminal: we should assign it explicitly).
+            auto rc4 = os::syscall{ ::ioctl(fds.value, TIOCSCTTY, 0) }; // Assign it as a controlling TTY (in order to receive WINCH and other signals).
+            winsz(win_size); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
+            os::dtvt::active = faux; // Logger update.
+            os::dtvt::client = {};   //
+            ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+            ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+            ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            os::fdscleanup();
+            os::signals::state.reset();
+            if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
             {
                 log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
                     "rc1: ", rc1.value, " errcode: ", rc1.error, "\n"
                     "rc2: ", rc2.value, " errcode: ", rc2.error, "\n"
                     "rc3: ", rc3.value, " errcode: ", rc3.error, "\n"
+                    "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
             os::env::set("TERM", "xterm-256color");
@@ -4858,8 +4907,15 @@ struct consrv : ipc::stdcon
         }
         // Parent branch.
         auto err_code = 0;
-        if (pid) proc_pid = pid.value;
-        else     err_code = pid.error;
+        if (pid)
+        {
+            group_id = pid.value;
+        }
+        else
+        {
+            group_id = {};
+            err_code = pid.error;
+        }
         return err_code;
     }
     void reset()
@@ -4878,9 +4934,32 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
     }
+    void style(ui32 format)
+    {
+        //todo win32-input-mode
+    }
     void undo(bool undoredo)
     {
         //todo
+    }
+    auto sighup()
+    {
+        // Send SIGHUP to all processes in the proc_pid group (negative value).
+        ok(::kill(-group_id, SIGHUP), "::kill(-pid, SIGHUP)", os::unexpected_msg);
+    }
+    auto wait()
+    {
+        auto stat = sigt{};
+        auto p_id = pidt{};
+        auto code = si32{};
+        while ((p_id = ::waitpid(-group_id, &stat, 0)) > 0) // Wait all child processes.
+        {
+            auto c = WEXITSTATUS(stat);
+            if (c) log(prompt::vtty, ansi::err("Process ", p_id, " terminated wth code ", c));
+            if (p_id == group_id) code = c;
+        }
+        stdcon::stop();
+        return code;
     }
 };
 

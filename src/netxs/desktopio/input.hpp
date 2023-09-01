@@ -16,18 +16,13 @@ namespace netxs::events::userland
             EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
-            GROUP_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
+            EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
 
-            SUBSET_XS( clipbrd )
-            {
-                EVENT_XS( get, input::hids ), // release: Get clipboard data.
-                EVENT_XS( set, input::hids ), // release: Set clipboard data.
-            };
             SUBSET_XS( notify )
             {
                 GROUP_XS( mouse, input::hids ),
@@ -347,7 +342,7 @@ namespace netxs::input
             X(20,  0x20, 0x39,           0, 0x0000'00'FF, Space            )\
             X(22,  0x08, 0x0E,           0, 0x0000'00'FF, Backspace        )\
             X(24,  0x09, 0x0F,           0, 0x0000'00'FF, Tab              )\
-            X(26,  0x03, 0x45,           0, 0x0000'FF'FF, Break            )\
+            X(26,  0x03, 0x46,           0, 0x0000'FF'FF, Break            )\
             X(28,  0x13, 0x45,           0, 0x0000'FF'FF, Pause            )\
             X(30,  0x29,    0,           0, 0x0000'00'FF, Select           )\
             X(32,  0x2C, 0x54,           0, 0x0000'FF'FF, SysRq            )\
@@ -1007,7 +1002,7 @@ namespace netxs::input
         }
 
         // hids: Whether event processing is complete.
-        operator bool() const
+        operator bool () const
         {
             return alive;
         }
@@ -1016,7 +1011,7 @@ namespace netxs::input
         {
             auto not_empty = !!clip_rawdata.utf8.size();
             clip_rawdata.clear();
-            owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
             if (not_directvt)
             {
                 clip_preview.size(clip_rawdata.size);
@@ -1072,17 +1067,13 @@ namespace netxs::input
                     else                                     clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
                 }
             }
-            if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
+            if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
             mouse::delta.set(); // Update time stamp.
         }
-        auto get_clip_data()
+        auto& get_clip_data()
         {
-            auto data = clip{};
-            owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
-            if (not_directvt) data.utf8 = clip_rawdata.utf8;
-            else              data.utf8 = std::move(clip_rawdata.utf8);
-            data.kind = clip_rawdata.kind;
-            return data;
+            owner.SIGNAL(tier::request, hids::events::clipbrd, *this);
+            return clip_rawdata;
         }
 
         auto tooltip_enabled(time const& now)

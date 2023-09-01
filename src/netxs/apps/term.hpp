@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "../desktopio/terminal.hpp"
 #include "../desktopio/application.hpp"
+#include "../desktopio/terminal.hpp"
 
 namespace netxs::events::userland
 {
@@ -332,7 +332,7 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
+                    boss.SIGNAL(tier::anycast, app::term::events::cmd, ui::term::commands::ui::commands::sighup);
                 });
             }
             static void TerminalFullscreen(ui::pads& boss, menu::item& item)
@@ -609,11 +609,7 @@ namespace netxs::app::term
                     .onkey = label->take(menu::attr::onkey, defs.onkey),
                 });
             }
-            if (item.views.empty())
-            {
-                log(prompt::term, ansi::err("Menu item without label"));
-                continue;
-            }
+            if (item.views.empty()) continue; // Menu item without label.
             auto setup = [route](ui::pads& boss, menu::item& item)
             {
                 if (item.brand == menu::item::Option)
@@ -789,14 +785,13 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
                 ->invoke([](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, boss_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, boss_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
                     };
-                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, item_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        boss.stop();
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, item_ptr);
+                        boss.sighup(fast);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                     {

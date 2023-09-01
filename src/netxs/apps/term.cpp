@@ -10,15 +10,13 @@ int main(int argc, char* argv[])
     auto defaults = 
     #include "term.xml"
 
-    auto vtmode = os::tty::vtmode();
+    auto vtmode = os::tty::vtmode;
     auto syslog = os::tty::logger();
     auto banner = [&]{ log(app::term::desc, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
     auto getopt = os::process::args{ argc, argv };
-    auto params = app::term::id + " "s + getopt.rest();
-    getopt.reset();
     while (getopt)
     {
         if (getopt.match("-l", "--listconfig"))
@@ -54,6 +52,7 @@ int main(int argc, char* argv[])
             break;
         }
     }
+    auto params = getopt.rest();
 
     banner();
     if (errmsg.size())
@@ -61,12 +60,13 @@ int main(int argc, char* argv[])
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
         log("\nTerminal emulator.\n\n"s
-            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ]\n"s
+            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ] [ -- <shell> ]\n"s
             + "\n"s
             + "  Options:\n\n"s
-            + "    No arguments       Run application.\n"s
+            + "    No arguments       Run terminal with default shell.\n"s
             + "    -c, --config <..>  Use specified configuration file.\n"s
             + "    -l, --listconfig   Show configuration and exit.\n"s
+            + "    -- <shell>         Run terminal with specified shell.\n"s
             + "\n"s
             + "  Configuration precedence (descending priority):\n\n"s
             + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
@@ -76,18 +76,11 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config()));
+        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
     }
     else
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
-        auto result = app::shared::start(params, app::term::id, vtmode, config);
-
-        if (result) return 0;
-        else
-        {
-            log(prompt::main, "App initialization error");
-            return 1;
-        }
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        app::shared::start(params, app::term::id, vtmode, os::dtvt::win_sz, config);
     }
 }

@@ -2,9 +2,9 @@
 // Licensed under the MIT license.
 
 // 2023
-// auto logger = netxs::logger{ [&](auto& a) { ipc.write_message(a); }, //  1st logger proc
-//                              file_write,                             //  2nd logger proc
-//                              ...         };                          //  Nth logger proc
+// auto logger = netxs::logger::attach([&](auto& a) { ipc.write_message(a); }, //  1st logger proc
+//                                     file_write,                             //  2nd logger proc
+//                                     ...         );                          //  Nth logger proc
 
 #pragma once
 
@@ -25,9 +25,9 @@ namespace netxs
 
         static auto globals()
         {
-            class vars
+            struct vars
             {
-                friend class guard;
+                friend struct guard;
                 lock mutex{};
                 flux input{};
                 text block{};
@@ -59,7 +59,7 @@ namespace netxs
                 }
                 void flush()
                 {
-                    block += input.str();
+                    block += utf::change(input.str(), "\n", "\r\n"); // We have disabled console post-processing.
                     if (procs.size())
                     {
                         auto shadow = view{ block };
@@ -71,12 +71,6 @@ namespace netxs
                         block.clear();
                     }
                     input.str({});
-                }
-                void handoff(hash new_owner, hash old_owner)
-                {
-                    auto mapnh = procs.extract(old_owner);
-                    mapnh.key() = new_owner;
-                    procs.insert(std::move(mapnh));
                 }
                 void checkin(hash owner, vect&& proc_list)
                 {
@@ -93,11 +87,6 @@ namespace netxs
             return guard{ inst };
         }
 
-        logger(logger&& l)
-        {
-            auto state = globals();
-            state.handoff(this, &l);
-        }
         template<class ...Args>
         logger(Args&&... proc_list)
         {
@@ -110,6 +99,11 @@ namespace netxs
             state.checkout(this);
         }
 
+        template<class ...Args>
+        static auto attach(Args&&... proc_list)
+        {
+            return ptr::shared<netxs::logger>(std::forward<Args>(proc_list)...);
+        }
         static void enabled(bool active)
         {
             auto state = globals();

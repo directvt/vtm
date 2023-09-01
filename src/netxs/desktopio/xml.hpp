@@ -60,7 +60,7 @@ namespace netxs::xml
     }
 
     template<class T>
-    auto take(view utf8) -> std::optional<T>
+    auto take(qiew utf8) -> std::optional<T>
     {
         if (utf8.starts_with("0x"))
         {
@@ -70,21 +70,21 @@ namespace netxs::xml
         else return utf::to_int<T, 10>(utf8);
     }
     template<>
-    auto take<text>(view utf8) -> std::optional<text>
+    auto take<text>(qiew utf8) -> std::optional<text>
     {
-        return text{ utf8 };
+        return utf8.str();
     }
     template<>
-    auto take<bool>(view utf8) -> std::optional<bool>
+    auto take<bool>(qiew utf8) -> std::optional<bool>
     {
-        auto value = utf::to_low(text{ utf8 });
+        auto value = utf::to_low(utf8.str());
         return value.empty() || value.starts_with("1")  // 1 - true
                              || value.starts_with("on") // on
                              || value.starts_with("y")  // yes
                              || value.starts_with("t"); // true
     }
     template<>
-    auto take<twod>(view utf8) -> std::optional<twod>
+    auto take<twod>(qiew utf8) -> std::optional<twod>
     {
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
@@ -98,7 +98,7 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<span>(view utf8) -> std::optional<span>
+    auto take<span>(qiew utf8) -> std::optional<span>
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
@@ -119,7 +119,7 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<rgba>(view utf8) -> std::optional<rgba>
+    auto take<rgba>(qiew utf8) -> std::optional<rgba>
     {
         auto tobyte = [](auto c)
         {
@@ -128,7 +128,7 @@ namespace netxs::xml
             else                           return 0;
         };
 
-        auto value = utf::to_low(text{ utf8 });
+        auto value = utf::to_low(utf8.str());
         auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
@@ -200,7 +200,7 @@ namespace netxs::xml
         {
             if (c.value() >=0 && c.value() <=255)
             {
-                result = rgba::color256[c.value()];
+                result = rgba::vt256[c.value()];
                 return result;
             }
             else log(prompt::xml, "Unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
@@ -321,7 +321,7 @@ namespace netxs::xml
                 //auto tmp = page.data.front().upto;
                 //auto clr = 0;
     
-                auto yield = ansi::esc{};
+                auto yield = ansi::escx{};
                 auto next = data;
                 while (next)
                 {
@@ -771,7 +771,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = text{ utf::get_tail(data, token_delims) };
+            auto item = utf::get_tail(data, token_delims).str();
             utf::to_low(item);
             return item;
         }

@@ -1496,7 +1496,7 @@ namespace netxs::ui
         list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
         iter layer = batch.begin();   // page: Current paragraph.
         pmap parts = {};              // page: Paragraph index.
-        redo stack = {};              // paпу: Style state stack.
+        redo stack = {};              // page: Style state stack.
 
         //todo use ring
         ui32 limit = si32max; // page: Paragraphs number limit.
@@ -1774,13 +1774,13 @@ namespace netxs::ui
                 data += tag2;
                 data += istr;
             }
-            template<svga Mode = svga::truecolor>
+            template<svga Mode = svga::vtrgb>
             auto fgc(rgba const& c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
-            template<svga Mode = svga::truecolor>
+            template<svga Mode = svga::vtrgb>
             auto bgc(rgba const& c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)

@@ -143,7 +143,7 @@ namespace netxs::app::shop
                     "Meta object. Workspace location marker."),
                 };
 
-                auto qr = ansi::esc(
+                auto qr = escx(
                 "\033[107m                                 \n"
                 "  \033[40m \033[97m▄▄▄▄▄ \033[107m \033[30m▄\033[40;97m▄\033[107m \033[30m▄\033[40m \033[107m  \033[40m \033[97m▄\033[107;30m▄\033[40;97m▄▄\033[107m  \033[40m ▄▄▄▄▄ \033[107m  \n"
                 "  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m \033[40m▄   ▄\033[107m \033[40m \033[107;30m▄ \033[40m \033[107m▄\033[40;97m▄\033[107m  \033[40m \033[107m \033[40m   \033[107m \033[40m \033[107m  \n"
@@ -204,9 +204,9 @@ namespace netxs::app::shop
                   ->invoke([](auto& boss)
                   {
                         //boss.keybd.accept(true);
-                        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
+                        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                         {
-                            boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
+                            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                         };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))

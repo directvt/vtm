@@ -41,7 +41,7 @@ namespace netxs::generics
         static inline bool issub(Item const& value) { return (value & subbit) != (value & sigbit) >> 1; }
         static inline auto desub(Item const& value) { return static_cast<Item>((value & ~subbit) | (value & sigbit) >> 1); }
         static inline auto insub(Item const& value) { return static_cast<Item>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
-        static inline auto isdef(Item const& value) { return (value & fifo::skip) == fifo::skip; }
+        static inline auto isdef(Item const& value) { return (value & ~subbit) == fifo::skip; }
 
         static auto& fake() { static fifo empty; return empty; }
 
@@ -897,7 +897,7 @@ namespace netxs::generics
     template<class Type>
     class buff
     {
-        friend class guard;
+        friend struct guard;
         using lock = std::mutex;
         using sync = std::lock_guard<lock>;
 

@@ -79,6 +79,7 @@ namespace netxs::ui
                     togglewrp,
                     togglesel,
                     restart,
+                    sighup,
                     undo,
                     redo,
                     deselect,
@@ -126,7 +127,7 @@ namespace netxs::ui
         struct termconfig
         {
             using mime = clip::mime;
-            using pals = std::remove_const_t<decltype(rgba::color256)>;
+            using pals = std::remove_const_t<decltype(rgba::vt256)>;
 
             si32 def_mxline;
             si32 def_length;
@@ -221,7 +222,7 @@ namespace netxs::ui
                 def_none_f =             config.take("color/selection/none/fx",      commands::fx::color,  fx_options);
                 def_find_f =             config.take("color/match/fx",               commands::fx::color,  fx_options);
 
-                std::copy(std::begin(rgba::color256), std::end(rgba::color256), std::begin(def_colors));
+                std::copy(std::begin(rgba::vt256), std::end(rgba::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
                     def_colors[i] = config.take("color/color" + std::to_string(i), def_colors[i]);
@@ -232,8 +233,6 @@ namespace netxs::ui
         // term: VT-buffer status.
         struct term_state
         {
-            using buff = ansi::esc;
-
             enum type
             {
                 empty,
@@ -246,7 +245,7 @@ namespace netxs::ui
             si32 step{}; // term_state: Terminal scrollback increase step.
             si32 mxsz{}; // term_state: Terminal scrollback increase limit.
             twod area{}; // term_state: Terminal viewport size.
-            buff data{}; // term_state: Status string.
+            escx data{}; // term_state: Status string.
             type mode{}; // term_state: Selection mode.
             twod coor{}; // term_state: Selection coor.
             ui64 body{}; // term_state: Selection rough volume.
@@ -356,7 +355,7 @@ namespace netxs::ui
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
                             if (gear.s.changed != gear.m.changed)
                             {
-                                owner.ptycon.mouse(gear, moved, coord, encod, state);
+                                owner.ipccon.mouse(gear, moved, coord, encod, state);
                             }
                             if (!buttons_only) gear.dismiss();
                         }
@@ -395,7 +394,7 @@ namespace netxs::ui
                 {
                     if (state(s))
                     {
-                        owner.ptycon.focus(s, encod);
+                        owner.ipccon.focus(s, encod);
                     }
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
@@ -414,7 +413,7 @@ namespace netxs::ui
             term&                             owner; // w_tracking: Terminal object reference.
             std::map<text, text>              props;
             std::map<text, std::vector<text>> stack;
-            ansi::esc                         queue;
+            escx                              queue;
 
             w_tracking(term& owner)
                 : owner{ owner }
@@ -552,7 +551,7 @@ namespace netxs::ui
         // term: Terminal 16/256 color palette tracking functionality.
         struct c_tracking
         {
-            using pals = std::remove_const_t<decltype(rgba::color256)>;
+            using pals = std::remove_const_t<decltype(rgba::vt256)>;
             using func = std::unordered_map<text, std::function<void(view)>>;
 
             term& owner; // c_tracking: Terminal object reference.
@@ -625,7 +624,7 @@ namespace netxs::ui
                         if (auto v = utf::to_int(data))
                         {
                             auto n = std::clamp(v.value(), 0, 255);
-                            color[n] = rgba::color256[n];
+                            color[n] = rgba::vt256[n];
                             empty = faux;
                         }
                     }
@@ -762,8 +761,8 @@ namespace netxs::ui
                 vt.csier.table[csi_sgr][sgr_bg_cyn_lt] = V{ p->owner.ctrack.bgc(tint::cyanlt   ); };
                 vt.csier.table[csi_sgr][sgr_bg_wht_lt] = V{ p->owner.ctrack.bgc(tint::whitelt  ); };
 
-                vt.csier.table[csi_cuu] = V{ p->up (q(1)); }; // CSI n A  (CUU)
-                vt.csier.table[csi_cud] = V{ p->dn (q(1)); }; // CSI n B  (CUD)
+                vt.csier.table[csi_cuu] = V{ p-> up(q(1)); }; // CSI n A  (CUU)
+                vt.csier.table[csi_cud] = V{ p-> dn(q(1)); }; // CSI n B  (CUD)
                 vt.csier.table[csi_cuf] = V{ p->cuf(q(1)); }; // CSI n C  (CUF)  Negative values can wrap to the prev line.
                 vt.csier.table[csi_cub] = V{ p->cub(q(1)); }; // CSI n D  (CUB)  Negative values can wrap to the next line.
 
@@ -776,8 +775,8 @@ namespace netxs::ui
 
                 vt.csier.table[csi_cud2]= V{ p->dn ( q(1)); }; // CSI n e  Vertical position relative. Move cursor down (VPR).
 
-                vt.csier.table[csi_cnl] = V{ p->cr (); p->dn (q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
-                vt.csier.table[csi_cpl] = V{ p->cr (); p->up (q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
+                vt.csier.table[csi_cnl] = V{ p->cr(); p->dn(q(1)); }; // CSI n E  Move n lines down and to the leftmost column.
+                vt.csier.table[csi_cpl] = V{ p->cr(); p->up(q(1)); }; // CSI n F  Move n lines up   and to the leftmost column.
                 vt.csier.table[csi_chx] = V{ p->chx( q(1)); }; // CSI n G  Move cursor hz absolute.
                 vt.csier.table[csi_chy] = V{ p->chy( q(1)); }; // CSI n d  Move cursor vt absolute.
                 vt.csier.table[csi_cup] = V{ p->cup( q   ); }; // CSI y ; x H (1-based)
@@ -787,10 +786,10 @@ namespace netxs::ui
                 vt.csier.table[csi_ech] = V{ p->ech( q(1)); };  // CSI n X  Erase n chars (ECH).
                 vt.csier.table[csi_ich] = V{ p->ins( q(1)); };  // CSI n @  Insert n chars (ICH).
 
-                vt.csier.table[csi__ed] = V{ p->ed ( q(0)); }; // CSI n J
-                vt.csier.table[csi__el] = V{ p->el ( q(0)); }; // CSI n K
-                vt.csier.table[csi__il] = V{ p->il ( q(1)); }; // CSI n L  Insert n lines (IL).
-                vt.csier.table[csi__dl] = V{ p->dl ( q(1)); }; // CSI n M  Delete n lines (DL).
+                vt.csier.table[csi__ed] = V{ p-> ed( q(0)); }; // CSI n J
+                vt.csier.table[csi__el] = V{ p-> el( q(0)); }; // CSI n K
+                vt.csier.table[csi__il] = V{ p-> il( q(1)); }; // CSI n L  Insert n lines (IL).
+                vt.csier.table[csi__dl] = V{ p-> dl( q(1)); }; // CSI n M  Delete n lines (DL).
                 vt.csier.table[csi__sd] = V{ p->scl( q(1)); }; // CSI n T  Scroll down by n lines, scrolled out lines are lost.
                 vt.csier.table[csi__su] = V{ p->scl(-q(1)); }; // CSI n S  Scroll   up by n lines, scrolled out lines are pushed to the scrollback.
                 vt.csier.table[csi_scp] = V{ p->scp(     ); }; // CSI   s  Save cursor position.
@@ -805,11 +804,12 @@ namespace netxs::ui
                 vt.csier.table[csi_ccc][ccc_sbs] = V{ p->owner.sbsize(q); }; // CCC_SBS: Set scrollback size.
                 vt.csier.table[csi_ccc][ccc_rst] = V{ p->owner.setdef();  }; // CCC_RST: Reset to defaults.
                 vt.csier.table[csi_ccc][ccc_sgr] = V{ p->owner.setsgr(q); }; // CCC_SGR: Set default SGR.
+                vt.csier.table[csi_ccc][ccc_lsr] = V{ p->owner.setlsr(q(1)); };           // CCC_LSR: Enable line style reporting.
                 vt.csier.table[csi_ccc][ccc_sel] = V{ p->owner.selection_selmod(q(0)); }; // CCC_SEL: Set selection mode.
                 vt.csier.table[csi_ccc][ccc_pad] = V{ p->setpad(q(-1)); };                // CCC_PAD: Set left/right padding for scrollback.
 
                 vt.intro[ctrl::esc][esc_ind   ] = V{ p->lf(1); };          // ESC D  Index. Caret down and scroll if needed (IND).
-                vt.intro[ctrl::esc][esc_ir    ] = V{ p->ri (); };          // ESC M  Reverse index (RI).
+                vt.intro[ctrl::esc][esc_ir    ] = V{ p->ri();  };          // ESC M  Reverse index (RI).
                 vt.intro[ctrl::esc][esc_sc    ] = V{ p->scp(); };          // ESC 7  (same as CSI s) Save cursor position.
                 vt.intro[ctrl::esc][esc_rc    ] = V{ p->rcp(); };          // ESC 8  (same as CSI u) Restore cursor position.
                 vt.intro[ctrl::esc][esc_ris   ] = V{ p->owner.decstr(); }; // ESC c  Reset to initial state (same as DECSTR).
@@ -824,10 +824,10 @@ namespace netxs::ui
                 vt.intro[ctrl::bs ] = V{ p->cub(q.pop_all(ctrl::bs )); };
                 vt.intro[ctrl::del] = V{ p->del(q.pop_all(ctrl::del)); }; // Move backward and delete character under cursor with wrapping.
                 vt.intro[ctrl::tab] = V{ p->tab(q.pop_all(ctrl::tab)); };
-                vt.intro[ctrl::eol] = V{ p->lf (q.pop_all(ctrl::eol)); }; // LF
-                vt.intro[ctrl::vt ] = V{ p->lf (q.pop_all(ctrl::vt )); }; // VT same as LF
-                vt.intro[ctrl::ff ] = V{ p->lf (q.pop_all(ctrl::ff )); }; // FF same as LF
-                vt.intro[ctrl::cr ] = V{ p->cr ();                     }; // CR
+                vt.intro[ctrl::eol] = V{ p-> lf(q.pop_all(ctrl::eol)); }; // LF
+                vt.intro[ctrl::vt ] = V{ p-> lf(q.pop_all(ctrl::vt )); }; // VT same as LF
+                vt.intro[ctrl::ff ] = V{ p-> lf(q.pop_all(ctrl::ff )); }; // FF same as LF
+                vt.intro[ctrl::cr ] = V{ p-> cr();                     }; // CR
 
                 vt.csier.table_quest[dec_set] = V{ p->owner.decset(q); };
                 vt.csier.table_quest[dec_rst] = V{ p->owner.decrst(q); };
@@ -944,9 +944,8 @@ namespace netxs::ui
                 {
                     auto len = length();
                     assert(_kind == style.get_kind());
-                    return len > width
-                        && wrapped() ? (len + width - 1) / width
-                                     : 1;
+                    return len > width && wrapped() ? (len + width - 1) / width
+                                                    : 1;
                 }
             };
             struct redo
@@ -1156,7 +1155,7 @@ namespace netxs::ui
     virtual void set_scroll_region(si32 top, si32 bottom)
             {
                 // Sanity check.
-                top    = std::clamp(top   , 0, panel.y);
+                top    = std::clamp(top,    0, panel.y);
                 bottom = std::clamp(bottom, 0, panel.y);
                 if (top    != 0 &&
                     bottom != 0 && top >= bottom)
@@ -1197,17 +1196,24 @@ namespace netxs::ui
             // bufferbase: Update current SGR attributes.
     virtual void meta(deco const& old_style) override
             {
+                auto changed = faux;
                 if (parser::style.wrp() != old_style.wrp())
                 {
                     auto status = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                     : (si32)parser::style.wrp();
                     owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
+                    changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? (si32)bias::left
                                                                     : (si32)parser::style.jet();
                     owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
+                    changed = true;
+                }
+                if (changed && owner.styled)
+                {
+                    owner.ipccon.style(parser::style, owner.kbmode);
                 }
             }
             template<class T>
@@ -1846,9 +1852,10 @@ namespace netxs::ui
                 parser::flush_data();
                 if (n == 0) n = 1;
                 auto new_coord_y = coord.y - n;
-                if (new_coord_y <  y_top
-                     && coord.y >= y_top)
+                if (new_coord_y < y_top && coord.y >= y_top)
                 {
+                    auto dy = y_top - new_coord_y;
+                    scroll_region(y_top, y_end, dy, true);
                     coord.y = y_top;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -1859,9 +1866,10 @@ namespace netxs::ui
                 parser::flush_data();
                 if (n == 0) n = 1;
                 auto new_coord_y = coord.y + n;
-                if (new_coord_y >  y_end
-                     && coord.y <= y_end)
+                if (new_coord_y > y_end && coord.y <= y_end)
                 {
+                    auto dy = new_coord_y - y_end;
+                    scroll_region(y_top, y_end, -dy, true);
                     coord.y = y_end;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -1871,14 +1879,14 @@ namespace netxs::ui
             {
                 parser::flush_data();
                 auto new_coord_y = coord.y + n;
-                if (new_coord_y >  y_end
-                     && coord.y <= y_end)
+                if (new_coord_y > y_end && coord.y <= y_end)
                 {
                     auto n = y_end - new_coord_y;
                     scroll_region(y_top, y_end, n, true);
                     coord.y = y_end;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
+                if (coord.x < 0 || coord.x > panel.x) coord.x = 0; // Auto cr if the cursor is outside the viewport (to prevent infinitely long lines when autocr is disabled).
             }
             // bufferbase: '\r'  CR Cursor return. Go to home of visible line instead of home of paragraph.
     virtual void cr()
@@ -1992,7 +2000,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Pickup selected data from canvas.
-            void selection_pickup(ansi::esc& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
+            void selection_pickup(escx& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
             {
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
@@ -2089,15 +2097,15 @@ namespace netxs::ui
                 }
                 return changed;
             }
-            void wrapdn()
+            void wrapdn() // Only for coord.x > panel.x.
             {
-                coord.y += (coord.x + panel.x - 1) / panel.x - 1;
-                coord.x  = (coord.x           - 1) % panel.x + 1;
+                coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
+                coord.x  = (coord.x - 1) % panel.x + 1;
             }
-            void wrapup()
+            void wrapup() // Only for negative coord.x.
             {
-                coord.y += coord.x / panel.x - 1;
-                coord.x  = coord.x % panel.x + panel.x;
+                coord.y += (coord.x - (panel.x - 1)) / panel.x + 1 - 1;
+                coord.x  = (coord.x + 1) % panel.x + panel.x - 1;
             }
         };
 
@@ -2123,7 +2131,7 @@ namespace netxs::ui
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
-                canvas.crop(panel, brush.nul());
+                canvas.crop(panel, brush.dry());
             }
             // alt_screen: Return viewport height.
             si32 height() override
@@ -2171,8 +2179,6 @@ namespace netxs::ui
             void el(si32 n) override
             {
                 bufferbase::flush();
-                //todo revise
-                //_el(n, canvas, coord, panel, brush.dry());
                 _el(n, canvas, coord, panel, brush.nul());
             }
             // alt_screen: CSI n @  ICH. Insert n blanks after cursor. No wrap. Existing chars after cursor shifts to the right. Don't change cursor pos.
@@ -2197,8 +2203,7 @@ namespace netxs::ui
                 coord.x -= n;
                 if (coord.x < 0)
                 {
-                    coord.y += coord.x / panel.x;
-                    coord.x  = coord.x % panel.x + panel.x;
+                    wrapup();
                 }
                 canvas.backsp(coord, n, brush.nul());
                 if (coord.y < 0) coord = dot_00;
@@ -2294,7 +2299,7 @@ namespace netxs::ui
             // alt_screen: Clear viewport.
             void clear_all() override
             {
-                canvas.wipe(brush.nul());
+                canvas.wipe(brush.dry());
                 set_scroll_region(0, 0);
                 bufferbase::clear_all();
             }
@@ -2333,14 +2338,14 @@ namespace netxs::ui
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
             void del_below() override
             {
-                canvas.del_below(coord, brush.spare.nul());
+                canvas.del_below(coord, brush.spare.dry());
             }
             // alt_screen: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
                 auto coorx = coord.x;
                 if (coorx < panel.x) ++coord.x; // Clear the cell at the current position. See ED1 description.
-                canvas.del_above(coord, brush.spare.nul());
+                canvas.del_above(coord, brush.spare.dry());
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
@@ -2348,7 +2353,7 @@ namespace netxs::ui
             {
                 seltop.y += n;
                 selend.y += n;
-                canvas.scroll(top, end + 1, n, brush.spare.nul());
+                canvas.scroll(top, end + 1, n, brush.spare.dry());
             }
             // alt_screen: Horizontal tab.
             void tab(si32 n) override
@@ -2449,7 +2454,7 @@ namespace netxs::ui
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
             {
-                auto data = ansi::esc{};
+                auto data = escx{};
                 if (selection_active())
                 {
                     auto selbox = selection_selbox();
@@ -2728,7 +2733,7 @@ namespace netxs::ui
                     return static_cast<si32>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
                 }
                 // buff: Return an iterator pointing to the item with the specified id.
-                auto iter_by_id(ui32 id)
+                auto iter_by_id(ui32 id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
                 {
                     return begin() + index_by_id(id);
                 }
@@ -2811,7 +2816,7 @@ namespace netxs::ui
                        shore{ boss.config.def_margin }
             {
                 parser::style.wrp(boss.config.def_wrpmod);
-                batch.invite(0, boss.config.def_wrpmod == wrap::on); // At least one line must exist.
+                batch.invite(0, deco{}.wrp(boss.config.def_wrpmod == wrap::on)); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
 
@@ -3268,7 +3273,7 @@ namespace netxs::ui
                 auto& curln = batch.current();
                 if (curln.wrapped() && batch.caret > curln.length()) // Dangling cursor.
                 {
-                    curln.crop(batch.caret, brush.nul());
+                    curln.crop(batch.caret, brush.dry());
                     batch.recalc(curln);
                 }
 
@@ -3572,7 +3577,6 @@ namespace netxs::ui
                             _set_style(parser::style);
                             assert(newix == batch.index_by_id(index[coord.y].index));
                         }
-
                     }
                     coord.y += y_top;
 
@@ -3837,8 +3841,19 @@ namespace netxs::ui
 
                 if (batch.caret > width) // Dangling cursor.
                 {
-                    width = batch.caret;
-                    curln.crop(width, brush.nul());
+                    if (!wraps || coord.x <= panel.x) // Extend the line if the cursor is inside the viewport.
+                    {
+                        width = batch.caret;
+                        curln.crop(width, brush.dry());
+                    }
+                    else // Move coord.x inside viewport for wrapped lines (cursor came from another (unwrapped) line).
+                    {
+                        auto& mapln = index[coord.y];
+                        batch.caret = mapln.start + panel.x;
+                        mapln.width = panel.x;
+                        coord.x = panel.x;
+                        curln.crop(batch.caret, brush.dry());
+                    }
                 }
 
                 batch.recalc(curln);
@@ -4087,7 +4102,7 @@ namespace netxs::ui
                         coord.x += count;
                         if (coord.x < 0 && curln.wrapped())
                         {
-                            wrapup();
+                            wrapup(); //failed for CUF(-(panel.x + 1)) at coord.x = 1
                             if (coord.y < y_top)
                             {
                                 coord.y += coord.x / panel.x;
@@ -4574,16 +4589,16 @@ namespace netxs::ui
             {
                 assert(test_futures());
 
-                auto blank = brush.nul();
+                auto blank = brush.dry();
                 auto clear = [&](twod const& coor)
                 {
                     auto& from = index[coor.y];
                     auto topid = from.index;
                     auto start = from.start;
                     auto i = batch.index_by_id(topid);
-                    auto n = batch.size - 1 - i;
-                    auto m = index.size - 1 - coor.y;
-                    auto p = arena      - 1 - coor.y;
+                    auto n = batch.size - 1 - i;      // The number of paragraphs below that should pop.
+                    auto m = index.size - 1 - coor.y; // The number of visible rows to zero out.
+                    auto p = arena      - 1 - coor.y; // The number of new empty rows to add.
 
                     auto fresh = coor.x == 0 && start != 0;
                     if (fresh) // Remove the index of the current line if the entire visible line is going to be removed.
@@ -4599,7 +4614,10 @@ namespace netxs::ui
                     while (n--) batch.pop_back();
                     while (m--) index.pop_back();
 
-                    add_lines(p, blank);
+                    auto fills = blank.bgc() != brush.fresh.bgc();
+                    if (fills) add_lines(p, blank); // Fill with non-default background.
+                    else       add_lines(p);
+
                     i = batch.index_by_id(topid); // The index may be outdated due to the ring.
                     auto& curln = batch[i];
                     if (fresh)
@@ -4609,9 +4627,18 @@ namespace netxs::ui
                     else
                     {
                         auto& mapln = index[coor.y];
-                        mapln.width = panel.x;
-                        curln.splice<true>(start + coor.x, panel.x - coor.x, blank);
-                        curln.trimto(start + panel.x);
+                        if (fills)
+                        {
+                            mapln.width = panel.x;
+                            auto x = std::min(coor.x, panel.x); // Trim unwrapped lines by viewport.
+                            curln.splice<true>(start + x, panel.x - x, blank);
+                            curln.trimto(start + panel.x);
+                        }
+                        else
+                        {
+                            mapln.width = coor.x;
+                            curln.trimto(start + coor.x);
+                        }
                         assert(mapln.start == 0 || curln.wrapped());
                     }
                     batch.recalc(curln);
@@ -4633,7 +4660,7 @@ namespace netxs::ui
                 }
                 else if (coor.y <= y_end)
                 {
-                    coor.x = std::clamp(coor.x, 0, panel.x);
+                    coor.x = std::max(0, coor.x);
                     coor.y -= y_top;
                     clear(coor);
                 }
@@ -4647,7 +4674,7 @@ namespace netxs::ui
             // scroll_buf: Clear all lines from the viewport top line to the current line.
             void del_above() override
             {
-                auto blank = brush.nul();
+                auto blank = brush.dry();
                 auto clear = [&](twod const& from)
                 {
                     auto head = index.begin();
@@ -4814,31 +4841,39 @@ namespace netxs::ui
                 }
                 else // Scroll text down.
                 {
-                    top -= y_top;
-                    end -= y_top - 1;
+                    if (top == y_top &&
+                        end == y_end && use_scrollback && batch.basis >= n) // Just move the viewport up.
+                    {
+                        batch.basis -= n;
+                    }
+                    else
+                    {
+                        top -= y_top;
+                        end -= y_top - 1;
 
-                    auto max = end - top;
-                    if (count > max) count = max;
+                        auto max = end - top;
+                        if (count > max) count = max;
 
-                    auto mdl = end - count;
-                    dissect(top);
-                    dissect(mdl);
-                    dissect(end);
+                        auto mdl = end - count;
+                        dissect(top);
+                        dissect(mdl);
+                        dissect(end);
 
-                    // Delete block.
-                    auto topid = index[top    ].index;
-                    auto endid = index[end - 1].index + 1;
-                    auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
-                                         : topid;
-                    auto start = batch.index_by_id(topid);
-                    auto range = static_cast<si32>(endid - mdlid);
-                    auto floor = batch.index_by_id(endid) - range;
-                    batch.remove(floor, range);
+                        // Delete block.
+                        auto topid = index[top    ].index;
+                        auto endid = index[end - 1].index + 1;
+                        auto mdlid = mdl > 0 ? index[mdl - 1].index + 1 // mdl == 0 or mdl == top when count == max (full arena).
+                                             : topid;
+                        auto start = batch.index_by_id(topid);
+                        auto range = static_cast<si32>(endid - mdlid);
+                        auto floor = batch.index_by_id(endid) - range;
+                        batch.remove(floor, range);
 
-                    // Insert block.
-                    while (count-- > 0) batch.insert(start, id_t{}, parser::style);
+                        // Insert block.
+                        while (count-- > 0) batch.insert(start, id_t{}, parser::style);
 
-                    batch.reindex(start); //todo The index may be outdated due to the ring.
+                        batch.reindex(start); //todo The index may be outdated due to the ring.
+                    }
                     index_rebuild();
                 }
 
@@ -5505,7 +5540,7 @@ namespace netxs::ui
                 dest.plot(dnbox, cell::shaders::full);
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
-            void selection_pickup(ansi::esc& yield, si32 selmod)
+            void selection_pickup(escx& yield, si32 selmod)
             {
                 //todo Clang 15 don't get it
                 //auto [i_top, i_end, upcur, dncur] = selection_get_it();
@@ -5531,7 +5566,7 @@ namespace netxs::ui
                     auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
                     dest.flow::full(full);
                     dest.core::move(view.coor);
-                    dest.core::size(view.size, brush.nul());
+                    dest.core::size(view.size, brush.dry());
                     do
                     {
                         auto& curln = *head;
@@ -5579,7 +5614,7 @@ namespace netxs::ui
                     {
                         build([&](auto& curln)
                         {
-                            auto block = ansi::esc{};
+                            auto block = escx{};
                             block.s11n<faux, faux, faux>(curln, field, state);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
@@ -5595,7 +5630,7 @@ namespace netxs::ui
                                 if (auto jet = curln.style.jet(); style.jet() != jet) yield.jet(jet);
                                 style = curln.style;
                             }
-                            auto block = ansi::esc{};
+                            auto block = escx{};
                             block.s11n<true, faux, faux>(curln, field, state);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
@@ -5607,7 +5642,7 @@ namespace netxs::ui
             // scroll_buf: Materialize selection.
             text selection_pickup(si32 selmod) override
             {
-                auto yield = ansi::esc{};
+                auto yield = escx{};
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
@@ -5831,20 +5866,28 @@ namespace netxs::ui
                 resize_viewport(panel, true); // Recalc batch.basis.
             }
             // scroll_buf: Sel wrapping mode for selected lines.
-            void selection_setwrp(wrap w = {}) override
+            void selection_setwrp(wrap w = wrap::none) override
             {
-                if (upmid.role == grip::idle) return;
-                auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
-                auto wraps = w == wrap::none ? batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on
-                                             : w;
-                upmid.coor.y = dnmid.coor.y = 0;
-                selection_foreach([&](auto& curln)
+                if (selection_active())
                 {
-                    curln.style.wrp(wraps);
-                    batch.recalc(curln);
-                });
-                if (w != wrap::none) style.wrp(w);
-                resize_viewport(panel, true); // Recalc batch.basis.
+                    if (upmid.role == grip::idle) return;
+                    auto i_top = std::clamp(batch.index_by_id(upmid.link), 0, batch.size);
+                    auto wraps = w == wrap::none ? batch[i_top].style.wrp() == wrap::on ? wrap::off : wrap::on
+                                                 : w;
+                    upmid.coor.y = dnmid.coor.y = 0;
+                    selection_foreach([&](auto& curln)
+                    {
+                        curln.style.wrp(wraps);
+                        batch.recalc(curln);
+                    });
+                    if (w != wrap::none) style.wrp(w);
+                    resize_viewport(panel, true); // Recalc batch.basis.
+                }
+                else
+                {
+                    style.wrp(w == wrap::none ? style.wrp() == wrap::on ? wrap::off : wrap::on
+                                              : w);
+                }
             }
             // scroll_buf: Update selection internals.
             void selection_update(bool despace = true) override
@@ -6157,7 +6200,7 @@ namespace netxs::ui
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
-        ansi::esc  w32key; // term: win32-input-mode forward buffer.
+        escx       w32key; // term: win32-input-mode forward buffer.
         text       cmdarg; // term: Startup command line arguments.
         text       curdir; // term: Current working directory.
         hook       onerun; // term: One-shot token for restart session.
@@ -6170,10 +6213,13 @@ namespace netxs::ui
         bool       invert; // term: Inverted rendering (DECSCNM).
         bool       selalt; // term: Selection form (rectangular/linear).
         bool       io_log; // term: Stdio logging.
+        bool       styled; // term: Line style reporting.
+        flag       resume; // term: Restart scheduled.
+        flag       forced; // term: Forced shutdown.
         prot       kbmode; // term: Keyboard input mode.
         si32       selmod; // term: Selection mode (ansi::clip::mime).
         si32       altscr; // term: Alternate scroll mode.
-        vtty       ptycon; // term: PTY device. Should be destroyed first.
+        vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
@@ -6206,7 +6252,7 @@ namespace netxs::ui
             bpmode = faux;
             altscr = config.def_alt_on ? config.def_altscr : 0;
             normal.brush.reset();
-            ptycon.reset();
+            ipccon.reset();
         }
         // term: Set termnail parameters. (DECSET).
         void _decset(si32 n)
@@ -6277,6 +6323,7 @@ namespace netxs::ui
                     break;
                 case 1047: // Use alternate screen buffer.
                 case 1049: // Save cursor pos and use alternate screen buffer, clearing it first.  This control combines the effects of the 1047 and 1048  modes.
+                    if (target != &normal && target != &altbuf) break; // Suppress mode change for additional screen buffers (windows console).
                     altbuf.style = target->style;
                     altbuf.brush = target->brush;
                     altbuf.clear_all();
@@ -6388,6 +6435,7 @@ namespace netxs::ui
                     break;
                 case 1047: // Use normal screen buffer.
                 case 1049: // Use normal screen buffer and restore cursor.
+                    if (target != &normal && target != &altbuf) break; // Suppress mode change for additional screen buffers (windows console).
                     normal.style = target->style;
                     normal.brush = target->brush;
                     reset_to_normal(*target);
@@ -6432,14 +6480,10 @@ namespace netxs::ui
         // term: Write input data.
         void write(view data)
         {
-            if (io_log)
-            {
-                log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-            }
-            ptycon.write(data);
+            ipccon.write(data);
         }
         // term: Write tty data and flush the queue.
-        void answer(ansi::esc& queue)
+        void answer(escx& queue)
         {
             if (queue.length())
             {
@@ -6508,63 +6552,63 @@ namespace netxs::ui
             });
         }
         // term: Shutdown callback handler.
-        void onexit(si32 code, view msg = {})
+        void onexit(si32 code, text msg = {})
         {
-            bell::trysync(active, [&]
+            netxs::events::enqueue(This(), [&, code, msg](auto& boss)
             {
-                log(prompt::term, "Exit code ", utf::to_hex_0x(code));
-                auto close_proc = [&]
+                ipccon.cleanup(io_log);
+                auto error = [&]
                 {
-                    netxs::events::enqueue(This(), [&](auto& boss)
-                    {
-                        this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
-                    });
+                    auto byemsg = escx{};
+                    if (target != &normal) byemsg.locate({ 0, target->panel.y - 1 });
+                    byemsg.bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                          .add("\r\nProcess exited with code ", utf::to_hex_0x(code)).nil()
+                          .add("\r\n\n");
+                    return byemsg;
                 };
-                auto chose_proc = [&]
+                auto query = [&]
                 {
-                    auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil()
-                        .add("\r\nPress Esc to close or press Enter to restart the session.").add("\r\n\n");
-                    ondata(error);
+                    auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
+                                         .add("\n");
+                    ondata(byemsg);
                     this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
                             switch (gear.cluster.front())
                             {
-                                case ansi::c0_esc: onexit(0); break;
-                                case ansi::c0_cr:  start();   break;
+                                case ansi::c0_esc: close(); onerun.reset(); break;
+                                case ansi::c0_cr:  start(); onerun.reset(); break;
                             }
                         }
                         //if (gear.pressed)
                         //{
                         //    switch (gear.keybd::generic())
                         //    {
-                        //        case key::Enter: start();   break;
-                        //        case key::Esc:   onexit(0); break;
+                        //        case key::Esc:   close(); onerun.reset(); break;
+                        //        case key::Enter: start(); onerun.reset(); break;
                         //    }
                         //}
                     };
                 };
-                auto start_proc = [&]
+                auto renew = [&]
                 {
-                    auto error = ansi::bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                        .add("\r\n", prompt::term, "Exit code ", utf::to_hex_0x(code), " ").nil().add("\r\n\n");
-                    ondata(error);
-                    netxs::events::enqueue(This(), [&](auto& boss)
-                    {
-                        start();
-                    });
+                    auto byemsg = error().add("\n");
+                    ondata(byemsg);
+                    start();
                 };
-                switch (config.def_atexit)
+                //query();return;
+                     if (forced)                close();
+                else if (resume.exchange(faux)) renew();
+                else switch (config.def_atexit)
                 {
-                    case commands::atexit::smart: code ? chose_proc()
-                                                       : close_proc(); break;
-                    case commands::atexit::retry: code ? start_proc()
-                                                       : close_proc(); break;
-                    case commands::atexit::ask:          chose_proc(); break;
-                    case commands::atexit::close:        close_proc(); break;
-                    case commands::atexit::restart:      start_proc(); break;
+                    case commands::atexit::smart: code ? query()
+                                                       : close(); break;
+                    case commands::atexit::retry: code ? renew()
+                                                       : close(); break;
+                    case commands::atexit::ask:          query(); break;
+                    case commands::atexit::close:        close(); break;
+                    case commands::atexit::restart:      renew(); break;
                 }
             });
         }
@@ -6603,6 +6647,12 @@ namespace netxs::ui
             }
             else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor); //todo unify (config with defaults)
             set_color(mark.brush);
+        }
+        // term: CCC_LSR: Enable line style reporting.
+        void setlsr(bool state)
+        {
+            styled = state;
+            if (styled) ipccon.style(target->parser::style, kbmode);
         }
         // term: Is the selection allowed.
         auto selection_passed()
@@ -6666,22 +6716,22 @@ namespace netxs::ui
         }
         auto get_clip_text(hids& gear)
         {
-            auto data = gear.get_clip_data();
+            auto& data = gear.get_clip_data();
             if (data.utf8.size())
             {
                 if (data.kind == clip::richtext)
                 {
                     auto post = page{ data.utf8 };
-                    data.utf8 = post.to_rich();
+                    return post.to_rich();
                 }
                 else if (data.kind == clip::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
-                    data.utf8 = code;
+                    return code;
                 }
             }
-            return std::move(data.utf8);
+            return data.utf8;
         }
         auto paste(hids& gear)
         {
@@ -6727,7 +6777,7 @@ namespace netxs::ui
             auto square = target->panel;
             auto seltop = dot_00;
             auto selend = square - dot_11;
-            auto buffer = ansi::esc{};
+            auto buffer = escx{};
             auto canvas = e2::render::any.param();
             canvas.size(square);
             canvas.full({ origin, square });
@@ -6763,11 +6813,8 @@ namespace netxs::ui
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
-                if (bpmode)
-                {
-                    utf8 = "\033[200~" + utf8 + "\033[201~";
-                }
-                data_out(utf8);
+                if (bpmode) data_out("\033[200~" + utf8 + "\033[201~");
+                else        data_out(utf8);
                 gear.dismiss();
             }
         }
@@ -6921,7 +6968,7 @@ namespace netxs::ui
             }
             else
             {
-                auto data = gear.get_clip_data();
+                auto& data = gear.get_clip_data();
                 if (data.utf8.size())
                 {
                     delta = console.selection_search(dir, data.utf8);
@@ -6971,13 +7018,9 @@ namespace netxs::ui
         }
         void set_wrapln(si32 wrapln)
         {
-            if (target->selection_active())
+            target->selection_setwrp((wrap)wrapln);
+            if (!target->selection_active())
             {
-                target->selection_setwrp((wrap)wrapln);
-            }
-            else
-            {
-                target->style.wrp((wrap)wrapln);
                 follow[axis::Y] = true; // Reset viewport.
             }
             ondata(""); // Recalc trigger.
@@ -7014,38 +7057,23 @@ namespace netxs::ui
         }
         void exec_cmd(commands::ui::commands cmd)
         {
-            if constexpr (debugmode) log(prompt::term, "tier::preview, ui::commands, ", cmd);
+            if constexpr (debugmode) log(prompt::term, "Command: ", cmd);
             auto& console = *target;
-            //todo reorganize - group commands
-            if (console.selection_active())
+            switch (cmd)
             {
-                switch (cmd)
-                {
-                    case commands::ui::togglewrp: console.selection_setwrp(); break;
-                    case commands::ui::togglesel: selection_selmod(); break;
-                    case commands::ui::restart:   restart(); break;
-                    case commands::ui::undo:      ptycon.undo(true); break;
-                    case commands::ui::redo:      ptycon.undo(faux); break;
-                    case commands::ui::deselect:  selection_cancel(); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
-                    default: break;
-                }
+                case commands::ui::togglewrp: console.selection_setwrp();          break;
+                case commands::ui::togglesel: selection_selmod();                  break;
+                case commands::ui::restart:   restart();                           break;
+                case commands::ui::sighup:    sighup(true);                        break;
+                case commands::ui::undo:      ipccon.undo(true);                   break;
+                case commands::ui::redo:      ipccon.undo(faux);                   break;
+                case commands::ui::deselect:  selection_cancel();                  break;
+                case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
+                case commands::ui::look_rev:  console.selection_search(feed::rev); break;
+                default: break;
             }
-            else
+            if (!console.selection_active())
             {
-                switch (cmd)
-                {
-                    case commands::ui::togglewrp: console.style.wrp(console.style.wrp() == wrap::on ? wrap::off : wrap::on); break;
-                    case commands::ui::togglesel: selection_selmod(); return; // Return without resetting the viewport.
-                    case commands::ui::restart:   restart(); break;
-                    case commands::ui::undo:      ptycon.undo(true); break;
-                    case commands::ui::redo:      ptycon.undo(faux); break;
-                    case commands::ui::deselect:  selection_cancel(); break;
-                    case commands::ui::look_fwd:  console.selection_search(feed::fwd); break;
-                    case commands::ui::look_rev:  console.selection_search(feed::rev); break;
-                    default: break;
-                }
                 follow[axis::Y] = true; // Reset viewport.
             }
             ondata(""); // Recalc trigger.
@@ -7062,33 +7090,34 @@ namespace netxs::ui
         }
         void start()
         {
-            onerun.reset();
-            if (!ptycon)
+            if (!ipccon)
             {
-                ptycon.cleanup();
-                netxs::events::enqueue(This(), [&](auto& boss)
-                {
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, wtrack.get(ansi::osc_title));
-                    ptycon.start(*this, curdir, cmdarg, target->panel);
-                });
+                ipccon.start(*this, curdir, cmdarg, target->panel);
             }
+        }
+        void close()
+        {
+            this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
         }
         void restart()
         {
-            ptycon.stop();
-            ondata("\n");
-            start();
+            resume = true;
+            sighup(forced);
         }
-        void stop()
+        void sighup(bool fast)
         {
-            active = faux;
-            ptycon.stop();
+            forced = fast;
+            if (ipccon) ipccon.sighup();
+            else netxs::events::enqueue(This(), [&](auto& boss)
+            {
+                close();
+            });
         }
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
             auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
-            auto warp = rect{ dot_00, size} - rect{ dot_00, target->panel };
+            auto warp = rect{ dot_00, size } - rect{ dot_00, target->panel };
             RISEUP(tier::preview, e2::form::layout::swarp, warp);
             RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
@@ -7107,10 +7136,6 @@ namespace netxs::ui
             }
         }
 
-       ~term()
-        {
-            stop();
-        }
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
@@ -7129,6 +7154,9 @@ namespace netxs::ui
               bpmode{  faux },
               unsync{  faux },
               invert{  faux },
+              resume{  faux },
+              forced{  faux },
+              styled{  faux },
               curdir{ cwd   },
               cmdarg{ cmd   },
               io_log{ config.def_io_log },
@@ -7165,7 +7193,7 @@ namespace netxs::ui
                 scroll(origin);
                 base::anchor += scroll_coor - origin;
 
-                ptycon.resize(new_size);
+                ipccon.resize(new_size);
 
                 new_size.y += console.get_basis();
             };
@@ -7183,9 +7211,16 @@ namespace netxs::ui
                     follow[axis::Y] = true;
                 }
 
-                if constexpr (debugmode) log("Key id: ", ansi::hi(input::key::map::name(gear.keycode)));
+                //if (input::key::map::name(gear.keycode) == input::key::undef)
+                {
+                    log("gear.keycode: ",  gear.keycode,
+                        " pressed: ", gear.pressed,
+                        " virtcod: ", gear.virtcod,
+                        " scancod: ", gear.scancod);
+                }
+                if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
 
-                ptycon.keybd(gear, decckm, bpmode, kbmode);
+                ipccon.keybd(gear, decckm, bpmode, kbmode);
             };
             LISTEN(tier::general, e2::timer::tick, timestamp)
             {
@@ -7273,26 +7308,26 @@ namespace netxs::ui
         using s11n = directvt::binary::s11n;
 
         // dtvt: Event handler.
-        class events_t
+        struct evnt
             : public s11n
         {
-            dtvt&     master; // events_t: Terminal object reference.
-            subs      tokens; // events_t: Subscription tokens.
-            ansi::esc output; // events_t: Logs buffer.
-            ansi::esc prompt; // events_t: Logs prompt.
+            dtvt& master; // evnt: Terminal object reference.
+            subs  tokens; // evnt: Subscription tokens.
+            escx  output; // evnt: Logs buffer.
+            escx  prompt; // evnt: Logs prompt.
 
-        public:
             void disable()
             {
+                s11n::stop();
                 tokens.clear();
             }
 
-            void handle(s11n::xs::bitmap              lock)
+            void handle(s11n::xs::bitmap_dtvt         lock)
             {
                 auto& bitmap = lock.thing;
                 if (bitmap.newgc.size())
                 {
-                    auto list = request_gc.freeze();
+                    auto list = s11n::request_gc.freeze();
                     for (auto& gc_map : bitmap.newgc)
                     {
                         list.thing.push(gc_map.first);
@@ -7434,30 +7469,34 @@ namespace netxs::ui
                     master.RISEUP(tier::preview, e2::form::layout::expose, master);
                 });
             }
-            void handle(s11n::xs::set_clipboard       lock)
+            void handle(s11n::xs::clipdata            lock)
             {
                 auto& c = lock.thing;
                 master.trysync(master.active, [&]
                 {
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
-                        gear_ptr->set_clip_data(clip{ c.clip_prev_size, c.clipdata, static_cast<clip::mime>(c.mimetype) });
+                        auto data = clip{ c.size, c.data, static_cast<clip::mime>(c.mimetype) };
+                        data.hash = c.hash;
+                        gear_ptr->set_clip_data(data);
                     }
                 });
             }
-            void handle(s11n::xs::request_clipboard   lock)
+            void handle(s11n::xs::clipdata_request    lock)
             {
                 auto& c = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    //todo use gear.raw_clip_data
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
-                        auto data = gear_ptr->get_clip_data();
-                        s11n::clipdata.send(master, c.gear_id, data.utf8, data.kind);
-                        return;
+                        auto& data = gear_ptr->get_clip_data();
+                        if (data.hash != c.hash)
+                        {
+                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.kind);
+                            return;
+                        }
                     }
-                    s11n::clipdata.send(master, c.gear_id, text{}, clip::ansitext);
+                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, clip::ansitext);
                 });
             }
             //void handle(s11n::xs::focus               lock)
@@ -7475,22 +7514,40 @@ namespace netxs::ui
             //        }
             //    });
             //}
-            void handle(s11n::xs::form_header         lock)
+            void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = text{ h.new_header }](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = h.utf8](auto& boss) mutable
                 {
-                    //todo use window_id
                     master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
             }
-            void handle(s11n::xs::form_footer         lock)
+            void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = text{ f.new_footer }](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = f.utf8](auto& boss) mutable
+                {
+                    master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
+                });
+            }
+            void handle(s11n::xs::header_request      lock)
+            {
+                auto& c = lock.thing;
+                master.trysync(master.active, [&]
                 {
                     //todo use window_id
-                    master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
+                    master.RISEUP(tier::request, e2::form::prop::ui::header, header, ());
+                    s11n::header.send(master, c.window_id, header);
+                });
+            }
+            void handle(s11n::xs::footer_request      lock)
+            {
+                auto& c = lock.thing;
+                master.trysync(master.active, [&]
+                {
+                    //todo use window_id
+                    master.RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
+                    s11n::footer.send(master, c.window_id, footer);
                 });
             }
             void handle(s11n::xs::warping             lock)
@@ -7526,7 +7583,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        auto proc_pid = master.ptycon.proc_pid;
+                        auto proc_pid = master.ipccon.proc_pid;
                         if (proc_pid != lock.thing.id) prompt.add(netxs::prompt::pads, proc_pid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
                         else                           prompt.add(netxs::prompt::pads, proc_pid, ": ");
                         utf::divide(utf8, '\n', [&](auto line)
@@ -7541,23 +7598,22 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                auto utf8 = view{ lock.thing.err_msg };
-                master.errmsg(utf8);
-                //master.deface();
+                netxs::events::enqueue(master.This(), [&](auto& boss)
+                {
+                    auto utf8 = view{ lock.thing.err_msg };
+                    master.errmsg = master.genmsg(utf8);
+                    master.deface();
+                });
+            }
+            void handle(s11n::xs::sysclose            lock)
+            {
+                master.close();
             }
 
-            events_t(dtvt& master)
+            evnt(dtvt& master)
                 :   s11n{ *this, master.id },
                   master{ master           }
             {
-                master.LISTEN(tier::anycast, e2::form::prop::ui::header, utf8, tokens)
-                {
-                    s11n::form_header.send(master, 0, utf8);
-                };
-                master.LISTEN(tier::anycast, e2::form::prop::ui::footer, utf8, tokens)
-                {
-                    s11n::form_footer.send(master, 0, utf8);
-                };
                 master.LISTEN(tier::release, hids::events::device::mouse::any, gear, tokens)
                 {
                     if (gear.captured(master.id))
@@ -7654,27 +7710,36 @@ namespace netxs::ui
                 };
                 master.LISTEN(tier::release, e2::size::any, new_size, tokens)
                 {
-                    master.pty_resize(new_size);
+                    auto winsize = s11n::syswinsz.freeze().thing.winsize;
+                    if (master.ipccon && winsize != new_size)
+                    {
+                        s11n::syswinsz.send(master, 0, new_size);
+                    }
                 };
             }
         };
 
+        struct msgs
+        {
+            static constexpr auto no_signal    = "NO SIGNAL"sv;
+            static constexpr auto disconnected = "Disconnected"sv;
+        };
+
         using vtty = os::dtvt::vtty;
 
-        events_t    stream; // dtvt: .
-        text        curdir; // dtvt: Current working directory.
-        text        cmdarg; // dtvt: Startup command line arguments.
-        text        xmlcfg; // dtvt: Startup config.
-        flag        active; // dtvt: Terminal lifetime.
-        si32        nodata; // dtvt: Show splash "No signal".
-        face        splash; // dtvt: "No signal" splash.
-        span        maxoff; // dtvt: Max delay before showing "No signal".
-        byte        opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
-        testy<twod> termsz; // dtvt: PTY device window size.
-        vtty        ptycon; // dtvt: PTY device. Should be destroyed first.
-        sptr        backup; // dtvt: Instance backup copy while the child process is active.
+        evnt stream; // dtvt: Event handler.
+        text curdir; // dtvt: Current working directory.
+        text cmdarg; // dtvt: Startup command line arguments.
+        text xmlcfg; // dtvt: Startup config.
+        flag active; // dtvt: Terminal lifetime.
+        si32 nodata; // dtvt: Show splash "No signal".
+        face splash; // dtvt: "No signal" splash.
+        page errmsg; // dtvt: Overlay error message.
+        span maxoff; // dtvt: Max delay before showing "No signal".
+        byte opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
+        vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
 
-        // dtvt: Proceed DirectVT input.
+        // dtvt: Proceed DirectVT output.
         void ondata(view data)
         {
             if (active)
@@ -7682,78 +7747,61 @@ namespace netxs::ui
                 stream.s11n::sync(data);
             }
         }
-        // dtvt: Output error message.
-        void errmsg(view message)
+        // dtvt: Destruct dtvt-object.
+        void close()
         {
-            auto lock = stream.bitmap.freeze();
-            auto& canvas = lock.thing.image;
-            auto note = page{ message };
-            canvas.copy(splash);
-            splash.output(note);
-            splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-            splash.output(note);
-            canvas.swap(splash);
-        }
-        // dtvt: Preclose callback handler.
-        void atexit()
-        {
-            errmsg(ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                    .add("              \n",
-                         "  Closing...  \n",
-                         "              \n"));
             netxs::events::enqueue(This(), [&](auto& boss)
             {
-                //this->SIGNAL(tier::preview, e2::config::plugins::sizer::alive, faux); //todo VS2019 requires `this`
-                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, This()); //todo VS2019 requires `this`
-            });
-        }
-        // dtvt: Shutdown callback handler.
-        void onexit(si32 code)
-        {
-            netxs::events::enqueue(This(), [&, code](auto& boss) mutable
-            {
-                if (code) log(prompt::dtvt, ansi::err("Exit code ", utf::to_hex_0x(code)));
-                else      log(prompt::dtvt, "Exit code 0");
-                backup.reset(); // Call dtvt::dtor.
+                this->RISEUP(tier::release, e2::form::proceed::quit::one, true);
             });
         }
 
     public:
-        // dtvt: Write client data.
+        // dtvt: Format error message overlay.
+        auto genmsg(view utf8) -> page
+        {
+            auto data = para{ utf8 };
+            auto kant = text(2, ' ');
+            auto pads = text(data.length() + kant.size() * 2, ' ');
+            return page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
+                              .add(pads,       '\n',
+                             kant, utf8, kant, '\n',
+                                   pads,       '\n') };
+        }
+        // dtvt: Shutdown callback handler.
+        void onexit()
+        {
+            if (!active) return;
+            netxs::events::enqueue(This(), [&](auto& boss) mutable
+            {
+                auto lock = stream.bitmap_dtvt.freeze();
+                auto& canvas = lock.thing.image;
+                nodata = canvas.hash();
+                errmsg = genmsg(msgs::disconnected);
+                fallback(canvas, true);
+                base::deface();
+            });
+        }
+        // dtvt: Send client data.
         void output(view data)
         {
-            ptycon.output(data);
+            ipccon.output(data);
         }
-        // dtvt: Start a new process.
+        // dtvt: Attach a new process.
         void start()
         {
-            if (!ptycon)
+            if (!ipccon)
             {
-                netxs::events::enqueue(This(), [&](auto& boss)
-                {
-                    backup = This(); // Released on exit.
-                    this->RISEUP(tier::request, e2::form::prop::ui::header, header, ());
-                    this->RISEUP(tier::request, e2::form::prop::ui::footer, footer, ());
-                    stream.s11n::winsz.send(*this, 0, base::size());
-                    stream.s11n::form_header.send(*this, 0, header);
-                    stream.s11n::form_footer.send(*this, 0, footer);
-                    ptycon.start(stream, curdir, cmdarg, xmlcfg, [&](view utf8_shadow) { ondata(utf8_shadow); },
-                                                                 [&]                   { atexit();            },
-                                                                 [&](auto exit_reason) { onexit(exit_reason); });
-                });
+                auto winsize = base::size();
+                ipccon.start(curdir, cmdarg, xmlcfg, winsize, [&](view utf8) { ondata(utf8); },
+                                                              [&]            { onexit();     });
             }
         }
-        void shut()
+        // dtvt: Stop dtvt-object.
+        void stop(bool fast)
         {
-            active = faux;
-            if (ptycon) ptycon.shut();
-        }
-        void pty_resize(twod const& new_size)
-        {
-            if (ptycon && termsz(new_size))
-            {
-                stream.s11n::winsz.send(*this, 0, new_size);
-            }
+            if (ipccon) stream.s11n::sysclose.send(*this, 0, fast);
+            else        close();
         }
 
         dtvt(text cwd, text cmd, text cfg)
@@ -7763,7 +7811,8 @@ namespace netxs::ui
               nodata{      },
               curdir{ cwd  },
               cmdarg{ cmd  },
-              xmlcfg{ cfg  }
+              xmlcfg{ cfg  },
+              errmsg{ genmsg(msgs::no_signal) }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
@@ -7780,7 +7829,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::coor::any, coor)
             {
-                auto lock = stream.bitmap.freeze();
+                auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
                 canvas.move(coor);
                 splash.move(coor);
@@ -7788,11 +7837,12 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto size = base::size();
-                auto lock = stream.bitmap.freeze();
+                auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
                 if (nodata == canvas.hash()) // " No signal " on timeout > 1/60s
                 {
-                    fallback(parent_canvas, canvas);
+                    fallback(canvas);
+                    fill(parent_canvas, splash);
                     return;
                 }
                 else if (size == canvas.size())
@@ -7808,7 +7858,8 @@ namespace netxs::ui
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();
-                            fallback(parent_canvas, canvas);
+                            fallback(canvas);
+                            fill(parent_canvas, splash);
                             return;
                         }
                     }
@@ -7816,10 +7867,10 @@ namespace netxs::ui
                 }
             };
         }
-        void fallback(face& parent_canvas, core const& canvas)
+        void fallback(core const& canvas, bool forced = faux)
         {
             auto size = base::size();
-            if (splash.size() != size)
+            if (splash.size() != size || forced)
             {
                 splash.size(size);
                 auto parent_id = id_t{}; // Handover control to the parent if no response.
@@ -7827,17 +7878,12 @@ namespace netxs::ui
                 if (canvas.size())
                 {
                     splash.zoom(canvas, cell::shaders::fullid(parent_id));
-                    auto note = page{ ansi::bgc(reddk).fgc(whitelt).jet(bias::center).wrp(wrap::off).cup(dot_00).cpp({50,50}).cuu(1)
-                                           .add("             \n",
-                                                "  NO SIGNAL  \n",
-                                                "             \n") };
-                    splash.output(note);
+                    splash.output(errmsg);
                     splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                    splash.output(note);
+                    splash.output(errmsg);
                 }
                 else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
             }
-            fill(parent_canvas, splash);
         }
         void fill(core& parent_canvas, core const& canvas)
         {

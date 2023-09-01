@@ -16,7 +16,9 @@ namespace netxs::input
     using sysmouse = directvt::binary::sysmouse_t;
     using syskeybd = directvt::binary::syskeybd_t;
     using sysfocus = directvt::binary::sysfocus_t;
-    //using syspaste = directvt::binary::syspaste_t;
+    using syswinsz = directvt::binary::syswinsz_t;
+    using sysclose = directvt::binary::sysclose_t;
+    using syspaste = directvt::binary::syspaste_t;
 }
 namespace netxs::ui
 {
@@ -29,6 +31,7 @@ namespace netxs::ui
     using functor = std::function<void(sptr<base>)>;
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
+    using escx = ansi::escx;
 }
 
 namespace netxs::events::userland
@@ -124,11 +127,11 @@ namespace netxs::events::userland
                 EVENT_XS( error   , const si32      ), // release: return error code.
                 EVENT_XS( winsz   , const twod      ), // release: order to update terminal primary overlay.
                 EVENT_XS( preclose, const bool      ), // release: signal to quit after idle timeout, arg: bool - ready to shutdown.
-                EVENT_XS( quit    , const text      ), // release: quit, arg: text - bye msg.
+                EVENT_XS( quit    , const si32      ), // release: quit, arg: si32 - quit reason.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 EVENT_XS( clipdata, ansi::clip      ), // release: OS clipboard update.
                 //EVENT_XS( paste   , input::syspaste ), // release: clipboard activity.
-                EVENT_XS( logs    , const view      ), // logs output.
+                EVENT_XS( logs    , const text      ), // logs output.
                 EVENT_XS( readline, text            ), // Standard input (scripting).
                 //EVENT_XS( menu  , si32 ),
             };
@@ -287,7 +290,7 @@ namespace netxs::events::userland
                     EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( quit      , sptr<ui::base> ), // request parent for destroy.
+                    GROUP_XS( quit      , bool           ), // request to quit/detach (arg: fast or not).
                     //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
@@ -296,7 +299,7 @@ namespace netxs::events::userland
 
                     SUBSET_XS( quit )
                     {
-                        EVENT_XS( one, sptr<ui::base> ), // Signal to close.
+                        EVENT_XS( one, bool ), // Signal to close (fast or not).
                     };
                 };
                 SUBSET_XS( cursor )
@@ -552,7 +555,7 @@ namespace netxs::ui
         bool caret = faux; // face: Cursor visibility.
         bool moved = faux; // face: Is reflow required.
         bool decoy = true; // face: Is the cursor inside the viewport.
-        svga cmode = svga::truecolor; // face: Color mode.
+        svga cmode = svga::vtrgb; // face: Color mode.
 
         // face: Print proxy something else at the specified coor.
         template<class T, class P>
@@ -930,7 +933,7 @@ namespace netxs::ui
             return delta;
         }
         // base: Resize the form, and return the size delta.
-        auto resize(twod new_size)
+        auto resize(twod new_size) -> twod //todo MSVC 17.7.0 requires return type
         {
             auto old_size = square.size;
             SIGNAL(tier::preview, e2::size::set, new_size);
@@ -1209,6 +1212,10 @@ namespace netxs::ui
         virtual bool stop()
         {
             return pipe::shut();
+        }
+        virtual void wake()
+        {
+            shut();
         }
         virtual flux& show(flux& s) const = 0;
         void output(view data)

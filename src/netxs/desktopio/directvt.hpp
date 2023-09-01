@@ -10,10 +10,11 @@ namespace netxs::prompt
 {
     static constexpr auto  pads = "      "sv;
     static constexpr auto    os = "  os: "sv;
-    static constexpr auto   tty = " tty: "sv;
     static constexpr auto   ack = " ack: "sv;
-    static constexpr auto   xml = " xml: "sv;
+    static constexpr auto   key = " key: "sv;
+    static constexpr auto   tty = " tty: "sv;
     static constexpr auto   vtm = " vtm: "sv;
+    static constexpr auto   xml = " xml: "sv;
     static constexpr auto   cin = "stdin: "sv;
     static constexpr auto  cout = "stdout: "sv;
 
@@ -68,33 +69,45 @@ namespace netxs::directvt
     namespace binary
     {
         using type = byte;
+
         static constexpr auto is_list = type{ 1 << (sizeof(type) * 8 - 1) };
+
         //todo unify
         struct frag : public view
         { };
+
         #pragma pack(push,1)
-        static constexpr auto initial = char{ '\xFF' };
         struct marker
         {
+            static constexpr auto initial = char{ '\xFF' };
+
             using sz_t = le_t<netxs::sz_t>;
+            using type = le_t<netxs::twod::type>;
+
             char mark_FF;
             sz_t cfgsize;
+            type winx_sz;
+            type winy_sz;
             char mark_FE;
 
             marker()
             { }
-            marker(size_t config_size)
+            marker(size_t config_size, twod winsz)
             {
                 mark_FF = initial;
                 cfgsize.set((netxs::sz_t)config_size);
+                winx_sz.set(winsz.x);
+                winy_sz.set(winsz.y);
                 mark_FE = initial - 1;
             }
-            auto get_sz(netxs::sz_t& config_size)
+
+            auto get(netxs::sz_t& config_size, twod& winsz)
             {
                 if (mark_FF == initial
                  && mark_FE == initial - 1)
                 {
                     config_size = cfgsize.get();
+                    winsz = twod{ winx_sz.get(), winy_sz.get() };
                     return true;
                 }
                 else return faux;
@@ -103,14 +116,17 @@ namespace netxs::directvt
             auto size() { return sizeof(*this); }
         };
         #pragma pack(pop)
+
         struct stream
         {
             //todo revise
             type next{};
+
         protected:
-            text block;
+            escx block;
             sz_t basis;
             sz_t start;
+
             // stream: .
             template<class T>
             inline void fuse(T&& data)
@@ -253,6 +269,7 @@ namespace netxs::directvt
             {
                 return std::tuple{ _take_item<Fields>(data)..., };
             }
+
         public:
             // stream: .
             template<class T>
@@ -387,17 +404,23 @@ namespace netxs::directvt
                 }
             }
             // stream: .
-            template<bool Discard_empty = faux, class T>
+            template<bool Discard_empty = faux, bool Move = true, class T>
             void sendby(T&& sender)
             {
                 if (stream::commit(Discard_empty))
                 {
                     sender.output(block);
-                    stream::reset();
+                    if constexpr (Move) stream::reset();
                 }
             }
+            // stream: .
+            template<bool Discard_empty = faux, bool Move = true, class T>
+            void sendby(sptr<T> sender_ptr)
+            {
+                sendby<Discard_empty, Move>(*sender_ptr);
+            }
             template<bool Discard_empty = faux, class P>
-            void send(P output)
+            void sendfx(P output)
             {
                 if (stream::commit(Discard_empty))
                 {
@@ -421,7 +444,7 @@ namespace netxs::directvt
                     log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;
                 }
-                rest -= shot.size();
+                rest -= (sz_t)shot.size();
                 buff.resize(rest);
                 auto head = buff.data();
                 while (rest)
@@ -432,8 +455,9 @@ namespace netxs::directvt
                         log(prompt::dtvt, "Stream corrupted");
                         return faux;
                     }
-                    rest -= shot.size();
-                    head += shot.size();
+                    auto s = (sz_t)shot.size();
+                    rest -= s;
+                    head += s;
                 }
                 auto data = view{ buff };
                 auto kind = netxs::aligned<type>(data.data());
@@ -466,36 +490,47 @@ namespace netxs::directvt
                 add(basis, kind);
             }
         };
+
         template<class Base>
         class wrapper
         {
+            friend struct access;
             using utex = std::mutex;
             using cond = std::condition_variable;
             using Lock = std::unique_lock<utex>;
+
             utex mutex; // wrapper: Accesss mutex.
             cond synch; // wrapper: Accesss notificator.
             Base thing; // wrapper: Protected object.
+            flag alive{ true }; // wrapper: Connection status.
+
         public:
             static constexpr auto kind = Base::kind;
+
             struct access
             {
                 Lock  guard; // access: .
                 Base& thing; // access: .
                 cond& synch; // access: .
-                access(utex& mutex, cond& synch, Base& thing)
-                    : guard{ mutex },
-                      thing{ thing },
-                      synch{ synch }
+                flag& alive; // access: .
+
+                access(wrapper& w)
+                    : guard{ w.mutex },
+                      thing{ w.thing },
+                      synch{ w.synch },
+                      alive{ w.alive }
                 { }
-                access(access&& other)
-                    : guard{ std::move(other.guard) },
-                      thing{ other.thing },
-                      synch{ other.synch }
+                access(access&& a)
+                    : guard{ std::move(a.guard) },
+                      thing{ a.thing },
+                      synch{ a.synch },
+                      alive{ a.alive }
                 { }
                ~access()
                 {
                     if (guard) synch.notify_all();
                 }
+
                 void unlock()
                 {
                     if (guard)
@@ -507,13 +542,19 @@ namespace netxs::directvt
                 template<class Period>
                 auto wait_for(Period&& maxoff)
                 {
-                    return synch.wait_for(guard, std::forward<Period>(maxoff));
+                    return alive ? synch.wait_for(guard, std::forward<Period>(maxoff))
+                                 : std::cv_status::timeout;;
+                }
+                void wait()
+                {
+                    if (alive) synch.wait(guard);
                 }
             };
+
             // wrapper .
             auto freeze()
             {
-                return access{ mutex, synch, thing };
+                return access{ *this };
             }
             // wrapper .
             template<bool Discard_empty = faux, class T, class ...Args>
@@ -527,10 +568,20 @@ namespace netxs::directvt
                 thing.template sendby<Discard_empty>(sender);
             }
             // wrapper .
+            template<class ...Args>
+            void set(Args&&... args)
+            {
+                auto lock = freeze();
+                if constexpr (sizeof...(args))
+                {
+                    thing.set(std::forward<Args>(args)...);
+                }
+            }
+            // wrapper .
             template<bool Discard_empty = faux, class T, class ...Args>
             void send(sptr<T> sender_ptr, Args&&... args)
             {
-                send<Discard_empty>(*sender_ptr,std::forward<Args>(args)...);
+                send<Discard_empty>(*sender_ptr, std::forward<Args>(args)...);
             }
             // wrapper .
             template<class T>
@@ -555,20 +606,30 @@ namespace netxs::directvt
                 thing.get(data);
                 return lock;
             }
+            // wrapper .
+            auto drop()
+            {
+                auto lock = freeze();
+                alive = faux;
+            }
         };
+
         template<class Base, class Type>
         struct list
             : stream
         {
             static constexpr auto kind = type{ Type::kind | binary::is_list };
+
             Base copy;
             Type item;
+
             struct iter
             {
                 view  rest;
                 view  crop;
                 bool  stop;
                 Type& item;
+
                 iter(view data, Type& item)
                     : rest{ data },
                       stop{ faux },
@@ -599,12 +660,14 @@ namespace netxs::directvt
                     }
                 }
             };
+
         public:
             list(list const&) = default;
             list(list&&)      = default;
             list()
                 : stream{ kind }
             { }
+
             auto begin() { return iter{ copy, item }; }
             auto   end() { return text::npos; }
             // list: .
@@ -627,10 +690,13 @@ namespace netxs::directvt
                 data = {};
             }
         };
+
         static constexpr auto _counter_base = __COUNTER__;
+
         // Definition of plain objects.
         #define DEFINE_macro
         #include "macrogen.hpp"
+
         #define STRUCT_macro(struct_name, struct_members)                                   \
             struct CAT_macro(struct_name, _t) : public stream                               \
             {                                                                               \
@@ -678,6 +744,7 @@ namespace netxs::directvt
                 }                                                                           \
             };                                                                              \
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
+
         //todo use C++20 __VA_OPT__ (MSVC not ready yet)
         #define STRUCT_macro_lite(struct_name)                                    \
             struct CAT_macro(struct_name, _t) : public stream                     \
@@ -696,32 +763,39 @@ namespace netxs::directvt
                 }                                                                 \
             };                                                                    \
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
+
         //todo unify
-        static auto& operator << (std::ostream& s, wchr const& o) { return s << "0x" << utf::to_hex(o); }
-        static auto& operator << (std::ostream& s, time const& o) { return s << "0x" << utf::to_hex(o.time_since_epoch().count()); }
-        // Output stream.
+        static auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
+        static auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
+
         STRUCT_macro(frame_element,     (frag, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
-        STRUCT_macro(set_clipboard,     (id_t, gear_id) (twod, clip_prev_size) (text, clipdata) (si32, mimetype))
-        STRUCT_macro(request_clipboard, (id_t, gear_id))
+        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, data) (si32, mimetype))
+        STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
+        STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(fullscreen,        (id_t, gear_id))
-        STRUCT_macro(form_header,       (id_t, window_id) (text, new_header))
-        STRUCT_macro(form_footer,       (id_t, window_id) (text, new_footer))
+        STRUCT_macro(header,            (id_t, window_id) (text, utf8))
+        STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
+        STRUCT_macro(header_request,    (id_t, window_id))
+        STRUCT_macro(footer_request,    (id_t, window_id))
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
         STRUCT_macro(vt_command,        (text, command))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
         STRUCT_macro(fatal,             (text, err_msg))
         STRUCT_macro(minimize,          (id_t, gear_id))
+        //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
-        // Input stream.
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
+        STRUCT_macro(sysclose,          (bool, fast))
+        STRUCT_macro(syspaste,          (id_t, gear_id) (ui32, secbits) (ui32, format) (text, data))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
+        STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled) (si32, keycode))
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
                                         (ui32, ctlstat)  // sysmouse: Keybd modifiers.
@@ -733,33 +807,33 @@ namespace netxs::directvt
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
                                         (twod, coordxy)  // sysmouse: Cursor coordinates.
                                         (ui32, changed)) // sysmouse: Update stamp.
-        STRUCT_macro(mouse_show,        (bool, mode)) // CCC_SMS/* 26:1p */
-        STRUCT_macro(winsz,             (id_t, gear_id) (twod, winsize))
-        STRUCT_macro(clipdata,          (id_t, gear_id) (text, data) (si32, mimetype))
-        STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
-        //STRUCT_macro(syspaste,          (id_t, gear_id) (ui32, secbits) (ui32, format) (text, data))
+        STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
         STRUCT_macro(bgc,               (rgba, color))
         STRUCT_macro(fgc,               (rgba, color))
         STRUCT_macro(slimmenu,          (bool, menusize))
-        STRUCT_macro(init,              (text, user) (si32, mode) (text, config))
+        STRUCT_macro(init,              (text, user) (si32, mode) (twod, winsz) (text, config))
+
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
         #define UNDEFINE_macro
         #include "macrogen.hpp"
+
         // Definition of complex objects.
-        class bitmap_t
+        struct bitmap_dtvt_t
             : public stream
         {
-        public:
             static constexpr auto kind = type{ __COUNTER__ - _counter_base };
-            bitmap_t()
+
+            bitmap_dtvt_t()
                 : stream{ kind }
             { }
+
             cell                           state; // bitmap: .
             core                           image; // bitmap: .
             std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
+
             struct subtype
             {
                 static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
@@ -767,6 +841,7 @@ namespace netxs::directvt
                 static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
                 static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
             };
+
             enum : byte
             {
                 refer = 1 << 0, // 1 - Diff with our canvas cell, 0 - diff with current brush (state).
@@ -775,6 +850,7 @@ namespace netxs::directvt
                 style = 1 << 3,
                 glyph = 1 << 4,
             };
+
             void set(id_t winid, twod const& coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
@@ -882,7 +958,8 @@ namespace netxs::directvt
                 }
                 delta = sum;
             }
-            void get(view& data)
+            template<class P = noop>
+            void get(view& data, P update = {})
             {
                 auto [myid, area] = stream::take<id_t, rect>(data);
                 //todo head.myid
@@ -918,13 +995,19 @@ namespace netxs::directvt
                     if (what == subtype::nop)
                     {
                         //nop_count++;
-                        *iter++ = mark;
+                        auto& dest = *iter;
+                        dest = mark;
+                        update(head, iter, 1);
+                        ++iter;
                     }
                     else if (what < subtype::dif)
                     {
                         //dif_count++;
-                        if (what & refer) mark = take(what, *iter++);
-                        else           *iter++ = take(what, mark);
+                        auto& dest = *iter;
+                        if (what & refer) mark = take(what, dest);
+                        else              dest = take(what, mark);
+                        update(head, iter, 1);
+                        ++iter;
                     }
                     else if (what == subtype::rep)
                     {
@@ -937,6 +1020,7 @@ namespace netxs::directvt
                             break;
                         }
                         std::fill(iter, upto, mark);
+                        update(head, iter, count);
                         iter = upto;
                     }
                     else if (what == subtype::mov)
@@ -965,140 +1049,20 @@ namespace netxs::directvt
                 //log("----------------------------");
             }
         };
-        using bitmap = wrapper<bitmap_t>;
-        using frames_t     = list<view,   frame_element_t>;
-        using jgc_list_t   = list<text,     jgc_element_t>;
-        using tooltips_t   = list<text, tooltip_element_t>;
-        using request_gc_t = list<text, unknown_gc_t>;
-        using frames     = wrapper<frames_t  >;
-        using jgc_list   = wrapper<jgc_list_t>;
-        using tooltips   = wrapper<tooltips_t>;
-        using request_gc = wrapper<request_gc_t>;
-        struct s11n
-        {
-            #define object_list \
-            /* Output stream                                                      */\
-            X(bitmap           ) /* Canvas data.                                  */\
-            X(mouse_event      ) /* Mouse events.                                 */\
-            X(keybd_event      ) /* Keybd events.                                 */\
-            X(tooltips         ) /* Tooltip list.                                 */\
-            X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(set_clipboard    ) /* Set main clipboard using following data.      */\
-            X(request_clipboard) /* Request main clipboard data.                  */\
-            X(focus_cut        ) /* Request to focus cut.                         */\
-            X(focus_set        ) /* Request to focus set.                         */\
-            X(fullscreen       ) /* Request to fullscreen                         */\
-            X(form_header      ) /* Set window title.                             */\
-            X(form_footer      ) /* Set window footer.                            */\
-            X(warping          ) /* Warp resize.                                  */\
-            X(minimize         ) /* Minimize window.                              */\
-            X(expose           ) /* Bring the form to the front.                  */\
-            X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
-            X(frames           ) /* Received frames.                              */\
-            X(tooltip_element  ) /* Tooltip text.                                 */\
-            X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
-            X(logs             ) /* Debug logs.                                   */\
-            X(fatal            ) /* Fatal error message.                          */\
-            /* Input stream                                                       */\
-            X(sysfocus         ) /* System focus state.                           */\
-            X(syskeybd         ) /* System keybd device.                          */\
-            X(sysmouse         ) /* System mouse device.                          */\
-            X(focusbus         ) /* Focus bus events.                             */\
-            X(mouse_show       ) /* Show mouse cursor.                            */\
-            X(winsz            ) /* Window resize.                                */\
-            X(clipdata         ) /* Clipboard raw data.                           */\
-            X(osclipdata       ) /* OS clipboard data.                            */\
-            X(request_gc       ) /* Unknown gc token list.                        */\
-            X(unknown_gc       ) /* Unknown gc token.                             */\
-            X(fps              ) /* Set frame rate.                               */\
-            X(bgc              ) /* Set background color.                         */\
-            X(fgc              ) /* Set foreground color.                         */\
-            X(slimmenu         ) /* Set window menu size.                         */\
-            X(init             ) /* Startup data.                                 */
-            //X(focus            ) /* Request to set focus.                         */\
-            //X(syspaste         ) /* Clipboard paste.                              */\
 
-            struct xs
-            {
-                #define X(_object) using _object = binary::_object::access;
-                object_list
-                #undef X
-            };
-            #define X(_object) binary::_object _object;
-            object_list
-            #undef X
-            std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
-            void sync(view& data)
-            {
-                auto lock = frames.sync(data);
-                for(auto& frame : lock.thing)
-                {
-                    auto iter = exec.find(frame.next);
-                    if (iter != exec.end())
-                    {
-                        iter->second(frame.data);
-                    }
-                    else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
-                }
-            }
-            s11n() = default;
-            template<class T>
-            s11n(T& boss, id_t boss_id = {})
-            {
-                #define X(_object) \
-                    if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
-                        exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); };
-                object_list
-                #undef X
-                auto lock = bitmap.freeze();
-                lock.thing.image.link(boss_id);
-            }
-            #undef object_list
-        };
-    }
-    namespace ascii
-    {
-        template<svga Mode = svga::truecolor>
-        class bitmap
-            : public basevt<text>
+        template<svga Mode, type Kind>
+        struct bitmap_a
+            : public stream
         {
-            text block; // ascii::bitmap: .
-            cell state; // ascii::bitmap: .
-            core image; // ascii::bitmap: .
-        public:
-            // ascii::bitmap: .
-            template<class T>
-            void operator += (T&& str) { block += std::forward<T>(str); }
-            bitmap()
-                : basevt{ block }
+            static constexpr auto kind = Kind;
+
+            cell state; // bitmap_a: .
+            core image; // bitmap_a: .
+
+            bitmap_a()
+                : stream{ Kind }
             { }
-            // ascii::bitmap: .
-            auto length() const
-            {
-                return static_cast<sz_t>(block.length());
-            }
-            // ascii::bitmap: .
-            auto reset()
-            {
-                block.clear();
-                return length();
-            }
-            // ascii::bitmap: .
-            template<class T>
-            void sendby(T&& sender)
-            {
-                if (commit())
-                {
-                    sender.output(block);
-                    block.clear();
-                }
-            }
-            // ascii::bitmap: .
-            auto commit()
-            {
-                return length();
-            }
-            // ascii::bitmap: .
+
             void set(id_t winid, twod const& winxy, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
@@ -1107,17 +1071,17 @@ namespace netxs::directvt
                 auto mov = [&](auto x)
                 {
                     coord.x = static_cast<decltype(coord.x)>(x);
-                    basevt::locate(coord);
+                    block.basevt::locate(coord);
                 };
                 auto put = [&](cell const& cache)
                 {
                     //todo
-                    cache.scan<Mode>(state, *this);
+                    cache.scan<Mode>(state, block);
                 };
                 auto dif = [&](cell const& cache, cell const& front)
                 {
                     //todo
-                    return !cache.scan<Mode>(front, state, *this);
+                    return !cache.scan<Mode>(front, state, block);
                 };
                 auto left_half = [&](cell const& cache)
                 {
@@ -1141,7 +1105,7 @@ namespace netxs::directvt
                 };
                 if (image.hash() != cache.hash())
                 {
-                    basevt::scroll_wipe();
+                    block.basevt::scroll_wipe();
                     auto src = cache.iter();
                     while (coord.y < field.y)
                     {
@@ -1151,7 +1115,7 @@ namespace netxs::directvt
                             state = saved;
                             break;
                         }
-                        basevt::locate(coord);
+                        block.basevt::locate(coord);
                         auto end = src + field.x;
                         while (src != end)
                         {
@@ -1179,7 +1143,7 @@ namespace netxs::directvt
                         ++coord.y;
                     }
                     std::swap(image, cache);
-                    delta = commit();
+                    delta = commit(true);
                 }
                 else
                 {
@@ -1290,9 +1254,128 @@ namespace netxs::directvt
                         ++coord.y;
                     }
                     std::swap(image, cache);
-                    delta = commit();
+                    delta = commit(true);
                 }
             }
+            void get(view& data) {}
+        };
+        struct bitmap_vtrgb_t : bitmap_a<svga::vtrgb, __COUNTER__ - _counter_base> { };
+        struct bitmap_vt256_t : bitmap_a<svga::vt256, __COUNTER__ - _counter_base> { };
+        struct bitmap_vt16_t  : bitmap_a<svga::vt16,  __COUNTER__ - _counter_base> { };
+
+        using bitmap_dtvt  = wrapper<bitmap_dtvt_t>;
+        using bitmap_vtrgb = wrapper<bitmap_vtrgb_t>;
+        using bitmap_vt256 = wrapper<bitmap_vt256_t>;
+        using bitmap_vt16  = wrapper<bitmap_vt16_t>;
+        using frames_t     = list<view,   frame_element_t>;
+        using jgc_list_t   = list<text,     jgc_element_t>;
+        using tooltips_t   = list<text, tooltip_element_t>;
+        using request_gc_t = list<text, unknown_gc_t>;
+        using frames       = wrapper<frames_t  >;
+        using jgc_list     = wrapper<jgc_list_t>;
+        using tooltips     = wrapper<tooltips_t>;
+        using request_gc   = wrapper<request_gc_t>;
+
+        struct s11n
+        {
+            #define object_list \
+            X(bitmap_dtvt      ) /* Canvas in dtvt format.                        */\
+            X(bitmap_vtrgb     ) /* Canvas in truecolor format.                   */\
+            X(bitmap_vt256     ) /* Canvas in 256-color format.                   */\
+            X(bitmap_vt16      ) /* Canvas in 16-color format.                    */\
+            X(mouse_event      ) /* Mouse events.                                 */\
+            X(keybd_event      ) /* Keybd events.                                 */\
+            X(tooltips         ) /* Tooltip list.                                 */\
+            X(jgc_list         ) /* List of jumbo GC.                             */\
+            X(clipdata_request ) /* Request clipboard data.                       */\
+            X(clipdata         ) /* Clipboard raw data.                           */\
+            X(osclipdata       ) /* OS clipboard data.                            */\
+            X(focus_cut        ) /* Request to focus cut.                         */\
+            X(focus_set        ) /* Request to focus set.                         */\
+            X(fullscreen       ) /* Request to fullscreen                         */\
+            X(header           ) /* Set window title.                             */\
+            X(footer           ) /* Set window footer.                            */\
+            X(header_request   ) /* Request window title.                         */\
+            X(footer_request   ) /* Request window footer.                        */\
+            X(warping          ) /* Warp resize.                                  */\
+            X(minimize         ) /* Minimize window.                              */\
+            X(expose           ) /* Bring the form to the front.                  */\
+            X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
+            X(frames           ) /* Received frames.                              */\
+            X(tooltip_element  ) /* Tooltip text.                                 */\
+            X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\
+            X(logs             ) /* Debug logs.                                   */\
+            X(fatal            ) /* Fatal error message.                          */\
+            X(sysfocus         ) /* System focus state.                           */\
+            X(syskeybd         ) /* System keybd device.                          */\
+            X(sysmouse         ) /* System mouse device.                          */\
+            X(sysclose         ) /* System close event.                           */\
+            X(syswinsz         ) /* Console window resize.                        */\
+            X(syspaste         ) /* Clipboard paste.                              */\
+            X(focusbus         ) /* Focus bus events.                             */\
+            X(mousebar         ) /* Show mouse cursor.                            */\
+            X(request_gc       ) /* Unknown gc token list.                        */\
+            X(unknown_gc       ) /* Unknown gc token.                             */\
+            X(fps              ) /* Set frame rate.                               */\
+            X(bgc              ) /* Set background color.                         */\
+            X(fgc              ) /* Set foreground color.                         */\
+            X(slimmenu         ) /* Set window menu size.                         */\
+            X(init             ) /* Startup data.                                 */
+            //X(quit             ) /* Close and disconnect dtvt app.                */\
+            //X(focus            ) /* Request to set focus.                         */\
+
+            struct xs
+            {
+                #define X(_object) using _object = binary::_object::access;
+                object_list
+                #undef X
+            };
+
+            #define X(_object) binary::_object _object;
+            object_list
+            #undef X
+
+            std::unordered_map<type, std::function<void(view&)>> exec; // s11n: .
+
+            // s11n: Deserialize objects.
+            void sync(view& data)
+            {
+                auto lock = frames.sync(data);
+                for(auto& frame : lock.thing)
+                {
+                    auto iter = exec.find(frame.next);
+                    if (iter != exec.end())
+                    {
+                        iter->second(frame.data);
+                    }
+                    else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
+                }
+            }
+            // s11n: Wake up waiting objects.
+            void stop(bool alive = faux)
+            {
+                #define X(_object) if constexpr (requires{ _object.freeze(); }) _object.freeze().alive = alive;
+                object_list
+                #undef X
+            }
+
+            s11n() = default;
+            template<class T>
+            s11n(T& boss, id_t boss_id = {})
+            {
+                #define X(_object) \
+                    if constexpr (requires(view data) { boss.direct(_object.freeze(), data); }) \
+                        exec[binary::_object::kind] = [&](auto& data) { boss.direct(_object.freeze(), data); }; \
+                    else if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
+                        exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); }; \
+                    else \
+                        exec[binary::_object::kind] = [&](auto& data) { _object.sync(data); }; // Notify on receiving.
+                object_list
+                #undef X
+                auto lock = bitmap_dtvt.freeze();
+                lock.thing.image.link(boss_id);
+            }
+            #undef object_list
         };
     }
 }
