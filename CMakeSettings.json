@@ -1,0 +1,290 @@
+﻿{
+  "configurations": [
+    {
+      "name": "PROD-Win-ARM32",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_arm_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/MT /EHsc /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-arm"
+    },
+    {
+      "name": "PROD-Win-ARM64",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_arm64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/MT /EHsc /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-arm64"
+    },
+    {
+      "name": "PROD-Win-x32",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/MT /EHsc /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "name": "PROD-Win-x64",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/MT /EHsc /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "name": "PROD-WSL-ARM32",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_arm" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread -static -s -Wno-psabi",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/arm-linux-gnueabihf-g++",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-arm",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true
+    },
+    {
+      "name": "PROD-WSL-ARM64",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_arm" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread -static -s",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/aarch64-linux-gnu-g++",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-arm",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true
+    },
+    {
+      "name": "PROD-WSL-x32",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x86" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread -static -s",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_CXX_COMPILER",
+          "value": "/bin/i686-linux-gnu-g++",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-x86",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0"
+    },
+    {
+      "name": "PROD-WSL-x64",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-pthread -static -s",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-x64",
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true
+    },
+    {
+      "name": "Win-x32-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ]
+    },
+    {
+      "name": "Win-x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_DEBUG",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "type": "STRING"
+        },
+        {
+          "name": "CMAKE_INSTALL_PREFIX",
+          "value": "D:/sources/vtm/src/build/install/Win-x64-Debug",
+          "type": "PATH"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "Win-x64-Release",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
+          "value": "/EHsc /bigobj /utf-8",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "WSL-x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-DDEBUG -g -O0 -pthread",
+          "type": "STRING"
+        }
+      ],
+      "intelliSenseMode": "linux-gcc-x64"
+    },
+    {
+      "name": "WSL-x64-Release",
+      "generator": "Ninja",
+      "configurationType": "MinSizeRel",
+      "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
+      "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
+      "cmakeExecutable": "/usr/bin/cmake",
+      "cmakeCommandArgs": "-S ../../",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "linux_x64" ],
+      "wslPath": "${defaultWSLPath}",
+      "addressSanitizerRuntimeFlags": "detect_leaks=0",
+      "remoteCopyUseCompilerDefaults": true,
+      "intelliSenseMode": "linux-gcc-x64",
+      "variables": [
+        {
+          "name": "CMAKE_CXX_FLAGS",
+          "value": "-Ofast -pthread -s",
+          "type": "STRING"
+        }
+      ]
+    }
+  ]
+}
