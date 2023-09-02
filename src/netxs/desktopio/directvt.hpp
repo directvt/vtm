@@ -543,7 +543,7 @@ namespace netxs::directvt
                 auto wait_for(Period&& maxoff)
                 {
                     return alive ? synch.wait_for(guard, std::forward<Period>(maxoff))
-                                 : std::cv_status::timeout;;
+                                 : std::cv_status::timeout;
                 }
                 void wait()
                 {

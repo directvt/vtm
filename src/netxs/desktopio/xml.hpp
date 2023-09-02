@@ -1159,7 +1159,7 @@ namespace netxs::xml
             }
             else
             {
-                auto relative = utf::trim(gotopath, '/');;
+                auto relative = utf::trim(gotopath, '/');
                 if (homelist.size())
                 {
                     homelist = homelist.front()->list(relative);

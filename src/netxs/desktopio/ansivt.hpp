@@ -474,6 +474,7 @@ namespace netxs::ansi
         auto& eol()                 { return add("\n"                               ); } // basevt: EOL.
         auto& edl()                 { return add("\033[K"                           ); } // basevt: EDL.
         auto& del(si32 n)           { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
+        auto& del_below()           { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
         auto& fgx(rgba const& c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
                                                                c.chan.g, ':',
                                                                c.chan.b, ':',

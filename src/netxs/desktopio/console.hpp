@@ -2053,7 +2053,7 @@ namespace netxs::ui
                 twod max = skin::globals().max_value;
                 void fixed_size(twod const& m)
                 {
-                    min = max = std::clamp(m, min, max);;
+                    min = max = std::clamp(m, min, max);
                 }
             }
             lims;

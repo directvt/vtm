@@ -222,7 +222,7 @@ int main(int argc, char* argv[])
             });
             if (client)
             {
-                os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());;
+                os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }

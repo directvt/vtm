@@ -181,33 +181,6 @@ namespace netxs::os
             h = os::invalid_fd;
         }
     }
-    auto consize()
-    {
-        static constexpr auto winsz_fallback = twod{ 132, 60 };
-
-        auto winsz = dot_00;
-        #if defined(_WIN32)
-            auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
-            if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
-            {
-                winsz = { cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
-                          cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 };
-            }
-        #else
-            auto size = ::winsize{};
-            if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected_msg))
-            {
-                winsz = { size.ws_col, size.ws_row };
-            }
-        #endif
-
-        if (winsz == dot_00)
-        {
-            log(prompt::tty, "Fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
-            winsz = winsz_fallback;
-        }
-        return winsz;
-    }
 
     #if defined(_WIN32)
 
@@ -516,22 +489,31 @@ namespace netxs::os
                     }
                     if (c.inv()) std::swap(f, b);
                     if (c.und()) std::swap(f, b);  // Interferes with the menu scrollbar mimics.
-                    auto a = static_cast<ui16>((b << 4) | f);
-                    //if (c.und()) a |= COMMON_LVB_UNDERSCORE;  // LVB attributes historically available only for DBCS code pages.
-                    //if (c.ovr()) a |= COMMON_LVB_GRID_HORIZONTAL;
-                    return a;
+                    auto attr = static_cast<ui16>((b << 4) | f);
+                    auto size = c.wdt();
+                    if (size >= 2)
+                    {
+                        attr |= size == 2 ? COMMON_LVB_LEADING_BYTE : COMMON_LVB_TRAILING_BYTE;
+                    }
+                    //if (c.und()) attr |= COMMON_LVB_UNDERSCORE;  // LVB attributes historically available only for DBCS code pages.
+                    //if (c.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
+                    return attr;
                 }
                 struct vtparser
                     : public ansi::parser
                 {
                     using redo = std::list<std::pair<deco, ansi::mark>>;
+                    using info = CONSOLE_SCREEN_BUFFER_INFO;
                     using coor = COORD;
 
                     redo stack; // vtparser: Style state stack.
                     text yield; // vtparser: Text line to ptint.
                     wide cache; // vtparser: Temp buffer for UTF-16.
                     ui16 color; // vtparser: Current brush.
+                    info state; // vtparser: Current console state.
                     coor coord; // vtparser: Saved cursor position.
+                    DWORD count; // vtparser: .
+                    CONSOLE_CURSOR_INFO caret; // vtparser: Cursor state.
 
                     template<class T>
                     static void parser_config(T& vt)
@@ -547,31 +529,71 @@ namespace netxs::os
                         vt.csier.table[csi__el]          = V{ p->task({ fn::el, q(0) }); }; // CSI Ps K
                         vt.csier.table_hash[csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes and style onto stack.
                         vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
+                        vt.csier.table_quest[dec_set]    = V{ p->decset(q); };
+                        vt.csier.table_quest[dec_rst]    = V{ p->decrst(q); };
                         #undef V
                     }
 
-                    void move(auto pos)
-                    {
-                        ::SetConsoleCursorPosition(os::stdout_fd, pos);
-                    }
-                    auto& info()
-                    {
-                        static auto info = CONSOLE_SCREEN_BUFFER_INFO{ .dwSize = sizeof(CONSOLE_SCREEN_BUFFER_INFO) };
-                        ::GetConsoleScreenBufferInfo(os::stdout_fd, &info);
-                        return info;
-                    }
-                    vtparser() // Init current colors.
-                    {
-                        auto& i = info();
-                        auto c = cell{}.fgc(rgba::vga16[i.wAttributes & 0x0F])
-                                       .bgc(rgba::vga16[(i.wAttributes & 0xF0) >> 4])
-                                       .inv(i.wAttributes & COMMON_LVB_REVERSE_VIDEO);
-                        parser::brush.reset(c);
-                        color = console::attr<svga::nt16>(parser::brush);
-                    }
                     void cout(view utf8)
                     {
                         ansi::parse(utf8, this);
+                        send();
+                        mark();
+                    }
+                    void cursor(BOOL show)
+                    {
+                        if (show && (state.dwCursorPosition.X < state.srWindow.Left // Sync viewport.
+                                  || state.dwCursorPosition.X > state.srWindow.Right))
+                        {
+                            auto width = state.srWindow.Right - state.srWindow.Left + 1;
+                            auto delta = state.dwCursorPosition.X < width                ?-state.srWindow.Left
+                                       : state.dwCursorPosition.X > state.srWindow.Right ? state.dwCursorPosition.X - state.srWindow.Right
+                                                                                         :-state.dwCursorPosition.X;
+                            state.srWindow.Left  += delta;
+                            state.srWindow.Right += delta;
+                            ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
+                        }
+                        if (caret.bVisible == show) return;
+                        caret.bVisible = show;
+                        ::SetConsoleCursorInfo(os::stdout_fd, &caret);
+                    }
+                    void sync()
+                    {
+                        ::GetConsoleScreenBufferInfo(os::stdout_fd, &state);
+                    }
+                    void move(auto toxy)
+                    {
+                        ::SetConsoleCursorPosition(os::stdout_fd, toxy); // Viewport follows to cursor.
+                        sync();
+                    }
+                    void send()
+                    {
+                        if (yield.empty()) return;
+                        cache = utf::to_utf(yield);
+                        ::WriteConsoleW(os::stdout_fd, cache.data(), (DWORD)cache.size(), &count, nullptr);
+                        yield.clear();
+                        sync();
+                    }
+                    void mark()
+                    {
+                        auto attr = console::attr<svga::nt16>(parser::brush);
+                        if (color == attr) return;
+                        send();
+                        ::SetConsoleTextAttribute(os::stdout_fd, attr);
+                        color = attr;
+                    }
+
+                    vtparser()
+                        : coord{},
+                          state{}
+                    {
+                        sync(); // Update current brush state.
+                        auto c = cell{}.fgc(rgba::vga16[(state.wAttributes & 0x0F)])
+                                       .bgc(rgba::vga16[(state.wAttributes & 0xF0) >> 4])
+                                       .inv(state.wAttributes & COMMON_LVB_REVERSE_VIDEO);
+                        parser::brush.reset(c);
+                        color = console::attr<svga::nt16>(parser::brush);
+                        ::GetConsoleCursorInfo(os::stdout_fd, &caret);
                     }
                     // vtparser: CSI # {  Push SGR attributes.
                     void pushsgr()
@@ -591,132 +613,86 @@ namespace netxs::os
                             parser::brush = b;
                             parser::flush_style();
                             stack.pop_back();
-                            meta();
+                            mark();
                         }
                     }
-                    // vtparser: Add a locus command. In case of text presence change current target.
+                    void decset(fifo& queue)
+                    {
+                        send();
+                        while (auto n = queue(0))
+                        {
+                            if (n == 25) cursor(true); // Caret on.
+                        }
+                    }
+                    void decrst(fifo& queue)
+                    {
+                        send();
+                        while (auto n = queue(0))
+                        {
+                            if (n == 25) cursor(faux); // Caret off.
+                        }
+                    }
+                    // vtparser: Add a locus command.
                     void task(ansi::rule const& cmd)
                     {
-                        switch (cmd.cmd)
+                             if (cmd.cmd == ansi::fn::tb) { yield += utf::repeat("\t", cmd.arg); send(); }
+                        else if (cmd.cmd == ansi::fn::nl) { yield += utf::repeat("\n", cmd.arg); send(); }
+                        else
                         {
-                            case ansi::fn::tb:
-                                yield += utf::repeat("\t", cmd.arg);
-                                data();
-                                break;
-                            case ansi::fn::nl:
-                                yield += utf::repeat("\n", cmd.arg);
-                                data();
-                                break;
-                            case ansi::fn::ed:
-                                data();
-                                // Ps = 0  ⇒  Erase Below (default).
-                                // Ps = 1  ⇒  Erase Above.
-                                // Ps = 2  ⇒  Erase All.
-                                // Ps = 3  ⇒  Erase Scrollback
-                                break;
-                            case ansi::fn::el:
-                                data();
-                                // Ps = 0  ⇒  Erase to Right (default).
-                                // Ps = 1  ⇒  Erase to Left.
-                                // Ps = 2  ⇒  Erase All.
-                                break;
-                            case ansi::fn::dx: // horizontal delta.
+                            send();
+                            if (cmd.cmd == ansi::fn::ed)
                             {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.X += cmd.arg;
-                                move(i.dwCursorPosition);
-                                break;
+                                auto color = console::attr<svga::nt16>(parser::brush);
+                                auto v = state.dwSize.X * state.dwSize.Y;
+                                auto p = state.dwSize.X * state.dwCursorPosition.Y + state.dwCursorPosition.X;
+                                auto f = COORD{};
+                                if (cmd.arg < 3)
+                                {
+                                         if (cmd.arg == 0) { p = v - p; f = state.dwCursorPosition; } // Ps = 0  ⇒  Erase Below (default).
+                                    else if (cmd.arg == 1) { }                                        // Ps = 1  ⇒  Erase Above (Exclude current).
+                                    else if (cmd.arg == 2) { p = v; }                                 // Ps = 2  ⇒  Erase All.
+                                    ::FillConsoleOutputCharacterW(os::stdout_fd, ' ', p, f, &count);
+                                    ::FillConsoleOutputAttribute(os::stdout_fd, color, p, f, &count);
+                                }
+                                else if (cmd.arg == 3) // Ps = 3  ⇒  Erase Scrollback
+                                {
+                                    auto dwDestinationOrigin = COORD{ .X = 0, .Y = -state.dwSize.Y };
+                                    auto c = CHAR_INFO{ .Char = L' ', .Attributes = color };
+                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &state.srWindow, nullptr, dwDestinationOrigin, &c);
+                                }
                             }
-                            case ansi::fn::dy: // vertical delta.
+                            else if (cmd.cmd == ansi::fn::el)
                             {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.Y += cmd.arg;
-                                move(i.dwCursorPosition);
-                                break;
+                                if (cmd.arg == 0) // Ps = 0  ⇒  Erase to Right (default).
+                                {
+
+                                }
+                                else if (cmd.arg == 1) // Ps = 1  ⇒  Erase to Left.
+                                {
+
+                                }
+                                else if (cmd.arg == 2) // Ps = 2  ⇒  Erase All.
+                                {
+
+                                }
                             }
-                            case ansi::fn::ax: // x absolute (0-based).
-                            {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.X = cmd.arg;
-                                move(i.dwCursorPosition);
-                                break;
-                            }
-                            case ansi::fn::ay: // y absolute (0-based).
-                            {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.Y = cmd.arg;
-                                move(i.dwCursorPosition);
-                                break;
-                            }
-                            case ansi::fn::ox: // old format x absolute (1-based).
-                            {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.X = cmd.arg - 1;
-                                move(i.dwCursorPosition);
-                                break;
-                            }
-                            case ansi::fn::oy: // old format y absolute (1-based).
-                            {
-                                data();
-                                auto& i = info();
-                                i.dwCursorPosition.Y = cmd.arg - 1;
-                                move(i.dwCursorPosition);
-                                break;
-                            }
-                            case ansi::fn::px: // x percent.
-                                break;
-                            case ansi::fn::py: // y percent.
-                                break;
-                            case ansi::fn::sc: // save caret position.
-                                data();
-                                coord = info().dwCursorPosition;
-                                break;
-                            case ansi::fn::rc: // load caret position.
-                                data();
-                                move(coord);
-                                break;
-                            case ansi::fn::zz: // all params reset to zero.
-                                data();
-                                coord = {};
-                                move(coord);
-                                break;
-                            default: break;
-                        }
-                    }
-                    void data()
-                    {
-                        if (!yield.empty())
-                        {
-                            auto count = DWORD{};
-                            cache = utf::to_utf(yield);
-                            ::WriteConsoleW(os::stdout_fd, cache.data(), (DWORD)cache.size(), &count, nullptr);
-                            yield.clear();
-                        }
-                    }
-                    void meta()
-                    {
-                        auto attr = console::attr<svga::nt16>(parser::brush);
-                        if (color != attr)
-                        {
-                            data();
-                            color = attr;
-                            ::SetConsoleTextAttribute(os::stdout_fd, color);
+                            else if (cmd.cmd == ansi::fn::dx) { state.dwCursorPosition.X += cmd.arg;     move(state.dwCursorPosition); } // horizontal delta.
+                            else if (cmd.cmd == ansi::fn::dy) { state.dwCursorPosition.Y += cmd.arg;     move(state.dwCursorPosition); } // vertical delta.
+                            else if (cmd.cmd == ansi::fn::ax) { state.dwCursorPosition.X  = cmd.arg;     move(state.dwCursorPosition); } // x absolute (0-based).
+                            else if (cmd.cmd == ansi::fn::ay) { state.dwCursorPosition.Y  = cmd.arg;     move(state.dwCursorPosition); } // y absolute (0-based).
+                            else if (cmd.cmd == ansi::fn::ox) { state.dwCursorPosition.X  = cmd.arg - 1; move(state.dwCursorPosition); } // old format x absolute (1-based).
+                            else if (cmd.cmd == ansi::fn::oy) { state.dwCursorPosition.Y  = cmd.arg - 1; move(state.dwCursorPosition); } // old format y absolute (1-based).
+                            else if (cmd.cmd == ansi::fn::px) {} // x percent.
+                            else if (cmd.cmd == ansi::fn::py) {} // y percent.
+                            else if (cmd.cmd == ansi::fn::sc) { coord = state.dwCursorPosition; } // save caret position.
+                            else if (cmd.cmd == ansi::fn::rc) { move(coord); } // Restore cursor position.
+                            else if (cmd.cmd == ansi::fn::zz) { coord = {}; move(coord); } // all params reset to zero.
                         }
                     }
                     void post(utf::frag const& cluster)
                     {
-                        meta();
+                        mark();
                         yield += cluster.text;
-                    }
-                    void data(si32 count, grid const& proto) override
-                    {
-                        data();
-                        meta();
                     }
                 };
             }
@@ -813,7 +789,6 @@ namespace netxs::os
                 if (scrl  ) state |= SCROLLLOCK_ON;
                 return state;
             }
-
             auto is_wow64()
             {
                 if constexpr (sizeof(void*) == 4)
@@ -2896,6 +2871,35 @@ namespace netxs::os
         static constexpr auto vt256   = 1 << 3;
         static constexpr auto direct  = 1 << 4;
         static auto mode = vtrgb;
+        static auto scroll = faux; // Viewport/scrollback selector for windows console.
+        auto consize()
+        {
+            static constexpr auto winsz_fallback = twod{ 132, 60 };
+
+            auto winsz = dot_00;
+            #if defined(_WIN32)
+                auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
+                if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
+                {
+                    winsz = dtvt::scroll ? twod{ cinfo.dwSize.X, cinfo.dwSize.Y }
+                                         : twod{ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
+                                                 cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 };
+                }
+            #else
+                auto size = ::winsize{};
+                if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected_msg))
+                {
+                    winsz = { size.ws_col, size.ws_row };
+                }
+            #endif
+
+            if (winsz == dot_00)
+            {
+                log(prompt::tty, "Fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                winsz = winsz_fallback;
+            }
+            return winsz;
+        }
 
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
@@ -3024,7 +3028,7 @@ namespace netxs::os
                     else os::fail("Check you are using the proper tty device");
 
                 #endif
-                dtvt::win_sz = os::consize();
+                dtvt::win_sz = dtvt::consize();
                 auto repair = []
                 {
                     #if defined(_WIN32)
@@ -3944,7 +3948,8 @@ namespace netxs::os
             void direct(s11n::xs::bitmap_vtrgb     lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_dtvt      lock, view& data) // Decode for nt16 mode.
             {
-                auto update = [](auto head, auto iter, auto count)
+                auto win_sz = s11n::syswinsz.freeze().thing.winsize;
+                auto update = [win_sz](auto head, auto iter, auto count)
                 {
                     #if defined(_WIN32)
                     static auto attrs = std::vector<ui16>{};
@@ -3952,7 +3957,7 @@ namespace netxs::os
                     attrs.resize(count);
                     chars.resize(count);
                     auto offset = std::distance(head, iter);
-                    auto coords = COORD{ .X = (si16)(offset % dtvt::win_sz.x), .Y = (si16)(offset / dtvt::win_sz.x) };
+                    auto coords = COORD{ .X = (si16)(offset % win_sz.x), .Y = (si16)(offset / win_sz.x) };
                     auto number = DWORD{};
                     auto attr_i = attrs.begin();
                     auto char_i = chars.begin();
@@ -3962,10 +3967,10 @@ namespace netxs::os
                         auto attr = nt::console::attr<svga::vt16>(c);
                         auto lttr = utf::letter(c.txt()).attr.cdpoint;
                         *attr_i++ = attr;
-                        *char_i++ = lttr < 0xD800 ? lttr : '?';
+                        *char_i++ = lttr < 0x100000 ? lttr : '?';
                     }
-                    ::WriteConsoleOutputCharacterW(os::stdout_fd, chars.data(), (DWORD)chars.size(), coords, &number);
                     ::WriteConsoleOutputAttribute( os::stdout_fd, attrs.data(), (DWORD)attrs.size(), coords, &number);
+                    ::WriteConsoleOutputCharacterW(os::stdout_fd, chars.data(), (DWORD)chars.size(), coords, &number);
                     #endif
                 };
                 auto& bitmap = lock.thing;
@@ -4015,6 +4020,7 @@ namespace netxs::os
                 : s11n{ *this }
             {
                 //s11n::header.set(id_t{}, tty::title());
+                s11n::syswinsz.set(id_t{}, dtvt::win_sz);
             }
         };
         static auto stream = proxy{}; // tty: Serialization proxy.
@@ -4229,7 +4235,7 @@ namespace netxs::os
                                         mouse(m); // Fire mouse event to update kb modifiers.
                                         break;
                                     case WINDOW_BUFFER_SIZE_EVENT:
-                                        w.winsize = os::consize();
+                                        w.winsize = dtvt::consize();
                                         winsz(w);
                                         break;
                                     case FOCUS_EVENT:
@@ -4803,17 +4809,9 @@ namespace netxs::os
                 auto palette = CONSOLE_SCREEN_BUFFER_INFOEX{ .cbSize = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX), .wAttributes = {} };
                 ok(::GetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::GetConsoleScreenBufferInfoEx()", os::unexpected_msg);
 
-
                 auto caret = dtvt::backup.caret; // Doesn't work on modern windows console. Additiom vt command required, see below.
                 caret.bVisible = FALSE; // Will be restored by the dtvt::backup.caret on exit.
                 ok(::SetConsoleCursorInfo(os::stdout_fd, &caret), "::SetConsoleCursorInfo()", os::unexpected_msg);
-
-                //std::this_thread::sleep_for(1s);
-                //WORD cells[16] = { 0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
-                //                   0x80, 0x90, 0xA0, 0xb0, 0xc0, 0xd0, 0xe0, 0xf0, };
-                //auto count = DWORD{};
-                //WriteConsoleOutputAttribute(os::stdout_fd, cells, 16, {}, &count);
-                //std::this_thread::sleep_for(1s);
 
                 if (dtvt::vtmode & os::dtvt::nt16)
                 {
@@ -4821,8 +4819,6 @@ namespace netxs::os
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
                     rgba::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = color & 0x00FFFFFF; }); // conhost crashed if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected_msg);
-                    //WriteConsoleOutputAttribute(os::stdout_fd, cells, 16, { .Y = 1 }, &count);
-                    //std::this_thread::sleep_for(5s);
                 }
             #else 
                 auto vtrun = ansi::setutf(true).altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
@@ -4865,7 +4861,7 @@ namespace netxs::os
             clips.join();
             input.join(); // Wait close() to complete.
             intio.shut(); // Close link to server.
-            //std::this_thread::sleep_for(2000ms); // Uncomment to test for delayed input events.
+            //test: std::this_thread::sleep_for(2000ms); // Uncomment to test for delayed input events.
 
             #if defined(_WIN32)
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
@@ -4909,20 +4905,21 @@ namespace netxs::os
                 if (os::dtvt::vtmode & os::dtvt::onlylog) return;
                 thread = std::thread{ [&, send, shut]
                 {
+                    dtvt::scroll = true;
                     auto osout = tty::cout;
                     auto width = si32{};
                     auto block = escx{};
                     auto yield = escx{};
                     auto shown = flag{ faux };
                     auto mutex = std::mutex{};
-                    auto panel = os::dtvt::win_sz;
+                    auto panel = dtvt::consize();
                     auto wraps = true;
                     auto clear = [&](auto&& ...args) // Erase the readline block and output the args.
                     {
                         if (shown && width)
                         {
                             if (wraps && width >= panel.x) yield.cuu(width / panel.x);
-                            yield.add("\r\033[J");
+                            yield.add("\r").del_below();
                         }
                         if constexpr (sizeof...(args))
                         {
@@ -4932,13 +4929,15 @@ namespace netxs::os
                         }
                         shown = faux;
                     };
+                    auto win16 = dtvt::vtmode & dtvt::nt16; // Windows console has no deferred cursor position.
                     auto print = [&]
                     {
                         utf::change(block, "\n", "\r\n"); // Disabled post-processing.
                         yield.pushsgr().nil().fgc(yellowlt);
                         width = utf::debase<faux, faux>(block, yield);
                         yield.nil().popsgr();
-                        if (wraps && width && width % panel.x == 0) yield.add("\r\n");
+                        if (wraps && width && width % panel.x == 0 && !win16) yield.add("\r\n");
+                        yield.cursor(true);
                         osout(yield);
                         yield.clear();
                         shown = true;
@@ -4949,6 +4948,7 @@ namespace netxs::os
                         if constexpr (sizeof...(args)) yield.add(std::forward<decltype(args)>(args)...);
                         if (yield.length())
                         {
+                            yield.cursor(true);
                             osout(yield);
                             yield.clear();
                         }
@@ -4991,7 +4991,8 @@ namespace netxs::os
                             case '\r': // Enter
                             {
                                 auto line = block + '\n';
-                                enter();
+                                block.empty() ? enter("\r\n")
+                                              : enter();
                                 guard.unlock(); // Allow to use log() inside send().
                                 send(line);
                                 break;

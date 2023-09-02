@@ -100,7 +100,7 @@ TerminalFindNext             | Highlight next match of selected text fragment. C
 TerminalFindPrev             | Highlight previous match of selected text fragment. Clipboard content is used if no active selection.
 TerminalOutput               | Direct output the `data=` value to the terminal scrollback.
 TerminalSendKey              | Simulating keypresses using the `data=` string.
-TerminalQuit                 | Terminate runnning console apps and close the built-in terminal.
+TerminalQuit                 | Terminate runnning console apps and close terminal.
 TerminalRestart              | Terminate runnning console apps and restart current session.
 TerminalFullscreen           | Toggle fullscreen mode.
 TerminalUndo                 | (Win32 Cooked/ENABLE_LINE_INPUT mode only) Discard the last input.

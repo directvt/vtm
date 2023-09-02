@@ -331,7 +331,7 @@ namespace netxs::app::vtm
             {
                 auto& screen = boss.base::area();
                 auto  oldpos = screen.coor;
-                auto  newpos = target - screen.size / 2;;
+                auto  newpos = target - screen.size / 2;
 
                 auto path = newpos - oldpos;
                 auto time = skin::globals().switching;

@@ -5741,7 +5741,7 @@ namespace netxs::ui
                                     {
                                         auto width = curtop.y == curend.y ? curend.x - curtop.x + 1
                                                                           : dot_mx.x;
-                                        auto bound = rect{ curtop, { width, 1 }}.normalize();;
+                                        auto bound = rect{ curtop, { width, 1 }}.normalize();
                                         block = block.clip(bound);
                                     }
                                     else if (coord.y == curend.y)

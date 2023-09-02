@@ -3971,7 +3971,16 @@ struct impl : consrv
              && packet.input.scrlL == 0 && packet.input.scrlR == window.panel.x
              && packet.input.scrlT == 0 && packet.input.scrlB == window.panel.y)
             {
-                log("\timplicit screen clearing detected");
+                log("\timplicit screen clearing detected",
+                    "\n\tpacket.input.dest: ", twod{ packet.input.destx, packet.input.desty },
+                    "\n\tpacket.input.scrlL: ", packet.input.scrlL,
+                    "\n\tpacket.input.scrlT: ", packet.input.scrlT,
+                    "\n\tpacket.input.scrlR: ", packet.input.scrlR,
+                    "\n\tpacket.input.scrlB: ", packet.input.scrlB,
+                    "\n\tpacket.input.clipL: ", packet.input.clipL,
+                    "\n\tpacket.input.clipT: ", packet.input.clipT,
+                    "\n\tpacket.input.clipR: ", packet.input.clipR,
+                    "\n\tpacket.input.clipB: ", packet.input.clipB);
                 window.clear_all();
                 return;
             }
