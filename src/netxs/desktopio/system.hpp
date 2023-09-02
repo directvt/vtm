@@ -490,11 +490,7 @@ namespace netxs::os
                     if (c.inv()) std::swap(f, b);
                     if (c.und()) std::swap(f, b);  // Interferes with the menu scrollbar mimics.
                     auto attr = static_cast<ui16>((b << 4) | f);
-                    auto size = c.wdt();
-                    if (size >= 2)
-                    {
-                        attr |= size == 2 ? COMMON_LVB_LEADING_BYTE : COMMON_LVB_TRAILING_BYTE;
-                    }
+                    // LEADING/TRAILINGs only for OEMs.
                     //if (c.und()) attr |= COMMON_LVB_UNDERSCORE;  // LVB attributes historically available only for DBCS code pages.
                     //if (c.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
                     return attr;
@@ -3943,34 +3939,54 @@ namespace netxs::os
         static auto clipboard = text{};
         struct proxy : s11n
         {
+            wide toWIDE;
+
             void direct(s11n::xs::bitmap_vt16      lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_vt256     lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_vtrgb     lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_dtvt      lock, view& data) // Decode for nt16 mode.
             {
                 auto win_sz = s11n::syswinsz.freeze().thing.winsize;
-                auto update = [win_sz](auto head, auto iter, auto count)
+                auto update = [&](auto head, auto iter, auto count)
                 {
                     #if defined(_WIN32)
-                    static auto attrs = std::vector<ui16>{};
-                    static auto chars = std::vector<wchr>{};
-                    attrs.resize(count);
+                    static auto chars = std::vector<CHAR_INFO>{};
                     chars.resize(count);
-                    auto offset = std::distance(head, iter);
-                    auto coords = COORD{ .X = (si16)(offset % win_sz.x), .Y = (si16)(offset / win_sz.x) };
-                    auto number = DWORD{};
-                    auto attr_i = attrs.begin();
-                    auto char_i = chars.begin();
+                    auto dist = std::distance(head, iter);
+                    auto dest = chars.begin();
                     while (count--)
                     {
-                        auto& c = *iter++;
-                        auto attr = nt::console::attr<svga::vt16>(c);
-                        auto lttr = utf::letter(c.txt()).attr.cdpoint;
-                        *attr_i++ = attr;
-                        *char_i++ = lttr < 0x100000 ? lttr : '?';
+                        auto& src = *iter++;
+                        auto& dst = *dest++;
+                        dst.Attributes = nt::console::attr<svga::vt16>(src);
+                        utf::to_utf(src.txt(), toWIDE);
+                        auto& chr = dst.Char.UnicodeChar;
+                        if (auto len = toWIDE.size())
+                        {
+                            if (src.wdt() < 3) chr = toWIDE[0];
+                            else               chr = len == 1 ? 0 : toWIDE[1];
+                        }
+                        else chr = 0;
+                        toWIDE.clear();
                     }
-                    ::WriteConsoleOutputAttribute( os::stdout_fd, attrs.data(), (DWORD)attrs.size(), coords, &number);
-                    ::WriteConsoleOutputCharacterW(os::stdout_fd, chars.data(), (DWORD)chars.size(), coords, &number);
+                    auto area = SMALL_RECT{ .Right = (SHORT)win_sz.x, .Bottom = (SHORT)win_sz.y };
+                    auto coor = COORD{ .X = (si16)(dist % win_sz.x), .Y = (si16)(dist / win_sz.x) };
+                    auto size = COORD{ .Y = 1 };
+                    auto rest = (si32)chars.size();;
+                    auto from = chars.data();
+                    while (rest)
+                    {
+                        size.X = (SHORT)std::min(rest, win_sz.x - coor.X);
+                        area.Left = coor.X;
+                        area.Right = coor.X + size.X - 1;
+                        area.Top = coor.Y;
+                        area.Bottom = coor.Y;
+                        ::WriteConsoleOutputW(os::stdout_fd, from, size, {}, &area);
+                        from += size.X;
+                        rest -= size.X;
+                        coor.X = 0;
+                        coor.Y++;
+                    }
                     #endif
                 };
                 auto& bitmap = lock.thing;

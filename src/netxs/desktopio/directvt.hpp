@@ -971,6 +971,7 @@ namespace netxs::directvt
                 auto head = image.iter();
                 auto tail = image.iend();
                 auto iter = head;
+                auto step = head;
                 auto take = [&](auto what, cell& c)
                 {
                     if (what & bgclr) stream::take(c.bgc(), data);
@@ -995,19 +996,14 @@ namespace netxs::directvt
                     if (what == subtype::nop)
                     {
                         //nop_count++;
-                        auto& dest = *iter;
-                        dest = mark;
-                        update(head, iter, 1);
-                        ++iter;
+                        *iter++ = mark;
                     }
                     else if (what < subtype::dif)
                     {
                         //dif_count++;
-                        auto& dest = *iter;
+                        auto& dest = *iter++;
                         if (what & refer) mark = take(what, dest);
                         else              dest = take(what, mark);
-                        update(head, iter, 1);
-                        ++iter;
                     }
                     else if (what == subtype::rep)
                     {
@@ -1020,7 +1016,6 @@ namespace netxs::directvt
                             break;
                         }
                         std::fill(iter, upto, mark);
-                        update(head, iter, count);
                         iter = upto;
                     }
                     else if (what == subtype::mov)
@@ -1033,6 +1028,14 @@ namespace netxs::directvt
                             log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
+                        if constexpr (!std::is_same_v<P, noop>)
+                        {
+                            if (iter != step)
+                            {
+                                update(head, step, iter - step);
+                                step = dest;
+                            }
+                        }
                         iter = dest;
                     }
                     else // Unknown subtype.
@@ -1042,6 +1045,10 @@ namespace netxs::directvt
                     }
                 }
                 image.mark(mark);
+                if constexpr (!std::is_same_v<P, noop>)
+                {
+                    if (iter != step) update(head, step, iter - step);
+                }
                 //log(prompt::dtvt, "frame len: ", frame_len);
                 //log(prompt::dtvt, "nop count: ", nop_count);
                 //log(prompt::dtvt, "rep count: ", rep_count);
