@@ -383,6 +383,8 @@ namespace netxs::os
 
             namespace console
             {
+                static auto buffer = dot_11; // Scrollback/viewport size.
+
                 enum fx
                 {
                     undef, connect, disconnect, create, close,
@@ -495,21 +497,59 @@ namespace netxs::os
                     //if (c.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
                     return attr;
                 }
+                template<svga Mode>
+                void print(auto size, auto coor, auto head, auto tail) // STA
+                {
+                    static auto buffer = std::vector<CHAR_INFO>{};
+                    static auto toWIDE = wide{};
+
+                    auto dist = tail - head;
+                    buffer.resize(dist);
+                    auto dest = buffer.begin();
+                    while (head != tail)
+                    {
+                        auto& src = *head++;
+                        auto& dst = *dest++;
+                        dst.Attributes = nt::console::attr<Mode>(src);
+                        toWIDE.clear();
+                        utf::to_utf(src.txt(), toWIDE);
+                        auto& chr = dst.Char.UnicodeChar;
+                        if (auto len = toWIDE.size())
+                        {
+                            if (src.wdt() < 3) chr = toWIDE[0];
+                            else               chr = len == 1 ? 0 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
+                        }
+                        else chr = 0;
+                    }
+                    auto area = SMALL_RECT{ .Right = (SHORT)size.x, .Bottom = (SHORT)size.y };
+                    auto crop = COORD{ .Y = 1 };
+                    auto rest = (si32)dist;
+                    auto data = buffer.data();
+                    while (rest)
+                    {
+                        crop.X = (SHORT)std::min(rest, size.x - coor.x);
+                        area.Left = coor.x;
+                        area.Right = coor.x + crop.X - 1;
+                        area.Top = coor.y;
+                        area.Bottom = coor.y;
+                        ::WriteConsoleOutputW(os::stdout_fd, data, crop, {}, &area);
+                        data += crop.X;
+                        rest -= crop.X;
+                        coor.x = 0;
+                        coor.y++;
+                    }
+                }
+
                 struct vtparser
                     : public ansi::parser
                 {
                     using redo = std::list<std::pair<deco, ansi::mark>>;
-                    using info = CONSOLE_SCREEN_BUFFER_INFO;
-                    using coor = COORD;
 
                     redo stack; // vtparser: Style state stack.
-                    text yield; // vtparser: Text line to ptint.
-                    wide cache; // vtparser: Temp buffer for UTF-16.
-                    ui16 color; // vtparser: Current brush.
-                    info state; // vtparser: Current console state.
-                    coor coord; // vtparser: Saved cursor position.
-                    DWORD count; // vtparser: .
-                    CONSOLE_CURSOR_INFO caret; // vtparser: Cursor state.
+                    grid cache; // vtparser: Temp buffer for console cells.
+                    twod coord; // vtparser: Current cursor position inside console::buffer.
+                    twod saved; // vtparser: Saved cursor position.
+                    bool shown; // vtparser: Cursor visibility state.
 
                     template<class T>
                     static void parser_config(T& vt)
@@ -533,73 +573,64 @@ namespace netxs::os
                     void cout(view utf8)
                     {
                         ansi::parse(utf8, this);
-                        send();
-                        mark();
                     }
-                    void cursor(BOOL show)
+                    auto status()
                     {
-                        if (show && (state.dwCursorPosition.X < state.srWindow.Left // Sync viewport.
-                                  || state.dwCursorPosition.X > state.srWindow.Right))
-                        {
-                            auto width = state.srWindow.Right - state.srWindow.Left + 1;
-                            auto delta = state.dwCursorPosition.X < width                ?-state.srWindow.Left
-                                       : state.dwCursorPosition.X > state.srWindow.Right ? state.dwCursorPosition.X - state.srWindow.Right
-                                                                                         :-state.dwCursorPosition.X;
-                            state.srWindow.Left  += delta;
-                            state.srWindow.Right += delta;
-                            ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
-                        }
-                        if (caret.bVisible == show) return;
-                        caret.bVisible = show;
-                        ::SetConsoleCursorInfo(os::stdout_fd, &caret);
-                    }
-                    void sync()
-                    {
+                        auto state = CONSOLE_SCREEN_BUFFER_INFO{};
                         ::GetConsoleScreenBufferInfo(os::stdout_fd, &state);
+                        return state;
                     }
-                    void move(auto toxy)
+                    void cursor(bool show)
                     {
-                        ::SetConsoleCursorPosition(os::stdout_fd, toxy); // Viewport follows to cursor.
-                        sync();
-                    }
-                    void send()
-                    {
-                        if (yield.empty()) return;
-                        cache = utf::to_utf(yield);
-                        ::WriteConsoleW(os::stdout_fd, cache.data(), (DWORD)cache.size(), &count, nullptr);
-                        yield.clear();
-                        sync();
-                    }
-                    void mark()
-                    {
-                        auto attr = console::attr<svga::nt16>(parser::brush);
-                        if (color == attr) return;
-                        send();
-                        ::SetConsoleTextAttribute(os::stdout_fd, attr);
-                        color = attr;
+                        auto state = status();
+                        if (show)
+                        {
+                            if (coord.x < state.srWindow.Left // Sync viewport.
+                             || coord.x > state.srWindow.Right
+                             || coord.y < state.srWindow.Top
+                             || coord.y > state.srWindow.Bottom)
+                            {
+                                auto delta = [](auto& head, auto& tail, auto coor)
+                                {
+                                    auto size = tail - head + 1;
+                                    auto step = coor < size ?-head
+                                              : coor > tail ? coor - tail
+                                              : coor < head ? coor - head
+                                                            : 0;
+                                    head += step;
+                                    tail += step;
+                                };
+                                delta(state.srWindow.Left, state.srWindow.Right,  coord.x);
+                                delta(state.srWindow.Top,  state.srWindow.Bottom, coord.y);
+                                ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
+                            }
+                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)coord.x, .Y = (SHORT)coord.y }); // Viewport follows to cursor.
+                        }
+                        if (shown == show) return;
+                        shown = show;
+                        auto s = CONSOLE_CURSOR_INFO{ .bVisible = shown };
+                        ::SetConsoleCursorInfo(os::stdout_fd, &s);
                     }
 
                     vtparser()
-                        : coord{},
-                          state{}
                     {
-                        sync(); // Update current brush state.
+                        auto state = status(); // Update current brush state.
                         auto c = cell{}.fgc(rgba::vga16[(state.wAttributes & 0x0F)])
                                        .bgc(rgba::vga16[(state.wAttributes & 0xF0) >> 4])
                                        .inv(state.wAttributes & COMMON_LVB_REVERSE_VIDEO);
                         parser::brush.reset(c);
-                        color = console::attr<svga::nt16>(parser::brush);
-                        ::GetConsoleCursorInfo(os::stdout_fd, &caret);
+                        auto s = CONSOLE_CURSOR_INFO{};
+                        ::GetConsoleCursorInfo(os::stdout_fd, &s);
+                        shown = s.bVisible;
+                        coord = { state.dwCursorPosition.X, state.dwCursorPosition.Y };
                     }
-                    // vtparser: CSI # {  Push SGR attributes.
-                    void pushsgr()
+                    void pushsgr() // vtparser: CSI # {  Push SGR attributes.
                     {
                         parser::flush();
                         stack.push_back({ parser::style, parser::brush });
                         if (stack.size() == 10) stack.pop_front();
                     }
-                    // vtparser: CSI # }  Pop SGR attributes.
-                    void popsgr()
+                    void popsgr() // vtparser: CSI # }  Pop SGR attributes.
                     {
                         parser::flush();
                         if (stack.size())
@@ -609,52 +640,76 @@ namespace netxs::os
                             parser::brush = b;
                             parser::flush_style();
                             stack.pop_back();
-                            mark();
                         }
                     }
                     void decset(fifo& queue)
                     {
-                        send();
+                        parser::flush();
                         while (auto n = queue(0))
                         {
-                            if (n == 25) cursor(true); // Caret on.
+                            if (n == 25) cursor(true); // Show cursor and sync viewport.
                         }
                     }
                     void decrst(fifo& queue)
                     {
-                        send();
+                        parser::flush();
                         while (auto n = queue(0))
                         {
-                            if (n == 25) cursor(faux); // Caret off.
+                            if (n == 25) cursor(faux); // Hide cursor.
                         }
                     }
-                    // vtparser: Add a locus command.
+                    auto scroll()
+                    {
+                        if (coord.y >= console::buffer.y)
+                        {
+                            auto delta = coord.y - console::buffer.y - 1;
+                            auto color = CHAR_INFO{ .Char = L' ', .Attributes = console::attr<svga::nt16>(parser::brush) };
+                            auto block = SMALL_RECT{ .Right = (SHORT)console::buffer.x, .Bottom = (SHORT)console::buffer.y };
+                            auto start = COORD{ .Y = (SHORT)delta };
+                            ::ScrollConsoleScreenBufferW(os::stdout_fd, &block, nullptr, start, &color);
+                            coord.y -= delta;
+                            return delta;
+                        }
+                        else return 0;
+                    }
                     void task(ansi::rule const& cmd)
                     {
-                             if (cmd.cmd == ansi::fn::tb) { yield += utf::repeat("\t", cmd.arg); send(); }
-                        else if (cmd.cmd == ansi::fn::nl) { yield += utf::repeat("\n", cmd.arg); send(); }
+                        parser::flush();
+                        if (cmd.cmd == ansi::fn::tb)
+                        {
+                            coord.x += parser::style.tablen * cmd.arg - coord.x % parser::style.tablen;
+                        }
+                        else if (cmd.cmd == ansi::fn::nl)
+                        {
+                            coord.x = 0;
+                            coord.y += cmd.arg;
+                            scroll();
+                        }
                         else
                         {
-                            send();
                             if (cmd.cmd == ansi::fn::ed)
                             {
-                                auto color = console::attr<svga::nt16>(parser::brush);
-                                auto v = state.dwSize.X * state.dwSize.Y;
-                                auto p = state.dwSize.X * state.dwCursorPosition.Y + state.dwCursorPosition.X;
-                                auto f = COORD{};
                                 if (cmd.arg < 3)
                                 {
-                                         if (cmd.arg == 0) { p = v - p; f = state.dwCursorPosition; } // Ps = 0  ⇒  Erase Below (default).
-                                    else if (cmd.arg == 1) { }                                        // Ps = 1  ⇒  Erase Above (Exclude current).
-                                    else if (cmd.arg == 2) { p = v; }                                 // Ps = 2  ⇒  Erase All.
-                                    ::FillConsoleOutputCharacterW(os::stdout_fd, ' ', p, f, &count);
-                                    ::FillConsoleOutputAttribute(os::stdout_fd, color, p, f, &count);
+                                    auto panel = console::buffer;
+                                    auto color = console::attr<svga::nt16>(parser::brush);
+                                    auto yield = DWORD{};
+                                    auto total = panel.x * panel.y;
+                                    auto count = panel.x * coord.y + coord.x;
+                                    auto start = COORD{ .X = (SHORT)coord.x, .Y = (SHORT)coord.y};
+                                         if (cmd.arg == 0) { count = total - count;     } // Ps = 0  ⇒  Erase Below (default).
+                                    else if (cmd.arg == 1) { start = {};                } // Ps = 1  ⇒  Erase Above (Exclude current).
+                                    else if (cmd.arg == 2) { start = {}; count = total; } // Ps = 2  ⇒  Erase All.
+                                    ::FillConsoleOutputCharacterW(os::stdout_fd, ' ', count, start, &yield);
+                                    ::FillConsoleOutputAttribute(os::stdout_fd, color, count, start, &yield);
                                 }
                                 else if (cmd.arg == 3) // Ps = 3  ⇒  Erase Scrollback
                                 {
-                                    auto dwDestinationOrigin = COORD{ .X = 0, .Y = -state.dwSize.Y };
-                                    auto c = CHAR_INFO{ .Char = L' ', .Attributes = color };
-                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &state.srWindow, nullptr, dwDestinationOrigin, &c);
+                                    auto state = status();
+                                    auto color = console::attr<svga::nt16>(parser::brush);
+                                    auto start = COORD{ .X = 0, .Y = state.srWindow.Top - state.srWindow.Bottom - 1 };
+                                    auto brush = CHAR_INFO{ .Char = L' ', .Attributes = color };
+                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &state.srWindow, nullptr, start, &brush);
                                 }
                             }
                             else if (cmd.cmd == ansi::fn::el)
@@ -672,23 +727,40 @@ namespace netxs::os
 
                                 }
                             }
-                            else if (cmd.cmd == ansi::fn::dx) { state.dwCursorPosition.X += cmd.arg;     move(state.dwCursorPosition); } // horizontal delta.
-                            else if (cmd.cmd == ansi::fn::dy) { state.dwCursorPosition.Y += cmd.arg;     move(state.dwCursorPosition); } // vertical delta.
-                            else if (cmd.cmd == ansi::fn::ax) { state.dwCursorPosition.X  = cmd.arg;     move(state.dwCursorPosition); } // x absolute (0-based).
-                            else if (cmd.cmd == ansi::fn::ay) { state.dwCursorPosition.Y  = cmd.arg;     move(state.dwCursorPosition); } // y absolute (0-based).
-                            else if (cmd.cmd == ansi::fn::ox) { state.dwCursorPosition.X  = cmd.arg - 1; move(state.dwCursorPosition); } // old format x absolute (1-based).
-                            else if (cmd.cmd == ansi::fn::oy) { state.dwCursorPosition.Y  = cmd.arg - 1; move(state.dwCursorPosition); } // old format y absolute (1-based).
+                            else if (cmd.cmd == ansi::fn::dx) { coord.x += cmd.arg;     } // horizontal delta.
+                            else if (cmd.cmd == ansi::fn::dy) { coord.y += cmd.arg;     } // vertical delta.
+                            else if (cmd.cmd == ansi::fn::ax) { coord.x  = cmd.arg;     } // x absolute (0-based).
+                            else if (cmd.cmd == ansi::fn::ay) { coord.y  = cmd.arg;     } // y absolute (0-based).
+                            else if (cmd.cmd == ansi::fn::ox) { coord.x  = cmd.arg - 1; } // old format x absolute (1-based).
+                            else if (cmd.cmd == ansi::fn::oy) { coord.y  = cmd.arg - 1; } // old format y absolute (1-based).
                             else if (cmd.cmd == ansi::fn::px) {} // x percent.
                             else if (cmd.cmd == ansi::fn::py) {} // y percent.
-                            else if (cmd.cmd == ansi::fn::sc) { coord = state.dwCursorPosition; } // save caret position.
-                            else if (cmd.cmd == ansi::fn::rc) { move(coord); } // Restore cursor position.
-                            else if (cmd.cmd == ansi::fn::zz) { coord = {}; move(coord); } // all params reset to zero.
+                            else if (cmd.cmd == ansi::fn::sc) { saved = coord; } // save cursor position.
+                            else if (cmd.cmd == ansi::fn::rc) { coord = saved; } // Restore cursor position.
+                            else if (cmd.cmd == ansi::fn::zz) { coord = {}; } // all params reset to zero.
                         }
+                        coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void post(utf::frag const& cluster)
+                    void data(si32 count, grid const& proto)
                     {
-                        mark();
-                        yield += cluster.text;
+                        auto saved = coord;
+                        auto panel = console::buffer;
+                        coord.x += count;
+                        coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
+                        coord.x  = (coord.x - 1) % panel.x + 1;
+                        saved.y -= scroll();
+                        auto seek = coord.x + coord.y * panel.x;
+                        if (count > seek)
+                        {
+                            count = seek;
+                            saved = {};
+                        }
+                        cache.resize(count);
+                        auto head = cache.begin();
+                        auto tail = cache.end();
+                        auto data = proto.end();
+                        rich::reverse_fill_proc<faux>(data, tail, head, cell::shaders::full);
+                        nt::console::print<svga::nt16>(panel, saved, head, tail);
                     }
                 };
             }
@@ -2877,7 +2949,8 @@ namespace netxs::os
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
                 {
-                    winsz = dtvt::scroll ? twod{ cinfo.dwSize.X, cinfo.dwSize.Y }
+                    nt::console::buffer = { cinfo.dwSize.X, cinfo.dwSize.Y };
+                    winsz = dtvt::scroll ? nt::console::buffer
                                          : twod{ cinfo.srWindow.Right  - cinfo.srWindow.Left + 1,
                                                  cinfo.srWindow.Bottom - cinfo.srWindow.Top  + 1 };
                 }
@@ -3041,6 +3114,7 @@ namespace netxs::os
                 };
                 std::atexit(repair);
             }
+            //dtvt::mode |= dtvt::nt16;
             return active;
         }();
         static auto vtmode = []       // tty: VT mode bit set.
@@ -3939,54 +4013,18 @@ namespace netxs::os
         static auto clipboard = text{};
         struct proxy : s11n
         {
-            wide toWIDE;
-
             void direct(s11n::xs::bitmap_vt16      lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_vt256     lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_vtrgb     lock, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_dtvt      lock, view& data) // Decode for nt16 mode.
             {
-                auto win_sz = s11n::syswinsz.freeze().thing.winsize;
-                auto update = [&](auto head, auto iter, auto count)
+                auto update = [](auto size, auto head, auto iter, auto tail)
                 {
                     #if defined(_WIN32)
-                    static auto chars = std::vector<CHAR_INFO>{};
-                    chars.resize(count);
-                    auto dist = std::distance(head, iter);
-                    auto dest = chars.begin();
-                    while (count--)
-                    {
-                        auto& src = *iter++;
-                        auto& dst = *dest++;
-                        dst.Attributes = nt::console::attr<svga::vt16>(src);
-                        utf::to_utf(src.txt(), toWIDE);
-                        auto& chr = dst.Char.UnicodeChar;
-                        if (auto len = toWIDE.size())
-                        {
-                            if (src.wdt() < 3) chr = toWIDE[0];
-                            else               chr = len == 1 ? 0 : toWIDE[1];
-                        }
-                        else chr = 0;
-                        toWIDE.clear();
-                    }
-                    auto area = SMALL_RECT{ .Right = (SHORT)win_sz.x, .Bottom = (SHORT)win_sz.y };
-                    auto coor = COORD{ .X = (si16)(dist % win_sz.x), .Y = (si16)(dist / win_sz.x) };
-                    auto size = COORD{ .Y = 1 };
-                    auto rest = (si32)chars.size();;
-                    auto from = chars.data();
-                    while (rest)
-                    {
-                        size.X = (SHORT)std::min(rest, win_sz.x - coor.X);
-                        area.Left = coor.X;
-                        area.Right = coor.X + size.X - 1;
-                        area.Top = coor.Y;
-                        area.Bottom = coor.Y;
-                        ::WriteConsoleOutputW(os::stdout_fd, from, size, {}, &area);
-                        from += size.X;
-                        rest -= size.X;
-                        coor.X = 0;
-                        coor.Y++;
-                    }
+                    auto offset = (si32)(iter - head);
+                    auto coor = twod{ offset % size.x, offset / size.x };
+                    nt::console::print<svga::vt16>(size, coor, iter, tail);
+                    //todo print dirty regions
                     #endif
                 };
                 auto& bitmap = lock.thing;
@@ -4036,7 +4074,6 @@ namespace netxs::os
                 : s11n{ *this }
             {
                 //s11n::header.set(id_t{}, tty::title());
-                s11n::syswinsz.set(id_t{}, dtvt::win_sz);
             }
         };
         static auto stream = proxy{}; // tty: Serialization proxy.
@@ -5038,8 +5075,11 @@ namespace netxs::os
                     {
                         wraps = format.wrp() != wrap::off;
                     };
-                    enter(ansi::styled(true)); // Enable style reporting.
-                    std::swap(tty::cout, write); // Activate log proxy.
+                    {
+                        auto lock = logger::globals(); // Sync with logger.
+                        enter(ansi::styled(true)); // Enable style reporting.
+                        std::swap(tty::cout, write); // Activate log proxy.
+                    }
                     tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, style);
                 }};
             }
