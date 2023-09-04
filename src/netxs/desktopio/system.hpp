@@ -384,6 +384,7 @@ namespace netxs::os
             namespace console
             {
                 static auto buffer = dot_11; // Scrollback/viewport size.
+                static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
 
                 enum fx
                 {
@@ -573,6 +574,7 @@ namespace netxs::os
                     void cout(view utf8)
                     {
                         ansi::parse(utf8, this);
+                        if (autosync) ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)coord.x, .Y = (SHORT)coord.y }); // Viewport follows to cursor.
                     }
                     auto status()
                     {
@@ -5077,6 +5079,7 @@ namespace netxs::os
                             }
                             {
                                 auto lock = logger::globals(); // Sync with logger.
+                                nt::console::autosync = true;
                                 std::swap(tty::cout, write); // Restore original logger.
                             }
                             shut();
@@ -5090,6 +5093,7 @@ namespace netxs::os
                     {
                         auto lock = logger::globals(); // Sync with logger.
                         enter(ansi::styled(true)); // Enable style reporting.
+                        nt::console::autosync = faux; // Synchronize the viewport only when the vt-sequence "show caret" is received.
                         std::swap(tty::cout, write); // Activate log proxy.
                     }
                     tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, style);
