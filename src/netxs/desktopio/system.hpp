@@ -498,8 +498,49 @@ namespace netxs::os
                     //if (c.ovr()) attr |= COMMON_LVB_GRID_HORIZONTAL;
                     return attr;
                 }
+                void fill(auto& data, auto area, auto coor)
+                {
+                    auto size = (si32)data.size();
+                    auto dest = SMALL_RECT{ .Top = (SHORT)coor.y };
+                    auto head = data.data();
+                    auto tail = data.end();
+                    if (size <= area.x - coor.x || coor.x) // First line.
+                    {
+                        auto crop = COORD{ (SHORT)std::min(size, area.x - coor.x), 1 };
+                        dest.Left   = (SHORT)coor.x;
+                        dest.Right  = dest.Left + crop.X - 1;
+                        dest.Bottom = dest.Top;
+                        ::WriteConsoleOutputW(os::stdout_fd, head, crop, {}, &dest);
+                        head += crop.X;
+                        size -= crop.X;
+                        dest.Top++;
+                    }
+                    if (size)
+                    {
+                        dest.Left = 0;
+                        if (size >= area.x) // Mid block.
+                        {
+                            auto height = (SHORT)(size / area.x);
+                            auto crop = COORD{ (SHORT)area.x, height };
+                            dest.Right  = crop.X - 1;
+                            dest.Bottom = dest.Top + height - 1;
+                            ::WriteConsoleOutputW(os::stdout_fd, head, crop, {}, &dest);
+                            auto s = height * area.x;
+                            head += s;
+                            size -= s;
+                        }
+                        if (size) // Tail.
+                        {
+                            dest.Right = (SHORT)size - 1;
+                            dest.Bottom++;
+                            dest.Top = dest.Bottom;
+                            auto crop = COORD{ (SHORT)size, 1 };
+                            ::WriteConsoleOutputW(os::stdout_fd, head, crop, {}, &dest);
+                        }
+                    }
+                }
                 template<svga Mode>
-                void print(auto size, auto coor, auto head, auto tail) // STA
+                void print(auto area, auto coor, auto head, auto tail) // STA
                 {
                     static auto buffer = std::vector<CHAR_INFO>{};
                     static auto toWIDE = wide{};
@@ -522,23 +563,25 @@ namespace netxs::os
                         }
                         else chr = 0;
                     }
-                    auto area = SMALL_RECT{ .Right = (SHORT)size.x, .Bottom = (SHORT)size.y };
-                    auto crop = COORD{ .Y = 1 };
-                    auto rest = (si32)dist;
-                    auto data = buffer.data();
-                    while (rest)
-                    {
-                        crop.X = (SHORT)std::min(rest, size.x - coor.x);
-                        area.Left = coor.x;
-                        area.Right = coor.x + crop.X - 1;
-                        area.Top = coor.y;
-                        area.Bottom = coor.y;
-                        ::WriteConsoleOutputW(os::stdout_fd, data, crop, {}, &area);
-                        data += crop.X;
-                        rest -= crop.X;
-                        coor.x = 0;
-                        coor.y++;
-                    }
+                    fill(buffer, area, coor);
+                    //todo wide chars wrapping
+                    //auto dest = SMALL_RECT{ .Right = (SHORT)area.x, .Bottom = (SHORT)area.y };
+                    //auto crop = COORD{ .Y = 1 };
+                    //auto rest = (si32)dist;
+                    //auto data = buffer.data();
+                    //while (rest)
+                    //{
+                    //    crop.X = (SHORT)std::min(rest, area.x - coor.x);
+                    //    dest.Left = coor.x;
+                    //    dest.Right = coor.x + crop.X - 1;
+                    //    dest.Top = coor.y;
+                    //    dest.Bottom = coor.y;
+                    //    ::WriteConsoleOutputW(os::stdout_fd, data, crop, {}, &dest);
+                    //    data += crop.X;
+                    //    rest -= crop.X;
+                    //    coor.x = 0;
+                    //    coor.y++;
+                    //}
                 }
 
                 struct vtparser
@@ -698,15 +741,14 @@ namespace netxs::os
                                 {
                                     auto panel = console::buffer;
                                     auto color = console::attr<svga::nt16>(parser::brush);
-                                    auto yield = DWORD{};
                                     auto total = panel.x * panel.y;
                                     auto count = panel.x * coord.y + coord.x;
-                                    auto start = COORD{ .X = (SHORT)coord.x, .Y = (SHORT)coord.y};
+                                    auto start = coord;
                                          if (cmd.arg == 0) { count = total - count;     } // Ps = 0  ⇒  Erase Below (default).
                                     else if (cmd.arg == 1) { start = {};                } // Ps = 1  ⇒  Erase Above (Exclude current).
                                     else if (cmd.arg == 2) { start = {}; count = total; } // Ps = 2  ⇒  Erase All.
-                                    ::FillConsoleOutputCharacterW(os::stdout_fd, ' ', count, start, &yield);
-                                    ::FillConsoleOutputAttribute(os::stdout_fd, color, count, start, &yield);
+                                    auto empty = std::vector<CHAR_INFO>(count, { ' ', color });
+                                    fill(empty, panel, start);
                                 }
                                 else if (cmd.arg == 3) // Ps = 3  ⇒  Erase Scrollback
                                 {
@@ -4987,13 +5029,19 @@ namespace netxs::os
                         }
                         shown = faux;
                     };
-                    auto print = [&]
+                    auto print = [&](bool renew)
                     {
+                        if (renew && shown && width)
+                        {
+                            if (wraps && width >= panel.x) yield.cuu(width / panel.x);
+                            yield.add("\r");
+                        }
                         utf::change(block, "\n", "\r\n"); // Disabled post-processing.
                         yield.pushsgr().nil().fgc(yellowlt);
                         width = utf::debase<faux, faux>(block, yield);
                         yield.nil().popsgr();
                         if (wraps && width && width % panel.x == 0) yield.add("\r\n");
+                        if (renew) yield.del_below();
                         yield.cursor(true);
                         osout(yield);
                         yield.clear();
@@ -5022,7 +5070,7 @@ namespace netxs::os
                             {
                                 clear();
                                 yield.add(utf8);
-                                print();
+                                print(faux);
                             }
                             else clear(utf8);
                         }
@@ -5041,8 +5089,7 @@ namespace netxs::os
                                 if (block.size())
                                 {
                                     block.pop_back();
-                                    clear();
-                                    print();
+                                    print(true);
                                 }
                                 break;
                             case '\r': // Enter
@@ -5056,8 +5103,7 @@ namespace netxs::os
                             }
                             default:
                                 block += data.cluster;
-                                clear();
-                                print();
+                                print(true);
                                 break;
                         }
                     };
