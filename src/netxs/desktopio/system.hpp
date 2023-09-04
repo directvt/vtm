@@ -602,11 +602,13 @@ namespace netxs::os
                                     head += step;
                                     tail += step;
                                 };
-                                delta(state.srWindow.Left, state.srWindow.Right,  coord.x);
+                                delta(state.srWindow.Left, state.srWindow.Right,  coord.x); // Win10 conhost crashes if vieport is outside the buffer (e.g. in case with deferred cursor position).
                                 delta(state.srWindow.Top,  state.srWindow.Bottom, coord.y);
                                 ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
                             }
-                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)coord.x, .Y = (SHORT)coord.y }); // Viewport follows to cursor.
+                            auto newcoor = coord;
+                            if (newcoor.x == state.dwSize.X) newcoor.x--; // win7/8 conhost isn't aware about the deferred cursor position.
+                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)newcoor.x, .Y = (SHORT)newcoor.y }); // Viewport follows to cursor.
                         }
                         if (shown == show) return;
                         shown = show;
@@ -4985,14 +4987,13 @@ namespace netxs::os
                         }
                         shown = faux;
                     };
-                    auto win16 = dtvt::vtmode & dtvt::nt16; // Windows console has no deferred cursor position.
                     auto print = [&]
                     {
                         utf::change(block, "\n", "\r\n"); // Disabled post-processing.
                         yield.pushsgr().nil().fgc(yellowlt);
                         width = utf::debase<faux, faux>(block, yield);
                         yield.nil().popsgr();
-                        if (wraps && width && width % panel.x == 0 && !win16) yield.add("\r\n");
+                        if (wraps && width && width % panel.x == 0) yield.add("\r\n");
                         yield.cursor(true);
                         osout(yield);
                         yield.clear();
