@@ -362,7 +362,7 @@ namespace netxs::ui
         }
         void zz (twod const& offset = dot_00)
         {
-            runstyle.glb();
+            runstyle.reset();
             caretpos = dot_00;
             pagerect.coor = offset;
         }

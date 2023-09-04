@@ -1116,7 +1116,7 @@ namespace netxs::ansi
         auto& mgn   (fifo& q) { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
         // deco: Reset to global default.
-        constexpr auto& glb()
+        constexpr auto& reset()
         {
             wrapln = deco::defwrp;
             adjust = bias::left;
@@ -1135,7 +1135,7 @@ namespace netxs::ansi
         }
     };
 
-    static constexpr auto def_style = deco{}.glb();
+    static constexpr auto def_style = deco{}.reset();
 
     struct runtime
     {

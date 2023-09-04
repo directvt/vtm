@@ -6616,7 +6616,7 @@ namespace netxs::ui
         void setdef()
         {
             auto& console = *target;
-            console.style.glb();
+            console.style.reset();
             console.style.wrp(config.def_wrpmod);
             console.setpad(config.def_margin);
             selection_selmod(config.def_selmod);

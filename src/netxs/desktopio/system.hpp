@@ -619,6 +619,7 @@ namespace netxs::os
                                        .bgc(rgba::vga16[(state.wAttributes & 0xF0) >> 4])
                                        .inv(state.wAttributes & COMMON_LVB_REVERSE_VIDEO);
                         parser::brush.reset(c);
+                        parser::style.reset();
                         auto s = CONSOLE_CURSOR_INFO{};
                         ::GetConsoleCursorInfo(os::stdout_fd, &s);
                         shown = s.bVisible;
@@ -5026,7 +5027,7 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!data.pressed || data.cluster.empty()) return;
+                        if (!alive || !data.pressed || data.cluster.empty()) return;
                         switch (data.cluster.front()) 
                         {
                             case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
@@ -5057,22 +5058,33 @@ namespace netxs::os
                                 break;
                         }
                     };
-                    auto mouse = [&](auto& data) {  }; // Not used.
-                    auto winsz = [&](auto& data) { panel = data.winsize; };
-                    auto focus = [&](auto& data) { /*if (data.state) log<faux>('-');*/ };
-                    auto paste = [&](auto& data) {  };
+                    auto mouse = [&](auto& data) { if (!alive) return; }; // Not used.
+                    auto winsz = [&](auto& data)
+                    {
+                        if (!alive) return;
+                        auto guard = std::lock_guard{ mutex };
+                        panel = data.winsize;
+                    };
+                    auto focus = [&](auto& data) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
+                    auto paste = [&](auto& data) { if (!alive) return; };
                     auto close = [&](auto& data) 
                     {
                         if (alive.exchange(faux))
                         {
-                            auto guard = std::lock_guard{ mutex };
-                            enter(ansi::styled(faux)); // Disable style reporting.
-                            std::swap(tty::cout, write); // Restore original logger.
+                            {
+                                auto guard = std::lock_guard{ mutex };
+                                enter(ansi::styled(faux)); // Disable style reporting.
+                            }
+                            {
+                                auto lock = logger::globals(); // Sync with logger.
+                                std::swap(tty::cout, write); // Restore original logger.
+                            }
                             shut();
                         }
                     };
                     auto style = [&](deco format) 
                     {
+                        if (!alive) return;
                         wraps = format.wrp() != wrap::off;
                     };
                     {
