@@ -558,8 +558,12 @@ namespace netxs::os
                         auto& chr = dst.Char.UnicodeChar;
                         if (auto len = toWIDE.size())
                         {
-                            if (src.wdt() < 3) chr = toWIDE[0];
-                            else               chr = len == 1 ? 0 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
+                            if (src.wdt() < 3)
+                            {
+                                chr = toWIDE[0];
+                                if (chr == 0) chr = 32; // Null character is unsupported in SBCS code pages (eg 437) on win7/8.
+                            }
+                            else chr = len == 1 ? 32 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
                         }
                         else chr = 0;
                     }
@@ -5162,7 +5166,7 @@ namespace netxs::os
                     };
                     {
                         auto lock = logger::globals(); // Sync with logger.
-                        enter(ansi::styled(true)); // Enable style reporting.
+                        enter(ansi::styled(true)); // Enable style reporting (wrapping).
                         nt::console::autosync = faux; // Synchronize the viewport only when the vt-sequence "show caret" is received.
                         std::swap(tty::cout, write); // Activate log proxy.
                     }
