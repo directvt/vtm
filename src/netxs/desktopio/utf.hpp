@@ -39,7 +39,7 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls::type;
 
-    static constexpr auto replacement            = "\uFFFD"sv; // 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto replacement            = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code       = utfx{ 0x0000FFFD };
     static constexpr auto grapheme_cluster_limit = 31; // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
     static constexpr auto cluster_field_size     = 5;

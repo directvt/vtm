@@ -3054,7 +3054,7 @@ namespace netxs::ui
                 area.coor = coor + gear.coord;
                 area.coor -= base;
                 if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
-                else                brush.txt("\u2588"/* █ */).bgc(0x00).fgc(0xFF00ff00);
+                else                brush.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }

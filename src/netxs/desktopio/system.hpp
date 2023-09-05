@@ -655,7 +655,9 @@ namespace netxs::os
                         }
                         if (shown == show) return;
                         shown = show;
-                        auto s = CONSOLE_CURSOR_INFO{ .bVisible = shown };
+                        auto s = CONSOLE_CURSOR_INFO{};
+                        ::GetConsoleCursorInfo(os::stdout_fd, &s);
+                        s.bVisible = shown;
                         ::SetConsoleCursorInfo(os::stdout_fd, &s);
                     }
 
@@ -4071,7 +4073,6 @@ namespace netxs::os
                     auto offset = (si32)(iter - head);
                     auto coor = twod{ offset % size.x, offset / size.x };
                     nt::console::print<svga::vt16>(size, coor, iter, tail);
-                    //todo print dirty regions
                     #endif
                 };
                 auto& bitmap = lock.thing;
@@ -4200,6 +4201,14 @@ namespace netxs::os
                 auto toutf = text{};
                 auto kbmod = si32{};
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
+                auto check = [](auto& changed, auto& oldval, auto newval)
+                {
+                    if (oldval != newval)
+                    {
+                        changed++;
+                        oldval = newval;
+                    }
+                };
                 fd_t waits[] = { os::stdin_fd, alarm };
                 while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
@@ -4323,21 +4332,33 @@ namespace netxs::os
                                         }
                                         break;
                                     case MOUSE_EVENT:
+                                    {
                                         os::nt::kbstate(kbmod, r.Event.MouseEvent.dwControlKeyState);
-                                        m.ctlstat = kbmod;
-                                        m.buttons = r.Event.MouseEvent.dwButtonState & 0b00011111;
-                                        m.doubled = r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK;
-                                        m.wheeled = r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED;
-                                        m.hzwheel = r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED;
-                                        m.wheeldt = static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16); // dwButtonState too large when mouse scrolls
-                                        m.coordxy = twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y };
-                                        m.changed++;
-                                        mouse(m); // Fire mouse event to update kb modifiers.
+                                        auto changed = 0;
+                                        check(changed, m.ctlstat, kbmod);
+                                        check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
+                                        check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
+                                        check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
+                                        check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
+                                        check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
+                                        if (!(dtvt::vtmode & dtvt::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
+                                        {
+                                            check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
+                                        }
+                                        if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
+                                        {
+                                            m.changed++;
+                                            mouse(m); // Fire mouse event to update kb modifiers.
+                                        }
                                         break;
+                                    }
                                     case WINDOW_BUFFER_SIZE_EVENT:
-                                        w.winsize = dtvt::consize();
-                                        winsz(w);
+                                    {
+                                        auto changed = 0;
+                                        check(changed, w.winsize, dtvt::consize());
+                                        if (changed) winsz(w);
                                         break;
+                                    }
                                     case FOCUS_EVENT:
                                         f.state = r.Event.FocusEvent.bSetFocus;
                                         focus(f);
@@ -5095,8 +5116,10 @@ namespace netxs::os
                             case '\r': // Enter
                             {
                                 auto line = block + '\n';
-                                block.empty() ? enter("\r\n")
-                                              : enter();
+                                clear();
+                                block.clear();
+                                width = 0;
+                                shown = faux;
                                 guard.unlock(); // Allow to use log() inside send().
                                 send(line);
                                 break;

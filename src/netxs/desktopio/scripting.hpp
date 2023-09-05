@@ -178,12 +178,12 @@ namespace netxs::scripting
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();
-
-                owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
-                {
-                    write(utf8);
-                };
             }
+            owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
+            {
+                if (engine) write(utf8);
+                else        log(prompt::repl, utf::debase<faux, faux>(utf8));
+            };
         }
     };
 }
