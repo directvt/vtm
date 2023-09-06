@@ -2381,10 +2381,10 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::conio::winsz, item.winsize);
             }
-            void handle(s11n::xs::osclipdata  lock)
+            void handle(s11n::xs::clipview    lock)
             {
                 auto& item = lock.thing;
-                notify(e2::conio::clipdata, clip{ dot_00, item.data, static_cast<clip::mime>(item.mimetype) });
+                notify(e2::conio::clipview, item);
             }
             void handle(s11n::xs::logs        lock)
             {
@@ -2722,7 +2722,9 @@ namespace netxs::ui
                     data.s11n(xmap, gear.slot);
                     if (data.length())
                     {
-                        gear.set_clip_data(clip{ gear.slot.size, data, clip::ansitext });
+                        auto clipdata = input::clipdata{};
+                        clipdata.set(gear.id, datetime::now(), gear.slot.size, data, clip::ansitext);
+                        gear.set_clip_data(clipdata);
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
@@ -2766,6 +2768,10 @@ namespace netxs::ui
                 {
                     forward(f);
                 };
+                boss.LISTEN(tier::release, e2::conio::clipview, c, memo)
+                {
+                    forward(c);
+                };
             }
             void fire(hint event_id)
             {
@@ -2783,18 +2789,6 @@ namespace netxs::ui
                     if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
                 return std::pair{ id_t{}, sptr<hids>{} };
-            }
-            auto set_clip_data(clip const& clipdata)
-            {
-                if (gears.empty())
-                {
-                    gears.emplace(0, bell::create<hids>(boss.props, true, boss, xmap));
-                }
-                for (auto& [id, gear_ptr] : gears)
-                {
-                    auto& gear = *gear_ptr;
-                    gear.set_clip_data(clipdata, faux);
-                }
             }
         };
 
@@ -3465,15 +3459,6 @@ namespace netxs::ui
             {
                 props.legacy_mode |= pointer ? os::dtvt::mouse : 0;
             };
-            LISTEN(tier::release, e2::conio::clipdata, clipdata, tokens)
-            {
-                if (!direct)
-                {
-                    clipdata.size = base::size() / 2;
-                    input.set_clip_data(clipdata);
-                    base::deface();
-                }
-            };
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
                 log(prompt::gate, "Console error: ", errcode);
@@ -3569,31 +3554,26 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.clip_rawdata;
-                conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.kind);
-                //if (direct) conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.kind);
-                //else        canal.output(ansi::clipbuf(                        data.size, data.utf8, data.kind));
+                conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form);
             };
             LISTEN(tier::request, hids::events::clipbrd, from_gear, tokens)
             {
                 auto clipdata = conio.clipdata.freeze();
-                //if (direct)
+                auto myid = from_gear.id;
+                auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
+                if (gear_ptr)
                 {
-                    auto myid = from_gear.id;
-                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-                    if (gear_ptr)
+                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.clip_rawdata.hash);
+                    clipdata.wait();
+                    if (ext_gear_id != clipdata.thing.gear_id)
                     {
-                        conio.clipdata_request.send(canal, ext_gear_id, from_gear.clip_rawdata.hash);
-                        clipdata.wait();
-                        if (ext_gear_id != clipdata.thing.gear_id)
-                        {
-                            log(prompt::gate, ansi::err("Clipboard data ID mismatch"));
-                        }
-                        if (clipdata.thing.hash != from_gear.clip_rawdata.hash)
-                        {
-                            from_gear.clip_rawdata.kind = static_cast<clip::mime>(clipdata.thing.mimetype);
-                            from_gear.clip_rawdata.utf8 = clipdata.thing.data;
-                            from_gear.clip_rawdata.hash = clipdata.thing.hash;
-                        }
+                        log(prompt::gate, ansi::err("Clipboard data ID mismatch"));
+                    }
+                    if (clipdata.thing.hash != from_gear.clip_rawdata.hash)
+                    {
+                        from_gear.clip_rawdata.form = static_cast<clip::mime>(clipdata.thing.form);
+                        from_gear.clip_rawdata.utf8 = clipdata.thing.utf8;
+                        from_gear.clip_rawdata.hash = clipdata.thing.hash;
                     }
                 }
             };

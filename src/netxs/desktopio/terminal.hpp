@@ -6224,18 +6224,21 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
-            for (auto gate_id : gates) // Signal them to set the clipboard data.
+            auto clipdata = input::clipdata{};
+            auto delimpos = data.find(';');
+            if (delimpos != text::npos)
             {
-                if (auto gear_ptr = bell::getref<hids>(gate_id))
+                clipdata.utf8 = data.substr(0, ++delimpos);
+                utf::unbase64(data.substr(delimpos), clipdata.utf8);
+                clipdata.form = clip::disabled;
+                clipdata.size = target->panel;
+                clipdata.hash = datetime::now();
+                RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
+                for (auto gate_id : gates) // Signal them to set the clipboard data.
                 {
-                    auto pos = data.find(';');
-                    if (pos != text::npos)
+                    if (auto gear_ptr = bell::getref<hids>(gate_id))
                     {
-                        auto utf8 = text{};
-                        utf8 += data.substr(0, ++pos);
-                        utf8 += utf::unbase64(data.substr(pos));
-                        gear_ptr->set_clip_data(clip{ target->panel, utf8, clip::disabled });
+                        gear_ptr->set_clip_data(clipdata);
                     }
                 }
             }
@@ -6719,12 +6722,12 @@ namespace netxs::ui
             auto& data = gear.get_clip_data();
             if (data.utf8.size())
             {
-                if (data.kind == clip::richtext)
+                if (data.form == clip::richtext)
                 {
                     auto post = page{ data.utf8 };
                     return post.to_rich();
                 }
-                else if (data.kind == clip::htmltext)
+                else if (data.form == clip::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
@@ -6752,10 +6755,12 @@ namespace netxs::ui
         }
         auto _copy(hids& gear, text const& data)
         {
-            auto mimetype = selmod == clip::mime::disabled ? clip::mime::textonly
-                                                           : static_cast<clip::mime>(selmod);
+            auto form = selmod == clip::mime::disabled ? clip::mime::textonly
+                                                       : static_cast<clip::mime>(selmod);
             pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-            gear.set_clip_data(clip{ target->panel, data, mimetype });
+            auto clipdata = input::clipdata{};
+            clipdata.set(gear.id, datetime::now(), target->panel, data, form);
+            gear.set_clip_data(clipdata);
         }
         auto copy(hids& gear)
         {
@@ -7476,9 +7481,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
-                        auto data = clip{ c.size, c.data, static_cast<clip::mime>(c.mimetype) };
-                        data.hash = c.hash;
-                        gear_ptr->set_clip_data(data);
+                        gear_ptr->set_clip_data(c);
                     }
                 });
             }
@@ -7492,7 +7495,7 @@ namespace netxs::ui
                         auto& data = gear_ptr->get_clip_data();
                         if (data.hash != c.hash)
                         {
-                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.kind);
+                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form);
                             return;
                         }
                     }

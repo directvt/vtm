@@ -705,18 +705,21 @@ namespace netxs::directvt
                 CAT_macro(struct_name, _t)()                                                \
                     : stream{ kind }                                                        \
                 { }                                                                         \
+                void set()                                                                  \
+                {                                                                           \
+                    stream::reset();                                                        \
+                    stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
+                }                                                                           \
                 void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int _tmp = {})          \
                 {                                                                           \
                     SEQ_INIT_macro(WRAP_macro(struct_members))                              \
-                    stream::reset();                                                        \
-                    stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
+                    set();                                                                  \
                 }                                                                           \
                 template<class T>                                                           \
                 void set(T&& source)                                                        \
                 {                                                                           \
                     SEQ_TEMP_macro(WRAP_macro(struct_members))                              \
-                    stream::reset();                                                        \
-                    stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
+                    set();                                                                  \
                 }                                                                           \
                 void get(view& _data)                                                       \
                 {                                                                           \
@@ -773,9 +776,9 @@ namespace netxs::directvt
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
-        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, data) (si32, mimetype))
+        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
-        STRUCT_macro(osclipdata,        (id_t, gear_id) (text, data) (si32, mimetype))
+        STRUCT_macro(clipview,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
@@ -820,7 +823,6 @@ namespace netxs::directvt
         #define UNDEFINE_macro
         #include "macrogen.hpp"
 
-        // Definition of complex objects.
         struct bitmap_dtvt_t
             : public stream
         {
@@ -1053,7 +1055,6 @@ namespace netxs::directvt
                 //log("----------------------------");
             }
         };
-
         template<svga Mode, type Kind>
         struct bitmap_a
             : public stream
@@ -1291,9 +1292,9 @@ namespace netxs::directvt
             X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(clipdata_request ) /* Request clipboard data.                       */\
             X(clipdata         ) /* Clipboard raw data.                           */\
-            X(osclipdata       ) /* OS clipboard data.                            */\
+            X(clipdata_request ) /* Request clipboard data.                       */\
+            X(clipview         ) /* Clipboard preview.                            */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
             X(fullscreen       ) /* Request to fullscreen                         */\

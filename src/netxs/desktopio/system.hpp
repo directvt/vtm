@@ -3019,7 +3019,6 @@ namespace netxs::os
             }
             return winsz;
         }
-
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto header = text{}; // dtvt: Extra read block from stdin.
@@ -3234,7 +3233,6 @@ namespace netxs::os
             }
             return mode;
         }();
-
         template<class T>
         auto str(T mode)
         {
@@ -3252,6 +3250,7 @@ namespace netxs::os
             else result = "vtrgb";
             return result;
         }
+
         struct vtty
         {
             using s11n = directvt::binary::s11n;
@@ -4108,15 +4107,27 @@ namespace netxs::os
             void handle(s11n::xs::clipdata         lock)
             {
                 auto& clipdata = lock.thing;
-                //todo sync os clipboard (see clipboard::proxy)
+                auto metadata = ansi::clip::meta(clipdata.size, clipdata.form);
+                os::clipboard::set(metadata, clipdata.utf8);
+                s11n::clipview.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
+                clipdata.set();
             }
             void handle(s11n::xs::clipdata_request lock)
             {
                 auto& clipdata_request = lock.thing;
-                auto payload = utf::concat("test clip data");
-                auto gear_id = id_t{};
                 auto clipdata = s11n::clipdata.freeze();
-                clipdata.thing.sendby<faux, faux>(dtvt::client);
+                if (clipdata.thing.hash != clipdata_request.hash)
+                {
+                    clipdata.thing.sendby<faux, faux>(dtvt::client);
+                }
+                else // Send without payload if hash the same.
+                {
+                    auto temp = std::move(clipdata.thing.utf8);
+                    clipdata.thing.set();
+                    clipdata.thing.sendby<faux, faux>(dtvt::client);
+                    clipdata.thing.utf8 = std::move(temp);
+                    clipdata.thing.set();
+                }
             }
 
             proxy()
@@ -4793,11 +4804,20 @@ namespace netxs::os
                 auto wndname = utf::to_utf("vtmWindowClass");
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
-                    auto gear_id = id_t{ 0 };
+                    auto sync = [](auto&& utf8, auto form)
+                    {
+                        auto gear_id = id_t{ 0 };
+                        auto clipdata = ansi::clip{ gear_id, dtvt::win_sz, utf8, form };
+                        auto c = ansi::clip{};
+                        c.set0(clipdata);
+                        tty::stream.clipdata.set(c);
+                        tty::stream.clipview.send(dtvt::client, c.gear_id, c.size, c.utf8, c.form);
+                    };
                     switch (uMsg)
                     {
                         case WM_CREATE:
                             ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected_msg);
+                            // Continue processing the switch to initialize the clipboard state after startup.
                         case WM_CLIPBOARDUPDATE:
                         {
                             auto lock = std::lock_guard{ os::clipboard::mutex };
@@ -4806,8 +4826,7 @@ namespace netxs::os
                                 if (os::error() != ERROR_ACCESS_DENIED)
                                 {
                                     auto error = utf::concat("::OpenClipboard()", os::unexpected_msg, " code ", os::error());
-                                    tty::stream.osclipdata.send(dtvt::client, gear_id, error, ansi::clip::textonly);
-                                    //tty::stream.clipdata.set(gear_id, data.hash, data.size, error, ansi::clip::textonly);
+                                    sync(error, ansi::clip::textonly);
                                     return (LRESULT) NULL;
                                 }
                                 std::this_thread::yield();
@@ -4826,13 +4845,13 @@ namespace netxs::os
                                             auto size = ::GlobalSize(hglb);
                                             auto data = text((char*)lptr, size - 1/*trailing null*/);
                                             auto mime = ansi::clip::disabled;
-                                            tty::stream.osclipdata.send(dtvt::client, gear_id, data, mime);
+                                            sync(data, mime);
                                             ::GlobalUnlock(hglb);
                                         }
                                         else
                                         {
                                             auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
-                                            tty::stream.osclipdata.send(dtvt::client, gear_id, error, ansi::clip::textonly);
+                                            sync(error, ansi::clip::textonly);
                                         }
                                     }
                                     else do
@@ -4844,12 +4863,12 @@ namespace netxs::os
                                             if (auto lptr = ::GlobalLock(hglb))
                                             {
                                                 auto size = ::GlobalSize(hglb);
-                                                tty::stream.osclipdata.send(dtvt::client, gear_id, utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), mime);
+                                                sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), mime);
                                                 ::GlobalUnlock(hglb);
                                                 break;
                                             }
                                             auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
-                                            tty::stream.osclipdata.send(dtvt::client, gear_id, error, ansi::clip::textonly);
+                                            sync(error, ansi::clip::textonly);
                                         }
                                         else
                                         {
@@ -4858,7 +4877,7 @@ namespace netxs::os
                                     }
                                     while (format = ::EnumClipboardFormats(format));
                                 }
-                                else tty::stream.osclipdata.send(dtvt::client, gear_id, text{}, ansi::clip::textonly);
+                                else sync(text{}, ansi::clip::textonly);
                             }
                             ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
                             break;

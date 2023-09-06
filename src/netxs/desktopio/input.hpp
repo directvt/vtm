@@ -964,7 +964,7 @@ namespace netxs::input
         bool disabled = faux;
         si32 countdown = 0;
 
-        clip clip_rawdata{}; // hids: Clipboard data.
+        clipdata clip_rawdata{}; // hids: Clipboard data.
         face clip_preview{}; // hids: Clipboard preview render.
         bool not_directvt{}; // hids: Is it the top level gear (not directvt).
         bool clip_printed{}; // hids: Preview output tracker.
@@ -1007,67 +1007,63 @@ namespace netxs::input
             return alive;
         }
 
+        auto take(clipview const& c) // Update clipboard preview.
+        {
+            auto draw_shadow = [&](auto& block, auto size)
+            {
+                clip_preview.mark(cell{});
+                clip_preview.wipe();
+                clip_preview.size(dot_21 * size * 2 + c.size);
+                auto full = rect{ dot_21 * size + dot_21, c.size };
+                while (size--)
+                {
+                    clip_preview.reset();
+                    clip_preview.full(full);
+                    clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                }
+                full.coor -= dot_21;
+                clip_preview.reset();
+                clip_preview.full(full);
+            };
+            if (c.form == clip::safetext)
+            {
+                auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
+                auto block = page{ blank };
+                auto clip_size = block.current().size();
+                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                else
+                {
+                    clip_preview.size(clip_size);
+                    clip_preview.wipe();
+                }
+                clip_preview.output(block);
+            }
+            else
+            {
+                auto block = page{ c.utf8 };
+                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                else
+                {
+                    clip_preview.size(c.size);
+                    clip_preview.wipe();
+                }
+                clip_preview.mark(cell{});
+                if (c.form == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
+                else                          clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
+            }
+        }
         auto clear_clip_data()
         {
             auto not_empty = !!clip_rawdata.utf8.size();
-            clip_rawdata.clear();
+            clip_rawdata.set(id, datetime::now(), dot_00, text{}, ansi::clip::ansitext);
             owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
-            if (not_directvt)
-            {
-                clip_preview.size(clip_rawdata.size);
-            }
             return not_empty;
         }
-        void set_clip_data(clip const& data, bool forward = true)
+        void set_clip_data(clipdata const& data)//, bool forward = true)
         {
             clip_rawdata.set(data);
-            if (not_directvt)
-            {
-                auto draw_shadow = [&](auto& block, auto size)
-                {
-                    clip_preview.mark(cell{});
-                    clip_preview.wipe();
-                    clip_preview.size(dot_21 * size * 2 + clip_rawdata.size);
-                    auto full = rect{ dot_21 * size + dot_21, clip_rawdata.size };
-                    while (size--)
-                    {
-                        clip_preview.reset();
-                        clip_preview.full(full);
-                        clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                        clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
-                    }
-                    full.coor -= dot_21;
-                    clip_preview.reset();
-                    clip_preview.full(full);
-                };
-                if (clip_rawdata.kind == clip::safetext)
-                {
-                    auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
-                    auto block = page{ blank };
-                    clip_rawdata.size = block.current().size();
-                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                    else
-                    {
-                        clip_preview.size(clip_rawdata.size);
-                        clip_preview.wipe();
-                    }
-                    clip_preview.output(block);
-                }
-                else
-                {
-                    auto block = page{ clip_rawdata.utf8 };
-                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                    else
-                    {
-                        clip_preview.size(clip_rawdata.size);
-                        clip_preview.wipe();
-                    }
-                    clip_preview.mark(cell{});
-                    if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
-                    else                                     clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
-                }
-            }
-            if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
+            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
             mouse::delta.set(); // Update time stamp.
         }
         auto& get_clip_data()

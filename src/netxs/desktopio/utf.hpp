@@ -1211,14 +1211,13 @@ namespace netxs::utf
         }
         return data;
     }
-    auto unbase64(view bs64)
+    auto unbase64(view bs64, text& data)
     {
         auto code = base64code;
         auto is64 = [](auto c) { return (c > 0x2E && c < 0x3A) // '/' and digits
                                      || (c > 0x40 && c < 0x5B) // Uppercase letters
                                      || (c > 0x60 && c < 0x7B) // Lowercase letters
                                      || (c == 0x2B); };        // '+'
-        auto data = text{};
         auto look = view{ code };
         //todo reserv data
         if (auto size = bs64.size())
@@ -1252,6 +1251,11 @@ namespace netxs::utf
                 if (step > 2) data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
             }
         }
+    }
+    auto unbase64(view bs64)
+    {
+        auto data = text{};
+        unbase64(bs64, data);
         return data;
     }
     // utf: Escape control chars (replace all ctrls with printables), put it to the buff, and return the buff's delta.

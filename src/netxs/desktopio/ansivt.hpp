@@ -149,13 +149,12 @@ namespace netxs::ansi
     static const auto osc_linux_color  = "P"   ; // Set 16 colors palette. (Linux console)
     static const auto osc_linux_reset  = "R"   ; // Reset 16/256 colors palette. (Linux console)
     static const auto osc_set_palette  = "4"   ; // Set 256 colors palette.
-    static const auto osc_clipboard    = "52"  ; // Copy printed text into clipboard.
+    static const auto osc_clipboard    = "52"  ; // Set clipboard.
     static const auto osc_set_fgcolor  = "10"  ; // Set fg color.
     static const auto osc_set_bgcolor  = "11"  ; // Set bg color.
     static const auto osc_reset_color  = "104" ; // Reset color N to default palette. Without params all palette reset.
     static const auto osc_reset_fgclr  = "110" ; // Reset fg color to default.
     static const auto osc_reset_bgclr  = "111" ; // Reset bg color to default.
-    static const auto osc_clipbrd      = "52"  ; // Set clipboard.
     static const auto osc_title_report = "l"   ; // Get terminal window title.
     static const auto osc_label_report = "L"   ; // Get terminal window icon label.
 
@@ -256,6 +255,7 @@ namespace netxs::ansi
     static const auto mimerich = "text/rtf"sv;
     static const auto mimesafe = "text/protected"sv;
 
+    //todo deprecated
     struct clip
     {
         enum mime : si32
@@ -269,39 +269,41 @@ namespace netxs::ansi
             count,
         };
 
+        id_t gear_id{};
         twod size;
         text utf8;
-        mime kind;
+        mime form;
         time hash;
 
         clip()
-            : kind{ mime::ansitext  },
+            : form{ mime::ansitext  },
               hash{ datetime::now() }
         { }
-        clip(twod size, view utf8, mime kind)
-            : size{ size },
+        clip(id_t gear_id, twod size, view utf8, mime form)
+            : gear_id{ gear_id },
+              size{ size },
               utf8{ utf8 },
-              kind{ kind },
+              form{ form },
               hash{ datetime::now() }
         { }
-        void set(clip const& data)
+        void set0(clip const& data)
         {
             size = dot_00;
             auto rawdata = view{ data.utf8 };
-            if (data.kind == mime::disabled)
+            if (data.form == mime::disabled)
             {
                 auto valid = true;
-                kind = ansi::clip::textonly;
+                form = ansi::clip::textonly;
                 // rawdata=mime/size_x/size_y;data
-                     if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); kind = mime::ansitext; }
-                else if (rawdata.starts_with(ansi::mimetext)) { rawdata.remove_prefix(ansi::mimetext.length()); kind = mime::textonly; }
-                else if (rawdata.starts_with(ansi::mimerich)) { rawdata.remove_prefix(ansi::mimerich.length()); kind = mime::richtext; }
-                else if (rawdata.starts_with(ansi::mimehtml)) { rawdata.remove_prefix(ansi::mimehtml.length()); kind = mime::htmltext; }
-                else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); kind = mime::safetext; }
+                     if (rawdata.starts_with(ansi::mimeansi)) { rawdata.remove_prefix(ansi::mimeansi.length()); form = mime::ansitext; }
+                else if (rawdata.starts_with(ansi::mimetext)) { rawdata.remove_prefix(ansi::mimetext.length()); form = mime::textonly; }
+                else if (rawdata.starts_with(ansi::mimerich)) { rawdata.remove_prefix(ansi::mimerich.length()); form = mime::richtext; }
+                else if (rawdata.starts_with(ansi::mimehtml)) { rawdata.remove_prefix(ansi::mimehtml.length()); form = mime::htmltext; }
+                else if (rawdata.starts_with(ansi::mimesafe)) { rawdata.remove_prefix(ansi::mimesafe.length()); form = mime::safetext; }
                 else
                 {
                     valid = faux;
-                    kind = mime::textonly;
+                    form = mime::textonly;
                     auto pos = rawdata.find(';');
                     if (pos != text::npos)
                     {
@@ -341,7 +343,7 @@ namespace netxs::ansi
                     }
                 }
             }
-            else kind = data.kind;
+            else form = data.form;
             hash = data.hash;
             utf8 = rawdata;
             size = rawdata.empty() ? dot_00
@@ -349,12 +351,13 @@ namespace netxs::ansi
                  : data.size       ? data.size
                                    : twod{ 80,25 }; //todo make it configurable
         }
-        void clear()
+        static auto meta(twod size, si32 form) // clip: Return clipdata's meta data.
         {
-            utf8.clear();
-            hash = datetime::now();
-            kind = mime::ansitext;
-            size = dot_00;
+            return form == clip::htmltext ? utf::concat(mimehtml)
+                 : form == clip::richtext ? utf::concat(mimerich)
+                 : form == clip::ansitext ? utf::concat(mimeansi)
+                 : form == clip::safetext ? utf::concat(mimesafe)
+                                          : utf::concat(mimetext, "/", size.x, "/", size.y);
         }
     };
 
@@ -418,6 +421,10 @@ namespace netxs::ansi
             {
                 block += "{"; fuse(data.coor); block += ",";
                               fuse(data.size); block += "}";
+            }
+            else if constexpr (std::is_same_v<D, time>)
+            {
+                block += "{ time: "s + utf::to_hex_0x(data.time_since_epoch().count()) + " }"s;
             }
             else block += std::forward<T>(data);
         }
@@ -659,13 +666,9 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // escx: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // escx: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // escx: Reset color palette (Linux console).
-        auto& clipbuf(twod size, view utf8, clip::mime kind) // escx: Set clipboard buffer.
+        auto& clipbuf(twod size, view utf8, clip::mime form) // escx: Set clipboard buffer.
         {
-            return add("\033]52;", kind == clip::htmltext ? mimehtml
-                                 : kind == clip::richtext ? mimerich
-                                 : kind == clip::ansitext ? mimeansi
-                                 : kind == clip::safetext ? mimesafe
-                                                          : mimetext, "/", size.x, "/", size.y, ";", utf::base64(utf8), c0_bel);
+            return add("\033]52;", clip::meta(size, form), ";", utf::base64(utf8), c0_bel);
         }
         auto& old_palette(si32 i, rgba const& c) // escx: Set color palette (Linux console).
         {
