@@ -558,17 +558,14 @@ namespace netxs::os
                         auto& chr = dst.Char.UnicodeChar;
                         if (auto len = toWIDE.size())
                         {
-                            if (src.wdt() < 3)
-                            {
-                                chr = toWIDE[0];
-                                if (chr == 0) chr = 32; // Null character is unsupported in SBCS code pages (eg 437) on win7/8.
-                            }
-                            else chr = len == 1 ? 32 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
+                            if (src.wdt() < 3) chr = toWIDE[0];
+                            else               chr = len == 1 ? 32 : toWIDE[1]; // The second cell for wide glyph should be zero in Win7/8 console. In the Win10 console, it should be the same as the first cell.
+                            if (chr == 0) chr = 32; // Null character is unsupported in SBCS codepages (eg 437) on win7/8.
                         }
-                        else chr = 0;
+                        else chr = 32;
                     }
                     fill(buffer, area, coor);
-                    //todo wide chars wrapping
+                    //todo Do we really need a wrap for wide chars? What about horizontal scrolling?
                     //auto dest = SMALL_RECT{ .Right = (SHORT)area.x, .Bottom = (SHORT)area.y };
                     //auto crop = COORD{ .Y = 1 };
                     //auto rest = (si32)dist;
