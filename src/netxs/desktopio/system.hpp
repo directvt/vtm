@@ -4762,7 +4762,7 @@ namespace netxs::os
                     {
                         switch (signal)
                         {
-                            case SIGWINCH: w.winsize = os::consize(); winsz(w); break;
+                            case SIGWINCH: w.winsize = dtvt::consize(); winsz(w); break;
                             case SIGINT:  // App close.
                             case SIGHUP:  // App close.
                             case SIGTERM: // System shutdown.
@@ -5169,7 +5169,9 @@ namespace netxs::os
                             }
                             {
                                 auto lock = logger::globals(); // Sync with logger.
+                                #if defined(_WIN32)
                                 nt::console::autosync = true;
+                                #endif
                                 std::swap(tty::cout, write); // Restore original logger.
                             }
                             shut();
@@ -5183,7 +5185,9 @@ namespace netxs::os
                     {
                         auto lock = logger::globals(); // Sync with logger.
                         enter(ansi::styled(true)); // Enable style reporting (wrapping).
+                        #if defined(_WIN32)
                         nt::console::autosync = faux; // Synchronize the viewport only when the vt-sequence "show caret" is received.
+                        #endif
                         std::swap(tty::cout, write); // Activate log proxy.
                     }
                     tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, style);
