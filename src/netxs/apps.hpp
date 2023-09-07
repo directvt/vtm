@@ -184,7 +184,7 @@ namespace netxs::app::shared
                             {
                                 boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
                                 gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                                auto& data = gear.clip_rawdata;
+                                auto& data = gear.board::data;
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
                                 {

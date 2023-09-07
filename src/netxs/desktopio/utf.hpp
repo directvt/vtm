@@ -1561,6 +1561,17 @@ namespace netxs::utf
     {
         return to_hex_0x((int)n);
     }
+    auto trunc(view utf8, size_t maxy) // Returns a string trimmed at maxy lines.
+    {
+        auto crop = 0_sz;
+        while (maxy--)
+        {
+            crop = utf8.find('\n', crop);
+            if (crop != text::npos) crop++;
+            else break;
+        }
+        return qiew{ utf8.substr(0, crop) };
+    }
 }
 
 namespace netxs

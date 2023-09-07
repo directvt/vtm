@@ -935,7 +935,7 @@ namespace netxs::input
             dec,
         };
 
-        clipdata clip_rawdata{}; // board: Clipboard data.
+        clipdata data{}; // board: Clipboard data.
         face clip_preview{}; // board: Clipboard preview render.
         bool clip_printed{}; // board: Preview output tracker.
         si32 clip_shadow_size;
@@ -947,7 +947,7 @@ namespace netxs::input
         static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, si32 form)
         {
             auto size = dot_00;
-            if (form == mime::disabled) // Try to parse utf8=mime/size_x/size_y;data
+            if (form == mime::disabled) // Try to parse utf8: mime/size_x/size_y;data
             {
                      if (utf8.starts_with(mime::tag::ansi)) { utf8.remove_prefix(mime::tag::ansi.length()); form = mime::ansitext; }
                 else if (utf8.starts_with(mime::tag::text)) { utf8.remove_prefix(mime::tag::text.length()); form = mime::textonly; }
@@ -990,15 +990,15 @@ namespace netxs::input
         }
         auto clear_clip_data()
         {
-            auto not_empty = !!clip_rawdata.utf8.size();
-            auto id = clip_rawdata.gear_id;
-            clip_rawdata.set(id, datetime::now(), dot_00, text{}, mime::ansitext);
+            auto not_empty = !!board::data.utf8.size();
+            auto id = board::data.gear_id;
+            board::data.set(id, datetime::now(), dot_00, text{}, mime::ansitext);
             fire_board();
             return not_empty;
         }
         void set_clip_data(clipdata const& data)
         {
-            clip_rawdata.set(data);
+            board::data.set(data);
             fire_board();
         }
         void update(sysboard& b) // Update clipboard preview.

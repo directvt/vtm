@@ -4748,11 +4748,10 @@ namespace netxs::os
                     auto sync = [](auto&& utf8, auto form)
                     {
                         auto clipdata = tty::stream.clipdata.freeze();
-                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz, utf8, form);
+                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz, std::forward<decltype(utf8)>(utf8), form);
                         clipdata.thing.set();
-                        //todo trim preview before sending
-                        //auto sysboard = tty::stream.sysboard.freeze();
-                        tty::stream.sysboard.send(dtvt::client, clipdata.thing.gear_id, clipdata.thing.size, clipdata.thing.utf8, clipdata.thing.form);
+                        auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y); // Trim preview before sending.
+                        tty::stream.sysboard.send(dtvt::client, clipdata.thing.gear_id, clipdata.thing.size, crop.str(), clipdata.thing.form);
                     };
                     switch (uMsg)
                     {

@@ -3553,7 +3553,7 @@ namespace netxs::ui
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
-                auto& data = gear.clip_rawdata;
+                auto& data = gear.board::data;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form);
             };
             LISTEN(tier::request, hids::events::clipbrd, from_gear, tokens)
@@ -3563,17 +3563,17 @@ namespace netxs::ui
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                 if (gear_ptr)
                 {
-                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.clip_rawdata.hash);
+                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::data.hash);
                     clipdata.wait();
                     if (ext_gear_id != clipdata.thing.gear_id)
                     {
                         log(prompt::gate, ansi::err("Clipboard data ID mismatch"));
                     }
-                    if (clipdata.thing.hash != from_gear.clip_rawdata.hash)
+                    if (clipdata.thing.hash != from_gear.board::data.hash)
                     {
-                        from_gear.clip_rawdata.form = clipdata.thing.form;
-                        from_gear.clip_rawdata.utf8 = clipdata.thing.utf8;
-                        from_gear.clip_rawdata.hash = clipdata.thing.hash;
+                        from_gear.board::data.form = clipdata.thing.form;
+                        from_gear.board::data.utf8 = clipdata.thing.utf8;
+                        from_gear.board::data.hash = clipdata.thing.hash;
                     }
                 }
             };

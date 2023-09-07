@@ -6719,7 +6719,7 @@ namespace netxs::ui
         auto get_clip_text(hids& gear)
         {
             gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-            auto& data = gear.clip_rawdata;
+            auto& data = gear.board::data;
             if (data.utf8.size())
             {
                 if (data.form == mime::richtext)
@@ -6819,7 +6819,7 @@ namespace netxs::ui
             else if (selection_passed()) // Paste from clipboard.
             {
                 gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                utf8 = gear.clip_rawdata.utf8;
+                utf8 = gear.board::data.utf8;
             }
             if (utf8.size())
             {
@@ -6981,7 +6981,7 @@ namespace netxs::ui
             else
             {
                 gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                auto& data = gear.clip_rawdata;
+                auto& data = gear.board::data;
                 if (data.utf8.size())
                 {
                     delta = console.selection_search(dir, data.utf8);
@@ -7502,7 +7502,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                        auto& data = gear.clip_rawdata;
+                        auto& data = gear.board::data;
                         if (data.hash != c.hash)
                         {
                             s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form);
