@@ -6719,7 +6719,7 @@ namespace netxs::ui
         }
         auto get_clip_text(hids& gear)
         {
-            RISEUP(tier::request, hids::events::clipbrd, gear);
+            gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
             auto& data = gear.clip_rawdata;
             if (data.utf8.size())
             {
@@ -6819,7 +6819,7 @@ namespace netxs::ui
             }
             else if (selection_passed()) // Paste from clipboard.
             {
-                RISEUP(tier::request, hids::events::clipbrd, gear);
+                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
                 utf8 = gear.clip_rawdata.utf8;
             }
             if (utf8.size())
@@ -6981,7 +6981,7 @@ namespace netxs::ui
             }
             else
             {
-                RISEUP(tier::request, hids::events::clipbrd, gear);
+                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
                 auto& data = gear.clip_rawdata;
                 if (data.utf8.size())
                 {
@@ -7502,7 +7502,7 @@ namespace netxs::ui
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        master.RISEUP(tier::request, hids::events::clipbrd, gear);
+                        gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
                         auto& data = gear.clip_rawdata;
                         if (data.hash != c.hash)
                         {
@@ -7510,6 +7510,7 @@ namespace netxs::ui
                             return;
                         }
                     }
+                    else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
                     s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, clip::ansitext);
                 });
             }

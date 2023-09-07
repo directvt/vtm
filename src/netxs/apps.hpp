@@ -183,7 +183,7 @@ namespace netxs::app::shared
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
                                 boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
-                                boss.RISEUP(tier::request, hids::events::clipbrd, gear);
+                                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
                                 auto& data = gear.clip_rawdata;
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.

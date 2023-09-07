@@ -945,6 +945,50 @@ namespace netxs::input
 
         virtual void fire_board() = 0;
 
+        static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, clip::mime form)
+        {
+            auto size = dot_00;
+            if (form == clip::mime::disabled) // Try to parse utf8=mime/size_x/size_y;data
+            {
+                     if (utf8.starts_with(ansi::mimeansi)) { utf8.remove_prefix(ansi::mimeansi.length()); form = clip::mime::ansitext; }
+                else if (utf8.starts_with(ansi::mimetext)) { utf8.remove_prefix(ansi::mimetext.length()); form = clip::mime::textonly; }
+                else if (utf8.starts_with(ansi::mimerich)) { utf8.remove_prefix(ansi::mimerich.length()); form = clip::mime::richtext; }
+                else if (utf8.starts_with(ansi::mimehtml)) { utf8.remove_prefix(ansi::mimehtml.length()); form = clip::mime::htmltext; }
+                else if (utf8.starts_with(ansi::mimesafe)) { utf8.remove_prefix(ansi::mimesafe.length()); form = clip::mime::safetext; }
+                else
+                {
+                    if (auto pos = utf8.find(';'); pos != text::npos) utf8 = utf8.substr(pos + 1);
+                    else                                              utf8 = {};
+                }
+                if (form == clip::mime::disabled) form = ansi::clip::textonly;
+                else
+                {
+                    if (utf8 && utf8.front() == '/') // Proceed preview size if present.
+                    {
+                        utf8.remove_prefix(1);
+                        if (auto v = utf::to_int(utf8))
+                        {
+                            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
+                            size.x = v.value();
+                            if (utf8)
+                            {
+                                utf8.remove_prefix(1);
+                                if (auto v = utf::to_int(utf8)) size.y = v.value();
+                            }
+                            if (!size.x || !size.y) size = dot_00;
+                            else                    size = std::clamp(size, dot_00, max_value);
+                        }
+                    }
+                    if (utf8 && utf8.front() == ';') utf8.remove_prefix(1);
+                    else                             utf8 = {}; // Unknown format.
+                }
+            }
+            size = utf8.empty() ? dot_00
+                 : size         ? size
+                 : winsz        ? winsz
+                                : twod{ 80,25 }; //todo make it configurable
+            c.set(gear_id, datetime::now(), size, utf8.str(), form);
+        }
         auto clear_clip_data()
         {
             auto not_empty = !!clip_rawdata.utf8.size();

@@ -1719,63 +1719,6 @@ namespace netxs::os
             #endif
             return success;
         }
-
-        struct proxy
-        {
-            text cache;
-            time stamp;
-            text brand;
-
-            proxy()
-                : stamp{ datetime::now() }
-            { }
-
-            auto operator() (auto& yield) // Redirect clipboard data.
-            {
-                if (cache.size() || yield.starts_with(ocs52head))
-                {
-                    auto now = datetime::now();
-                    if (now - stamp > 3s) // Drop outdated cache.
-                    {
-                        cache.clear();
-                        brand.clear();
-                    }
-                    auto start = cache.size();
-                    cache += yield;
-                    yield = cache;
-                    stamp = now;
-                    if (brand.empty())
-                    {
-                        yield.remove_prefix(ocs52head.size());
-                        if (auto p = yield.find(';'); p != view::npos)
-                        {
-                            brand = yield.substr(0, p++/*;*/);
-                            yield.remove_prefix(p);
-                            start = ocs52head.size() + p;
-                        }
-                        else return faux;
-                    }
-                    else yield.remove_prefix(start);
-
-                    if (auto p = yield.find(ansi::c0_bel); p != view::npos)
-                    {
-                        auto temp = view{ cache };
-                        auto skip = ocs52head.size() + brand.size() + 1/*;*/;
-                        auto data = temp.substr(skip, p + start - skip);
-                        if (os::clipboard::set(brand, utf::unbase64(data)))
-                        {
-                            yield.remove_prefix(p + 1/* c0_bel */);
-                        }
-                        else yield = temp; // Forward all out;
-                        cache.clear();
-                        brand.clear();
-                        if (yield.empty()) return faux;
-                    }
-                    else return faux;
-                }
-                return true;
-            }
-        };
     }
 
     namespace ipc
@@ -4806,12 +4749,12 @@ namespace netxs::os
                 {
                     auto sync = [](auto&& utf8, auto form)
                     {
-                        auto gear_id = id_t{ 0 };
-                        auto clipdata = ansi::clip{ gear_id, dtvt::win_sz, utf8, form };
-                        auto c = ansi::clip{};
-                        c.set0(clipdata);
-                        tty::stream.clipdata.set(c);
-                        tty::stream.sysboard.send(dtvt::client, c.gear_id, c.size, c.utf8, c.form);
+                        auto clipdata = tty::stream.clipdata.freeze();
+                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz, utf8, form);
+                        clipdata.thing.set();
+                        //todo trim preview before sending
+                        //auto sysboard = tty::stream.sysboard.freeze();
+                        tty::stream.sysboard.send(dtvt::client, clipdata.thing.gear_id, clipdata.thing.size, clipdata.thing.utf8, clipdata.thing.form);
                     };
                     switch (uMsg)
                     {
