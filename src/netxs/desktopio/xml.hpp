@@ -1337,9 +1337,7 @@ namespace netxs::xml
     };
     namespace options
     {
-        using mime = ansi::clip::mime;
-
-        static auto selmod = std::unordered_map<text, mime>
+        static auto selmod = std::unordered_map<text, si32>
            {{ "none",      mime::disabled },
             { "text",      mime::textonly },
             { "ansi",      mime::ansitext },

@@ -10,8 +10,6 @@ namespace netxs::events::userland
 {
     struct term
     {
-        using mime = ansi::clip::mime;
-
         EVENTPACK( term, ui::e2::extra::slot3 )
         {
             EVENT_XS( cmd    , si32 ),
@@ -82,7 +80,6 @@ namespace netxs::app::term
     static constexpr auto desc = "Desktopio Terminal";
 
     using events = netxs::events::userland::term;
-    using mime = clip::mime;
 
     namespace
     {

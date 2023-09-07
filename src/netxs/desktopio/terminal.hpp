@@ -126,7 +126,6 @@ namespace netxs::ui
         // term: Terminal configuration.
         struct termconfig
         {
-            using mime = clip::mime;
             using pals = std::remove_const_t<decltype(rgba::vt256)>;
 
             si32 def_mxline;
@@ -140,7 +139,7 @@ namespace netxs::ui
             si32 def_atexit;
             rgba def_fcolor;
             rgba def_bcolor;
-            mime def_selmod;
+            si32 def_selmod;
             bool def_selalt;
             bool def_cursor;
             bool def_cur_on;
@@ -196,7 +195,7 @@ namespace netxs::ui
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
-                def_selmod =             config.take("selection/mode",       clip::textonly, xml::options::selmod);
+                def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::selmod);
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
@@ -340,7 +339,7 @@ namespace netxs::ui
                     {
                         check_focus(gear);
                         auto buttons_only = !(state & mode::drag);
-                        if (owner.selmod == clip::disabled
+                        if (owner.selmod == mime::disabled
                          || buttons_only) // Allow mouse button reporting along with scrollback selection (mouse shell integration with DECSET 1000).
                         {
                             if (gear.captured(owner.id))
@@ -364,7 +363,7 @@ namespace netxs::ui
                 }
                 if (state & mode::drag) // Prevent scrollback selection along with mouse drag reporting.
                 {
-                    owner.selection_selmod(clip::disabled);
+                    owner.selection_selmod(mime::disabled);
                 }
             }
             void disable(mode m)
@@ -1946,13 +1945,13 @@ namespace netxs::ui
             template<class P>
             auto _shade_selection(si32 mode, P work)
             {
-                switch (owner.ftrack ? mode : clip::disabled)
+                switch (owner.ftrack ? mode : mime::disabled)
                 {
-                    case clip::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
-                    case clip::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
-                    case clip::htmltext: _shade(owner.config.def_html_f, owner.config.def_html_c, work); break;
-                    case clip::textonly: _shade(owner.config.def_text_f, owner.config.def_text_c, work); break;
-                    case clip::safetext: _shade(owner.config.def_safe_f, owner.config.def_safe_c, work); break;
+                    case mime::ansitext: _shade(owner.config.def_ansi_f, owner.config.def_ansi_c, work); break;
+                    case mime::richtext: _shade(owner.config.def_rich_f, owner.config.def_rich_c, work); break;
+                    case mime::htmltext: _shade(owner.config.def_html_f, owner.config.def_html_c, work); break;
+                    case mime::textonly: _shade(owner.config.def_text_f, owner.config.def_text_c, work); break;
+                    case mime::safetext: _shade(owner.config.def_safe_f, owner.config.def_safe_c, work); break;
                     default:             _shade(owner.config.def_none_f, owner.config.def_none_c, work); break;
                 }
             }
@@ -2013,9 +2012,9 @@ namespace netxs::ui
                 square.normalize_itself();
                 if (selbox || grip_1.coor.y == grip_2.coor.y)
                 {
-                    selmod == clip::disabled ||
-                    selmod == clip::textonly ||
-                    selmod == clip::safetext ? buffer.s11n<faux>(canvas, square)
+                    selmod == mime::disabled ||
+                    selmod == mime::textonly ||
+                    selmod == mime::safetext ? buffer.s11n<faux>(canvas, square)
                                              : buffer.s11n<true>(canvas, square);
                 }
                 else
@@ -2024,9 +2023,9 @@ namespace netxs::ui
                     auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
                     auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
                     auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
-                    if (selmod == clip::textonly
-                     || selmod == clip::safetext
-                     || selmod == clip::disabled)
+                    if (selmod == mime::textonly
+                     || selmod == mime::safetext
+                     || selmod == mime::disabled)
                     {
                         buffer.s11n<faux, true, faux>(canvas, part_1);
                         buffer.s11n<faux, faux, faux>(canvas, part_2);
@@ -2310,7 +2309,7 @@ namespace netxs::ui
                 auto view = dest.view();
                 auto find = selection_active()
                          && match.length()
-                         && owner.selmod == clip::textonly;
+                         && owner.selmod == mime::textonly;
                 canvas.move(full.coor);
                 dest.plot(canvas, cell::shaders::fuse);
                 if (find)
@@ -4466,7 +4465,7 @@ namespace netxs::ui
                 auto stop = view.coor.y + view.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
-                auto find = selection_active() && match.length() && owner.selmod == clip::textonly;
+                auto find = selection_active() && match.length() && owner.selmod == mime::textonly;
                 auto fill = [&](auto& area, auto chr)
                 {
                     if (auto r = view.clip(area))
@@ -5574,9 +5573,9 @@ namespace netxs::ui
                         coor.y += curln.height(panel.x);
                     }
                     while (head++ != tail);
-                    selmod == clip::disabled ||
-                    selmod == clip::textonly ||
-                    selmod == clip::safetext ? yield.s11n<faux, faux, true>(dest, mark)
+                    selmod == mime::disabled ||
+                    selmod == mime::textonly ||
+                    selmod == mime::safetext ? yield.s11n<faux, faux, true>(dest, mark)
                                              : yield.s11n<true, faux, true>(dest, mark);
                 }
                 else
@@ -5608,9 +5607,9 @@ namespace netxs::ui
                         }
                         if (yield.length()) yield.pop_back(); // Pop last eol.
                     };
-                    if (selmod == clip::textonly
-                     || selmod == clip::safetext
-                     || selmod == clip::disabled)
+                    if (selmod == mime::textonly
+                     || selmod == mime::safetext
+                     || selmod == mime::disabled)
                     {
                         build([&](auto& curln)
                         {
@@ -5646,8 +5645,8 @@ namespace netxs::ui
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
                 if (!selection_active()) return std::move(yield);
-                if (selmod != clip::textonly
-                 && selmod != clip::safetext) yield.nil();
+                if (selmod != mime::textonly
+                 && selmod != mime::safetext) yield.nil();
                 len = yield.size();
                 if (uptop.role != grip::idle)
                 {
@@ -6217,7 +6216,7 @@ namespace netxs::ui
         flag       resume; // term: Restart scheduled.
         flag       forced; // term: Forced shutdown.
         prot       kbmode; // term: Keyboard input mode.
-        si32       selmod; // term: Selection mode (ansi::clip::mime).
+        si32       selmod; // term: Selection mode.
         si32       altscr; // term: Alternate scroll mode.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
@@ -6230,7 +6229,7 @@ namespace netxs::ui
             {
                 clipdata.utf8 = data.substr(0, ++delimpos);
                 utf::unbase64(data.substr(delimpos), clipdata.utf8);
-                clipdata.form = clip::disabled;
+                clipdata.form = mime::disabled;
                 clipdata.size = target->panel;
                 clipdata.hash = datetime::now();
                 RISEUP(tier::request, e2::form::state::keybd::enlist, gates, ()); // Take all foci.
@@ -6660,7 +6659,7 @@ namespace netxs::ui
         // term: Is the selection allowed.
         auto selection_passed()
         {
-            return selmod != clip::disabled;
+            return selmod != mime::disabled;
         }
         // term: Set selection mode.
         void selection_selmod(si32 newmod)
@@ -6668,7 +6667,7 @@ namespace netxs::ui
             selmod = newmod;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
-            if (mtrack && selmod == clip::disabled)
+            if (mtrack && selmod == mime::disabled)
             {
                 follow[axis::Y] = true; // Reset viewport.
                 ondata("");             // Recalc trigger.
@@ -6680,7 +6679,7 @@ namespace netxs::ui
             selalt = boxed;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selalt, selalt);
-            if (mtrack && selmod == clip::disabled)
+            if (mtrack && selmod == mime::disabled)
             {
                 follow[axis::Y] = true; // Reset viewport.
                 ondata("");             // Recalc trigger.
@@ -6689,7 +6688,7 @@ namespace netxs::ui
         // term: Set the next selection mode.
         void selection_selmod()
         {
-            auto newmod = (selmod + 1) % clip::count;
+            auto newmod = (selmod + 1) % mime::count;
             selection_selmod(newmod);
         }
         auto selection_cancel()
@@ -6723,12 +6722,12 @@ namespace netxs::ui
             auto& data = gear.clip_rawdata;
             if (data.utf8.size())
             {
-                if (data.form == clip::richtext)
+                if (data.form == mime::richtext)
                 {
                     auto post = page{ data.utf8 };
                     return post.to_rich();
                 }
-                else if (data.form == clip::htmltext)
+                else if (data.form == mime::htmltext)
                 {
                     auto post = page{ data.utf8 };
                     auto [html, code] = post.to_html();
@@ -6756,8 +6755,8 @@ namespace netxs::ui
         }
         auto _copy(hids& gear, text const& data)
         {
-            auto form = selmod == clip::mime::disabled ? clip::mime::textonly
-                                                       : static_cast<clip::mime>(selmod);
+            auto form = selmod == mime::disabled ? mime::textonly
+                                                 : selmod;
             pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
             auto clipdata = input::clipdata{};
             clipdata.set(gear.id, datetime::now(), target->panel, data, form);
@@ -7511,7 +7510,7 @@ namespace netxs::ui
                         }
                     }
                     else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
-                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, clip::ansitext);
+                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext);
                 });
             }
             //void handle(s11n::xs::focus               lock)

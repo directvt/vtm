@@ -1532,25 +1532,25 @@ namespace netxs::os
             static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
         #endif
 
-        auto set(view mime, view utf8)
+        auto set(view type, view utf8)
         {
             // Generate the following formats:
-            //   clip::textonly | clip::disabled
+            //   mime::textonly | mime::disabled
             //        CF_UNICODETEXT: Raw UTF-16
             //               cf_ansi: ANSI-text UTF-8 with mime mark
-            //   clip::ansitext
+            //   mime::ansitext
             //               cf_rich: RTF-group UTF-8
             //        CF_UNICODETEXT: ANSI-text UTF-16
             //               cf_ansi: ANSI-text UTF-8 with mime mark
-            //   clip::richtext
+            //   mime::richtext
             //               cf_rich: RTF-group UTF-8
             //        CF_UNICODETEXT: Plaintext UTF-16
             //               cf_ansi: ANSI-text UTF-8 with mime mark
-            //   clip::htmltext
+            //   mime::htmltext
             //               cf_ansi: ANSI-text UTF-8 with mime mark
             //               cf_html: HTML-code UTF-8
             //        CF_UNICODETEXT: HTML-code UTF-16
-            //   clip::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
+            //   mime::safetext (https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats)
             //    ExcludeClipboardContentFromMonitorProcessing: 1
             //                    CanIncludeInClipboardHistory: 0
             //                       CanUploadToCloudClipboard: 0
@@ -1559,13 +1559,11 @@ namespace netxs::os
             //
             //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
 
-            using ansi::clip;
-
             auto success = faux;
             auto size = twod{ 80,25 };
             {
                 auto i = 1;
-                utf::divide<feed::rev>(mime, '/', [&](auto frag)
+                utf::divide<feed::rev>(type, '/', [&](auto frag)
                 {
                     if (auto v = utf::to_int(frag)) size[i] = v.value();
                     return i--;
@@ -1601,7 +1599,7 @@ namespace netxs::os
                 ok(::EmptyClipboard(), "::EmptyClipboard()", os::unexpected_msg);
                 if (utf8.size())
                 {
-                    if (mime.size() < 5 || mime.starts_with(ansi::mimetext))
+                    if (type.size() < 5 || type.starts_with(mime::tag::text))
                     {
                         send(cf_text, utf8);
                     }
@@ -1611,26 +1609,26 @@ namespace netxs::os
                         auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
                         ::GetCurrentConsoleFontEx(os::stdout_fd, faux, &info);
                         auto font = utf::to_utf(info.FaceName);
-                        if (mime.starts_with(ansi::mimerich))
+                        if (type.starts_with(mime::tag::rich))
                         {
                             auto rich = post.to_rich(font);
                             auto utf8 = post.to_utf8();
                             send(cf_rich, rich);
                             send(cf_text, utf8);
                         }
-                        else if (mime.starts_with(ansi::mimehtml))
+                        else if (type.starts_with(mime::tag::html))
                         {
                             auto [html, code] = post.to_html(font);
                             send(cf_html, html);
                             send(cf_text, code);
                         }
-                        else if (mime.starts_with(ansi::mimeansi))
+                        else if (type.starts_with(mime::tag::ansi))
                         {
                             auto rich = post.to_rich(font);
                             send(cf_rich, rich);
                             send(cf_text, utf8);
                         }
-                        else if (mime.starts_with(ansi::mimesafe))
+                        else if (type.starts_with(mime::tag::safe))
                         {
                             send(cf_sec1, "1");
                             send(cf_sec2, "0");
@@ -1642,7 +1640,7 @@ namespace netxs::os
                             send(cf_utf8, utf8);
                         }
                     }
-                    auto crop = ansi::add(mime, ";", utf8);
+                    auto crop = ansi::add(type, ";", utf8);
                     send(cf_ansi, crop);
                 }
                 else
@@ -1663,13 +1661,13 @@ namespace netxs::os
                         success = true;
                     }
                 };
-                if (mime.starts_with(ansi::mimerich))
+                if (type.starts_with(mime::tag::rich))
                 {
                     auto post = page{ utf8 };
                     auto rich = post.to_rich();
                     send(rich);
                 }
-                else if (mime.starts_with(ansi::mimehtml))
+                else if (type.starts_with(mime::tag::html))
                 {
                     auto post = page{ utf8 };
                     auto [html, code] = post.to_html();
@@ -1683,25 +1681,25 @@ namespace netxs::os
             #else
 
                 auto yield = escx{};
-                if (mime.starts_with(ansi::mimerich))
+                if (type.starts_with(mime::tag::rich))
                 {
                     auto post = page{ utf8 };
                     auto rich = post.to_rich();
-                    yield.clipbuf(size, rich, clip::richtext);
+                    yield.clipbuf(size, rich, mime::richtext);
                 }
-                else if (mime.starts_with(ansi::mimehtml))
+                else if (type.starts_with(mime::tag::html))
                 {
                     auto post = page{ utf8 };
                     auto [html, code] = post.to_html();
-                    yield.clipbuf(size, code, clip::htmltext);
+                    yield.clipbuf(size, code, mime::htmltext);
                 }
-                else if (mime.starts_with(ansi::mimeansi)) //todo GH#216
+                else if (type.starts_with(mime::tag::ansi)) //todo GH#216
                 {
-                    yield.clipbuf(size, utf8, clip::ansitext);
+                    yield.clipbuf(size, utf8, mime::ansitext);
                 }
                 else
                 {
-                    yield.clipbuf(size, utf8, clip::textonly);
+                    yield.clipbuf(size, utf8, mime::textonly);
                 }
                 io::send(os::stdout_fd, yield);
                 success = true;
@@ -4050,7 +4048,7 @@ namespace netxs::os
             void handle(s11n::xs::clipdata         lock)
             {
                 auto& clipdata = lock.thing;
-                auto metadata = ansi::clip::meta(clipdata.size, clipdata.form);
+                auto metadata = mime::meta(clipdata.size, clipdata.form);
                 os::clipboard::set(metadata, clipdata.utf8);
                 s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
                 clipdata.set();
@@ -4769,7 +4767,7 @@ namespace netxs::os
                                 if (os::error() != ERROR_ACCESS_DENIED)
                                 {
                                     auto error = utf::concat("::OpenClipboard()", os::unexpected_msg, " code ", os::error());
-                                    sync(error, ansi::clip::textonly);
+                                    sync(error, mime::textonly);
                                     return (LRESULT) NULL;
                                 }
                                 std::this_thread::yield();
@@ -4787,31 +4785,30 @@ namespace netxs::os
                                         {
                                             auto size = ::GlobalSize(hglb);
                                             auto data = text((char*)lptr, size - 1/*trailing null*/);
-                                            auto mime = ansi::clip::disabled;
-                                            sync(data, mime);
+                                            sync(data, mime::disabled);
                                             ::GlobalUnlock(hglb);
                                         }
                                         else
                                         {
                                             auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
-                                            sync(error, ansi::clip::textonly);
+                                            sync(error, mime::textonly);
                                         }
                                     }
                                     else do
                                     {
                                         if (format == cf_text)
                                         {
-                                            auto mime = hidden ? ansi::clip::safetext : ansi::clip::textonly;
+                                            auto type = hidden ? mime::safetext : mime::textonly;
                                             if (auto hglb = ::GetClipboardData(format))
                                             if (auto lptr = ::GlobalLock(hglb))
                                             {
                                                 auto size = ::GlobalSize(hglb);
-                                                sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), mime);
+                                                sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
                                                 ::GlobalUnlock(hglb);
                                                 break;
                                             }
                                             auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
-                                            sync(error, ansi::clip::textonly);
+                                            sync(error, mime::textonly);
                                         }
                                         else
                                         {
@@ -4820,7 +4817,7 @@ namespace netxs::os
                                     }
                                     while (format = ::EnumClipboardFormats(format));
                                 }
-                                else sync(text{}, ansi::clip::textonly);
+                                else sync(text{}, mime::textonly);
                             }
                             ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
                             break;

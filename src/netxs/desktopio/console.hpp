@@ -2723,7 +2723,7 @@ namespace netxs::ui
                     if (data.length())
                     {
                         auto clipdata = input::clipdata{};
-                        clipdata.set(gear.id, datetime::now(), gear.slot.size, data, clip::ansitext);
+                        clipdata.set(gear.id, datetime::now(), gear.slot.size, data, mime::ansitext);
                         gear.set_clip_data(clipdata);
                     }
                 };
@@ -3571,7 +3571,7 @@ namespace netxs::ui
                     }
                     if (clipdata.thing.hash != from_gear.clip_rawdata.hash)
                     {
-                        from_gear.clip_rawdata.form = static_cast<clip::mime>(clipdata.thing.form);
+                        from_gear.clip_rawdata.form = clipdata.thing.form;
                         from_gear.clip_rawdata.utf8 = clipdata.thing.utf8;
                         from_gear.clip_rawdata.hash = clipdata.thing.hash;
                     }

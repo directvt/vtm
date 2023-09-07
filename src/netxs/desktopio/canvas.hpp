@@ -1761,6 +1761,35 @@ namespace netxs
     enum class wrap : unsigned char { none, on,  off,            };
     enum class rtol : unsigned char { none, rtl, ltr,            };
 
+    namespace mime
+    {
+        static constexpr auto disabled = 0;
+        static constexpr auto textonly = 1;
+        static constexpr auto ansitext = 2;
+        static constexpr auto richtext = 3;
+        static constexpr auto htmltext = 4;
+        static constexpr auto safetext = 5; // mime: Sensitive textonly data.
+        static constexpr auto count    = 6;
+
+        namespace tag
+        {
+            static constexpr auto text = "text/plain"sv;
+            static constexpr auto ansi = "text/xterm"sv;
+            static constexpr auto html = "text/html"sv;
+            static constexpr auto rich = "text/rtf"sv;
+            static constexpr auto safe = "text/protected"sv;
+        }
+
+        auto meta(twod size, si32 form) // mime: Return clipdata's meta data.
+        {
+            return form == htmltext ? utf::concat(tag::html)
+                 : form == richtext ? utf::concat(tag::rich)
+                 : form == ansitext ? utf::concat(tag::ansi)
+                 : form == safetext ? utf::concat(tag::safe)
+                                    : utf::concat(tag::text, "/", size.x, "/", size.y);
+        }
+    }
+
     using grid = std::vector<cell>;
     using vrgb = std::vector<irgb<si32>>;
 

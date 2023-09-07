@@ -270,7 +270,6 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using netxs::ansi::clip;
     using netxs::ui::base;
     using netxs::ui::face;
     using netxs::ui::page;
@@ -945,22 +944,22 @@ namespace netxs::input
 
         virtual void fire_board() = 0;
 
-        static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, clip::mime form)
+        static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, si32 form)
         {
             auto size = dot_00;
-            if (form == clip::mime::disabled) // Try to parse utf8=mime/size_x/size_y;data
+            if (form == mime::disabled) // Try to parse utf8=mime/size_x/size_y;data
             {
-                     if (utf8.starts_with(ansi::mimeansi)) { utf8.remove_prefix(ansi::mimeansi.length()); form = clip::mime::ansitext; }
-                else if (utf8.starts_with(ansi::mimetext)) { utf8.remove_prefix(ansi::mimetext.length()); form = clip::mime::textonly; }
-                else if (utf8.starts_with(ansi::mimerich)) { utf8.remove_prefix(ansi::mimerich.length()); form = clip::mime::richtext; }
-                else if (utf8.starts_with(ansi::mimehtml)) { utf8.remove_prefix(ansi::mimehtml.length()); form = clip::mime::htmltext; }
-                else if (utf8.starts_with(ansi::mimesafe)) { utf8.remove_prefix(ansi::mimesafe.length()); form = clip::mime::safetext; }
+                     if (utf8.starts_with(mime::tag::ansi)) { utf8.remove_prefix(mime::tag::ansi.length()); form = mime::ansitext; }
+                else if (utf8.starts_with(mime::tag::text)) { utf8.remove_prefix(mime::tag::text.length()); form = mime::textonly; }
+                else if (utf8.starts_with(mime::tag::rich)) { utf8.remove_prefix(mime::tag::rich.length()); form = mime::richtext; }
+                else if (utf8.starts_with(mime::tag::html)) { utf8.remove_prefix(mime::tag::html.length()); form = mime::htmltext; }
+                else if (utf8.starts_with(mime::tag::safe)) { utf8.remove_prefix(mime::tag::safe.length()); form = mime::safetext; }
                 else
                 {
                     if (auto pos = utf8.find(';'); pos != text::npos) utf8 = utf8.substr(pos + 1);
                     else                                              utf8 = {};
                 }
-                if (form == clip::mime::disabled) form = ansi::clip::textonly;
+                if (form == mime::disabled) form = mime::textonly;
                 else
                 {
                     if (utf8 && utf8.front() == '/') // Proceed preview size if present.
@@ -993,7 +992,7 @@ namespace netxs::input
         {
             auto not_empty = !!clip_rawdata.utf8.size();
             auto id = clip_rawdata.gear_id;
-            clip_rawdata.set(id, datetime::now(), dot_00, text{}, ansi::clip::ansitext);
+            clip_rawdata.set(id, datetime::now(), dot_00, text{}, mime::ansitext);
             fire_board();
             return not_empty;
         }
@@ -1021,7 +1020,7 @@ namespace netxs::input
                 clip_preview.reset();
                 clip_preview.full(full);
             };
-            if (b.form == clip::safetext)
+            if (b.form == mime::safetext)
             {
                 auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                 auto block = page{ blank };
@@ -1044,7 +1043,7 @@ namespace netxs::input
                     clip_preview.wipe();
                 }
                 clip_preview.mark(cell{});
-                if (b.form == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
+                if (b.form == mime::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
                 else                          clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
             }
         }

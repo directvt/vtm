@@ -198,7 +198,7 @@ namespace netxs::app::shared
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
                                     auto clipdata = input::clipdata{};
-                                    clipdata.set(gear.id, datetime::now(), dot_00, old_title, clip::ansitext);
+                                    clipdata.set(gear.id, datetime::now(), dot_00, old_title, mime::ansitext);
                                     gear.set_clip_data(clipdata);
                                 }
                             };

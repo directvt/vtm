@@ -249,36 +249,6 @@ namespace netxs::ansi
     //static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
     static const auto ctrl_break = si32{ 0x46 }; // Pressed Ctrl+Break scancode.
 
-    static const auto mimetext = "text/plain"sv;
-    static const auto mimeansi = "text/xterm"sv;
-    static const auto mimehtml = "text/html"sv;
-    static const auto mimerich = "text/rtf"sv;
-    static const auto mimesafe = "text/protected"sv;
-
-    //todo deprecated
-    struct clip
-    {
-        enum mime : si32
-        {
-            disabled,
-            textonly,
-            ansitext,
-            richtext,
-            htmltext,
-            safetext, // mime: Sensitive textonly data.
-            count,
-        };
-
-        static auto meta(twod size, si32 form) // clip: Return clipdata's meta data.
-        {
-            return form == clip::htmltext ? utf::concat(mimehtml)
-                 : form == clip::richtext ? utf::concat(mimerich)
-                 : form == clip::ansitext ? utf::concat(mimeansi)
-                 : form == clip::safetext ? utf::concat(mimesafe)
-                                          : utf::concat(mimetext, "/", size.x, "/", size.y);
-        }
-    };
-
     template<class Base>
     class basevt
     {
@@ -584,9 +554,9 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // escx: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // escx: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // escx: Reset color palette (Linux console).
-        auto& clipbuf(twod size, view utf8, clip::mime form) // escx: Set clipboard buffer.
+        auto& clipbuf(twod size, view utf8, si32 form) // escx: Set clipboard buffer.
         {
-            return add("\033]52;", clip::meta(size, form), ";", utf::base64(utf8), c0_bel);
+            return add("\033]52;", mime::meta(size, form), ";", utf::base64(utf8), c0_bel);
         }
         auto& old_palette(si32 i, rgba const& c) // escx: Set color palette (Linux console).
         {
