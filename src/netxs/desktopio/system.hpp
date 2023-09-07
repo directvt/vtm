@@ -4048,6 +4048,7 @@ namespace netxs::os
             void handle(s11n::xs::clipdata         lock)
             {
                 auto& clipdata = lock.thing;
+                if (!clipdata.size && clipdata.utf8.size()) clipdata.size = dtvt::win_sz / 2; // Set the default size if no size is specified.
                 auto metadata = mime::meta(clipdata.size, clipdata.form);
                 os::clipboard::set(metadata, clipdata.utf8);
                 s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
@@ -4748,10 +4749,10 @@ namespace netxs::os
                     auto sync = [](auto&& utf8, auto form)
                     {
                         auto clipdata = tty::stream.clipdata.freeze();
-                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz, std::forward<decltype(utf8)>(utf8), form);
+                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz / 2, std::forward<decltype(utf8)>(utf8), form);
                         clipdata.thing.set();
-                        auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y); // Trim preview before sending.
-                        tty::stream.sysboard.send(dtvt::client, clipdata.thing.gear_id, clipdata.thing.size, crop.str(), clipdata.thing.form);
+                        auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                        tty::stream.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
                     };
                     switch (uMsg)
                     {

@@ -2722,9 +2722,7 @@ namespace netxs::ui
                     data.s11n(xmap, gear.slot);
                     if (data.length())
                     {
-                        auto clipdata = input::clipdata{};
-                        clipdata.set(gear.id, datetime::now(), gear.slot.size, data, mime::ansitext);
-                        gear.set_clip_data(clipdata);
+                        gear.set_clip_data(gear.slot.size, data, mime::ansitext);
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
@@ -3057,15 +3055,15 @@ namespace netxs::ui
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
-                gear.clip_printed = !gear.disabled &&
+                gear.board::shown = !gear.disabled &&
                                     (props.clip_preview_time == span::zero() ||
                                      props.clip_preview_time > stamp - gear.delta.stamp());
-                if (gear.clip_printed)
+                if (gear.board::shown)
                 {
                     auto coor = gear.coord + dot_21 * 2;
-                    auto full = gear.clip_preview.full();
-                    gear.clip_preview.move(coor - full.coor);
-                    canvas.plot(gear.clip_preview, cell::shaders::mix);
+                    auto full = gear.board::image.full();
+                    gear.board::image.move(coor - full.coor);
+                    canvas.plot(gear.board::image, cell::shaders::mix);
                 }
             }
         }
@@ -3170,7 +3168,7 @@ namespace netxs::ui
                     for (auto& [id, gear_ptr] : input.gears)
                     {
                         auto& gear = *gear_ptr;
-                        if (gear.clip_printed && props.clip_preview_time < stamp - gear.delta.stamp())
+                        if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
                         {
                             base::deface();
                             return;
@@ -3553,7 +3551,7 @@ namespace netxs::ui
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
-                auto& data = gear.board::data;
+                auto& data = gear.board::cargo;
                 conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form);
             };
             LISTEN(tier::request, hids::events::clipbrd, from_gear, tokens)
@@ -3563,17 +3561,11 @@ namespace netxs::ui
                 auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
                 if (gear_ptr)
                 {
-                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::data.hash);
+                    conio.clipdata_request.send(canal, ext_gear_id, from_gear.board::cargo.hash);
                     clipdata.wait();
-                    if (ext_gear_id != clipdata.thing.gear_id)
+                    if (clipdata.thing.hash != from_gear.board::cargo.hash)
                     {
-                        log(prompt::gate, ansi::err("Clipboard data ID mismatch"));
-                    }
-                    if (clipdata.thing.hash != from_gear.board::data.hash)
-                    {
-                        from_gear.board::data.form = clipdata.thing.form;
-                        from_gear.board::data.utf8 = clipdata.thing.utf8;
-                        from_gear.board::data.hash = clipdata.thing.hash;
+                        from_gear.board::cargo.set(clipdata.thing);
                     }
                 }
             };

@@ -184,7 +184,7 @@ namespace netxs::app::shared
                             {
                                 boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
                                 gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                                auto& data = gear.board::data;
+                                auto& data = gear.board::cargo;
 
                                 if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
                                 {
@@ -197,9 +197,7 @@ namespace netxs::app::shared
 
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
-                                    auto clipdata = input::clipdata{};
-                                    clipdata.set(gear.id, datetime::now(), dot_00, old_title, mime::ansitext);
-                                    gear.set_clip_data(clipdata);
+                                    gear.set_clip_data(dot_00, old_title, mime::ansitext);
                                 }
                             };
                         };

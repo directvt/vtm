@@ -935,12 +935,14 @@ namespace netxs::input
             dec,
         };
 
-        clipdata data{}; // board: Clipboard data.
-        face clip_preview{}; // board: Clipboard preview render.
-        bool clip_printed{}; // board: Preview output tracker.
-        si32 clip_shadow_size;
-        cell clip_preview_clrs;
-        byte clip_preview_alfa;
+        using clip = clipdata;
+
+        clip cargo{}; // board: Clipboard data.
+        face image{}; // board: Clipboard preview render.
+        bool shown{}; // board: Preview output tracker.
+        si32 ghost{}; // board: Preview shadow size.
+        cell brush{}; // board: Preview default color.
+        byte alpha{}; // board: Preview transparency.
 
         virtual void fire_board() = 0;
 
@@ -990,61 +992,66 @@ namespace netxs::input
         }
         auto clear_clip_data()
         {
-            auto not_empty = !!board::data.utf8.size();
-            auto id = board::data.gear_id;
-            board::data.set(id, datetime::now(), dot_00, text{}, mime::ansitext);
+            auto not_empty = !!board::cargo.utf8.size();
+            board::cargo.set(id_t{}, datetime::now(), dot_00, text{}, mime::ansitext);
             fire_board();
             return not_empty;
         }
         void set_clip_data(clipdata const& data)
         {
-            board::data.set(data);
+            board::cargo.set(data);
             fire_board();
+        }
+        void set_clip_data(twod size, qiew utf8, si32 form)
+        {
+            auto c = clip{};
+            c.set(id_t{}, datetime::now(), size, utf8.str(), form);
+            set_clip_data(c);
         }
         void update(sysboard& b) // Update clipboard preview.
         {
             auto draw_shadow = [&](auto& block, auto size)
             {
-                clip_preview.mark(cell{});
-                clip_preview.wipe();
-                clip_preview.size(dot_21 * size * 2 + b.size);
+                board::image.mark(cell{});
+                board::image.wipe();
+                board::image.size(dot_21 * size * 2 + b.size);
                 auto full = rect{ dot_21 * size + dot_21, b.size };
                 while (size--)
                 {
-                    clip_preview.reset();
-                    clip_preview.full(full);
-                    clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                    board::image.reset();
+                    board::image.full(full);
+                    board::image.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    board::image.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
-                clip_preview.reset();
-                clip_preview.full(full);
+                board::image.reset();
+                board::image.full(full);
             };
             if (b.form == mime::safetext)
             {
                 auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                 auto block = page{ blank };
                 auto clip_size = block.current().size();
-                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                if (ghost) draw_shadow(block, ghost);
                 else
                 {
-                    clip_preview.size(clip_size);
-                    clip_preview.wipe();
+                    board::image.size(clip_size);
+                    board::image.wipe();
                 }
-                clip_preview.output(block);
+                board::image.output(block);
             }
             else
             {
                 auto block = page{ b.utf8 };
-                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                if (ghost) draw_shadow(block, ghost);
                 else
                 {
-                    clip_preview.size(b.size);
-                    clip_preview.wipe();
+                    board::image.size(b.size);
+                    board::image.wipe();
                 }
-                clip_preview.mark(cell{});
-                if (b.form == mime::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
-                else                          clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
+                board::image.mark(cell{});
+                if (b.form == mime::textonly) board::image.output(block, cell::shaders::color(  brush));
+                else                          board::image.output(block, cell::shaders::xlucent(alpha));
             }
         }
     };
@@ -1096,12 +1103,12 @@ namespace netxs::input
             alive{ faux },
             tooltip_timeout{   props.tooltip_timeout }
         {
-            board::clip_shadow_size  = props.clip_preview_glow;
-            board::clip_preview_clrs = props.clip_preview_clrs;
-            board::clip_preview_alfa = props.clip_preview_alfa;
+            board::ghost = props.clip_preview_glow;
+            board::brush = props.clip_preview_clrs;
+            board::alpha = props.clip_preview_alfa;
+            mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
-            mouse::delay = props.dblclick_timeout;
             SIGNAL(tier::general, events::device::user::login, user_index);
         }
         ~hids()
