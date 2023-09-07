@@ -4109,7 +4109,7 @@ namespace netxs::os
                 auto& clipdata = lock.thing;
                 auto metadata = ansi::clip::meta(clipdata.size, clipdata.form);
                 os::clipboard::set(metadata, clipdata.utf8);
-                s11n::clipview.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
+                s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
                 clipdata.set();
             }
             void handle(s11n::xs::clipdata_request lock)
@@ -4811,7 +4811,7 @@ namespace netxs::os
                         auto c = ansi::clip{};
                         c.set0(clipdata);
                         tty::stream.clipdata.set(c);
-                        tty::stream.clipview.send(dtvt::client, c.gear_id, c.size, c.utf8, c.form);
+                        tty::stream.sysboard.send(dtvt::client, c.gear_id, c.size, c.utf8, c.form);
                     };
                     switch (uMsg)
                     {

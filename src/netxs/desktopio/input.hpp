@@ -927,11 +927,91 @@ namespace netxs::input
         virtual void fire_focus() = 0;
     };
 
+    // console: Clipboard tracker.
+    struct board
+    {
+        enum prot
+        {
+            w32,
+            dec,
+        };
+
+        clipdata clip_rawdata{}; // board: Clipboard data.
+        face clip_preview{}; // board: Clipboard preview render.
+        bool clip_printed{}; // board: Preview output tracker.
+        si32 clip_shadow_size;
+        cell clip_preview_clrs;
+        byte clip_preview_alfa;
+
+        virtual void fire_board() = 0;
+
+        auto clear_clip_data()
+        {
+            auto not_empty = !!clip_rawdata.utf8.size();
+            auto id = clip_rawdata.gear_id;
+            clip_rawdata.set(id, datetime::now(), dot_00, text{}, ansi::clip::ansitext);
+            fire_board();
+            return not_empty;
+        }
+        void set_clip_data(clipdata const& data)
+        {
+            clip_rawdata.set(data);
+            fire_board();
+        }
+        void update(sysboard& b) // Update clipboard preview.
+        {
+            auto draw_shadow = [&](auto& block, auto size)
+            {
+                clip_preview.mark(cell{});
+                clip_preview.wipe();
+                clip_preview.size(dot_21 * size * 2 + b.size);
+                auto full = rect{ dot_21 * size + dot_21, b.size };
+                while (size--)
+                {
+                    clip_preview.reset();
+                    clip_preview.full(full);
+                    clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                }
+                full.coor -= dot_21;
+                clip_preview.reset();
+                clip_preview.full(full);
+            };
+            if (b.form == clip::safetext)
+            {
+                auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
+                auto block = page{ blank };
+                auto clip_size = block.current().size();
+                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                else
+                {
+                    clip_preview.size(clip_size);
+                    clip_preview.wipe();
+                }
+                clip_preview.output(block);
+            }
+            else
+            {
+                auto block = page{ b.utf8 };
+                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
+                else
+                {
+                    clip_preview.size(b.size);
+                    clip_preview.wipe();
+                }
+                clip_preview.mark(cell{});
+                if (b.form == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
+                else                          clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
+            }
+        }
+    };
+
     // console: Human interface device controller.
     struct hids
         : public mouse,
           public keybd,
           public focus,
+          public board,
           public bell
     {
         using events = netxs::events::userland::hids;
@@ -940,10 +1020,9 @@ namespace netxs::input
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         bool        alive; // hids: Whether event processing is complete.
-        span&       tooltip_timeout; // hids: .
-        bool&       simple_instance; // hids: .
 
         //todo unify
+        span&       tooltip_timeout; // hids: .
         text        tooltip_data; // hids: Tooltip data.
         ui32        digest = 0; // hids: Tooltip digest.
         testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
@@ -964,29 +1043,19 @@ namespace netxs::input
         bool disabled = faux;
         si32 countdown = 0;
 
-        clipdata clip_rawdata{}; // hids: Clipboard data.
-        face clip_preview{}; // hids: Clipboard preview render.
-        bool not_directvt{}; // hids: Is it the top level gear (not directvt).
-        bool clip_printed{}; // hids: Preview output tracker.
-        si32& clip_shadow_size;
-        cell& clip_preview_clrs;
-        byte& clip_preview_alfa;
-
         id_t user_index; // hids: User/Device image/icon index.
 
         template<class T>
-        hids(T& props, bool not_directvt, base& owner, core const& idmap)
+        hids(T& props, base& owner, core const& idmap)
             : relay{ 0 },
             owner{ owner },
             idmap{ idmap },
             alive{ faux },
-            tooltip_timeout{   props.tooltip_timeout },
-            simple_instance{   props.simple },
-            clip_shadow_size{  props.clip_preview_glow },
-            clip_preview_clrs{ props.clip_preview_clrs },
-            clip_preview_alfa{ props.clip_preview_alfa },
-            not_directvt{ not_directvt }
+            tooltip_timeout{   props.tooltip_timeout }
         {
+            board::clip_shadow_size  = props.clip_preview_glow;
+            board::clip_preview_clrs = props.clip_preview_clrs;
+            board::clip_preview_alfa = props.clip_preview_alfa;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
             mouse::delay = props.dblclick_timeout;
@@ -1005,71 +1074,6 @@ namespace netxs::input
         operator bool () const
         {
             return alive;
-        }
-
-        auto take(clipview const& c) // Update clipboard preview.
-        {
-            auto draw_shadow = [&](auto& block, auto size)
-            {
-                clip_preview.mark(cell{});
-                clip_preview.wipe();
-                clip_preview.size(dot_21 * size * 2 + c.size);
-                auto full = rect{ dot_21 * size + dot_21, c.size };
-                while (size--)
-                {
-                    clip_preview.reset();
-                    clip_preview.full(full);
-                    clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
-                }
-                full.coor -= dot_21;
-                clip_preview.reset();
-                clip_preview.full(full);
-            };
-            if (c.form == clip::safetext)
-            {
-                auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
-                auto block = page{ blank };
-                auto clip_size = block.current().size();
-                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                else
-                {
-                    clip_preview.size(clip_size);
-                    clip_preview.wipe();
-                }
-                clip_preview.output(block);
-            }
-            else
-            {
-                auto block = page{ c.utf8 };
-                if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                else
-                {
-                    clip_preview.size(c.size);
-                    clip_preview.wipe();
-                }
-                clip_preview.mark(cell{});
-                if (c.form == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
-                else                          clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
-            }
-        }
-        auto clear_clip_data()
-        {
-            auto not_empty = !!clip_rawdata.utf8.size();
-            clip_rawdata.set(id, datetime::now(), dot_00, text{}, ansi::clip::ansitext);
-            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
-            return not_empty;
-        }
-        void set_clip_data(clipdata const& data)//, bool forward = true)
-        {
-            clip_rawdata.set(data);
-            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
-            mouse::delta.set(); // Update time stamp.
-        }
-        auto& get_clip_data()
-        {
-            owner.SIGNAL(tier::request, hids::events::clipbrd, *this);
-            return clip_rawdata;
         }
 
         auto tooltip_enabled(time const& now)
@@ -1234,6 +1238,10 @@ namespace netxs::input
             tooltip_stop = true;
             focus::update(f);
         }
+        auto take(sysboard& b)
+        {
+            board::update(b);
+        }
 
         auto& area() const { return idmap.area(); }
 
@@ -1391,6 +1399,11 @@ namespace netxs::input
             //todo focus<->seed
             if (focus::state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
             else              owner.SIGNAL(tier::release, hids::events::focus::off, *this);
+        }
+        void fire_board()
+        {
+            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
+            mouse::delta.set(); // Update time stamp.
         }
         text interpret()
         {

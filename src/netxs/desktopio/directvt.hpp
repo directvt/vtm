@@ -776,9 +776,6 @@ namespace netxs::directvt
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
         STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
-        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form))
-        STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
-        STRUCT_macro(clipview,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
@@ -795,6 +792,9 @@ namespace netxs::directvt
         //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
+        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form))
+        STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
+        STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syspaste,          (id_t, gear_id) (ui32, secbits) (ui32, format) (text, data))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -1292,9 +1292,6 @@ namespace netxs::directvt
             X(keybd_event      ) /* Keybd events.                                 */\
             X(tooltips         ) /* Tooltip list.                                 */\
             X(jgc_list         ) /* List of jumbo GC.                             */\
-            X(clipdata         ) /* Clipboard raw data.                           */\
-            X(clipdata_request ) /* Request clipboard data.                       */\
-            X(clipview         ) /* Clipboard preview.                            */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
             X(fullscreen       ) /* Request to fullscreen                         */\
@@ -1317,6 +1314,9 @@ namespace netxs::directvt
             X(sysclose         ) /* System close event.                           */\
             X(syswinsz         ) /* Console window resize.                        */\
             X(syspaste         ) /* Clipboard paste.                              */\
+            X(sysboard         ) /* Clipboard preview.                            */\
+            X(clipdata         ) /* Clipboard raw data.                           */\
+            X(clipdata_request ) /* Request clipboard data.                       */\
             X(focusbus         ) /* Focus bus events.                             */\
             X(mousebar         ) /* Show mouse cursor.                            */\
             X(request_gc       ) /* Unknown gc token list.                        */\

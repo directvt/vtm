@@ -2381,10 +2381,10 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::conio::winsz, item.winsize);
             }
-            void handle(s11n::xs::clipview    lock)
+            void handle(s11n::xs::sysboard    lock)
             {
                 auto& item = lock.thing;
-                notify(e2::conio::clipview, item);
+                notify(e2::conio::board, item);
             }
             void handle(s11n::xs::logs        lock)
             {
@@ -2696,7 +2696,7 @@ namespace netxs::ui
                 auto gear_it = gears.find(device.gear_id);
                 if (gear_it == gears.end())
                 {
-                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(boss.props, device.gear_id == 0, boss, xmap)).first;
+                    gear_it = gears.emplace(device.gear_id, bell::create<hids>(boss.props, boss, xmap)).first;
                 }
                 auto& [_id, gear_ptr] = *gear_it;
                 gear_ptr->hids::take(device);
@@ -2768,7 +2768,7 @@ namespace netxs::ui
                 {
                     forward(f);
                 };
-                boss.LISTEN(tier::release, e2::conio::clipview, c, memo)
+                boss.LISTEN(tier::release, e2::conio::board, c, memo)
                 {
                     forward(c);
                 };
@@ -3310,7 +3310,7 @@ namespace netxs::ui
                     auto gear_it = input.gears.find(seed.id);
                     if (gear_it == input.gears.end())
                     {
-                        gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, seed.id == 0, *this, input.xmap)).first;
+                        gear_it = input.gears.emplace(seed.id, bell::create<hids>(props, *this, input.xmap)).first;
                     }
                     auto& [_id, gear_ptr] = *gear_it;
                     seed.id = gear_ptr->id;

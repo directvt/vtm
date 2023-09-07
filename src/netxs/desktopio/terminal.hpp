@@ -6719,7 +6719,8 @@ namespace netxs::ui
         }
         auto get_clip_text(hids& gear)
         {
-            auto& data = gear.get_clip_data();
+            RISEUP(tier::request, hids::events::clipbrd, gear);
+            auto& data = gear.clip_rawdata;
             if (data.utf8.size())
             {
                 if (data.form == clip::richtext)
@@ -6811,9 +6812,16 @@ namespace netxs::ui
         void selection_mclick(hids& gear)
         {
             auto& console = *target;
-            auto utf8 = console.selection_active() ? console.match.utf8()      // Paste from selection.
-                      :         selection_passed() ? gear.get_clip_data().utf8 // Paste from clipboard.
-                                                   : text{};
+            auto utf8 = text{};
+            if (console.selection_active()) // Paste from selection.
+            {
+                utf8 = console.match.utf8();
+            }
+            else if (selection_passed()) // Paste from clipboard.
+            {
+                RISEUP(tier::request, hids::events::clipbrd, gear);
+                utf8 = gear.clip_rawdata.utf8;
+            }
             if (utf8.size())
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
@@ -6973,7 +6981,8 @@ namespace netxs::ui
             }
             else
             {
-                auto& data = gear.get_clip_data();
+                RISEUP(tier::request, hids::events::clipbrd, gear);
+                auto& data = gear.clip_rawdata;
                 if (data.utf8.size())
                 {
                     delta = console.selection_search(dir, data.utf8);
@@ -7492,7 +7501,9 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
-                        auto& data = gear_ptr->get_clip_data();
+                        auto& gear = *gear_ptr;
+                        master.RISEUP(tier::request, hids::events::clipbrd, gear);
+                        auto& data = gear.clip_rawdata;
                         if (data.hash != c.hash)
                         {
                             s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form);
