@@ -1684,6 +1684,7 @@ namespace netxs::app::vtm
         template<class S>
         void branch(text const& menuid, sptr<S> item, bool fixed = true)
         {
+            if (!host::active) return;
             items.append(item);
             item->base::root(true); //todo move it to the window creator (main)
             auto& [stat, list] = dbase.apps[menuid];

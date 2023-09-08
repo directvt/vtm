@@ -7817,6 +7817,31 @@ namespace netxs::ui
             if (ipccon) stream.s11n::sysclose.send(*this, 0, fast);
             else        close();
         }
+        // dtvt: Splash screen if there is no next frame.
+        void fallback(core const& canvas, bool forced = faux)
+        {
+            auto size = base::size();
+            if (splash.size() != size || forced)
+            {
+                splash.size(size);
+                auto parent_id = id_t{}; // Handover control to the parent if no response.
+                if (auto parent = base::parent()) parent_id = parent->id;
+                if (canvas.size())
+                {
+                    splash.zoom(canvas, cell::shaders::fullid(parent_id));
+                    splash.output(errmsg);
+                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                    splash.output(errmsg);
+                }
+                else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
+            }
+        }
+        // dtvt: Render next frame.
+        void fill(core& parent_canvas, core const& canvas)
+        {
+            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
+            else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
+        }
 
         dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
@@ -7880,29 +7905,6 @@ namespace netxs::ui
                     fill(parent_canvas, canvas);
                 }
             };
-        }
-        void fallback(core const& canvas, bool forced = faux)
-        {
-            auto size = base::size();
-            if (splash.size() != size || forced)
-            {
-                splash.size(size);
-                auto parent_id = id_t{}; // Handover control to the parent if no response.
-                if (auto parent = base::parent()) parent_id = parent->id;
-                if (canvas.size())
-                {
-                    splash.zoom(canvas, cell::shaders::fullid(parent_id));
-                    splash.output(errmsg);
-                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                    splash.output(errmsg);
-                }
-                else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
-            }
-        }
-        void fill(core& parent_canvas, core const& canvas)
-        {
-            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
-            else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
     };
 }

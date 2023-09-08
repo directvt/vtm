@@ -282,7 +282,6 @@ int main(int argc, char* argv[])
                     auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
                     domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
                     //todo send/receive dtvt events and signals
-                    monitor->recv();
                     while (auto line = monitor->recv())
                     {
                         domain->SIGNAL(tier::release, e2::conio::readline, line);
@@ -312,11 +311,11 @@ int main(int argc, char* argv[])
             }
         }
         readline.stop();
-        logger->stop(); // Logger must be stopped first to prevent reconnection.
-        log(prompt::main, "Server shutdown");
-        domain->SIGNAL(tier::general, e2::conio::quit, deal, ());
-        events::dequeue();
-        domain->shutdown();
+        logger->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
         stdlog.join();
-    }
+        log(prompt::main, "Server shutdown");
+        domain->SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
+        events::dequeue(); // Wait until all users and monitors are disconnected.
+        domain->shutdown();
+    } // Close all running apps in dtors.
 }

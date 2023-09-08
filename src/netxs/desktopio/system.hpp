@@ -4911,7 +4911,6 @@ namespace netxs::os
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            //auto proxy = os::clipboard::proxy{};
             auto keybd = [&](auto& data) { if (alive)                tty::stream.syskeybd.send(intio, data); };
             auto mouse = [&](auto& data) { if (alive)                tty::stream.sysmouse.send(intio, data); };
             auto winsz = [&](auto& data) { if (alive)                tty::stream.syswinsz.send(intio, data); };
@@ -4991,16 +4990,16 @@ namespace netxs::os
                     auto width = si32{};
                     auto block = escx{};
                     auto yield = escx{};
-                    auto shown = flag{ faux };
                     auto mutex = std::mutex{};
                     auto panel = dtvt::consize();
                     auto wraps = true;
                     auto clear = [&](auto&& ...args) // Erase the readline block and output the args.
                     {
-                        if (shown && width)
+                        if (width)
                         {
                             if (wraps && width >= panel.x) yield.cuu(width / panel.x);
                             yield.add("\r").del_below();
+                            width = 0;
                         }
                         if constexpr (sizeof...(args))
                         {
@@ -5008,11 +5007,10 @@ namespace netxs::os
                             osout(yield);
                             yield.clear();
                         }
-                        shown = faux;
                     };
                     auto print = [&](bool renew)
                     {
-                        if (renew && shown && width)
+                        if (renew && width)
                         {
                             if (wraps && width >= panel.x) yield.cuu(width / panel.x);
                             yield.add("\r");
@@ -5026,7 +5024,6 @@ namespace netxs::os
                         yield.cursor(true);
                         osout(yield);
                         yield.clear();
-                        shown = true;
                     };
                     auto enter = [&](auto&& ...args)
                     {
@@ -5040,7 +5037,6 @@ namespace netxs::os
                         }
                         block.clear();
                         width = 0;
-                        shown = faux;
                     };
                     auto write = std::function([&](qiew utf8)
                     {
@@ -5076,10 +5072,9 @@ namespace netxs::os
                             case '\r': // Enter
                             {
                                 auto line = block + '\n';
-                                clear();
                                 block.clear();
-                                width = 0;
-                                shown = faux;
+                                clear();
+                                print(faux);
                                 guard.unlock(); // Allow to use log() inside send().
                                 send(line);
                                 break;

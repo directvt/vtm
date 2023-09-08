@@ -3685,6 +3685,7 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
+        flag active; // host: Host is available for connections.
         repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
@@ -3695,9 +3696,10 @@ namespace netxs::ui
         }
 
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
-            :  focus{*this, m, faux },
+            :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config },
+              active{ true },
               engine{ *this }
         {
             using namespace std::chrono;
@@ -3779,10 +3781,10 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::general, e2::shutdown, msg, tokens) // Shutdown button.
+            LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
-                //todo move to gate: notify clients via dtvt, instead of closing  connection
                 if constexpr (debugmode) log(prompt::host, msg);
+                active.exchange(faux); // To prevent new apps running.
                 canal.stop();
             };
             LISTEN(tier::general, hids::events::device::user::login, props, tokens)
