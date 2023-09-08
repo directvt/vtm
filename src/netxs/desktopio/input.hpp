@@ -990,23 +990,23 @@ namespace netxs::input
                                 : twod{ 80,25 }; //todo make it configurable
             c.set(gear_id, datetime::now(), size, utf8.str(), form);
         }
-        auto clear_clip_data()
+        auto clear_clipboard()
         {
             auto not_empty = !!board::cargo.utf8.size();
             board::cargo.set(id_t{}, datetime::now(), dot_00, text{}, mime::ansitext);
             fire_board();
             return not_empty;
         }
-        void set_clip_data(clipdata const& data)
+        void set_clipboard(clipdata const& data)
         {
             board::cargo.set(data);
             fire_board();
         }
-        void set_clip_data(twod size, qiew utf8, si32 form)
+        void set_clipboard(twod size, qiew utf8, si32 form)
         {
             auto c = clip{};
             c.set(id_t{}, datetime::now(), size, utf8.str(), form);
-            set_clip_data(c);
+            set_clipboard(c);
         }
         void update(sysboard& b) // Update clipboard preview.
         {
@@ -1031,11 +1031,10 @@ namespace netxs::input
             {
                 auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                 auto block = page{ blank };
-                auto clip_size = block.current().size();
                 if (ghost) draw_shadow(block, ghost);
                 else
                 {
-                    board::image.size(clip_size);
+                    board::image.size(block.current().size());
                     board::image.wipe();
                 }
                 board::image.output(block);

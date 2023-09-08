@@ -1763,13 +1763,14 @@ namespace netxs
 
     namespace mime
     {
-        static constexpr auto disabled = 0;
-        static constexpr auto textonly = 1;
-        static constexpr auto ansitext = 2;
-        static constexpr auto richtext = 3;
-        static constexpr auto htmltext = 4;
-        static constexpr auto safetext = 5; // mime: Sensitive textonly data.
-        static constexpr auto count    = 6;
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto disabled = __COUNTER__ - _counter;
+        static constexpr auto textonly = __COUNTER__ - _counter;
+        static constexpr auto ansitext = __COUNTER__ - _counter;
+        static constexpr auto richtext = __COUNTER__ - _counter;
+        static constexpr auto htmltext = __COUNTER__ - _counter;
+        static constexpr auto safetext = __COUNTER__ - _counter; // mime: Sensitive textonly data.
+        static constexpr auto count    = __COUNTER__ - _counter;
 
         namespace tag
         {

@@ -6237,7 +6237,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(gate_id))
                     {
-                        gear_ptr->set_clip_data(clipdata);
+                        gear_ptr->set_clipboard(clipdata);
                     }
                 }
             }
@@ -6716,7 +6716,7 @@ namespace netxs::ui
             }
             return active;
         }
-        auto get_clip_text(hids& gear)
+        auto get_clipboard_text(hids& gear)
         {
             gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
             auto& data = gear.board::cargo;
@@ -6739,7 +6739,7 @@ namespace netxs::ui
         auto paste(hids& gear)
         {
             auto& console = *target;
-            auto data = get_clip_text(gear);
+            auto data = get_clipboard_text(gear);
             if (data.size())
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
@@ -6748,6 +6748,8 @@ namespace netxs::ui
                 {
                     data = "\033[200~" + data + "\033[201~";
                 }
+                //todo paste is a special type operation like a mouse reporting.
+                //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
                 data_out(data);
                 return true;
             }
@@ -6758,7 +6760,7 @@ namespace netxs::ui
             auto form = selmod == mime::disabled ? mime::textonly
                                                  : selmod;
             pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-            gear.set_clip_data(target->panel, data, form);
+            gear.set_clipboard(target->panel, data, form);
         }
         auto copy(hids& gear)
         {
@@ -7487,7 +7489,7 @@ namespace netxs::ui
                 {
                     if (auto gear_ptr = bell::getref<hids>(c.gear_id))
                     {
-                        gear_ptr->set_clip_data(c);
+                        gear_ptr->set_clipboard(c);
                     }
                 });
             }

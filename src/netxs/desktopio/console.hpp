@@ -2722,7 +2722,7 @@ namespace netxs::ui
                     data.s11n(xmap, gear.slot);
                     if (data.length())
                     {
-                        gear.set_clip_data(gear.slot.size, data, mime::ansitext);
+                        gear.set_clipboard(gear.slot.size, data, mime::ansitext);
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
@@ -3050,7 +3050,7 @@ namespace netxs::ui
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clip_preview(face& canvas, time const& stamp)
+        void draw_clipboard_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
@@ -3138,7 +3138,7 @@ namespace netxs::ui
                 }
                 if (!direct && props.clip_preview_show)
                 {
-                    draw_clip_preview(canvas, stamp);
+                    draw_clipboard_preview(canvas, stamp);
                 }
                 if (props.tooltip_enabled)
                 {
@@ -3432,7 +3432,7 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, hids::events::mouse::button::click::leftright, gear, tokens)
             {
-                if (gear.clear_clip_data())
+                if (gear.clear_clipboard())
                 {
                     this->bell::template expire<tier::release>();
                     gear.dismiss();

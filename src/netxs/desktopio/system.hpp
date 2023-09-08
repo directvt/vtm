@@ -88,6 +88,7 @@ namespace netxs::os
     enum class role { client, server };
 
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
+    static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static constexpr auto pipebuf = si32{ 65536 };
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
@@ -384,7 +385,6 @@ namespace netxs::os
             namespace console
             {
                 static auto buffer = dot_11; // Scrollback/viewport size.
-                static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
 
                 enum fx
                 {
@@ -618,7 +618,7 @@ namespace netxs::os
                     void cout(view utf8)
                     {
                         ansi::parse(utf8, this);
-                        if (autosync) ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)coord.x, .Y = (SHORT)coord.y }); // Viewport follows to cursor.
+                        if (os::autosync) ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)coord.x, .Y = (SHORT)coord.y }); // Viewport follows to cursor.
                     }
                     auto status()
                     {
@@ -5109,9 +5109,7 @@ namespace netxs::os
                             }
                             {
                                 auto lock = logger::globals(); // Sync with logger.
-                                #if defined(_WIN32)
-                                nt::console::autosync = true;
-                                #endif
+                                os::autosync = true;
                                 std::swap(tty::cout, write); // Restore original logger.
                             }
                             shut();
@@ -5125,9 +5123,7 @@ namespace netxs::os
                     {
                         auto lock = logger::globals(); // Sync with logger.
                         enter(ansi::styled(true)); // Enable style reporting (wrapping).
-                        #if defined(_WIN32)
-                        nt::console::autosync = faux; // Synchronize the viewport only when the vt-sequence "show caret" is received.
-                        #endif
+                        os::autosync = faux; // Synchronize viewport only when the vt-sequence "show caret" is received.
                         std::swap(tty::cout, write); // Activate log proxy.
                     }
                     tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, style);

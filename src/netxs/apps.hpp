@@ -197,7 +197,7 @@ namespace netxs::app::shared
 
                                 if (old_title.size()) // Copy old title to clipboard.
                                 {
-                                    gear.set_clip_data(dot_00, old_title, mime::ansitext);
+                                    gear.set_clipboard(dot_00, old_title, mime::ansitext);
                                 }
                             };
                         };

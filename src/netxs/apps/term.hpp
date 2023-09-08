@@ -371,7 +371,7 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    gear.clear_clip_data();
+                    gear.clear_clipboard();
                 });
             }
             static void TerminalSelectionCopy(ui::pads& boss, menu::item& item)
