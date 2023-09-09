@@ -1241,10 +1241,11 @@ namespace netxs::os
         void abort(std::thread& thread) // Abort a blocked reading thread.
         {
             std::this_thread::yield(); // Try to ensure that the reading thread has already called a syscall (30-180ms lag).
+            auto h = thread.native_handle();
             #if defined(_WIN32)
-                ok(::CancelSynchronousIo(thread.native_handle()), "::CancelSynchronousIo()", os::unexpected_msg);
+                ::CancelSynchronousIo(h);
             #else
-                ok(::pthread_kill(thread.native_handle(), SIGUSR2), "::pthread_kill(SIGUSR2)", os::unexpected_msg);
+                ::pthread_kill(h, SIGUSR2);
             #endif
         }
         template<class Size_t>
@@ -3455,6 +3456,7 @@ namespace netxs::os
             std::thread             stdwrite{};
             testy<twod>             termsize{};
             flag                    attached{};
+            flag                    signaled{};
             escx                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
@@ -3463,7 +3465,7 @@ namespace netxs::os
            ~vtty()
             {
                 sighup();
-                cleanup(true);
+                cleanup(faux);
             }
 
             operator bool () { return attached; }
@@ -3495,9 +3497,7 @@ namespace netxs::os
                 {
                     if (attached.exchange(faux))
                     {
-                        auto exitcode = termlink->wait();
-                        log(prompt::vtty, "Process '", utf::debase(cmdline), "' exited with code ", utf::to_hex_0x(exitcode));
-                        terminal.onexit(exitcode);
+                        writesyn.notify_one(); // Interrupt writing thread.
                     }
                 };
                 auto errcode = termlink->attach(terminal, win_size, cwd, cmdline, trailer);
@@ -3521,15 +3521,12 @@ namespace netxs::os
                     guard.unlock();
                     if (terminal.io_log) log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache)) cache.clear();
-                    else                       break;
+                    else
+                    {
+                        if (terminal.io_log) log(prompt::vtty, "Unexpected disconnect");
+                        break;
+                    }
                     guard.lock();
-                }
-                if (attached.exchange(faux))
-                {
-                    if (terminal.io_log) log(prompt::vtty, "Unexpected disconnect");
-                    termlink->sighup();
-                    auto exitcode = termlink->wait();
-                    terminal.onexit(exitcode);
                 }
             }
             template<class Term>
@@ -3540,18 +3537,21 @@ namespace netxs::os
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     attach_process(terminal, cwd, cmdline, win_size);
                     writer(terminal);
+                    if (attached.exchange(faux))
+                    {
+                        if (!signaled.exchange(true)) termlink->sighup();
+                    }
+                    auto exitcode = termlink->wait();
+                    log(prompt::vtty, "Process '", utf::debase(cmdline), "' exited with code ", utf::to_hex_0x(exitcode));
+                    terminal.onexit(exitcode);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
             }
             void sighup()
             {
-                if (attached)
+                if (attached && !signaled.exchange(true))
                 {
                     termlink->sighup();
-                    //auto guard = std::lock_guard{ writemtx };
-                    //writebuf.add("\x04");  // Closes bash but doesn't mc
-                    //writebuf.add("\x1A");  // Stop fg mc but doesn't bash
-                    //writesyn.notify_one();
                 }
             }
             void resize(twod const& newsize)

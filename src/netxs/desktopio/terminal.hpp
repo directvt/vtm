@@ -332,6 +332,7 @@ namespace netxs::ui
             }
             void enable(mode m)
             {
+                if (!owner.active) return;
                 state = (mode)(state | m);
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
@@ -1200,14 +1201,14 @@ namespace netxs::ui
                 {
                     auto status = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                     : (si32)parser::style.wrp();
-                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
+                    if (owner.active) owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? (si32)bias::left
                                                                     : (si32)parser::style.jet();
-                    owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
+                    if (owner.active) owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -6516,7 +6517,7 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            bell::trysync(active, [&]
+            auto done = bell::trysync(active, [&]
             {
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
@@ -6534,6 +6535,7 @@ namespace netxs::ui
                 }
                 unsync = true;
             });
+            if (!done) proc();
         }
         // term: Proceed terminal input.
         void ondata(view data, bufferbase* target)
@@ -6556,6 +6558,7 @@ namespace netxs::ui
         // term: Shutdown callback handler.
         void onexit(si32 code, text msg = {})
         {
+            if (active)
             netxs::events::enqueue(This(), [&, code, msg](auto& boss)
             {
                 ipccon.cleanup(io_log);
@@ -6665,6 +6668,7 @@ namespace netxs::ui
         void selection_selmod(si32 newmod)
         {
             selmod = newmod;
+            if (!active) return;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
             if (mtrack && selmod == mime::disabled)
@@ -6677,6 +6681,7 @@ namespace netxs::ui
         void selection_selalt(bool boxed)
         {
             selalt = boxed;
+            if (!active) return;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selalt, selalt);
             if (mtrack && selmod == mime::disabled)
@@ -6778,6 +6783,7 @@ namespace netxs::ui
         }
         auto prnscrn(hids& gear)
         {
+            if (!active) return;
             auto selbox = true;
             auto square = target->panel;
             auto seltop = dot_00;
@@ -6966,6 +6972,7 @@ namespace netxs::ui
         }
         void selection_search(hids& gear, feed dir)
         {
+            if (!active) return;
             auto& console = *target;
             auto delta = dot_00;
             auto fwd = dir == feed::fwd;
@@ -7011,6 +7018,7 @@ namespace netxs::ui
         }
         void set_bg_color(rgba bg)
         {
+            if (!active) return;
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto brush = base::color();
             brush.bgc(bg);
@@ -7021,6 +7029,7 @@ namespace netxs::ui
         }
         void set_fg_color(rgba fg)
         {
+            if (!active) return;
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto brush = base::color();
             brush.fgc(fg);
@@ -7066,6 +7075,7 @@ namespace netxs::ui
         void set_log(bool state)
         {
             io_log = state;
+            if (!active) return;
             SIGNAL(tier::release, ui::term::events::io_log, state);
         }
         void exec_cmd(commands::ui::commands cmd)
@@ -7145,6 +7155,10 @@ namespace netxs::ui
             }
         }
 
+       ~term()
+        {
+            active.exchange(faux);
+        }
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },

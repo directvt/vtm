@@ -1159,7 +1159,7 @@ struct impl : consrv
                             {
                                 if constexpr (isreal())
                                 {
-                                    server.uiterm.cursor.toggle();
+                                    if (server.uiterm.active) server.uiterm.cursor.toggle();
                                 }
                             }
                             data.crop(size);
@@ -3652,9 +3652,12 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            auto [form, show] = uiterm.cursor.style();
-            packet.reply.style = form ? 100 : 1;
-            packet.reply.alive = show;
+            if (uiterm.active)
+            {
+                auto [form, show] = uiterm.cursor.style();
+                packet.reply.style = form ? 100 : 1;
+                packet.reply.alive = show;
+            }
         }
         else
         {
@@ -3685,9 +3688,12 @@ struct impl : consrv
         {
             if constexpr (isreal())
             {
-                uiterm.cursor.style(packet.input.style > 50);
-                packet.input.alive ? uiterm.cursor.show()
-                                   : uiterm.cursor.hide();
+                if (uiterm.active)
+                {
+                    uiterm.cursor.style(packet.input.style > 50);
+                    packet.input.alive ? uiterm.cursor.show()
+                                       : uiterm.cursor.hide();
+                }
             }
         }
         else

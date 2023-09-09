@@ -644,17 +644,18 @@ namespace netxs::events
         }
         // bell: Sync with UI thread.
         template<class P>
-        void trysync(flag& active, P proc)
+        auto trysync(flag& active, P proc)
         {
             while (active)
             {
                 if (auto guard = netxs::events::try_sync{})
                 {
                     proc();
-                    break;
+                    return true;
                 }
                 std::this_thread::yield();
             }            
+            return faux;
         }
         void _saveme()
         {

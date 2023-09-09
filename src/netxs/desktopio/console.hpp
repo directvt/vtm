@@ -3812,20 +3812,20 @@ namespace netxs::ui
         // host: Create a new root of the specified subtype and attach it.
         auto invite(sptr<pipe> uplink, sptr<base>& applet, si32 vtmode, twod winsz)
         {
-            {
-                auto lock = events::sync{};
-                client = base::create<gate>(uplink, vtmode, host::config);
-                client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-                client->attach(applet);
-                client->base::resize(winsz);
-            }
+            auto lock = events::unique_lock();
+            client = base::create<gate>(uplink, vtmode, host::config);
+            client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            client->attach(applet);
+            client->base::resize(winsz);
+            lock.unlock();
             client->launch();
+            lock.lock();
+            client.reset();
         }
         // host: Shutdown.
         void shutdown()
         {
             auto lock = events::sync{};
-            client.reset(); // Only for standalone apps.
             mouse.reset();
             tokens.reset();
         }
