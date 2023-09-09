@@ -1163,6 +1163,10 @@ namespace netxs::os
             static auto state = []
             {
                 auto action = [](auto){ };
+                auto forced_EINTR = (struct sigaction){};
+                forced_EINTR.sa_flags = 0 & ~SA_RESTART; // BSD systems require it for EINTR.
+                forced_EINTR.sa_handler = action;
+                ::sigaction(SIGUSR2, &forced_EINTR, nullptr); // Readfile interruptor.
                 ::signal(SIGWINCH, action); // BSD systems require a dummy action for this signal.
                 ::signal(SIGCHLD, SIG_IGN); // Auto wait child zombies.
                 ::signal(SIGPIPE, SIG_IGN); // Ignore writing to a broken pipe.
@@ -1179,12 +1183,13 @@ namespace netxs::os
                     ::pthread_sigmask(SIG_SETMASK, &backup, nullptr);
                     ::signal(SIGCHLD,  SIG_DFL);
                     ::signal(SIGPIPE,  SIG_DFL);
+                    ::signal(SIGUSR2,  SIG_DFL);
                     ::signal(SIGWINCH, SIG_DFL);
                 };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
 
-            struct fd // Signals s11n.
+            struct fd // Signal s11n.
             {
                 flag        active = { true };
                 fd_t        handle[2] = { os::invalid_fd, os::invalid_fd };
@@ -1222,16 +1227,28 @@ namespace netxs::os
     namespace io
     {
         template<class Size_t>
-        auto recv(fd_t fd, char* buffer, Size_t size)
+        auto recv(fd_t& fd, char* buffer, Size_t size)
         {
             #if defined(_WIN32)
                 auto count = DWORD{};
                 ::ReadFile(fd, buffer, (DWORD)size, &count, nullptr);
             #else
-                auto count = ::read(fd, buffer, size);
+                auto count = 0;
+                do count = ::read(fd, buffer, size);
+                while (count < 0 && errno == EINTR && fd != os::invalid_fd);
             #endif
             return count > 0 ? qiew{ buffer, count }
                              : qiew{}; // An empty result is always an error condition.
+        }
+        void wake(fd_t& fd) // Interrupt blocked read.
+        {
+            #if defined(_WIN32)
+                ::CancelIoEx(fd, nullptr);
+            #else
+                std::this_thread::yield(); // Try to ensure that the reading thread has already called a syscall (30-180ms lag).
+                fd = os::invalid_fd;
+                ::raise(SIGUSR2);
+            #endif
         }
         template<class Size_t>
         auto send(fd_t fd, char const* buffer, Size_t size)
@@ -1242,7 +1259,9 @@ namespace netxs::os
                     auto count = DWORD{};
                     ::WriteFile(fd, buffer, (DWORD)size, &count, nullptr);
                 #else
-                    auto count = ::write(fd, buffer, size);
+                    auto count = 0;
+                    do count = ::write(fd, buffer, size);
+                    while (count < 0 && errno == EINTR);
                 #endif
                 if (count == size) return true;
                 if (count > 0)
@@ -1822,6 +1841,38 @@ namespace netxs::os
             virtual flux& show(flux& s) const override
             {
                 return s << handle;
+            }
+        };
+
+        struct dtvtio : stdcon
+        {
+            flag inread{}; // ipc::dtvtio: Reading is incomplete.
+            fd_t readfd{ os:: invalid_fd }; // ipc::dtvtio: Resettable read handle.
+
+            using stdcon::stdcon;
+            void operator = (dtvtio&& p)
+            {
+                stdcon::operator=(std::move(p));
+                readfd = stdcon::handle.r;
+            }
+
+            qiew recv() override
+            {
+                auto result = qiew{};
+                inread.exchange(true);
+                if (pipe::active)
+                {
+                    result = io::recv(readfd, stdcon::buffer);
+                }
+                inread.exchange(faux);
+                return result;
+            }
+            void wake() override
+            {
+                if (pipe::shut() && inread)
+                {
+                    io::wake(readfd);
+                }
             }
         };
 
@@ -3199,9 +3250,8 @@ namespace netxs::os
             fd_t                    prochndl{ os::invalid_fd };
             pidt                    proc_pid{};
             flag                    attached{};
-            ipc::stdcon             termlink{};
+            ipc::dtvtio             termlink{};
             std::thread             stdinput{};
-            std::thread             stdwrite{};
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
@@ -3209,12 +3259,20 @@ namespace netxs::os
            ~vtty()
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
-                shut();
-                cleanup();
+                if (attached.exchange(faux)) // Detach child process and forget.
+                {
+                    writesyn.notify_one(); // Interrupt writing thread.
+                    termlink.wake(); // Interrupt reading thread.
+                }
+                if (stdinput.joinable())
+                {
+                    if constexpr (debugmode) log(prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    stdinput.join();
+                }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
 
-            operator bool () { return termlink; }
+            operator bool () { return attached; }
 
             auto attach_process(text cwd, text cmdline, twod winsz, size_t config_size)
             {
@@ -3348,40 +3406,34 @@ namespace netxs::os
                 #endif
                 os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                 os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-                return ipc::stdcon{ m_pipe_r, m_pipe_w };
+                return ipc::dtvtio{ m_pipe_r, m_pipe_w };
             }
-            void writer(auto shutdown)
+            void writer()
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                auto guard = std::unique_lock{ writemtx };
+                if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto cache = text{};
-                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
+                auto guard = std::unique_lock{ writemtx };
+                while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
                     if (termlink.send(cache)) cache.clear();
-                    else                      break;
+                    else
+                    {
+                        if constexpr (debugmode) log(prompt::dtvt, "Unexpected disconnection");
+                        if (attached.exchange(faux)) termlink.wake(); // Interrupt reading thread.
+                        break;
+                    }
                     guard.lock();
                 }
-                if (attached.exchange(faux))
-                {
-                    if constexpr (debugmode) log(prompt::dtvt, "Unexpected disconnect");
-                    termlink.shut();
-                    shutdown();
-                }
-                if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
-            void reader(auto receiver, auto shutdown)
+            void reader(auto receiver)
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 directvt::binary::stream::reading_loop(termlink, receiver);
                 log(prompt::dtvt, "Process ", proc_pid, " disconnected");
-                if (attached.exchange(faux))
-                {
-                    termlink.shut();
-                    shutdown();
-                }
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void start(text cwd, text cmdline, text config, twod winsz, auto receiver, auto shutdown)
             {
@@ -3399,35 +3451,14 @@ namespace netxs::os
                     {
                         if constexpr (debugmode) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
                         writesyn.notify_one(); // Flush temp buffer.
-                        stdwrite = std::thread{[&, shutdown] { writer(shutdown); }};
-                        reader(receiver, shutdown);
+                        auto stdwrite = std::thread{[&] { writer(); }};
+                        reader(receiver);
+                        if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
+                        if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                        stdwrite.join();
+                        shutdown();
                     }
                 }};
-            }
-            void cleanup()
-            {
-                if (stdwrite.joinable())
-                {
-                    writesyn.notify_one();
-                    if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    stdwrite.join();
-                }
-                if (stdinput.joinable())
-                {
-                    if constexpr (debugmode) log(prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
-                    stdinput.join();
-                }
-                auto guard = std::lock_guard{ writemtx };
-                termlink = {};
-                writebuf = {};
-            }
-            void shut()
-            {
-                if (attached.exchange(faux))
-                if (termlink)
-                {
-                    termlink.shut();
-                }
             }
             void output(view data)
             {

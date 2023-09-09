@@ -7121,10 +7121,6 @@ namespace netxs::ui
         {
             forced = fast;
             if (ipccon) ipccon.sighup();
-            else netxs::events::enqueue(This(), [&](auto& boss)
-            {
-                close();
-            });
         }
         // term: Resize terminal window.
         void window_resize(twod winsz)
@@ -7764,6 +7760,7 @@ namespace netxs::ui
         // dtvt: Destruct dtvt-object.
         void close()
         {
+            if (active.exchange(faux))
             netxs::events::enqueue(This(), [&](auto& boss)
             {
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true);
@@ -7905,6 +7902,13 @@ namespace netxs::ui
                     fill(parent_canvas, canvas);
                 }
             };
+        }
+       ~dtvt()
+        {
+            if (active.exchange(faux))
+            {
+                stop(true);
+            }
         }
     };
 }

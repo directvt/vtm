@@ -3394,8 +3394,6 @@ namespace netxs::ui
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
                 canal.wake();
-                //canal.shut();
-                //this->SIGNAL(tier::general, e2::shutdown, msg);
             };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {
@@ -3460,7 +3458,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
                 log(prompt::gate, "Console error: ", errcode);
-                //canal.shut();
                 canal.wake();
             };
             LISTEN(tier::release, e2::conio::quit, deal, tokens)
@@ -3471,19 +3468,15 @@ namespace netxs::ui
                 canal.wake();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
-                //conio.quit.send(canal, 0);
-                //std::this_thread::sleep_for(1s);
                 base::detach();
                 tokens.reset();
             };
             LISTEN(tier::preview, e2::conio::quit, deal, tokens)
             {
-                //canal.shut();
                 canal.wake();
             };
             LISTEN(tier::general, e2::conio::quit, deal, tokens)
             {
-                //canal.shut();
                 canal.wake();
             };
             //LISTEN(tier::general, e2::conio::logs, utf8, tokens)
@@ -3832,7 +3825,7 @@ namespace netxs::ui
         void shutdown()
         {
             auto lock = events::sync{};
-            client.reset();
+            client.reset(); // Only for standalone apps.
             mouse.reset();
             tokens.reset();
         }
