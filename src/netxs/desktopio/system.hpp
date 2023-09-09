@@ -1213,7 +1213,7 @@ namespace netxs::os
                ~fd()
                 {
                     active.exchange(faux);
-                    ok(::pthread_kill(thread.native_handle(), SIGUSR1), "::pthread_kill(", os::unexpected_msg);
+                    ok(::pthread_kill(thread.native_handle(), SIGUSR1), "::pthread_kill(SIGUSR1)", os::unexpected_msg);
                     if (thread.joinable()) thread.join();
                     os::close(handle[1]);
                     os::close(handle[0]);
@@ -1227,27 +1227,24 @@ namespace netxs::os
     namespace io
     {
         template<class Size_t>
-        auto recv(fd_t& fd, char* buffer, Size_t size)
+        auto recv(fd_t fd, char* buffer, Size_t size)
         {
             #if defined(_WIN32)
                 auto count = DWORD{};
                 ::ReadFile(fd, buffer, (DWORD)size, &count, nullptr);
             #else
-                auto count = 0;
-                do count = ::read(fd, buffer, size);
-                while (count < 0 && errno == EINTR && fd != os::invalid_fd);
+                auto count = ::read(fd, buffer, size);
             #endif
             return count > 0 ? qiew{ buffer, count }
                              : qiew{}; // An empty result is always an error condition.
         }
-        void wake(fd_t& fd) // Interrupt blocked read.
+        void abort(std::thread& thread) // Abort a blocked reading thread.
         {
+            std::this_thread::yield(); // Try to ensure that the reading thread has already called a syscall (30-180ms lag).
             #if defined(_WIN32)
-                ::CancelIoEx(fd, nullptr);
+                ok(::CancelSynchronousIo(thread.native_handle()), "::CancelSynchronousIo()", os::unexpected_msg);
             #else
-                std::this_thread::yield(); // Try to ensure that the reading thread has already called a syscall (30-180ms lag).
-                fd = os::invalid_fd;
-                ::raise(SIGUSR2);
+                ok(::pthread_kill(thread.native_handle(), SIGUSR2), "::pthread_kill(SIGUSR2)", os::unexpected_msg);
             #endif
         }
         template<class Size_t>
@@ -1259,9 +1256,7 @@ namespace netxs::os
                     auto count = DWORD{};
                     ::WriteFile(fd, buffer, (DWORD)size, &count, nullptr);
                 #else
-                    auto count = 0;
-                    do count = ::write(fd, buffer, size);
-                    while (count < 0 && errno == EINTR);
+                    auto count = ::write(fd, buffer, size);
                 #endif
                 if (count == size) return true;
                 if (count > 0)
@@ -1781,6 +1776,7 @@ namespace netxs::os
         {
             sock handle; // ipc::stdcon: IO descriptor.
             text buffer; // ipc::stdcon: Receive buffer.
+            flag inread; // ipc::stdcon: Reading is incomplete.
 
             stdcon()
                 : pipe{ faux },
@@ -1822,11 +1818,25 @@ namespace netxs::os
             }
             virtual qiew recv(char* buff, size_t size) override
             {
-                return io::recv(handle, buff, size); // The read call can be interrupted by the write side when its read call is interrupted.
+                auto result = qiew{};
+                inread.exchange(true);
+                if (pipe::active) // The read call can be interrupted by io::abort().
+                {
+                    result = io::recv(handle, buff, size); // The read call can be interrupted by the write side when their read call is interrupted.
+                }
+                inread.exchange(faux);
+                return result;
             }
             virtual qiew recv()  override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
+            }
+            void abort(auto& thread)
+            {
+                if (pipe::shut() && inread)
+                {
+                    io::abort(thread);
+                }
             }
             virtual bool shut() override
             {
@@ -1841,38 +1851,6 @@ namespace netxs::os
             virtual flux& show(flux& s) const override
             {
                 return s << handle;
-            }
-        };
-
-        struct dtvtio : stdcon
-        {
-            flag inread{}; // ipc::dtvtio: Reading is incomplete.
-            fd_t readfd{ os:: invalid_fd }; // ipc::dtvtio: Resettable read handle.
-
-            using stdcon::stdcon;
-            void operator = (dtvtio&& p)
-            {
-                stdcon::operator=(std::move(p));
-                readfd = stdcon::handle.r;
-            }
-
-            qiew recv() override
-            {
-                auto result = qiew{};
-                inread.exchange(true);
-                if (pipe::active)
-                {
-                    result = io::recv(readfd, stdcon::buffer);
-                }
-                inread.exchange(faux);
-                return result;
-            }
-            void wake() override
-            {
-                if (pipe::shut() && inread)
-                {
-                    io::wake(readfd);
-                }
             }
         };
 
@@ -3155,7 +3133,6 @@ namespace netxs::os
                 };
                 std::atexit(repair);
             }
-            //dtvt::mode |= dtvt::nt16;
             return active;
         }();
         static auto vtmode = []       // tty: VT mode bit set.
@@ -3250,7 +3227,7 @@ namespace netxs::os
             fd_t                    prochndl{ os::invalid_fd };
             pidt                    proc_pid{};
             flag                    attached{};
-            ipc::dtvtio             termlink{};
+            ipc::stdcon             termlink{};
             std::thread             stdinput{};
             text                    writebuf{};
             std::mutex              writemtx{};
@@ -3262,7 +3239,7 @@ namespace netxs::os
                 if (attached.exchange(faux)) // Detach child process and forget.
                 {
                     writesyn.notify_one(); // Interrupt writing thread.
-                    termlink.wake(); // Interrupt reading thread.
+                    termlink.abort(stdinput); // Interrupt reading thread.
                 }
                 if (stdinput.joinable())
                 {
@@ -3406,7 +3383,7 @@ namespace netxs::os
                 #endif
                 os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                 os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-                return ipc::dtvtio{ m_pipe_r, m_pipe_w };
+                return ipc::stdcon{ m_pipe_r, m_pipe_w };
             }
             void writer()
             {
@@ -3421,7 +3398,7 @@ namespace netxs::os
                     else
                     {
                         if constexpr (debugmode) log(prompt::dtvt, "Unexpected disconnection");
-                        if (attached.exchange(faux)) termlink.wake(); // Interrupt reading thread.
+                        if (attached.exchange(faux)) termlink.abort(stdinput); // Interrupt reading thread.
                         break;
                     }
                     guard.lock();
