@@ -720,7 +720,7 @@ namespace netxs::ui
                 #define V [](auto& q, auto& p)
                 vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_space[csi_spc_cst] = V{ if (p->owner.active) p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
                 vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
@@ -6262,6 +6262,7 @@ namespace netxs::ui
         // term: Set termnail parameters. (DECSET).
         void _decset(si32 n)
         {
+            if (!active) return;
             switch (n)
             {
                 case 1:    // Cursor keys application mode.
@@ -6373,6 +6374,7 @@ namespace netxs::ui
         // term: Reset termnail parameters. (DECRST).
         void _decrst(si32 n)
         {
+            if (!active) return;
             switch (n)
             {
                 case 1:    // Cursor keys ANSI mode.
@@ -6622,6 +6624,7 @@ namespace netxs::ui
         // term: Reset to defaults.
         void setdef()
         {
+            if (!active) return;
             auto& console = *target;
             console.style.reset();
             console.style.wrp(config.def_wrpmod);
