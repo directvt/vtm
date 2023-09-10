@@ -6207,7 +6207,7 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
-        flag       active; // term: Terminal lifetime.
+        flag       active; // term: Terminal lifetime. //todo it is a hack to sync with ipccon dtor in UI thread.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
