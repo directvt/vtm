@@ -82,4 +82,6 @@ int main(int argc, char* argv[])
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         app::shared::start(params, app::calc::id, vtmode, os::dtvt::win_sz, config);
     }
+
+    os::release();
 }

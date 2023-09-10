@@ -3777,7 +3777,7 @@ namespace netxs::ui
             LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
                 if constexpr (debugmode) log(prompt::host, msg);
-                active.exchange(faux); // To prevent new apps running.
+                active.exchange(faux); // To prevent new applications from launching.
                 canal.stop();
             };
             LISTEN(tier::general, hids::events::device::user::login, props, tokens)

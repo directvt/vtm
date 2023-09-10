@@ -87,12 +87,17 @@ namespace netxs::os
 
     enum class role { client, server };
 
-    static auto finalized = flag{ faux }; // Ready flag for clean exit.
-    static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static constexpr auto pipebuf = si32{ 65536 };
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected_msg = " returns unexpected result"sv;
+    static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
+    static auto finalized = flag{ faux }; // Ready flag for clean exit.
+    void release()
+    {
+        os::finalized.exchange(true);
+        os::finalized.notify_all();
+    }
 
     #if defined(_WIN32)
 
@@ -4142,6 +4147,7 @@ namespace netxs::os
         void reader(auto& alarm, auto keybd, auto mouse, auto winsz, auto focus, auto paste, auto close, auto style)
         {
             if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            auto alive = true;
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
             auto f = input::sysfocus{};
@@ -4172,7 +4178,7 @@ namespace netxs::os
                     }
                 };
                 fd_t waits[] = { os::stdin_fd, alarm };
-                while (WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count))
                     {
@@ -4189,7 +4195,7 @@ namespace netxs::os
                         {
                             auto entry = reply.begin();
                             auto limit = entry + count;
-                            while (entry != limit)
+                            while (alive && entry != limit)
                             {
                                 auto& r = *entry++;
                                 switch (r.EventType)
@@ -4277,7 +4283,7 @@ namespace netxs::os
                                             case nt::console::event::close:
                                             case nt::console::event::logoff:
                                             case nt::console::event::shutdown:
-                                                close(c);
+                                                alive = faux;;
                                                 break;
                                             case nt::console::event::style:
                                                 if (entry != limit && entry->EventType == MENU_EVENT)
@@ -4409,9 +4415,6 @@ namespace netxs::os
                         os::close(fd);
                     }
                 }
-
-                auto alive = true;
-                //auto close = faux;
 
                 // The following sequences are processed here:
                 // ESC
@@ -4717,7 +4720,7 @@ namespace netxs::os
                             case SIGHUP:  // App close.
                             case SIGTERM: // System shutdown.
                                 if constexpr (debugmode) log(prompt::tty, "Process ", os::process::id.first, " received signal ", signal);
-                                close(c);
+                                alive = faux;
                             default: break;
                         }
                     }
@@ -4929,22 +4932,6 @@ namespace netxs::os
             auto clips = std::thread{ [&]{ tty::clipbd(alarm); } };
             directvt::binary::stream::reading_loop(intio, [&](view data){ tty::stream.s11n::sync(data); });
             tty::stream.s11n::stop(); // Wake up waiting objects, if any.
-
-            //while (true)
-            //{
-            //    if (auto data = intio.recv())
-            //    {
-            //        if (proxy(yield) && !io::send(os::stdout_fd, yield))
-            //        {
-            //            break; // Break because we can't send outside.
-            //        }
-            //    }
-            //    else
-            //    {
-            //        alive.exchange(faux); // Stop sending to server if zero received from intio.recv().
-            //        break;
-            //    }
-            //}
             alarm.bell(); // Forced to call close().
             clips.join();
             input.join(); // Wait close() to complete.
@@ -4977,8 +4964,6 @@ namespace netxs::os
             os::dtvt::client = client;
             os::dtvt::active ? tty::direct()
                              : tty::legacy();
-            os::finalized.exchange(true);
-            os::finalized.notify_all();
         }
 
         struct readline

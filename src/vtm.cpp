@@ -318,4 +318,6 @@ int main(int argc, char* argv[])
         events::dequeue(); // Wait until all users and monitors are disconnected.
         domain->shutdown();
     } // Close all running apps in dtors.
+
+    os::release();
 }

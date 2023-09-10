@@ -422,7 +422,7 @@ namespace netxs::ui
             auto& get(text const& property)
             {
                 auto& utf8 = props[property];
-                if (property == ansi::osc_title)
+                if (owner.active && property == ansi::osc_title)
                 {
                     owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
                 }
@@ -433,6 +433,7 @@ namespace netxs::ui
             {
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
                 owner.target->flush();
+                if (!owner.active) return;
                 if (property == ansi::osc_label_title)
                 {
                                   props[ansi::osc_label] = txt;
@@ -6224,6 +6225,7 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
+            if (!active) return;
             auto clipdata = input::clipdata{};
             auto delimpos = data.find(';');
             if (delimpos != text::npos)
@@ -6723,6 +6725,7 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
+            if (!active) return gear.board::cargo.utf8;
             gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
@@ -6803,6 +6806,7 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
+            if (!active) return;
             RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
             if (!gear_test.second) // Set exclusive focus on right click.
             {
@@ -6816,6 +6820,7 @@ namespace netxs::ui
         }
         void selection_mclick(hids& gear)
         {
+            if (!active) return;
             auto& console = *target;
             auto utf8 = text{};
             if (console.selection_active()) // Paste from selection.
@@ -7120,7 +7125,7 @@ namespace netxs::ui
         }
         void close()
         {
-            this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+            if (active) this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
         }
         void restart()
         {
@@ -7135,6 +7140,7 @@ namespace netxs::ui
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
+            if (!active) return;
             auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
             auto warp = rect{ dot_00, size } - rect{ dot_00, target->panel };
             RISEUP(tier::preview, e2::form::layout::swarp, warp);

@@ -4133,7 +4133,7 @@ struct impl : consrv
         }
         if constexpr (isreal())
         {
-            uiterm.wtrack.set(ansi::osc_title, utf8_title);
+            if (uiterm.active) uiterm.wtrack.set(ansi::osc_title, utf8_title);
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
             ": ", ansi::hi(utf::debase<faux, faux>(utf8_title)));
