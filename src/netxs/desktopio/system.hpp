@@ -1173,7 +1173,8 @@ namespace netxs::os
                 forced_EINTR.sa_handler = action;
                 ::sigaction(SIGUSR2, &forced_EINTR, nullptr); // Readfile interruptor.
                 ::signal(SIGWINCH, action); // BSD systems require a dummy action for this signal.
-                ::signal(SIGCHLD, SIG_IGN); // Auto wait child zombies.
+                //todo handle SIGCHLD: BSD requirement.
+                //::signal(SIGCHLD, SIG_IGN); // Auto wait child zombies.
                 ::signal(SIGPIPE, SIG_IGN); // Ignore writing to a broken pipe.
                 sigemptyset(&sigset);
                 sigemptyset(&backup);

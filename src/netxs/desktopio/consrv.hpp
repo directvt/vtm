@@ -4969,9 +4969,12 @@ struct consrv : ipc::stdcon
         auto code = si32{};
         while ((p_id = ::waitpid(-group_id, &stat, 0)) > 0) // Wait all child processes.
         {
-            auto c = WEXITSTATUS(stat);
-            if (c) log(prompt::vtty, ansi::err("Process ", p_id, " terminated wth code ", c));
-            if (p_id == group_id) code = c;
+            if (WIFEXITED(stat))
+            {
+                auto c = WEXITSTATUS(stat);
+                if (c) log(prompt::vtty, ansi::err("Process ", p_id, " exited wth code ", c));
+                if (p_id == group_id) code = c;
+            }
         }
         stdcon::stop();
         return code;

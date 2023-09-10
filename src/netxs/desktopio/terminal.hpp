@@ -6606,7 +6606,6 @@ namespace netxs::ui
                     ondata(byemsg);
                     start();
                 };
-                //query();return;
                      if (forced)                close();
                 else if (resume.exchange(faux)) renew();
                 else switch (config.def_atexit)
@@ -7139,6 +7138,11 @@ namespace netxs::ui
         {
             forced = fast;
             if (ipccon) ipccon.sighup();
+            else // Child process exited with non-zero code and term waits keypress.
+            {
+                onerun.reset();
+                close();
+            }
         }
         // term: Resize terminal window.
         void window_resize(twod winsz)

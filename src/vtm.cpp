@@ -160,7 +160,8 @@ int main(int argc, char* argv[])
         });
         while (online)
         {
-            if (stream = os::ipc::socket::open<os::role::client, faux>(prefix))
+            stream = os::ipc::socket::open<os::role::client, faux>(prefix);
+            if (stream)
             {
                 log(prompt::main, "Connected");
                 stream->send(utf::concat(os::process::id.first));
