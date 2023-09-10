@@ -2335,6 +2335,7 @@ namespace netxs::ui
         {
             pipe& canal; // link: Data highway.
             base& owner; // link: Link owner.
+            flag  alive; // link: sysclose isn't sent.
 
             // link: Send data outside.
             void run()
@@ -2343,11 +2344,21 @@ namespace netxs::ui
                 s11n::stop(); // Wake up waiting objects, if any.
                 if constexpr (debugmode) log(prompt::gate, "DirectVT session complete");
             }
+            // link: Notify environment to disconnect.
+            void disconnect()
+            {
+                if (alive.exchange(faux))
+                {
+                    s11n::sysclose.send(canal, 0, true);
+                    canal.wake();
+                }
+            }
 
             link(pipe& canal, base& owner)
                 : s11n{ *this },
                  canal{ canal },
-                 owner{ owner }
+                 owner{ owner },
+                 alive{ true  }
             { }
 
             // link: Send an event message to the link owner.
@@ -3393,7 +3404,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
                 if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
-                canal.wake();
+                conio.disconnect();
             };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
             {
@@ -3458,26 +3469,25 @@ namespace netxs::ui
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
                 log(prompt::gate, "Console error: ", errcode);
-                canal.wake();
+                conio.disconnect();
             };
-            LISTEN(tier::release, e2::conio::quit, deal, tokens)
+            LISTEN(tier::release, e2::conio::quit, deal, tokens) // Reading loop ends.
             {
                 auto backup = this->This();
                 this->SIGNAL(tier::preview, e2::form::proceed::quit::one, true);
-                conio.sysclose.send(canal, 0, true);
-                canal.wake();
+                conio.disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.
                 base::detach();
                 tokens.reset();
             };
-            LISTEN(tier::preview, e2::conio::quit, deal, tokens)
+            LISTEN(tier::preview, e2::conio::quit, deal, tokens) // Disconnect.
             {
-                canal.wake();
+                conio.disconnect();
             };
-            LISTEN(tier::general, e2::conio::quit, deal, tokens)
+            LISTEN(tier::general, e2::conio::quit, deal, tokens) // Shutdown.
             {
-                canal.wake();
+                conio.disconnect();
             };
             //LISTEN(tier::general, e2::conio::logs, utf8, tokens)
             //{
