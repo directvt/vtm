@@ -90,7 +90,7 @@ namespace netxs::os
     static constexpr auto pipebuf = si32{ 65536 };
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
-    static constexpr auto unexpected_msg = " returns unexpected result"sv;
+    static constexpr auto unexpected = " returns unexpected result"sv;
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
     void release()
@@ -955,7 +955,7 @@ namespace netxs::os
                                                   .height    = 32,
                                                   .charcount = 512,
                                                   .data      = chars.data() };
-                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_GET)", os::unexpected_msg)) return;
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_GET)", os::unexpected)) return;
 
                     auto slice_bytes = (fdata.width + 7) / 8;
                     auto block_bytes = (slice_bytes * fdata.height + 31) / 32 * 32;
@@ -972,7 +972,7 @@ namespace netxs::os
                         lowhalf_ptr+= slice_bytes;
                     }
                     fdata.op = KD_FONT_OP_SET;
-                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected_msg)) return;
+                    if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected)) return;
 
                     auto max_sz = std::numeric_limits<unsigned short>::max();
                     auto spairs = std::vector<unipair>(max_sz);
@@ -981,7 +981,7 @@ namespace netxs::os
                     auto dstmap = unimapdesc{ max_sz, dpairs.data() };
                     auto dstptr = dstmap.entries;
                     auto srcptr = srcmap.entries;
-                    if (!ok(::ioctl(os::stdout_fd, GIO_UNIMAP, &srcmap), "::ioctl(os::stdout_fd, GIO_UNIMAP)", os::unexpected_msg)) return;
+                    if (!ok(::ioctl(os::stdout_fd, GIO_UNIMAP, &srcmap), "::ioctl(os::stdout_fd, GIO_UNIMAP)", os::unexpected)) return;
                     auto srcend = srcmap.entries + srcmap.entry_ct;
                     while (srcptr != srcend) // Drop 10, 211, 254 and 0x2580▀ + 0x2584▄.
                     {
@@ -1004,7 +1004,7 @@ namespace netxs::os
                     {
                         for (auto& p : new_recs) *dstptr++ = p;
                         dstmap.entry_ct += std::size(new_recs);
-                        if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected_msg)) return;
+                        if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected)) return;
                     }
                     else log("%%", prompt::os, "VGA font loading failed - 'UNIMAP' is full");
                 }
@@ -1117,7 +1117,7 @@ namespace netxs::os
             fd_t h; // fire: Descriptor for IO interrupt.
 
             operator auto () { return h; }
-            fire(bool i = 1) { ok(h = ::CreateEventW(NULL, i, FALSE, NULL), "::CreateEventW()", os::unexpected_msg); }
+            fire(bool i = 1) { ok(h = ::CreateEventW(NULL, i, FALSE, NULL), "::CreateEventW()", os::unexpected); }
            ~fire()           { os::close(h); }
             void reset()     { fired.exchange(true); ::SetEvent(h);   }
             void flush()     { fired.exchange(faux); ::ResetEvent(h); }
@@ -1127,7 +1127,7 @@ namespace netxs::os
             fd_t h[2] = { os::invalid_fd, os::invalid_fd }; // fire: Descriptors for IO interrupt.
 
             operator auto () { return h[0]; }
-            fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected_msg); }
+            fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected); }
            ~fire()           { for (auto& f : h) os::close(f); }
             void reset()     { fired.exchange(true); auto c = ' '; auto rc = ::write(h[1], &c, sizeof(c)); }
             void flush()     { fired.exchange(faux); auto c = ' '; auto rc = ::read(h[0], &c, sizeof(c)); }
@@ -1200,8 +1200,8 @@ namespace netxs::os
 
                 fd()
                 {
-                    ok(::pipe(handle), "::pipe(h)", os::unexpected_msg); // ::pipe2() is not available on macOS.
-                    ok(::fcntl(handle[1], F_SETFL, ::fcntl(handle[1], F_GETFL) | O_NONBLOCK), "::fcntl(h, O_NONBLOCK)", os::unexpected_msg);
+                    ok(::pipe(handle), "::pipe(h)", os::unexpected); // ::pipe2() is not available on macOS.
+                    ok(::fcntl(handle[1], F_SETFL, ::fcntl(handle[1], F_GETFL) | O_NONBLOCK), "::fcntl(h, O_NONBLOCK)", os::unexpected);
                     thread = std::thread{[&]
                     {
                         auto signal = sigt{};
@@ -1209,14 +1209,14 @@ namespace netxs::os
                         {
                             auto rc = ::sigwait(&signals::sigset, &signal);
                             if (signal == SIGUSR1 && !active) break;
-                            if (signal > 0) ok(::write(handle[1], &signal, sizeof(signal)), "::write(h[1])", os::unexpected_msg);
+                            if (signal > 0) ok(::write(handle[1], &signal, sizeof(signal)), "::write(h[1])", os::unexpected);
                         }
                     }};
                 }
                ~fd()
                 {
                     active.exchange(faux);
-                    ok(::pthread_kill(thread.native_handle(), SIGUSR1), "::pthread_kill(SIGUSR1)", os::unexpected_msg);
+                    ok(::pthread_kill(thread.native_handle(), SIGUSR1), "::pthread_kill(SIGUSR1)", os::unexpected);
                     if (thread.joinable()) thread.join();
                     os::close(handle[1]);
                     os::close(handle[0]);
@@ -1440,11 +1440,11 @@ namespace netxs::os
             #if defined(_WIN32)
                 auto var = utf::to_utf(variable);
                 auto val = utf::to_utf(value);
-                ok(::SetEnvironmentVariableW(var.c_str(), val.c_str()), "::SetEnvironmentVariableW()", os::unexpected_msg);
+                ok(::SetEnvironmentVariableW(var.c_str(), val.c_str()), "::SetEnvironmentVariableW()", os::unexpected);
             #else
                 auto var = variable.str();
                 auto val = value.str();
-                ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv()", os::unexpected_msg);
+                ok(::setenv(var.c_str(), val.c_str(), 1), "::setenv()", os::unexpected);
             #endif
         }
         // os::env: Get list of envvars using wildcard.
@@ -1517,7 +1517,7 @@ namespace netxs::os
                 auto length = DWORD{};
                 ::GetUserNameW(buffer.data(), &length);
                 buffer.resize(length);
-                if(ok(::GetUserNameW(buffer.data(), &length), "::GetUserNameW()", os::unexpected_msg))
+                if(ok(::GetUserNameW(buffer.data(), &length), "::GetUserNameW()", os::unexpected))
                 {
                     if (length && buffer.back() == 0) buffer.pop_back();
                     return utf::to_utf(buffer);
@@ -1601,20 +1601,20 @@ namespace netxs::os
                             {
                                 std::memcpy(dest, data.data(), size);
                                 ::GlobalUnlock(gmem);
-                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "::SetClipboardData()", os::unexpected_msg, ", cf_format=", cf_format);
+                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "::SetClipboardData()", os::unexpected, ", cf_format=", cf_format);
                             }
-                            else log("%%", prompt::os, "::GlobalLock()", os::unexpected_msg);
+                            else log("%%", prompt::os, "::GlobalLock()", os::unexpected);
                             ::GlobalFree(gmem);
                         }
-                        else log("%%", prompt::os, "::GlobalAlloc()", os::unexpected_msg);
+                        else log("%%", prompt::os, "::GlobalAlloc()", os::unexpected);
                     };
                     cf_format == cf_text ? _send(utf::to_utf(data))
                                          : _send(data);
                 };
 
                 auto lock = std::lock_guard{ os::clipboard::mutex };
-                ok(::OpenClipboard(nullptr), "::OpenClipboard()", os::unexpected_msg);
-                ok(::EmptyClipboard(), "::EmptyClipboard()", os::unexpected_msg);
+                ok(::OpenClipboard(nullptr), "::OpenClipboard()", os::unexpected);
+                ok(::EmptyClipboard(), "::EmptyClipboard()", os::unexpected);
                 if (utf8.size())
                 {
                     if (type.size() < 5 || type.starts_with(mime::tag::text))
@@ -1665,7 +1665,7 @@ namespace netxs::os
                 {
                     success = true;
                 }
-                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
+                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
                 os::clipboard::sequence = ::GetClipboardSequenceNumber(); // The sequence number is incremented while closing the clipboard.
 
             #elif defined(__APPLE__)
@@ -1765,11 +1765,11 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
-                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA()", os::unexpected_msg);
-                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile()", os::unexpected_msg);
+                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA()", os::unexpected);
+                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile()", os::unexpected);
                     std::copy(std::begin(source), std::end(source), (char*)buffer);
-                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected_msg);
-                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation()", os::unexpected_msg);
+                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
+                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation()", os::unexpected);
                     return handle;
 
                 #endif
@@ -2010,7 +2010,7 @@ namespace netxs::os
                         auto size = unsigned{ sizeof(cred) };
                     #endif
 
-                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET)", os::unexpected_msg))
+                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET)", os::unexpected))
                     {
                         return faux;
                     }
@@ -2031,7 +2031,7 @@ namespace netxs::os
                     auto euid = uid_t{};
                     auto egid = gid_t{};
 
-                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid()", os::unexpected_msg))
+                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid()", os::unexpected))
                     {
                         return faux;
                     }
@@ -2093,7 +2093,7 @@ namespace netxs::os
                     auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
                     if (r == os::invalid_fd)
                     {
-                        if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(r)", os::unexpected_msg);
+                        if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(r)", os::unexpected);
                     }
                     else
                     {
@@ -2101,7 +2101,7 @@ namespace netxs::os
                         if (w == os::invalid_fd)
                         {
                             ::CloseHandle(r);
-                            if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(w)", os::unexpected_msg);
+                            if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(w)", os::unexpected);
                         }
                         else
                         {
@@ -2155,7 +2155,7 @@ namespace netxs::os
                         ::DisconnectNamedPipe(handle.w);
                         handle.shutdown(); // To trigger the read end to close.
                     #else
-                        ok(::shutdown(handle.w, SHUT_RDWR), "::shutdown()", os::unexpected_msg); // Further sends and receives are disallowed.
+                        ok(::shutdown(handle.w, SHUT_RDWR), "::shutdown()", os::unexpected); // Further sends and receives are disallowed.
                         // An important conceptual reason to want to use shutdown:
                         //    To signal EOF to the peer and still be able
                         //    to receive pending data the peer sent.
@@ -2247,14 +2247,14 @@ namespace netxs::os
                         r = pipe(to_server, PIPE_ACCESS_INBOUND);
                         if (r == os::invalid_fd)
                         {
-                            os::fail("::CreateNamedPipe(r)", os::unexpected_msg);
+                            os::fail("::CreateNamedPipe(r)", os::unexpected);
                         }
                         else
                         {
                             w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
                             if (w == os::invalid_fd)
                             {
-                                os::fail("::CreateNamedPipe(w)", os::unexpected_msg);
+                                os::fail("::CreateNamedPipe(w)", os::unexpected);
                                 os::close(r);
                             }
                         }
@@ -2915,7 +2915,7 @@ namespace netxs::os
             auto winsz = dot_00;
             #if defined(_WIN32)
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
-                if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected_msg))
+                if (ok(::GetConsoleScreenBufferInfo(os::stdout_fd, &cinfo), "::GetConsoleScreenBufferInfo", os::unexpected))
                 {
                     nt::console::buffer = { cinfo.dwSize.X, cinfo.dwSize.Y };
                     winsz = dtvt::scroll ? nt::console::buffer
@@ -2924,7 +2924,7 @@ namespace netxs::os
                 }
             #else
                 auto size = ::winsize{};
-                if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected_msg))
+                if (ok(::ioctl(os::stdout_fd, TIOCGWINSZ, &size), "::ioctl(os::stdout_fd, TIOCGWINSZ)", os::unexpected))
                 {
                     winsz = { size.ws_col, size.ws_row };
                 }
@@ -3024,16 +3024,16 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
 
-                    ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected_msg);
-                    ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected_msg);
+                    ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
+                    ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
                     dtvt::backup.opage = ::GetConsoleOutputCP();
                     dtvt::backup.ipage = ::GetConsoleCP();
-                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected_msg);
-                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected_msg);
+                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
+                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
                     auto inpmode = DWORD{ nt::console::inmode::extended
                                         | nt::console::inmode::winsize
                                         | nt::console::inmode::quickedit };
-                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected_msg);
+                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
                     auto outmode = DWORD{ nt::console::outmode::no_auto_cr
                                         | nt::console::outmode::wrap_at_eol
                                         | nt::console::outmode::preprocess
@@ -3042,22 +3042,22 @@ namespace netxs::os
                     {
                         dtvt::mode |= dtvt::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
-                        ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected_msg);
+                        ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
                         log("%%", prompt::os, "16-color windows console");
                     }
                     auto size = DWORD{ os::pipebuf };
                     auto wstr = wide(size, 0);
-                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW()", os::unexpected_msg);
+                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW()", os::unexpected);
                     dtvt::backup.title = wstr.data();
-                    ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected_msg);
+                    ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
 
                 #else
 
-                    if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected_msg))
+                    if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
                     {
                         auto raw_mode = dtvt::backup;
                         ::cfmakeraw(&raw_mode);
-                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected_msg);
+                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
                         os::vgafont();
                         io::send(os::stdout_fd, ansi::save_title());
                     }
@@ -3068,12 +3068,12 @@ namespace netxs::os
                 auto repair = []
                 {
                     #if defined(_WIN32)
-                        ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected_msg);
-                        ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected_msg);
-                        ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected_msg);
-                        ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected_msg);
-                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::GetConsoleTitleW()", os::unexpected_msg);
-                        ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected_msg);
+                        ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
+                        ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
+                        ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
+                        ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
+                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::GetConsoleTitleW()", os::unexpected);
+                        ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
                     #else
                         ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
                         io::send(os::stdout_fd, ansi::load_title());
@@ -3296,8 +3296,8 @@ namespace netxs::os
 
                     fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
                     fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
-                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
-                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
+                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected);
+                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected);
                     auto s_pipe_r = to_client[0];
                     auto s_pipe_w = to_server[1];
                     auto m_pipe_r = to_server[0];
@@ -3837,8 +3837,8 @@ namespace netxs::os
 
                     fd_t to_server[2] = { os::invalid_fd, os::invalid_fd };
                     fd_t to_client[2] = { os::invalid_fd, os::invalid_fd };
-                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected_msg);
-                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected_msg);
+                    ok(::pipe(to_server), "::pipe(to_server)", os::unexpected);
+                    ok(::pipe(to_client), "::pipe(to_client)", os::unexpected);
                     termlink = { to_server[0], to_client[1] };
                     proc_pid = os::process::sysfork();
                     if (proc_pid == 0) // Child branch.
@@ -4306,7 +4306,7 @@ namespace netxs::os
                     auto state = si32{ 0 };
                     #if defined(__linux__)
                         auto shift_state = si32{ 6 /*TIOCL_GETSHIFTSTATE*/ };
-                        ok(::ioctl(os::stdin_fd, TIOCLINUX, &shift_state), "::ioctl(os::stdin_fd, TIOCLINUX)", os::unexpected_msg);
+                        ok(::ioctl(os::stdin_fd, TIOCLINUX, &shift_state), "::ioctl(os::stdin_fd, TIOCLINUX)", os::unexpected);
                         auto lalt   = shift_state & (1 << KG_ALT   );
                         auto ralt   = shift_state & (1 << KG_ALTGR );
                         auto ctrl   = shift_state & (1 << KG_CTRL  );
@@ -4322,7 +4322,7 @@ namespace netxs::os
                         if (lshift) state |= input::hids::LShift;
                         if (rshift) state |= input::hids::RShift;
                         auto led_state = si32{};
-                        ok(::ioctl(os::stdin_fd, KDGKBLED, &led_state), "::ioctl(os::stdin_fd, KDGKBLED)", os::unexpected_msg);
+                        ok(::ioctl(os::stdin_fd, KDGKBLED, &led_state), "::ioctl(os::stdin_fd, KDGKBLED)", os::unexpected);
                         // CapsLock can always be 0 due to poorly coded drivers.
                         if (led_state & LED_NUM) state |= input::hids::NumLock;
                         if (led_state & LED_CAP) state |= input::hids::CapsLock;
@@ -4330,7 +4330,7 @@ namespace netxs::os
                     #endif
                     return state;
                 };
-                ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected_msg);
+                ok(::ttyname_r(os::stdout_fd, buffer.data(), buffer.size()), "::ttyname_r(os::stdout_fd)", os::unexpected);
                 auto tty_name = view(buffer.data());
                 if (!os::linux_console)
                 {
@@ -4643,7 +4643,7 @@ namespace netxs::os
                     {
                     #if defined(__linux__)
                         auto vt_state = ::vt_stat{};
-                        ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected_msg);
+                        ok(::ioctl(os::stdout_fd, VT_GETSTATE, &vt_state), "::ioctl(VT_GETSTATE)", os::unexpected);
                         if (vt_state.v_active == ttynum) // Proceed current active tty only.
                         {
                             auto scale = twod{ 6,12 }; //todo magic numbers
@@ -4724,7 +4724,7 @@ namespace netxs::os
                     switch (uMsg)
                     {
                         case WM_CREATE:
-                            ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected_msg);
+                            ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected);
                             // Continue processing the switch to initialize the clipboard state after startup.
                         case WM_CLIPBOARDUPDATE:
                         {
@@ -4733,7 +4733,7 @@ namespace netxs::os
                             {
                                 if (os::error() != ERROR_ACCESS_DENIED)
                                 {
-                                    auto error = utf::concat("::OpenClipboard()", os::unexpected_msg, " code ", os::error());
+                                    auto error = utf::concat("::OpenClipboard()", os::unexpected, " code ", os::error());
                                     sync(error, mime::textonly);
                                     return (LRESULT) NULL;
                                 }
@@ -4757,7 +4757,7 @@ namespace netxs::os
                                         }
                                         else
                                         {
-                                            auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
+                                            auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
                                             sync(error, mime::textonly);
                                         }
                                     }
@@ -4774,7 +4774,7 @@ namespace netxs::os
                                                 ::GlobalUnlock(hglb);
                                                 break;
                                             }
-                                            auto error = utf::concat("::GlobalLock()", os::unexpected_msg, " code ", os::error());
+                                            auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
                                             sync(error, mime::textonly);
                                         }
                                         else
@@ -4786,11 +4786,11 @@ namespace netxs::os
                                 }
                                 else sync(text{}, mime::textonly);
                             }
-                            ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected_msg);
+                            ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
                             break;
                         }
                         case WM_DESTROY:
-                            ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected_msg);
+                            ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
                             ::PostQuitMessage(0);
                             break;
                         default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
@@ -4803,7 +4803,7 @@ namespace netxs::os
                     .lpfnWndProc   = wndproc,
                     .lpszClassName = wndname.c_str(),
                 };
-                if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected_msg))
+                if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
                 {
                     auto stop = fd_t{ alarm };
                     auto hwnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
@@ -4840,33 +4840,33 @@ namespace netxs::os
             auto& intio = *dtvt::client;
             #if defined(_WIN32)
                 auto inpmode = DWORD{};
-                ok(::GetConsoleMode(os::stdin_fd, &inpmode), "::GetConsoleMode()", os::unexpected_msg);
+                ok(::GetConsoleMode(os::stdin_fd, &inpmode), "::GetConsoleMode()", os::unexpected);
                 inpmode |= nt::console::inmode::mouse;
                 inpmode &=~nt::console::inmode::quickedit;
-                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode()", os::unexpected_msg);
+                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode()", os::unexpected);
 
                 // Switch to altbuf.
                 auto saved_fd = os::stdout_fd;
-                if (!ok(os::stdout_fd = ::CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr), "::CreateConsoleScreenBuffer()", os::unexpected_msg))
+                if (!ok(os::stdout_fd = ::CreateConsoleScreenBuffer(GENERIC_READ | GENERIC_WRITE, 0, nullptr, CONSOLE_TEXTMODE_BUFFER, nullptr), "::CreateConsoleScreenBuffer()", os::unexpected))
                 {
                     os::stdout_fd = saved_fd;
                     saved_fd = os::invalid_fd;
                 }
-                else ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer(", utf::to_hex_0x(os::stdout_fd), ")", os::unexpected_msg);
+                else ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer(", utf::to_hex_0x(os::stdout_fd), ")", os::unexpected);
                 io::send(os::stdout_fd, ansi::altbuf(true).cursor(faux).bpmode(true)); // Windows 10 console compatibility (turning scrollback off, cursor not hidden by WinAPI).
                 auto palette = CONSOLE_SCREEN_BUFFER_INFOEX{ .cbSize = sizeof(CONSOLE_SCREEN_BUFFER_INFOEX), .wAttributes = {} };
-                ok(::GetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::GetConsoleScreenBufferInfoEx()", os::unexpected_msg);
+                ok(::GetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::GetConsoleScreenBufferInfoEx()", os::unexpected);
 
                 auto caret = dtvt::backup.caret; // Doesn't work on modern windows console. Additiom vt command required, see below.
                 caret.bVisible = FALSE; // Will be restored by the dtvt::backup.caret on exit.
-                ok(::SetConsoleCursorInfo(os::stdout_fd, &caret), "::SetConsoleCursorInfo()", os::unexpected_msg);
+                ok(::SetConsoleCursorInfo(os::stdout_fd, &caret), "::SetConsoleCursorInfo()", os::unexpected);
 
                 if (dtvt::vtmode & os::dtvt::nt16)
                 {
                     auto c16 = palette;
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
                     rgba::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = color & 0x00FFFFFF; }); // conhost crashed if alpha non zero.
-                    ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected_msg);
+                    ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 
                 auto vtrun = ansi::setutf(true).altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
@@ -4899,14 +4899,14 @@ namespace netxs::os
                 if (dtvt::vtmode & os::dtvt::nt16) // Restore pelette.
                 {
                     auto count = DWORD{};
-                    ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::win_sz.x * dtvt::win_sz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected_msg); // To avoid palette flickering.
-                    ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected_msg);
+                    ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::win_sz.x * dtvt::win_sz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
+                    ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &palette), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
                 if (saved_fd != os::invalid_fd)
                 {
                     os::close(os::stdout_fd);
                     os::stdout_fd = saved_fd;
-                    ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected_msg);
+                    ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected);
                 }
             #else 
                 io::send(os::stdout_fd, vtend);

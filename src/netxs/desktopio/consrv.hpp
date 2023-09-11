@@ -1535,7 +1535,7 @@ struct impl : consrv
                 return true;
             }
             auto data = CPINFO{};
-            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
+            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected))
             {
                 codepage = cp;
                 charsize = data.MaxCharSize;
@@ -4852,7 +4852,7 @@ struct consrv : ipc::stdcon
         //todo win32-input-mode
         using type = decltype(winsize::ws_row);
         auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
-        ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected_msg);
+        ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected);
     }
     template<class Term>
     void read_socket_thread(Term& terminal)
@@ -4960,7 +4960,7 @@ struct consrv : ipc::stdcon
     auto sighup()
     {
         // Send SIGHUP to all processes in the proc_pid group (negative value).
-        ok(::kill(-group_id, SIGHUP), "::kill(-pid, SIGHUP)", os::unexpected_msg);
+        ok(::kill(-group_id, SIGHUP), "::kill(-pid, SIGHUP)", os::unexpected);
     }
     auto wait()
     {
