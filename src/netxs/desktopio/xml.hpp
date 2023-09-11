@@ -151,7 +151,7 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log(prompt::xml, "Unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
+            else log("%%", prompt::xml, "Unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
         }
         else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
         {
@@ -172,7 +172,7 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log(prompt::xml, "Unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
+            else log("%%", prompt::xml, "Unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
         }
         else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
         {
@@ -194,7 +194,7 @@ namespace netxs::xml
                     }
                 }
             }
-            log(prompt::xml, "Unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
+            log("%%", prompt::xml, "Unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
         }
         else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
@@ -203,7 +203,7 @@ namespace netxs::xml
                 result = rgba::vt256[c.value()];
                 return result;
             }
-            else log(prompt::xml, "Unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
+            else log("%%", prompt::xml, "Unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
         }
         return std::nullopt;
     }
@@ -525,11 +525,11 @@ namespace netxs::xml
                                 if (value_placeholder->next) value_placeholder->next->utf8 = "";
                             }
                         }
-                        else log(prompt::xml, "Equal sign not found");
+                        else log("%%", prompt::xml, "Equal sign not found");
                     }
                     value_placeholder->utf8 = xml::escape(value);
                 }
-                else log(prompt::xml, "Unexpected assignment to ", name->utf8);
+                else log("%%", prompt::xml, "Unexpected assignment to ", name->utf8);
             }
             template<class T>
             auto take(qiew attr, T fallback = {})
@@ -639,7 +639,7 @@ namespace netxs::xml
               root{ ptr::shared<elem>()}
         {
             read(data);
-            if (page.fail) log(prompt::xml, "Inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
+            if (page.fail) log("%%", prompt::xml, "Inconsistent xml data from ", file.empty() ? "memory"sv : file, ":\n", page.show(), "\n");
         }
         template<bool WithTemplate = faux>
         auto take(view path)
@@ -696,10 +696,10 @@ namespace netxs::xml
                         dest.push_back(item);
                         continue;
                     }
-                    log(prompt::xml, "Unexpected format for item '", parent_path, "/", item->name->utf8, "'");
+                    log("%%", prompt::xml, "Unexpected format for item '", parent_path, "/", item->name->utf8, "'");
                 }
             }
-            else log(prompt::xml, "Destination path not found ", parent_path);
+            else log("%%", prompt::xml, "Destination path not found ", parent_path);
         }
 
     private:
@@ -707,7 +707,7 @@ namespace netxs::xml
         {
             page.fail = true;
             page.append(type::error, msg);
-            log(prompt::xml, msg, " at ", page.file, ":", page.lines());
+            log("%%", prompt::xml, msg, " at ", page.file, ":", page.lines());
         }
         auto fail(type last, type what)
         {
@@ -1170,7 +1170,7 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log(prompt::xml, ansi::err("xml path not found: ") + homepath);
+                log("%% %err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
             }
             return test;
         }
@@ -1178,7 +1178,7 @@ namespace netxs::xml
         {
             if (cwdstack.empty())
             {
-                log(prompt::xml, "CWD stack is empty");
+                log("%%", prompt::xml, "CWD stack is empty");
             }
             else
             {
@@ -1214,7 +1214,7 @@ namespace netxs::xml
                 else frompath = homepath + "/" + frompath;
             }
             if (tempbuff.size()) crop = tempbuff.back()->value();
-            else if constexpr (!Quiet) log(prompt::xml, ansi::fgc(redlt) + "xml path not found: " + ansi::nil() + frompath);
+            else if constexpr (!Quiet) log("%prompt%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
             if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);
@@ -1278,7 +1278,7 @@ namespace netxs::xml
             auto run_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
-                log(prompt::xml, "Configuration from ", filepath.empty() ? "memory"sv : filepath, "\n", run_config.page.show());
+                log("%%", prompt::xml, "Configuration from ", filepath.empty() ? "memory"sv : filepath, "\n", run_config.page.show());
             }
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
@@ -1318,7 +1318,7 @@ namespace netxs::xml
                                 auto rewrite = sub_list.end() != std::find_if(sub_list.begin(), sub_list.end(), [](auto& a){ return a->base; });
                                 document->join(path + "/" + sub_name, sub_list, rewrite);
                             }
-                            else log(prompt::xml, "Unexpected tag without data: ", sub_name);
+                            else log("%%", prompt::xml, "Unexpected tag without data: ", sub_name);
                         }
                     }
                     else

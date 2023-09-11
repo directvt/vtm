@@ -5,7 +5,8 @@
 // auto logger = netxs::logger::attach([&](auto& a) { ipc.write_message(a); }, //  1st logger proc
 //                                     file_write,                             //  2nd logger proc
 //                                     ...         );                          //  Nth logger proc
-
+// log("Text message with %parameter1 and %parameter2. ", p1.str(), p2.str(), rest.str());
+// 
 #pragma once
 
 #include <vector>
@@ -119,18 +120,46 @@ namespace netxs
 
 namespace
 {
-    template<bool Newline = true, class T, class ...Args>
-    void log(T&& format, Args&&... args)
+    namespace
+    {
+        netxs::view crop(netxs::view& format)
+        {
+            static constexpr auto delimiter = '%';
+            auto crop = format;
+            auto head = format.find(delimiter);
+            if (head != netxs::text::npos)
+            {
+                auto tail = format.find(delimiter, head + 1);
+                if (tail != netxs::text::npos)
+                {
+                    crop = format.substr(0, head); // Take leading substring.
+                    format.remove_prefix(tail + 1);
+                }
+            }
+            return crop;
+        }
+        void print(auto& input, netxs::view& format)
+        {
+            input << format;
+        }
+        void print(auto& input, netxs::view& format, auto&& arg)
+        {
+            input << crop(format) << std::forward<decltype(arg)>(arg) << format;
+        }
+        void print(auto& input, netxs::view& format, auto&& arg, auto&& ...args)
+        {
+            input << crop(format) << std::forward<decltype(arg)>(arg);
+            if (format.length()) print(input, format, std::forward<decltype(args)>(args)...);
+            else                 (input << ... << std::forward<decltype(args)>(args));
+        }
+    }
+    template<bool Newline = true, class ...Args>
+    void log(netxs::view format, Args&&... args)
     {
         auto state = netxs::logger::globals();
-        if (!state.quiet)
-        {
-            //todo implement format string support (reuired for localization).
-            //     log("Text message with %parameter1 and %parameter2 and contained a percent \% char", p1.str(), p2.str());
-            state.input << std::forward<T>(format);
-            (state.input << ... << std::forward<Args>(args));
-            if constexpr (Newline) state.input << '\n';
-            state.flush();
-        }
+        if (state.quiet) return;
+        print(state.input, format, std::forward<Args>(args)...);
+        if constexpr (Newline) state.input << '\n';
+        state.flush();
     }
 }

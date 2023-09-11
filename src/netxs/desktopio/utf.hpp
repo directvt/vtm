@@ -1122,10 +1122,9 @@ namespace netxs::utf
         }
     }
     template<class V1, class V2>
-    auto divide(V1 const& utf8, V2 const& delimiter)
+    auto divide(V1 const& utf8, V2 const& delimiter, std::vector<view>& crop)
     {
         auto mark = qiew(delimiter);
-        auto crop = std::vector<view>{};
         if (auto len = mark.size())
         {
             auto num = 0_sz;
@@ -1147,6 +1146,13 @@ namespace netxs::utf
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
             crop.push_back(end);
         }
+        return crop;
+    }
+    template<class V1, class V2>
+    auto divide(V1 const& utf8, V2 const& delimiter)
+    {
+        auto crop = std::vector<view>{};
+        divide(utf8, delimiter, crop);
         return crop;
     }
     template<class Container>

@@ -415,6 +415,7 @@ namespace netxs::ansi
         auto& clr(rgba c, Args&&... data) { return fgc(c).add(std::forward<Args>(data)...).nil(); } // basevt: Add colored message.
         template<class ...Args>
         auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // basevt: Add highlighted message.
+        auto& err() { return fgc(redlt); } // basevt: Add error color.
         template<class ...Args>
         auto& err(Args&&... data) { return fgc(redlt).add(std::forward<Args>(data)...).nil(); } // basevt: Add error message.
         // basevt: Ansify/textify content of specified region.

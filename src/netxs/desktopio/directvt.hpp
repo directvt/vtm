@@ -178,7 +178,7 @@ namespace netxs::directvt
                 {
                     // Noop.
                 }
-                else log(prompt::dtvt, "Unsupported data type");
+                else log("%%", prompt::dtvt, "Unsupported data type");
             }
             // stream: Replace bytes at specified position.
             template<class T>
@@ -198,14 +198,14 @@ namespace netxs::directvt
                 {
                     if (data.size() < sizeof(sz_t))
                     {
-                        log(prompt::dtvt, "Corrupted frame header");
+                        log("%%", prompt::dtvt, "Corrupted frame header");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return view{};
                     }
                     auto size = netxs::aligned<sz_t>(data.data());
                     if (data.size() < size + sizeof(size))
                     {
-                        log(prompt::dtvt, "Corrupted frame data");
+                        log("%%", prompt::dtvt, "Corrupted frame data");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return view{};
                     }
@@ -235,7 +235,7 @@ namespace netxs::directvt
                     using type = decltype(span{}.count());
                     if (data.size() < sizeof(type))
                     {
-                        log(prompt::dtvt, "Corrupted datetime data");
+                        log("%%", prompt::dtvt, "Corrupted datetime data");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
@@ -251,7 +251,7 @@ namespace netxs::directvt
                 {
                     if (data.size() < sizeof(D))
                     {
-                        log(prompt::dtvt, "Corrupted integer data");
+                        log("%%", prompt::dtvt, "Corrupted integer data");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
@@ -321,7 +321,7 @@ namespace netxs::directvt
             {
                 if (size > data.size())
                 {
-                    log(prompt::dtvt, "Wrong data size");
+                    log("%%", prompt::dtvt, "Wrong data size");
                     return view{};
                 }
                 auto crop = data.substr(0, size);
@@ -339,7 +339,7 @@ namespace netxs::directvt
                     auto step = netxs::aligned<sz_t>(iter);
                     if (step < sizeof(sz_t))
                     {
-                        log(prompt::dtvt, "Stream corrupted", ", frame size: ", step);
+                        log("%%", prompt::dtvt, "Stream corrupted", ", frame size: ", step);
                         break;
                     }
                     if (size < step) break;
@@ -435,13 +435,13 @@ namespace netxs::directvt
                 auto shot = input(buff.data(), buff.size());
                 if (shot.size() != buff.size())
                 {
-                    log(prompt::dtvt, "Stream corrupted");
+                    log("%%", prompt::dtvt, "Stream corrupted");
                     return faux;
                 }
                 auto rest = netxs::aligned<sz_t>(buff.data());
                 if (rest < sizeof(sz_t) || rest < shot.size())
                 {
-                    log(prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
+                    log("%%", prompt::dtvt, "Stream corrupted", ", frame size: ", rest);
                     return faux;
                 }
                 rest -= (sz_t)shot.size();
@@ -452,7 +452,7 @@ namespace netxs::directvt
                     shot = input(head, rest);
                     if (!shot)
                     {
-                        log(prompt::dtvt, "Stream corrupted");
+                        log("%%", prompt::dtvt, "Stream corrupted");
                         return faux;
                     }
                     auto s = (sz_t)shot.size();
@@ -463,7 +463,7 @@ namespace netxs::directvt
                 auto kind = netxs::aligned<type>(data.data());
                 if (kind != object.kind)
                 {
-                    log(prompt::dtvt, "Object type mismatch");
+                    log("%%", prompt::dtvt, "Object type mismatch");
                     return faux;
                 }
                 data.remove_prefix(sizeof(type));
@@ -651,7 +651,7 @@ namespace netxs::directvt
                         auto size = sz_t{};
                         std::tie(size, item.next) = stream::template take<sz_t, type>(rest);
                         stop = size > rest.size() + head;
-                        if (stop) log(prompt::dtvt, "Corrupted data");
+                        if (stop) log("%%", prompt::dtvt, "Corrupted data");
                         else
                         {
                             crop = rest.substr(0, size - head);
@@ -1014,7 +1014,7 @@ namespace netxs::directvt
                         auto upto = iter + count;
                         if (upto > tail)
                         {
-                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
+                            log("%%", prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         std::fill(iter, upto, mark);
@@ -1027,7 +1027,7 @@ namespace netxs::directvt
                         auto dest = head + offset;
                         if (dest >= tail)
                         {
-                            log(prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
+                            log("%%", prompt::dtvt, "bitmap: ", "Corrupted data, subtype: ", what);
                             break;
                         }
                         iter = dest;
@@ -1039,7 +1039,7 @@ namespace netxs::directvt
                     }
                     else // Unknown subtype.
                     {
-                        log(prompt::dtvt, "bitmap: ", "Unknown data, subtype: ", what);
+                        log("%%", prompt::dtvt, "bitmap: ", "Unknown data, subtype: ", what);
                         break;
                     }
                 }
@@ -1048,11 +1048,11 @@ namespace netxs::directvt
                 {
                     update(area.size, head, step, iter);
                 }
-                //log(prompt::dtvt, "frame len: ", frame_len);
-                //log(prompt::dtvt, "nop count: ", nop_count);
-                //log(prompt::dtvt, "rep count: ", rep_count);
-                //log(prompt::dtvt, "dif count: ", dif_count);
-                //log("----------------------------");
+                //log("%%", prompt::dtvt, "frame len: ", frame_len);
+                //log("%%", prompt::dtvt, "nop count: ", nop_count);
+                //log("%%", prompt::dtvt, "rep count: ", rep_count);
+                //log("%%", prompt::dtvt, "dif count: ", dif_count);
+                //log("%%", "----------------------------");
             }
         };
         template<svga Mode, type Kind>
@@ -1353,7 +1353,7 @@ namespace netxs::directvt
                     {
                         iter->second(frame.data);
                     }
-                    else log(prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
+                    else log("%%", prompt::s11n, "Unsupported frame type: ", (int)frame.next, "\n", utf::debase(frame.data));
                 }
             }
             // s11n: Wake up waiting objects.

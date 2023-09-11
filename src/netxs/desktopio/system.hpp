@@ -149,7 +149,7 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log(prompt::os, ansi::err(msg..., " (", os::error(), ") "));
+        log("%%", prompt::os, ansi::err(msg..., " (", os::error(), ") "));
     };
     template<bool Alert = true, class T, class ...Args>
     auto ok(T error_condition, Args&&... msg)
@@ -163,7 +163,7 @@ namespace netxs::os
         )
         {
             if constexpr (Alert) os::fail(std::forward<Args>(msg)...);
-            else                 log(std::forward<Args>(msg)...);
+            else                 log("%%", std::forward<Args>(msg)...);
             return faux;
         }
         else return true;
@@ -381,7 +381,7 @@ namespace netxs::os
                                                                     | FILE_SHARE_DELETE, opts);
                 if (status != nt::status::success)
                 {
-                    log(prompt::os, "Unexpected result when access system object '", path, "', ntstatus ", status);
+                    log("%%", prompt::os, "Unexpected result when access system object '", path, "', ntstatus ", status);
                     return os::invalid_fd;
                 }
                 else return hndl;
@@ -472,7 +472,7 @@ namespace netxs::os
                     if (ok) return handle_clone;
                     else
                     {
-                        log(prompt::os, "Unexpected result when duplicate system object handle, errcode ", os::error());
+                        log("%%", prompt::os, "Unexpected result when duplicate system object handle, errcode ", os::error());
                         return os::invalid_fd;
                     }
                 }
@@ -1006,7 +1006,7 @@ namespace netxs::os
                         dstmap.entry_ct += std::size(new_recs);
                         if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected_msg)) return;
                     }
-                    else log(prompt::os, "VGA font loading failed - 'UNIMAP' is full");
+                    else log("%%", prompt::os, "VGA font loading failed - 'UNIMAP' is full");
                 }
 
             #endif
@@ -1498,7 +1498,7 @@ namespace netxs::os
             if (shell.empty() || shell.ends_with("vtm"))
             {
                 shell = "bash"; //todo request it from user if empty; or make it configurable
-                log(prompt::os, "Using '", shell, "' as a fallback login shell");
+                log("%%", prompt::os, "Using '", shell, "' as a fallback login shell");
             }
             if (param.size())
             {
@@ -1603,10 +1603,10 @@ namespace netxs::os
                                 ::GlobalUnlock(gmem);
                                 ok(::SetClipboardData(cf_format, gmem) && (success = true), "::SetClipboardData()", os::unexpected_msg, ", cf_format=", cf_format);
                             }
-                            else log(prompt::os, "::GlobalLock()", os::unexpected_msg);
+                            else log("%%", prompt::os, "::GlobalLock()", os::unexpected_msg);
                             ::GlobalFree(gmem);
                         }
-                        else log(prompt::os, "::GlobalAlloc()", os::unexpected_msg);
+                        else log("%%", prompt::os, "::GlobalAlloc()", os::unexpected_msg);
                     };
                     cf_format == cf_text ? _send(utf::to_utf(data))
                                          : _send(data);
@@ -2021,7 +2021,7 @@ namespace netxs::os
                         return faux;
                     }
 
-                    log(prompt::sock, "Creds from SO_PEERCRED:",
+                    log("%%", prompt::sock, "Creds from SO_PEERCRED:",
                       "\n      pid : ", cred.pid,
                       "\n      euid: ", cred.uid,
                       "\n      egid: ", cred.gid);
@@ -2042,7 +2042,7 @@ namespace netxs::os
                         return faux;
                     }
 
-                    log(prompt::sock, "Creds from ::getpeereid():",
+                    log("%%", prompt::sock, "Creds from ::getpeereid():",
                       "\n      pid : ", id,
                       "\n      euid: ", euid,
                       "\n      egid: ", egid);
@@ -2053,7 +2053,7 @@ namespace netxs::os
             }
             auto meet()
             {
-                if constexpr (debugmode) log(prompt::xipc, "Active server side link ", handle);
+                if constexpr (debugmode) log("%%", prompt::xipc, "Active server side link ", handle);
                 auto client = sptr<ipc::socket>{};
                 #if defined(_WIN32)
 
@@ -2133,7 +2133,7 @@ namespace netxs::os
                 auto state = pipe::stop();
                 if (state)
                 {
-                    if constexpr (debugmode) log(prompt::xipc, "Closing server side link ", handle);
+                    if constexpr (debugmode) log("%%", prompt::xipc, "Closing server side link ", handle);
                     #if defined(_WIN32)
                         auto to_client = os::wr_pipe_path + scpath;
                         auto to_server = os::rd_pipe_path + scpath;
@@ -2150,7 +2150,7 @@ namespace netxs::os
                 auto state = pipe::shut();
                 if (state)
                 {
-                    if constexpr (debugmode) log(prompt::xipc, "Client disconnects: ", handle);
+                    if constexpr (debugmode) log("%%", prompt::xipc, "Client disconnects: ", handle);
                     #if defined(_WIN32)
                         ::DisconnectNamedPipe(handle.w);
                         handle.shutdown(); // To trigger the read end to close.
@@ -2199,7 +2199,7 @@ namespace netxs::os
                 #if defined(_WIN32)
 
                     //security_descriptor pipe_acl(security_descriptor_string);
-                    //log(prompt::pipe, "DACL=", pipe_acl.security_string);
+                    //log("%%", prompt::pipe, "DACL=", pipe_acl.security_string);
                     // https://docs.microsoft.com/en-us/windows/win32/secauthz/sid-strings
 
                     auto to_server = os::rd_pipe_path + path;
@@ -2219,7 +2219,7 @@ namespace netxs::os
                                 do hits = next.cFileName == name;
                                 while (!hits && ::FindNextFileW(hndl, &next));
 
-                                if (hits) log(prompt::path, path);
+                                if (hits) log("%%", prompt::path, path);
                                 ::FindClose(hndl);
                             }
                             return hits;
@@ -2303,14 +2303,14 @@ namespace netxs::os
                         auto home = os::env::homepath() / ".config/vtm";
                         if (!fs::exists(home))
                         {
-                            if constexpr (Log) log(prompt::path, "Create home directory '", home.string(), "'");
+                            if constexpr (Log) log("%%", prompt::path, "Create home directory '", home.string(), "'");
                             auto ec = std::error_code{};
                             fs::create_directory(home, ec);
-                            if (ec && Log) log(prompt::path, "Directory '", home.string(), "' creation error ", ec.value());
+                            if (ec && Log) log("%%", prompt::path, "Directory '", home.string(), "' creation error ", ec.value());
                         }
                         path = (home / path).string() + ".sock";
                         sun_path--; // File system unix domain socket.
-                        if constexpr (Log) log(prompt::open, "File system socket ", path);
+                        if constexpr (Log) log("%%", prompt::open, "File system socket ", path);
                     #endif
 
                     if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
@@ -2345,7 +2345,7 @@ namespace netxs::os
                                     }
                                     else
                                     {
-                                        log(prompt::path, "Removing filesystem socket file ", path);
+                                        log("%%", prompt::path, "Removing filesystem socket file ", path);
                                         ::unlink(path.c_str()); // Cleanup file system socket.
                                     }
                                 }
@@ -2519,7 +2519,7 @@ namespace netxs::os
             void worker()
             {
                 auto guard = std::unique_lock{ mutex };
-                if constexpr (debugmode) log(prompt::pool, "Session control thread started");
+                if constexpr (debugmode) log("%%", prompt::pool, "Session control thread started");
 
                 while (alive || index.size())
                 {
@@ -2535,7 +2535,7 @@ namespace netxs::os
                                 guard.unlock();
                                 guest.join();
                                 guard.lock();
-                                if constexpr (debugmode) log(prompt::pool, "Session joined", ' ', utf::to_hex_0x(sid));
+                                if constexpr (debugmode) log("%%", prompt::pool, "Session joined", ' ', utf::to_hex_0x(sid));
                             }
                             it = index.erase(it);
                         }
@@ -2549,7 +2549,7 @@ namespace netxs::os
                 auto session_id = std::this_thread::get_id();
                 index[session_id].state = faux;
                 synch.notify_one();
-                if constexpr (debugmode) log(prompt::pool, "Session deleted", ' ', utf::to_hex_0x(session_id));
+                if constexpr (debugmode) log("%%", prompt::pool, "Session deleted", ' ', utf::to_hex_0x(session_id));
             }
 
         public:
@@ -2566,7 +2566,7 @@ namespace netxs::os
                 });
                 auto session_id = session.get_id();
                 index[session_id] = { true, std::move(session) };
-                if constexpr (debugmode) log(prompt::pool, "Session created", ' ', utf::to_hex_0x(session_id));
+                if constexpr (debugmode) log("%%", prompt::pool, "Session created", ' ', utf::to_hex_0x(session_id));
             }
             auto size()
             {
@@ -2587,10 +2587,10 @@ namespace netxs::os
 
                 if (agent.joinable())
                 {
-                    if constexpr (debugmode) log(prompt::pool, "Session agent joining");
+                    if constexpr (debugmode) log("%%", prompt::pool, "Session agent joining");
                     agent.join();
                 }
-                if constexpr (debugmode) log(prompt::pool, "Session control thread ended");
+                if constexpr (debugmode) log("%%", prompt::pool, "Session control thread ended");
             }
         };
 
@@ -2709,7 +2709,7 @@ namespace netxs::os
         template<class ...Args>
         void exit(int code, Args&&... args)
         {
-            log(args...);
+            log("%%", args...);
             process::exit(code);
         }
         auto sysfork()
@@ -2758,7 +2758,7 @@ namespace netxs::os
         template<bool Logs = true, bool Daemon = faux>
         auto exec(text cmdline)
         {
-            if constexpr (Logs) log(prompt::exec, "'", cmdline, "'");
+            if constexpr (Logs) log("%%", prompt::exec, "'", cmdline, "'");
             #if defined(_WIN32)
                 
                 auto shadow = view{ cmdline };
@@ -2869,7 +2869,7 @@ namespace netxs::os
 
             #endif
 
-            if (result) log(prompt::os, "Process forked");
+            if (result) log("%%", prompt::os, "Process forked");
             else   os::fail(prompt::os, "Can't fork process");
 
             return faux; // Parent branch.
@@ -2883,11 +2883,11 @@ namespace netxs::os
                 {
                     auto err = std::error_code{};
                     fs::current_path(cwd, err);
-                    if (err) log(prompt::os, "Failed to change current working directory to '", cwd, "', error code: ", err.value(), "\n");
+                    if (err) log("%%", prompt::os, "Failed to change current working directory to '", cwd, "', error code: ", err.value(), "\n");
                 }
                 os::process::execvp(cmdline);
                 auto err_code = os::error();
-                log(ansi::bgc(reddk).fgc(whitelt).add("Process creation error ", err_code, " \n"
+                log("%%", ansi::bgc(reddk).fgc(whitelt).add("Process creation error ", err_code, " \n"
                                                       " cwd: ", cwd.empty() ? "not specified"s : cwd, " \n"
                                                       " cmd: ", cmdline, " ").nil());
                 os::process::exit<true>(err_code);
@@ -2932,7 +2932,7 @@ namespace netxs::os
 
             if (winsz == dot_00)
             {
-                log(prompt::tty, "Fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
+                log("%%", prompt::tty, "Fallback tty window size ", winsz_fallback, " (consider using 'ssh -tt ...')");
                 winsz = winsz_fallback;
             }
             return winsz;
@@ -3043,7 +3043,7 @@ namespace netxs::os
                         dtvt::mode |= dtvt::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
                         ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected_msg);
-                        log(prompt::os, "16-color windows console");
+                        log("%%", prompt::os, "16-color windows console");
                     }
                     auto size = DWORD{ os::pipebuf };
                     auto wstr = wide(size, 0);
@@ -3087,7 +3087,7 @@ namespace netxs::os
         {
             if (os::dtvt::active)
             {
-                log(prompt::os, "DirectVT");
+                log("%%", prompt::os, "DirectVT");
                 mode |= dtvt::direct;
             }
             else
@@ -3097,7 +3097,7 @@ namespace netxs::os
                 #endif
                 if (auto term = os::env::get("TERM"); term.size())
                 {
-                    log(prompt::os, "Terminal type \"", term, "\"");
+                    log("%%", prompt::os, "Terminal type \"", term, "\"");
 
                     auto vt16colors = { // https://github.com//termstandard/colors
                         "ansi",
@@ -3139,13 +3139,13 @@ namespace netxs::os
 
                     if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                     {
-                        log(prompt::os, "macOS Apple Terminal detected");
+                        log("%%", prompt::os, "macOS Apple Terminal detected");
                         if (!(mode & dtvt::vt16)) mode |= dtvt::vt256;
                     }
-                    log(prompt::os, "Color mode: ", mode & dtvt::vt16  ? "16-color"
+                    log("%%", prompt::os, "Color mode: ", mode & dtvt::vt16  ? "16-color"
                                                   : mode & dtvt::vt256 ? "256-color"
                                                                        : "true-color");
-                    log(prompt::os, "Mouse mode: ", mode & dtvt::mouse ? "console" : "vt-style");
+                    log("%%", prompt::os, "Mouse mode: ", mode & dtvt::mouse ? "console" : "vt-style");
                 }
             }
             return mode;
@@ -3182,7 +3182,7 @@ namespace netxs::os
 
            ~vtty()
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Destructor started");
                 if (attached.exchange(faux)) // Detach child process and forget.
                 {
                     writesyn.notify_one(); // Interrupt writing thread.
@@ -3190,10 +3190,10 @@ namespace netxs::os
                 }
                 if (stdinput.joinable())
                 {
-                    if constexpr (debugmode) log(prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                     stdinput.join();
                 }
-                if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Destructor complete");
             }
 
             operator bool () { return attached; }
@@ -3202,10 +3202,10 @@ namespace netxs::os
             {
                 auto marker = directvt::binary::marker{ config_size, winsz };
                 utf::change(cmdline, "\\\"", "'");
-                log(prompt::dtvt, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                log("%%", prompt::dtvt, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 auto onerror = [&]()
                 {
-                    log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                    log("%%", prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
                         "\r\n\tcwd: '", cwd, "'",
                         "\r\n\tcmd: '", cmdline, "'");
                 };
@@ -3318,8 +3318,8 @@ namespace netxs::os
                             {
                                 auto err = std::error_code{};
                                 fs::current_path(cwd, err);
-                                if (err) log(prompt::dtvt, ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
-                                else     log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                                if (err) log("%%", prompt::dtvt, ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
+                                else     log("%%", prompt::dtvt, "Change current working directory to '", cwd, "'");
                             }
                             os::fdscleanup();
                             os::signals::state.reset();
@@ -3349,7 +3349,7 @@ namespace netxs::os
             }
             void writer()
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto cache = text{};
                 auto guard = std::unique_lock{ writemtx };
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
@@ -3359,19 +3359,19 @@ namespace netxs::os
                     if (termlink.send(cache)) cache.clear();
                     else
                     {
-                        if constexpr (debugmode) log(prompt::dtvt, "Unexpected disconnection");
+                        if constexpr (debugmode) log("%%", prompt::dtvt, "Unexpected disconnection");
                         if (attached.exchange(faux)) termlink.abort(stdinput); // Interrupt reading thread.
                         break;
                     }
                     guard.lock();
                 }
-                if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void reader(auto receiver)
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 directvt::binary::stream::reading_loop(termlink, receiver);
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void start(text cwd, text cmdline, text config, twod winsz, auto receiver, auto shutdown)
             {
@@ -3387,14 +3387,14 @@ namespace netxs::os
                     attached.exchange(!!termlink);
                     if (attached)
                     {
-                        if constexpr (debugmode) log(prompt::dtvt, "DirectVT console created for process '", utf::debase(cmdline), "'");
+                        if constexpr (debugmode) log("%%", prompt::dtvt, "DirectVT console created for process '", utf::debase(cmdline), "'");
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{[&] { writer(); }};
                         reader(receiver);
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
-                        if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                        if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
-                        log(prompt::dtvt, "Process '", utf::debase(cmdline), "' disconnected");
+                        log("%%", prompt::dtvt, "Process '", utf::debase(cmdline), "' disconnected");
                         shutdown();
                     }
                 }};
@@ -3436,7 +3436,7 @@ namespace netxs::os
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
-                    if (io_log) log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (io_log) log("%%", prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -3447,8 +3447,8 @@ namespace netxs::os
             void attach_process(Term& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
-                if (terminal.io_log) log(prompt::vtty, "New TTY of size ", win_size);
-                                     log(prompt::vtty, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                if (terminal.io_log) log("%%", prompt::vtty, "New TTY of size ", win_size);
+                                     log("%%", prompt::vtty, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -3480,11 +3480,11 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    if (terminal.io_log) log("%%", prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache)) cache.clear();
                     else
                     {
-                        if (terminal.io_log) log(prompt::vtty, "Unexpected disconnect");
+                        if (terminal.io_log) log("%%", prompt::vtty, "Unexpected disconnect");
                         break;
                     }
                     guard.lock();
@@ -3495,7 +3495,7 @@ namespace netxs::os
             {
                 stdwrite = std::thread{[&, cwd, cmdline, win_size]
                 {
-                    if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (terminal.io_log) log("%%", prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     attach_process(terminal, cwd, cmdline, win_size);
                     writer(terminal);
                     if (attached.exchange(faux))
@@ -3503,9 +3503,9 @@ namespace netxs::os
                         if (!signaled.exchange(true)) termlink->sighup();
                     }
                     auto exitcode = termlink->wait();
-                    log(prompt::vtty, "Process '", utf::debase(cmdline), "' exited with code ", utf::to_hex_0x(exitcode));
+                    log("%%", prompt::vtty, "Process '", utf::debase(cmdline), "' exited with code ", utf::to_hex_0x(exitcode));
                     terminal.onexit(exitcode);
-                    if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (terminal.io_log) log("%%", prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
             }
             void sighup()
@@ -3685,9 +3685,9 @@ namespace netxs::os
             { }
            ~raw()
             {
-                if constexpr (debugmode) log(prompt::task, "Destructor started");
+                if constexpr (debugmode) log("%%", prompt::task, "Destructor started");
                 stop();
-                if constexpr (debugmode) log(prompt::task, "Destructor complete");
+                if constexpr (debugmode) log("%%", prompt::task, "Destructor complete");
             }
 
             operator bool () { return termlink; }
@@ -3707,17 +3707,17 @@ namespace netxs::os
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
-                    if constexpr (debugmode) log(prompt::task, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if constexpr (debugmode) log("%%", prompt::task, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
                 if (stdinput.joinable())
                 {
-                    if constexpr (debugmode) log(prompt::task, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    if constexpr (debugmode) log("%%", prompt::task, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                     stdinput.join();
                 }
                 if (waitexit.joinable())
                 {
-                    if constexpr (debugmode) log(prompt::task, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+                    if constexpr (debugmode) log("%%", prompt::task, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
                     waitexit.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -3743,7 +3743,7 @@ namespace netxs::os
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
                 utf::change(cmdline, "\\\"", "'");
-                log(prompt::task, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
+                log("%%", prompt::task, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s
                                                                                                          : "'" + cwd + "'");
                 #if defined(_WIN32)
 
@@ -3861,7 +3861,7 @@ namespace netxs::os
                 stdinput = std::thread([&] { read_socket_thread(); });
                 stdwrite = std::thread([&] { send_socket_thread(); });
 
-                if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
+                if (termlink) log("%%", prompt::task, "Standard I/O has been redirected for process ", proc_pid);
             }
             void stop()
             {
@@ -3873,7 +3873,7 @@ namespace netxs::os
             }
             void read_socket_thread()
             {
-                if constexpr (debugmode) log(prompt::task, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+                if constexpr (debugmode) log("%%", prompt::task, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
                 auto flow = text{};
                 while (termlink)
                 {
@@ -3893,11 +3893,11 @@ namespace netxs::os
                     auto exit_code = wait_child();
                     shutdown(exit_code, "");
                 }
-                if constexpr (debugmode) log(prompt::task, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+                if constexpr (debugmode) log("%%", prompt::task, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
             }
             void send_socket_thread()
             {
-                if constexpr (debugmode) log(prompt::task, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                if constexpr (debugmode) log("%%", prompt::task, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !termlink; }), termlink)
@@ -3908,7 +3908,7 @@ namespace netxs::os
                     else                      break;
                     guard.lock();
                 }
-                if constexpr (debugmode) log(prompt::task, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                if constexpr (debugmode) log("%%", prompt::task, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
             }
             virtual void write(view data) override
             {
@@ -3967,7 +3967,7 @@ namespace netxs::os
             #else
                 io::send(ansi::header(utf8));
             #endif
-            if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(utf8)));
+            if constexpr (debugmode) log("%%", prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(utf8)));
         }
         static auto clipboard = text{};
         struct proxy : s11n
@@ -4102,7 +4102,7 @@ namespace netxs::os
         }
         void reader(auto& alarm, auto keybd, auto mouse, auto winsz, auto focus, auto paste, auto close, auto style)
         {
-            if constexpr (debugmode) log(prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            if constexpr (debugmode) log("%%", prompt::tty, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             auto alive = true;
             auto m = input::sysmouse{};
             auto k = input::syskeybd{};
@@ -4334,20 +4334,20 @@ namespace netxs::os
                 auto tty_name = view(buffer.data());
                 if (!os::linux_console)
                 {
-                    log(prompt::tty, "Pseudoterminal ", tty_name);
+                    log("%%", prompt::tty, "Pseudoterminal ", tty_name);
                 }
                 else // Trying to get direct access to a PS/2 mouse.
                 {
-                    log(prompt::tty, "Linux console ", tty_name);
+                    log("%%", prompt::tty, "Linux console ", tty_name);
                     auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
                     auto mouse_device = "/dev/input/mice";
                     auto mouse_fallback1 = "/dev/input/mice.vtm";
                     auto mouse_fallback2 = "/dev/input/mice_vtm"; //todo deprecated
                     auto fd = ::open(mouse_device, O_RDWR);
                     if (fd == -1) fd = ::open(mouse_fallback1, O_RDWR);
-                    if (fd == -1) log(prompt::tty, "Error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) log("%%", prompt::tty, "Error opening ", mouse_device, " and ", mouse_fallback1, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
-                    if (fd == -1) log(prompt::tty, "Error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
+                    if (fd == -1) log("%%", prompt::tty, "Error opening ", mouse_device, " and ", mouse_fallback2, ", error ", errno, errno == 13 ? " - permission denied" : "");
                     else if (io::send(fd, imps2_init_string))
                     {
                         auto ack = char{};
@@ -4362,12 +4362,12 @@ namespace netxs::os
                                 ttynum = cur_tty.value();
                             }
                         }
-                        if (ack == '\xfa') log(prompt::tty, "ImPS/2 mouse connected");
-                        else               log(prompt::tty, "Unknown PS/2 mouse connected, ack: ", utf::to_hex_0x((int)ack));
+                        if (ack == '\xfa') log("%%", prompt::tty, "ImPS/2 mouse connected");
+                        else               log("%%", prompt::tty, "Unknown PS/2 mouse connected, ack: ", utf::to_hex_0x((int)ack));
                     }
                     else
                     {
-                        log(prompt::tty, "No PS/2 mouse detected");
+                        log("%%", prompt::tty, "No PS/2 mouse detected");
                         os::close(fd);
                     }
                 }
@@ -4408,7 +4408,7 @@ namespace netxs::os
                     //    notify(e2::conio::preclose, close);
                     //    if (total.front() == '\033') // two consecutive escapes
                     //    {
-                    //        log("\t - two consecutive escapes: \n\tstrv:        ", strv);
+                    //        log("%%", "\t - two consecutive escapes: \n\tstrv:        ", strv);
                     //        notify(e2::conio::quit, 0);
                     //        return;
                     //    }
@@ -4430,14 +4430,14 @@ namespace netxs::os
                             //{
                             //    close = true;
                             //    total = strv;
-                            //    log("\t - preclose: ", canal);
+                            //    log("%%", "\t - preclose: ", canal);
                             //    notify(e2::conio::preclose, close);
                             //    break;
                             //}
                             //else if (strv.at(pos) == '\033') // two consecutive escapes
                             //{
                             //    total.clear();
-                            //    log("\t - two consecutive escapes: ", canal);
+                            //    log("%%", "\t - two consecutive escapes: ", canal);
                             //    notify(e2::conio::quit,0);
                             //    break;
                             //}
@@ -4675,7 +4675,7 @@ namespace netxs::os
                             case SIGINT:  // App close.
                             case SIGHUP:  // App close.
                             case SIGTERM: // System shutdown.
-                                if constexpr (debugmode) log(prompt::tty, "Process ", os::process::id.first, " received signal ", signal);
+                                if constexpr (debugmode) log("%%", prompt::tty, "Process ", os::process::id.first, " received signal ", signal);
                                 alive = faux;
                             default: break;
                         }
@@ -4698,7 +4698,7 @@ namespace netxs::os
 
             #endif
 
-            if constexpr (debugmode) log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            if constexpr (debugmode) log("%%", prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             close(c);
         }
         void clipbd(auto& alarm)
@@ -4706,7 +4706,7 @@ namespace netxs::os
             using namespace os::clipboard;
 
             if (os::dtvt::active) return;
-            if constexpr (debugmode) log(prompt::tty, "Clipboard watcher started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            if constexpr (debugmode) log("%%", prompt::tty, "Clipboard watcher started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
 
             #if defined(_WIN32)
 
@@ -4833,7 +4833,7 @@ namespace netxs::os
 
             #endif
 
-            if constexpr (debugmode) log(prompt::tty, "Clipboard watcher ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            if constexpr (debugmode) log("%%", prompt::tty, "Clipboard watcher ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
         }
         auto legacy()
         {
@@ -5024,7 +5024,7 @@ namespace netxs::os
                                 block.clear();
                                 clear();
                                 print(faux);
-                                guard.unlock(); // Allow to use log() inside send().
+                                guard.unlock(); // Allow to use log("%%", ) inside send().
                                 send(line);
                                 break;
                             }

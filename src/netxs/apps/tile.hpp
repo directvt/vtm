@@ -157,7 +157,7 @@ namespace netxs::app::tile
                 client->clear();
                 depth = 0;
                 boss.template riseup<tier::request>(e2::depth, depth, true);
-                log(prompt::tile, "Start depth ", depth);
+                log("%%", prompt::tile, "Start depth ", depth);
             };
         }
        ~items()
@@ -543,7 +543,7 @@ namespace netxs::app::tile
                     {
                         if (boss.count() == 1) // Only empty slot available.
                         {
-                            if constexpr (debugmode) log(prompt::tile, "Empty slot swap: defective structure, count=", boss.count());
+                            if constexpr (debugmode) log("%%", prompt::tile, "Empty slot swap: defective structure, count=", boss.count());
                         }
                         else if (boss.count() == 2)
                         {
@@ -558,7 +558,7 @@ namespace netxs::app::tile
                         }
                         else
                         {
-                            if constexpr (debugmode) log(prompt::tile, "Empty slot swap: defective structure, count=", boss.count());
+                            if constexpr (debugmode) log("%%", prompt::tile, "Empty slot swap: defective structure, count=", boss.count());
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
@@ -580,7 +580,7 @@ namespace netxs::app::tile
                                 }
                                 else
                                 {
-                                    if constexpr (debugmode) log(prompt::tile, "Empty slot: defective structure, count=", boss.count());
+                                    if constexpr (debugmode) log("%%", prompt::tile, "Empty slot: defective structure, count=", boss.count());
                                 }
                                 if (auto parent = boss.parent())
                                 {
@@ -649,7 +649,7 @@ namespace netxs::app::tile
                         {
                             auto depth = e2::depth.param();
                             boss.template riseup<tier::request>(e2::depth, depth, true);
-                            if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
+                            if constexpr (debugmode) log("%%", prompt::tile, "Depth ", depth);
                             if (depth > inheritance_limit) return;
 
                             auto heading = deed == app::tile::events::ui::split::vt.id;
@@ -726,7 +726,7 @@ namespace netxs::app::tile
                         config.applet->LISTEN(tier::release, e2::dtor, id)
                         {
                             insts_count--;
-                            if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
+                            if constexpr (debugmode) log("%%", prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
                         };
 
                         app->SIGNAL(tier::anycast, e2::form::upon::started, app);
@@ -957,8 +957,8 @@ namespace netxs::app::tile
             {
                 auto err = std::error_code{};
                 fs::current_path(cwd, err);
-                if (err) log(prompt::tile, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                else     log(prompt::tile, "Change current working directory to '", cwd, "'");
+                if (err) log("%%", prompt::tile, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
+                else     log("%%", prompt::tile, "Change current working directory to '", cwd, "'");
             }
 
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
@@ -982,7 +982,7 @@ namespace netxs::app::tile
                             boss.attach(fullscreen_item);
                             fullscreen_item.reset();
                         }
-                        else log(prompt::tile, "Fullscreen item is empty");
+                        else log("%%", prompt::tile, "Fullscreen item is empty");
                     };
                     boss.LISTEN(tier::anycast, app::tile::events::ui::any, gear)
                     {
@@ -1006,11 +1006,11 @@ namespace netxs::app::tile
                                 });
                                 boss.SIGNAL(tier::general, e2::form::proceed::functor, proc);
                                 auto slots_count = empty_slot_list.size();
-                                log(prompt::tile, "Slots count:", slots_count);
+                                log("%%", prompt::tile, "Slots count:", slots_count);
                                 if (slots_count >= 2) // Swap selected panes cyclically.
                                 {
                                     using slot = sptr<base>;
-                                    log(prompt::tile, "Swap slots cyclically");
+                                    log("%%", prompt::tile, "Swap slots cyclically");
                                     auto i = 0;
                                     auto emp_slot = slot{};
                                     auto app_slot = slot{};

@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 
     auto vtmode = os::tty::vtmode;
     auto syslog = os::tty::logger();
-    auto banner = [&]{ log(app::term::desc, ' ', app::shared::version); };
+    auto banner = [&]{ log("%%", app::term::desc, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
-            log(app::shared::version);
+            log("%%", app::shared::version);
             return 0;
         }
         else if (getopt.match("--"))
@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
     {
         os::fail(errmsg);
         auto myname = os::process::binary<true>();
-        log("\nTerminal emulator.\n\n"s
+        log("%%", "\nTerminal emulator.\n\n"s
             + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -l ] [ -- <shell> ]\n"s
             + "\n"s
             + "  Options:\n\n"s
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     }
     else if (cfonly)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
+        log("%%", "Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
     }
     else
     {

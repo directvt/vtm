@@ -66,7 +66,7 @@ namespace netxs::ui
 
                     if constexpr (ConstWarn)
                     {
-                        log(prompt::sock, "Access to unregistered input device, ", gear.id);
+                        log("%%", prompt::sock, "Access to unregistered input device, ", gear.id);
                     }
 
                     return items.emplace_back(gear.id);
@@ -817,7 +817,7 @@ namespace netxs::ui
                         style(true);
                         break;
                     default:
-                        log("pro::caret: unsupported cursor style requested, ", mode);
+                        log("%%", "pro::caret: unsupported cursor style requested, ", mode);
                         break;
                 }
             }
@@ -1157,7 +1157,7 @@ namespace netxs::ui
                     {
                         wait = faux;
                         auto shadow = boss.This();
-                        log(prompt::gate, "Shutdown by double escape");
+                        log("%%", prompt::gate, "Shutdown by double escape");
                         boss.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                         memo.clear();
                     }
@@ -1194,7 +1194,7 @@ namespace netxs::ui
                     if (datetime::now() > stop)
                     {
                         auto backup = boss.This();
-                        log(prompt::gate, "No mouse clicking events");
+                        log("%%", prompt::gate, "No mouse clicking events");
                         boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
                         ping.reset();
                         memo.clear();
@@ -1260,7 +1260,7 @@ namespace netxs::ui
                         auto iter = gears.find(gear.id);
                         if (iter != gears.end())
                         {
-                            //if constexpr (debugmode) log(prompt::foci, "Gears cleanup boss:", boss.id, " hid:", gear.id);
+                            //if constexpr (debugmode) log("%%", prompt::foci, "Gears cleanup boss:", boss.id, " hid:", gear.id);
                             auto& route = iter->second;
                             auto  token = std::move(route.token);
                             if (route.active) // Keep only the active branch.
@@ -1296,7 +1296,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1307,7 +1307,7 @@ namespace netxs::ui
                 auto fire = [&](auto id)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, "Focus off gear:", seed.id, " item:", item_ptr->id);
                 };
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
@@ -1316,7 +1316,7 @@ namespace netxs::ui
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 pro::focus::off(item_ptr, gear_id_list);
-                //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
+                //if constexpr (debugmode) log("%%", prompt::foci, "Full defocus item:", item_ptr->id);
             }
             static auto get(sptr<base> item_ptr, bool remove_default = faux)
             {
@@ -1324,7 +1324,7 @@ namespace netxs::ui
                 for (auto next_id : gear_id_list)
                 {
                     item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus get gear:", seed.id, " item:", item_ptr->id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, "Focus get gear:", seed.id, " item:", item_ptr->id);
                 }
                 if (remove_default)
                 if (auto parent = item_ptr->parent())
@@ -1366,7 +1366,7 @@ namespace netxs::ui
                 // Subscribe on keybd events.
                 boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
                 {
-                    //if constexpr (debugmode) log(prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log("%%", prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = get_route(gear.id);
                     if (route.active)
@@ -1388,13 +1388,13 @@ namespace netxs::ui
                 {
                     auto& route = get_route(seed.id);
                     auto deed = boss.bell::template protos<tier::release>();
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
                     route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
-                    //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------");
+                    //if constexpr (debugmode) log("%%", prompt::foci, text(--seed.deep * 4, ' '), "----------------");
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
                 {
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log("%%", prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
                     auto iter = gears.find(seed.id);
                     if (iter == gears.end())
                     {
@@ -1423,11 +1423,11 @@ namespace netxs::ui
                         boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
                         signal_state<faux>();
                     }
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
                 boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
                 {
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
+                    //if constexpr (debugmode) log("%%", prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
                     if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
                     {
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
@@ -1649,7 +1649,7 @@ namespace netxs::ui
             //{
             //    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
             //    {
-            //        log("restore");
+            //        log("%%", "restore");
             //        //if (boss.root()) // Restore focused state.
             //        {
             //            boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
@@ -1684,12 +1684,12 @@ namespace netxs::ui
                     ////todo foci
                     //boss.LISTEN(tier::anycast, hids::events::upevent::kboffer, gear, kb_subs) //todo no upevent used
                     //{
-                    //    log("restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
+                    //    log("%%", "restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
                     //    for (auto gear_id : saved) // Restore saved focus.
                     //    {
                     //        if (gear_id == gear.id)
                     //        {
-                    //            log(" good ");
+                    //            log("%%", " good ");
                     //            gear.kb_offer_1(boss.This());
                     //            pro::focus::set(boss.This(), gear.id, pro::focus::solo::off, pro::focus::flip::on);
                     //        }
@@ -1697,14 +1697,14 @@ namespace netxs::ui
                     //};
                     //boss.LISTEN(tier::preview, hids::events::notify::keybd::lost, gear, kb_subs) //todo no upevent used
                     //{
-                    //    log("save boss.id=", boss.id, " gear_id=", gear.id);
+                    //    log("%%", "save boss.id=", boss.id, " gear_id=", gear.id);
                     //    saved.push_back(gear.id);
                     //};
                     //boss.LISTEN(tier::anycast, hids::events::upevent::kbannul, gear, kb_subs) //todo no upevent used
                     //{
                     //    if (gear.focus_force_group = faux)
                     //    {
-                    //        log("wipe ", boss.id);
+                    //        log("%%", "wipe ", boss.id);
                     //        saved.remove_if([&](auto&& gear_id) { return gear_id == gear.id; });
                     //    }
                     //};
@@ -1805,7 +1805,7 @@ namespace netxs::ui
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
                     }
-                    //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
+                    //if constexpr (debugmode) log("%%", "Enter boss:", boss.id, " full:", full);
                 };
                 // pro::mouse: Notify form::state::active when the number of clients is zero.
                 boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
@@ -1817,7 +1817,7 @@ namespace netxs::ui
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
                     }
-                    //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
+                    //if constexpr (debugmode) log("%%", "Leave boss:", boss.id, " full:", full - 1);
                     if (!--full)
                     {
                         soul->base::strike();
@@ -2342,7 +2342,7 @@ namespace netxs::ui
             {
                 directvt::binary::stream::reading_loop(canal, [&](view data){ s11n::sync(data); });
                 s11n::stop(); // Wake up waiting objects, if any.
-                if constexpr (debugmode) log(prompt::gate, "DirectVT session complete");
+                if constexpr (debugmode) log("%%", prompt::gate, "DirectVT session complete");
             }
             // link: Notify environment to disconnect.
             void disconnect()
@@ -2504,7 +2504,7 @@ namespace netxs::ui
             template<class Bitmap>
             void render()
             {
-                if constexpr (debugmode) log(prompt::diff, "Rendering thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::diff, "Rendering thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto start = time{};
                 auto image = Bitmap{};
                 auto guard = std::unique_lock{ mutex };
@@ -2524,7 +2524,7 @@ namespace netxs::ui
                     }
                     debug.watch = datetime::now() - start;
                 }
-                if constexpr (debugmode) log(prompt::diff, "Rendering thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log("%%", prompt::diff, "Rendering thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             // diff: Get rendering statistics.
             auto status()
@@ -2602,7 +2602,7 @@ namespace netxs::ui
                     std::this_thread::yield();
                 }
                 paint.join();
-                if constexpr (debugmode) log(prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(id));
+                if constexpr (debugmode) log("%%", prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(id));
             }
         };
 
@@ -3326,13 +3326,13 @@ namespace netxs::ui
                 }
 
                 auto deed = this->bell::template protos<tier::release>();
-                //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
+                //if constexpr (debugmode) log("%%", prompt::foci, text(seed.deep++ * 4, ' '), "---gate bus::any gear:", seed.id, " hub:", this->id);
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
                     target->bell::template signal<tier::release>(deed, seed);
                 }
-                //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
+                //if constexpr (debugmode) log("%%", prompt::foci, text(--seed.deep * 4, ' '), "----------------gate");
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, tokens)
             {
@@ -3403,7 +3403,7 @@ namespace netxs::ui
 
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
-                if constexpr (debugmode) log(prompt::gate, "Quit ", fast ? "fast" : "normal");
+                if constexpr (debugmode) log("%%", prompt::gate, "Quit ", fast ? "fast" : "normal");
                 conio.disconnect();
             };
             LISTEN(tier::release, e2::form::prop::name, user_name, tokens)
@@ -3468,7 +3468,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
-                log(prompt::gate, "Console error: ", errcode);
+                log("%%", prompt::gate, "Console error: ", errcode);
                 conio.disconnect();
             };
             LISTEN(tier::release, e2::conio::quit, deal, tokens) // Reading loop ends.
@@ -3544,7 +3544,7 @@ namespace netxs::ui
                 //    header.clear();
                 //    header.reserve(newheader.length());
                 //    para{ newheader }.lyric->utf8(header);
-                //    if constexpr (debugmode) log(prompt::gate, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(header)));
+                //    if constexpr (debugmode) log("%%", prompt::gate, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(header)));
                 //    canal.output(ansi::header(header));
                 //}
             };
@@ -3786,7 +3786,7 @@ namespace netxs::ui
             };
             LISTEN(tier::general, e2::shutdown, msg, tokens)
             {
-                if constexpr (debugmode) log(prompt::host, msg);
+                if constexpr (debugmode) log("%%", prompt::host, msg);
                 active.exchange(faux); // To prevent new applications from launching.
                 canal.stop();
             };
@@ -3800,11 +3800,11 @@ namespace netxs::ui
             LISTEN(tier::general, hids::events::device::user::logout, props, tokens)
             {
                 if (props < user_numbering.size()) user_numbering[props] = faux;
-                else log(prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
+                else log("%%", prompt::host, ansi::err("User accounting error: ring size:", user_numbering.size(), " user_number:", props));
             };
 
             quartz.ignite(maxfps);
-            log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
+            log("%%", prompt::host, "Rendering refresh rate: ", maxfps, " fps");
         }
         // host: Mark dirty region.
         void denote(rect const& updateregion)

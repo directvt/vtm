@@ -543,7 +543,7 @@ namespace netxs::ui
                         break;
                     }
                     default:
-                        log(prompt::term, "CSI ", option, "... t (XTWINOPS) is not supported");
+                        log("%%", prompt::term, "CSI ", option, "... t (XTWINOPS) is not supported");
                         break;
                 }
             }
@@ -592,7 +592,7 @@ namespace netxs::ui
             }
             void notsupported(text const& property, view data)
             {
-                log(prompt::term, "Not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
+                log("%%", prompt::term, "Not supported: OSC=", property, " DATA=", data, " SIZE=", data.length(), " HEX=", utf::to_hex(data));
             }
 
             c_tracking(term& owner)
@@ -695,7 +695,7 @@ namespace netxs::ui
                 {
                     proc->second(data);
                 }
-                else log(prompt::term, "Not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
+                else log("%%", prompt::term, "Not supported: OSC=", property, " DATA=", data, " HEX=", utf::to_hex(data));
             }
             void fgc(tint c) { owner.target->brush.fgc(color[c]); }
             void bgc(tint c) { owner.target->brush.bgc(color[c]); }
@@ -1185,7 +1185,7 @@ namespace netxs::ui
             void task(ansi::rule const& property)
             {
                 parser::flush();
-                log(prompt::term, "Desktopio extensions are not supported");
+                log("%%", prompt::term, "Desktopio extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -1220,7 +1220,7 @@ namespace netxs::ui
             template<class T>
             void na(T&& note)
             {
-                log(prompt::term, "Not implemented: ", note);
+                log("%%", prompt::term, "Not implemented: ", note);
             }
             void not_implemented_CSI(si32 i, fifo& q)
             {
@@ -1235,7 +1235,7 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log(prompt::term, "CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
+                log("%%", prompt::term, "CSI ", params, " ", (unsigned char)i, "(", i, ") is not implemented");
             }
             void not_implemented_ESC(si32 c, qiew& q)
             {
@@ -1249,7 +1249,7 @@ namespace netxs::ui
                     case ansi::esc_pm    :
                     case ansi::esc_apc   :
                     case ansi::esc_st    :
-                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unexpected");
+                        log("%%", prompt::term, "ESC ", (char)c, " (", c, ") is unexpected");
                         break;
                     // Unsupported ESC + byte + rest
                     case ansi::esc_g0set :
@@ -1263,7 +1263,7 @@ namespace netxs::ui
                     case ansi::esc_decdhl:
                     case ansi::esc_chrset:
                     {
-                        if (!q) log(prompt::term, "ESC ", (char)c, " (", c, ") is incomplete");
+                        if (!q) log("%%", prompt::term, "ESC ", (char)c, " (", c, ") is incomplete");
                         auto b = q.front();
                         q.pop_front();
                         switch (b)
@@ -1292,7 +1292,7 @@ namespace netxs::ui
                             case '9':
                             case '`':
                             case 'U':
-                                log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
+                                log("%%", prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unsupported");
                                 break;
                             case '%':
                             case '"':
@@ -1300,18 +1300,18 @@ namespace netxs::ui
                                 if (q.size() < 2)
                                 {
                                     if (q) q.pop_front();
-                                    log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
+                                    log("%%", prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is incomplete");
                                 }
                                 else
                                 {
                                      auto d = q.front();
                                      q.pop_front();
-                                     log(prompt::term, "ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
+                                     log("%%", prompt::term, "ESC ", (char)c, " ", (char)b, " ", (char)d, " (", c, " ", b, " ", d, ") is unsupported");
                                 }
                                 break;
                             }
                             default:
-                                log(prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
+                                log("%%", prompt::term, "ESC ", (char)c, " ", (char)b, " (", c, " ", b, ") is unknown");
                                 break;
                         }
                         break;
@@ -1342,10 +1342,10 @@ namespace netxs::ui
                     case ansi::esc_spa   :
                     case ansi::esc_epa   :
                     case ansi::esc_rid   :
-                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unsupported");
+                        log("%%", prompt::term, "ESC ", (char)c, " (", c, ") is unsupported");
                         break;
                     default:
-                        log(prompt::term, "ESC ", (char)c, " (", c, ") is unknown");
+                        log("%%", prompt::term, "ESC ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1358,13 +1358,13 @@ namespace netxs::ui
                 switch (c)
                 {
                     case -1:
-                        log(prompt::term, "ESC #  is unexpected");
+                        log("%%", prompt::term, "ESC #  is unexpected");
                         break;
                     case '3':
                     case '4':
                     case '5':
                     case '6':
-                        log(prompt::term, "ESC # ", (char)c, " (", c, ") is unsupported");
+                        log("%%", prompt::term, "ESC # ", (char)c, " (", c, ") is unsupported");
                         break;
                     case '8':
                     {
@@ -1379,7 +1379,7 @@ namespace netxs::ui
                         break;
                     }
                     default:
-                        log(prompt::term, "ESC # ", (char)c, " (", c, ") is unknown");
+                        log("%%", prompt::term, "ESC # ", (char)c, " (", c, ") is unknown");
                         break;
                 }
             }
@@ -1404,7 +1404,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                log(prompt::term, "Unsupported message/command: '\\e", (char)c, utf::debase<faux>(data), "'");
+                log("%%", prompt::term, "Unsupported message/command: '\\e", (char)c, utf::debase<faux>(data), "'");
             }
             // bufferbase: Clear buffer.
     virtual void clear_all()
@@ -1592,7 +1592,7 @@ namespace netxs::ui
             }
             void print_tabstops(text msg)
             {
-                log(msg, ":\n", "index size = ", stops.size());
+                log("%%", msg, ":\n", "index size = ", stops.size());
                 auto i = 0;
                 auto data = utf::adjust("coor:", 5, " ", faux);
                 for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(i++), 4, " ", true);
@@ -1600,7 +1600,7 @@ namespace netxs::ui
                 for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(fwd), 4, " ", true);
                 data += '\n' + utf::adjust("rev:", 5, " ", faux);
                 for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(rev), 4, " ", true);
-                log(data);
+                log("%%", data);
             }
             // bufferbase: CSI n g  Reset tabstop value.
             void tbc(si32 n)
@@ -1774,7 +1774,7 @@ namespace netxs::ui
             // bufferbase: Shift left n columns(s).
             void shl(si32 n)
             {
-                log(prompt::term, "SHL(n=", n, ") is not implemented.");
+                log("%%", prompt::term, "SHL(n=", n, ") is not implemented.");
             }
             // bufferbase: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
     virtual void ech(si32 n, char c = '\0') = 0;
@@ -2832,24 +2832,24 @@ namespace netxs::ui
 
             void print_slide(text msg)
             {
-                log(msg, ": ", " batch.basis=", batch.basis, " batch.slide=", batch.slide,
+                log("%%", msg, ": ", " batch.basis=", batch.basis, " batch.slide=", batch.slide,
                     " ancid=", batch.ancid, " ancdy=", batch.ancdy, " round=", batch.round ? 1:0);
             }
             void print_index(text msg)
             {
-                log(" ", msg, " index.size=", index.size, " basis=", batch.basis, " panel=", panel);
+                log("%%", " ", msg, " index.size=", index.size, " basis=", batch.basis, " panel=", panel);
                 for (auto n = 0; auto& l : index)
                 {
-                    log("  ", n++,". id=", l.index," start=", l.start, " width=", l.width, l.start % panel.x != 0 ? " <-- BAD INDEX l.start % panel.x != 0":"");
+                    log("%%", "  ", n++,". id=", l.index," start=", l.start, " width=", l.width, l.start % panel.x != 0 ? " <-- BAD INDEX l.start % panel.x != 0":"");
                 }
                 auto& mapln = index.back();
                 auto& curln = batch.item_by_id(mapln.index);
-                log(" last ln id=", curln.index, " curln.length()=", curln.length());
-                log(" -----------------");
+                log("%%", " last ln id=", curln.index, " curln.length()=", curln.length());
+                log("%%", " -----------------");
             }
             void print_batch(text msg)
             {
-                log(" ", msg,
+                log("%%", " ", msg,
                 " batch.size=",  batch.size,
                 " batch.vsize=", batch.vsize,
                 " batch.basis=", batch.basis,
@@ -2858,9 +2858,9 @@ namespace netxs::ui
                 );
                 for (auto n = 0; auto& l : batch)
                 {
-                    log("  ", n++,". id=", l.index, " length()=", l.length(), " wrapped=", l.wrapped() ? "true" : "faux");
+                    log("%%", "  ", n++,". id=", l.index, " length()=", l.length(), " wrapped=", l.wrapped() ? "true" : "faux");
                 }
-                log(" -----------------");
+                log("%%", " -----------------");
             }
             bool test_index()
             {
@@ -2905,14 +2905,14 @@ namespace netxs::ui
                 {
                     test_vsize += l.height(panel.x);
                 }
-                if (test_vsize != batch.vsize) log(" ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
+                if (test_vsize != batch.vsize) log("%%", " ERROR! test_vsize=", test_vsize, " vsize=", batch.vsize);
                 return test_vsize == batch.vsize;
             }
             bool test_basis()
             {
                 if (batch.basis >= batch.vsize)
                 {
-                    assert((log(" batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                    assert((log("%%", " batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
                 }
 
                 auto index_front = index.front();
@@ -3412,7 +3412,7 @@ namespace netxs::ui
             {
                 if (batch.basis >= batch.vsize)
                 {
-                    assert((log(prompt::term, "batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
+                    assert((log("%%", prompt::term, "batch.basis >= batch.vsize  batch.basis=", batch.basis, " batch.vsize=", batch.vsize), true));
                     batch.basis = batch.vsize - 1;
                 }
 
@@ -6289,13 +6289,13 @@ namespace netxs::ui
                     cursor.show();
                     break;
                 case 9:    // Enable X10 mouse reporting protocol.
-                    log(prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
+                    log("%%", prompt::term, "CSI ? 9 h  X10 Mouse reporting protocol is not supported");
                     break;
                 case 1000: // Enable mouse buttons reporting mode.
                     mtrack.enable(input::mouse::mode::buttons_press);
                     break;
                 case 1001: // Use Hilite mouse tracking mode.
-                    log(prompt::term, "CSI ? 1001 h  Hilite mouse tracking mode is not supported");
+                    log("%%", prompt::term, "CSI ? 1001 h  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Enable mouse buttons and drags reporting mode.
                     mtrack.enable(input::mouse::mode::buttons_drags);
@@ -6319,10 +6319,10 @@ namespace netxs::ui
                     mtrack.enable(input::mouse::mode::negative_args);
                     break;
                 case 1015: // Enable URXVT mouse reporting protocol.
-                    log(prompt::term, "CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
+                    log("%%", prompt::term, "CSI ? 1015 h  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Enable Pixels (subcell) mouse mode.
-                    log(prompt::term, "CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
+                    log("%%", prompt::term, "CSI ? 1016 h  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Save cursor pos.
                     target->scp();
@@ -6401,13 +6401,13 @@ namespace netxs::ui
                     cursor.hide();
                     break;
                 case 9:    // Disable X10 mouse reporting protocol.
-                    log(prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
+                    log("%%", prompt::term, "CSI ? 9 l  X10 Mouse tracking protocol is not supported");
                     break;
                 case 1000: // Disable mouse buttons reporting mode.
                     mtrack.disable(input::mouse::mode::buttons_press);
                     break;
                 case 1001: // Don't use Hilite(c) mouse tracking mode.
-                    log(prompt::term, "CSI ? 1001 l  Hilite mouse tracking mode is not supported");
+                    log("%%", prompt::term, "CSI ? 1001 l  Hilite mouse tracking mode is not supported");
                     break;
                 case 1002: // Disable mouse buttons and drags reporting mode.
                     mtrack.disable(input::mouse::mode::buttons_drags);
@@ -6432,10 +6432,10 @@ namespace netxs::ui
                     mtrack.disable(input::mouse::mode::negative_args);
                     break;
                 case 1015: // Disable URXVT mouse reporting protocol.
-                    log(prompt::term, "CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
+                    log("%%", prompt::term, "CSI ? 1015 l  URXVT mouse reporting protocol is not supported");
                     break;
                 case 1016: // Disable Pixels (subcell) mouse mode.
-                    log(prompt::term, "CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
+                    log("%%", prompt::term, "CSI ? 1016 l  Pixels (subcell) mouse mode is not supported");
                     break;
                 case 1048: // Restore cursor pos.
                     target->rcp();
@@ -6546,7 +6546,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("%%", prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -6555,7 +6555,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                if (io_log && data.size()) log("%%", prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                 ansi::parse(data, target);
             });
         }
@@ -7087,7 +7087,7 @@ namespace netxs::ui
         }
         void exec_cmd(commands::ui::commands cmd)
         {
-            if constexpr (debugmode) log(prompt::term, "Command: ", cmd);
+            if constexpr (debugmode) log("%%", prompt::term, "Command: ", cmd);
             auto& console = *target;
             switch (cmd)
             {
@@ -7249,12 +7249,12 @@ namespace netxs::ui
 
                 //if (input::key::map::name(gear.keycode) == input::key::undef)
                 {
-                    log("gear.keycode: ",  gear.keycode,
+                    log("%%", "gear.keycode: ",  gear.keycode,
                         " pressed: ", gear.pressed,
                         " virtcod: ", gear.virtcod,
                         " scancod: ", gear.scancod);
                 }
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
+                if (io_log) log("%%", prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
             };
@@ -7396,7 +7396,7 @@ namespace netxs::ui
                 for (auto& jgc : lock.thing)
                 {
                     cell::gc_set_data(jgc.token, jgc.cluster);
-                    if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    if constexpr (debugmode) log("%%", prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
                 netxs::events::enqueue(master.This(), [&](auto& boss) mutable
                 {
@@ -7532,7 +7532,7 @@ namespace netxs::ui
                             return;
                         }
                     }
-                    else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
+                    else log("%%", prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
                     s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext);
                 });
             }
@@ -7616,7 +7616,7 @@ namespace netxs::ui
                     if (utf8.size() && utf8.back() == '\n') utf8.remove_suffix(1);
                     if (lock.thing.id == 0) // Message from our process.
                     {
-                        log(utf8);
+                        log("%%", utf8);
                     }
                     else
                     {
