@@ -502,7 +502,7 @@ namespace netxs
             };
             auto max = 1368u; // Minimal distance: between greenlt and greendk - 1.
             auto hit = std::pair{ max, 0 };
-            for (auto i = 0; i < std::size(palette); i++) // Find the nearest.
+            for (auto i = 0; i < (si32)std::size(palette); i++) // Find the nearest.
             {
                 if (auto d = dist(palette[i], token))
                 {
@@ -577,7 +577,7 @@ namespace netxs
             static auto cache_fg = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0; i < std::size(rgba::vtm16); i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(rgba::vtm16); i++) table.push_back({ rgba::vtm16[i], i });
                 table.insert(table.end(),
                 {
                     { 0xFF'00'00'55,                 tint16::reddk     },
@@ -628,7 +628,7 @@ namespace netxs
             static auto cache = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0; i < std::size(rgba::vtm16) / 2; i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(rgba::vtm16) / 2; i++) table.push_back({ rgba::vtm16[i], i });
                 table.insert(table.end(),
                 {
                     { rgba::vt256[tint::bluelt   ],  tint16::bluedk  },
