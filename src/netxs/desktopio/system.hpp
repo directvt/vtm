@@ -3304,8 +3304,8 @@ namespace netxs::os
                     auto m_pipe_w = to_client[1];
                     io::send(m_pipe_w, marker);
 
-                    auto p_id = os::process::sysfork(); // A dtvt-application can be either a real dtvt-application or a proxy
-                                                        // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
+                    auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
+                                                        // like SSH/netcat/inetd that forwards traffic from a real dtvt-app.
                     if (p_id == 0) // Child branch.
                     {
                         auto p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
