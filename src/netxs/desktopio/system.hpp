@@ -1129,8 +1129,8 @@ namespace netxs::os
             operator auto () { return h[0]; }
             fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected_msg); }
            ~fire()           { for (auto& f : h) os::close(f); }
-            void reset()     { fired.exchange(true); auto c = ' '; ::write(h[1], &c, sizeof(c)); }
-            void flush()     { fired.exchange(faux); auto c = ' ';  ::read(h[0], &c, sizeof(c)); }
+            void reset()     { fired.exchange(true); auto c = ' '; auto rc = ::write(h[1], &c, sizeof(c)); }
+            void flush()     { fired.exchange(faux); auto c = ' '; auto rc = ::read(h[0], &c, sizeof(c)); }
 
         #endif
         void bell() { reset(); }
