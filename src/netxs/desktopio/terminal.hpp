@@ -6539,7 +6539,11 @@ namespace netxs::ui
                 }
                 unsync = true;
             });
-            if (!done) proc();
+            if (!done)
+            {
+                if constexpr (debugmode) log("%%Unsynchronized output", prompt::term);
+                proc();
+            }
         }
         // term: Proceed terminal input.
         void ondata(view data, bufferbase* target)

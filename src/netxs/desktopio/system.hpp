@@ -916,15 +916,8 @@ namespace netxs::os
             {
                 if constexpr (sizeof(void*) == 4)
                 {
-                    #if defined(_WIN32_WINNT) && _WIN32_WINNT >= 0x0A00
-                    auto isWow64Process = USHORT{};
-                    auto nativeMachine = USHORT{};
-                    ::IsWow64Process2(::GetCurrentProcess(), &isWow64Process, &nativeMachine);
-                    isWow64Process = !!isWow64Process && isWow64Process != nativeMachine;
-                    #else
                     auto isWow64Process = BOOL{};
                     ::IsWow64Process(::GetCurrentProcess(), &isWow64Process);
-                    #endif
                     return !!isWow64Process;
                 }
                 else return faux;
