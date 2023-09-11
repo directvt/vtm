@@ -7620,9 +7620,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        auto proc_pid = master.ipccon.proc_pid;
-                        if (proc_pid != lock.thing.id) prompt.add(netxs::prompt::pads, proc_pid, '/', lock.thing.id, ": "); // Local pid/remote pid. It is different if sshed.
-                        else                           prompt.add(netxs::prompt::pads, proc_pid, ": ");
+                        prompt.add(netxs::prompt::pads, lock.thing.id, ": "); // Local host pid and remote host pid can be different. It is different if sshed.
                         utf::divide(utf8, '\n', [&](auto line)
                         {
                             output.add(prompt, line, '\n');

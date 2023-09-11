@@ -1173,8 +1173,6 @@ namespace netxs::os
                 forced_EINTR.sa_handler = action;
                 ::sigaction(SIGUSR2, &forced_EINTR, nullptr); // Readfile interruptor.
                 ::signal(SIGWINCH, action); // BSD systems require a dummy action for this signal.
-                //todo handle SIGCHLD: BSD requirement.
-                //::signal(SIGCHLD, SIG_IGN); // Auto wait child zombies.
                 ::signal(SIGPIPE, SIG_IGN); // Ignore writing to a broken pipe.
                 sigemptyset(&sigset);
                 sigemptyset(&backup);
@@ -1187,7 +1185,6 @@ namespace netxs::os
                 auto deleter = [](auto*)
                 {
                     ::pthread_sigmask(SIG_SETMASK, &backup, nullptr);
-                    ::signal(SIGCHLD,  SIG_DFL);
                     ::signal(SIGPIPE,  SIG_DFL);
                     ::signal(SIGUSR2,  SIG_DFL);
                     ::signal(SIGWINCH, SIG_DFL);
@@ -2863,7 +2860,7 @@ namespace netxs::os
                     else if (p_id > 0) os::process::exit<true>(0); // Success.
                     else               os::process::exit<true>(1); // Fail.
                 }
-                else if (p_id > 0) // Parent branch. Reap the child, leaving the grandchild to be inherited by init.
+                else if (p_id > 0) // Parent branch. Reap the child process and leaving the grandchild process detached.
                 {
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0);
@@ -2897,62 +2894,6 @@ namespace netxs::os
 
             #endif
         }
-        //auto getexitcode(pidt proc_pid, fd_t prochndl)
-        //{
-        //    struct
-        //    {
-        //        bool exited{};
-        //        si32 retcod{};
-        //    }
-        //    result;
-        //    auto status = sigt{};
-        //    #if defined(_WIN32)
-//
-        //        result.exited = ::GetExitCodeProcess(prochndl, &status) && status != STILL_ACTIVE;
-        //        if (result.exited)
-        //        {
-        //            result.retcod = status;
-        //        }
-//
-        //    #else
-//
-        //        result.exited = ::waitpid(proc_pid, &status, WNOHANG) && WIFEXITED(status);
-        //        if (result.exited)
-        //        {
-        //            result.retcod = WEXITSTATUS(status);
-        //        }
-//
-        //    #endif
-        //    return result;
-        //}
-        //auto wait(view type, pidt& proc_pid, fd_t& prochndl)//, bool sighup = true)
-        //{
-        //    if (!proc_pid) return si32{};
-        //    log(type, "Wait child process ", proc_pid);
-        //    auto result = os::process::getexitcode(proc_pid, prochndl);
-        //    if (!result.exited)
-        //    {
-        //        //if (sighup)
-        //        //{
-        //        //    os::process::sighup(proc_pid, prochndl);
-        //        //    result = os::process::getexitcode(proc_pid, prochndl);
-        //        //}
-        //        auto bystep = 1ms;
-        //        auto timeout = datetime::now() + std::chrono::milliseconds{ app_wait_timeout }+1000s;
-        //        while (!result.exited && timeout > datetime::now())
-        //        {
-        //            bystep = std::min(bystep * 2, 1000ms);
-        //            std::this_thread::sleep_for(bystep);
-        //            result = os::process::getexitcode(proc_pid, prochndl);
-        //            if constexpr (debugmode) log(prompt::wait, bystep.count(), "ms for process ", proc_pid);
-        //        }
-        //    }
-        //    if (result.exited) log(type, "Child process ", proc_pid, " returns code", ' ', utf::to_hex_0x(result.retcod));
-        //    else               log(type, "Child process ", proc_pid, " still running");
-        //    proc_pid = {};
-        //    os::close(prochndl);
-        //    return result.retcod;
-        //}
     }
 
     namespace dtvt
@@ -3232,7 +3173,6 @@ namespace netxs::os
             using s11n = directvt::binary::s11n;
 
             fd_t                    prochndl{ os::invalid_fd };
-            pidt                    proc_pid{};
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
@@ -3346,7 +3286,6 @@ namespace netxs::os
                     {
                         os::close( procsinf.hThread );
                         prochndl = procsinf.hProcess;
-                        proc_pid = procsinf.dwProcessId;
                     }
                     else
                     {
@@ -3365,27 +3304,43 @@ namespace netxs::os
                     auto m_pipe_w = to_client[1];
                     io::send(m_pipe_w, marker);
 
-                    proc_pid = os::process::sysfork(); // A dtvt-application can be either a real dtvt-application or a proxy
-                                                       // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
-                    if (proc_pid == 0) // Child branch.
+                    auto p_id = os::process::sysfork(); // A dtvt-application can be either a real dtvt-application or a proxy
+                                                        // like SSH/netcat/inetd that forwards traffic from a real dtvt-application.
+                    if (p_id == 0) // Child branch.
                     {
-                        os::dtvt::active = true;
-                        ::dup2(s_pipe_r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-                        ::dup2(s_pipe_w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                        if (cwd.size())
+                        auto p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
+                        if (p_id == 0) // Grandchild process.
                         {
-                            auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            if (err) log(prompt::dtvt, ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
-                            else     log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                            os::dtvt::active = true;
+                            ::dup2(s_pipe_r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                            ::dup2(s_pipe_w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                            if (cwd.size())
+                            {
+                                auto err = std::error_code{};
+                                fs::current_path(cwd, err);
+                                if (err) log(prompt::dtvt, ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
+                                else     log(prompt::dtvt, "Change current working directory to '", cwd, "'");
+                            }
+                            os::fdscleanup();
+                            os::signals::state.reset();
+                            os::process::execvp(cmdline);
+                            onerror();
+                            os::process::exit<true>(0);
                         }
-                        os::fdscleanup();
-                        os::signals::state.reset();
-                        os::process::execvp(cmdline);
-                        onerror();
-                        os::process::exit<true>(0);
+                        else if (p_id > 0) os::process::exit<true>(0); // Fast exit the child process and leave the grandchild process detached.
+                        else
+                        {
+                            onerror();
+                            os::process::exit<true>(1); // Something went wrong. Fast exit anyway.
+                        }
                     }
-                    // Parent branch.
+                    else if (p_id > 0) // Parent branch. Reap the child process to avoid zombies.
+                    {
+                        auto stat = int{};
+                        ::waitpid(p_id, &stat, 0); // Close zombie.
+                        if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0) onerror(); // Catch fast exit(1).
+                    }
+                    else onerror();
 
                 #endif
                 os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
@@ -3416,7 +3371,6 @@ namespace netxs::os
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 directvt::binary::stream::reading_loop(termlink, receiver);
-                log(prompt::dtvt, "Process ", proc_pid, " disconnected");
                 if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void start(text cwd, text cmdline, text config, twod winsz, auto receiver, auto shutdown)
@@ -3430,16 +3384,17 @@ namespace netxs::os
                         auto guard = std::lock_guard{ writemtx };
                         writebuf = config + writebuf;
                     }
-                    attached.exchange(!!proc_pid);
+                    attached.exchange(!!termlink);
                     if (attached)
                     {
-                        if constexpr (debugmode) log(prompt::dtvt, "DirectVT console created for process ", proc_pid);
+                        if constexpr (debugmode) log(prompt::dtvt, "DirectVT console created for process '", utf::debase(cmdline), "'");
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{[&] { writer(); }};
                         reader(receiver);
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
+                        log(prompt::dtvt, "Process '", utf::debase(cmdline), "' disconnected");
                         shutdown();
                     }
                 }};

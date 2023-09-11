@@ -119,12 +119,15 @@ namespace netxs
 
 namespace
 {
-    template<bool Newline = true, class ...Args>
-    void log(Args&&... args)
+    template<bool Newline = true, class T, class ...Args>
+    void log(T&& format, Args&&... args)
     {
         auto state = netxs::logger::globals();
         if (!state.quiet)
         {
+            //todo implement format string support (reuired for localization).
+            //     log("Text message with %parameter1 and %parameter2 and contained a percent \% char", p1.str(), p2.str());
+            state.input << std::forward<T>(format);
             (state.input << ... << std::forward<Args>(args));
             if constexpr (Newline) state.input << '\n';
             state.flush();
