@@ -4869,7 +4869,7 @@ namespace netxs::os
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 
-                auto vtrun = ansi::setutf(true).altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
+                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
                 auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & os::dtvt::vt16);
                 io::send(os::stdout_fd, vtrun);
             #endif

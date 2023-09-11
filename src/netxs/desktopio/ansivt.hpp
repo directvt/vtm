@@ -537,7 +537,7 @@ namespace netxs::ansi
             return add(b ? "\033[?1002;1003;1004;1006;10060h"
                          : "\033[?1002;1003;1004;1006;10060l");
         }
-        auto& setutf(bool b)        { return add(b ? "\033%G"      : "\033%@"        ); } // escx: Select UTF-8 character set (true) or default (faux).
+        auto& setutf(bool b)        { return add(b ? "\033%G"      : "\033%@"        ); } // escx: Select UTF-8 character set (true) or default (faux). Not supported by Apple Terminal on macOS.
         auto& altbuf(bool b)        { return add(b ? "\033[?1049h" : "\033[?1049l"   ); } // escx: Alternative buffer.
         auto& cursor(bool b)        { return add(b ? "\033[?25h"   : "\033[?25l"     ); } // escx: Caret visibility.
         auto& appkey(bool b)        { return add(b ? "\033[?1h"    : "\033[?1l"      ); } // escx: Application(=on)/ANSI(=off) Caret Keys (DECCKM).

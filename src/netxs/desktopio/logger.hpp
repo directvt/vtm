@@ -127,7 +127,8 @@ namespace
             static constexpr auto delimiter = '%';
             auto crop = format;
             auto head = format.find(delimiter);
-            if (head != netxs::text::npos)
+            if (head == netxs::text::npos) format = {};
+            else
             {
                 auto tail = format.find(delimiter, head + 1);
                 if (tail != netxs::text::npos)
