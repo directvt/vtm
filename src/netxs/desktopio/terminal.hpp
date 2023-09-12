@@ -7630,7 +7630,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysclose            lock)
             {
-                master.close();
+                master.stop<faux>(true);
             }
 
             evnt(dtvt& master)
@@ -7773,11 +7773,7 @@ namespace netxs::ui
         // dtvt: Destruct dtvt-object.
         void close()
         {
-            if (active.exchange(faux))
-            netxs::events::enqueue(This(), [&](auto& boss)
-            {
-                this->RISEUP(tier::release, e2::form::proceed::quit::one, true);
-            });
+            this->RISEUP(tier::release, e2::form::proceed::quit::one, true);
         }
 
     public:
@@ -7821,11 +7817,21 @@ namespace netxs::ui
                                                               [&]            { onexit();     });
             }
         }
-        // dtvt: Stop dtvt-object.
+        // dtvt: Close dtvt-object.
+        template<bool Reply = true>
         void stop(bool fast)
         {
-            if (ipccon) stream.s11n::sysclose.send(*this, 0, fast);
-            else        close();
+            if (ipccon)
+            {
+                active.exchange(faux);
+                if constexpr (Reply) stream.s11n::sysclose.send(*this, 0, fast);
+                netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+                {
+                    ipccon.cleanup();
+                    close();
+                });
+            }
+            else close();
         }
         // dtvt: Splash screen if there is no next frame.
         void fallback(core const& canvas, bool forced = faux)
@@ -7915,13 +7921,6 @@ namespace netxs::ui
                     fill(parent_canvas, canvas);
                 }
             };
-        }
-       ~dtvt()
-        {
-            if (active.exchange(faux))
-            {
-                stop(true);
-            }
         }
     };
 }

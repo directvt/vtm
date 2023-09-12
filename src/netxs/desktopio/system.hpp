@@ -3079,9 +3079,9 @@ namespace netxs::os
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
 
-           ~vtty()
+            void cleanup()
             {
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Destructor started");
+                if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
                 if (attached.exchange(faux)) // Detach child process and forget.
                 {
                     writesyn.notify_one(); // Interrupt writing thread.
@@ -3089,10 +3089,10 @@ namespace netxs::os
                 }
                 if (stdinput.joinable())
                 {
-                    if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                    if constexpr (debugmode) log(prompt::dtvt, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                     stdinput.join();
                 }
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Destructor complete");
+                if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
 
             operator bool () { return attached; }
@@ -3101,10 +3101,10 @@ namespace netxs::os
             {
                 auto marker = directvt::binary::marker{ config_size, winsz };
                 utf::change(cmdline, "\\\"", "'");
-                log("%%", prompt::dtvt, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                log("%%New process '%cmdline%' at the %path%", prompt::dtvt, utf::debase(cmdline), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 auto onerror = [&]()
                 {
-                    log("%%", prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                    log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
                         "\r\n\tcwd: '", cwd, "'",
                         "\r\n\tcmd: '", cmdline, "'");
                 };
@@ -3217,8 +3217,8 @@ namespace netxs::os
                             {
                                 auto err = std::error_code{};
                                 fs::current_path(cwd, err);
-                                if (err) log("%%", prompt::dtvt, ansi::err("Failed to change current working directory to '", cwd, "', error code: ", utf::to_hex_0x(err.value())));
-                                else     log("%%", prompt::dtvt, "Change current working directory to '", cwd, "'");
+                                if (err) log("%%%err%Failed to change current working directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil()));
+                                else     log("%%Change current working directory to '%cwd%'", prompt::dtvt, cwd);
                             }
                             os::fdscleanup();
                             os::signals::state.reset();
@@ -3248,7 +3248,7 @@ namespace netxs::os
             }
             void writer()
             {
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 auto cache = text{};
                 auto guard = std::unique_lock{ writemtx };
                 while ((void)writesyn.wait(guard, [&]{ return writebuf.size() || !attached; }), attached)
@@ -3258,19 +3258,19 @@ namespace netxs::os
                     if (termlink.send(cache)) cache.clear();
                     else
                     {
-                        if constexpr (debugmode) log("%%", prompt::dtvt, "Unexpected disconnection");
+                        if constexpr (debugmode) log(prompt::dtvt, "Unexpected disconnection");
                         if (attached.exchange(faux)) termlink.abort(stdinput); // Interrupt reading thread.
                         break;
                     }
                     guard.lock();
                 }
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void reader(auto receiver)
             {
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                 directvt::binary::stream::reading_loop(termlink, receiver);
-                if constexpr (debugmode) log("%%", prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
             void start(text cwd, text cmdline, text config, twod winsz, auto receiver, auto shutdown)
             {
@@ -3286,14 +3286,14 @@ namespace netxs::os
                     attached.exchange(!!termlink);
                     if (attached)
                     {
-                        if constexpr (debugmode) log("%%", prompt::dtvt, "DirectVT console created for process '", utf::debase(cmdline), "'");
+                        if constexpr (debugmode) log("%%DirectVT console created for process '%cmdline%'", prompt::dtvt, utf::debase(cmdline));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{[&] { writer(); }};
                         reader(receiver);
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
-                        if constexpr (debugmode) log("%%", prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+                        if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
-                        log("%%", prompt::dtvt, "Process '", utf::debase(cmdline), "' disconnected");
+                        log("%%Process '%cmdline%' disconnected", prompt::dtvt, utf::debase(cmdline));
                         shutdown();
                     }
                 }};
