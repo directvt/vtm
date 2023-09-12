@@ -264,7 +264,6 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
-        auto thread = os::process::pool{};
         domain->autorun();
 
         log("%%Server started"
@@ -275,7 +274,7 @@ int main(int argc, char* argv[])
         {
             while (auto monitor = logger->meet())
             {
-                thread.run([&, monitor](auto session_id)
+                domain->run([&, monitor](auto session_id)
                 {
                     auto id = monitor->recv().str();
                     log("%%Monitor [%id%] connected", prompt::logs, id);
@@ -299,7 +298,7 @@ int main(int argc, char* argv[])
         {
             if (client->auth(userid))
             {
-                thread.run([&, client, settings](auto session_id)
+                domain->run([&, client, settings](auto session_id)
                 {
                     auto id = utf::concat(*client);
                     if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
@@ -314,11 +313,8 @@ int main(int argc, char* argv[])
         readline.stop();
         logger->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
         stdlog.join();
-        log("%%Server shutdown", prompt::main);
-        domain->SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
-        events::dequeue(); // Wait until all users and monitors are disconnected.
-        domain->shutdown();
-    } // Close all running apps in dtors.
+        domain->stop();
+    }
 
     os::release();
 }

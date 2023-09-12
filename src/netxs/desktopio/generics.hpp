@@ -250,7 +250,7 @@ namespace netxs::generics
         std::mutex              mutex;
         std::condition_variable synch;
         std::list<item>         queue;
-        bool                    alive;
+        flag                    alive;
         std::thread             agent;
 
         template<class P>
@@ -313,14 +313,101 @@ namespace netxs::generics
         void stop()
         {
             auto guard = std::unique_lock{ mutex };
-            if (alive)
+            if (alive.exchange(faux))
             {
-                alive = faux;
                 synch.notify_one();
                 guard.unlock();
                 agent.join();
             }
         }
+    };
+
+    // generics: Separate thread for executing parallel tasks.
+    struct pool
+    {
+    private:
+        struct item
+        {
+            bool        state;
+            std::thread guest;
+        };
+
+        std::recursive_mutex            mutex;
+        std::condition_variable_any     synch;
+        std::map<std::thread::id, item> index;
+        si32                            count;
+        flag                            alive;
+        std::thread                     agent;
+
+        void worker()
+        {
+            auto guard = std::unique_lock{ mutex };
+            while (alive || index.size())
+            {
+                if (alive) synch.wait(guard);
+                for (auto it = index.begin(); it != index.end();)
+                {
+                    auto& [sid, session] = *it;
+                    auto& [state, guest] = session;
+                    if (state == faux || !alive)
+                    {
+                        if (guest.joinable())
+                        {
+                            guard.unlock();
+                            guest.join();
+                            guard.lock();
+                        }
+                        it = index.erase(it);
+                    }
+                    else ++it;
+                }
+            }
+        }
+        void checkout()
+        {
+            auto guard = std::lock_guard{ mutex };
+            auto session_id = std::this_thread::get_id();
+            index[session_id].state = faux;
+            synch.notify_one();
+        }
+
+    public:
+        template<class Proc>
+        void run(Proc process)
+        {
+            auto guard = std::lock_guard{ mutex };
+            if (!alive) return;
+            auto next_id = count++;
+            auto session = std::thread([&, process, next_id]
+            {
+                process(next_id);
+                checkout();
+            });
+            auto session_id = session.get_id();
+            index[session_id] = { true, std::move(session) };
+        }
+        auto size()
+        {
+            return index.size();
+        }
+        auto stop()
+        {
+            mutex.lock();
+            alive = faux;
+            synch.notify_one();
+            mutex.unlock();
+
+            if (agent.joinable())
+            {
+                agent.join();
+            }
+        }
+
+        pool()
+            : count{ 0    },
+              alive{ true },
+              agent{ &pool::worker, this }
+        { }
     };
 
     // generics: .

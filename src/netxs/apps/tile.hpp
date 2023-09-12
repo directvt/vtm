@@ -164,7 +164,6 @@ namespace netxs::app::tile
         {
             if (client)
             {
-                auto lock = netxs::events::sync{};
                 client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }

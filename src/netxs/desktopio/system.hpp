@@ -2493,100 +2493,6 @@ namespace netxs::os
             }
         };
 
-        struct pool
-        {
-        private:
-            struct item
-            {
-                bool        state;
-                std::thread guest;
-            };
-
-            std::recursive_mutex            mutex;
-            std::condition_variable_any     synch;
-            std::map<std::thread::id, item> index;
-            si32                            count;
-            bool                            alive;
-            std::thread                     agent;
-
-            void worker()
-            {
-                auto guard = std::unique_lock{ mutex };
-                if constexpr (debugmode) log("%%", prompt::pool, "Session control thread started");
-
-                while (alive || index.size())
-                {
-                    if (alive) synch.wait(guard);
-                    for (auto it = index.begin(); it != index.end();)
-                    {
-                        auto& [sid, session] = *it;
-                        auto& [state, guest] = session;
-                        if (state == faux || !alive)
-                        {
-                            if (guest.joinable())
-                            {
-                                guard.unlock();
-                                guest.join();
-                                guard.lock();
-                                if constexpr (debugmode) log("%%", prompt::pool, "Session joined", ' ', utf::to_hex_0x(sid));
-                            }
-                            it = index.erase(it);
-                        }
-                        else ++it;
-                    }
-                }
-            }
-            void checkout()
-            {
-                auto guard = std::lock_guard{ mutex };
-                auto session_id = std::this_thread::get_id();
-                index[session_id].state = faux;
-                synch.notify_one();
-                if constexpr (debugmode) log("%%", prompt::pool, "Session deleted", ' ', utf::to_hex_0x(session_id));
-            }
-
-        public:
-            template<class Proc>
-            void run(Proc process)
-            {
-                auto guard = std::lock_guard{ mutex };
-                if (!alive) return;
-                auto next_id = count++;
-                auto session = std::thread([&, process, next_id]
-                {
-                    process(next_id);
-                    checkout();
-                });
-                auto session_id = session.get_id();
-                index[session_id] = { true, std::move(session) };
-                if constexpr (debugmode) log("%%", prompt::pool, "Session created", ' ', utf::to_hex_0x(session_id));
-            }
-            auto size()
-            {
-                return index.size();
-            }
-
-            pool()
-                : count{ 0    },
-                  alive{ true },
-                  agent{ &pool::worker, this }
-            { }
-           ~pool()
-            {
-                mutex.lock();
-                alive = faux;
-                synch.notify_one();
-                mutex.unlock();
-
-                if (agent.joinable())
-                {
-                    if constexpr (debugmode) log("%%", prompt::pool, "Session agent joining");
-                    agent.join();
-                }
-                if constexpr (debugmode) log("%%", prompt::pool, "Session control thread ended");
-            }
-        };
-
         template<bool NameOnly = faux>
         auto binary()
         {
@@ -3416,12 +3322,6 @@ namespace netxs::os
             std::condition_variable writesyn{};
             sptr<consrv>            termlink{};
 
-           ~vtty()
-            {
-                sighup();
-                cleanup(faux);
-            }
-
             operator bool () { return attached; }
 
             void cleanup(bool io_log)
@@ -3429,7 +3329,7 @@ namespace netxs::os
                 if (stdwrite.joinable())
                 {
                     writesyn.notify_one();
-                    if (io_log) log("%%", prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (io_log) log(prompt::vtty, "Writing thread joining", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     stdwrite.join();
                 }
                 auto guard = std::lock_guard{ writemtx };
@@ -3440,8 +3340,8 @@ namespace netxs::os
             void attach_process(Term& terminal, text cwd, text cmdline, twod win_size)
             {
                 utf::change(cmdline, "\\\"", "\"");
-                if (terminal.io_log) log("%%", prompt::vtty, "New TTY of size ", win_size);
-                                     log("%%", prompt::vtty, "New process '", utf::debase(cmdline), "' at the ", cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win_size);
+                                     log("%%New process '%cmdline%' at the %path%", prompt::vtty, utf::debase(cmdline), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -3451,7 +3351,13 @@ namespace netxs::os
                 {
                     if (attached.exchange(faux))
                     {
+                        auto exitcode = termlink->wait();
+                        log("%%Process '%cmdline%' exited with code %code%", prompt::vtty, utf::debase(cmdline), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
+                        if (!signaled.exchange(true))
+                        {
+                            terminal.onexit(exitcode); // Only if the process terminates on its own (not forced by sighup).
+                        }
                     }
                 };
                 auto errcode = termlink->attach(terminal, win_size, cwd, cmdline, trailer);
@@ -3473,11 +3379,12 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    if (terminal.io_log) log("%%", prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache)) cache.clear();
                     else
                     {
-                        if (terminal.io_log) log("%%", prompt::vtty, "Unexpected disconnect");
+                        if (terminal.io_log) log(prompt::vtty, "Unexpected disconnection");
+                        termlink->sighup(); //todo interrupt reading thread
                         break;
                     }
                     guard.lock();
@@ -3486,27 +3393,23 @@ namespace netxs::os
             template<class Term>
             void start(Term& terminal, text cwd, text cmdline, twod win_size)
             {
+                signaled.exchange(faux);
                 stdwrite = std::thread{[&, cwd, cmdline, win_size]
                 {
-                    if (terminal.io_log) log("%%", prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     attach_process(terminal, cwd, cmdline, win_size);
                     writer(terminal);
-                    if (attached.exchange(faux))
-                    {
-                        if (!signaled.exchange(true)) termlink->sighup();
-                    }
-                    auto exitcode = termlink->wait();
-                    log("%%", prompt::vtty, "Process '", utf::debase(cmdline), "' exited with code ", utf::to_hex_0x(exitcode));
-                    terminal.onexit(exitcode);
-                    if (terminal.io_log) log("%%", prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
+                    if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
             }
-            void sighup()
+            auto sighup()
             {
                 if (attached && !signaled.exchange(true))
                 {
                     termlink->sighup();
+                    return true;
                 }
+                return faux;
             }
             void resize(twod const& newsize)
             {
@@ -3927,7 +3830,7 @@ namespace netxs::os
             }
             virtual void shut() override
             {
-                return vtty::sighup();
+                vtty::sighup();
             }
             virtual void start(text cwd, text cmdline, twod winsz, std::function<void(view)> input_hndl,
                                                                    std::function<void(si32, view)> shutdown_hndl) override

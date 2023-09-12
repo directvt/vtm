@@ -302,7 +302,6 @@ namespace netxs::ui
 
        ~fork()
         {
-            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             if (client_1)
             {
@@ -572,7 +571,6 @@ namespace netxs::ui
         }
        ~list()
         {
-            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -716,7 +714,6 @@ namespace netxs::ui
     public:
        ~cake()
         {
-            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -831,7 +828,6 @@ namespace netxs::ui
     public:
        ~park()
         {
-            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
@@ -933,7 +929,6 @@ namespace netxs::ui
     public:
        ~veer()
         {
-            auto lock = events::sync{};
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {

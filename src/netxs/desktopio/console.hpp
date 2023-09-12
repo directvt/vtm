@@ -3675,7 +3675,6 @@ namespace netxs::ui
     public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
-        using gptr = sptr<gate>;
         using repl = scripting::repl<host>;
 
         //pro::keybd keybd{*this }; // host: Keyboard controller.
@@ -3686,17 +3685,11 @@ namespace netxs::ui
         si32 maxfps; // host: Frame rate.
         list debris; // host: Wrecked regions.
         xmls config; // host: Running configuration.
-        gptr client; // host: Standalone app.
         subs tokens; // host: Subscription tokens.
         flag active; // host: Host is available for connections.
         repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
-
-        virtual void nextframe(bool damaged)
-        {
-            if (client) client->rebuild_scene(*this, damaged);
-        }
 
         host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
@@ -3746,12 +3739,6 @@ namespace netxs::ui
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;
 
-            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
-            {
-                auto damaged = !debris.empty();
-                debris.clear();
-                nextframe(damaged);
-            };
             LISTEN(tier::request, e2::config::creator, world_ptr, tokens)
             {
                 world_ptr = base::This();
@@ -3769,7 +3756,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    quartz.cancel();
+                    quartz.stop();
                 }
             };
             LISTEN(tier::general, e2::cleanup, counter, tokens)
@@ -3823,17 +3810,24 @@ namespace netxs::ui
         auto invite(sptr<pipe> uplink, sptr<base>& applet, si32 vtmode, twod winsz)
         {
             auto lock = events::unique_lock();
-            client = base::create<gate>(uplink, vtmode, host::config);
-            client->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
-            client->attach(applet);
-            client->base::resize(winsz);
+            auto portal = base::create<gate>(uplink, vtmode, host::config);
+            portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
+            portal->attach(applet);
+            portal->base::resize(winsz);
+            auto& screen = *portal;
+            LISTEN(tier::general, e2::timer::any, timestamp)
+            {
+                auto damaged = !debris.empty();
+                debris.clear();
+                screen.rebuild_scene(*this, damaged);
+            };
             lock.unlock();
-            client->launch();
-            lock.lock();
-            client.reset();
+            portal->launch();
+            netxs::events::dequeue();
+            quartz.stop();
         }
         // host: Shutdown.
-        void shutdown()
+        void stop()
         {
             auto lock = events::sync{};
             mouse.reset();

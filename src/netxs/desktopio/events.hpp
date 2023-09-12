@@ -314,27 +314,27 @@ namespace netxs::events
         template<class TT, class ...Args>
         static auto create(Args&&... args) -> sptr<TT>
         {
-            // Enables the use of a protected ctor by std::make_shared<TT>.
-            struct make_shared_enabler : public TT
+            struct activator : public TT // Enables the use of a protected ctor by std::make_shared<TT>.
             {
-                make_shared_enabler(Args&&... args)
+                activator(Args&&... args)
                     : TT{ std::forward<Args>(args)... }
                 { }
             };
 
             auto lock = sync{};
-            auto inst = std::make_shared<make_shared_enabler>(std::forward<Args>(args)...);
-
+            auto inst = std::shared_ptr<activator>(new activator(std::forward<Args>(args)...),
+                [](activator* inst)
+                {
+                    auto lock = sync{};
+                    delete inst;
+                });
             store[inst->id] = inst;
-            //sptr<T>  item = inst;
-            //inst->T::signal_direct(e2_base::release, e2::form::upon::created, item);
             return inst;
         }
 
     private:
         static inline auto _counter()
         {
-            auto lock = sync{};
             while (netxs::on_key(store, ++newid))
             { }
             return newid;
@@ -348,7 +348,6 @@ namespace netxs::events
         { }
        ~indexer()
         {
-           auto lock = sync{};
            store.erase(id);
         }
     };
@@ -644,7 +643,7 @@ namespace netxs::events
         }
         // bell: Sync with UI thread.
         template<class P>
-        auto trysync(flag& active, P proc)
+        auto trysync(auto&& active, P proc)
         {
             while (active)
             {
@@ -701,16 +700,18 @@ namespace netxs::events
             return agent;
         }
     }
-    template<class T>
+    template<bool sync = true, class T>
     void enqueue(netxs::wptr<bell> object_wptr, T&& proc)
     {
         auto& agent = _agent<void>();
         agent.add(object_wptr, [proc](auto& object_wptr) mutable
         {
-            auto lock = events::sync{};
+            auto lock = events::unique_lock();
             if (auto object_ptr = object_wptr.lock())
             {
+                if constexpr (!sync) lock.unlock();
                 proc(*object_ptr);
+                if constexpr (!sync) lock.lock();
             }
         });
     }

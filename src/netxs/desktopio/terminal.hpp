@@ -332,7 +332,6 @@ namespace netxs::ui
             }
             void enable(mode m)
             {
-                if (!owner.active) return;
                 state = (mode)(state | m);
                 if (state && !token.count()) // Do not subscribe if it is already subscribed.
                 {
@@ -422,7 +421,7 @@ namespace netxs::ui
             auto& get(text const& property)
             {
                 auto& utf8 = props[property];
-                if (owner.active && property == ansi::osc_title)
+                if (property == ansi::osc_title)
                 {
                     owner.RISEUP(tier::request, e2::form::prop::ui::header, utf8);
                 }
@@ -433,7 +432,6 @@ namespace netxs::ui
             {
                 if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
                 owner.target->flush();
-                if (!owner.active) return;
                 if (property == ansi::osc_label_title)
                 {
                                   props[ansi::osc_label] = txt;
@@ -720,7 +718,7 @@ namespace netxs::ui
                 #define V [](auto& q, auto& p)
                 vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
-                vt.csier.table_space[csi_spc_cst] = V{ if (p->owner.active) p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
+                vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
                 vt.csier.table_hash [csi_hsh_scp] = V{ p->na("CSI n # P  Push current palette colors onto stack. n default is 0."); }; // CSI n # P  Push current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_rcp] = V{ p->na("CSI n # Q  Pop  current palette colors onto stack. n default is 0."); }; // CSI n # Q  Pop  current palette colors onto stack. n default is 0.
                 vt.csier.table_hash [csi_hsh_psh] = V{ p->pushsgr(); }; // CSI # {  Push current SGR attributes onto stack.
@@ -1202,14 +1200,14 @@ namespace netxs::ui
                 {
                     auto status = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
                                                                     : (si32)parser::style.wrp();
-                    if (owner.active) owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
                     auto status = parser::style.jet() == bias::none ? (si32)bias::left
                                                                     : (si32)parser::style.jet();
-                    if (owner.active) owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
+                    owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -6207,7 +6205,6 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
-        flag       active; // term: Terminal lifetime. //todo it is a hack to sync with ipccon dtor in UI thread.
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
@@ -6225,7 +6222,6 @@ namespace netxs::ui
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
-            if (!active) return;
             auto clipdata = input::clipdata{};
             auto delimpos = data.find(';');
             if (delimpos != text::npos)
@@ -6262,7 +6258,6 @@ namespace netxs::ui
         // term: Set termnail parameters. (DECSET).
         void _decset(si32 n)
         {
-            if (!active) return;
             switch (n)
             {
                 case 1:    // Cursor keys application mode.
@@ -6374,7 +6369,6 @@ namespace netxs::ui
         // term: Reset termnail parameters. (DECRST).
         void _decrst(si32 n)
         {
-            if (!active) return;
             switch (n)
             {
                 case 1:    // Cursor keys ANSI mode.
@@ -6521,7 +6515,7 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            auto done = bell::trysync(active, [&]
+            auto done = bell::trysync(true, [&]
             {
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
@@ -6539,11 +6533,6 @@ namespace netxs::ui
                 }
                 unsync = true;
             });
-            if (!done)
-            {
-                if constexpr (debugmode) log("%%Unsynchronized output", prompt::term);
-                proc();
-            }
         }
         // term: Proceed terminal input.
         void ondata(view data, bufferbase* target)
@@ -6563,71 +6552,9 @@ namespace netxs::ui
                 ansi::parse(data, target);
             });
         }
-        // term: Shutdown callback handler.
-        void onexit(si32 code, text msg = {})
-        {
-            if (active)
-            netxs::events::enqueue(This(), [&, code, msg](auto& boss)
-            {
-                ipccon.cleanup(io_log);
-                auto error = [&]
-                {
-                    auto byemsg = escx{};
-                    if (target != &normal) byemsg.locate({ 0, target->panel.y - 1 });
-                    byemsg.bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                          .add("\r\nProcess exited with code ", utf::to_hex_0x(code)).nil()
-                          .add("\r\n\n");
-                    return byemsg;
-                };
-                auto query = [&]
-                {
-                    auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
-                                         .add("\n");
-                    ondata(byemsg);
-                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
-                    {
-                        if (gear.pressed && gear.cluster.size())
-                        {
-                            switch (gear.cluster.front())
-                            {
-                                case ansi::c0_esc: close(); onerun.reset(); break;
-                                case ansi::c0_cr:  start(); onerun.reset(); break;
-                            }
-                        }
-                        //if (gear.pressed)
-                        //{
-                        //    switch (gear.keybd::generic())
-                        //    {
-                        //        case key::Esc:   close(); onerun.reset(); break;
-                        //        case key::Enter: start(); onerun.reset(); break;
-                        //    }
-                        //}
-                    };
-                };
-                auto renew = [&]
-                {
-                    auto byemsg = error().add("\n");
-                    ondata(byemsg);
-                    start();
-                };
-                     if (forced)                close();
-                else if (resume.exchange(faux)) renew();
-                else switch (config.def_atexit)
-                {
-                    case commands::atexit::smart: code ? query()
-                                                       : close(); break;
-                    case commands::atexit::retry: code ? renew()
-                                                       : close(); break;
-                    case commands::atexit::ask:          query(); break;
-                    case commands::atexit::close:        close(); break;
-                    case commands::atexit::restart:      renew(); break;
-                }
-            });
-        }
         // term: Reset to defaults.
         void setdef()
         {
-            if (!active) return;
             auto& console = *target;
             console.style.reset();
             console.style.wrp(config.def_wrpmod);
@@ -6676,7 +6603,6 @@ namespace netxs::ui
         void selection_selmod(si32 newmod)
         {
             selmod = newmod;
-            if (!active) return;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
             if (mtrack && selmod == mime::disabled)
@@ -6689,7 +6615,6 @@ namespace netxs::ui
         void selection_selalt(bool boxed)
         {
             selalt = boxed;
-            if (!active) return;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selalt, selalt);
             if (mtrack && selmod == mime::disabled)
@@ -6731,7 +6656,6 @@ namespace netxs::ui
         }
         auto get_clipboard_text(hids& gear)
         {
-            if (!active) return gear.board::cargo.utf8;
             gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
             auto& data = gear.board::cargo;
             if (data.utf8.size())
@@ -6792,7 +6716,6 @@ namespace netxs::ui
         }
         auto prnscrn(hids& gear)
         {
-            if (!active) return;
             auto selbox = true;
             auto square = target->panel;
             auto seltop = dot_00;
@@ -6812,7 +6735,6 @@ namespace netxs::ui
         }
         void selection_pickup(hids& gear)
         {
-            if (!active) return;
             RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
             if (!gear_test.second) // Set exclusive focus on right click.
             {
@@ -6826,7 +6748,6 @@ namespace netxs::ui
         }
         void selection_mclick(hids& gear)
         {
-            if (!active) return;
             auto& console = *target;
             auto utf8 = text{};
             if (console.selection_active()) // Paste from selection.
@@ -6983,7 +6904,6 @@ namespace netxs::ui
         }
         void selection_search(hids& gear, feed dir)
         {
-            if (!active) return;
             auto& console = *target;
             auto delta = dot_00;
             auto fwd = dir == feed::fwd;
@@ -7029,7 +6949,6 @@ namespace netxs::ui
         }
         void set_bg_color(rgba bg)
         {
-            if (!active) return;
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto brush = base::color();
             brush.bgc(bg);
@@ -7040,7 +6959,6 @@ namespace netxs::ui
         }
         void set_fg_color(rgba fg)
         {
-            if (!active) return;
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto brush = base::color();
             brush.fgc(fg);
@@ -7086,7 +7004,6 @@ namespace netxs::ui
         void set_log(bool state)
         {
             io_log = state;
-            if (!active) return;
             SIGNAL(tier::release, ui::term::events::io_log, state);
         }
         void exec_cmd(commands::ui::commands cmd)
@@ -7122,6 +7039,66 @@ namespace netxs::ui
             follow[axis::Y] = true;
             write(data);
         }
+        void onexit(si32 code, text msg = {})
+        {
+            netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
+            {
+                ipccon.cleanup(io_log);
+                auto lock = netxs::events::sync{};
+                auto error = [&]
+                {
+                    auto byemsg = escx{};
+                    if (target != &normal) byemsg.locate({ 0, target->panel.y - 1 });
+                    byemsg.bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                          .add("\r\nProcess exited with code ", utf::to_hex_0x(code)).nil()
+                          .add("\r\n\n");
+                    return byemsg;
+                };
+                auto query = [&]
+                {
+                    auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
+                                         .add("\n");
+                    ondata(byemsg);
+                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
+                    {
+                        if (gear.pressed && gear.cluster.size())
+                        {
+                            switch (gear.cluster.front())
+                            {
+                                case ansi::c0_esc: close(); onerun.reset(); break;
+                                case ansi::c0_cr:  start(); onerun.reset(); break;
+                            }
+                        }
+                        //if (gear.pressed)
+                        //{
+                        //    switch (gear.keybd::generic())
+                        //    {
+                        //        case key::Esc:   close(); onerun.reset(); break;
+                        //        case key::Enter: start(); onerun.reset(); break;
+                        //    }
+                        //}
+                    };
+                };
+                auto renew = [&]
+                {
+                    auto byemsg = error().add("\n");
+                    ondata(byemsg);
+                    start();
+                };
+                     if (forced)                close();
+                else if (resume.exchange(faux)) renew();
+                else switch (config.def_atexit)
+                {
+                    case commands::atexit::smart: code ? query()
+                                                       : close(); break;
+                    case commands::atexit::retry: code ? renew()
+                                                       : close(); break;
+                    case commands::atexit::ask:          query(); break;
+                    case commands::atexit::close:        close(); break;
+                    case commands::atexit::restart:      renew(); break;
+                }
+            });
+        }
         void start()
         {
             if (!ipccon)
@@ -7131,17 +7108,27 @@ namespace netxs::ui
         }
         void close()
         {
-            if (active) this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+            this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
         }
         void restart()
         {
             resume = true;
-            sighup(forced);
+            ipccon.sighup();
         }
         void sighup(bool fast)
         {
             forced = fast;
-            if (ipccon) ipccon.sighup();
+            if (ipccon)
+            {
+                if (ipccon.sighup())
+                {
+                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+                    {
+                        ipccon.cleanup(io_log); // Wait child process.
+                        close();
+                    });
+                }
+            }
             else // Child process exited with non-zero code and term waits keypress.
             {
                 onerun.reset();
@@ -7151,7 +7138,6 @@ namespace netxs::ui
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
-            if (!active) return;
             auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
             auto warp = rect{ dot_00, size } - rect{ dot_00, target->panel };
             RISEUP(tier::preview, e2::form::layout::swarp, warp);
@@ -7172,10 +7158,6 @@ namespace netxs::ui
             }
         }
 
-       ~term()
-        {
-            active.exchange(faux);
-        }
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
@@ -7189,7 +7171,6 @@ namespace netxs::ui
               wtrack{ *this },
               ctrack{ *this },
               follow{  0, 1 },
-              active{  true },
               decckm{  faux },
               bpmode{  faux },
               unsync{  faux },
@@ -7241,7 +7222,10 @@ namespace netxs::ui
             {
                 //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                if (gear.cluster.size()) this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                if (gear.cluster.size())
+                {
+                    this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
+                }
 
                 if (gear.pressed && config.resetonkey
                 && (gear.cluster.size() || !gear.kbmod()))

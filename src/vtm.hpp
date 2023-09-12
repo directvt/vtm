@@ -876,7 +876,7 @@ namespace netxs::app::vtm
                     //if (parent.test(area.coor))
                     //{
                     //	auto hover_id = parent[area.coor].link();
-                    //	log ("---- hover id ", hover_id);
+                    //	log("---- hover id ", hover_id);
                     //}
                     //auto& header = *title.header().lyric;
                     if (uname.lyric) // Render foreign user names at their place.
@@ -1176,11 +1176,13 @@ namespace netxs::app::vtm
         };
 
         using idls = std::vector<id_t>;
+        using pool = netxs::generics::pool;
 
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
+        pool async; // hall: Thread pool for parallel task execution.
 
         static auto window(link& what)
         {
@@ -1303,6 +1305,10 @@ namespace netxs::app::vtm
                         boss.mouse.reset();
                         boss.base::detach(); // The object kills itself.
                     };
+                    boss.LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
+                    {
+                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
+                    };
                     boss.LISTEN(tier::release, e2::dtor, p)
                     {
                         auto start = datetime::now();
@@ -1342,16 +1348,6 @@ namespace netxs::app::vtm
             this->branch(what.menuid, slot, !cfg.hidden);
             slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return slot;
-        }
-        void nextframe(bool damaged) override
-        {
-            for (auto& u : users.items)
-            {
-                if (auto client = std::dynamic_pointer_cast<gate>(u->object))
-                {
-                    client->rebuild_scene(*this, damaged);
-                }
-            }
         }
 
     protected:
@@ -1441,6 +1437,18 @@ namespace netxs::app::vtm
                 menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
 
+            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
+            {
+                auto damaged = !host::debris.empty();
+                host::debris.clear();
+                for (auto& u : users.items)
+                {
+                    if (auto client = std::dynamic_pointer_cast<gate>(u->object))
+                    {
+                        client->rebuild_scene(*this, damaged);
+                    }
+                }
+            };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
                 auto& cfg = dbase.menu[what.menuid];
@@ -1629,13 +1637,6 @@ namespace netxs::app::vtm
         }
 
     public:
-       ~hall()
-        {
-            auto lock = netxs::events::sync{};
-            dbase.reset();
-            items.reset();
-        }
-
         // hall: Autorun apps from config.
         void autorun()
         {
@@ -1680,6 +1681,11 @@ namespace netxs::app::vtm
             items.render    (canvas); // Draw objects of the world.
             users.postrender(canvas); // Draw spectator's mouse pointers.
         }
+        template<class P>
+        void run(P process)
+        {
+            async.run(process);
+        }
         // hall: Attach a new item to the scene.
         template<class S>
         void branch(text const& menuid, sptr<S> item, bool fixed = true)
@@ -1711,6 +1717,21 @@ namespace netxs::app::vtm
             if (vport) user->base::moveto(vport); // Restore user's last position.
             lock.unlock();
             user->launch();
+        }
+        // hall: Shutdown.
+        void stop()
+        {
+            log(prompt::hall, "Server shutdown");
+            SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
+            async.stop(); // Wait until all users and monitors are disconnected.
+            if constexpr (debugmode) log(prompt::hall, "Session control stopped");
+            netxs::events::dequeue(); // Wait until all cleanups are completed.
+            host::quartz.stop();
+            auto lock = netxs::events::sync{};
+            host::mouse.reset(); // Release the captured mouse.
+            host::tokens.reset();
+            dbase.reset();
+            items.reset();
         }
     };
 }

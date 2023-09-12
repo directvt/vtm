@@ -285,7 +285,6 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( create    , rect           ), // return coordinates of the new object placeholder.
                     EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( destroy   , ui::base       ), // ??? bool return reference to the parent.
                     EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
                     EVENT_XS( detach    , sptr<ui::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.

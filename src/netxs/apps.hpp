@@ -456,7 +456,6 @@ namespace netxs::app::shared
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
                         boss.stop(fast);
-                        //boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast); // Detach base window.
                     };
                 });
         };

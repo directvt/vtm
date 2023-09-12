@@ -546,8 +546,7 @@ namespace netxs::app::shared
         auto direct = os::dtvt::active;
         auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
         domain->invite(server, applet, vtmode, winsz);
-        events::dequeue();
-        domain->shutdown();
+        domain->stop();
         server->shut();
         thread.join();
     }

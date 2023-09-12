@@ -1110,9 +1110,8 @@ namespace netxs::input
             mouse::coord = dot_mx;
             SIGNAL(tier::general, events::device::user::login, user_index);
         }
-        ~hids()
+       ~hids()
         {
-            auto lock = netxs::events::sync{};
             mouse_leave(mouse::hover, mouse::start);
             SIGNAL(tier::general, events::halt, *this);
             SIGNAL(tier::general, events::die, *this);
@@ -1320,7 +1319,11 @@ namespace netxs::input
                     last->SIGNAL(tier::release, events::notify::mouse::leave, *this);
                     mouse::start = start;
                 }
-                else log("%%", prompt::hids, "Error condition: Clients count is broken, dangling ", last_id);
+                else
+                {
+                    //todo revise
+                    log("%%Error condition: Clients count is broken, dangling %last_id%", prompt::hids, last_id);
+                }
             }
         }
         void redirect_mouse_focus(base& boss)

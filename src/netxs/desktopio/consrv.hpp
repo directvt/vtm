@@ -32,7 +32,7 @@ struct consrv
     {
         if (waitexit.joinable())
         {
-            if (io_log) log("%%", prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            if (io_log) log(prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
             waitexit.join();
         }
     }
@@ -126,9 +126,9 @@ struct consrv
             waitexit = std::thread([&, trailer]
             {
                 auto pid = proc_pid; // MSVC don't capture it.
-                io::select(prochndl, [&terminal, pid]{ if (terminal.io_log) log("%%", prompt::vtty, "Process ", pid, " terminated"); });
+                io::select(prochndl, [&terminal, pid]{ if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid); });
                 trailer();
-                if (terminal.io_log) log("%%", prompt::vtty, "Process ", pid, " waiter ended");
+                if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
             });
         }
         return err_code;
@@ -439,7 +439,7 @@ struct impl : consrv
             auto rc = nt::ioctl(nt::console::op::read_input, condrv, request);
             if (rc != ERROR_SUCCESS)
             {
-                if constexpr (debugmode) log("%%", "\tAbort reading input (condrv, request) rc=", rc);
+                if constexpr (debugmode) log("\tAbort reading input (condrv, request) rc=", rc);
                 status = nt::status::unsuccessful;
                 return faux;
             }
@@ -458,7 +458,7 @@ struct impl : consrv
             auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
             if (rc != ERROR_SUCCESS)
             {
-                if constexpr (debugmode) log("%%", "\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
+                if constexpr (debugmode) log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
                 status = nt::status::unsuccessful;
                 result.length = 0;
             }
@@ -472,7 +472,7 @@ struct impl : consrv
         {
             status = nt::status::invalid_handle;
             auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
-            if constexpr (debugmode) log("%%", "\tPending operation aborted");
+            if constexpr (debugmode) log("\tPending operation aborted");
         }
     };
 
@@ -546,7 +546,7 @@ struct impl : consrv
         void alert(ui32 what, ui32 pgroup = 0)
         {
             static auto index = 0;
-            if (server.io_log) log("%%", server.prompt, "ConsoleTask event index ", ++index);
+            if (server.io_log) log(server.prompt, "ConsoleTask event index ", ++index);
             if (ostask.joinable()) ostask.join();
             ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
@@ -564,7 +564,7 @@ struct impl : consrv
                         if (io_log) prompt.add("\n\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
                     }
                 }
-                if (io_log) log("%%", prompt, "\n\t-------------------------");
+                if (io_log) log("", prompt, "\n\t-------------------------");
             }};
         }
         void sighup()
@@ -977,7 +977,7 @@ struct impl : consrv
                     if (server.io_log)
                     {
                         if (rec.EventType == KEY_EVENT)
-                        log("%%", prompt::cin, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
+                        log(prompt::cin, ansi::hi(utf::debase<faux, faux>(utf::to_utf(rec.Event.KeyEvent.uChar.UnicodeChar))),
                             " ", rec.Event.KeyEvent.bKeyDown ? "Pressed " : "Released",
                             " ctrl: ", utf::to_hex_0x(rec.Event.KeyEvent.dwControlKeyState),
                             " char: ", utf::to_hex_0x(rec.Event.KeyEvent.uChar.UnicodeChar),
@@ -1159,7 +1159,7 @@ struct impl : consrv
                             {
                                 if constexpr (isreal())
                                 {
-                                    if (server.uiterm.active) server.uiterm.cursor.toggle();
+                                    server.uiterm.cursor.toggle();
                                 }
                             }
                             data.crop(size);
@@ -1222,15 +1222,15 @@ struct impl : consrv
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
             auto& inpenc = *server.inpenc;
-            if (server.io_log) log("%%", "\thandle ", utf::to_hex_0x(packet.target), ":",
+            if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ":",
                                  "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
                                  "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
             if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
             {
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
-                if (server.io_log) log("%%", "\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                                 : data)));
+                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
+                                                                                                       : data)));
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1240,7 +1240,7 @@ struct impl : consrv
             {
                 auto data = inpenc.encode(cooked.rest, readstep);
                 auto size = (ui32)data.size();
-                if (server.io_log) log("%%", "\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
+                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
@@ -1281,7 +1281,7 @@ struct impl : consrv
                     }
                     if (closed || cancel)
                     {
-                        if (server.io_log) log("%%", "\thandle ", utf::to_hex_0x(packet.target), ": task canceled");
+                        if (server.io_log) log("\thandle %h%: task canceled", utf::to_hex_0x(packet.target));
                         cooked.drop();
                         return;
                     }
@@ -1374,7 +1374,7 @@ struct impl : consrv
                         break;
                 }
             }
-            log("%%", crop);
+            log(crop);
         }
         template<bool Complete = faux, class Payload>
         auto readevents(Payload& packet, cdrw& answer)
@@ -1382,7 +1382,7 @@ struct impl : consrv
             if (!server.size_check(packet.echosz, answer.sendoffset())) return;
             auto avail = packet.echosz - answer.sendoffset();
             auto limit = avail / (ui32)sizeof(recbuf.front());
-            if (server.io_log) log("%%", "\tuser limit: ", limit);
+            if (server.io_log) log("\tuser limit: ", limit);
             auto head = stream.begin();
             if (packet.input.utf16)
             {
@@ -1469,10 +1469,10 @@ struct impl : consrv
             auto lock = std::lock_guard{ locker };
             if (stream.empty())
             {
-                if (server.io_log) log("%%", "\tevents buffer is empty");
+                if (server.io_log) log("\tevents buffer is empty");
                 if (packet.input.flags & Payload::fast)
                 {
-                    if (server.io_log) log("%%", "\treply.count: 0");
+                    if (server.io_log) log("\treply.count: 0");
                     packet.reply.count = 0;
                     return;
                 }
@@ -1492,7 +1492,7 @@ struct impl : consrv
                         if (closed || cancel) return;
 
                         readevents<true>(packet, answer);
-                        if (server.io_log) log("%%", "\tdeferred task complete ", utf::to_hex_0x((ui64)packet.taskid.lo | ((ui64)packet.taskid.hi << 32)));
+                        if (server.io_log) log("\tdeferred task complete ", utf::to_hex_0x((ui64)packet.taskid.lo | ((ui64)packet.taskid.hi << 32)));
                     });
                     server.answer = {};
                 }
@@ -1548,7 +1548,7 @@ struct impl : consrv
                     auto a = *head++;
                     if (!a) break;
                     auto b = *head++;
-                    if (server.io_log) log("%%", "\tcodepage range: ", (int)a, "-", (int)b);
+                    if (server.io_log) log("\tcodepage range: ", (int)a, "-", (int)b);
                     do leadbyte[a] = 1;
                     while (a++ != b);
                 }
@@ -1610,7 +1610,7 @@ struct impl : consrv
                             if (n > 255 && charsize == 1) break;
                         }
                     }
-                    log("%%", "-------------------------\n", t, "\n-------------------------");
+                    log("-------------------------\n", t, "\n-------------------------");
                 }
 
                 // Reverse table.
@@ -1642,7 +1642,7 @@ struct impl : consrv
                             t += "\n" + utf::to_hex<true>(n >> 4, 3) + "0: ";
                         }
                     }
-                    log("%%", "-------------------------\n", t, "\n-------------------------");
+                    log("-------------------------\n", t, "\n-------------------------");
                 }
 
                 return true;
@@ -1970,7 +1970,7 @@ struct impl : consrv
                 }
             }
         }
-        log("%%", "\tabort: invalid handle ", utf::to_hex_0x(handle_ptr));
+        log("\tabort: invalid handle %handle%", utf::to_hex_0x(handle_ptr));
         answer.status = nt::status::invalid_handle;
         return faux;
     }
@@ -2005,7 +2005,7 @@ struct impl : consrv
         }
         if (!result)
         {
-            log("%%", "\tinvalid handle ", utf::to_hex_0x(handle_ptr));
+            log("\tinvalid handle ", utf::to_hex_0x(handle_ptr));
         }
         return result;
     }
@@ -2017,7 +2017,7 @@ struct impl : consrv
             // E.g. wmic requests { x=1500, y=300 }.
             //      Indep stat for dwSize.X = N: max: 1280, 10000, 192, 237, 200, 2500, 500, 600, 640.
             //                                   min: 150, 100, 132, 120, 150, 140, 165, 30, 80.
-            log("%%", "\ttoo wide buffer requested, turning off wrapping");
+            log("\ttoo wide buffer requested, turning off wrapping");
             console.style.wrp(faux);
             size.x = console.panel.x;
         }
@@ -2025,7 +2025,7 @@ struct impl : consrv
         {
              // Applications usually request real viewport heights: 20, 24, 25, 50
              //         or extra large values for the scrollbuffer: 0x7FFF, 5555, 9000, 9999, 4096, 32767, 32000, 10000, 2500, 2000, 1024, 999, 800, 512, 500, 480, 400, 300, 100 etc. (stat for dwSize.Y = N)
-            log("%%", "\ttoo long buffer requested, updating scrollback limits");
+            log("\ttoo long buffer requested, updating scrollback limits");
             uiterm.sb_min(size.y);
             size.y = console.panel.y;
         }
@@ -2080,12 +2080,12 @@ struct impl : consrv
 
     auto api_unsupported                     ()
     {
-        log("%%", prompt, "Unsupported consrv request code ", upload.fxtype);
+        log(prompt, "Unsupported consrv request code ", upload.fxtype);
         answer.status = nt::status::illegal_function;
     }
     auto api_system_langid_get               ()
     {
-        log("%%", prompt, "GetConsoleLangId");
+        log(prompt, "GetConsoleLangId");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2099,17 +2099,17 @@ struct impl : consrv
         if (winuicp != 65001 && langmap().contains(winuicp))
         {
             packet.reply.langid = netxs::map_or(langmap(), outenc->codepage, 65001);
-            log("%%", "\tlang id: ", utf::to_hex_0x(packet.reply.langid));
+            log("\tlang id: ", utf::to_hex_0x(packet.reply.langid));
         }
         else
         {
             answer.status = nt::status::not_supported;
-            log("%%", "\tlang id not supported");
+            log("\tlang id not supported");
         }
     }
     auto api_system_mouse_buttons_get_count  ()
     {
-        log("%%", prompt, "GetNumberOfConsoleMouseButtons");
+        log(prompt, "GetNumberOfConsoleMouseButtons");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2120,11 +2120,11 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.count = ::GetSystemMetrics(SM_CMOUSEBUTTONS);
-        log("%%", "\treply.count: ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
     }
     auto api_process_attach                  ()
     {
-        log("%%", prompt, "Attach process to console");
+        log(prompt, "Attach process to console");
         struct payload : wrap<payload>
         {
             tsid taskid;
@@ -2183,7 +2183,7 @@ struct impl : consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-        log("%%", "\tprocid: ", client.procid, "\n",
+        log("\tprocid: ", client.procid, "\n",
             "\tthread: ", client.thread, "\n",
             "\tpgroup: ", client.pgroup, "\n",
             "\ticonid: ", client.detail.iconid, "\n",
@@ -2222,16 +2222,16 @@ struct impl : consrv
         { };
         auto& packet = payload::cast(upload);
         auto client_ptr = (clnt*)packet.client;
-        log("%%", prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
+        log(prompt, "Detach process from console: ", utf::to_hex_0x(client_ptr));
         auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (iter != joined.end())
         {
             auto& client = *client_ptr;
-            log("%%", "\tproc id: ", client.procid);
+            log("\tproc id: ", client.procid);
             for (auto& handle : client.tokens)
             {
                 auto handle_ptr = &handle;
-                log("%%", "\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
+                log("\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
                 events.abort(handle_ptr);
             }
             if constexpr (isreal())
@@ -2253,13 +2253,13 @@ struct impl : consrv
                 allout.exchange(true);
                 allout.notify_all();
             }
-            log("%%", "\tprocess ", utf::to_hex_0x(client_ptr), " detached");
+            log("\tprocess %client_ptr% detached", utf::to_hex_0x(client_ptr));
         }
-        else log("%%", "\trequested process ", utf::to_hex_0x(client_ptr), " not found");
+        else log("\trequested process %client_ptr% not found", utf::to_hex_0x(client_ptr));
     }
     auto api_process_enlist                  ()
     {
-        log("%%", prompt, "GetConsoleProcessList");
+        log(prompt, "GetConsoleProcessList");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2277,21 +2277,21 @@ struct impl : consrv
         auto count = avail / sizeof(ui32);
         auto recs = wrap<ui32>::cast(buffer, count);
         packet.reply.count = static_cast<ui32>(joined.size());
-        log("%%", "\treply.count: ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
         if (count >= joined.size())
         {
             auto dest = recs.begin();
             for (auto& client : joined)
             {
                 *dest++ = (ui32)client.procid;
-                log("%%", "\tpid: ", client.procid);
+                log("\tpid: ", client.procid);
             }
             answer.send_data(condrv, recs);
         }
     }
     auto api_process_create_handle           ()
     {
-        log("%%", prompt, "Create console handle");
+        log(prompt, "Create console handle");
         enum type : ui32
         {
             undefined,
@@ -2316,14 +2316,14 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto& client = *(clnt*)packet.client;
-        log("%%", "\tclient procid: ", client.procid);
+        log("\tclient procid: ", client.procid);
         auto create = [&](auto type, auto msg)
         {
             auto& h = type == hndl::type::events ? client.tokens.emplace_back(client, inpmod, hndl::type::events, &uiterm)
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
             answer.report = (Arch)(&h);
-            log("%%", msg, &h);
+            log("", msg, &h);
         };
         switch (packet.input.action)
         {
@@ -2339,11 +2339,11 @@ struct impl : consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, "Delete console handle");
+        log(prompt, "Delete console handle");
         auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
-            log("%%", "\tabort: handle_ptr = invalid_value (0)");
+            log("\tabort: handle_ptr = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2351,7 +2351,7 @@ struct impl : consrv
         auto client_iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
         if (client_iter == joined.end())
         {
-            log("%%", "\tbad handle: ", utf::to_hex_0x(handle_ptr));
+            log("\tbad handle: ", utf::to_hex_0x(handle_ptr));
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2367,11 +2367,11 @@ struct impl : consrv
                     uiterm.reset_to_normal(*uiterm.target);
                 }
             }
-            log("%%", "\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
+            log("\tdeactivate handle: ", utf::to_hex_0x(handle_ptr));
             events.abort(handle_ptr);
             client.tokens.erase(iter);
         }
-        else log("%%", "\trequested handle ", utf::to_hex_0x(handle_ptr), " not found");
+        else log("\trequested handle %handle_ptr% not found", utf::to_hex_0x(handle_ptr));
     }
     auto api_process_codepage_get            ()
     {
@@ -2389,11 +2389,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, packet.input.is_output ? "GetConsoleOutputCP"
+        log(prompt, packet.input.is_output ? "GetConsoleOutputCP"
                                            : "GetConsoleCP");
         packet.reply.code_page = packet.input.is_output ? outenc->codepage
                                                         : inpenc->codepage;
-        log("%%", "\treply.code_page: ", packet.reply.code_page);
+        log("\treply.code_page: ", packet.reply.code_page);
     }
     auto api_process_codepage_set            ()
     {
@@ -2409,7 +2409,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto c = packet.input.code_page;
         auto is_output = !!packet.input.is_output;
-        log("%%", prompt, is_output ? "SetConsoleOutputCP"
+        log(prompt, is_output ? "SetConsoleOutputCP"
                               : "SetConsoleCP", "\n\tinput.code_page ", c);
         auto& o = is_output ? outenc : inpenc;
         auto& i = is_output ? inpenc : outenc;
@@ -2434,7 +2434,7 @@ struct impl : consrv
     }
     auto api_process_mode_get                ()
     {
-        log("%%", prompt, "GetConsoleMode");
+        log(prompt, "GetConsoleMode");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2447,17 +2447,17 @@ struct impl : consrv
         auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
-            log("%%", "\tabort: handle_ptr = invalid_value (0)");
+            log("\tabort: handle_ptr = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
         auto& handle = *handle_ptr;
         packet.reply.mode = handle.mode;
-        log("%%", "\treply.mode: ", handle);
+        log("\treply.mode: ", handle);
     }
     auto api_process_mode_set                ()
     {
-        log("%%", prompt, "SetConsoleMode");
+        log(prompt, "SetConsoleMode");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2470,7 +2470,7 @@ struct impl : consrv
         auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
-            log("%%", "\tabort: handle_ptr = invalid_value (0)");
+            log("\tabort: handle_ptr = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2486,7 +2486,7 @@ struct impl : consrv
                 {
                     uiterm.normal.set_autocr(autocr);
                 }
-                log("%%", "\tauto_crlf: ", autocr ? "enabled" : "disabled");
+                log("\tauto_crlf: ", autocr ? "enabled" : "disabled");
             }
         }
         else if (handle.kind == hndl::type::events)
@@ -2504,15 +2504,15 @@ struct impl : consrv
                     uiterm.mtrack.disable(input::mouse::mode::negative_args);
                 }
             }
-            log("%%", "\tmouse_input: ", mouse_mode ? "enabled" : "disabled");
+            log("\tmouse_input: ", mouse_mode ? "enabled" : "disabled");
         }
         handle.mode = packet.input.mode;
-        log("%%", "\tinput.mode: ", handle);
+        log("\tinput.mode: ", handle);
     }
     template<bool RawRead = faux>
     auto api_events_read_as_text             ()
     {
-        log("%%", prompt, "ReadConsole");
+        log(prompt, "ReadConsole");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2535,7 +2535,7 @@ struct impl : consrv
         packet.reply.bytes = 0;
         if constexpr (RawRead)
         {
-            log("%%", "\tread mode: raw ReadFile emulation");
+            log("\tread mode: raw ReadFile emulation");
             packet.input = { .EOFon = 1 };
         }
         auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
@@ -2554,7 +2554,7 @@ struct impl : consrv
             inpenc->decode_run(initdata, toUTF8);
             initdata = toUTF8;
         }
-        log("%%", "\t", show_page(packet.input.utf16, inpenc->codepage),
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
             "\n\tnamesize: ", namesize,
             "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
             "\n\treadstep: ", readstep,
@@ -2566,12 +2566,12 @@ struct impl : consrv
     }
     auto api_events_clear                    ()
     {
-        log("%%", prompt, "FlushConsoleInputBuffer");
+        log(prompt, "FlushConsoleInputBuffer");
         events.clear();
     }
     auto api_events_count_get                ()
     {
-        log("%%", prompt, "GetNumberOfConsoleInputEvents");
+        log(prompt, "GetNumberOfConsoleInputEvents");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2584,19 +2584,19 @@ struct impl : consrv
         auto handle_ptr = (hndl*)packet.target;
         if (handle_ptr == nullptr)
         {
-            log("%%", "\tabort: handle_ptr = invalid_value (0)");
+            log("\tabort: handle_ptr = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
         auto& handle = *handle_ptr;
         if (handle.kind != hndl::type::events) // GH#305: Python attempts to get the input event number using the hndl::type::scroll handle to determine the handle type.
         {
-            log("%%", "\tabort: invalid handle type: ", handle.kind);
+            log("\tabort: invalid handle type: ", handle.kind);
             answer.status = nt::status::invalid_handle;
             return;
         }
         packet.reply.count = events.count();
-        log("%%", "\treply.count: ", packet.reply.count);
+        log("\treply.count: ", packet.reply.count);
     }
     auto api_events_get                      ()
     {
@@ -2621,14 +2621,14 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
+        log(prompt, packet.input.flags & payload::peek ? "PeekConsoleInput"
                                                        : "ReadConsoleInput",
             "\n\tinput.flags: ", utf::to_hex_0x(packet.input.flags),
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
         auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
-            log("%%", "\tabort: packet.client = invalid_value (0)");
+            log("\tabort: packet.client = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2636,7 +2636,7 @@ struct impl : consrv
         auto events_handle_ptr = (hndl*)packet.target;
         if (events_handle_ptr == nullptr)
         {
-            log("%%", "\tabort: events_handle_ptr = invalid_value (0)");
+            log("\tabort: events_handle_ptr = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2645,7 +2645,7 @@ struct impl : consrv
     }
     auto api_events_add                      ()
     {
-        log("%%", prompt, "WriteConsoleInput");
+        log(prompt, "WriteConsoleInput");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2664,12 +2664,12 @@ struct impl : consrv
         auto recs = take_buffer<INPUT_RECORD, feed::fwd>(packet);
         if (recs.size()) events.sendevents(recs, packet.input.utf16);
         packet.reply.count = static_cast<ui32>(recs.size());
-        log("%%", "\twritten events count: ", packet.reply.count,
+        log("\twritten events count: ", packet.reply.count,
             "\n\t", show_page(packet.input.utf16, inpenc->codepage));
     }
     auto api_events_generate_ctrl_event      ()
     {
-        log("%%", prompt, "GenerateConsoleCtrlEvent");
+        log(prompt, "GenerateConsoleCtrlEvent");
         enum type : ui32
         {
             ctrl_c      = CTRL_C_EVENT,
@@ -2693,7 +2693,7 @@ struct impl : consrv
     template<bool RawWrite = faux>
     auto api_scrollback_write_text           ()
     {
-        log("%%", prompt, "WriteConsole");
+        log(prompt, "WriteConsole");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2712,14 +2712,14 @@ struct impl : consrv
 
         if constexpr (RawWrite)
         {
-            log("%%", "\traw write emulation");
+            log("\traw write emulation");
             packet.input = {};
         }
 
         auto client_ptr = (clnt*)packet.client;
         if (client_ptr == nullptr)
         {
-            log("%%", "\tabort: packet.client = invalid_value (0)");
+            log("\tabort: packet.client = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2728,7 +2728,7 @@ struct impl : consrv
         auto scroll_handle_ptr = (hndl*)packet.target;
         if (scroll_handle_ptr == nullptr)
         {
-            log("%%", "\tabort: packet.target = invalid_value (0)");
+            log("\tabort: packet.target = invalid_value (0)");
             answer.status = nt::status::invalid_handle;
             return;
         }
@@ -2774,18 +2774,18 @@ struct impl : consrv
                 {
                     uiterm.ondata(crop);
                 }
-                log("%%", "\t", show_page(packet.input.utf16, codec.codepage),
+                log("\t", show_page(packet.input.utf16, codec.codepage),
                     ": ", ansi::hi(utf::debase<faux, faux>(crop)));
                 scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
             {
-                log("%%", "\trest: ", ansi::hi(utf::debase<faux, faux>(scroll_handle.toUTF8)),
+                log("\trest: ", ansi::hi(utf::debase<faux, faux>(scroll_handle.toUTF8)),
                   "\n\tsize: ", scroll_handle.toUTF8.size());
             }
             packet.reply.count = datasize;
         }
-        else log("%%", "\tunexpected: packet.packsz=", packet.packsz, " answer.readoffset=", answer.readoffset());
+        else log("\tunexpected: packet.packsz=%val1% answer.readoffset=%val2%", packet.packsz, answer.readoffset());
         answer.report = packet.reply.count;
     }
     auto api_scrollback_write_data           ()
@@ -2818,7 +2818,7 @@ struct impl : consrv
                 auto recs = take_buffer<ui16, feed::fwd>(packet);
                 count = static_cast<ui32>(recs.size());
                 if (count > maxsz) count = maxsz;
-                log("%%", prompt, "WriteConsoleOutputAttribute",
+                log(prompt, "WriteConsoleOutputAttribute",
                             "\n\tinput.coord: ", coord,
                             "\n\tinput.count: ", count);
                 filler.size(count, cell{});
@@ -2838,7 +2838,7 @@ struct impl : consrv
             }
             else
             {
-                log("%%", prompt, "WriteConsoleOutputCharacter",
+                log(prompt, "WriteConsoleOutputCharacter",
                             "\n\tinput.coor: ", coord,
                             "\n\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 if (packet.input.etype == type::ansiOEM)
@@ -2849,12 +2849,12 @@ struct impl : consrv
                         toUTF8.clear();
                         outenc->decode(buffer, toUTF8);
                         celler = toUTF8;
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     }
                     else
                     {
                         celler = buffer;
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
                     }
                 }
                 else
@@ -2863,7 +2863,7 @@ struct impl : consrv
                     toUTF8.clear();
                     utf::to_utf(recs, toUTF8);
                     celler = toUTF8;
-                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                    log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
@@ -2892,13 +2892,13 @@ struct impl : consrv
             {
                 auto recs = take_buffer<ui16, feed::fwd>(packet);
                 count = static_cast<ui32>(recs.size());
-                log("%%", prompt, "WriteConsoleOutputAttribute",
+                log(prompt, "WriteConsoleOutputAttribute",
                             "\n\tinput.coord: ", coord,
                             "\n\tinput.count: ", count);
             }
             else
             {
-                log("%%", prompt, "WriteConsoleOutputCharacter",
+                log(prompt, "WriteConsoleOutputCharacter",
                             "\n\tinput.coor: ", coord,
                             "\n\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 if (packet.input.etype == type::ansiOEM)
@@ -2909,11 +2909,11 @@ struct impl : consrv
                     {
                         toUTF8.clear();
                         outenc->decode(buffer, toUTF8);
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     }
                     else
                     {
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
                     }
                 }
                 else
@@ -2922,7 +2922,7 @@ struct impl : consrv
                     count = static_cast<ui32>(recs.size());
                     toUTF8.clear();
                     utf::to_utf(recs, toUTF8);
-                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                    log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
             }
             packet.reply.count = count;
@@ -2930,7 +2930,7 @@ struct impl : consrv
     }
     auto api_scrollback_write_block          ()
     {
-        log("%%", prompt, "WriteConsoleOutput");
+        log(prompt, "WriteConsoleOutput");
         struct payload : drvpacket<payload>
         {
             union
@@ -3107,14 +3107,14 @@ struct impl : consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("%%", "\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
+        log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
             "\n\tinput.rect: ", view,
             "\n\treply.rect: ", crop,
             "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_attribute_set        ()
     {
-        log("%%", prompt, "SetConsoleTextAttribute");
+        log(prompt, "SetConsoleTextAttribute");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3128,13 +3128,13 @@ struct impl : consrv
         {
             if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
             {
-                log("%%", "\tunexpected result");
+                log("\tunexpected result");
             }
-            log("%%", "\tset default attributes: ", uiterm.target->brush);
+            log("\tset default attributes: ", uiterm.target->brush);
         }
         else
         {
-            log("%%", "\tset default attributes: ", utf::to_hex_0x(packet.input.color));
+            log("\tset default attributes: ", utf::to_hex_0x(packet.input.color));
         }
     }
     auto api_scrollback_fill                 ()
@@ -3178,19 +3178,19 @@ struct impl : consrv
             screen.cup0(coord);
             if (packet.input.etype == type::attribute)
             {
-                log("%%", prompt, "FillConsoleOutputAttribute",
+                log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
                 auto c = attr_to_brush(piece);
                 auto impcls = screen.brush.issame_visual(c) && coord == dot_00 && count == screen.panel.x * screen.panel.y;
                 if (impcls)
                 {
-                    log("%%", "\timplicit screen clearing detected");
+                    log("\timplicit screen clearing detected");
                     screen.clear_all();
                 }
                 else
                 {
-                    log("%%", "\tfill using attributes: ", utf::to_hex_0x(piece));
+                    log("\tfill using attributes: ", utf::to_hex_0x(piece));
                     if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
@@ -3202,7 +3202,7 @@ struct impl : consrv
             }
             else
             {
-                log("%%", prompt, "FillConsoleOutputCharacter",
+                log(prompt, "FillConsoleOutputCharacter",
                             "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
@@ -3210,7 +3210,7 @@ struct impl : consrv
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
                 if (piece == ' ' && count > maxsz)
                 {
-                    log("%%", "\taction: erase below");
+                    log("\taction: erase below");
                     screen.ed(0 /*commands::erase::display::below*/);
                 }
                 else
@@ -3225,7 +3225,7 @@ struct impl : consrv
                         if (outenc->codepage == CP_UTF8) toUTF8.push_back(piece & 0xff);
                         else                             outenc->decode(piece & 0xff, toUTF8);
                     }
-                    log("%%", "\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                    log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     auto c = cell{ toUTF8 };
                     auto w = c.wdt();
                     if (count > maxsz) count = std::max(0, maxsz);
@@ -3256,14 +3256,14 @@ struct impl : consrv
             auto piece = packet.input.piece;
             if (packet.input.etype == type::attribute)
             {
-                log("%%", prompt, "FillConsoleOutputAttribute",
+                log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count,
                             "\tfill using attributes: ", utf::to_hex_0x(piece));
             }
             else
             {
-                log("%%", prompt, "FillConsoleOutputCharacter",
+                log(prompt, "FillConsoleOutputCharacter",
                             "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
@@ -3277,7 +3277,7 @@ struct impl : consrv
                     if (outenc->codepage == CP_UTF8) toUTF8.push_back(piece & 0xff);
                     else                             outenc->decode(piece & 0xff, toUTF8);
                 }
-                log("%%", "\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                log("\tfiller: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
             }
         }
         packet.reply.count = count;
@@ -3300,7 +3300,7 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.count = {};
-        log("%%", prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
+        log(prompt, packet.input.etype == type::attribute ? "ReadConsoleOutputAttribute"
                                                           : "ReadConsoleOutputCharacter");
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr)
@@ -3337,7 +3337,7 @@ struct impl : consrv
             auto& copy = (rich&)mirror;
             if (packet.input.etype == type::attribute)
             {
-                log("%%", "\tinput.type: attributes");
+                log("\tinput.type: attributes");
                 auto recs = wrap<ui16>::cast(buffer, count);
                 auto iter = recs.begin();
                 auto head = mirror.iter() + start;
@@ -3360,7 +3360,7 @@ struct impl : consrv
             {
                 auto head = mirror.iter() + start;
                 auto tail = head + count;
-                log("%%", "\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
+                log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 toUTF8.clear();
                 while (head != tail)
                 {
@@ -3376,7 +3376,7 @@ struct impl : consrv
                         count = std::min(count, (si32)toUTF8.size());
                         toUTF8.resize(count);
                         std::copy(toUTF8.begin(), toUTF8.end(), recs.begin());
-                        log("%%", "\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                        log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     }
                     else
                     {
@@ -3385,7 +3385,7 @@ struct impl : consrv
                         codec.encode(utf8, toANSI, count);
                         count = std::min(count, (si32)toANSI.size());
                         std::copy(toANSI.begin(), toANSI.end(), recs.begin());
-                        log("%%", "\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
+                        log("\treply data: ", ansi::hi(utf::debase<faux, faux>(outenc->decode_log(toANSI))));
                     }
                     answer.send_data(condrv, recs);
                 }
@@ -3397,7 +3397,7 @@ struct impl : consrv
                     count = std::min(count, (si32)toWIDE.size());
                     toWIDE.resize(count);
                     std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
-                    log("%%", "\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
+                    log("\treply data: ", ansi::hi(utf::debase<faux, faux>(utf::to_utf(recs))));
                     answer.send_data(condrv, recs);
                 }
             }
@@ -3409,7 +3409,7 @@ struct impl : consrv
             auto attr = brush_to_attr(mark);
             if (packet.input.etype == type::attribute)
             {
-                log("%%", "\tinput.type: attributes");
+                log("\tinput.type: attributes");
                 auto recs = wrap<ui16>::cast(buffer, count);
                 auto head = recs.begin();
                 auto tail = recs.end();
@@ -3422,7 +3422,7 @@ struct impl : consrv
             }
             else
             {
-                log("%%", "\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
+                log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 if (packet.input.etype == type::ansiOEM)
                 {
                     toUTF8.clear();
@@ -3439,15 +3439,15 @@ struct impl : consrv
                     std::copy(toWIDE.begin(), toWIDE.end(), recs.begin());
                     answer.send_data(condrv, recs);
                 }
-                log("%%", "\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                log("\treply data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
             }
         }
         packet.reply.count = count;
-        log("%%", "\treply.count: ", count);
+        log("\treply.count: ", count);
     }
     auto api_scrollback_read_block           ()
     {
-        log("%%", prompt, "ReadConsoleOutput");
+        log(prompt, "ReadConsoleOutput");
         struct payload : drvpacket<payload>
         {
             union
@@ -3595,7 +3595,7 @@ struct impl : consrv
         packet.reply.rectT = crop.coor.y;
         packet.reply.rectR = crop.coor.x + crop.size.x - 1;
         packet.reply.rectB = crop.coor.y + crop.size.y - 1;
-        log("%%", "\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
+        log("\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
           "\n\tpanel size: ", size,
           "\n\tinput.rect: ", view,
           "\n\treply.rect: ", crop,
@@ -3603,13 +3603,13 @@ struct impl : consrv
     }
     auto api_scrollback_set_active           ()
     {
-        log("%%", prompt, "SetConsoleActiveScreenBuffer");
+        log(prompt, "SetConsoleActiveScreenBuffer");
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
-        log("%%", "\tset active buffer: ", utf::to_hex_0x(packet.target));
+        log("\tset active buffer: ", utf::to_hex_0x(packet.target));
         if constexpr (isreal())
         {
             auto& console = *window_ptr;
@@ -3627,9 +3627,9 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, "SetConsoleCursorPosition ");
+        log(prompt, "SetConsoleCursorPosition ");
         auto caretpos = twod{ packet.input.coorx, packet.input.coory };
-        log("%%", "\tinput.cursor_coor: ", caretpos);
+        log("\tinput.cursor_coor: ", caretpos);
         if constexpr (isreal())
         {
             if (auto console_ptr = select_buffer(packet.target))
@@ -3652,19 +3652,16 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            if (uiterm.active)
-            {
-                auto [form, show] = uiterm.cursor.style();
-                packet.reply.style = form ? 100 : 1;
-                packet.reply.alive = show;
-            }
+            auto [form, show] = uiterm.cursor.style();
+            packet.reply.style = form ? 100 : 1;
+            packet.reply.alive = show;
         }
         else
         {
             packet.reply.style = 1;
             packet.reply.alive = 1;
         }
-        log("%%", prompt, "GetConsoleCursorInfo",
+        log(prompt, "GetConsoleCursorInfo",
             "\n\treply.style: ", packet.reply.style,
             "\n\treply.alive: ", packet.reply.alive ? "true" : "faux");
     }
@@ -3680,7 +3677,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, "SetConsoleCursorInfo",
+        log(prompt, "SetConsoleCursorInfo",
             "\n\tinput.style: ", packet.input.style,
             "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
         auto target_ptr = (hndl*)packet.target;
@@ -3688,22 +3685,19 @@ struct impl : consrv
         {
             if constexpr (isreal())
             {
-                if (uiterm.active)
-                {
-                    uiterm.cursor.style(packet.input.style > 50);
-                    packet.input.alive ? uiterm.cursor.show()
-                                       : uiterm.cursor.hide();
-                }
+                uiterm.cursor.style(packet.input.style > 50);
+                packet.input.alive ? uiterm.cursor.show()
+                                   : uiterm.cursor.hide();
             }
         }
         else
         {
-            log("%%", "\taborted: inactive buffer: ", utf::to_hex_0x(packet.target));
+            log("\taborted: inactive buffer: ", utf::to_hex_0x(packet.target));
         }
     }
     auto api_scrollback_info_get             ()
     {
-        log("%%", prompt, "GetConsoleScreenBufferInfo");
+        log(prompt, "GetConsoleScreenBufferInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3779,13 +3773,13 @@ struct impl : consrv
         {
             packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
         }
-        log("%%", "\treply.attributes: ", utf::to_hex_0x(packet.reply.attributes),
+        log("\treply.attributes: ", utf::to_hex_0x(packet.reply.attributes),
             "\n\treply.cursor_coor: ", caretpos,
             "\n\treply.window_size: ", viewport);
     }
     auto api_scrollback_info_set             ()
     {
-        log("%%", prompt, "SetConsoleScreenBufferInfo");
+        log(prompt, "SetConsoleScreenBufferInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3804,7 +3798,6 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
-        if (!window_ptr) return;
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
         auto buffsize = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
@@ -3823,19 +3816,19 @@ struct impl : consrv
                 uiterm.window_resize(windowsz);
             }
         }
-        log("%%", "\tbuffer size: ", buffsize);
-        log("%%", "\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy });
-        log("%%", "\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy });
-        log("%%", "\tattributes : ", utf::to_hex_0x(packet.input.attributes));
-        log("%%", "\twindow size: ", windowsz);
-        log("%%", "\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
-        log("%%", "\tpopup color: ", packet.input.popupcolor);
-        log("%%", "\tfull screen: ", packet.input.fullscreen);
-        log("%%", "\trgb palette: ");
+        log("\tbuffer size: ", buffsize,
+          "\n\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy },
+          "\n\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy },
+          "\n\tattributes : ", utf::to_hex_0x(packet.input.attributes),
+          "\n\twindow size: ", windowsz,
+          "\n\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y },
+          "\n\tpopup color: ", packet.input.popupcolor,
+          "\n\tfull screen: ", packet.input.fullscreen,
+          "\n\trgb palette: ");
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
         {
-            log("%%", "\t\t", utf::to_hex(i), " ", rgba{ c });
+            log("\t\t", utf::to_hex(i), " ", rgba{ c });
         }
         if constexpr (isreal())
         {
@@ -3851,7 +3844,7 @@ struct impl : consrv
     }
     auto api_scrollback_size_set             ()
     {
-        log("%%", prompt, "SetConsoleScreenBufferSize");
+        log(prompt, "SetConsoleScreenBufferSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3865,7 +3858,7 @@ struct impl : consrv
         if (!window_ptr) return;
         auto& console = *window_ptr;
         auto size = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
-        log("%%", "\tinput.size: ", size);
+        log("\tinput.size: ", size);
         if constexpr (isreal())
         {
             auto target_ptr = (hndl*)packet.target;
@@ -3885,7 +3878,7 @@ struct impl : consrv
     }
     auto api_scrollback_viewport_get_max_size()
     {
-        log("%%", prompt, "GetLargestConsoleWindowSize");
+        log(prompt, "GetLargestConsoleWindowSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3910,11 +3903,11 @@ struct impl : consrv
             packet.reply.maxwinsz_x = viewport.x;
             packet.reply.maxwinsz_y = viewport.y;
         }
-        log("%%", "\treply.maxwin size: ", twod{ packet.reply.maxwinsz_x, packet.reply.maxwinsz_y });
+        log("\treply.maxwin size: ", twod{ packet.reply.maxwinsz_x, packet.reply.maxwinsz_y });
     }
     auto api_scrollback_viewport_set         ()
     {
-        log("%%", prompt, "SetConsoleWindowInfo");
+        log(prompt, "SetConsoleWindowInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3928,7 +3921,7 @@ struct impl : consrv
         auto area = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
-        log("%%", "\tinput.area: ", area,
+        log("\tinput.area: ", area,
           "\n\tinput.isabsolute: ", packet.input.isabsolute ? "true" : "faux");
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
@@ -3945,7 +3938,7 @@ struct impl : consrv
     }
     auto api_scrollback_scroll               ()
     {
-        log("%%", prompt, "ScrollConsoleScreenBuffer");
+        log(prompt, "ScrollConsoleScreenBuffer");
         struct payload : drvpacket<payload>
         {
             struct
@@ -3966,10 +3959,7 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
-        if (!window_ptr)
-        {
-            return;
-        }
+        if (!window_ptr) return;
         if constexpr (isreal())
         {
             auto& window = *window_ptr;
@@ -3977,7 +3967,7 @@ struct impl : consrv
              && packet.input.scrlL == 0 && packet.input.scrlR == window.panel.x
              && packet.input.scrlT == 0 && packet.input.scrlB == window.panel.y)
             {
-                log("%%", "\timplicit screen clearing detected",
+                log("\timplicit screen clearing detected",
                     "\n\tpacket.input.dest: ", twod{ packet.input.destx, packet.input.desty },
                     "\n\tpacket.input.scrlL: ", packet.input.scrlL,
                     "\n\tpacket.input.scrlT: ", packet.input.scrlT,
@@ -3999,7 +3989,7 @@ struct impl : consrv
                                                      std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
             auto dest = twod{ packet.input.destx, packet.input.desty };
             auto mark = attr_to_brush(packet.input.color).txt(utf::to_utf(packet.input.wchar));
-            log("%%", "\tinput.scrl.rect: ", scrl,
+            log("\tinput.scrl.rect: ", scrl,
               "\n\tinput.clip.rect: ", clip,
               "\n\tinput.dest.coor: ", dest,
               "\n\tinput.trunc: ", packet.input.trunc ? "true" : "faux",
@@ -4031,7 +4021,7 @@ struct impl : consrv
                                std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
             auto dest = twod{ packet.input.destx, packet.input.desty };
             auto mark = attr_to_brush(packet.input.color).txt(utf::to_utf(packet.input.wchar));
-            log("%%", "\tinput.scrl.rect: ", scrl,
+            log("\tinput.scrl.rect: ", scrl,
               "\n\tinput.clip.rect: ", clip,
               "\n\tinput.dest.coor: ", dest,
               "\n\tinput.trunc: ", packet.input.trunc ? "true" : "faux",
@@ -4041,7 +4031,7 @@ struct impl : consrv
     }
     auto api_scrollback_selection_info_get   ()
     {
-        log("%%", prompt, "GetConsoleSelectionInfo");
+        log(prompt, "GetConsoleSelectionInfo");
         static constexpr auto mouse_down   = ui32{ CONSOLE_MOUSE_DOWN            };
         static constexpr auto use_mouse    = ui32{ CONSOLE_MOUSE_SELECTION       };
         static constexpr auto no_selection = ui32{ CONSOLE_NO_SELECTION          };
@@ -4077,7 +4067,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", prompt, packet.input.prime ? "GetConsoleOriginalTitle"
+        log(prompt, packet.input.prime ? "GetConsoleOriginalTitle"
                                        : "GetConsoleTitle");
         //todo differentiate titles by category
         auto title = view{};
@@ -4085,7 +4075,7 @@ struct impl : consrv
         {
             title = uiterm.wtrack.get(ansi::osc_title);
         }
-        log("%%", "\t", show_page(packet.input.utf16, inpenc->codepage),
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
             ": ", ansi::hi(utf::debase(title)));
         if (packet.input.utf16)
         {
@@ -4109,7 +4099,7 @@ struct impl : consrv
     }
     auto api_window_title_set                ()
     {
-        log("%%", prompt, "SetConsoleTitle");
+        log(prompt, "SetConsoleTitle");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4133,14 +4123,14 @@ struct impl : consrv
         }
         if constexpr (isreal())
         {
-            if (uiterm.active) uiterm.wtrack.set(ansi::osc_title, utf8_title);
+            uiterm.wtrack.set(ansi::osc_title, utf8_title);
         }
-        log("%%", "\t", show_page(packet.input.utf16, inpenc->codepage),
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
             ": ", ansi::hi(utf::debase<faux, faux>(utf8_title)));
     }
     auto api_window_font_size_get            ()
     {
-        log("%%", prompt, "GetConsoleFontSize");
+        log(prompt, "GetConsoleFontSize");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4157,12 +4147,12 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         packet.reply.sizex = 10;
         packet.reply.sizey = 20;
-        log("%%", "\tinput.index: ", packet.input.index,
+        log("\tinput.index: ", packet.input.index,
           "\n\treply.size : ", packet.reply.sizex, "x", packet.reply.sizey);
     }
     auto api_window_font_get                 ()
     {
-        log("%%", prompt, "GetCurrentConsoleFont");
+        log(prompt, "GetCurrentConsoleFont");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4188,7 +4178,7 @@ struct impl : consrv
         packet.reply.heavy = 0;
         auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));
-        log("%%", "\tinput.fullscreen: ", packet.input.fullscreen ? "true" : "faux",
+        log("\tinput.fullscreen: ", packet.input.fullscreen ? "true" : "faux",
           "\n\treply.index: ",      packet.reply.index,
           "\n\treply.size : ",      packet.reply.sizex, "x", packet.reply.sizey,
           "\n\treply.pitch: ",      packet.reply.pitch,
@@ -4197,7 +4187,7 @@ struct impl : consrv
     }
     auto api_window_font_set                 ()
     {
-        log("%%", prompt, "SetConsoleCurrentFont");
+        log(prompt, "SetConsoleCurrentFont");
         struct payload : drvpacket<payload>
         {
             union
@@ -4225,7 +4215,7 @@ struct impl : consrv
             };
         };
         auto& packet = payload::cast(upload);
-        log("%%", "\tinput.fullscreen: ",        packet.input.fullscreen ? "true" : "faux",
+        log("\tinput.fullscreen: ",        packet.input.fullscreen ? "true" : "faux",
           "\n\tinput.index: ",             packet.input.index,
           "\n\tinput.pitch: ",             packet.input.pitch,
           "\n\tinput.heavy: ",             packet.input.heavy,
@@ -4234,7 +4224,7 @@ struct impl : consrv
     }
     auto api_window_mode_get                 ()
     {
-        log("%%", prompt, "GetConsoleDisplayMode");
+        log(prompt, "GetConsoleDisplayMode");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4245,11 +4235,11 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.flags = CONSOLE_WINDOWED_MODE;
-        log("%%", "\treply.flags: ", packet.reply.flags);
+        log("\treply.flags: ", packet.reply.flags);
     }
     auto api_window_mode_set                 ()
     {
-        log("%%", prompt, "SetConsoleDisplayMode");
+        log(prompt, "SetConsoleDisplayMode");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4278,12 +4268,12 @@ struct impl : consrv
             packet.reply.buffersz_x = viewport.x;
             packet.reply.buffersz_y = viewport.y;
         }
-        log("%%", "\tinput.flags: ", packet.input.flags);
-        log("%%", "\treply.buffer size: ", twod{ packet.reply.buffersz_x, packet.reply.buffersz_y });
+        log("\tinput.flags: ", packet.input.flags,
+          "\n\treply.buffer size: ", twod{ packet.reply.buffersz_x, packet.reply.buffersz_y });
     }
     auto api_window_handle_get               ()
     {
-        log("%%", prompt, "GetConsoleWindow");
+        log(prompt, "GetConsoleWindow");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4300,11 +4290,11 @@ struct impl : consrv
                                             // - vim sets the icon of its hosting window.
                                             // - The handle is used to show/hide GUI console window.
                                             // - Used for SetConsoleTitle().
-        log("%%", "\tfake window handle: ", utf::to_hex_0x(packet.reply.handle));
+        log("\tfake window handle: ", utf::to_hex_0x(packet.reply.handle));
     }
     auto api_window_xkeys                    ()
     {
-        log("%%", prompt, "SetConsoleKeyShortcuts");
+        log(prompt, "SetConsoleKeyShortcuts");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4315,7 +4305,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("%%", "\trequest ", packet.input.enabled ? "set" : "unset", " xkeys\n",
+        log("\trequest ", packet.input.enabled ? "set" : "unset", " xkeys\n",
                           packet.input.keyflag & 0x01 ? "\t\tAlt+Tab\n"   : "",
                           packet.input.keyflag & 0x02 ? "\t\tAlt+Esc\n"   : "",
                           packet.input.keyflag & 0x04 ? "\t\tAlt+Space\n" : "",
@@ -4326,7 +4316,7 @@ struct impl : consrv
     }
     auto api_alias_get                       ()
     {
-        log("%%", prompt, "GetConsoleAlias");
+        log(prompt, "GetConsoleAlias");
         struct payload : drvpacket<payload>
         {
             union
@@ -4354,7 +4344,7 @@ struct impl : consrv
     }
     auto api_alias_add                       ()
     {
-        log("%%", prompt, "AddConsoleAlias");
+        log(prompt, "AddConsoleAlias");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4371,7 +4361,7 @@ struct impl : consrv
     }
     auto api_alias_exes_get_volume           ()
     {
-        log("%%", prompt, "GetConsoleAliasExesLength");
+        log(prompt, "GetConsoleAliasExesLength");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4391,7 +4381,7 @@ struct impl : consrv
     }
     auto api_alias_exes_get                  ()
     {
-        log("%%", prompt, "GetConsoleAliasExes");
+        log(prompt, "GetConsoleAliasExes");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4411,7 +4401,7 @@ struct impl : consrv
     }
     auto api_aliases_get_volume              ()
     {
-        log("%%", prompt, "GetConsoleAliasesLength");
+        log(prompt, "GetConsoleAliasesLength");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4431,7 +4421,7 @@ struct impl : consrv
     }
     auto api_aliases_get                     ()
     {
-        log("%%", prompt, "GetConsoleAliases");
+        log(prompt, "GetConsoleAliases");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4451,7 +4441,7 @@ struct impl : consrv
     }
     auto api_input_history_clear             ()
     {
-        log("%%", prompt, "ClearConsoleCommandHistory");
+        log(prompt, "ClearConsoleCommandHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4465,7 +4455,7 @@ struct impl : consrv
     }
     auto api_input_history_limit_set         ()
     {
-        log("%%", prompt, "SetConsoleNumberOfCommands");
+        log(prompt, "SetConsoleNumberOfCommands");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4480,7 +4470,7 @@ struct impl : consrv
     }
     auto api_input_history_get_volume        ()
     {
-        log("%%", prompt, "GetConsoleCommandHistoryLength");
+        log(prompt, "GetConsoleCommandHistoryLength");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4500,7 +4490,7 @@ struct impl : consrv
     }
     auto api_input_history_get               ()
     {
-        log("%%", prompt, "GetConsoleCommandHistory");
+        log(prompt, "GetConsoleCommandHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4520,7 +4510,7 @@ struct impl : consrv
     }
     auto api_input_history_info_get          ()
     {
-        log("%%", prompt, "GetConsoleHistory");
+        log(prompt, "GetConsoleHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4539,7 +4529,7 @@ struct impl : consrv
     }
     auto api_input_history_info_set          ()
     {
-        log("%%", prompt, "SetConsoleHistory");
+        log(prompt, "SetConsoleHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4665,12 +4655,12 @@ struct impl : consrv
                         });
                         break;
                     }
-                    case ERROR_IO_PENDING:         log("%%", prompt, "Operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
-                    case ERROR_PIPE_NOT_CONNECTED: log("%%", prompt, "Client disconnected"); return;
-                    default:                       log("%%", prompt, "Unexpected nt::ioctl result ", rc); break;
+                    case ERROR_IO_PENDING:         log(prompt, "Operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
+                    case ERROR_PIPE_NOT_CONNECTED: log(prompt, "Client disconnected"); return;
+                    default:                       log(prompt, "Unexpected nt::ioctl result ", rc); break;
                 }
             }
-            log("%%", prompt, "Server thread ended");
+            log(prompt, "Server thread ended");
         }};
     }
     si32 wait()
@@ -4681,7 +4671,7 @@ struct impl : consrv
         {
             if (procstat == STILL_ACTIVE)
             {
-                log("%%", prompt, ansi::err("Process ", proc_pid, " still running"));
+                log("%prompt%%err%Process %pid% still running%nil%", prompt, ansi::err(), proc_pid, ansi::nil());
             }
             procstat = {};
         }
@@ -4693,7 +4683,7 @@ struct impl : consrv
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
-        log("%%", prompt, "Console API server shut down");
+        log(prompt, "Console API server shut down");
         return procstat;
     }
     void sighup()
@@ -4706,7 +4696,7 @@ struct impl : consrv
         auto test = upto >= from;
         if (!test)
         {
-            log("%%", "\tabort: negative size");
+            log("\tabort: negative size");
             answer.status = nt::status::unsuccessful;
             return T{};
         }
@@ -4842,7 +4832,7 @@ struct consrv : ipc::stdcon
     {
         if (stdinput.joinable())
         {
-            if (io_log) log("%%", prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            if (io_log) log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
             stdinput.join();
         }
         stdcon::cleanup();
@@ -4857,7 +4847,7 @@ struct consrv : ipc::stdcon
     template<class Term>
     void read_socket_thread(Term& terminal)
     {
-        if (terminal.io_log) log("%%", prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+        if (terminal.io_log) log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
         auto flow = text{};
         while (alive())
         {
@@ -4871,7 +4861,7 @@ struct consrv : ipc::stdcon
             }
             else break;
         }
-        if (terminal.io_log) log("%%", prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+        if (terminal.io_log) log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
     }
     template<class Term>
     static auto create(Term& terminal)
@@ -4906,7 +4896,7 @@ struct consrv : ipc::stdcon
             os::signals::state.reset();
             if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
             {
-                log("%%", "fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
+                log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
                     "rc1: ", rc1.value, " errcode: ", rc1.error, "\n"
                     "rc2: ", rc2.value, " errcode: ", rc2.error, "\n"
                     "rc3: ", rc3.value, " errcode: ", rc3.error, "\n"
@@ -4972,7 +4962,7 @@ struct consrv : ipc::stdcon
             if (WIFEXITED(stat))
             {
                 auto c = WEXITSTATUS(stat);
-                if (c) log("%%", prompt::vtty, "Process ", p_id, " exited wth code ", c);
+                if (c) log(prompt::vtty, "Process ", p_id, " exited wth code ", c);
                 if (p_id == group_id) code = c;
             }
         }
