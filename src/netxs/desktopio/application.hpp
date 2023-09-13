@@ -206,7 +206,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }
-                    boss.LISTEN(tier::anycast, e2::form::upon::resize, new_size, -, (slim_status))
+                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
                         {

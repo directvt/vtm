@@ -208,16 +208,17 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( upon )
                 {
-                    EVENT_XS( redrawn, ui::face       ), // inform about camvas is completely redrawn.
-                    EVENT_XS( cached , ui::face       ), // inform about camvas is cached.
-                    EVENT_XS( wiped  , ui::face       ), // event after wipe the canvas.
-                    EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
-                    EVENT_XS( dragged, input::hids    ), // event after drag.
                     EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
                     EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
-                    EVENT_XS( resize , const twod     ), // anycast: notify about the actual window size.
+                    EVENT_XS( resized, const twod     ), // anycast: notify about the actual window size.
+                    EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
+                    EVENT_XS( dragged, input::hids    ), // event after drag.
+                    EVENT_XS( stopped, bool           ), // release: notify that the main reading loop has exited. arg bool: fast or not.
                     GROUP_XS( vtree  , sptr<ui::base> ), // visual tree events, arg: parent base_sptr.
                     GROUP_XS( scroll , rack           ), // event after scroll.
+                    //EVENT_XS( redrawn, ui::face       ), // inform about camvas is completely redrawn.
+                    //EVENT_XS( cached , ui::face       ), // inform about camvas is cached.
+                    //EVENT_XS( wiped  , ui::face       ), // event after wipe the canvas.
                     //EVENT_XS( created    , sptr<ui::base> ), // event after itself creation, arg: itself bell_sptr.
                     //EVENT_XS( detached   , bell_sptr      ), // inform that subject is detached, arg: parent bell_sptr.
                     //EVENT_XS( invalidated, bool           ),

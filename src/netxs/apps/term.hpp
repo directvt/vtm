@@ -749,7 +749,7 @@ namespace netxs::app::term
                     *visible = menu_visible;
                     (*check_state)(boss);
                 };
-                boss.LISTEN(tier::anycast, e2::form::upon::resize, newsize, -, (winsz, check_state))
+                boss.LISTEN(tier::anycast, e2::form::upon::resized, newsize, -, (winsz, check_state))
                 {
                     *winsz = newsize;
                     (*check_state)(boss);

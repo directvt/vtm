@@ -3228,7 +3228,7 @@ namespace netxs::ui
         {
             SIGNAL(tier::anycast, e2::form::upon::started, This()); // Make all stuff ready to receive input.
             conio.run();
-            SIGNAL(tier::release, e2::conio::quit, deal, ());
+            SIGNAL(tier::release, e2::form::upon::stopped, true);
         }
 
     protected:
@@ -3449,7 +3449,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
             {
-                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resize, newsize);
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, newsize);
                 auto delta = base::resize(newsize);
                 if (delta && direct)
                 if (auto world_ptr = base::parent())
@@ -3471,10 +3471,9 @@ namespace netxs::ui
                 log("%%", prompt::gate, "Console error: ", errcode);
                 conio.disconnect();
             };
-            LISTEN(tier::release, e2::conio::quit, deal, tokens) // Reading loop ends.
+            LISTEN(tier::release, e2::form::upon::stopped, fast, tokens) // Reading loop ends.
             {
-                auto backup = this->This();
-                this->SIGNAL(tier::preview, e2::form::proceed::quit::one, true);
+                this->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast);
                 conio.disconnect();
                 paint.stop();
                 mouse.reset(); // Reset active mouse clients to avoid hanging pointers.

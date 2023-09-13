@@ -136,7 +136,7 @@ namespace netxs::app::vtm
                 boss.RISEUP(tier::preview, e2::form::prop::ui::header, newhead);
                 boss.RISEUP(tier::preview, e2::form::prop::ui::footer, newfoot);
 
-                boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast, memo)
+                boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
                     boss.router<tier::preview>().skip();
@@ -1210,7 +1210,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::size::any, new_size)
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::upon::resize, new_size);
+                        boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
                     };
                     auto size_state = ptr::shared(dot_11);
                     auto last_state = ptr::shared(faux);
