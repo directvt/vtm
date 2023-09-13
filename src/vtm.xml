@@ -373,6 +373,9 @@ R"==(
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
+    <gems>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+        <!-- not implemented -->
+    </gems>
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
