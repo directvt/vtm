@@ -28,6 +28,7 @@ namespace netxs
     using si64 = int64_t;
     using hint = uint32_t;
     using id_t = uint32_t;
+    using arch = size_t;
     using sz_t = ui32;
     using flag = std::atomic<bool>;
 
@@ -41,10 +42,10 @@ namespace netxs
     static constexpr auto si16min = std::numeric_limits<si16>::min();
     static constexpr auto ui16min = std::numeric_limits<ui16>::min();
     static constexpr auto debugmode
-        #if defined(NDEBUG)
-        = faux;
-        #else
+        #if defined(DEBUG)
         = true;
+        #else
+        = faux;
         #endif
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };

@@ -129,14 +129,14 @@ namespace netxs::app::vtm
                 window_ptr->base::extend(new_pos);
                 coor = window_ptr->base::coor();
 
-                boss.SIGNAL(tier::request, e2::form::prop::ui::header, what.header);
-                boss.SIGNAL(tier::request, e2::form::prop::ui::footer, what.footer);
-                window_ptr->SIGNAL(tier::request, e2::form::prop::ui::header, newhead, ());
-                window_ptr->SIGNAL(tier::request, e2::form::prop::ui::footer, newfoot, ());
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, newfoot);
+                auto newhead = std::move(what.header);
+                auto newfoot = std::move(what.footer);
+                boss.RISEUP(tier::request, e2::form::prop::ui::header, what.header);
+                boss.RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
+                boss.RISEUP(tier::preview, e2::form::prop::ui::header, newhead);
+                boss.RISEUP(tier::preview, e2::form::prop::ui::footer, newfoot);
 
-                boss.LISTEN(tier::preview, e2::form::proceed::quit::one, boss_ptr, memo)
+                boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
                     boss.router<tier::preview>().skip();
@@ -154,7 +154,7 @@ namespace netxs::app::vtm
                     what.applet->bell::expire<tier::release>(); // Suppress minimization.
                     unbind();
                 };
-                window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, any_ptr, memo)
+                window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
                     boss.router<tier::release>().skip();
@@ -162,14 +162,6 @@ namespace netxs::app::vtm
                 window_ptr->LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
                     if (coor != new_coor) unbind(type::size);
-                };
-                window_ptr->LISTEN(tier::release, e2::form::prop::ui::header, newhead, memo)
-                {
-                    boss.SIGNAL(tier::preview, e2::form::prop::ui::header, newhead);
-                };
-                window_ptr->LISTEN(tier::release, e2::form::prop::ui::footer, newfoot, memo)
-                {
-                    boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, newfoot);
                 };
 
                 window_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
@@ -182,8 +174,12 @@ namespace netxs::app::vtm
                 nexthop = saved;
                 saved.reset();
                 memo.clear();
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::header, what.header);
-                boss.SIGNAL(tier::preview, e2::form::prop::ui::footer, what.footer);
+                auto prev_header = std::move(what.header);
+                auto prev_footer = std::move(what.footer);
+                boss.RISEUP(tier::request, e2::form::prop::ui::header, what.header);
+                boss.RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
+                boss.RISEUP(tier::preview, e2::form::prop::ui::header, prev_header);
+                boss.RISEUP(tier::preview, e2::form::prop::ui::footer, prev_footer);
                 boss.SIGNAL(tier::anycast, e2::form::layout::restore, empty, ()); // Notify app::desk to suppress triggering.
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
@@ -335,7 +331,7 @@ namespace netxs::app::vtm
             {
                 auto& screen = boss.base::area();
                 auto  oldpos = screen.coor;
-                auto  newpos = target - screen.size / 2;;
+                auto  newpos = target - screen.size / 2;
 
                 auto path = newpos - oldpos;
                 auto time = skin::globals().switching;
@@ -443,7 +439,7 @@ namespace netxs::app::vtm
                 bool ctrl{};
             };
             std::unordered_map<id_t, slot_t> slots;
-            ansi::esc coder;
+            escx coder;
 
             void check_modifiers(hids& gear)
             {
@@ -742,7 +738,6 @@ namespace netxs::app::vtm
             {
                 nexthop = world_ptr;
             };
-
             LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
             {
                 if (gear)
@@ -801,7 +796,6 @@ namespace netxs::app::vtm
                     gear.set_handled(true);
                 }
             };
-
             LISTEN(tier::release, hids::events::mouse::button::click::left, gear, tokens) // Go to another user's viewport.
             {
                 if (gear.owner.id == this->id) return;
@@ -855,7 +849,7 @@ namespace netxs::app::vtm
                 {
                     auto area = base::area();
                     area.coor-= canvas.area().coor;
-                    if (canvas.cmode != svga::vga16) // Don't show shadow in poor color environment.
+                    if (canvas.cmode != svga::vt16 && canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
                     {
                         //todo revise
                         auto mark = skin::color(tone::shadow);
@@ -869,7 +863,8 @@ namespace netxs::app::vtm
                         canvas.bump(dent{ -2,-2,-2,-1 });
                         canvas.cup(dot_00);
                         canvas.output(fullscreen_banner);
-                        canvas.output(title.head_page, cell::shaders::contrast);
+                        //todo revise
+                        //canvas.output(title.head_page, cell::shaders::contrast);
                     }
                     canvas.bump(saved_context);
                 }
@@ -881,7 +876,7 @@ namespace netxs::app::vtm
                     //if (parent.test(area.coor))
                     //{
                     //	auto hover_id = parent[area.coor].link();
-                    //	log ("---- hover id ", hover_id);
+                    //	log("---- hover id ", hover_id);
                     //}
                     //auto& header = *title.header().lyric;
                     if (uname.lyric) // Render foreign user names at their place.
@@ -1181,11 +1176,13 @@ namespace netxs::app::vtm
         };
 
         using idls = std::vector<id_t>;
+        using pool = netxs::generics::pool;
 
         list items; // hall: Child visual tree.
         list users; // hall: Scene spectators.
         depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
+        pool async; // hall: Thread pool for parallel task execution.
 
         static auto window(link& what)
         {
@@ -1213,7 +1210,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::size::any, new_size)
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::upon::resize, new_size);
+                        boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
                     };
                     auto size_state = ptr::shared(dot_11);
                     auto last_state = ptr::shared(faux);
@@ -1303,21 +1300,25 @@ namespace netxs::app::vtm
                         boss.mouse.reset();
                         boss.base::detach(); // The object kills itself.
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, nested_item)
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
                         boss.mouse.reset();
-                        if (nested_item) boss.base::detach(); // The object kills itself.
+                        boss.base::detach(); // The object kills itself.
+                    };
+                    boss.LISTEN(tier::general, e2::conio::quit, deal) // Desktop shutdown.
+                    {
+                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true); // Schedule a cleanup.
                     };
                     boss.LISTEN(tier::release, e2::dtor, p)
                     {
                         auto start = datetime::now();
                         boss.SIGNAL(tier::general, e2::cleanup, counter, ());
                         auto stop = datetime::now() - start;
-                        log(prompt::hall, "Garbage collection",
-                        "\n\ttime ", utf::format(stop.count()), "ns",
-                        "\n\tobjs ", counter.obj_count,
-                        "\n\trefs ", counter.ref_count,
-                        "\n\tdels ", counter.del_count);
+                        if constexpr (debugmode) log(prompt::hall, "Garbage collection",
+                                                    "\n\ttime ", utf::format(stop.count()), "ns",
+                                                    "\n\tobjs ", counter.obj_count,
+                                                    "\n\trefs ", counter.ref_count,
+                                                    "\n\tdels ", counter.del_count);
                     };
 
                     auto what_copy = what;
@@ -1329,6 +1330,8 @@ namespace netxs::app::vtm
                         auto what = what_copy;
                         what.applet = window_ptr;
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
+                        window_ptr->RISEUP(tier::request, e2::form::prop::ui::header, what.header);
+                        window_ptr->RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
                 });
@@ -1341,20 +1344,10 @@ namespace netxs::app::vtm
             if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
             else                             slot->extend(what.square);
             slot->attach(what.applet);
-            log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
+            if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
             this->branch(what.menuid, slot, !cfg.hidden);
             slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return slot;
-        }
-        void nextframe(bool damaged) override
-        {
-            for (auto& u : users.items)
-            {
-                if (auto client = std::dynamic_pointer_cast<gate>(u->object))
-                {
-                    client->rebuild_scene(*this, damaged);
-                }
-            }
         }
 
     protected:
@@ -1399,7 +1392,7 @@ namespace netxs::app::vtm
                 }
                 else if (conf_rec.menuid.empty())
                 {
-                    log(prompt::hall, "Attribute '", utf::debase(attr::id), "' is missing, skip item");
+                    log("%%Attribute '%attrid%' is missing, skip item", prompt::hall, utf::debase(attr::id));
                     continue;
                 }
                 auto label        = item.take(attr::label, ""s);
@@ -1444,6 +1437,18 @@ namespace netxs::app::vtm
                 menu_list.emplace(std::move(menuid), std::move(conf_rec));
             }
 
+            LISTEN(tier::general, e2::timer::any, timestamp, tokens)
+            {
+                auto damaged = !host::debris.empty();
+                host::debris.clear();
+                for (auto& u : users.items)
+                {
+                    if (auto client = std::dynamic_pointer_cast<gate>(u->object))
+                    {
+                        client->rebuild_scene(*this, damaged);
+                    }
+                }
+            };
             LISTEN(tier::release, vtm::events::gate::restore, what)
             {
                 auto& cfg = dbase.menu[what.menuid];
@@ -1464,6 +1469,10 @@ namespace netxs::app::vtm
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
                 if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
                 if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
+            };
+            LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
+            {
+                log<faux>(utf8);
             };
             LISTEN(tier::general, e2::form::global::lucidity, alpha)
             {
@@ -1555,7 +1564,6 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
-                static auto insts_count = si32{ 0 };
                 auto& gate = gear.owner;
                 auto location = gear.slot;
                 if (gear.meta(hids::anyCtrl))
@@ -1569,12 +1577,10 @@ namespace netxs::app::vtm
                     gate.SIGNAL(tier::request, e2::data::changed, what.menuid);
                     if (auto window = create(what))
                     {
-                        insts_count++;
-                        window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
-                        {
-                            insts_count--;
-                            log(prompt::hall, "Detached: ", insts_count);
-                        };
+                        //window->LISTEN(tier::release, e2::form::upon::vtree::detached, master)
+                        //{
+                        //    log(prompt::hall, "Objects count: ", items.size());
+                        //};
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
                     }
@@ -1586,7 +1592,7 @@ namespace netxs::app::vtm
                 auto slot = window(what);
                 slot->extend(what.square);
                 slot->attach(what.applet);
-                log(prompt::hall, "Attach type=", utf::debase(cfg.type), " menuid=", utf::debase(what.menuid));
+                log("%%Attach type=%itemtype% menuid=%id%", prompt::hall, utf::debase(cfg.type), utf::debase(what.menuid));
                 this->branch(what.menuid, slot, !cfg.hidden);
                 slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.applet = slot;
@@ -1631,13 +1637,6 @@ namespace netxs::app::vtm
         }
 
     public:
-       ~hall()
-        {
-            auto lock = netxs::events::sync{};
-            dbase.reset();
-            items.reset();
-        }
-
         // hall: Autorun apps from config.
         void autorun()
         {
@@ -1673,7 +1672,7 @@ namespace netxs::app::vtm
             if constexpr (debugmode)
             {
                 SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (0,0));
-                if (gear_test.second) log(prompt::hall, "Autofocused items count", ": ", gear_test.second);
+                if (gear_test.second) log(prompt::hall, "Autofocused items count: ", gear_test.second);
             }
         }
         void redraw(face& canvas) override
@@ -1682,10 +1681,16 @@ namespace netxs::app::vtm
             items.render    (canvas); // Draw objects of the world.
             users.postrender(canvas); // Draw spectator's mouse pointers.
         }
+        template<class P>
+        void run(P process)
+        {
+            async.run(process);
+        }
         // hall: Attach a new item to the scene.
         template<class S>
         void branch(text const& menuid, sptr<S> item, bool fixed = true)
         {
+            if (!host::active) return;
             items.append(item);
             item->base::root(true); //todo move it to the window creator (main)
             auto& [stat, list] = dbase.apps[menuid];
@@ -1696,7 +1701,7 @@ namespace netxs::app::vtm
             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(sptr<pipe> client, view userid, si32 vtmode, xmls config, si32 session_id)
+        auto invite(sptr<pipe> client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
             auto user = base::create<gate>(client, userid, vtmode, config, session_id);
@@ -1708,9 +1713,25 @@ namespace netxs::app::vtm
             auto patch = ""s;
             auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
             user->attach(deskmenu);
+            user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.
             lock.unlock();
             user->launch();
+        }
+        // hall: Shutdown.
+        void stop()
+        {
+            log(prompt::hall, "Server shutdown");
+            SIGNAL(tier::general, e2::conio::quit, deal, ()); // Trigger to disconnect all users and monitors.
+            async.stop(); // Wait until all users and monitors are disconnected.
+            if constexpr (debugmode) log(prompt::hall, "Session control stopped");
+            netxs::events::dequeue(); // Wait until all cleanups are completed.
+            host::quartz.stop();
+            auto lock = netxs::events::sync{};
+            host::mouse.reset(); // Release the captured mouse.
+            host::tokens.reset();
+            dbase.reset();
+            items.reset();
         }
     };
 }

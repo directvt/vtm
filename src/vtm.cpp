@@ -21,8 +21,6 @@ int main(int argc, char* argv[])
     auto defaults = 
     #include "vtm.xml"
 
-    auto vtmode = os::tty::vtmode();
-    auto banner = [&]{ log(prompt::vtm, app::shared::version); };
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};
@@ -81,13 +79,14 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
-            auto syslog = os::tty::logger(vtmode, true);
+            netxs::logger::wipe();
+            auto syslog = os::tty::logger();
             log(app::shared::version);
             return 0;
         }
         else if (getopt.match("--onlylog"))
         {
-            vtmode |= os::vt::onlylog;
+            os::dtvt::vtmode |= os::dtvt::onlylog;
         }
         else if (getopt.match("--"))
         {
@@ -100,8 +99,9 @@ int main(int argc, char* argv[])
         }
     }
 
-    auto syslog = os::tty::logger(vtmode);
-    banner();
+    auto syslog = os::tty::logger();
+    auto direct = os::dtvt::active;
+    log(prompt::vtm, app::shared::version);
     if (errmsg.size())
     {
         os::fail(errmsg);
@@ -139,97 +139,92 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::config)
     {
-        log("Running configuration:\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config()));
+        log("Running configuration", ":\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
     }
     else if (whoami == type::logger)
     {
         auto userid = os::env::user();
         auto prefix = (vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe) + app::shared::logsuffix;
-        log(prompt::main, "Waiting for server...");
-        while (true)
+        log("%%Waiting for server...", prompt::main);
+        auto online = flag{ true };
+        auto active = flag{ faux };
+        auto stream = sptr<os::ipc::socket>{};
+        auto readln = os::tty::readline([&](auto line)
         {
-            if (auto stream = os::ipc::socket::open<os::role::client, faux>(prefix))
+            if (active) stream->send(line);
+            else log("%%No server connected", prompt::main);
+        }, [&]
+        {
+            online.exchange(faux);
+            if (active) stream->shut();
+        });
+        while (online)
+        {
+            stream = os::ipc::socket::open<os::role::client, faux>(prefix);
+            if (stream)
             {
-                log(prompt::main, "Connected");
-                auto readln = std::thread{ [&]
+                log("%%Connected", prompt::main);
+                stream->send(utf::concat(os::process::id.first));
+                active.exchange(true);
+                while (online)
                 {
-                    auto onlylog = vtmode & os::vt::onlylog;
-                    if (faux && !onlylog)
-                    {
-                        os::tty::readline::ignite();
-                        auto buffer = text{};
-                        while (stream->send(os::tty::readline::readln(buffer))) { }
-                        stream->shut();
-                    }
-                }};
-                while (os::io::send(stream->recv()))
-                { }
-                os::tty::readline::finish();
-                readln.join();
-                return 0;
+                    if (auto data = stream->recv()) log<faux>(data);
+                    else online.exchange(faux);
+                }
             }
-            std::this_thread::sleep_for(500ms);
+            else std::this_thread::sleep_for(500ms);
         }
     }
     else if (whoami == type::runapp)
     {
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto shadow = params;
+        auto apname = view{};
+        auto aclass = text{};
         utf::to_low(shadow);
-             if (shadow.starts_with(app::term::id))      log(app::term::desc,      ' ', app::shared::version);
-        else if (shadow.starts_with(app::dtvt::id))      log(app::dtvt::desc,      ' ', app::shared::version);
-        else if (shadow.starts_with(app::calc::id))      log(app::calc::desc,      ' ', app::shared::version);
-        else if (shadow.starts_with(app::shop::id))      log(app::shop::desc,      ' ', app::shared::version);
-        else if (shadow.starts_with(app::test::id))      log(app::test::desc,      ' ', app::shared::version);
-        else if (shadow.starts_with(app::directvt::id))  log(app::directvt::desc,  ' ', app::shared::version);
-        else if (shadow.starts_with(app::textancy::id))  log(app::textancy::desc,  ' ', app::shared::version);
-        else if (shadow.starts_with(app::headless::id))  log(app::headless::desc,  ' ', app::shared::version);
-        else if (shadow.starts_with(app::settings::id))  log(app::settings::desc,  ' ', app::shared::version);
-        else if (shadow.starts_with(app::truecolor::id)) log(app::truecolor::desc, ' ', app::shared::version);
+             if (shadow.starts_with(app::term::id))      { aclass = app::term::id;      apname = app::term::desc;      }
+        else if (shadow.starts_with(app::dtvt::id))      { aclass = app::dtvt::id;      apname = app::dtvt::desc;      }
+        else if (shadow.starts_with(app::calc::id))      { aclass = app::calc::id;      apname = app::calc::desc;      }
+        else if (shadow.starts_with(app::shop::id))      { aclass = app::shop::id;      apname = app::shop::desc;      }
+        else if (shadow.starts_with(app::test::id))      { aclass = app::test::id;      apname = app::test::desc;      }
+        else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
+        else if (shadow.starts_with(app::textancy::id))  { aclass = app::textancy::id;  apname = app::textancy::desc;  }
+        else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
+        else if (shadow.starts_with(app::settings::id))  { aclass = app::settings::id;  apname = app::settings::desc;  }
+        else if (shadow.starts_with(app::truecolor::id)) { aclass = app::truecolor::id; apname = app::truecolor::desc; }
         else
         {
-            params = app::term::id + " "s + params;
-            log(app::term::desc, ' ', app::shared::version);
+            params = " "s + params;
+            aclass = app::term::id;
+            apname = app::term::desc;
         }
-
-        auto success = app::shared::start(params, app::vtm::id, vtmode, config);
-        if (!success)
-        {
-            os::fail("Console initialization error");
-            return 1;
-        }
+        log("%appname% %version%", apname, app::shared::version);
+        params = utf::remain(params, ' ');
+        app::shared::start(params, aclass, os::dtvt::vtmode, os::dtvt::win_sz, config);
     }
     else
     {
         auto userid = os::env::user();
-        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config());
+        auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
 
         if (whoami == type::client)
         {
             auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
             {
-                log(prompt::main, "New vtm session for ", userid);
+                log("%%New vtm session for %userid%", prompt::main, userid);
                 auto success = faux;
                 if (os::process::fork(success, prefix, config.utf8()))
                 {
-                    vtmode |= os::vt::onlylog;
+                    os::dtvt::vtmode |= os::dtvt::onlylog;
                     whoami = type::server;
                 }
                 return success;
             });
             if (client)
             {
-                os::tty::globals().wired.init.send(client, userid, vtmode, config.utf8());;
-                if (vtmode & os::vt::direct)
-                {
-                    os::tty::direct(client);
-                }
-                else
-                {
-                    os::logging::start(app::vtm::id);
-                    os::tty::splice(client, vtmode);
-                }
+                os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                os::tty::splice(client);
                 return 0;
             }
             else if (whoami != type::server)
@@ -244,7 +239,7 @@ int main(int argc, char* argv[])
             auto success = faux;
             if (os::process::fork(success, prefix, config.utf8()))
             {
-                vtmode |= os::vt::onlylog;
+                os::dtvt::vtmode |= os::dtvt::onlylog;
                 whoami = type::server;
             }
             else 
@@ -269,72 +264,57 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
-        auto srvlog = syslog.tee<events::try_sync>([&](auto utf8) { domain->SIGNAL(tier::general, e2::conio::logs, utf8); });
-        auto thread = os::process::pool{};
         domain->autorun();
 
-        log(prompt::main, "Server started",
-          "\n      user: ", userid,
-          "\n      pipe: ", prefix);
+        log("%%Server started"
+          "\n      user: %userid%"
+          "\n      pipe: %prefix%", prompt::main, userid, prefix);
 
         auto stdlog = std::thread{ [&]
         {
             while (auto monitor = logger->meet())
             {
-                thread.run([&, monitor](auto session_id)
+                domain->run([&, monitor](auto session_id)
                 {
-                    auto id = utf::concat(*monitor);
-                    log(prompt::logs, "Monitor connected ", id);
+                    auto id = monitor->recv().str();
+                    log("%%Monitor [%id%] connected", prompt::logs, id);
                     auto tokens = subs{};
-                    domain->LISTEN(tier::general, e2::conio::quit, utf8, tokens) { monitor->shut(); };
-                    domain->LISTEN(tier::general, e2::conio::logs, utf8, tokens) { monitor->send(utf8); };
-                    monitor->recv();
+                    auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
+                    domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
+                    //todo send/receive dtvt events and signals
                     while (auto line = monitor->recv())
                     {
                         domain->SIGNAL(tier::release, e2::conio::readline, line);
                     }
-                    log(prompt::logs, "Monitor disconnected ", id);
+                    log("%%Monitor [%id%] disconnected", prompt::logs, id);
                 });
             }
         }};
 
         auto settings = config.utf8();
-        auto readln = std::thread{ [&]
-        {
-            auto onlylog = vtmode & os::vt::onlylog;
-            if (faux && !onlylog)
-            {
-                os::tty::readline::ignite();
-                auto buffer = text{};
-                while (auto line = os::tty::readline::readln(buffer))
-                {
-                    domain->SIGNAL(tier::release, e2::conio::readline, line);
-                }
-            }
-        }};
-
+        auto readline = os::tty::readline([&](auto line){ domain->SIGNAL(tier::release, e2::conio::readline, line); },
+                                          [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
         while (auto client = server->meet())
         {
             if (client->auth(userid))
             {
-                thread.run([&, client, settings](auto session_id)
+                domain->run([&, client, settings](auto session_id)
                 {
                     auto id = utf::concat(*client);
-                    log(prompt::user, "Client connected ", id);
+                    if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
                     auto config = xmls{ settings };
-                    auto packet = os::tty::globals().wired.init.recv(client);
+                    auto packet = os::tty::stream.init.recv(client);
                     config.fuse(packet.config);
-                    domain->invite(client, packet.user, packet.mode, config, session_id);
-                    log(prompt::user, "Client disconnected ", id);
+                    domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
+                    if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                 });
             }
         }
-        os::tty::readline::finish();
-        readln.join();
-        logger->stop(); // Logger must be stopped first to prevent reconnection.
-        domain->SIGNAL(tier::general, e2::conio::quit, msg, (utf::concat(prompt::main, "Server shutdown")));
-        events::dequeue();
-        domain->shutdown();
+        readline.stop();
+        logger->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
         stdlog.join();
+        domain->stop();
     }
+
+    os::release();
 }

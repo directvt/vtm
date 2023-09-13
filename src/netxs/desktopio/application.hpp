@@ -21,7 +21,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9t";
+    static const auto version = "v0.9.9u";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -170,7 +170,8 @@ namespace netxs::app::shared
                             {
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
-                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, boss.This());
+                                    auto backup = boss.This();
+                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
                                     gear.dismiss();
                                 };
                             })
@@ -205,7 +206,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }
-                    boss.LISTEN(tier::anycast, e2::form::upon::resize, new_size, -, (slim_status))
+                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
                         {
@@ -326,9 +327,9 @@ namespace netxs::app::shared
     };
     const auto closing_on_quit = [](auto& boss)
     {
-        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
         };
     };
     const auto closing_by_gesture = [](auto& boss)
@@ -336,13 +337,13 @@ namespace netxs::app::shared
         boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
         boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
         {
             auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, backup);
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             gear.dismiss();
         };
     };
@@ -443,7 +444,7 @@ namespace netxs::app::shared
         const auto it = map.find(app_typename);
         if (it == map.end())
         {
-            log(prompt::apps, "Unknown app type - '", app_typename, "'");
+            log("%%Unknown app type - '%app_typename%'", prompt::apps, app_typename);
             return empty;
         }
         else return it->second;
@@ -454,7 +455,7 @@ namespace netxs::app::shared
         auto settings(view defaults, view cli_config_path, view patch)
         {
             auto conf = xmls{ defaults };
-            auto load = [&](view shadow)
+            auto load = [&](qiew shadow)
             {
                 if (shadow.empty()) return faux;
                 if (shadow.starts_with(":"))
@@ -472,8 +473,8 @@ namespace netxs::app::shared
                         return faux;
                     }
                 }
-                auto path = text{ shadow };
-                log(prompt::apps, "Loading configuration from ", path, "...");
+                auto path = shadow.str();
+                log("%%Loading configuration from %path%...", prompt::apps, path);
                 if (path.starts_with("$"))
                 {
                     auto temp = path.substr(1);
@@ -522,42 +523,6 @@ namespace netxs::app::shared
             return conf;
         }
     }
-    auto start(text app_name, text log_title, si32 vtmode, xmls& config)
-    {
-        auto direct = !!(vtmode & os::vt::direct);
-        if (!direct) os::logging::start(log_title);
-
-        //std::this_thread::sleep_for(15s);
-
-        auto shadow = app_name;
-        utf::to_low(shadow);
-        //if (!config.cd("/config/" + shadow)) config.cd("/config/appearance/");
-        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto runapp = [&](auto uplink, auto patch)
-        {
-            auto domain = base::create<host>(uplink, config);
-            auto aclass = utf::to_low(utf::cutoff(app_name, ' '));
-            auto params = utf::remain(app_name, ' ');
-            auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, patch); // ! - means simple (w/o plugins)
-            domain->invite(uplink, applet, vtmode);
-            events::dequeue();
-            domain->shutdown();
-        };
-
-        if (direct)
-        {
-            auto server = os::ipc::stdio();
-            runapp(server, "");
-        }
-        else
-        {
-            auto [client, server] = os::ipc::xlink();
-            auto thread = std::thread{ [&, &client = client]{ os::tty::splice(client, vtmode); }}; //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
-            runapp(server, "<config isolated=1/>");
-            thread.join();
-        }
-        return true;
-    }
 
     struct initialize
     {
@@ -567,4 +532,22 @@ namespace netxs::app::shared
             map[app_typename] = builder;
         }
     };
+
+    void start(text params, text aclass, si32 vtmode, twod winsz, xmls& config)
+    {
+        auto [client, server] = os::ipc::xlink();
+        auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        {
+            os::tty::splice(client);
+        }};
+        //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
+        config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
+        auto domain = ui::base::create<ui::host>(server, config);
+        auto direct = os::dtvt::active;
+        auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        domain->invite(server, applet, vtmode, winsz);
+        domain->stop();
+        server->shut();
+        thread.join();
+    }
 }

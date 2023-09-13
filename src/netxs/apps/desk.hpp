@@ -118,7 +118,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, data_src);
+                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
                             gear.dismiss();
                         }
                     };
@@ -337,7 +337,7 @@ namespace netxs::app::desk
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
             auto& menu_selected  = user_info[2];
-            log(prompt::desk, "Id: ", user_id___view, ", user name: ", user_name_view);
+            log("%%User %name% connected", prompt::desk, user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
@@ -353,9 +353,9 @@ namespace netxs::app::desk
                     auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
                         ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                         ->plugin<pro::notes>(" Connected user ");
-                    auto user = item_area->attach(ui::item::ctor(ansi::esc(" &").nil().add(" ")
-                        //.link(data_src->id).fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8).nil(), true));
-                        .fgx(data_src->id == my_id ? rgba::color256[whitelt] : 0x00).add(utf8).nil(), true));
+                    auto user = item_area->attach(ui::item::ctor(escx(" &").nil().add(" ")
+                        //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
+                        .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
                     return item_area;
                 };
                 auto branch_template = [user_template](auto& data_src, auto& usr_list)
@@ -575,11 +575,12 @@ namespace netxs::app::desk
                 auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
                     ->plugin<pro::fader>(x2, c2, skin::globals().fader_time)
                     ->plugin<pro::notes>(" Leave current session ")
-                    ->invoke([&](auto& boss)
+                    ->invoke([&, name = text{ user_name_view }](auto& boss)
                     {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (name))
                         {
-                            gear.owner.SIGNAL(tier::preview, e2::conio::quit, msg, (utf::concat(prompt::desk, "Logout by button")));
+                            log("%%User %name% disconnected", prompt::desk, name);
+                            gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                             gear.dismiss();
                         };
                     });

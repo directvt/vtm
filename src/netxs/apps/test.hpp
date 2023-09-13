@@ -270,7 +270,7 @@ namespace netxs::app::test
 
 
                 // Wikipedia run
-                auto wiki = ansi::esc("\n\n")
+                auto wiki = escx("\n\n")
                     .jet(bias::center).wrp(wrap::off).fgc(clr)
                     .add("Sample Article\n\n")
 
@@ -427,9 +427,9 @@ namespace netxs::app::test
                 ->invoke([](auto& boss)
                 {
                     //boss.keybd.accept(true);
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                     };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))

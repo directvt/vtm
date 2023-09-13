@@ -31,15 +31,27 @@ Build-time dependencies
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
 
-Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system.
-
 Use any terminal as a build environment
 ```
 git clone https://github.com/netxs-group/vtm.git
-cd ./vtm
-./build64.sh
-./install.sh
+cmake . -B bin
+cmake --build bin
+sudo cmake --install bin
 vtm
+```
+
+Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system. In order to do so make sure you have additional cross-compilation libraries installed, e.g. on Linux `sudo apt install gcc-i686-linux-gnu g++-i686-linux-gnu` (x86) or `sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf` (ARM32).
+
+Example of cross-compilation for x86 Linux
+```
+cmake . -B bin -DCMAKE_CXX_COMPILER="/bin/i686-linux-gnu-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s"
+cmake --build bin
+```
+
+Example of cross-compilation for ARM32 Linux
+```
+cmake . -B bin -DCMAKE_CXX_COMPILER="/bin/arm-linux-gnueabihf-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s -Wno-psabi"
+cmake --build bin
 ```
 
 ### Windows
@@ -51,9 +63,9 @@ Use Developer Command Prompt as a build environment
 
 ```
 git clone https://github.com/netxs-group/vtm.git
-cd vtm
-build64.cmd
-Release\vtm.exe
+cmake . -B bin
+cmake --build bin --config Release
+bin\Release\vtm.exe
 ```
 
 # Binary Downloads

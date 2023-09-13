@@ -53,20 +53,20 @@ namespace netxs::datetime
         using cond = std::condition_variable;
         using work = std::thread;
 
-        Reactor & alarm;
-        Context   cause;
-        bool      alive;
-        bool      letup;
-        span      delay;
-        span      pulse;
-        work      fiber;
-        cond      synch;
-        span      watch;
+        Reactor& alarm;
+        Context  cause;
+        flag     alive;
+        flag     letup;
+        span     delay;
+        span     pulse;
+        work     fiber;
+        cond     synch;
+        span     watch;
 
         void worker()
         {
             auto mutex = std::mutex{};
-            auto lock = std::unique_lock{ mutex };
+            auto guard = std::unique_lock{ mutex };
 
             auto now = datetime::now();
             auto prior = now;
@@ -79,17 +79,15 @@ namespace netxs::datetime
                 now = datetime::now();
                 alarm.notify(cause, now);
 
-                if (letup)
+                if (letup.exchange(faux))
                 {
-                    synch.wait_for(lock, delay);
-
+                    synch.wait_for(guard, delay);
                     delay = span::zero();
-                    letup = faux;
                 }
                 else
                 {
                     auto trail = pulse - now.time_since_epoch() % pulse;
-                    synch.wait_for(lock, trail);
+                    synch.wait_for(guard, trail);
                 }
             }
         }
@@ -112,10 +110,8 @@ namespace netxs::datetime
         void ignite(span const& interval)
         {
             pulse = interval;
-
-            if (!alive)
+            if (!alive.exchange(true))
             {
-                alive = true;
                 fiber = std::thread{ &quartz::worker, this };
             }
         }
@@ -140,19 +136,16 @@ namespace netxs::datetime
                 return faux;
             }
         }
-        void cancel()
+        void stop()
         {
-            alive = faux;
-            synch.notify_all();
-
-            if (fiber.joinable())
+            if (alive.exchange(faux))
             {
-                fiber.join();
+                synch.notify_all();
+                if (fiber.joinable())
+                {
+                    fiber.join();
+                }
             }
-        }
-       ~quartz()
-        {
-            cancel();
         }
     };
 

@@ -7,6 +7,11 @@ project ("vtm")
 set (CMAKE_CXX_STANDARD 20)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Set the build type to Release if none is specified.
+if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+    set (CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+endif ()
+
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")    # WIN32 and similar checks are soft-deprecated
     # Disable manifest embedding for the windows builds.
     # Reason: Anti-virus program (Windows Defender) may lock and scan `vtm.exe` file before embedding the manifest.
@@ -22,9 +27,9 @@ elseif (NOT CMAKE_SYSTEM_NAME MATCHES "Android")
     #set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -pthread -s")
 endif ()
 
-add_executable (vtm "vtm.cpp")
-# add_executable (term "netxs/apps/term.cpp")
-# add_executable (calc "netxs/apps/calc.cpp")
+add_executable (vtm "src/vtm.cpp")
+# add_executable (term "src/netxs/apps/term.cpp")
+# add_executable (calc "src/netxs/apps/calc.cpp")
 
 if (NOT WIN32)
     install (TARGETS vtm  DESTINATION bin)

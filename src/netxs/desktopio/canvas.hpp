@@ -12,10 +12,11 @@ namespace netxs
 {
     enum class svga
     {
-        truecolor,
-        vga16    ,
-        vga256   ,
-        dtvt     ,
+        vtrgb,
+        vt256,
+        vt16 ,
+        nt16 ,
+        dtvt ,
     };
 
     enum class zpos : si32
@@ -35,22 +36,22 @@ namespace netxs
     {
         enum : si32
         {
-            blackdk,
-            blacklt,
-            graydk,
-            graylt,
-            whitedk,
-            whitelt,
-            redlt,
-            bluelt,
-            greenlt,
-            yellowlt,
-            magentalt,
-            reddk,
-            bluedk,
-            greendk,
-            yellowdk,
-            cyanlt,
+            blackdk,  // 0
+            blacklt,  // 1
+            graydk,   // 2
+            graylt,   // 3
+            whitedk,  // 4
+            whitelt,  // 5
+            reddk,    // 6
+            bluedk,   // 7
+            greendk,  // 8
+            yellowdk, // 9
+            magentalt,// 10
+            cyanlt,   // 11
+            redlt,    // 12
+            bluelt,   // 13
+            greenlt,  // 14
+            yellowlt, // 15
         };
     };
 
@@ -81,7 +82,7 @@ namespace netxs
         { }
 
         constexpr rgba(tint c)
-            : rgba{ color256[c] }
+            : rgba{ vt256[c] }
         { }
 
         rgba(fifo& queue)
@@ -103,7 +104,7 @@ namespace netxs
                         break;
                     }
                     case mode_256:
-                        token = netxs::letoh(color256[queue.subarg(0)]);
+                        token = netxs::letoh(vt256[queue.subarg(0)]);
                         break;
                     default:
                         break;
@@ -120,7 +121,7 @@ namespace netxs
                         chan.a = 0xFF;
                         break;
                     case mode_256:
-                        token = netxs::letoh(color256[queue(0)]);
+                        token = netxs::letoh(vt256[queue(0)]);
                         break;
                     default:
                         break;
@@ -128,7 +129,7 @@ namespace netxs
             }
         }
 
-        constexpr explicit operator bool() const
+        constexpr explicit operator bool () const
         {
             return token;
         }
@@ -176,7 +177,7 @@ namespace netxs
                                    + 0.0593 * ((t & 0xFF0000) >> 16));
         }
         // rgba: Return 256-color 6x6x6 cube.
-        auto to256cube() const
+        auto to_256cube() const
         {
             byte clr;
             if (chan.r == chan.g
@@ -348,7 +349,7 @@ namespace netxs
 
             token = (token & pureblack.token) | ~(token & antiwhite.token);
         }
-        // rgba: Serialize the color.
+        // rgba: Print channel values.
         auto str() const
         {
             return "{" + std::to_string(chan.r) + ","
@@ -356,43 +357,59 @@ namespace netxs
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
-        static constexpr ui32 color16[] =
+
+        template<si32 i>
+        static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
+            i == tint::blackdk   ? 0xFF'10'10'10 :
+            i == tint::reddk     ? 0xFF'1F'0F'C4 :
+            i == tint::greendk   ? 0xFF'0E'A1'12 :
+            i == tint::yellowdk  ? 0xFF'00'9C'C0 :
+            i == tint::bluedk    ? 0xFF'DB'37'00 :
+            i == tint::magentadk ? 0xFF'98'17'87 :
+            i == tint::cyandk    ? 0xFF'DD'96'3B :
+            i == tint::whitedk   ? 0xFF'BB'BB'BB :
+            i == tint::blacklt   ? 0xFF'75'75'75 :
+            i == tint::redlt     ? 0xFF'56'48'E6 :
+            i == tint::greenlt   ? 0xFF'0C'C6'15 :
+            i == tint::yellowlt  ? 0xFF'A5'F1'F8 :
+            i == tint::bluelt    ? 0xFF'FF'78'3A :
+            i == tint::magentalt ? 0xFF'9E'00'B3 :
+            i == tint::cyanlt    ? 0xFF'D6'D6'60 :
+            i == tint::whitelt   ? 0xFF'F3'F3'F3 : 0;
+        template<si32 i>
+        static constexpr ui32 _vtm16 = // Compile-time value assigning (sorted by enum).
+            i == tint16::blackdk   ? 0xFF'00'00'00    :
+            i == tint16::blacklt   ? 0xFF'20'20'20    :
+            i == tint16::graydk    ? 0xFF'50'50'50    :
+            i == tint16::graylt    ? 0xFF'80'80'80    :
+            i == tint16::whitedk   ? 0xFF'D0'D0'D0    :
+            i == tint16::whitelt   ? 0xFF'FF'FF'FF    :
+            i == tint16::reddk     ? _vt16<reddk>     :
+            i == tint16::bluedk    ? _vt16<bluedk>    :
+            i == tint16::greendk   ? _vt16<greendk>   :
+            i == tint16::yellowdk  ? _vt16<yellowdk>  :
+            i == tint16::magentalt ? _vt16<magentalt> :
+            i == tint16::cyanlt    ? _vt16<cyanlt>    :
+            i == tint16::redlt     ? _vt16<redlt>     :
+            i == tint16::bluelt    ? _vt16<bluelt>    :
+            i == tint16::greenlt   ? _vt16<greenlt>   :
+            i == tint16::yellowlt  ? _vt16<yellowlt>  : 0;
+
+        static constexpr ui32 vtm16[] =
         {
-            0xFF000000, // 0  blackdk
-            0xFF202020, // 1  blacklt
-            0xFF505050, // 2  graydk
-            0xFF808080, // 3  graylt
-            0xFFd0d0d0, // 4  whitedk
-            0xFFffffff, // 5  whitelt
-            0xFF5648E6, // 6  redlt
-            0xFFFF783A, // 7  bluelt
-            0xFF0CC615, // 0  greenlt
-            0xFFA5F1F8, // 1  yellowlt
-            0xFF9E00B3, // 2  magentalt
-            0xFF1F0FC4, // 3  reddk
-            0xFFDB3700, // 4  bluedk
-            0xFF0EA112, // 5  greendk
-            0xFF009CC0, // 6  yellowdk
-            0xFFD6D660, // 7  cyanlt
+            _vtm16<0>, _vtm16<1>, _vtm16<2>,  _vtm16<3>,  _vtm16<4>,  _vtm16<5>,  _vtm16<6>,  _vtm16<7>,
+            _vtm16<8>, _vtm16<9>, _vtm16<10>, _vtm16<11>, _vtm16<12>, _vtm16<13>, _vtm16<14>, _vtm16<15>,
         };
-        static constexpr ui32 color256[] =
+        static constexpr ui32 vga16[] =
         {
-            0xFF101010, // 0  blackdk
-            0xFF1F0FC4, // 1  reddk
-            0xFF0EA112, // 2  greendk
-            0xFF009CC0, // 3  yellowdk
-            0xFFDB3700, // 4  bluedk
-            0xFF981787, // 5  magentadk
-            0xFFDD963B, // 6  cyandk
-            0xFFBBBBBB, // 7  whitedk
-            0xFF757575, // 8  blacklt
-            0xFF5648E6, // 9  redlt
-            0xFF0CC615, // 10 greenlt
-            0xFFA5F1F8, // 11 yellowlt
-            0xFFFF783A, // 12 bluelt
-            0xFF9E00B3, // 13 magentalt
-            0xFFD6D660, // 14 cyanlt
-            0xFFF3F3F3, // 15 whitelt
+            _vt16<blackdk>, _vt16<bluedk>, _vt16<greendk>, _vt16<cyandk>, _vt16<reddk>, _vt16<magentadk>, _vt16<yellowdk>, _vt16<whitedk>,
+            _vt16<blacklt>, _vt16<bluelt>, _vt16<greenlt>, _vt16<cyanlt>, _vt16<redlt>, _vt16<magentalt>, _vt16<yellowlt>, _vt16<whitelt>,
+        };
+        static constexpr ui32 vt256[] =
+        {
+            _vt16<0>, _vt16<1>, _vt16<2>,  _vt16<3>,  _vt16<4>,  _vt16<5>,  _vt16<6>,  _vt16<7>,
+            _vt16<8>, _vt16<9>, _vt16<10>, _vt16<11>, _vt16<12>, _vt16<13>, _vt16<14>, _vt16<15>,
+
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
             0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
             0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
@@ -448,6 +465,193 @@ namespace netxs
                      << "," << (int)c.chan.b
                      << "," << (int)c.chan.a
                      << "}";
+        }
+        static auto set_vtm16_palette(auto proc)
+        {
+            for (auto i = 0; i < 16; i++)
+            {
+                proc(i, rgba::vtm16[i]);
+            }
+        }
+        auto lookup(auto& fast, auto&& palette) const
+        {
+            auto head = fast.begin();
+            auto tail = fast.end();
+            auto init = head;
+            while (head != tail) // Look in static table.
+            {
+                auto& next = *head;
+                if (next.first == token)
+                {
+                    if (head == init) return next.second;
+                    else
+                    {
+                        auto& prev = *(--head);
+                        std::swap(next, prev); // Sort by hits. !! Not thread-safe.
+                        return prev.second;
+                    }
+                }
+                ++head;
+            }
+            auto dist = [](si32 c1, si32 c2)
+            {
+                auto dr = ((c1 & 0x0000FF) >> 0)  - ((c2 & 0x0000FF) >> 0);
+                auto dg = ((c1 & 0x00FF00) >> 8)  - ((c2 & 0x00FF00) >> 8);
+                auto db = ((c1 & 0xFF0000) >> 16) - ((c2 & 0xFF0000) >> 16);
+                return (ui32)(dr * dr + dg * dg + db * db); // std::abs(dr) + std::abs(dg) + std::abs(db);
+            };
+            auto max = 1368u; // Minimal distance: between greenlt and greendk - 1.
+            auto hit = std::pair{ max, 0 };
+            for (auto i = 0; i < (si32)std::size(palette); i++) // Find the nearest.
+            {
+                if (auto d = dist(palette[i], token))
+                {
+                    if (d < hit.first) hit = { d, i };
+                }
+                else return i;
+            }
+            if (hit.first == max) // Fallback to grayscale.
+            {
+                auto l = luma();
+                     if (l < 42)  hit.second = tint16::blacklt;
+                else if (l < 90)  hit.second = tint16::graydk;
+                else if (l < 170) hit.second = tint16::graylt;
+                else if (l < 240) hit.second = tint16::whitedk;
+                else              hit.second = tint16::whitelt;
+            }
+            return hit.second;
+        }
+        auto to_vga16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color mode).
+        {
+            static auto cache_fg = []
+            {
+                auto table = std::vector<std::pair<ui32, si32>>{};
+                for (auto i = 0; i < 16; i++) table.push_back({ rgba::vt256[i], i });
+                table.insert(table.end(),
+                {
+                    { 0xFF'ff'ff'ff, tint::whitelt   },
+                    { 0xff'aa'aa'aa, tint::whitedk   },
+                    { 0xff'80'80'80, tint::whitedk   },
+                    { 0xff'55'55'55, tint::blacklt   },
+                    { 0xFF'00'00'00, tint::blackdk   },
+
+                    { 0xFF'00'00'55, tint::reddk     },
+                    { 0xFF'00'00'80, tint::reddk     },
+                    { 0xFF'00'00'aa, tint::reddk     },
+                    { 0xFF'00'00'ff, tint::redlt     },
+
+                    { 0xFF'55'00'00, tint::bluedk    },
+                    { 0xFF'80'00'00, tint::bluedk    },
+                    { 0xFF'aa'00'00, tint::bluedk    },
+                    { 0xFF'ff'00'00, tint::bluelt    },
+
+                    { 0xFF'00'aa'00, tint::greendk   },
+                    { 0xFF'00'80'00, tint::greendk   },
+                    { 0xFF'00'ff'00, tint::greenlt   },
+                    { 0xFF'55'ff'55, tint::greenlt   },
+
+                    { 0xFF'80'00'80, tint::magentadk },
+                    { 0xFF'aa'00'aa, tint::magentadk },
+                    { 0xFF'ff'55'ff, tint::magentalt },
+                    { 0xFF'ff'00'ff, tint::magentalt },
+
+                    { 0xFF'80'80'00, tint::cyandk    },
+                    { 0xFF'aa'aa'00, tint::cyandk    },
+                    { 0xFF'ff'ff'55, tint::cyanlt    },
+                    { 0xFF'ff'ff'00, tint::cyanlt    },
+
+                    { 0xFF'00'55'aa, tint::yellowdk  },
+                    { 0xFF'00'80'80, tint::yellowdk  },
+                    { 0xFF'00'ff'ff, tint::yellowlt  },
+                    { 0xFF'55'ff'ff, tint::yellowlt  },
+                });
+                return table;
+            }();
+            static auto cache_bg = cache_fg;
+            auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
+            auto c = lookup(cache, std::span{ rgba::vt256, 16 });
+            return netxs::swap_bits<0, 2>(c); // ANSI<->DOS color scheme reindex.
+        }
+        auto to_vtm16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color palette).
+        {
+            static auto cache_fg = []
+            {
+                auto table = std::vector<std::pair<ui32, si32>>{};
+                for (auto i = 0u; i < std::size(rgba::vtm16); i++) table.push_back({ rgba::vtm16[i], i });
+                table.insert(table.end(),
+                {
+                    { 0xFF'00'00'55,                 tint16::reddk     },
+                    { 0xFF'00'00'aa,                 tint16::reddk     },
+                    { 0xFF'00'00'80,                 tint16::reddk     },
+                    { 0xFF'00'00'ff,                 tint16::redlt     },
+
+                    { rgba::vt256[tint::magentadk],  tint16::reddk     },
+                    { 0xFF'80'00'80,                 tint16::reddk     },
+                    { 0xFF'ff'55'ff,                 tint16::magentalt },
+                    { 0xFF'ff'00'ff,                 tint16::magentalt },
+
+                    { rgba::vt256[tint::cyandk],     tint16::bluelt    },
+                    { 0xFF'80'80'00,                 tint16::bluelt    },
+                    { 0xFF'aa'aa'00,                 tint16::bluelt    },
+                    { 0xFF'ff'ff'55,                 tint16::cyanlt    },
+                    { 0xFF'ff'ff'00,                 tint16::cyanlt    },
+
+                    { 0xFF'ff'ff'ff,                 tint16::whitelt   },
+                    { 0xff'aa'aa'aa,                 tint16::whitedk   },
+                    { 0xff'80'80'80,                 tint16::graylt    },
+                    { 0xff'55'55'55,                 tint16::graydk    },
+                    { 0xFF'00'00'00,                 tint16::blackdk   },
+
+                    { 0xFF'55'00'00,                 tint16::bluedk    },
+                    { 0xFF'80'00'00,                 tint16::bluedk    },
+                    { 0xFF'aa'00'00,                 tint16::bluedk    },
+                    { 0xFF'ff'00'00,                 tint16::bluelt    },
+
+                    { 0xFF'00'aa'00,                 tint16::greendk   },
+                    { 0xFF'00'80'00,                 tint16::greendk   },
+                    { 0xFF'00'ff'00,                 tint16::greenlt   },
+                    { 0xFF'55'ff'55,                 tint16::greenlt   },
+
+                    { 0xFF'00'55'aa,                 tint16::yellowdk  },
+                    { 0xFF'00'80'80,                 tint16::yellowdk  },
+                    { 0xFF'00'ff'ff,                 tint16::yellowlt  },
+                    { 0xFF'55'ff'ff,                 tint16::yellowlt  },
+                });
+                return table;
+            }();
+            static auto cache_bg = cache_fg;
+            auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
+            return lookup(cache, rgba::vtm16);
+        }
+        auto to_vtm8() const // rgba: 3-bit Background color (vtm 8-color palette).
+        {
+            static auto cache = []
+            {
+                auto table = std::vector<std::pair<ui32, si32>>{};
+                for (auto i = 0u; i < std::size(rgba::vtm16) / 2; i++) table.push_back({ rgba::vtm16[i], i });
+                table.insert(table.end(),
+                {
+                    { rgba::vt256[tint::bluelt   ],  tint16::bluedk  },
+                    { rgba::vt256[tint::redlt    ],  tint16::reddk   },
+                    { rgba::vt256[tint::cyanlt   ],  tint16::whitedk },
+                    { rgba::vt256[tint::cyandk   ],  tint16::graylt  },
+                    { rgba::vt256[tint::greenlt  ],  tint16::graylt  },
+                    { rgba::vt256[tint::greendk  ],  tint16::graydk  },
+                    { rgba::vt256[tint::yellowdk ],  tint16::graydk  },
+                    { rgba::vt256[tint::yellowlt ],  tint16::whitelt },
+                    { rgba::vt256[tint::magentalt],  tint16::reddk   },
+                    { rgba::vt256[tint::magentadk],  tint16::reddk   },
+                    { 0xff'00'00'00,                 tint16::blackdk },
+                    { 0xff'00'00'FF,                 tint16::reddk   },
+                    { 0xff'FF'00'00,                 tint16::bluedk  },
+                    { 0xff'FF'FF'FF,                 tint16::whitelt },
+                    { 0xff'aa'aa'aa,                 tint16::whitedk },
+                    { 0xff'80'80'80,                 tint16::graylt  },
+                    { 0xff'55'55'55,                 tint16::graydk  },
+                });
+                return table;
+            }();
+            return lookup(cache, std::span{ rgba::vtm16, 8 });
         }
     };
 
@@ -524,7 +728,7 @@ namespace netxs
     };
 
     // canvas: Enriched grapheme cluster.
-    class cell
+    struct cell
     {
         template<class V = void> // Use template in order to define statics in the header file.
         union glyf
@@ -652,7 +856,7 @@ namespace netxs
                     set(cluster.text, cluster.attr.ucwidth);
                 }
             }
-            template<svga Mode = svga::truecolor>
+            template<svga Mode = svga::vtrgb>
             view get() const
             {
                 if constexpr (Mode == svga::dtvt) return {};
@@ -770,7 +974,7 @@ namespace netxs
             {
                 return param.shared.token == b.param.shared.token;
             }
-            template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
+            template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
             {
                 if constexpr (Mode == svga::dtvt) return;
@@ -778,40 +982,22 @@ namespace netxs
                 {
                     auto& cvar =      param.shared.var;
                     auto& bvar = base.param.shared.var;
-                    if constexpr (UseSGR)
+                    if constexpr (UseSGR) // It is not available in the Linux and Win8 consoles.
                     {
-                        if (cvar.bolded != bvar.bolded)
+                        if constexpr (Mode != svga::vt16) // It is not available in the Linux and Win8 consoles.
                         {
-                            dest.bld(cvar.bolded);
+                            if (cvar.bolded != bvar.bolded) dest.bld(cvar.bolded);
+                            if (cvar.italic != bvar.italic) dest.itc(cvar.italic);
+                            if (cvar.unline != bvar.unline) dest.und(cvar.unline);
+                            if (cvar.invert != bvar.invert) dest.inv(cvar.invert);
+                            if (cvar.strike != bvar.strike) dest.stk(cvar.strike);
+                            if (cvar.overln != bvar.overln) dest.ovr(cvar.overln);
+                            if (cvar.blinks != bvar.blinks) dest.blk(cvar.blinks);
+                            if (cvar.r_to_l != bvar.r_to_l) {} //todo implement RTL
                         }
-                        if (cvar.italic != bvar.italic)
+                        else
                         {
-                            dest.itc(cvar.italic);
-                        }
-                        if (cvar.unline != bvar.unline)
-                        {
-                            if constexpr (Mode == svga::vga16) dest.inv(cvar.unline);
-                            else                                  dest.und(cvar.unline);
-                        }
-                        if (cvar.invert != bvar.invert)
-                        {
-                            dest.inv(cvar.invert);
-                        }
-                        if (cvar.strike != bvar.strike)
-                        {
-                            dest.stk(cvar.strike);
-                        }
-                        if (cvar.overln != bvar.overln)
-                        {
-                            dest.ovr(cvar.overln);
-                        }
-                        if (cvar.r_to_l != bvar.r_to_l)
-                        {
-                            //todo implement RTL
-                        }
-                        if (cvar.blinks != bvar.blinks)
-                        {
-                            dest.blk(cvar.blinks);
+                            if (cvar.unline != bvar.unline) dest.inv(cvar.unline);
                         }
                     }
                     bvar = cvar;
@@ -881,24 +1067,67 @@ namespace netxs
                 return !operator==(c);
             }
 
-            template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
+            static void fix_collision_vga16(auto& f) // Fix color collision in low-color mode.
+            {
+                assert(f < 16);
+                if (f <= tint::whitedk) f += 8;
+                else                    f -= 8;
+            }
+            static void fix_collision_vtm16(auto& f) // Fix color collision in low-color mode.
+            {
+                assert(f < 16);
+                     if (f  < tint16::whitelt ) f += 1;
+                else if (f == tint16::whitelt ) f -= 1;
+                else if (f <= tint16::yellowdk) f += 6; // Make it lighter.
+                else if (f <= tint16::cyanlt  ) f = tint16::graylt;
+                else if (f <= tint16::yellowlt) f -= 6; // Make it darker.
+            }
+            static void fix_collision_vtm8(auto& f) // Fix color collision in low-color mode.
+            {
+                assert(f < 8);
+                     if (f  < tint16::whitelt) f += 1;
+                else if (f == tint16::whitelt) f -= 1;
+                else                           f = tint16::whitedk;
+            }
+            template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(clrs& base, T& dest) const
             {
                 if constexpr (Mode == svga::dtvt) return;
-                if (bg != base.bg)
+                if constexpr (Mode == svga::vt16)
                 {
-                    base.bg = bg;
-                    if constexpr (UseSGR)
+                    if (fg != base.fg || bg != base.bg)
                     {
-                        dest.template bgc<Mode>(bg);
+                        if constexpr (UseSGR)
+                        {
+                            auto f = fg.to_vtm16();
+                            auto b = bg.to_vtm8();
+                            if (fg != bg && f == b) // Avoid color collizions.
+                            {
+                                fix_collision_vtm8(f);
+                                if (bg != base.bg) dest.bgc_8(b);
+                                dest.fgc_16(f);
+                            } 
+                            else
+                            {
+                                if (bg != base.bg) dest.bgc_8(b);
+                                if (fg != base.fg) dest.fgc_16(f);
+                            }
+                        }
+                        base.bg = bg;
+                        base.fg = fg;
                     }
                 }
-                if (fg != base.fg)
+                else
                 {
-                    base.fg = fg;
-                    if constexpr (UseSGR)
+                    if (bg != base.bg)
                     {
-                        dest.template fgc<Mode>(fg);
+                        base.bg = bg;
+                        if constexpr (UseSGR) dest.template bgc<Mode>(bg);
+                    }
+                    if (fg != base.fg)
+                    {
+                        base.fg = fg;
+                        if constexpr (UseSGR) dest.template fgc<Mode>(fg);
                     }
                 }
             }
@@ -916,7 +1145,6 @@ namespace netxs
         id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2.
         id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2.
 
-    public:
         cell() = default;
 
         cell(char c)
@@ -1068,7 +1296,7 @@ namespace netxs
             st = c.st;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
-        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
+        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void scan_attr(cell& base, T& dest) const
         {
             if (!like(base))
@@ -1079,7 +1307,7 @@ namespace netxs
             }
         }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
-        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
+        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void scan(cell& base, T& dest) const
         {
             if constexpr (Mode != svga::dtvt)
@@ -1095,7 +1323,7 @@ namespace netxs
             }
         }
         // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<svga Mode = svga::truecolor, bool UseSGR = true, class T>
+        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         bool scan(cell const& next, cell& base, T& dest) const
         {
             if constexpr (Mode == svga::dtvt) return {};
@@ -1286,7 +1514,7 @@ namespace netxs
         auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
         auto issame_visual(cell const& c) const // cell: Is the cell visually identical.
         {
-            if (gc == c.gc)
+            if (gc == c.gc || (isspc() && c.isspc()))
             {
                 if (uv.bg == c.uv.bg)
                 {
@@ -1315,7 +1543,7 @@ namespace netxs
         // cell: Return dry empty cell.
         cell dry() const
         {
-            return cell{ '\0' }.fgc(fgc()).bgc(bgc());
+            return cell{ '\0' }.clr(*this);
         }
         friend auto& operator << (std::ostream& s, cell const& c)
         {
@@ -1533,6 +1761,36 @@ namespace netxs
     enum class wrap : unsigned char { none, on,  off,            };
     enum class rtol : unsigned char { none, rtl, ltr,            };
 
+    namespace mime
+    {
+        static constexpr auto _counter = __COUNTER__ + 1;
+        static constexpr auto disabled = __COUNTER__ - _counter;
+        static constexpr auto textonly = __COUNTER__ - _counter;
+        static constexpr auto ansitext = __COUNTER__ - _counter;
+        static constexpr auto richtext = __COUNTER__ - _counter;
+        static constexpr auto htmltext = __COUNTER__ - _counter;
+        static constexpr auto safetext = __COUNTER__ - _counter; // mime: Sensitive textonly data.
+        static constexpr auto count    = __COUNTER__ - _counter;
+
+        namespace tag
+        {
+            static constexpr auto text = "text/plain"sv;
+            static constexpr auto ansi = "text/xterm"sv;
+            static constexpr auto html = "text/html"sv;
+            static constexpr auto rich = "text/rtf"sv;
+            static constexpr auto safe = "text/protected"sv;
+        }
+
+        auto meta(twod size, si32 form) // mime: Return clipdata's meta data.
+        {
+            return form == htmltext ? utf::concat(tag::html)
+                 : form == richtext ? utf::concat(tag::rich)
+                 : form == ansitext ? utf::concat(tag::ansi)
+                 : form == safetext ? utf::concat(tag::safe)
+                                    : utf::concat(tag::text, "/", size.x, "/", size.y);
+        }
+    }
+
     using grid = std::vector<cell>;
     using vrgb = std::vector<irgb<si32>>;
 
@@ -1607,8 +1865,8 @@ namespace netxs
         constexpr auto& size() const           { return region.size;                                                        }
         auto& coor() const                     { return region.coor;                                                        }
         auto& area() const                     { return region;                                                             }
-        auto  data() const                     { return canvas.data();                                                      }
-        auto  data()                           { return canvas.data();                                                      }
+        auto  data() const -> cell const*      { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
+        auto  data()       -> cell*            { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto& pick()                           { return canvas;                                                             }
         auto  iter()                           { return canvas.begin();                                                     }
         auto  iend()                           { return canvas.end();                                                       }
@@ -1641,7 +1899,7 @@ namespace netxs
                 canvas.assign(region.size.x * region.size.y, c);
             }
         }
-        void  size(twod const& newsize) // core: Change the size of the face.
+        void size(twod const& newsize) // core: Change the size of the face.
         {
             size(newsize, marker);
         }
@@ -1722,6 +1980,7 @@ namespace netxs
         auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
         {
             auto crop = netxs::text{};
+            crop.reserve(canvas.size());
             each([&](cell& c) { c.scan(crop); });
             return crop;
         }

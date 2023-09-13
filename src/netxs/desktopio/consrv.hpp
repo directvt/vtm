@@ -3,34 +3,143 @@
 
 #pragma once
 
-struct consrv_base
-{
-    fd_t condrv     = { os::invalid_fd }; // consrv_base: Console driver handle.
-    fd_t refdrv     = { os::invalid_fd }; // consrv_base: Console driver reference.
-    fd_t hStdInput  = { os::invalid_fd }; // consrv_base: .
-    fd_t hStdOutput = { os::invalid_fd }; // consrv_base: .
-    fd_t hStdError  = { os::invalid_fd }; // consrv_base: .
+#if defined(_WIN32)
 
-    virtual void stop() = 0;
+template<class Term, class Arch>
+struct impl;
+
+struct consrv
+{
+    fd_t        condrv{ os::invalid_fd }; // consrv: Console driver handle.
+    fd_t        refdrv{ os::invalid_fd }; // consrv: Console driver reference.
+    fd_t        prochndl{ os::invalid_fd };
+    pidt        proc_pid{};
+    std::thread waitexit;                 // consrv: The trailing thread for the child process.
+
+    virtual si32 wait() = 0;
     virtual void undo(bool undo_redo)  = 0;
-    virtual bool start() = 0;
+    virtual void start() = 0;
     virtual void reset() = 0;
-    virtual void write(view utf8) = 0;
-    virtual void keybd(input::hids& gear, bool decckm) = 0;
-    virtual void mouse(input::hids& gear, bool moved, twod coord) = 0;
+    virtual fd_t watch() = 0;
+    virtual bool send(view utf8) = 0;
+    virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
+    virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    virtual bool alive() = 0;
+    virtual void style(ui32 style) = 0;
+    virtual void sighup() = 0;
+    void cleanup(bool io_log)
+    {
+        if (waitexit.joinable())
+        {
+            if (io_log) log(prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            waitexit.join();
+        }
+    }
+    template<class Term>
+    static auto create(Term& terminal)
+    {
+        auto inst = sptr<consrv>{};
+        if (nt::is_wow64()) inst = ptr::shared<impl<Term, ui64>>(terminal);
+        else                inst = ptr::shared<impl<Term, arch>>(terminal);
+        return inst;
+    }
+    template<class Term, class Proc>
+    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
+    {
+        auto err_code = 0;
+        auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+        auto procsinf = PROCESS_INFORMATION{};
+        auto attrbuff = std::vector<byte>{};
+        auto attrsize = SIZE_T{ 0 };
+        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
+        refdrv = nt::console::handle(condrv, "\\Reference");
+        auto success = nt::is_wow64() ? nt::ioctl(nt::console::op::set_server_information, condrv, (ui64)watch())
+                                      : nt::ioctl(nt::console::op::set_server_information, condrv, (arch)watch());
+        if (success != ERROR_SUCCESS)
+        {
+            os::close(condrv);
+            os::close(refdrv);
+            err_code = os::error();
+            os::fail(prompt::vtty, "Console server creation error");
+            return err_code;
+        }
+        start();
+        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);
+        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);
+        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+        startinf.StartupInfo.dwX = 0;
+        startinf.StartupInfo.dwY = 0;
+        startinf.StartupInfo.dwXCountChars = 0;
+        startinf.StartupInfo.dwYCountChars = 0;
+        startinf.StartupInfo.dwXSize = win_size.x;
+        startinf.StartupInfo.dwYSize = win_size.y;
+        startinf.StartupInfo.dwFillAttribute = 1;
+        startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
+                                     | STARTF_USESIZE
+                                     | STARTF_USEPOSITION
+                                     | STARTF_USECOUNTCHARS
+                                     | STARTF_USEFILLATTRIBUTE;
+        ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+        attrbuff.resize(attrsize);
+        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                    0,
+                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                   &startinf.StartupInfo.hStdInput,
+                             sizeof(startinf.StartupInfo.hStdInput) * 3,
+                                    nullptr,
+                                    nullptr);
+        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                    0,
+                                    ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
+                                   &refdrv,
+                             sizeof(refdrv),
+                                    nullptr,
+                                    nullptr);
+        auto wide_cmdline = utf::to_utf(cmdline);
+        auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
+                                    wide_cmdline.data(),                 // lpCommandLine
+                                    nullptr,                             // lpProcessAttributes
+                                    nullptr,                             // lpThreadAttributes
+                                    TRUE,                                // bInheritHandles
+                                    EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
+                                    nullptr,                             // lpEnvironment
+                                    cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
+                                               : nullptr,
+                                   &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
+                                   &procsinf);                           // lpProcessInformation
+        if (ret == 0)
+        {
+            prochndl = { os::invalid_fd };
+            proc_pid = {};
+            err_code = os::error();
+            os::fail(prompt::vtty, "Process creation error");
+            wait();
+        }
+        else
+        {
+            os::close( procsinf.hThread );
+            prochndl = procsinf.hProcess;
+            proc_pid = procsinf.dwProcessId;
+            waitexit = std::thread([&, trailer]
+            {
+                auto pid = proc_pid; // MSVC don't capture it.
+                io::select(prochndl, [&terminal, pid]{ if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid); });
+                trailer();
+                if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
+            });
+        }
+        return err_code;
+    }
 };
 
-template<class Arch = ui64>
-struct consrv : consrv_base
+template<class Term, class Arch>
+struct impl : consrv
 {
-    using consrv_base::condrv;
-    using consrv_base::refdrv;
-    using consrv_base::hStdInput;
-    using consrv_base::hStdOutput;
-    using consrv_base::hStdError;
+    using consrv::condrv;
+    using consrv::refdrv;
 
     static constexpr auto win32prompt = sizeof(Arch) == 4 ? netxs::prompt::nt32 : netxs::prompt::nt64;
     //static constexpr auto isreal = requires(Term terminal) { terminal.decstr(); }; // MSVC bug: It doesn't see constexpr value everywehere, even constexpr functions inside lambdas.
@@ -370,33 +479,35 @@ struct consrv : consrv_base
     struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
-        using fire = netxs::os::io::fire;
+        using fire = netxs::os::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
         using irec = INPUT_RECORD;
+        using work = std::thread;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        consrv& server; // events_t: Console server reference.
-        vect    stream; // events_t: Input event list.
-        vect    recbuf; // events_t: Temporary buffer for copying event records.
-        sync    signal; // events_t: Input event append signal.
-        lock    locker; // events_t: Input event buffer mutex.
-        cook    cooked; // events_t: Cooked input string.
-        jobs    worker; // events_t: Background task executer.
-        bool    closed; // events_t: Console server was shutdown.
-        fire    ondata; // events_t: Signal on input buffer data.
-        wide    wcpair; // events_t: Surrogate pair buffer.
-        wide    toWIDE; // events_t: UTF-16 decoder buffer.
-        text    toUTF8; // events_t: UTF-8  decoder buffer.
-        text    toANSI; // events_t: ANSI   decoder buffer.
-        irec    leader; // events_t: Hanging key event record (lead byte).
+        impl& server; // events_t: Console server reference.
+        vect  stream; // events_t: Input event list.
+        vect  recbuf; // events_t: Temporary buffer for copying event records.
+        sync  signal; // events_t: Input event append signal.
+        lock  locker; // events_t: Input event buffer mutex.
+        cook  cooked; // events_t: Cooked input string.
+        jobs  worker; // events_t: Background task executer.
+        flag  closed; // events_t: Console server was shutdown.
+        fire  ondata; // events_t: Signal on input buffer data.
+        wide  wcpair; // events_t: Surrogate pair buffer.
+        wide  toWIDE; // events_t: UTF-16 decoder buffer.
+        text  toUTF8; // events_t: UTF-8  decoder buffer.
+        text  toANSI; // events_t: ANSI   decoder buffer.
+        irec  leader; // events_t: Hanging key event record (lead byte).
+        work  ostask; // events_t: Console task thread for the child process.
 
-        evnt(consrv& serv)
+        evnt(impl& serv)
             :  server{ serv },
                closed{ faux },
                ondata{ true },
@@ -406,7 +517,7 @@ struct consrv : consrv_base
         void reset()
         {
             auto lock = std::lock_guard{ locker };
-            closed = faux;
+            closed.exchange(faux);
             stream.clear();
             ondata.flush();
         }
@@ -434,30 +545,38 @@ struct consrv : consrv_base
         }
         void alert(ui32 what, ui32 pgroup = 0)
         {
-            if (server.io_log)
+            static auto index = 0;
+            if (server.io_log) log(server.prompt, "ConsoleTask event index ", ++index);
+            if (ostask.joinable()) ostask.join();
+            ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
-                log(server.prompt, what == CTRL_C_EVENT     ? "Ctrl+C"
-                                 : what == CTRL_BREAK_EVENT ? "Ctrl+Break"
-                                 : what == CTRL_CLOSE_EVENT ? "CtrlClose"
-                                                            : "Unknown", " event");
-            }
-            for (auto& client : server.joined)
-            {
-                if (!pgroup || pgroup == client.pgroup)
+                if (io_log) prompt.add(what == nt::console::event::ctrl_c     ? "Ctrl+C"
+                                     : what == nt::console::event::ctrl_break ? "Ctrl+Break"
+                                     : what == nt::console::event::close      ? "Ctrl Close"
+                                     : what == nt::console::event::logoff     ? "Ctrl Logoff"
+                                     : what == nt::console::event::shutdown   ? "Ctrl Shutdown"
+                                                                              : "Unknown", " event index ", index);
+                for (auto& client : joined)
                 {
-                    auto stat = nt::ConsoleTask<Arch>(client.procid, what);
-                    if (server.io_log)
+                    if (!pgroup || pgroup == client.pgroup)
                     {
-                        log("\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
+                        auto stat = nt::ConsoleTask<Arch>(client.procid, what);
+                        if (io_log) prompt.add("\n\tclient process ", client.procid,  ", control status ", utf::to_hex_0x(stat));
                     }
                 }
-            }
+                if (io_log) log("", prompt, "\n\t-------------------------");
+            }};
         }
-        void stop()
+        void sighup()
         {
             auto lock = std::lock_guard{ locker };
             alert(CTRL_CLOSE_EVENT);
-            closed = true;
+        }
+        void stop()
+        {
+            if (ostask.joinable()) ostask.join();
+            auto lock = std::unique_lock{ locker };
+            closed.exchange(true);
             signal.notify_all();
         }
         void clear()
@@ -538,17 +657,20 @@ struct consrv : consrv_base
         void focus(bool state)
         {
             auto lock = std::lock_guard{ locker };
-            stream.emplace_back(INPUT_RECORD
-            {
-                .EventType = FOCUS_EVENT,
-                .Event =
-                {
-                    .FocusEvent =
-                    {
-                        .bSetFocus = state,
-                    }
-                }
-            });
+            auto data = INPUT_RECORD{ .EventType = FOCUS_EVENT };
+            data.Event.FocusEvent.bSetFocus = state;
+            stream.emplace_back(data);
+            ondata.reset();
+            signal.notify_one();
+        }
+        void style(ui32 format)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::style;
+            stream.emplace_back(data);
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | format;
+            stream.emplace_back(data);
             ondata.reset();
             signal.notify_one();
         }
@@ -795,14 +917,14 @@ struct consrv : consrv_base
             {
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
-                    alert(CTRL_BREAK_EVENT);
                     stream.pop_back();
+                    if (gear.pressed) alert(nt::console::event::ctrl_break);
                 }
                 else
                 {
                     if (server.inpmod & nt::console::inmode::preprocess)
                     {
-                        if (gear.pressed) alert(CTRL_C_EVENT);
+                        if (gear.pressed) alert(nt::console::event::ctrl_c);
                         //todo revise
                         //stream.pop_back();
                     }
@@ -1108,7 +1230,7 @@ struct consrv : consrv_base
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
                 if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                                 : data)));
+                                                                                                       : data)));
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1125,7 +1247,7 @@ struct consrv : consrv_base
             }
         }
         template<class Payload>
-        auto placeorder(Payload& packet, wiew nameview, view initdata, ui32 readstep)
+        auto placeorder(Payload& packet, wiew nameview, qiew initdata, ui32 readstep)
         {
             auto lock = std::lock_guard{ locker };
             if (cooked.rest.empty())
@@ -1136,7 +1258,7 @@ struct consrv : consrv_base
                 //  - '\n' is added to the '\r'
 
                 auto token = jobs::token(server.answer, packet.target, faux);
-                worker.add(token, [&, readstep, packet, initdata = text{ initdata }, nameview = utf::to_utf(nameview)](auto& token) mutable
+                worker.add(token, [&, readstep, packet, initdata = initdata.str(), nameview = utf::to_utf(nameview)](auto& token) mutable
                 {
                     auto lock = std::unique_lock{ locker };
                     auto& answer = std::get<0>(token);
@@ -1159,7 +1281,7 @@ struct consrv : consrv_base
                     }
                     if (closed || cancel)
                     {
-                        if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ": task canceled");
+                        if (server.io_log) log("\thandle %h%: task canceled", utf::to_hex_0x(packet.target));
                         cooked.drop();
                         return;
                     }
@@ -1400,7 +1522,7 @@ struct consrv : consrv_base
         {
             return !!leadbyte[c];
         }
-        auto load(consrv& server, ui32 cp)
+        auto load(impl& server, ui32 cp)
         {
             if (cp == codepage) return true;
             leadbyte.fill(0);
@@ -1413,7 +1535,7 @@ struct consrv : consrv_base
                 return true;
             }
             auto data = CPINFO{};
-            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected_msg))
+            if (os::ok(::GetCPInfo(cp, &data), "::GetCPInfo()", os::unexpected))
             {
                 codepage = cp;
                 charsize = data.MaxCharSize;
@@ -1705,7 +1827,7 @@ struct consrv : consrv_base
         }
 
         decoder() = default;
-        decoder(consrv& server, ui32 cp)
+        decoder(impl& server, ui32 cp)
         {
             load(server, cp);
         }
@@ -1848,7 +1970,7 @@ struct consrv : consrv_base
                 }
             }
         }
-        log("\tabort: invalid handle ", utf::to_hex_0x(handle_ptr));
+        log("\tabort: invalid handle %handle%", utf::to_hex_0x(handle_ptr));
         answer.status = nt::status::invalid_handle;
         return faux;
     }
@@ -2091,6 +2213,8 @@ struct consrv : consrv_base
         answer.buffer = (Arch)&info;
         answer.length = sizeof(info);
         answer.report = sizeof(info);
+        allout.exchange(faux);
+        allout.notify_all();
     }
     auto api_process_detach                  ()
     {
@@ -2124,9 +2248,14 @@ struct consrv : consrv_base
             }
             client.tokens.clear();
             joined.erase(iter);
-            log("\tprocess ", utf::to_hex_0x(client_ptr), " detached");
+            if (joined.empty())
+            {
+                allout.exchange(true);
+                allout.notify_all();
+            }
+            log("\tprocess %client_ptr% detached", utf::to_hex_0x(client_ptr));
         }
-        else log("\trequested process ", utf::to_hex_0x(client_ptr), " not found");
+        else log("\trequested process %client_ptr% not found", utf::to_hex_0x(client_ptr));
     }
     auto api_process_enlist                  ()
     {
@@ -2194,7 +2323,7 @@ struct consrv : consrv_base
                     : type == hndl::type::scroll ? client.tokens.emplace_back(client, outmod, hndl::type::scroll, &uiterm.target)
                                                  : client.tokens.emplace_back(client, outmod, hndl::type::altbuf, newbuf(client));
             answer.report = (Arch)(&h);
-            log(msg, &h);
+            log("", msg, &h);
         };
         switch (packet.input.action)
         {
@@ -2242,7 +2371,7 @@ struct consrv : consrv_base
             events.abort(handle_ptr);
             client.tokens.erase(iter);
         }
-        else log("\trequested handle ", utf::to_hex_0x(handle_ptr), " not found");
+        else log("\trequested handle %handle_ptr% not found", utf::to_hex_0x(handle_ptr));
     }
     auto api_process_codepage_get            ()
     {
@@ -2367,12 +2496,12 @@ struct consrv : consrv_base
             {
                 if (mouse_mode)
                 {
-                    uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
-                    uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
+                    uiterm.mtrack.enable (input::mouse::mode::negative_args);
+                    uiterm.mtrack.setmode(input::mouse::prot::w32);
                 }
                 else
                 {
-                    uiterm.mtrack.disable(decltype(uiterm.mtrack)::negative_args);
+                    uiterm.mtrack.disable(input::mouse::mode::negative_args);
                 }
             }
             log("\tmouse_input: ", mouse_mode ? "enabled" : "disabled");
@@ -2634,7 +2763,7 @@ struct consrv : consrv_base
             {
                 if constexpr (isreal())
                 {
-                    auto active = scroll_handle.link == &uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
+                    auto active = scroll_handle.link == &uiterm.target || scroll_handle.link == uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                     if (!direct(packet.target, [&](auto& scrollback) { active ? uiterm.ondata(crop)
                                                                               : uiterm.ondata(crop, &scrollback); }))
                     {
@@ -2656,7 +2785,7 @@ struct consrv : consrv_base
             }
             packet.reply.count = datasize;
         }
-        else log("\tunexpected: packet.packsz=", packet.packsz, " answer.readoffset=", answer.readoffset());
+        else log("\tunexpected: packet.packsz=%val1% answer.readoffset=%val2%", packet.packsz, answer.readoffset());
         answer.report = packet.reply.count;
     }
     auto api_scrollback_write_data           ()
@@ -2720,12 +2849,12 @@ struct consrv : consrv_base
                         toUTF8.clear();
                         outenc->decode(buffer, toUTF8);
                         celler = toUTF8;
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     }
                     else
                     {
                         celler = buffer;
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
                     }
                 }
                 else
@@ -2734,7 +2863,7 @@ struct consrv : consrv_base
                     toUTF8.clear();
                     utf::to_utf(recs, toUTF8);
                     celler = toUTF8;
-                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                    log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
@@ -2780,11 +2909,11 @@ struct consrv : consrv_base
                     {
                         toUTF8.clear();
                         outenc->decode(buffer, toUTF8);
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                     }
                     else
                     {
-                        log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
+                        log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(buffer)));
                     }
                 }
                 else
@@ -2793,7 +2922,7 @@ struct consrv : consrv_base
                     count = static_cast<ui32>(recs.size());
                     toUTF8.clear();
                     utf::to_utf(recs, toUTF8);
-                    log ("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
+                    log("\tinput.data: ", ansi::hi(utf::debase<faux, faux>(toUTF8)));
                 }
             }
             packet.reply.count = count;
@@ -3052,7 +3181,8 @@ struct consrv : consrv_base
                 log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
-                impcls = impcls && coord == dot_00 && count == screen.panel.x * screen.panel.y;
+                auto c = attr_to_brush(piece);
+                auto impcls = screen.brush.issame_visual(c) && coord == dot_00 && count == screen.panel.x * screen.panel.y;
                 if (impcls)
                 {
                     log("\timplicit screen clearing detected");
@@ -3060,8 +3190,7 @@ struct consrv : consrv_base
                 }
                 else
                 {
-                    auto c = attr_to_brush(piece);
-                    log("\tfill using attributes: ", (int)c);
+                    log("\tfill using attributes: ", utf::to_hex_0x(piece));
                     if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
@@ -3077,7 +3206,7 @@ struct consrv : consrv_base
                             "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
-                impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
+                auto impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
                 if (piece == ' ' && count > maxsz)
                 {
@@ -3130,7 +3259,7 @@ struct consrv : consrv_base
                 log(prompt, "FillConsoleOutputAttribute",
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count,
-                            "\tfill using attributes: ", (int)attr_to_brush(piece));
+                            "\tfill using attributes: ", utf::to_hex_0x(piece));
             }
             else
             {
@@ -3552,7 +3681,7 @@ struct consrv : consrv_base
             "\n\tinput.style: ", packet.input.style,
             "\n\tinput.alive: ", packet.input.alive ? "true" : "faux");
         auto target_ptr = (hndl*)packet.target;
-        if (target_ptr && target_ptr->link == &uiterm.target)
+        if (target_ptr && (target_ptr->link == &uiterm.target || target_ptr->link == uiterm.target)) // Also check if addition screen buffer is active.
         {
             if constexpr (isreal())
             {
@@ -3625,7 +3754,7 @@ struct consrv : consrv_base
             {
                 auto const& c = *head++;
                 auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
-                rgbpalette[m] = c;
+                rgbpalette[m] = c & 0x00FFFFFF; // conhost crashed if alpha non zero.
                 if (c == frgb) fgcx = m;
                 if (c == brgb) bgcx = m + 1;
             }
@@ -3633,7 +3762,7 @@ struct consrv : consrv_base
             {
                 bgcx = 0;
                 uiterm.ctrack.color[bgcx] = brgb;
-                rgbpalette         [bgcx] = brgb;
+                rgbpalette         [bgcx] = brgb & 0x00FFFFFF; // conhost crashed if alpha non zero.
             }
             packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
             if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
@@ -3669,7 +3798,6 @@ struct consrv : consrv_base
         };
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
-        if (!window_ptr) return;
         auto& console = *window_ptr;
         auto caretpos = twod{ packet.input.cursorposx, packet.input.cursorposy };
         auto buffsize = twod{ packet.input.buffersz_x, packet.input.buffersz_y };
@@ -3688,15 +3816,15 @@ struct consrv : consrv_base
                 uiterm.window_resize(windowsz);
             }
         }
-        log("\tbuffer size: ", buffsize);
-        log("\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy });
-        log("\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy });
-        log("\tattributes : ", utf::to_hex_0x(packet.input.attributes));
-        log("\twindow size: ", windowsz);
-        log("\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y });
-        log("\tpopup color: ", packet.input.popupcolor);
-        log("\tfull screen: ", packet.input.fullscreen);
-        log("\trgb palette: ");
+        log("\tbuffer size: ", buffsize,
+          "\n\tcursor coor: ", twod{ packet.input.cursorposx, packet.input.cursorposy },
+          "\n\twindow coor: ", twod{ packet.input.windowposx, packet.input.windowposy },
+          "\n\tattributes : ", utf::to_hex_0x(packet.input.attributes),
+          "\n\twindow size: ", windowsz,
+          "\n\tmaxwin size: ", twod{ packet.input.maxwinsz_x, packet.input.maxwinsz_y },
+          "\n\tpopup color: ", packet.input.popupcolor,
+          "\n\tfull screen: ", packet.input.fullscreen,
+          "\n\trgb palette: ");
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
         {
@@ -3710,7 +3838,7 @@ struct consrv : consrv_base
             for (auto i = 0; i < 16; i++)
             {
                 auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
-                *head++ = rgbpalette[m];
+                *head++ = rgbpalette[m] | 0xFF000000; // conhost crashed if alpha non zero.
             }
         }
     }
@@ -3831,10 +3959,7 @@ struct consrv : consrv_base
         };
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
-        if (!window_ptr)
-        {
-            return;
-        }
+        if (!window_ptr) return;
         if constexpr (isreal())
         {
             auto& window = *window_ptr;
@@ -3842,7 +3967,16 @@ struct consrv : consrv_base
              && packet.input.scrlL == 0 && packet.input.scrlR == window.panel.x
              && packet.input.scrlT == 0 && packet.input.scrlB == window.panel.y)
             {
-                log("\timplicit screen clearing detected");
+                log("\timplicit screen clearing detected",
+                    "\n\tpacket.input.dest: ", twod{ packet.input.destx, packet.input.desty },
+                    "\n\tpacket.input.scrlL: ", packet.input.scrlL,
+                    "\n\tpacket.input.scrlT: ", packet.input.scrlT,
+                    "\n\tpacket.input.scrlR: ", packet.input.scrlR,
+                    "\n\tpacket.input.scrlB: ", packet.input.scrlB,
+                    "\n\tpacket.input.clipL: ", packet.input.clipL,
+                    "\n\tpacket.input.clipT: ", packet.input.clipT,
+                    "\n\tpacket.input.clipR: ", packet.input.clipR,
+                    "\n\tpacket.input.clipB: ", packet.input.clipB);
                 window.clear_all();
                 return;
             }
@@ -4134,8 +4268,8 @@ struct consrv : consrv_base
             packet.reply.buffersz_x = viewport.x;
             packet.reply.buffersz_y = viewport.y;
         }
-        log("\tinput.flags: ", packet.input.flags);
-        log("\treply.buffer size: ", twod{ packet.reply.buffersz_x, packet.reply.buffersz_y });
+        log("\tinput.flags: ", packet.input.flags,
+          "\n\treply.buffer size: ", twod{ packet.reply.buffersz_x, packet.reply.buffersz_y });
     }
     auto api_window_handle_get               ()
     {
@@ -4410,10 +4544,10 @@ struct consrv : consrv_base
 
     }
 
-    using apis = std::vector<void(consrv::*)()>;
+    using apis = std::vector<void(impl::*)()>;
     using list = std::list<clnt>;
     using face = ui::face;
-    using fire = netxs::os::io::fire;
+    using fire = netxs::os::fire;
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
@@ -4436,12 +4570,12 @@ struct consrv : consrv_base
     ui32        inpmod; // consrv: Events mode flag set.
     ui32        outmod; // consrv: Scrollbuffer mode flag set.
     face        mirror; // consrv: Viewport bitmap buffer.
-    bool        impcls; // consrv: Implicit scroll buffer clearing detection.
+    flag        allout; // consrv: All clients detached.
     para        celler; // consrv: Buffer for converting raw text to cells.
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start_thraeds()
+    void start()
     {
         reset();
         events.reset();
@@ -4451,7 +4585,7 @@ struct consrv : consrv_base
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                ok<faux>(!debugmode, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
+                ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
@@ -4529,15 +4663,32 @@ struct consrv : consrv_base
             log(prompt, "Server thread ended");
         }};
     }
-    void stop()
+    si32 wait()
     {
-        io::close(condrv);
-        io::close(refdrv);
+        allout.wait(faux);
+        auto procstat = sigt{};
+        if (::GetExitCodeProcess(prochndl, &procstat) && (procstat == STILL_ACTIVE || procstat == nt::status::control_c_exit))
+        {
+            if (procstat == STILL_ACTIVE)
+            {
+                log("%prompt%%err%Process %pid% still running%nil%", prompt, ansi::err(), proc_pid, ansi::nil());
+            }
+            procstat = {};
+        }
+        os::close(prochndl);
+        proc_pid = {};
         events.stop();
+        os::close(condrv);
+        os::close(refdrv);
         signal.reset();
         if (window.joinable()) window.join();
         if (server.joinable()) server.join();
         log(prompt, "Console API server shut down");
+        return procstat;
+    }
+    void sighup()
+    {
+        events.sighup();
     }
     template<class T>
     auto size_check(T upto, T from)
@@ -4565,120 +4716,259 @@ struct consrv : consrv_base
                | nt::console::outmode::vt;
         if constexpr (isreal())
         {
+            uiterm.kbmode = input::keybd::prot::w32;
             uiterm.normal.set_autocr(!(outmod & nt::console::outmode::no_auto_cr));
             if (inpmod & nt::console::inmode::mouse)
             {
-                uiterm.mtrack.enable (decltype(uiterm.mtrack)::negative_args);
-                uiterm.mtrack.setmode(decltype(uiterm.mtrack)::w32);
+                uiterm.mtrack.enable (input::mouse::mode::negative_args);
+                uiterm.mtrack.setmode(input::mouse::prot::w32);
             }
         }
     }
+    void mouse(input::hids& gear, bool moved, twod coord,
+        input::mouse::prot encod, input::mouse::mode state) { events.mouse(gear, moved, coord); }
+    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
+    void focus(bool state)                                  { events.focus(state);              }
+    void winsz(twod newsz)                                  { events.winsz(newsz);              }
+    void style(ui32 style)                                  { events.style(style);              }
+    bool  send(view utf8)                                   { events.write(utf8); return true;  }
+    void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
+    fd_t watch()                                            { return events.ondata;             }
 
-    auto start()
+    impl(Term& uiterm)
+        : uiterm{ uiterm                                         },
+          io_log{ uiterm.io_log                                  },
+          events{ *this                                          },
+          allout{ true                                           },
+          answer{                                                },
+          winhnd{                                                },
+          inpmod{ nt::console::inmode::preprocess                },
+          outmod{                                                },
+          prompt{ utf::concat(win32prompt)                       },
+          inpenc{ std::make_shared<decoder>(*this, os::codepage) },
+          outenc{ inpenc                                         }
     {
-        condrv = nt::console::handle("\\Device\\ConDrv\\Server");
-        refdrv = nt::console::handle(condrv, "\\Reference");
-        auto success = ERROR_SUCCESS == nt::ioctl(nt::console::op::set_server_information, condrv, (Arch)((fd_t)events.ondata));
-        if (!success)
+        apimap.resize(0xFF, &impl::api_unsupported);
+        apimap[0x38] = &impl::api_system_langid_get;
+        apimap[0x91] = &impl::api_system_mouse_buttons_get_count;
+        apimap[0x01] = &impl::api_process_attach;
+        apimap[0x02] = &impl::api_process_detach;
+        apimap[0xB9] = &impl::api_process_enlist;
+        apimap[0x03] = &impl::api_process_create_handle;
+        apimap[0x04] = &impl::api_process_delete_handle;
+        apimap[0x30] = &impl::api_process_codepage_get;
+        apimap[0x64] = &impl::api_process_codepage_set;
+        apimap[0x31] = &impl::api_process_mode_get;
+        apimap[0x32] = &impl::api_process_mode_set;
+        apimap[0x06] = &impl::api_events_read_as_text<true>;
+        apimap[0x35] = &impl::api_events_read_as_text;
+        apimap[0x08] = &impl::api_events_clear;
+        apimap[0x63] = &impl::api_events_clear;
+        apimap[0x33] = &impl::api_events_count_get;
+        apimap[0x34] = &impl::api_events_get;
+        apimap[0x70] = &impl::api_events_add;
+        apimap[0x61] = &impl::api_events_generate_ctrl_event;
+        apimap[0x05] = &impl::api_scrollback_write_text<true>;
+        apimap[0x36] = &impl::api_scrollback_write_text;
+        apimap[0x72] = &impl::api_scrollback_write_data;
+        apimap[0x71] = &impl::api_scrollback_write_block;
+        apimap[0x6D] = &impl::api_scrollback_attribute_set;
+        apimap[0x60] = &impl::api_scrollback_fill;
+        apimap[0x6F] = &impl::api_scrollback_read_data;
+        apimap[0x73] = &impl::api_scrollback_read_block;
+        apimap[0x62] = &impl::api_scrollback_set_active;
+        apimap[0x6A] = &impl::api_scrollback_cursor_coor_set;
+        apimap[0x65] = &impl::api_scrollback_cursor_info_get;
+        apimap[0x66] = &impl::api_scrollback_cursor_info_set;
+        apimap[0x67] = &impl::api_scrollback_info_get;
+        apimap[0x68] = &impl::api_scrollback_info_set;
+        apimap[0x69] = &impl::api_scrollback_size_set;
+        apimap[0x6B] = &impl::api_scrollback_viewport_get_max_size;
+        apimap[0x6E] = &impl::api_scrollback_viewport_set;
+        apimap[0x6C] = &impl::api_scrollback_scroll;
+        apimap[0xB8] = &impl::api_scrollback_selection_info_get;
+        apimap[0x74] = &impl::api_window_title_get;
+        apimap[0x75] = &impl::api_window_title_set;
+        apimap[0x93] = &impl::api_window_font_size_get;
+        apimap[0x94] = &impl::api_window_font_get;
+        apimap[0xBC] = &impl::api_window_font_set;
+        apimap[0xA1] = &impl::api_window_mode_get;
+        apimap[0x9D] = &impl::api_window_mode_set;
+        apimap[0xAF] = &impl::api_window_handle_get;
+        apimap[0xAC] = &impl::api_window_xkeys;
+        apimap[0xA3] = &impl::api_alias_get;
+        apimap[0xA2] = &impl::api_alias_add;
+        apimap[0xA5] = &impl::api_alias_exes_get_volume;
+        apimap[0xA7] = &impl::api_alias_exes_get;
+        apimap[0xA4] = &impl::api_aliases_get_volume;
+        apimap[0xA6] = &impl::api_aliases_get;
+        apimap[0xA8] = &impl::api_input_history_clear;
+        apimap[0xA9] = &impl::api_input_history_limit_set;
+        apimap[0xAA] = &impl::api_input_history_get_volume;
+        apimap[0xAB] = &impl::api_input_history_get;
+        apimap[0xBA] = &impl::api_input_history_info_get;
+        apimap[0xBB] = &impl::api_input_history_info_set;
+    }
+
+    #undef log
+};
+
+#else
+
+struct consrv : ipc::stdcon
+{
+    std::thread stdinput{};
+    pidt        group_id{};
+
+    template<class Term>
+    consrv(Term&)
+    { }
+
+    bool alive() const
+    {
+        return stdcon::operator bool();
+    }
+    void cleanup(bool io_log)
+    {
+        if (stdinput.joinable())
         {
-            io::close(condrv);
-            io::close(refdrv);
-            hStdInput  = os::invalid_fd;
-            hStdOutput = os::invalid_fd;
-            hStdError  = os::invalid_fd;
+            if (io_log) log(prompt::vtty, "Reading thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
+            stdinput.join();
+        }
+        stdcon::cleanup();
+    }
+    void winsz(twod const& newsize)
+    {
+        //todo win32-input-mode
+        using type = decltype(winsize::ws_row);
+        auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+        ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected);
+    }
+    template<class Term>
+    void read_socket_thread(Term& terminal)
+    {
+        if (terminal.io_log) log(prompt::vtty, "Reading thread started", ' ', utf::to_hex_0x(stdinput.get_id()));
+        auto flow = text{};
+        while (alive())
+        {
+            auto shot = stdcon::recv();
+            if (shot && alive())
+            {
+                flow += shot;
+                auto crop = ansi::purify(flow);
+                terminal.ondata(crop);
+                flow.erase(0, crop.size()); // Delete processed data.
+            }
+            else break;
+        }
+        if (terminal.io_log) log(prompt::vtty, "Reading thread ended", ' ', utf::to_hex_0x(stdinput.get_id()));
+    }
+    template<class Term>
+    static auto create(Term& terminal)
+    {
+        return ptr::shared<consrv>(terminal);
+    }
+    template<class Term, class Proc>
+    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
+    {
+        auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
+        auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
+        auto rc2 = os::syscall{ ::unlockpt(fdm.value)             }; // Unlock master TTY.
+        stdcon::start(fdm.value);
+        stdinput = std::thread([&, trailer]
+        {
+            read_socket_thread(terminal);
+            trailer();
+        });
+        auto pid = os::syscall{ os::process::sysfork() };
+        if (pid.value == 0) // Child branch.
+        {
+            auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
+            auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR | O_NOCTTY) }; // Open slave TTY via string ptsname(fdm) (BSD doesn't auto assign controlling terminal: we should assign it explicitly).
+            auto rc4 = os::syscall{ ::ioctl(fds.value, TIOCSCTTY, 0) }; // Assign it as a controlling TTY (in order to receive WINCH and other signals).
+            winsz(win_size); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
+            os::dtvt::active = faux; // Logger update.
+            os::dtvt::client = {};   //
+            ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+            ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+            ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            os::fdscleanup();
+            os::signals::state.reset();
+            if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
+            {
+                log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
+                    "rc1: ", rc1.value, " errcode: ", rc1.error, "\n"
+                    "rc2: ", rc2.value, " errcode: ", rc2.error, "\n"
+                    "rc3: ", rc3.value, " errcode: ", rc3.error, "\n"
+                    "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
+                    "fds: ", fds.value, " errcode: ", fds.error);
+            }
+            os::env::set("TERM", "xterm-256color");
+            if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
+            {
+                os::env::set("TERM_PROGRAM", "vtm");
+            }
+            os::process::spawn(cwd, cmdline);
+        }
+        // Parent branch.
+        auto err_code = 0;
+        if (pid)
+        {
+            group_id = pid.value;
         }
         else
         {
-            start_thraeds();
-            hStdInput  = nt::console::handle(condrv, "\\Input",  true);
-            hStdOutput = nt::console::handle(condrv, "\\Output", true);
-            hStdError  = nt::console::handle(hStdOutput);
+            group_id = {};
+            err_code = pid.error;
         }
-        return success;
+        return err_code;
     }
-    auto alive()                                          { return condrv != os::invalid_fd; }
-    void winsz(twod newsz)                                { events.winsz(newsz); }
-    void write(view utf8)                                 { events.write(utf8); }
-    void keybd(input::hids& gear, bool decckm)            { events.keybd(gear, decckm); }
-    void focus(bool state)                                { events.focus(state); }
-    void mouse(input::hids& gear, bool moved, twod coord) { events.mouse(gear, moved, coord); }
-    void  undo(bool undo_redo)                            { events.undo(undo_redo); }
-
-    consrv(Term& uiterm)
-        : uiterm{ uiterm },
-          io_log{ uiterm.io_log },
-          events{ *this  },
-          impcls{ faux   },
-          answer{        },
-          winhnd{        },
-          inpmod{ nt::console::inmode::preprocess },
-          outmod{        },
-          prompt{ utf::concat(win32prompt) },
-          inpenc{ std::make_shared<decoder>(*this, os::codepage) },
-          outenc{ inpenc }
+    void reset()
     {
-        using _ = consrv;
-        apimap.resize(0xFF, &_::api_unsupported);
-        apimap[0x38] = &_::api_system_langid_get;
-        apimap[0x91] = &_::api_system_mouse_buttons_get_count;
-        apimap[0x01] = &_::api_process_attach;
-        apimap[0x02] = &_::api_process_detach;
-        apimap[0xB9] = &_::api_process_enlist;
-        apimap[0x03] = &_::api_process_create_handle;
-        apimap[0x04] = &_::api_process_delete_handle;
-        apimap[0x30] = &_::api_process_codepage_get;
-        apimap[0x64] = &_::api_process_codepage_set;
-        apimap[0x31] = &_::api_process_mode_get;
-        apimap[0x32] = &_::api_process_mode_set;
-        apimap[0x06] = &_::api_events_read_as_text<true>;
-        apimap[0x35] = &_::api_events_read_as_text;
-        apimap[0x08] = &_::api_events_clear;
-        apimap[0x63] = &_::api_events_clear;
-        apimap[0x33] = &_::api_events_count_get;
-        apimap[0x34] = &_::api_events_get;
-        apimap[0x70] = &_::api_events_add;
-        apimap[0x61] = &_::api_events_generate_ctrl_event;
-        apimap[0x05] = &_::api_scrollback_write_text<true>;
-        apimap[0x36] = &_::api_scrollback_write_text;
-        apimap[0x72] = &_::api_scrollback_write_data;
-        apimap[0x71] = &_::api_scrollback_write_block;
-        apimap[0x6D] = &_::api_scrollback_attribute_set;
-        apimap[0x60] = &_::api_scrollback_fill;
-        apimap[0x6F] = &_::api_scrollback_read_data;
-        apimap[0x73] = &_::api_scrollback_read_block;
-        apimap[0x62] = &_::api_scrollback_set_active;
-        apimap[0x6A] = &_::api_scrollback_cursor_coor_set;
-        apimap[0x65] = &_::api_scrollback_cursor_info_get;
-        apimap[0x66] = &_::api_scrollback_cursor_info_set;
-        apimap[0x67] = &_::api_scrollback_info_get;
-        apimap[0x68] = &_::api_scrollback_info_set;
-        apimap[0x69] = &_::api_scrollback_size_set;
-        apimap[0x6B] = &_::api_scrollback_viewport_get_max_size;
-        apimap[0x6E] = &_::api_scrollback_viewport_set;
-        apimap[0x6C] = &_::api_scrollback_scroll;
-        apimap[0xB8] = &_::api_scrollback_selection_info_get;
-        apimap[0x74] = &_::api_window_title_get;
-        apimap[0x75] = &_::api_window_title_set;
-        apimap[0x93] = &_::api_window_font_size_get;
-        apimap[0x94] = &_::api_window_font_get;
-        apimap[0xBC] = &_::api_window_font_set;
-        apimap[0xA1] = &_::api_window_mode_get;
-        apimap[0x9D] = &_::api_window_mode_set;
-        apimap[0xAF] = &_::api_window_handle_get;
-        apimap[0xAC] = &_::api_window_xkeys;
-        apimap[0xA3] = &_::api_alias_get;
-        apimap[0xA2] = &_::api_alias_add;
-        apimap[0xA5] = &_::api_alias_exes_get_volume;
-        apimap[0xA7] = &_::api_alias_exes_get;
-        apimap[0xA4] = &_::api_aliases_get_volume;
-        apimap[0xA6] = &_::api_aliases_get;
-        apimap[0xA8] = &_::api_input_history_clear;
-        apimap[0xA9] = &_::api_input_history_limit_set;
-        apimap[0xAA] = &_::api_input_history_get_volume;
-        apimap[0xAB] = &_::api_input_history_get;
-        apimap[0xBA] = &_::api_input_history_info_get;
-        apimap[0xBB] = &_::api_input_history_info_set;
+        //todo
+    }
+    void focus(bool state)
+    {
+        //todo win32-input-mode
+    }
+    void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
+    {
+        //todo win32-input-mode
+    }
+    void keybd(input::hids& gear, bool decckm, bool bpmode)
+    {
+        //todo win32-input-mode
+    }
+    void style(ui32 format)
+    {
+        //todo win32-input-mode
+    }
+    void undo(bool undoredo)
+    {
+        //todo
+    }
+    auto sighup()
+    {
+        // Send SIGHUP to all processes in the proc_pid group (negative value).
+        ok(::kill(-group_id, SIGHUP), "::kill(-pid, SIGHUP)", os::unexpected);
+    }
+    auto wait()
+    {
+        auto stat = sigt{};
+        auto p_id = pidt{};
+        auto code = si32{};
+        while ((p_id = ::waitpid(-group_id, &stat, 0)) > 0) // Wait all child processes.
+        {
+            if (WIFEXITED(stat))
+            {
+                auto c = WEXITSTATUS(stat);
+                if (c) log(prompt::vtty, "Process ", p_id, " exited wth code ", c);
+                if (p_id == group_id) code = c;
+            }
+        }
+        stdcon::stop();
+        return code;
     }
 };
 
-#undef log
+#endif

@@ -36,7 +36,7 @@ namespace netxs::scripting
     {
         using s11n = directvt::binary::s11n;
         using pidt = os::pidt;
-        using vtty = sptr<os::runspace::basetty>;
+        using vtty = sptr<os::runspace::base_tty<repl>>;
 
         Host& owner;
         // repl: Event handler.
@@ -49,6 +49,7 @@ namespace netxs::scripting
         public:
             void disable()
             {
+                s11n::stop();
                 token.clear();
             }
 
@@ -73,14 +74,6 @@ namespace netxs::scripting
                 : s11n{ *this },
                  owner{ owner }
             {
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::header, utf8, token)
-                {
-                    //s11n::form_header.send(owner, 0, utf8);
-                };
-                owner.LISTEN(tier::anycast, e2::form::prop::ui::footer, utf8, token)
-                {
-                    //s11n::form_footer.send(owner, 0, utf8);
-                };
                 owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     //...
@@ -97,13 +90,12 @@ namespace netxs::scripting
         text curdir; // repl: Current working directory.
         text cmdarg; // repl: Startup command line arguments.
         flag active; // repl: Scripting engine lifetime.
-        pidt procid; // repl: PTY child process id.
         vtty engine; // repl: Scripting engine instance.
 
         // repl: Proceed input.
         void ondata(view data)
         {
-            log(ansi::fgc(greenlt).add(data).nil(), faux);
+            log<faux>(ansi::fgc(greenlt).add(data).nil());
         }
         // repl: Cooked read input.
         void data(rich& data)
@@ -111,7 +103,7 @@ namespace netxs::scripting
             owner.bell::trysync(active, [&]
             {
                 // It is a powershell readline echo.
-                //log(ansi::fgc(cyanlt).add(data.utf8()).nil(), faux);
+                //log<faux>(ansi::fgc(cyanlt).add(data.utf8()).nil());
             });
         }
         // repl: Shutdown callback handler.
@@ -154,8 +146,8 @@ namespace netxs::scripting
             cmdarg = cmd;
             if (!engine->connected())
             {
-                procid = engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                                    [&](auto code, auto msg) { onexit(code, msg); });
+                engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                           [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -166,9 +158,9 @@ namespace netxs::scripting
         }
 
         repl(Host& owner)
-            : owner{ owner },
-              stream{owner },
-              active{ true }
+            :  owner{ owner },
+              stream{ owner },
+              active{ true  }
         {
             auto& config = owner.config;
             if (config.take(path::scripting, faux))
@@ -181,17 +173,17 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 if (tty) engine = ptr::shared<os::runspace::tty<repl>>(*this);
-                else     engine = ptr::shared<os::runspace::raw>();
+                else     engine = ptr::shared<os::runspace::raw<repl>>(*this);
                 start(cwd, cmd);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();
-
-                owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
-                {
-                    write(utf8);
-                };
             }
+            owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
+            {
+                if (engine) write(utf8);
+                else        log(prompt::repl, utf::debase<faux, faux>(utf8));
+            };
         }
     };
 }

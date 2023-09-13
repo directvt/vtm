@@ -59,6 +59,7 @@ Source     | Events to track
 `keyboard` | Keyboard.
 `mouse`    | Mouse.
 `focus`    | Focus.
+`format`   | Line format.
 `clipoard` | Clipboard.
 `window`   | Window size and selection.
 `system`   | System signals.
@@ -80,6 +81,10 @@ Note: By enabling `vt-input-mode`, all current terminal modes are automatically 
 - Focus
   ```
   ESC _ event=focus ; state=<FocusState> ESC \
+  ```
+- Format
+  ```
+  ESC _ event=format ; wrapping=<State> ; alignment=<State> ; rtl=<State> ESC \
   ```
 - Clipboard
   ```
@@ -375,9 +380,23 @@ ESC _ event=focus ; state=<FocusState> ESC \
 
 Attribute            | Description
 ---------------------|------------
-`state=<FocusState>` | Terminal window focus state:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
+`state=<FocusState>` | Terminal window focus:<br>\<FocusState\>=1 - Focused.<br>\<FocusState\>=0 - Unfocused.
 
 In response to the activation of `focus` tracking, the application receives a vt-sequence containing current focus state.
+
+### Format
+
+```
+ESC _ event=format ; wrapping=<State> ; alignment=<State> ; rtl=<State> ESC \
+```
+
+Attribute           | Description
+--------------------|------------
+`wrapping=<State>`  | Line wrapping:<br>\<State\>=0 - Unwrapped.<br>\<State\>=1 - Wrapped.
+`alignment=<State>` | Line alignment:<br>\<State\>=0 - Left.<br>\<State\>=1 - Right.<br>\<State\>=2 - Center.
+`rtl=<State>`       | Text flow direction:<br>\<State\>=0 - Left to Right.<br>\<State\>=1 - Right to Left.
+
+In response to the activation of `format` tracking, the application receives a vt-sequence containing current line format.
 
 ### Clipboard
 
@@ -470,12 +489,10 @@ ESC _ event=system ; signal=<Signal> ESC \
 
 Signal | Description
 -------|------------
-`0`    | Terminal window closing.
-`1`    | <kbd>Ctrl+Break</kbd> pressed.
-`2`    | Log off.
-`3`    | System shutdown.
+`0`    | Window closing.
+`1`    | System shutdown.
 
-The application must respond to the terminal within 5 seconds with the same message confirming that it will close itself without being forced. For reasons 0 or 1 responses, the application can continue to run if needed. In the absence of confirmation, and also in the case of reasons 2 or 3, the application will be forced to close after 5 seconds if it does not terminate itself.
+The application must respond to the terminal within 5 seconds with the same message confirming that it will close itself without being forced. After a response to Signal=0, the application can continue running and closing the terminal window will be silently aborted. In the absence of confirmation, and also in the case of Signal=1, the application will be forced to close.
 
 ## Usage Examples
 

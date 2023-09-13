@@ -164,7 +164,6 @@ namespace netxs::app::tile
         {
             if (client)
             {
-                auto lock = netxs::events::sync{};
                 client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
@@ -191,7 +190,7 @@ namespace netxs::app::tile
                                     boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                                     break;
                                 case app::tile::events::ui::close.id:
-                                    boss.RISEUP(tier::preview, e2::form::proceed::quit::one, boss.This());
+                                    boss.RISEUP(tier::preview, e2::form::proceed::quit::one, true);
                                     break;
                                 case app::tile::events::ui::toggle.id:
                                     if (boss.base::kind() == 0) // Only apps can be maximized.
@@ -238,12 +237,14 @@ namespace netxs::app::tile
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
+            //    auto backup = boss.This();
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             //    gear.dismiss();
             //};
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
             //{
-            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
+            //    auto backup = boss.This();
+            //    boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
             //    gear.dismiss();
             //};
         };
@@ -305,7 +306,7 @@ namespace netxs::app::tile
                                     auto gear_id_list = pro::focus::get(parent_ptr); // Expropriate all foci.
                                     world_ptr->SIGNAL(tier::request, vtm::events::handoff, what); // Attach to the world.
                                     pro::focus::set(what.applet, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
-                                    master.RISEUP(tier::release, e2::form::proceed::quit::one, master_ptr); // Destroy placeholder.
+                                    master.RISEUP(tier::release, e2::form::proceed::quit::one, true); // Destroy placeholder.
                                 }
 
                                 // Redirect this mouse event to the new world's window.
@@ -428,7 +429,8 @@ namespace netxs::app::tile
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, boss.This());
+                        auto backup = boss.This();
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
                         gear.dismiss(true);
                     };
                 }},
@@ -667,22 +669,21 @@ namespace netxs::app::tile
                             pro::focus::set(slot_2->back(), gear_id, pro::focus::solo::off, pro::focus::flip::off);
                         }
                     };
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, nested_item_ptr)
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, nested_item_ptr);
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
                     };
-                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, nested_item_ptr)
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        if (boss.count() > 1 && boss.back()->base::kind() == 0)
+                        if (boss.count() > 0 && boss.back()->base::root()) // Walking a nested visual tree.
                         {
-                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, nested_item_ptr);
+                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast); // Forward a quit message to hosted app in order to schedule a cleanup.
                         }
-                        else boss.SIGNAL(tier::release, e2::form::proceed::quit::one, nested_item_ptr);
+                        else boss.SIGNAL(tier::release, e2::form::proceed::quit::one, fast);
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, nested_item_ptr)
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
                         if (auto parent = boss.base::parent())
-                        if (nested_item_ptr)
                         {
                             if (boss.count() > 1 && boss.back()->base::kind() == 0) // Only apps can be deleted.
                             {
@@ -792,7 +793,7 @@ namespace netxs::app::tile
             else  // Add application.
             {
                 utf::trim_front(utf8, " ");
-                auto menuid = text{ utf::get_tail(utf8, " ,)") };
+                auto menuid = utf::get_tail(utf8, " ,)").str();
                 if (menuid.empty()) return slot;
 
                 utf::trim_front(utf8, " ,");
@@ -932,9 +933,9 @@ namespace netxs::app::tile
             object->attach(slot::_1, menu_block)
                   ->invoke([](auto& boss)
                   {
-                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, item)
+                      boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                       {
-                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, item);
+                          boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                       };
                   });
             menu_data->colors(cB.fgc(), cB.bgc())
@@ -955,8 +956,8 @@ namespace netxs::app::tile
             {
                 auto err = std::error_code{};
                 fs::current_path(cwd, err);
-                if (err) log(prompt::tile, "Failed to change current working directory to '", cwd, "', error code: ", err.value());
-                else     log(prompt::tile, "Change current working directory to '", cwd, "'");
+                if (err) log("%%Failed to change current working directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
+                else     log("%%Change current working directory to '%cwd%'", prompt::tile, cwd);
             }
 
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))

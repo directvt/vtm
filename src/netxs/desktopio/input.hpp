@@ -16,18 +16,13 @@ namespace netxs::events::userland
             EVENT_XS( die    , input::hids ), // release::global: Notify about the mouse controller is gone. Signal to delete gears inside dtvt-objects.
             EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
-            GROUP_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
+            EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
             GROUP_XS( notify , input::hids ), // Form events that should be propagated down to the visual branch.
             GROUP_XS( device , input::hids ), // Primary device event group for forwarding purposes.
 
-            SUBSET_XS( clipbrd )
-            {
-                EVENT_XS( get, input::hids ), // release: Get clipboard data.
-                EVENT_XS( set, input::hids ), // release: Set clipboard data.
-            };
             SUBSET_XS( notify )
             {
                 GROUP_XS( mouse, input::hids ),
@@ -275,7 +270,6 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using netxs::ansi::clip;
     using netxs::ui::base;
     using netxs::ui::face;
     using netxs::ui::page;
@@ -347,7 +341,7 @@ namespace netxs::input
             X(20,  0x20, 0x39,           0, 0x0000'00'FF, Space            )\
             X(22,  0x08, 0x0E,           0, 0x0000'00'FF, Backspace        )\
             X(24,  0x09, 0x0F,           0, 0x0000'00'FF, Tab              )\
-            X(26,  0x03, 0x45,           0, 0x0000'FF'FF, Break            )\
+            X(26,  0x03, 0x46,           0, 0x0000'FF'FF, Break            )\
             X(28,  0x13, 0x45,           0, 0x0000'FF'FF, Pause            )\
             X(30,  0x29,    0,           0, 0x0000'00'FF, Select           )\
             X(32,  0x2C, 0x54,           0, 0x0000'FF'FF, SysRq            )\
@@ -527,6 +521,25 @@ namespace netxs::input
         using mouse_event = netxs::events::userland::hids::mouse;
         using click = mouse_event::button::click;
 
+        enum mode
+        {
+            none = 0,
+            bttn = 1 << 0,
+            drag = 1 << 1,
+            move = 1 << 2,
+            over = 1 << 3,
+            utf8 = 1 << 4,
+            buttons_press = bttn,
+            buttons_drags = bttn | drag,
+            all_movements = bttn | drag | move,
+            negative_args = bttn | drag | move | over,
+        };
+        enum prot
+        {
+            x11,
+            sgr,
+            w32,
+        };
         enum buttons
         {
             left      = click::left     .index(),
@@ -858,6 +871,12 @@ namespace netxs::input
     // console: Keybd tracker.
     struct keybd
     {
+        enum prot
+        {
+            vt,
+            w32,
+        };
+
         text cluster = {};
         bool extflag = {};
         bool pressed = {};
@@ -868,6 +887,10 @@ namespace netxs::input
         bool handled = {};
         si32 keycode = {};
 
+        auto generic()
+        {
+            return keycode & -2;
+        }
         void update(syskeybd& k)
         {
             extflag = k.extflag;
@@ -886,6 +909,12 @@ namespace netxs::input
     // console: Focus tracker.
     struct focus
     {
+        enum prot
+        {
+            w32,
+            dec,
+        };
+
         bool state = {};
 
         void update(sysfocus& f)
@@ -897,11 +926,141 @@ namespace netxs::input
         virtual void fire_focus() = 0;
     };
 
+    // console: Clipboard tracker.
+    struct board
+    {
+        enum prot
+        {
+            w32,
+            dec,
+        };
+
+        using clip = clipdata;
+
+        clip cargo{}; // board: Clipboard data.
+        face image{}; // board: Clipboard preview render.
+        bool shown{}; // board: Preview output tracker.
+        si32 ghost{}; // board: Preview shadow size.
+        cell brush{}; // board: Preview default color.
+        byte alpha{}; // board: Preview transparency.
+
+        virtual void fire_board() = 0;
+
+        static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, si32 form)
+        {
+            auto size = dot_00;
+            if (form == mime::disabled) // Try to parse utf8: mime/size_x/size_y;data
+            {
+                     if (utf8.starts_with(mime::tag::ansi)) { utf8.remove_prefix(mime::tag::ansi.length()); form = mime::ansitext; }
+                else if (utf8.starts_with(mime::tag::text)) { utf8.remove_prefix(mime::tag::text.length()); form = mime::textonly; }
+                else if (utf8.starts_with(mime::tag::rich)) { utf8.remove_prefix(mime::tag::rich.length()); form = mime::richtext; }
+                else if (utf8.starts_with(mime::tag::html)) { utf8.remove_prefix(mime::tag::html.length()); form = mime::htmltext; }
+                else if (utf8.starts_with(mime::tag::safe)) { utf8.remove_prefix(mime::tag::safe.length()); form = mime::safetext; }
+                else
+                {
+                    if (auto pos = utf8.find(';'); pos != text::npos) utf8 = utf8.substr(pos + 1);
+                    else                                              utf8 = {};
+                }
+                if (form == mime::disabled) form = mime::textonly;
+                else
+                {
+                    if (utf8 && utf8.front() == '/') // Proceed preview size if present.
+                    {
+                        utf8.remove_prefix(1);
+                        if (auto v = utf::to_int(utf8))
+                        {
+                            static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
+                            size.x = v.value();
+                            if (utf8)
+                            {
+                                utf8.remove_prefix(1);
+                                if (auto v = utf::to_int(utf8)) size.y = v.value();
+                            }
+                            if (!size.x || !size.y) size = dot_00;
+                            else                    size = std::clamp(size, dot_00, max_value);
+                        }
+                    }
+                    if (utf8 && utf8.front() == ';') utf8.remove_prefix(1);
+                    else                             utf8 = {}; // Unknown format.
+                }
+            }
+            size = utf8.empty() ? dot_00
+                 : size         ? size
+                 : winsz        ? winsz
+                                : twod{ 80,25 }; //todo make it configurable
+            c.set(gear_id, datetime::now(), size, utf8.str(), form);
+        }
+        auto clear_clipboard()
+        {
+            auto not_empty = !!board::cargo.utf8.size();
+            board::cargo.set(id_t{}, datetime::now(), dot_00, text{}, mime::ansitext);
+            fire_board();
+            return not_empty;
+        }
+        void set_clipboard(clipdata const& data)
+        {
+            board::cargo.set(data);
+            fire_board();
+        }
+        void set_clipboard(twod size, qiew utf8, si32 form)
+        {
+            auto c = clip{};
+            c.set(id_t{}, datetime::now(), size, utf8.str(), form);
+            set_clipboard(c);
+        }
+        void update(sysboard& b) // Update clipboard preview.
+        {
+            auto draw_shadow = [&](auto& block, auto size)
+            {
+                board::image.mark(cell{});
+                board::image.wipe();
+                board::image.size(dot_21 * size * 2 + b.size);
+                auto full = rect{ dot_21 * size + dot_21, b.size };
+                while (size--)
+                {
+                    board::image.reset();
+                    board::image.full(full);
+                    board::image.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    board::image.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
+                }
+                full.coor -= dot_21;
+                board::image.reset();
+                board::image.full(full);
+            };
+            if (b.form == mime::safetext)
+            {
+                auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
+                auto block = page{ blank };
+                if (ghost) draw_shadow(block, ghost);
+                else
+                {
+                    board::image.size(block.current().size());
+                    board::image.wipe();
+                }
+                board::image.output(block);
+            }
+            else
+            {
+                auto block = page{ b.utf8 };
+                if (ghost) draw_shadow(block, ghost);
+                else
+                {
+                    board::image.size(b.size);
+                    board::image.wipe();
+                }
+                board::image.mark(cell{});
+                if (b.form == mime::textonly) board::image.output(block, cell::shaders::color(  brush));
+                else                          board::image.output(block, cell::shaders::xlucent(alpha));
+            }
+        }
+    };
+
     // console: Human interface device controller.
     struct hids
         : public mouse,
           public keybd,
           public focus,
+          public board,
           public bell
     {
         using events = netxs::events::userland::hids;
@@ -910,10 +1069,9 @@ namespace netxs::input
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         bool        alive; // hids: Whether event processing is complete.
-        span&       tooltip_timeout; // hids: .
-        bool&       simple_instance; // hids: .
 
         //todo unify
+        span&       tooltip_timeout; // hids: .
         text        tooltip_data; // hids: Tooltip data.
         ui32        digest = 0; // hids: Tooltip digest.
         testy<ui32> digest_tracker = 0; // hids: Tooltip changes tracker.
@@ -934,37 +1092,26 @@ namespace netxs::input
         bool disabled = faux;
         si32 countdown = 0;
 
-        clip clip_rawdata{}; // hids: Clipboard data.
-        face clip_preview{}; // hids: Clipboard preview render.
-        bool not_directvt{}; // hids: Is it the top level gear (not directvt).
-        bool clip_printed{}; // hids: Preview output tracker.
-        si32& clip_shadow_size;
-        cell& clip_preview_clrs;
-        byte& clip_preview_alfa;
-
         id_t user_index; // hids: User/Device image/icon index.
 
         template<class T>
-        hids(T& props, bool not_directvt, base& owner, core const& idmap)
+        hids(T& props, base& owner, core const& idmap)
             : relay{ 0 },
             owner{ owner },
             idmap{ idmap },
             alive{ faux },
-            tooltip_timeout{   props.tooltip_timeout },
-            simple_instance{   props.simple },
-            clip_shadow_size{  props.clip_preview_glow },
-            clip_preview_clrs{ props.clip_preview_clrs },
-            clip_preview_alfa{ props.clip_preview_alfa },
-            not_directvt{ not_directvt }
+            tooltip_timeout{   props.tooltip_timeout }
         {
+            board::ghost = props.clip_preview_glow;
+            board::brush = props.clip_preview_clrs;
+            board::alpha = props.clip_preview_alfa;
+            mouse::delay = props.dblclick_timeout;
             mouse::prime = dot_mx;
             mouse::coord = dot_mx;
-            mouse::delay = props.dblclick_timeout;
             SIGNAL(tier::general, events::device::user::login, user_index);
         }
-        ~hids()
+       ~hids()
         {
-            auto lock = netxs::events::sync{};
             mouse_leave(mouse::hover, mouse::start);
             SIGNAL(tier::general, events::halt, *this);
             SIGNAL(tier::general, events::die, *this);
@@ -972,82 +1119,9 @@ namespace netxs::input
         }
 
         // hids: Whether event processing is complete.
-        operator bool() const
+        operator bool () const
         {
             return alive;
-        }
-
-        auto clear_clip_data()
-        {
-            auto not_empty = !!clip_rawdata.utf8.size();
-            clip_rawdata.clear();
-            owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
-            if (not_directvt)
-            {
-                clip_preview.size(clip_rawdata.size);
-            }
-            return not_empty;
-        }
-        void set_clip_data(clip const& data, bool forward = true)
-        {
-            clip_rawdata.set(data);
-            if (not_directvt)
-            {
-                auto draw_shadow = [&](auto& block, auto size)
-                {
-                    clip_preview.mark(cell{});
-                    clip_preview.wipe();
-                    clip_preview.size(dot_21 * size * 2 + clip_rawdata.size);
-                    auto full = rect{ dot_21 * size + dot_21, clip_rawdata.size };
-                    while (size--)
-                    {
-                        clip_preview.reset();
-                        clip_preview.full(full);
-                        clip_preview.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                        clip_preview.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
-                    }
-                    full.coor -= dot_21;
-                    clip_preview.reset();
-                    clip_preview.full(full);
-                };
-                if (clip_rawdata.kind == clip::safetext)
-                {
-                    auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
-                    auto block = page{ blank };
-                    clip_rawdata.size = block.current().size();
-                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                    else
-                    {
-                        clip_preview.size(clip_rawdata.size);
-                        clip_preview.wipe();
-                    }
-                    clip_preview.output(block);
-                }
-                else
-                {
-                    auto block = page{ clip_rawdata.utf8 };
-                    if (clip_shadow_size) draw_shadow(block, clip_shadow_size);
-                    else
-                    {
-                        clip_preview.size(clip_rawdata.size);
-                        clip_preview.wipe();
-                    }
-                    clip_preview.mark(cell{});
-                    if (clip_rawdata.kind == clip::textonly) clip_preview.output(block, cell::shaders::color(  clip_preview_clrs));
-                    else                                     clip_preview.output(block, cell::shaders::xlucent(clip_preview_alfa));
-                }
-            }
-            if (forward) owner.SIGNAL(tier::release, hids::events::clipbrd::set, *this);
-            mouse::delta.set(); // Update time stamp.
-        }
-        auto get_clip_data()
-        {
-            auto data = clip{};
-            owner.SIGNAL(tier::release, hids::events::clipbrd::get, *this);
-            if (not_directvt) data.utf8 = clip_rawdata.utf8;
-            else              data.utf8 = std::move(clip_rawdata.utf8);
-            data.kind = clip_rawdata.kind;
-            return data;
         }
 
         auto tooltip_enabled(time const& now)
@@ -1212,6 +1286,10 @@ namespace netxs::input
             tooltip_stop = true;
             focus::update(f);
         }
+        auto take(sysboard& b)
+        {
+            board::update(b);
+        }
 
         auto& area() const { return idmap.area(); }
 
@@ -1241,7 +1319,11 @@ namespace netxs::input
                     last->SIGNAL(tier::release, events::notify::mouse::leave, *this);
                     mouse::start = start;
                 }
-                else log(prompt::hids, "Error condition: Clients count is broken, dangling ", last_id);
+                else
+                {
+                    //todo revise
+                    log("%%Error condition: Clients count is broken, dangling %last_id%", prompt::hids, last_id);
+                }
             }
         }
         void redirect_mouse_focus(base& boss)
@@ -1369,6 +1451,11 @@ namespace netxs::input
             //todo focus<->seed
             if (focus::state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
             else              owner.SIGNAL(tier::release, hids::events::focus::off, *this);
+        }
+        void fire_board()
+        {
+            owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
+            mouse::delta.set(); // Update time stamp.
         }
         text interpret()
         {

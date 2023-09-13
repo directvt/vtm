@@ -39,7 +39,7 @@ namespace netxs::utf
 {
     using ctrl = unidata::cntrls::type;
 
-    static constexpr auto replacement            = "\uFFFD"sv; // 0xEF 0xBF 0xBD (efbfbd) "�"
+    static constexpr auto replacement            = "\xEF\xBF\xBD"sv; // \uFFFD = 0xEF 0xBF 0xBD (efbfbd) "�"
     static constexpr auto replacement_code       = utfx{ 0x0000FFFD };
     static constexpr auto grapheme_cluster_limit = 31; // Limits the number of code points in a grapheme cluster to a number sufficient for any possible linguistic situation.
     static constexpr auto cluster_field_size     = 5;
@@ -419,11 +419,6 @@ namespace netxs::utf
             auto operator()(qiew lhs, qiew rhs) const { return lhs.compare(rhs) == 0; }
         };
 
-        auto     pop_front () { auto c = view::front(); view::remove_prefix(1); return c; }
-        si32     front     () const { return static_cast<unsigned char>(view::front()); }
-        operator bool      () const { return view::length(); }
-        operator text      () const { return text{ static_cast<view>(*this) }; }
-
         constexpr qiew() noexcept : view() { }
         constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
@@ -433,7 +428,21 @@ namespace netxs::utf
         constexpr qiew(T* ptr, Args&&... len) noexcept : view(ptr, std::forward<Args>(len)...) { }
         constexpr qiew& operator = (qiew const&) noexcept = default;
 
-        // Pop front a sequence of the same control points and return their count + 1.
+                 operator text () const { return text{ data(), size() }; }
+        explicit operator bool () const { return view::length(); }
+
+        // qiew: Convert to text.
+        auto str() const { return operator text(); }
+        // qiew: Peek front char.
+        si32 front() const { return static_cast<unsigned char>(view::front()); }
+        // qiew: Pop front.
+        auto pop_front()
+        {
+            auto c = view::front();
+            view::remove_prefix(1);
+            return c;
+        }
+        // qiew: Pop the front sequence of the same control points and return their count + 1.
         auto pop_all(ctrl cmd)
         {
             auto n = si32{ 1 };
@@ -446,7 +455,7 @@ namespace netxs::utf
             }
             return n;
         }
-        // Pop front a sequence of the same chars and return their count + 1.
+        // qiew: Pop the front sequence of the same chars and return their count + 1.
         auto pop_all(char c)
         {
             auto n = si32{ 1 };
@@ -457,7 +466,7 @@ namespace netxs::utf
             }
             return n;
         }
-        // Return true and pop front control point when it is equal to cmd.
+        // qiew: Return true and pop the front control point when it is equal to cmd.
         auto pop_if(ctrl cmd)
         {
             auto next = utf::letter(*this);
@@ -468,7 +477,7 @@ namespace netxs::utf
             }
             return faux;
         }
-        // Return true and pop front when it is equal to c.
+        // qiew: Return true and pop the front char when it is equal to c.
         auto pop_if(char c)
         {
             if (length() && view::front() == c)
@@ -506,12 +515,6 @@ namespace netxs::utf
         auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
     }
-    enum class codepage
-    {
-        cp866,
-        cp1251,
-        count
-    };
 
     struct letter_sync
     {
@@ -519,203 +522,6 @@ namespace netxs::utf
         int rb;
         int cp;
     };
-
-    static constexpr letter_sync utf8_cp866[] =
-    {
-        { 0x0410, 0x043F, 0x80 }, // А - п
-        { 0x0440, 0x044F, 0xE0 }, // р - я
-        { 0x0401, 0x0401, 0xF0 }, // Ё
-        { 0x0451, 0x0451, 0xF1 }, // ё
-        { 0x0404, 0x0404, 0xF2 }, // Є
-        { 0x0454, 0x0454, 0xF3 }, // є
-        { 0x0407, 0x0407, 0xF4 }, // Ї
-        { 0x0457, 0x0457, 0xF5 }, // ї
-        { 0x040E, 0x040E, 0xF6 }, // Ў
-        { 0x045E, 0x045E, 0xF7 }, // ў
-        { 0x00B0, 0x00B0, 0xF8 }, // °
-        { 0x2219, 0x2219, 0xF9 }, // ∙
-        { 0x00B7, 0x00B7, 0xFA }, // ·
-        { 0x221A, 0x221A, 0xFB }, // √
-        { 0x2116, 0x2116, 0xFC }, // №
-        { 0x00A4, 0x00A4, 0xFD }, // ¤
-        { 0x25A0, 0x25A0, 0xFE }, // ■
-        { 0x00A0, 0x00A0, 0xFF }, //  
-        { 0x2591, 0x2591, 0xB0 }, // ░
-        { 0x2592, 0x2592, 0xB1 }, // ▒
-        { 0x2593, 0x2593, 0xB2 }, // ▓
-        { 0x2502, 0x2502, 0xB3 }, // │
-        { 0x2524, 0x2524, 0xB4 }, // ┤
-        { 0x2561, 0x2561, 0xB5 }, // ╡
-        { 0x2562, 0x2562, 0xB6 }, // ╢
-        { 0x2556, 0x2556, 0xB7 }, // ╖
-        { 0x2555, 0x2555, 0xB8 }, // ╕
-        { 0x2563, 0x2563, 0xB9 }, // ╣
-        { 0x2551, 0x2551, 0xBA }, // ║
-        { 0x2557, 0x2557, 0xBB }, // ╗
-        { 0x255D, 0x255D, 0xBC }, // ╝
-        { 0x255C, 0x255C, 0xBD }, // ╜
-        { 0x255B, 0x255B, 0xBE }, // ╛
-        { 0x2510, 0x2510, 0xBF }, // ┐
-        { 0x2514, 0x2514, 0xC0 }, // └
-        { 0x2534, 0x2534, 0xC1 }, // ┴
-        { 0x252C, 0x252C, 0xC2 }, // ┬
-        { 0x251C, 0x251C, 0xC3 }, // ├
-        { 0x2500, 0x2500, 0xC4 }, // ─
-        { 0x253C, 0x253C, 0xC5 }, // ┼
-        { 0x255E, 0x255E, 0xC6 }, // ╞
-        { 0x255F, 0x255F, 0xC7 }, // ╟
-        { 0x255A, 0x255A, 0xC8 }, // ╚
-        { 0x2554, 0x2554, 0xC9 }, // ╔
-        { 0x2569, 0x2569, 0xCA }, // ╩
-        { 0x2566, 0x2566, 0xCB }, // ╦
-        { 0x2560, 0x2560, 0xCC }, // ╠
-        { 0x2550, 0x2550, 0xCD }, // ═
-        { 0x256C, 0x256C, 0xCE }, // ╬
-        { 0x2567, 0x2567, 0xCF }, // ╧
-        { 0x2568, 0x2568, 0xD0 }, // ╨
-        { 0x2564, 0x2564, 0xD1 }, // ╤
-        { 0x2565, 0x2565, 0xD2 }, // ╥
-        { 0x2559, 0x2559, 0xD3 }, // ╙
-        { 0x2558, 0x2558, 0xD4 }, // ╘
-        { 0x2552, 0x2552, 0xD5 }, // ╒
-        { 0x2553, 0x2553, 0xD6 }, // ╓
-        { 0x256B, 0x256B, 0xD7 }, // ╫
-        { 0x256A, 0x256A, 0xD8 }, // ╪
-        { 0x2518, 0x2518, 0xD9 }, // ┘
-        { 0x250C, 0x250C, 0xDA }, // ┌
-        { 0x2588, 0x2588, 0xDB }, // █
-        { 0x2584, 0x2584, 0xDC }, // ▄
-        { 0x258C, 0x258C, 0xDD }, // ▌
-        { 0x2590, 0x2590, 0xDE }, // ▐
-        { 0x2580, 0x2580, 0xDF }, // ▀
-    };
-
-    static constexpr letter_sync utf8_cp1251[] =
-    {
-        { 0x0410, 0x044F, 0xC0 }, // А - я
-        { 0x0402, 0x0402, 0x80 }, // Ђ
-        { 0x0403, 0x0403, 0x81 }, // Ѓ
-        { 0x201A, 0x201A, 0x82 }, // ‚
-        { 0x0453, 0x0453, 0x83 }, // ѓ
-        { 0x201E, 0x201E, 0x84 }, // „
-        { 0x2026, 0x2026, 0x85 }, // …
-        { 0x2020, 0x2020, 0x86 }, // †
-        { 0x2021, 0x2021, 0x87 }, // ‡
-        { 0x20AC, 0x20AC, 0x88 }, // €
-        { 0x2030, 0x2030, 0x89 }, // ‰
-        { 0x0409, 0x0409, 0x8A }, // Љ
-        { 0x2039, 0x2039, 0x8B }, // ‹
-        { 0x040A, 0x040A, 0x8C }, // Њ
-        { 0x040C, 0x040C, 0x8D }, // Ќ
-        { 0x040B, 0x040B, 0x8E }, // Ћ
-        { 0x040F, 0x040F, 0x8F }, // Џ
-        { 0x0452, 0x0452, 0x90 }, // ђ
-        { 0x2018, 0x2018, 0x91 }, // ‘
-        { 0x2019, 0x2019, 0x92 }, // ’
-        { 0x201C, 0x201C, 0x93 }, // “
-        { 0x201D, 0x201D, 0x94 }, // ”
-        { 0x2022, 0x2022, 0x95 }, // •
-        { 0x2013, 0x2013, 0x96 }, // –
-        { 0x2014, 0x2014, 0x97 }, // —
-        { 0x00A0, 0x00A0, 0x98 }, //  
-        { 0x2122, 0x2122, 0x99 }, // ™
-        { 0x0459, 0x0459, 0x9A }, // љ
-        { 0x203A, 0x203A, 0x9B }, // ›
-        { 0x045A, 0x045A, 0x9C }, // њ
-        { 0x045C, 0x045C, 0x9D }, // ќ
-        { 0x045B, 0x045B, 0x9E }, // ћ
-        { 0x045F, 0x045F, 0x9F }, // џ
-        { 0x00A0, 0x00A0, 0xA0 }, //  
-        { 0x040E, 0x040E, 0xA1 }, // Ў
-        { 0x045E, 0x045E, 0xA2 }, // ў
-        { 0x0408, 0x0408, 0xA3 }, // Ј
-        { 0x00A4, 0x00A4, 0xA4 }, // ¤
-        { 0x0490, 0x0490, 0xA5 }, // Ґ
-        { 0x00A6, 0x00A6, 0xA6 }, // ¦
-        { 0x00A7, 0x00A7, 0xA7 }, // §
-        { 0x0401, 0x0401, 0xA8 }, // Ё
-        { 0x00A9, 0x00A9, 0xA9 }, // ©
-        { 0x0404, 0x0404, 0xAA }, // Є
-        { 0x00AB, 0x00AB, 0xAB }, // «
-        { 0x00AC, 0x00AC, 0xAC }, // ¬
-        { 0x00AD, 0x00AD, 0xAD }, //  
-        { 0x00AE, 0x00AE, 0xAE }, // ®
-        { 0x0407, 0x0407, 0xAF }, // Ї
-        { 0x00B0, 0x00B0, 0xB0 }, // °
-        { 0x00B1, 0x00B1, 0xB1 }, // ±
-        { 0x0406, 0x0406, 0xB2 }, // І
-        { 0x0456, 0x0456, 0xB3 }, // і
-        { 0x0491, 0x0491, 0xB4 }, // ґ
-        { 0x00B5, 0x00B5, 0xB5 }, // µ
-        { 0x00B6, 0x00B6, 0xB6 }, // ¶
-        { 0x00B7, 0x00B7, 0xB7 }, // ·
-        { 0x0451, 0x0451, 0xB8 }, // ё
-        { 0x2116, 0x2116, 0xB9 }, // №
-        { 0x0454, 0x0454, 0xBA }, // є
-        { 0x00BB, 0x00BB, 0xBB }, // »
-        { 0x0458, 0x0458, 0xBC }, // ј
-        { 0x0405, 0x0405, 0xBD }, // Ѕ
-        { 0x0455, 0x0455, 0xBE }, // ѕ
-        { 0x0457, 0x0457, 0xBF }, // ї
-    };
-
-    //todo revise, use cp_table as an arg instead of a template parameter
-    template<auto cp_table, class TextOrView>
-    auto cp_convert(TextOrView const& utf8_text, char invalid_char)
-    {
-        auto crop = text{};
-        auto count = sizeof(cp_table) / sizeof(letter_sync);
-        auto data = utf8_text.data();
-        auto size = utf8_text.size();
-
-        for (auto i = 0UL; i < size && data[i] != 0; ++i)
-        {
-            auto c = data[i];
-            if ((c & 0x80) == 0)
-            {
-                crop.push_back(c);
-            }
-            else if ((~c) & 0x20 && ++i < size)
-            {
-                auto next = data[i];
-                auto code = utfx{ ((c & 0x1F) << 6) + (next & 0x3F) };
-                c = invalid_char;
-                for (auto j = 0UL; j < count; ++j)
-                {
-                    if (code >= cp_table[j].lb
-                     && code <= cp_table[j].rb)
-                    {
-                        c = static_cast<char>(code - cp_table[j].lb + cp_table[j].cp);
-                        break;
-                    }
-                }
-                crop.push_back(c);
-            }
-        }
-        return crop;
-    }
-
-    template<class TextOrView>
-    text to_dos(TextOrView const& utf8, char invalid_char = '_', codepage cp = codepage::cp866)
-    {
-        switch (cp)
-        {
-            case codepage::cp866:  return cp_convert<utf8_cp866>(utf8, invalid_char);
-            case codepage::cp1251: return cp_convert<utf8_cp1251>(utf8, invalid_char);
-            default:               return utf8;
-        }
-    }
-
-    //todo deprecate
-    template<class T>
-    auto to_view(T* c_str, size_t limit)
-    {
-        auto iter = c_str;
-        auto end = c_str + limit;
-        while (iter < end && *iter != 0) { ++iter; }
-
-        return std::basic_string_view<T>(c_str, iter - c_str);
-    }
 
     void to_utf(char const* utf8, size_t size, wide& wide_text)
     {
@@ -768,7 +574,6 @@ namespace netxs::utf
         to_utf(utf8, size, wide_text);
         return wide_text;
     }
-
     inline utfx tocode(wchr c)
     {
         utfx code;
@@ -879,8 +684,8 @@ namespace netxs::utf
         to_utf(wide_text, size, utf8);
         return utf8;
     }
-    template<class TextOrView>
-    auto to_utf(TextOrView&& str)
+    template<class WideOrUTF8>
+    auto to_utf(WideOrUTF8&& str)
     {
         return to_utf(str.data(), str.size());
     }
@@ -928,9 +733,8 @@ namespace netxs::utf
             return utf8.size() - step;
         }
     }
-
-    template<class Result = si32, class TextOrView>
-    auto length(TextOrView&& utf8)
+    template<class Result = si32>
+    auto length(view utf8)
     {
         auto length = Result{ 0 };
         for (auto c : utf8)
@@ -940,8 +744,7 @@ namespace netxs::utf
         return length;
     }
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
-    template<class TextOrView>
-    void purify(TextOrView& utf8)
+    void purify(view& utf8)
     {
         if (auto size = utf8.size())
         {
@@ -965,37 +768,11 @@ namespace netxs::utf
             }
         }
     }
-    //todo deprecate cus too specific
-    si32 shrink(view& utf8)
+    auto substr(qiew utf8, size_t start, size_t length = text::npos)
     {
-        auto length = si32{ 0 };
-        auto size = utf8.size();
-        auto i = 0_sz;
-
-        while (i < size)
-        {
-            if ((utf8[i] & 0xc0) != 0x80)
-            {
-                if (utf8[i] > 0 && utf8[i] < 32)
-                {
-                    break;
-                }
-                length++;
-            }
-            i++;
-        }
-        utf8.remove_suffix(size - i);
-        return length;
-    }
-
-    template<class TextOrView>
-    auto substr(TextOrView&& utf8, size_t start, size_t length = text::npos)
-    {
-        if (length == 0) return text{};
-
-        auto data = text{ utf8 };
-        auto head = data.data();
-        auto stop = head + data.size();
+        if (length == 0) return view{};
+        auto head = utf8.data();
+        auto stop = head + utf8.size();
         auto calc = [](auto& it, auto& count, auto limit)
         {
             while (it != limit)
@@ -1010,20 +787,17 @@ namespace netxs::utf
 
         if (start) calc(head, start, stop);
 
-        start = head - data.data();
+        start = head - utf8.data();
         if (length != text::npos)
         {
             auto tail = head;
             calc(tail, length, stop);
-            return data.substr(start, tail - head);
+            return utf8.substr(start, tail - head);
         }
-        else return data.substr(start);
+        else return utf8.substr(start);
     }
-
-    template<class TextOrView>
-    auto repeat(TextOrView&& utf8, size_t count)
+    auto repeat(view what, size_t count)
     {
-        auto what = view{ utf8 };
         auto result = text{};
         result.reserve(what.length() * count);
         while (count--)
@@ -1036,7 +810,6 @@ namespace netxs::utf
     {
         return text(count, letter);
     }
-
     template<class TextOrView, class C>
     auto remove(TextOrView&& from, C&& what)
     {
@@ -1052,7 +825,6 @@ namespace netxs::utf
         }
         return from.substr(0, s_size);
     }
-
     template<class W, class R>
     void change(text& utf8, W const& what, R const& replace)
     {
@@ -1120,13 +892,27 @@ namespace netxs::utf
         }
     }
     template<class W, class R>
-    auto change(view utf8, W const& what, R const& replace)
+    auto change(qiew utf8, W const& what, R const& replace)
     {
-        auto crop = text{ utf8 };
+        auto crop = utf8.str();
         change(crop, what, replace);
         return crop;
     }
+    struct filler
+    {
+        std::map<text, text> dict;
 
+        auto& operator [] (text const& s)
+        {
+            return dict[s];
+        }
+        auto operator () (text s)
+        {
+            for (auto& var : dict) utf::change(s, var.first, var.second);
+            for (auto& var : dict) utf::change(s, var.first, var.second);
+            return s;
+        }
+    };
     template<class TextOrView, class T>
     auto remain(TextOrView&& utf8, T const& delimiter, bool lazy = true)
     {
@@ -1145,7 +931,6 @@ namespace netxs::utf
         auto what = view{ &delimiter, 1 };
         return remain(std::forward<TextOrView>(utf8), what, lazy);
     }
-
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
     template<class T>
     T cutoff(T const& txt, T const& delimiter = T{ '.' }, bool lazy = true)
@@ -1162,7 +947,6 @@ namespace netxs::utf
     {
         return remain(txt);
     }
-
     template<class TextOrView, class F>
     auto adjust(TextOrView&& utf8, size_t required_width, F const& fill_char, bool right_aligned = faux)
     {
@@ -1187,7 +971,6 @@ namespace netxs::utf
         }
         return crop;
     }
-
     template<class Int_t, class T = char>
     text format(Int_t number, size_t by_group = 3, T const& delimiter = ' ')
     {
@@ -1208,7 +991,6 @@ namespace netxs::utf
         }
         else return std::to_string(number);
     }
-
     template<class T, int L = std::numeric_limits<T>::digits>
     auto to_bin(T n)
     {
@@ -1306,7 +1088,6 @@ namespace netxs::utf
             return crop;
         }
     }
-
     template<feed Dir = feed::fwd, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto divide(V1 const& utf8, char delimiter, P proc)
     {
@@ -1341,10 +1122,9 @@ namespace netxs::utf
         }
     }
     template<class V1, class V2>
-    auto divide(V1 const& utf8, V2 const& delimiter)
+    auto divide(V1 const& utf8, V2 const& delimiter, std::vector<view>& crop)
     {
         auto mark = qiew(delimiter);
-        auto crop = std::vector<view>{};
         if (auto len = mark.size())
         {
             auto num = 0_sz;
@@ -1368,7 +1148,13 @@ namespace netxs::utf
         }
         return crop;
     }
-
+    template<class V1, class V2>
+    auto divide(V1 const& utf8, V2 const& delimiter)
+    {
+        auto crop = std::vector<view>{};
+        divide(utf8, delimiter, crop);
+        return crop;
+    }
     template<class Container>
     auto maxlen(Container const& set)
     {
@@ -1380,46 +1166,11 @@ namespace netxs::utf
         }
         return len;
     }
-
-    class filler
-    {
-        std::map<text, text> dict;
-
-    public:
-        auto& operator [] (text const& s)
-        {
-            return dict[s];
-        }
-        auto operator () (text s)
-        {
-            for (auto& var : dict) utf::change(s, var.first, var.second);
-            for (auto& var : dict) utf::change(s, var.first, var.second);
-            return s;
-        }
-    };
-
-    namespace
-    {
-        template<class T>
-        void _concat(flux& s, T&& item)
-        {
-            s << item;
-        }
-        template<class T, class ...Args>
-        void _concat(flux& s, T&& item, Args&&... args)
-        {
-            s << item;
-            _concat(s, std::forward<Args>(args)...);
-        }
-    }
     template<class ...Args>
     auto concat(Args&&... args)
     {
-        auto s = flux{};
-        _concat(s, std::forward<Args>(args)...);
-        return s.str();
+        return (flux{} << ... << std::forward<Args>(args)).str();
     }
-
     auto base64(view utf8)
     {
         auto code = base64code;
@@ -1466,15 +1217,13 @@ namespace netxs::utf
         }
         return data;
     }
-
-    auto unbase64(view bs64)
+    auto unbase64(view bs64, text& data)
     {
         auto code = base64code;
         auto is64 = [](auto c) { return (c > 0x2E && c < 0x3A) // '/' and digits
                                      || (c > 0x40 && c < 0x5B) // Uppercase letters
                                      || (c > 0x60 && c < 0x7B) // Lowercase letters
                                      || (c == 0x2B); };        // '+'
-        auto data = text{};
         auto look = view{ code };
         //todo reserv data
         if (auto size = bs64.size())
@@ -1508,15 +1257,19 @@ namespace netxs::utf
                 if (step > 2) data.push_back(((buff[1] & 0x0F) << 4) + ((buff[2] & 0x3C) >> 2));
             }
         }
+    }
+    auto unbase64(view bs64)
+    {
+        auto data = text{};
+        unbase64(bs64, data);
         return data;
     }
-
-    // utf: Return a string without control chars (replace all ctrls with printables).
+    // utf: Escape control chars (replace all ctrls with printables), put it to the buff, and return the buff's delta.
     template<bool Split = true, bool Multiline = true>
-    auto debase(qiew utf8)
+    auto debase(qiew utf8, text& buff)
     {
         auto mode = si32{};
-        auto buff = text{};
+        auto init = buff.size();
         auto size = utf8.size();
         buff.reserve(size * 2);
         auto head  = size - 1; // Begining with ESC is a special case.
@@ -1566,9 +1319,16 @@ namespace netxs::utf
             else                                   buff += cluster.text;
         };
         decode<faux>(s, y, utf8, mode);
+        return static_cast<si32>(buff.length() - init);
+    }
+    // utf: Return a string without control chars (replace all ctrls with printables).
+    template<bool Split = true, bool Multiline = true>
+    auto debase(qiew utf8)
+    {
+        auto buff = text{};
+        debase<Split, Multiline>(utf8, buff);
         return buff;
     }
-
     template<class Iter>
     auto find_char(Iter head, Iter tail, view delims)
     {
@@ -1716,18 +1476,18 @@ namespace netxs::utf
             if constexpr (Lazy)
             {
                 utf8 = view{};
-                return utf8;
+                return qiew{ utf8 };
             }
             else
             {
-                auto crop = utf8;
+                auto crop = qiew{ utf8 };
                 utf8 = view{};
                 return crop;
             }
         }
         //todo Clang 13.0.0 doesn't get it
         //auto str = view{ head, stop };
-        auto str = view{ &(*head), (size_t)(stop - head) };
+        auto str = qiew{ &(*head), (size_t)(stop - head) };
         utf8.remove_prefix(std::distance(head, stop));
         return str;
     }
@@ -1798,17 +1558,25 @@ namespace netxs::utf
         }
     }
     template<class V>
-    auto to_hex_0x(V const& num)
+    auto to_hex_0x(V const& n)
     {
-        auto result = (flux{} << std::hex << num).str();
-        auto shadow = view{ result };
-        trim_front(shadow, '0');
-        return shadow.empty() ? "0x0"s
-                              : "0x" + text{ shadow };
+        auto result = (flux{} << std::showbase << std::hex << n).str();
+        return result;
     }
-    auto to_hex_0x(wchr num)
+    auto to_hex_0x(wchr n)
     {
-        return to_hex_0x((int)num);
+        return to_hex_0x((int)n);
+    }
+    auto trunc(view utf8, size_t maxy) // Returns a string trimmed at maxy lines.
+    {
+        auto crop = 0_sz;
+        while (maxy--)
+        {
+            crop = utf8.find('\n', crop);
+            if (crop != text::npos) crop++;
+            else break;
+        }
+        return qiew{ utf8.substr(0, crop) };
     }
 }
 

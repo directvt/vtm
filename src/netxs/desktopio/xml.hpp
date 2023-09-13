@@ -60,7 +60,7 @@ namespace netxs::xml
     }
 
     template<class T>
-    auto take(view utf8) -> std::optional<T>
+    auto take(qiew utf8) -> std::optional<T>
     {
         if (utf8.starts_with("0x"))
         {
@@ -70,21 +70,21 @@ namespace netxs::xml
         else return utf::to_int<T, 10>(utf8);
     }
     template<>
-    auto take<text>(view utf8) -> std::optional<text>
+    auto take<text>(qiew utf8) -> std::optional<text>
     {
-        return text{ utf8 };
+        return utf8.str();
     }
     template<>
-    auto take<bool>(view utf8) -> std::optional<bool>
+    auto take<bool>(qiew utf8) -> std::optional<bool>
     {
-        auto value = utf::to_low(text{ utf8 });
+        auto value = utf::to_low(utf8.str());
         return value.empty() || value.starts_with("1")  // 1 - true
                              || value.starts_with("on") // on
                              || value.starts_with("y")  // yes
                              || value.starts_with("t"); // true
     }
     template<>
-    auto take<twod>(view utf8) -> std::optional<twod>
+    auto take<twod>(qiew utf8) -> std::optional<twod>
     {
         utf::trim_front(utf8, " ({[\"\'");
         if (auto x = utf::to_int(utf8))
@@ -98,7 +98,7 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<span>(view utf8) -> std::optional<span>
+    auto take<span>(qiew utf8) -> std::optional<span>
     {
         using namespace std::chrono;
         utf::trim_front(utf8, " ({[\"\'");
@@ -119,7 +119,7 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<rgba>(view utf8) -> std::optional<rgba>
+    auto take<rgba>(qiew utf8) -> std::optional<rgba>
     {
         auto tobyte = [](auto c)
         {
@@ -128,7 +128,7 @@ namespace netxs::xml
             else                           return 0;
         };
 
-        auto value = utf::to_low(text{ utf8 });
+        auto value = utf::to_low(utf8.str());
         auto result = rgba{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
@@ -151,7 +151,7 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log(prompt::xml, "Unknown hex rgba format: { ", value, " }, expected #rrggbbaa or #rrggbb rgba hex value");
+            else log("%%Unknown hex rgba format: { %value% }, expected #rrggbbaa or #rrggbb rgba hex value", prompt::xml, value);
         }
         else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
         {
@@ -172,7 +172,7 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log(prompt::xml, "Unknown hex rgba format: { ", value, " }, expected 0xaabbggrr or 0xbbggrr rgba hex value");
+            else log("%%Unknown hex rgba format: { %value% }, expected 0xaabbggrr or 0xbbggrr rgba hex value", prompt::xml, value);
         }
         else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
         {
@@ -194,16 +194,16 @@ namespace netxs::xml
                     }
                 }
             }
-            log(prompt::xml, "Unknown rgba format: { ", value, " }, expected 000,000,000,000 decimal rgba value");
+            log("%%Unknown hex rgba format: { %value% }, expected 000,000,000,000 decimal rgba value", prompt::xml, value);
         }
         else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
             if (c.value() >=0 && c.value() <=255)
             {
-                result = rgba::color256[c.value()];
+                result = rgba::vt256[c.value()];
                 return result;
             }
-            else log(prompt::xml, "Unknown ANSI 256-color value format: { ", value, " }, expected 0-255 decimal value");
+            else log("%%Unknown ANSI 256-color value format: { %value% }, expected 0-255 decimal value", prompt::xml, value);
         }
         return std::nullopt;
     }
@@ -321,7 +321,7 @@ namespace netxs::xml
                 //auto tmp = page.data.front().upto;
                 //auto clr = 0;
     
-                auto yield = ansi::esc{};
+                auto yield = ansi::escx{};
                 auto next = data;
                 while (next)
                 {
@@ -696,7 +696,7 @@ namespace netxs::xml
                         dest.push_back(item);
                         continue;
                     }
-                    log(prompt::xml, "Unexpected format for item '", parent_path, "/", item->name->utf8, "'");
+                    log("%%Unexpected format for item '%parent_path%/%item->name->utf8%'", prompt::xml, parent_path, item->name->utf8);
                 }
             }
             else log(prompt::xml, "Destination path not found ", parent_path);
@@ -771,7 +771,7 @@ namespace netxs::xml
         }
         auto name(view& data)
         {
-            auto item = text{ utf::get_tail(data, token_delims) };
+            auto item = utf::get_tail(data, token_delims).str();
             utf::to_low(item);
             return item;
         }
@@ -1159,7 +1159,7 @@ namespace netxs::xml
             }
             else
             {
-                auto relative = utf::trim(gotopath, '/');;
+                auto relative = utf::trim(gotopath, '/');
                 if (homelist.size())
                 {
                     homelist = homelist.front()->list(relative);
@@ -1170,7 +1170,7 @@ namespace netxs::xml
             auto test = !!homelist.size();
             if (!test)
             {
-                log(prompt::xml, ansi::err("xml path not found: ") + homepath);
+                log("%% %err%xml path not found: %path%%nil%", prompt::xml, ansi::err(), homepath, ansi::nil());
             }
             return test;
         }
@@ -1214,7 +1214,7 @@ namespace netxs::xml
                 else frompath = homepath + "/" + frompath;
             }
             if (tempbuff.size()) crop = tempbuff.back()->value();
-            else if constexpr (!Quiet) log(prompt::xml, ansi::fgc(redlt) + "xml path not found: " + ansi::nil() + frompath);
+            else if constexpr (!Quiet) log("%prompt%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
             if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);
@@ -1337,9 +1337,7 @@ namespace netxs::xml
     };
     namespace options
     {
-        using mime = ansi::clip::mime;
-
-        static auto selmod = std::unordered_map<text, mime>
+        static auto selmod = std::unordered_map<text, si32>
            {{ "none",      mime::disabled },
             { "text",      mime::textonly },
             { "ansi",      mime::ansitext },
