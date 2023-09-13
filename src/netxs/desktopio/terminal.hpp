@@ -7809,12 +7809,12 @@ namespace netxs::ui
         {
             if (active.exchange(faux) && ipccon)
             {
-                stream.s11n::sysclose.send(*this, 0, fast);
+                stream.s11n::sysclose.send(*this, fast);
             }
             netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
             {
                 ipccon.cleanup();
-                RISEUP(tier::release, e2::form::proceed::quit::one, true);
+                this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
             });
         }
         // dtvt: Splash screen if there is no next frame.

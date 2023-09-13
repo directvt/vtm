@@ -2349,7 +2349,7 @@ namespace netxs::ui
             {
                 if (alive.exchange(faux))
                 {
-                    s11n::sysclose.send(canal, 0, true);
+                    s11n::sysclose.send(canal, true);
                     canal.wake();
                 }
             }
