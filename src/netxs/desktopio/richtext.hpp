@@ -1331,8 +1331,8 @@ namespace netxs::ui
                         insert(*iter2);
                         return true;
                     }
-                    if ((iter1++)->wdt() == 2 && iter1 != end_1 && (iter1++)->wdt() != 3) log("%%", prompt::para, "Corrupted glyph");
-                    if ((iter2++)->wdt() == 2 && iter2 != end_2 && (iter2++)->wdt() != 3) log("%%", prompt::para, "Corrupted glyph");
+                    if ((iter1++)->wdt() == 2 && iter1 != end_1 && (iter1++)->wdt() != 3) log(prompt::para, "Corrupted glyph");
+                    if ((iter2++)->wdt() == 2 && iter2 != end_2 && (iter2++)->wdt() != 3) log(prompt::para, "Corrupted glyph");
                 }
             }
             return faux;
@@ -2067,7 +2067,7 @@ namespace netxs::ui
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
         auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
 
-        void tabs(si32) { if constexpr (debugmode) log("%%", prompt::page, "Tabs not supported"); }
+        void tabs(si32) { if constexpr (debugmode) log(prompt::page, "Tabs not supported"); }
     };
 
     struct tone

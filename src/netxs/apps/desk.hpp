@@ -331,13 +331,13 @@ namespace netxs::app::desk
             auto user_info = utf::divide(v, ";");
             if (user_info.size() < 2)
             {
-                log("%%", prompt::desk, "Bad window arguments: args=", utf::debase(v));
+                log(prompt::desk, "Bad window arguments: args=", utf::debase(v));
                 return window;
             }
             auto& user_id___view = user_info[0];
             auto& user_name_view = user_info[1];
             auto& menu_selected  = user_info[2];
-            log("%%", prompt::desk, "User ", user_name_view, " connected");
+            log("%%User %name% connected", prompt::desk, user_name_view);
 
             if (auto value = utf::to_int(user_id___view)) my_id = value.value();
             else return window;
@@ -579,7 +579,7 @@ namespace netxs::app::desk
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (name))
                         {
-                            log("%%", prompt::desk, "User ", name, " disconnected");
+                            log("%%User %name% disconnected", prompt::desk, name);
                             gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                             gear.dismiss();
                         };

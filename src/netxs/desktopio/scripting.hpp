@@ -113,8 +113,8 @@ namespace netxs::scripting
 
             //netxs::events::enqueue(owner.This(), [&, code](auto& boss) mutable
             //{
-            //    if (code) log("%%", ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::repl, "Exit code ", utf::to_hex_0x(code), ' ').nil());
-            //    else      log("%%", prompt::repl, "Exit code 0");
+            //    if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::repl, "Exit code ", utf::to_hex_0x(code), ' ').nil());
+            //    else      log(prompt::repl, "Exit code 0");
             //    //backup.reset(); // Call repl::dtor.
             //});
         }
@@ -134,7 +134,7 @@ namespace netxs::scripting
             if (!engine) return;
             if constexpr (Echo)
             {
-                log("%%", ansi::fgc(yellowlt).add(data).nil());
+                log(ansi::fgc(yellowlt).add(data).nil());
             }
             engine->write(data + '\n');
         }
@@ -182,7 +182,7 @@ namespace netxs::scripting
             owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
             {
                 if (engine) write(utf8);
-                else        log("%%", prompt::repl, utf::debase<faux, faux>(utf8));
+                else        log(prompt::repl, utf::debase<faux, faux>(utf8));
             };
         }
     };

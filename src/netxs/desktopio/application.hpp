@@ -444,7 +444,7 @@ namespace netxs::app::shared
         const auto it = map.find(app_typename);
         if (it == map.end())
         {
-            log("%%", prompt::apps, "Unknown app type - '", app_typename, "'");
+            log("%%Unknown app type - '%app_typename%'", prompt::apps, app_typename);
             return empty;
         }
         else return it->second;
@@ -469,18 +469,18 @@ namespace netxs::app::shared
                     }
                     else
                     {
-                        log("%%", prompt::apps, "Failed to get configuration from :", shadow);
+                        log(prompt::apps, "Failed to get configuration from :", shadow);
                         return faux;
                     }
                 }
                 auto path = shadow.str();
-                log("%%", prompt::apps, "Loading configuration from ", path, "...");
+                log("%%Loading configuration from %path%...", prompt::apps, path);
                 if (path.starts_with("$"))
                 {
                     auto temp = path.substr(1);
                     path = os::env::get(temp);
                     if (path.empty()) return faux;
-                    log("%%", prompt::pads, temp, " = ", path);
+                    log(prompt::pads, temp, " = ", path);
                 }
                 auto config_path = path.starts_with("~") ? os::env::homepath() / path.substr(2 /* trim `~/` */)
                                                          : fs::path{ path };
@@ -493,12 +493,12 @@ namespace netxs::app::shared
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
                     {
-                        log("%%", prompt::pads, "Failed\n\tUnable to get configuration file size, skip it: ", config_path_str);
+                        log(prompt::pads, "Failed\n\tUnable to get configuration file size, skip it: ", config_path_str);
                         return faux;
                     }
                     else
                     {
-                        log("%%", prompt::pads, "Reading configuration: ", config_path_str);
+                        log(prompt::pads, "Reading configuration: ", config_path_str);
                         auto size = file.tellg();
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
@@ -507,14 +507,14 @@ namespace netxs::app::shared
                         return true;
                     }
                 }
-                log("%%", prompt::pads, "No configuration found, try another source");
+                log(prompt::pads, "No configuration found, try another source");
                 return faux;
             };
             if (!load(cli_config_path)
              && !load(app::shared::env_config)
              && !load(app::shared::usr_config))
             {
-                log("%%", prompt::pads, "Fallback to hardcoded configuration");
+                log(prompt::pads, "Fallback to hardcoded configuration");
             }
 
             os::env::set(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);

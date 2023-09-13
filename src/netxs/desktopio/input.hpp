@@ -1447,7 +1447,7 @@ namespace netxs::input
         void fire_focus()
         {
             alive = true;
-            //if constexpr (debugmode) log("%%", prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
+            //if constexpr (debugmode) log(prompt::foci, "Take focus hid:", id, " state:", f.state ? "on":"off");
             //todo focus<->seed
             if (focus::state) owner.SIGNAL(tier::release, hids::events::focus::set, *this);
             else              owner.SIGNAL(tier::release, hids::events::focus::off, *this);
