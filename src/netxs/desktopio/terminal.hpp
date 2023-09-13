@@ -7227,12 +7227,12 @@ namespace netxs::ui
                 }
 
                 //if (input::key::map::name(gear.keycode) == input::key::undef)
-                {
-                    log("gear.keycode: ",  gear.keycode,
-                        " pressed: ", gear.pressed,
-                        " virtcod: ", gear.virtcod,
-                        " scancod: ", gear.scancod);
-                }
+                //{
+                //    log("gear.keycode: ",  gear.keycode,
+                //        " pressed: ", gear.pressed,
+                //        " virtcod: ", gear.virtcod,
+                //        " scancod: ", gear.scancod);
+                //}
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
