@@ -3079,6 +3079,8 @@ namespace netxs::os
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
 
+            operator bool () { return attached; }
+
             void cleanup()
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
@@ -3094,9 +3096,6 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
-
-            operator bool () { return attached; }
-
             auto attach_process(text cwd, text cmdline, twod winsz, size_t config_size)
             {
                 auto marker = directvt::binary::marker{ config_size, winsz };

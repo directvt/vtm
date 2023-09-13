@@ -7630,7 +7630,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysclose            lock)
             {
-                master.stop<faux>(true);
+                master.active.exchange(faux);
+                master.stop(true);
             }
 
             evnt(dtvt& master)
@@ -7770,11 +7771,6 @@ namespace netxs::ui
                 stream.s11n::sync(data);
             }
         }
-        // dtvt: Destruct dtvt-object.
-        void close()
-        {
-            this->RISEUP(tier::release, e2::form::proceed::quit::one, true);
-        }
 
     public:
         // dtvt: Format error message overlay.
@@ -7791,8 +7787,8 @@ namespace netxs::ui
         // dtvt: Shutdown callback handler.
         void onexit()
         {
-            if (!active) return;
-            netxs::events::enqueue(This(), [&](auto& boss) mutable
+            if (!active.exchange(faux)) return;
+            netxs::events::enqueue(This(), [&](auto& boss) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -7818,20 +7814,17 @@ namespace netxs::ui
             }
         }
         // dtvt: Close dtvt-object.
-        template<bool Reply = true>
         void stop(bool fast)
         {
-            if (ipccon)
+            if (active.exchange(faux) && ipccon)
             {
-                active.exchange(faux);
-                if constexpr (Reply) stream.s11n::sysclose.send(*this, 0, fast);
-                netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
-                {
-                    ipccon.cleanup();
-                    close();
-                });
+                stream.s11n::sysclose.send(*this, 0, fast);
             }
-            else close();
+            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+            {
+                ipccon.cleanup();
+                RISEUP(tier::release, e2::form::proceed::quit::one, true);
+            });
         }
         // dtvt: Splash screen if there is no next frame.
         void fallback(core const& canvas, bool forced = faux)
