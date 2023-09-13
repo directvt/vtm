@@ -2982,7 +2982,7 @@ namespace netxs::os
         {
             if (os::dtvt::active)
             {
-                log(prompt::os, "DirectVT");
+                log(prompt::os, "DirectVT mode");
                 mode |= dtvt::direct;
             }
             else
