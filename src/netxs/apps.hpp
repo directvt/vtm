@@ -368,6 +368,14 @@ namespace netxs::app::shared
                                       ->invoke([&](auto& boss)
                                       {
                                             //todo unify: Same as in app::term (term.hpp).
+                                            boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                                            {
+                                                boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                                            };
+                                            boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                                            {
+                                                boss.sighup(fast);
+                                            };
                                             boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                                             {
                                                 boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));

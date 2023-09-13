@@ -675,9 +675,9 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        if (boss.count() > 1 && boss.back()->base::kind() == 0)
+                        if (boss.count() > 0 && boss.back()->base::root()) // Walking a nested visual tree.
                         {
-                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast);
+                            boss.back()->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast); // Forward a quit message to hosted app in order to schedule a cleanup.
                         }
                         else boss.SIGNAL(tier::release, e2::form::proceed::quit::one, fast);
                     };
