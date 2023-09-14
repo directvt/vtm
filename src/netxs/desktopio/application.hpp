@@ -103,7 +103,7 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -140,11 +140,18 @@ namespace netxs::app::shared
                                 };
                             });
                 };
+                auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
+                auto bttnlist = tailitem->attach(ui::list::ctor(axis::X));
+                auto innerpad = dent{ 1,2,1,1 };
+                auto outerpad = dent{ 1 };
                 if (custom) // Apply a custom menu controls.
                 {
-                    auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{ 0 }));
-                    make_item(menu_items.back(), tailitem, x1, c1);
-                    menu_items.pop_back();
+                    while (custom--)
+                    {
+                        auto mid_item = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
+                        make_item(menu_items.back(), mid_item, x1, c1);
+                        menu_items.pop_back();
+                    }
                 }
                 else // Add standard menu controls.
                 {
@@ -179,13 +186,10 @@ namespace netxs::app::shared
                             };
                         }},
                     };
-                    auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
-                    auto bttnlist = tailitem->attach(ui::list::ctor(axis::X));
                     auto iter = control.begin();
-                    auto inner_pads = dent{ 1,2,1,1 };
-                    auto mid_item1 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
-                    auto mid_item2 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
-                    auto mid_item3 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    auto mid_item1 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
+                    auto mid_item2 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
+                    auto mid_item3 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
                     make_item(*iter++, mid_item1, x3, c3);
                     make_item(*iter++, mid_item2, x3, c3);
                     make_item(*iter++, mid_item3, x1, c1);
@@ -300,7 +304,7 @@ namespace netxs::app::shared
             auto autohide = config.take("menu/autohide", faux);
             auto menushow = config.take("menu/enabled" , true);
             auto menusize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, menusize, faux, menu_items);
+            return mini(autohide, menushow, menusize, 0, menu_items);
         };
         const auto demo = [](xmls& config)
         {

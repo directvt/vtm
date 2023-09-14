@@ -397,7 +397,7 @@ namespace netxs::app::tile
             auto cC = menu_black;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
+            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
             menu::list
             {
                 { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "+", .notes = " New app " } }}),
