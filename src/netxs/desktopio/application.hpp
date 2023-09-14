@@ -103,7 +103,7 @@ namespace netxs::app::shared
                 canvas.fill(handle, [](cell& c) { c.und(true); });
             }
         };
-        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, bool allow_minimize, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool menusize, bool custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -198,14 +198,6 @@ namespace netxs::app::shared
                 {
                     scroll_hint->visible(hints, faux);
                     auto slim_status = ptr::shared(menusize);
-                    if (allow_minimize)
-                    {
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                        {
-                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
-                            gear.dismiss();
-                        };
-                    }
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
@@ -290,7 +282,7 @@ namespace netxs::app::shared
             auto autohide = config.take("menu/autohide", faux);
             auto menushow = config.take("menu/enabled" , true);
             auto menusize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, menusize, faux, true, menu_items);
+            return mini(autohide, menushow, menusize, faux, menu_items);
         };
         const auto demo = [](xmls& config)
         {

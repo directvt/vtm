@@ -76,10 +76,24 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            auto& inst = *data_src;
-                            inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center, (inst.base::center()));  // Goto to the window.
-                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                            auto& window = *data_src;
+                            auto  center = window.base::area().center();
+                            window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
+                            auto viewport = gear.owner.base::area();
+                            if (viewport.hittest(center) && zpos_state != zpos::hidden) // Minimize if visible.
+                            {
+                                window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                            }
+                            else
+                            {
+                                if (zpos_state == zpos::hidden) // Restore if hidden.
+                                {
+                                    window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                                }
+                                window.SIGNAL(tier::preview, e2::form::layout::expose, window);
+                                gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
+                                pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                            }
                             gear.dismiss();
                         }
                     };
@@ -87,10 +101,15 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            auto& inst = *data_src;
-                            inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                            auto& window = *data_src;
+                            window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
+                            if (zpos_state == zpos::hidden) // Restore if hidden.
+                            {
+                                window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                            }
+                            window.SIGNAL(tier::preview, e2::form::layout::expose, window);
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            inst.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
+                            window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
                             pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }

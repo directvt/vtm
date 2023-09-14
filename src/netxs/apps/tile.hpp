@@ -317,17 +317,20 @@ namespace netxs::app::tile
                         {
                             boss.RISEUP(tier::release, events::enlist, boss.This());
                         };
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                        {
+                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        };
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+                        {
+                            pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        };
                     })
                     ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
                         ->upload(what.header)
                         ->invoke([&](auto& boss)
                         {
                             boss.color(0, 0);
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                            {
-                                boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
-                                gear.dismiss();
-                            };
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
                                 auto shadow = ptr::shadow(boss.This());
@@ -394,7 +397,7 @@ namespace netxs::app::tile
             auto cC = menu_black;
 
             using namespace app::shared;
-            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true, faux,
+            auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
             menu::list
             {
                 { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " +", .notes = " New app " } }}),

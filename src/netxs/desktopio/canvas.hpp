@@ -21,6 +21,7 @@ namespace netxs
 
     enum class zpos : si32
     {
+        hidden   = -2,
         backmost = -1,
         plain    =  0,
         topmost  =  1,

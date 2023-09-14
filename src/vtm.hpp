@@ -151,7 +151,7 @@ namespace netxs::app::vtm
                 };
                 window_ptr->LISTEN(tier::release, e2::form::layout::minimize, gear, memo)
                 {
-                    what.applet->bell::expire<tier::release>(); // Suppress minimization.
+                    what.applet->bell::expire<tier::release>(); // Suppress hide/minimization.
                     unbind();
                 };
                 window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
@@ -243,6 +243,10 @@ namespace netxs::app::vtm
                 {
                     seat = order;
                     boss.SIGNAL(tier::release, e2::form::prop::zorder, seat);
+                };
+                boss.LISTEN(tier::request, e2::form::prop::zorder, order)
+                {
+                    order = seat;
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::expose, boss, memo)
                 {
@@ -1212,44 +1216,42 @@ namespace netxs::app::vtm
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
                     };
-                    auto size_state = ptr::shared(dot_11);
-                    auto last_state = ptr::shared(faux);
-                    auto min_size = ptr::shared(dot_11);
-                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (size_state, min_size, last_state))
+                    auto zpos_state = ptr::shared(zpos::plain);
+                    auto last_state = ptr::shared(zpos::plain);
+                    auto real_state = ptr::shared(zpos::plain);
+                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (zpos_state, last_state, real_state))
                     {
-                        auto size = boss.base::size();
-                        if (size.y == min_size->y) // Restore if it is minimized.
+                        if (*last_state == zpos::hidden) // Restore if it is hidden.
                         {
-                            boss.base::resize({ size.x, size_state->y });
-                            *last_state = true;
+                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *real_state);
+                            *last_state = *real_state;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (size_state, min_size, last_state))
+                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (zpos_state, last_state, real_state))
                     {
-                        auto size = boss.base::size();
-                        if (*last_state && size.y == size_state->y) // Return to minimized state.
+                        if (*last_state != zpos::hidden && *zpos_state == zpos::hidden) // Return to hidden state.
                         {
-                            *size_state = size;
-                            boss.base::resize({ size.x, 1 });
-                            *min_size = boss.base::size();
+                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *zpos_state);
+                            *last_state = *zpos_state;
                         }
-                        *last_state = faux;
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (size_state, min_size))
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (zpos_state, last_state, real_state))
                     {
                         auto This = boss.This();
-                        auto size = boss.base::size();
-                        if (size.y == min_size->y)
+                        if (*last_state == zpos::hidden) // Restore if it is hidden.
                         {
-                            boss.base::resize({ size.x, size_state->y });
+                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *real_state);
+                            *last_state = *real_state;
+                            *zpos_state = *real_state;
                             pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                     : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
-                        else
+                        else // Hide if visible.
                         {
-                            *size_state = size;
-                            boss.base::resize({ size.x, 1 });
-                            *min_size = boss.base::size();
+                            boss.SIGNAL(tier::request, e2::form::prop::zorder, *real_state);
+                            *zpos_state = zpos::hidden;
+                            *last_state = zpos::hidden;
+                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *zpos_state);
                             // Refocusing.
                             boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                             if (auto parent = boss.parent())
@@ -1294,6 +1296,14 @@ namespace netxs::app::vtm
                             gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
                             boss.base::deface();
                         }
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                    {
+                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                    };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+                    {
+                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     };
                     boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
                     {
