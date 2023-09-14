@@ -117,8 +117,6 @@ namespace netxs::app::shared
 
             auto slot1 = ui::veer::ctor();
             auto menuarea = ui::fork::ctor()->active();
-                auto inner_pads = dent{ 1,2,1,1 };
-                auto menulist = menuarea->attach(slot::_1, ui::fork::ctor());
                 auto fader = skin::globals().fader_time;
 
                 auto make_item = [&](auto& body, auto& dest_ptr, auto& fgc, auto& bgc)
@@ -142,42 +140,58 @@ namespace netxs::app::shared
                                 };
                             });
                 };
-                auto headitem = menulist->attach(slot::_1, ui::pads::ctor(inner_pads, dent{ 0 }));
-                auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{ 0 }));
-                if (custom) // Apply a custom front/last menu items.
+                if (custom) // Apply a custom menu controls.
                 {
-                    make_item(menu_items.front(), headitem, x6, c6);
-                    make_item(menu_items.back(),  tailitem, x1, c1);
-                    menu_items.pop_front();
+                    auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 2,2,1,1 }, dent{ 0 }));
+                    make_item(menu_items.back(), tailitem, x1, c1);
                     menu_items.pop_back();
                 }
-                else // Apply standard front/last menu items.
+                else // Add standard menu controls.
                 {
-                    headitem->plugin<pro::fader>(x3, c3, fader)
-                            ->plugin<pro::notes>(" Fullscreen mode ")
-                            ->invoke([&](ui::pads& boss)
+                    auto control = list
+                    {
+                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize " } }}),
+                        [](ui::pads& boss, auto& item)
+                        {
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
-                                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
-                                    gear.dismiss();
-                                };
-                            })
-                            ->attach(ui::item::ctor(" ≡", faux, true));
-                    tailitem->plugin<pro::fader>(x1, c1, fader)
-                            ->plugin<pro::notes>(" Close ")
-                            ->invoke([&](auto& boss)
+                                boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                                gear.dismiss();
+                            };
+                        }},
+                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "□", .notes = " Maximize " } }}),
+                        [](ui::pads& boss, auto& item)
+                        {
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
-                                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                                {
-                                    auto backup = boss.This();
-                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
-                                    gear.dismiss();
-                                };
-                            })
-                            ->attach(ui::item::ctor("×"));
+                                boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                                gear.dismiss();
+                            };
+                        }},
+                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Close " } }}),
+                        [](ui::pads& boss, auto& item)
+                        {
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            {
+                                auto backup = boss.This();
+                                boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                                gear.dismiss();
+                            };
+                        }},
+                    };
+                    auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
+                    auto bttnlist = tailitem->attach(ui::list::ctor(axis::X));
+                    auto iter = control.begin();
+                    auto inner_pads = dent{ 1,2,1,1 };
+                    auto mid_item1 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    auto mid_item2 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    auto mid_item3 = bttnlist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    make_item(*iter++, mid_item1, x3, c3);
+                    make_item(*iter++, mid_item2, x3, c3);
+                    make_item(*iter++, mid_item3, x1, c1);
                 }
-                auto scrlarea = menulist->attach(slot::_2, ui::cake::ctor());
+                auto headarea = menuarea->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0 }));
+                auto scrlarea = headarea->attach(ui::cake::ctor());
                 auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
@@ -186,10 +200,14 @@ namespace netxs::app::shared
 
                 auto scrl_grip = scrlarea->attach(scroll_hint);
 
+                auto inner_pads = dent{ 2,2,1,1 };
+                auto outer_pads = dent{ 0 };
                 for (auto& body : menu_items)
                 {
-                    auto mid_item = scrllist->attach(ui::pads::ctor(inner_pads, dent{ 1 }));
+                    auto mid_item = scrllist->attach(ui::pads::ctor(inner_pads, outer_pads));
                     make_item(body, mid_item, x3, c3);
+                    outer_pads.west = 1;
+                    inner_pads.west = 1;
                 }
 
             auto menu_block = ui::park::ctor()

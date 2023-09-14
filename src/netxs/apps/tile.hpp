@@ -400,7 +400,7 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, true,
             menu::list
             {
-                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " +", .notes = " New app " } }}),
+                { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "+", .notes = " New app " } }}),
                 [](ui::pads& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

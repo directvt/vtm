@@ -494,7 +494,15 @@ namespace netxs
         template<auto Just>
         struct edge
         {
-            si32 step = 0;
+            si32 step;
+            constexpr auto& operator = (si32 s)
+            {
+                step = s;
+                return *this;
+            }
+            constexpr edge(si32 s = 0)
+                : step{ s }
+            { }
             bool operator == (edge const&) const = default;
             constexpr inline auto get(si32 size) const
             {
