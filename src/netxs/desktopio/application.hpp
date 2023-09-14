@@ -171,7 +171,7 @@ namespace netxs::app::shared
                                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                                 {
                                     auto backup = boss.This();
-                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                                    boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
                                     gear.dismiss();
                                 };
                             })

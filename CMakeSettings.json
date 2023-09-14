@@ -213,11 +213,6 @@
           "name": "CMAKE_CXX_FLAGS_DEBUG",
           "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
           "type": "STRING"
-        },
-        {
-          "name": "CMAKE_INSTALL_PREFIX",
-          "value": "D:/sources/vtm/src/build/install/Win-x64-Debug",
-          "type": "PATH"
         }
       ],
       "intelliSenseMode": "windows-msvc-x64"

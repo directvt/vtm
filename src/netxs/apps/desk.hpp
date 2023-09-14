@@ -118,7 +118,7 @@ namespace netxs::app::desk
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                            data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
                             gear.dismiss();
                         }
                     };

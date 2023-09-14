@@ -7807,9 +7807,14 @@ namespace netxs::ui
         // dtvt: Close dtvt-object.
         void stop(bool fast)
         {
-            if (active.exchange(faux) && ipccon)
+            if (fast && active.exchange(faux) && ipccon) // Notify and queue closing immediately.
             {
                 stream.s11n::sysclose.send(*this, fast);
+            }
+            else if (active && ipccon) // Just notify if active. Queue closing if not.
+            {
+                stream.s11n::sysclose.send(*this, fast);
+                return;
             }
             netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
             {
