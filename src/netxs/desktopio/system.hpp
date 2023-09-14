@@ -3895,15 +3895,17 @@ namespace netxs::os
             void handle(s11n::xs::footer           lock)
             {
                 auto& footer = lock.thing;
+                footer.set();
             }
             void handle(s11n::xs::header           lock)
             {
-                auto& utf8 = lock.thing.utf8;
-                if (utf8.length())
+                auto& header = lock.thing;
+                if (header.utf8.length())
                 {
-                    auto filtered = para{ utf8 }.lyric->utf8();
+                    auto filtered = para{ header.utf8 }.lyric->utf8();
                     tty::title(filtered);
                 }
+                header.set();
             }
             void handle(s11n::xs::clipdata         lock)
             {

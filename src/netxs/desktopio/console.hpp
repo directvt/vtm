@@ -9,10 +9,10 @@
 
 namespace netxs::ui
 {
-    // console: Base class behavior extensions.
+    // console: UI extensions.
     namespace pro
     {
-        // pro: Base class for plugins.
+        // pro: Base class for extension/plugin.
         struct skill
         {
             base& boss;
@@ -108,7 +108,7 @@ namespace netxs::ui
             };
         };
 
-        // pro: Provides resizing by dragging.
+        // pro: Resizing by dragging support.
         class sizer
             : public skill
         {
@@ -357,7 +357,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Provides moving by dragging.
+        // pro: Moving by dragging support.
         class mover
             : public skill
         {
@@ -577,7 +577,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Provides functionality for runtime animation (time-based).
+        // pro: Runtime animation support (time-based).
         class robot
             : public skill
         {
@@ -655,7 +655,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Invokes specified proc after timeout.
+        // pro: Scheduler (timeout based).
         class timer
             : public skill
         {
@@ -1203,7 +1203,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Keyboard focus.
+        // pro: Keyboard focus support.
         class focus
             : public skill
         {
@@ -1716,7 +1716,7 @@ namespace netxs::ui
             }
         };
 */
-        // pro: Provides functionality related to mouse interaction.
+        // pro: Mouse support.
         class mouse
             : public skill
         {
@@ -2210,7 +2210,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Background Highlighter.
+        // pro: Background highlighter.
         class light
             : public skill
         {
@@ -2275,7 +2275,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Drag&roll.
+        // pro: Drag&roll support.
         class glide
             : public skill
         {
@@ -2291,7 +2291,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Tooltip.
+        // pro: Tooltip support.
         class notes
             : public skill
         {
@@ -2490,7 +2490,7 @@ namespace netxs::ui
                 sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
             };
 
-            pipe& canal;
+            pipe& canal; // diff: Channel to outside.
             lock  mutex; // diff: Mutex between renderer and committer threads.
             cond  synch; // diff: Synchronization between renderer and committer.
             core  cache; // diff: The current content buffer which going to be checked and processed.
@@ -2695,7 +2695,7 @@ namespace netxs::ui
             }
         };
 
-        // gate: .
+        // gate: Input forwarder.
         struct input_t
         {
             using depo = std::unordered_map<id_t, sptr<hids>>;
@@ -2801,7 +2801,7 @@ namespace netxs::ui
             }
         };
 
-        // gate: Realtime telemetry.
+        // gate: Realtime statistics.
         struct debug_t
         {
             #define prop_list                     \
@@ -3010,21 +3010,21 @@ namespace netxs::ui
         pro::robot robot{*this }; // gate: Animation controller.
         pro::limit limit{*this }; // gate: Limit size to dot_11.
 
-        pipe& canal;
-        bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
-        para  uname; // gate: Client name.
-        text  uname_txt; // gate: Client name (original).
-        props_t props; // gate: Application properties.
-        input_t input; // gate: Input event handler.
-        debug_t debug; // gate: Debug telemetry.
-        sptr<base> applet; // gate: .
-        diff  paint; // gate: Render.
-        link  conio; // gate: Data IO.
-        subs  tokens; // gate: Subscription tokens.
-        bool direct; // gate: .
-        bool local; // gate: .
-        wptr<base> nexthop;
-        hook oneoff_focus; // gate: .
+        pipe&      canal; // gate: Channel to outside.
+        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        para       uname; // gate: Client name.
+        text       uname_txt; // gate: Client name (original).
+        props_t    props; // gate: Application properties.
+        input_t    input; // gate: Input event handler.
+        debug_t    debug; // gate: Statistics monitor.
+        sptr<base> applet; // gate: Standalone application.
+        diff       paint; // gate: Render.
+        link       conio; // gate: Input data parser.
+        subs       tokens; // gate: Subscription tokens.
+        bool       direct; // gate: .
+        bool       local; // gate: .
+        wptr<base> nexthop; // gate: .
+        hook       oneoff_focus; // gate: .
 
         void draw_foreign_names(face& parent_canvas)
         {
@@ -3286,30 +3286,6 @@ namespace netxs::ui
                     }
                 };
             }
-            //todo deprecated
-            //LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
-            //{
-            //    auto myid = from_gear.id;
-            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-            //    if (!gear_ptr) return;
-            //    auto& gear = *gear_ptr;
-            //    gear.kb_offer_4(applet);
-            //    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-            //    if (gear.focus_changed()) gear.dismiss();
-            //};
-            ////todo revise: nobody signal it
-            ////todo deprecated
-            //LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
-            //{
-            //    auto myid = from_gear.id;
-            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-            //    if (gear_ptr)
-            //    {
-            //        auto& gear = *gear_ptr;
-            //        gear.kb_offer_5(applet);
-            //        pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-            //    }
-            //};
 
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
@@ -3371,15 +3347,6 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
-                //todo deprecated
-                //LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
-                //{
-                //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                //    if (!gear_ptr) return;
-                //    auto cause = this->bell::protos<tier::preview>();
-                //    auto state = cause == hids::events::notify::focus::got.id;
-                //    conio.focus.send(canal, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
-                //};
                 LISTEN(tier::release, hids::events::keybd::data::any, gear) // Return back unhandled keybd events.
                 {
                     if (gear)
@@ -3399,7 +3366,6 @@ namespace netxs::ui
                     }
                 };
             }
-
 
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
@@ -3506,46 +3472,27 @@ namespace netxs::ui
             {
                 auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
-                //if (direct)
-                {
-                    conio.footer_request.send(canal, window_id);
-                    footer.wait();
-                }
+                conio.footer_request.send(canal, window_id);
+                footer.wait();
                 f = footer.thing.utf8;
             };
             LISTEN(tier::request, e2::form::prop::ui::header, h, tokens)
             {
+                auto window_id = id_t{};
                 auto header = conio.header.freeze();
-                //if (direct)
-                {
-                    conio.header_request.send(canal, id_t{});
-                    header.wait();
-                }
+                conio.header_request.send(canal, window_id);
+                header.wait();
                 h = header.thing.utf8;
             };
             LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter, tokens)
             {
-                //if (direct)
-                {
-                    conio.footer.send(canal, id_t{}, newfooter);
-                }
+                auto window_id = id_t{};
+                conio.footer.send(canal, window_id, newfooter);
             };
             LISTEN(tier::preview, e2::form::prop::ui::header, newheader, tokens)
             {
-                //if (direct)
-                {
-                    conio.header.send(canal, id_t{}, newheader);
-                }
-                //else if (newheader.length())
-                //{
-                //    auto lock = conio.header.freeze();
-                //    auto& header = lock.thing.utf8;
-                //    header.clear();
-                //    header.reserve(newheader.length());
-                //    para{ newheader }.lyric->utf8(header);
-                //    if constexpr (debugmode) log(prompt::gate, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(header)));
-                //    canal.output(ansi::header(header));
-                //}
+                auto window_id = id_t{};
+                conio.header.send(canal, window_id, newheader);
             };
             LISTEN(tier::release, hids::events::clipbrd, from_gear, tokens)
             {
