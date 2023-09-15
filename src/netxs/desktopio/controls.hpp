@@ -554,7 +554,7 @@ namespace netxs::ui
     {
         using book = std::list<std::pair<sptr, twod>>;
 
-        book subset;
+        book subset; // list Content.
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
         sort lineup; // list: Attachment order.
 
@@ -667,11 +667,12 @@ namespace netxs::ui
             return sptr{};
         }
         // list: Attach specified item.
-        template<class T>
+        template<sort Order = sort::forward, class T>
         auto attach(T item_ptr)
         {
-            if (lineup == sort::forward) subset.push_back ({ item_ptr, dot_00 });
-            else                         subset.push_front({ item_ptr, dot_00 });
+            auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
+            if (order == sort::reverse) subset.push_front({ item_ptr, dot_00 });
+            else                        subset.push_back ({ item_ptr, dot_00 });
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }

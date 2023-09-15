@@ -184,10 +184,11 @@ namespace netxs::events::userland
                     EVENT_XS( unselect  , input::hids    ), // inform if unselected.
                     EVENT_XS( selected  , input::hids    ), // inform if selected.
                     EVENT_XS( restore   , sptr<ui::base> ), // request to restore.
-                    EVENT_XS( shift     , const twod     ), // request a global shifting  with delta.
+                    EVENT_XS( shift     , const twod     ), // request a global shifting with delta.
+                    EVENT_XS( jumpto    , ui::base       ), // fly to the specified object.
                     EVENT_XS( convey    , cube           ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble    , ui::base       ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose    , ui::base       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
+                    EVENT_XS( bubble    , rect           ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose    , rect           ), // order to bring the requested item on top of the visual tree.
                     EVENT_XS( appear    , twod           ), // fly to the specified coords.
                     EVENT_XS( swarp     , const dent     ), // preview: form swarping
                     GROUP_XS( go        , sptr<ui::base> ), // preview: form swarping

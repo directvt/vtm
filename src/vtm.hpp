@@ -248,17 +248,13 @@ namespace netxs::app::vtm
                 {
                     order = seat;
                 };
-                boss.LISTEN(tier::preview, e2::form::layout::expose, boss, memo)
-                {
-                    expose();
-                };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::left, gear, memo)
                 {
-                    expose();
+                    boss.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::click::right, gear, memo)
                 {
-                    expose();
+                    boss.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::appear, newpos, memo)
                 {
@@ -270,7 +266,7 @@ namespace netxs::app::vtm
                 //};
                 boss.LISTEN(tier::preview, e2::form::upon::changed, delta, memo)
                 {
-                    bubble();
+                    boss.RISEUP(tier::preview, e2::form::layout::bubble, area, ());
                 };
                 boss.LISTEN(tier::preview, hids::events::mouse::button::down::any, gear, memo)
                 {
@@ -404,24 +400,6 @@ namespace netxs::app::vtm
                     {
                         boss.moveby(delta);
                     }
-                }
-            }
-            // pro::frame: Check if it is under the rest, and moves it to the top of the visual tree.
-            //             Return "true" if it is NOT under the rest.
-            void expose(bool subsequent = faux)
-            {
-                if (auto parent_ptr = boss.parent())
-                {
-                    parent_ptr->SIGNAL(tier::release, e2::form::layout::expose, boss);
-                }
-                //return boss.status.exposed;
-            }
-            // pro::frame: Place the form in front of the visual tree among neighbors.
-            void bubble()
-            {
-                if (auto parent_ptr = boss.parent())
-                {
-                    parent_ptr->SIGNAL(tier::release, e2::form::layout::bubble, boss);
                 }
             }
         };
@@ -773,32 +751,29 @@ namespace netxs::app::vtm
                     {
                         align.unbind();
                     }
-                    auto item_ptr = e2::form::layout::go::item.param();
-                    this->RISEUP(tier::request, e2::form::layout::go::item, item_ptr); // Take current item.
-                    if (item_ptr) item_ptr->SIGNAL(tier::release, e2::form::layout::unselect, gear);
+                    auto window_ptr = e2::form::layout::go::item.param();
+                    this->RISEUP(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+                    if (window_ptr) window_ptr->SIGNAL(tier::release, e2::form::layout::unselect, gear);
 
-                    item_ptr.reset();
-                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, item_ptr); // Take prev item.
-                    else      this->RISEUP(tier::request, e2::form::layout::go::next, item_ptr); // Take next item.
+                    window_ptr.reset();
+                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                    else      this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
 
-                    if (item_ptr)
+                    if (window_ptr)
                     {
-                        item_ptr->SIGNAL(tier::release, e2::form::layout::selected, gear);
-                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto object_area = item_ptr->area() + dent{ 2,2,1,1 };
-                        auto outside = viewport.unite(object_area);
-                        if (outside != viewport)
-                        {
-                            auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
-                            auto center = viewport.center() + coor - viewport.coor;
-                            this->SIGNAL(tier::release, e2::form::layout::shift, center);
-                        }
-                        pro::focus::set(item_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        auto& window = *window_ptr;
+                        window.SIGNAL(tier::release, e2::form::layout::selected, gear);
+                        jump_to(window);
+                        pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     //gear.dismiss();
                     this->bell::expire<tier::preview>(); //todo temp
                     gear.set_handled(true);
                 }
+            };
+            LISTEN(tier::release, e2::form::layout::jumpto, window, tokens)
+            {
+                jump_to(window);
             };
             LISTEN(tier::release, hids::events::mouse::button::click::left, gear, tokens) // Go to another user's viewport.
             {
@@ -833,19 +808,7 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::form::layout::shift, newpos, tokens)
             {
                 this->SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                auto oldpos = viewport.center();
-
-                auto path = oldpos - newpos;
-                auto time = skin::globals().switching;
-                auto init = 0;
-                auto func = constlinearAtoB<twod>(path, time, init);
-
-                robot.pacify();
-                robot.actify(func, [&](auto& x)
-                {
-                    base::moveby(-x);
-                    base::strike();
-                });
+                move_viewport(newpos, viewport);
             };
             LISTEN(tier::release, e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
             {
@@ -892,6 +855,32 @@ namespace netxs::app::vtm
             };
         }
 
+        void move_viewport(twod newpos, rect viewport)
+        {
+            auto oldpos = viewport.center();
+            auto path = oldpos - newpos;
+            auto time = skin::globals().switching;
+            auto init = 0;
+            auto func = constlinearAtoB<twod>(path, time, init);
+            robot.pacify();
+            robot.actify(func, [&](auto& x)
+            {
+                base::moveby(-x);
+                base::strike();
+            });
+        }
+        void jump_to(base& window)
+        {
+            SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+            auto object_area = window.area() + dent{ 2,2,1,1 };
+            auto outside = viewport.unite(object_area);
+            if (outside != viewport)
+            {
+                auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
+                auto center = viewport.center() + coor - viewport.coor;
+                move_viewport(center, viewport);
+            }
+        }
         void rebuild_scene(base& world, bool damaged) override
         {
             auto& canvas = input.xmap;
@@ -985,7 +974,7 @@ namespace netxs::app::vtm
             {
                 auto window = canvas.area();
                 auto center = region.center();
-                if (window.hittest(center)) return;
+                if (window.hittest(center) || z_order == zpos::hidden) return;
                 auto origin = window.size / 2;
                 center -= window.coor;
                 //auto origin = twod{ 6, window.size.y - 3 };
@@ -1031,9 +1020,20 @@ namespace netxs::app::vtm
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
             auto back()      { return items.back()->object; }
-            void append(sptr<base> item)
+            void append(sptr<base> window_ptr)
             {
-                items.push_back(ptr::shared<node>(item));
+                auto& window = *window_ptr;
+                window.LISTEN(tier::preview, e2::form::layout::expose, area, -)
+                {
+                    area = expose(window.id);
+                    if (area) window.RISEUP(tier::release, e2::form::layout::expose, area);
+                };
+                window.LISTEN(tier::preview, e2::form::layout::bubble, area, -)
+                {
+                    area = bubble(window.id);
+                    if (area) window.RISEUP(tier::release, e2::form::layout::bubble, area);
+                };
+                items.push_back(ptr::shared<node>(window_ptr));
             }
             //hall::list: Draw backpane for spectators.
             void prerender(face& canvas)
@@ -1110,6 +1110,10 @@ namespace netxs::app::vtm
                     auto shadow = *item;
                     items.erase(std::next(item).base());
                     items.push_back(shadow);
+                    if (shadow->z_order == zpos::hidden) // Restore if window minimized.
+                    {
+                        shadow->z_order = zpos::plain;
+                    }
                     return shadow->region;
                 }
 
@@ -1529,15 +1533,15 @@ namespace netxs::app::vtm
                 }
                 this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
             };
-            LISTEN(tier::release, e2::form::layout::bubble, inst)
+            LISTEN(tier::release, e2::form::layout::bubble, area)
             {
-                auto region = items.bubble(inst.bell::id);
-                host::denote(region);
+                //auto region = items.bubble(inst.bell::id);
+                host::denote(area);
             };
-            LISTEN(tier::release, e2::form::layout::expose, inst)
+            LISTEN(tier::release, e2::form::layout::expose, area)
             {
-                auto region = items.expose(inst.bell::id);
-                host::denote(region);
+                //auto area = items.expose(inst.bell::id);
+                host::denote(area);
             };
             LISTEN(tier::request, desk::events::usrs, usrs_ptr)
             {

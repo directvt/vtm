@@ -79,20 +79,23 @@ namespace netxs::app::desk
                             auto& window = *data_src;
                             auto  center = window.base::area().center();
                             window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
-                            auto viewport = gear.owner.base::area();
-                            if (viewport.hittest(center) && zpos_state != zpos::hidden) // Minimize if visible.
+                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+
+                            if (viewport.hittest(center)        // Minimize if visible,
+                             && zpos_state != zpos::hidden      // not minimized,
+                             && pro::focus::test(window, gear)) // and focused.
                             {
                                 window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                             }
                             else
                             {
+                                window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                                gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, window);
                                 if (zpos_state == zpos::hidden) // Restore if hidden.
                                 {
                                     window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                                 }
-                                window.SIGNAL(tier::preview, e2::form::layout::expose, window);
-                                gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                                pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             }
                             gear.dismiss();
                         }
@@ -103,14 +106,14 @@ namespace netxs::app::desk
                         {
                             auto& window = *data_src;
                             window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
+                            window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
+                            window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
                             if (zpos_state == zpos::hidden) // Restore if hidden.
                             {
                                 window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                             }
-                            window.SIGNAL(tier::preview, e2::form::layout::expose, window);
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
-                            pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                            else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
                         }
                     };
@@ -235,7 +238,7 @@ namespace netxs::app::desk
                         //           }
                         //           // Expose window.
                         //           auto& inst = *app_list.back();
-                        //           inst.SIGNAL(tier::preview, e2::form::layout::expose, inst);
+                        //           inst.RISEUP(tier::preview, e2::form::layout::expose, inst);
                         //           auto center = inst.base::center();
                         //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
                         //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);

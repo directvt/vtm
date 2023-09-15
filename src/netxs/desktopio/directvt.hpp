@@ -1301,7 +1301,7 @@ namespace netxs::directvt
             X(footer_request   ) /* Request window footer.                        */\
             X(warping          ) /* Warp resize.                                  */\
             X(minimize         ) /* Minimize window.                              */\
-            X(expose           ) /* Bring the form to the front.                  */\
+            X(expose           ) /* Bring window to the front.                    */\
             X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
             X(frames           ) /* Received frames.                              */\
             X(tooltip_element  ) /* Tooltip text.                                 */\

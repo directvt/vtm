@@ -1333,6 +1333,11 @@ namespace netxs::ui
                 }
                 return gear_id_list;
             }
+            static auto test(base& item, input::hids& gear)
+            {
+                item.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
+                return gear_test.second;
+            }
 
             focus(base&&) = delete;
             focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)
@@ -3597,7 +3602,7 @@ namespace netxs::ui
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::anycast, e2::form::layout::expose, item, tokens)
+                LISTEN(tier::preview, e2::form::layout::expose, item, tokens)
                 {
                     conio.expose.send(canal);
                 };

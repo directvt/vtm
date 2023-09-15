@@ -148,7 +148,7 @@ namespace netxs::app::shared
                 {
                     while (custom--)
                     {
-                        auto mid_item = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
+                        auto mid_item = bttnlist->attach<sort::reverse>(ui::pads::ctor(innerpad, outerpad));
                         make_item(menu_items.back(), mid_item, x1, c1);
                         menu_items.pop_back();
                     }

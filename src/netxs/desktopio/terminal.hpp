@@ -316,7 +316,7 @@ namespace netxs::ui
                     {
                         pro::focus::set(owner.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                     }
-                    owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 }
                 else if ((m[hids::buttons::left  ] && !s[hids::buttons::left  ])
                       || (m[hids::buttons::middle] && !s[hids::buttons::middle]))
@@ -327,7 +327,7 @@ namespace netxs::ui
                         pro::focus::set(owner.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                         : pro::focus::solo::on, pro::focus::flip::on);
                     }
-                    owner.SIGNAL(tier::anycast, e2::form::layout::expose, owner);
+                    owner.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 }
             }
             void enable(mode m)
@@ -7481,7 +7481,7 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(master.This(), [&](auto& boss)
                 {
-                    master.RISEUP(tier::preview, e2::form::layout::expose, master);
+                    master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
             }
             void handle(s11n::xs::clipdata            lock)
