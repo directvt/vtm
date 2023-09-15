@@ -875,6 +875,32 @@ namespace netxs::os
                 modstate = state;
                 return changed;
             }
+            template<class T1, class T2 = si32>
+            auto modstat(si32& modstate, T1 ms_ctrls, T2 scancode, bool pressed)
+            {
+                struct
+                {
+                    bool changed{}; // Modifiers state changed.
+                    bool repeats{}; // Modifier repeated.
+                } stat;
+                stat.changed = kbstate(modstate, ms_ctrls, scancode, pressed);
+                if (!pressed) return stat;
+                if (stat.changed) return stat;
+                scancode |= ms_ctrls & ENHANCED_KEY;
+                stat.repeats = scancode == 0x002a  // input::hids::LShift
+                            || scancode == 0x0036  // input::hids::RShift (Windows command prompt)
+                            || scancode == 0x0136  // input::hids::RShift (Windows terminal)
+                            || scancode == 0x005b  // input::hids::LWin
+                            || scancode == 0x005c  // input::hids::RWin
+                            || scancode == 0x001d  // input::hids::LCtrl
+                            || scancode == 0x011d  // input::hids::RCtrl
+                            || scancode == 0x0038  // input::hids::LAlt
+                            || scancode == 0x0138  // input::hids::RAlt
+                            || scancode == 0x0145  // input::hids::NumLock
+                            || scancode == 0x003a  // input::hids::CapsLock
+                            || scancode == 0x0046; // input::hids::ScrlLock
+                return stat;
+            }
             auto ms_kbstate()
             {
                 auto vkeys = std::array<BYTE, 256>{};
@@ -4050,7 +4076,10 @@ namespace netxs::os
                                 switch (r.EventType)
                                 {
                                     case KEY_EVENT:
-                                        if (os::nt::kbstate(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown))
+                                    {
+                                        auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
+                                             if (modstat.repeats) break; // We don't repeat modifiers.
+                                        else if (modstat.changed)
                                         {
                                             k.ctlstat = kbmod;
                                             m.ctlstat = kbmod;
@@ -4107,6 +4136,7 @@ namespace netxs::os
                                         point = {};
                                         toutf.clear();
                                         break;
+                                    }
                                     case MENU_EVENT: // Forward console control events.
                                         if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                                         switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
