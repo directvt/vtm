@@ -4180,7 +4180,6 @@ namespace netxs::os
                                         break;
                                     case MOUSE_EVENT:
                                     {
-                                        os::nt::kbstate(kbmod, r.Event.MouseEvent.dwControlKeyState);
                                         auto changed = 0;
                                         check(changed, m.ctlstat, kbmod);
                                         check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
