@@ -85,7 +85,8 @@ namespace netxs::app::desk
                              && zpos_state != zpos::hidden      // not minimized,
                              && pro::focus::test(window, gear)) // and focused.
                             {
-                                window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                                if (gear.meta(hids::anyCtrl)) pro::focus::off(data_src, gear.id); // Remove focus if Ctrl pressed.
+                                else                          window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                             }
                             else
                             {
@@ -95,7 +96,8 @@ namespace netxs::app::desk
                                 {
                                     window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                else pro::focus::set(data_src, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
+                                                                                                 : pro::focus::solo::on, pro::focus::flip::off);
                             }
                             gear.dismiss();
                         }
