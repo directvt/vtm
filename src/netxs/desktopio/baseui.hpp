@@ -468,6 +468,7 @@ namespace netxs::ui
         cell action;
         cell label;
         cell inactive;
+        cell selected;
         cell menu_white;
         cell menu_black;
 
@@ -512,6 +513,7 @@ namespace netxs::ui
                 case tone::prop::shadow:     return g.shadow;
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
+                case tone::prop::selected:   return g.selected;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;

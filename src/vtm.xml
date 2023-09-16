@@ -165,6 +165,7 @@ R"==(
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
+            <selected   fgc=puregreen                 />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
             <action     fgc=whitelt   bgc=greenlt     />
@@ -216,6 +217,9 @@ R"==(
         <whitelt   = 0xFFf3f3f3 />
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
+        <purered   = 0xFF0000ff />
+        <puregreen = 0xFF00ff00 />
+        <pureblue  = 0xFFff0000 />
         <nocolor   = 0x00000000 />
         <transparent = nocolor  />
     </set>

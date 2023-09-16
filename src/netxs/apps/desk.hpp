@@ -154,7 +154,9 @@ namespace netxs::app::desk
         {
             auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
+            auto selected_color  = skin::globals().selected;
             auto c3 = highlight_color;
+            auto c9 = selected_color;
             auto x3 = cell{ c3 }.alpha(0x00);
             auto cA = inactive_color;
 
@@ -206,7 +208,7 @@ namespace netxs::app::desk
                         {
                             static auto offset = dot_00;
 
-                            if (gear.meta()) // Not supported with any modifier.
+                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier.
                             {
                                 gear.dismiss();
                                 return;
@@ -221,39 +223,6 @@ namespace netxs::app::desk
                             boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                             gear.dismiss();
                         };
-                        //auto& world = *data_src;
-                        //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, -, (inst_id))
-                        //{
-                        //   //if (auto data_src = data_src_shadow.lock())
-                        //   {
-                        //       sptr<desk::apps> registry_ptr;
-                        //       //data_src->SIGNAL(tier::request, desk::events::apps, registry_ptr);
-                        //       world.SIGNAL(tier::request, desk::events::apps, registry_ptr);
-                        //       auto& app_list = (*registry_ptr)[inst_id];
-                        //       if (app_list.size())
-                        //       {
-                        //           auto deed = boss.bell::protos<tier::release>();
-                        //           if (deed == hids::events::mouse::scroll::down.id) // Rotate list forward.
-                        //           {
-                        //               app_list.push_back(app_list.front());
-                        //               app_list.pop_front();
-                        //           }
-                        //           else // Rotate list backward.
-                        //           {
-                        //               app_list.push_front(app_list.back());
-                        //               app_list.pop_back();
-                        //           }
-                        //           // Expose window.
-                        //           auto& inst = *app_list.back();
-                        //           inst.RISEUP(tier::preview, e2::form::layout::expose, inst);
-                        //           auto center = inst.base::center();
-                        //           gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);  // Goto to the window.
-                        //           gear.kb_offer_3(app_list.back());//pass_kb_focus(inst);
-                        //           pro::focus::set(app_list.back(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
-                        //           gear.dismiss();
-                        //       }
-                        //   }
-                        //};
                     });
                 if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
                 auto block = item_area->attach(ui::fork::ctor(axis::Y));
@@ -262,10 +231,10 @@ namespace netxs::app::desk
                     ->invoke([&](auto& boss)
                     {
                         auto boss_shadow = ptr::shadow(boss.This());
-                        boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc))
+                        boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc, c9))
                         {
                             auto selected = inst_id == data;
-                            boss.set(ansi::fgx(selected ? 0xFF00ff00 : 0x00000000).add(obj_desc));
+                            boss.set(ansi::fgx(selected ? c9.fgc() : 0x00000000).add(obj_desc));
                             boss.deface();
                         };
                     });

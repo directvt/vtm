@@ -3659,6 +3659,7 @@ namespace netxs::ui
             g.shadow         = config.take("shadow"                , cell{});//180);//5);
             g.selector       = config.take("selector"              , cell{});//48);
             g.highlight      = config.take("highlight"             , cell{});
+            g.selected       = config.take("selected"              , cell{});
             g.warning        = config.take("warning"               , cell{});
             g.danger         = config.take("danger"                , cell{});
             g.action         = config.take("action"                , cell{});

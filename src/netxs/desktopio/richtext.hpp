@@ -2082,6 +2082,7 @@ namespace netxs::ui
         X(warning   , "Warning color")                 \
         X(danger    , "Danger color")                  \
         X(action    , "Action color")                  \
+        X(selected  , "Selected item color")           \
         X(label     , "Static label color")            \
         X(inactive  , "Inactive label color")          \
         X(menu_white, "Light menu color")              \
