@@ -3,7 +3,7 @@
 
 #pragma once
 
-// desk: Sidebar menu.
+// desk: Taskbar.
 namespace netxs::app::desk
 {
     static constexpr auto id = "desk";

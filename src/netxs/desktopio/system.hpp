@@ -3909,7 +3909,6 @@ namespace netxs::os
             {
                 auto& header_request = lock.thing;
                 auto header = s11n::header.freeze();
-                header.thing.window_id = {};
                 header.thing.sendby<faux, faux>(dtvt::client);
             }
             void handle(s11n::xs::footer_request   lock)
@@ -3963,7 +3962,8 @@ namespace netxs::os
             proxy()
                 : s11n{ *this }
             {
-                //s11n::header.set(id_t{}, tty::title());
+                s11n::header.set(id_t{}, ""s);
+                s11n::footer.set(id_t{}, ""s);
             }
         };
         static auto stream = proxy{}; // tty: Serialization proxy.

@@ -1079,6 +1079,7 @@ namespace netxs::input
         time        tooltip_time = {}; // hids: The moment to show tooltip.
         bool        tooltip_show = faux; // hids: Show tooltip or not.
         bool        tooltip_stop = true; // hids: Disable tooltip.
+        bool        tooltip_set  = faux; // hids: Tooltip has been set.
         testy<twod> tooltip_coor = {}; // hids: .
 
         base& owner;
@@ -1136,6 +1137,7 @@ namespace netxs::input
         }
         void set_tooltip(view data, bool update = faux)
         {
+            tooltip_set = true;
             if (!update || data != tooltip_data)
             {
                 tooltip_data = data;
@@ -1342,6 +1344,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                tooltip_set = faux;
                 boss.SIGNAL(tier::release, events::notify::mouse::enter, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;

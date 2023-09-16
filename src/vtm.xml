@@ -26,11 +26,11 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" Windows Command Prompt " param="$0 -r term">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " param="$0 -r term">
 )=="
 #endif
 R"==(
@@ -64,15 +64,15 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run Windows PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/>
 )=="
 #endif
 R"==(
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                              notes=" set desktop region "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" run Settings " winsize=50,15/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" run Logs ">
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                              notes=" Desktop region marker "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" Settings " winsize=50,15/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" Log monitor ">
             <config>
                 <term>
                     <logs=off/>
@@ -300,6 +300,7 @@ R"==(
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                                \n"
+                    " - Jump to previous match with selection       \n"
                     " - Clipboard data will be used if no selection \n"
                     " - Scroll one page up if clipboard is empty    "
                 </notes>
@@ -308,6 +309,7 @@ R"==(
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                                    \n"
+                    " - Jump to next match with selection           \n"
                     " - Clipboard data will be used if no selection \n"
                     " - Scroll one page down if clipboard is empty  "
                 </notes>

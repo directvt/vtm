@@ -2313,6 +2313,7 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == si32max))
                 {
+                    if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
                     {
                         gear.set_tooltip(note);
