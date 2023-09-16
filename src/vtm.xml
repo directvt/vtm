@@ -147,6 +147,7 @@ R"==(
             <folded=4/>
             <expanded=31/>
         </width>
+        <color fgc=whitedk bgc=0x60202020 />
     </menu>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow/>
