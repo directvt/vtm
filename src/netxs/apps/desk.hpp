@@ -55,6 +55,7 @@ namespace netxs::app::desk
     {
         auto app_template = [](auto& data_src, auto const& utf8)
         {
+            auto& tall = skin::globals().menuwide;
             auto danger_color    = skin::globals().danger;
             auto highlight_color = skin::globals().highlight;
             auto c4 = cell{}.bgc(highlight_color.bgc());
@@ -63,7 +64,7 @@ namespace netxs::app::desk
             auto x5 = cell{ c5 }.alpha(0x00);
             auto fastfader = skin::globals().fader_fast;
             auto fader = skin::globals().fader_time;
-            auto item_area = ui::pads::ctor(dent{ 1,0,1,0 }, dent{ 0,0,0,1 })
+            auto item_area = ui::pads::ctor(dent{ 1,0,tall,0 }, dent{ 0,0,0,tall })
                 ->plugin<pro::fader>(x4, c4, fastfader)
                 ->plugin<pro::notes>(" Application window:              \n"
                                      "   Left click to go to the window \n"
@@ -132,7 +133,7 @@ namespace netxs::app::desk
             auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
                 ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
             auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
-            auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }))
+            auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
                 ->template plugin<pro::fader>(x5, c5, fader)
                 ->template plugin<pro::notes>(" Close application window ")
                 ->invoke([&](auto& boss)
@@ -152,6 +153,7 @@ namespace netxs::app::desk
         };
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
+            auto& tall = skin::globals().menuwide;
             auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
@@ -186,13 +188,13 @@ namespace netxs::app::desk
                 auto& obj_note = conf.notes;
                 if (conf.splitter)
                 {
-                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
+                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }))
                         ->attach(ui::item::ctor(obj_desc, true, faux, true))
                         ->colors(cA.fgc(), cA.bgc())
                         ->template plugin<pro::notes>(obj_note);
                     continue;
                 }
-                auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,1 }, dent{ 0,0,1,0 }))
+                auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }))
                     ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast)
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
@@ -226,7 +228,7 @@ namespace netxs::app::desk
                     });
                 if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
                 auto block = item_area->attach(ui::fork::ctor(axis::Y));
-                auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,1,1 }));
+                auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto head = head_area->attach(ui::item::ctor(obj_desc, true))
                     ->invoke([&](auto& boss)
                     {
@@ -303,6 +305,7 @@ namespace netxs::app::desk
 
         auto build = [](text cwd, text v, xmls& config, text patch)
         {
+            auto& tall = skin::globals().menuwide;
             auto highlight_color = skin::globals().highlight;
             auto action_color    = skin::globals().action;
             auto inactive_color  = skin::globals().inactive;
@@ -321,8 +324,8 @@ namespace netxs::app::desk
             auto menu_bg_color = config.take("/config/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
             auto menu_min_size = config.take("/config/menu/width/folded",   si32{ 4  });
             auto menu_max_size = config.take("/config/menu/width/expanded", si32{ 31 });
-            auto bttn_min_size = twod{ 31, 3 };
-            auto bttn_max_size = twod{ -1, 3 };
+            auto bttn_min_size = twod{ 31, 1 + tall * 2 };
+            auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
             auto window = ui::cake::ctor();
             auto my_id = id_t{};
@@ -354,11 +357,12 @@ namespace netxs::app::desk
 
             auto user_template = [my_id](auto& data_src, auto const& utf8)
             {
+                auto& tall = skin::globals().menuwide;
                 auto highlight_color = skin::color(tone::highlight);
                 auto c3 = highlight_color;
                 auto x3 = cell{ c3 }.alpha(0x00);
 
-                auto item_area = ui::pads::ctor(dent{ 1,0,0,1 }, dent{ 0,0,1,0 })
+                auto item_area = ui::pads::ctor(dent{ 1,0,0,tall }, dent{ 0,0,tall,0 })
                     ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                     ->plugin<pro::notes>(" Connected user ");
                 auto user = item_area->attach(ui::item::ctor(escx(" &").nil().add(" ")
@@ -515,7 +519,7 @@ namespace netxs::app::desk
                     };
                 });
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
-            auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,0 }, dent{}))
+            auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,0 }, dent{}))
                 ->attach(ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
                 ->colors(0x00, 0x00) //todo mouse events passthrough
@@ -531,14 +535,14 @@ namespace netxs::app::desk
                     };
                 });
             auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
-            auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0,0,0,0 }))
+            auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,tall }, dent{ 0,0,0,0 }))
                                         ->plugin<pro::notes>(" List of connected users ");
             auto label_bttn = label_pads->attach(ui::fork::ctor());
             auto label = label_bttn->attach(slot::_1, ui::item::ctor("users", true, faux, true))
                 ->plugin<pro::limit>(twod{ 5,-1 })
                 ->colors(cA.fgc(), cA.bgc());
             auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
-            auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,1,1 }))
+            auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
                 ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Show/hide user list ");
             auto bttn = bttn_pads->attach(ui::item::ctor("<", faux));
@@ -576,7 +580,7 @@ namespace netxs::app::desk
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
-                ->plugin<pro::limit>(twod{ -1, 3 }, twod{ -1, 3 });
+                ->plugin<pro::limit>(twod{ -1, 1 + tall * 2 }, twod{ -1, 1 + tall * 2 });
             bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                 ->plugin<pro::limit>(bttn_min_size, bttn_max_size);
@@ -592,7 +596,7 @@ namespace netxs::app::desk
                         gear.dismiss();
                     };
                 });
-            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::head, snap::center);
+            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall }), snap::head, snap::center);
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
             auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
                 ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
@@ -604,7 +608,7 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
                     };
                 });
-            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,1,1 }), snap::tail, snap::center);
+            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall }), snap::tail, snap::center);
             auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
             return window;
         };

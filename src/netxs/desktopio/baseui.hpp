@@ -475,6 +475,7 @@ namespace netxs::ui
         twod bordersz = dot_11;
         si32 lucidity = 0xFF;
         bool tracking = faux;
+        bool menuwide = faux;
 
         si32 spd;
         si32 pls;

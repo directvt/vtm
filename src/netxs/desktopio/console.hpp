@@ -3688,6 +3688,7 @@ namespace netxs::ui
             g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
             g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
+            g.menuwide       = config.take("/config/menu/wide"     , faux);
 
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;
