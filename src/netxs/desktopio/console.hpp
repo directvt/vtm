@@ -3100,6 +3100,7 @@ namespace netxs::ui
                         auto tooltip_page = page{ tooltip_data };
                         auto area = full;
                         area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        area.size.x = dot_mx.x; // Prevent line wrapping.
                         canvas.full(area);
                         canvas.cup(dot_00);
                         canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
