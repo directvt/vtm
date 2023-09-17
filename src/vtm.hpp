@@ -1266,11 +1266,17 @@ namespace netxs::app::vtm
                                 {
                                     auto viewport = gear.owner.base::area();
                                     auto window = e2::form::layout::go::prev.param();
+                                    auto visibility = zpos::hidden;
                                     do
                                     {
                                         parent->SIGNAL(tier::request, e2::form::layout::go::prev, window);
+                                        if (window)
+                                        {
+                                            window->SIGNAL(tier::request, e2::form::prop::zorder, visibility);
+                                        }
+                                        else visibility = zpos::hidden;
                                     }
-                                    while (window != This && (window->size().y == 1 || !viewport.hittest(window->center())));
+                                    while (window != This && (visibility == zpos::hidden || !viewport.hittest(window->center())));
                                     if (window != This)
                                     {
                                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
