@@ -189,13 +189,14 @@ namespace netxs::ui
             return new_item;
         }
         // form: Create and attach a new item using a template and dynamic datasource.
-        template<class Property, class S, class P>
-        auto attach_collection(Property, S& data_collection_src, P item_template)
+        template<class Property, class S, class P, class F = noop>
+        auto attach_collection(Property, S& data_collection_src, P item_template, F proc = {})
         {
             auto backup = This();
             for (auto& data_src_sptr : data_collection_src)
             {
-                attach_element(Property{}, data_src_sptr, item_template);
+                auto item = attach_element(Property{}, data_src_sptr, item_template);
+                proc(data_src_sptr);
             }
             return backup;
         }

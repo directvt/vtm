@@ -46,7 +46,14 @@ namespace netxs::app::desk
 
             SUBSET_XS( ui )
             {
-                EVENT_XS( selected, text ),
+                EVENT_XS( selected, text        ),
+                GROUP_XS( focus   , input::hids ),
+
+                SUBSET_XS( focus )
+                {
+                    EVENT_XS( set, input::hids ), // Request focus.
+                    EVENT_XS( off, input::hids ), // Request unfocus.
+                };
             };
         };
     };
@@ -206,12 +213,18 @@ namespace netxs::app::desk
                         {
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                         };
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux))
                         {
                             static auto offset = dot_00;
 
-                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier.
+                            if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
                             {
+                                if (gear.meta(hids::anyCtrl)) // Toggle group focus.
+                                {
+                                    group_focus = !group_focus;
+                                    if (group_focus) boss.SIGNAL(tier::release, events::ui::focus::set, gear);
+                                    else             boss.SIGNAL(tier::release, events::ui::focus::off, gear);
+                                }
                                 gear.dismiss();
                                 return;
                             }
@@ -226,7 +239,7 @@ namespace netxs::app::desk
                             gear.dismiss();
                         };
                     });
-                if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
+                if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
                 auto block = item_area->attach(ui::fork::ctor(axis::Y));
                 auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto head = head_area->attach(ui::item::ctor(obj_desc, true))
@@ -242,7 +255,18 @@ namespace netxs::app::desk
                     });
                 auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }));
                 auto insts = list_pads->attach(ui::list::ctor())
-                    ->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template);
+                    ->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
+                        [&](auto inst_ptr)
+                        {
+                            auto& window = *inst_ptr;
+                            auto& boss = *item_area;
+                            boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
+                            {
+                                auto deed = boss.bell::template protos<tier::release>();
+                                     if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                                else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
+                            };
+                        });
             }
             return apps;
         };
