@@ -108,16 +108,20 @@ namespace netxs::app::shared
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
             auto action_color    = skin::color(tone::action);
+            auto warning_color   = skin::color(tone::warning);
             auto c6 = action_color;
             auto x6 = cell{ c6 }.alpha(0x00);
             auto c3 = highlight_color;
             auto x3 = cell{ c3 }.alpha(0x00);
+            auto c2 = warning_color;
+            auto x2 = cell{ c2 }.bga(0x00);
             auto c1 = danger_color;
             auto x1 = cell{ c1 }.alpha(0x00);
 
             auto slot1 = ui::veer::ctor();
             auto menuarea = ui::fork::ctor()->active();
                 auto fader = skin::globals().fader_time;
+                auto macstyle = skin::globals().macstyle;
 
                 auto make_item = [&](auto& body, auto& dest_ptr, auto& fgc, auto& bgc)
                 {
@@ -140,7 +144,9 @@ namespace netxs::app::shared
                                 };
                             });
                 };
-                auto tailitem = menuarea->attach(slot::_2, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
+                auto ctrlslot = macstyle ? slot::_1 : slot::_2;
+                auto menuslot = macstyle ? slot::_2 : slot::_1;
+                auto tailitem = menuarea->attach(ctrlslot, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
                 auto bttnlist = tailitem->attach(ui::list::ctor(axis::X));
                 auto innerpad = dent{ 1,2,1,1 };
                 auto outerpad = dent{ 1 };
@@ -155,7 +161,7 @@ namespace netxs::app::shared
                 }
                 else // Add standard menu controls.
                 {
-                    auto control = list
+                    auto control = std::vector<link>
                     {
                         { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize " } }}),
                         [](ui::pads& boss, auto& item)
@@ -186,15 +192,23 @@ namespace netxs::app::shared
                             };
                         }},
                     };
-                    auto iter = control.begin();
                     auto mid_item1 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
                     auto mid_item2 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
                     auto mid_item3 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
-                    make_item(*iter++, mid_item1, x3, c3);
-                    make_item(*iter++, mid_item2, x3, c3);
-                    make_item(*iter++, mid_item3, x1, c1);
+                    if (macstyle)
+                    {
+                        make_item(control[2], mid_item1, x1, c1);
+                        make_item(control[0], mid_item2, x2, c2);
+                        make_item(control[1], mid_item3, x6, c6);
+                    }
+                    else
+                    {
+                        make_item(control[0], mid_item1, x3, c3);
+                        make_item(control[1], mid_item2, x3, c3);
+                        make_item(control[2], mid_item3, x1, c1);
+                    }
                 }
-                auto headarea = menuarea->attach(slot::_1, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0 }));
+                auto headarea = menuarea->attach(menuslot, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0 }));
                 auto scrlarea = headarea->attach(ui::cake::ctor());
                 auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));

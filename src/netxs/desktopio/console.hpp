@@ -3672,6 +3672,7 @@ namespace netxs::ui
             g.lucidity       = config.take("lucidity");
             g.tracking       = config.take("tracking"              , faux);
             g.bordersz       = config.take("bordersz"              , dot_11);
+            g.macstyle       = config.take("macstyle"              , faux);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
             g.spd_accel      = config.take("timings/spd_accel"     , 1   );

@@ -476,6 +476,7 @@ namespace netxs::ui
         si32 lucidity = 0xFF;
         bool tracking = faux;
         bool menuwide = faux;
+        bool macstyle = faux;
 
         si32 spd;
         si32 pls;
