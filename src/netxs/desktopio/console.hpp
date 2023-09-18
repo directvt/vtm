@@ -2062,7 +2062,7 @@ namespace netxs::ui
                 }
             }
             lims;
-            bool sure; // limit: Reepeat size checking afetr all.
+            bool sure; // limit: Repeat size checking after all.
 
         public:
             limit(base&&) = delete;

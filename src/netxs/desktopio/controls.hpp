@@ -24,7 +24,6 @@ namespace netxs::ui
         none,
         head,
         tail,
-        stretch,
         center,
     };
 
@@ -798,14 +797,16 @@ namespace netxs::ui
     {
         struct type
         {
-            sptr ptr;
-            snap  hz;
-            snap  vt;
-            bool  on;
+            sptr client;
+            snap hzgrow;
+            snap vtgrow;
+            snap hzcrop;
+            snap vtcrop;
+            bool active;
         };
         std::list<type> subset;
 
-        void xform(snap align, si32& coor, si32& size, si32 width)
+        void xform(snap align, si32& coor, si32 size, si32 width)
         {
             switch (align)
             {
@@ -818,10 +819,6 @@ namespace netxs::ui
                 case snap::center:
                     coor = (width - size) / 2;
                     break;
-                case snap::stretch:
-                    coor = 0;
-                    size = width;
-                    break;
                 default:
                     break;
             }
@@ -833,7 +830,7 @@ namespace netxs::ui
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
-                auto item_ptr = subset.back().ptr;
+                auto item_ptr = subset.back().client;
                 subset.pop_back();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
@@ -842,24 +839,25 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::size::any, newsz)
             {
-                for (auto& client : subset)
+                for (auto& s : subset)
                 {
-                    if (client.ptr)
+                    if (s.client && s.active)
                     {
-                        auto& item = *client.ptr;
-                        auto  area = item.area();
-                        xform(client.hz, area.coor.x, area.size.x, newsz.x);
-                        xform(client.vt, area.coor.y, area.size.y, newsz.y);
-                        item.extend(area);
+                        auto& item = *s.client;
+                        item.resize(newsz); // We always do stretching. Use pro::limit to avoid stretching.
+                        auto area = item.area();
+                        xform(area.size.x > newsz.x ? s.hzcrop : s.hzgrow, area.coor.x, area.size.x, newsz.x);
+                        xform(area.size.y > newsz.y ? s.vtcrop : s.vtgrow, area.coor.y, area.size.y, newsz.y);
+                        if (item.coor() != area.coor) item.moveto(area.coor);
                     }
                 }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto& basis = base::coor();
-                for (auto& client : subset)
+                for (auto& s : subset)
                 {
-                    if (client.on) parent_canvas.render(client.ptr, basis);
+                    if (s.active) parent_canvas.render(s.client, basis);
                 }
             };
         }
@@ -869,7 +867,7 @@ namespace netxs::ui
             if (subset.size())
             {
                 auto iter = std::prev(subset.end());
-                auto item_ptr = iter->ptr;
+                auto item_ptr = iter->client;
                 auto backup = This();
                 subset.erase(iter);
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
@@ -878,16 +876,18 @@ namespace netxs::ui
             return sptr{};
         }
         // park: Configure specified object.
-        void config(sptr item_ptr, snap new_hz, snap new_vt)
+        void config(sptr item_ptr, snap new_hzgrow, snap new_vtgrow, snap new_hzcrop = snap::none, snap new_vtcrop = snap::none)
         {
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
             if (iter != tail)
             {
-                iter->hz = new_hz;
-                iter->vt = new_vt;
+                iter->hzgrow = new_hzgrow;
+                iter->vtgrow = new_vtgrow;
+                iter->hzcrop = new_hzcrop == snap::none ? new_hzgrow : new_hzcrop;
+                iter->vtcrop = new_vtcrop == snap::none ? new_vtgrow : new_vtcrop;
             }
         }
         // park: Make specified object visible or not.
@@ -896,14 +896,16 @@ namespace netxs::ui
             if (!item_ptr) return;
             auto head = subset.begin();
             auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
-            if (iter != tail) iter->on = is_visible;
+            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
+            if (iter != tail) iter->active = is_visible;
         }
         // park: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(T item_ptr, snap hz, snap vt)
+        auto attach(T item_ptr, snap hzgrow = snap::head, snap vtgrow = snap::head, snap hzcrop = snap::none, snap vtcrop = snap::none)
         {
-            subset.push_back({ item_ptr, hz, vt, true });
+            if (hzcrop == snap::none) hzcrop = hzgrow;
+            if (vtcrop == snap::none) vtcrop = vtgrow;
+            subset.push_back({ item_ptr, hzgrow, vtgrow, hzcrop, vtcrop, true });
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
@@ -912,7 +914,7 @@ namespace netxs::ui
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c.ptr == item_ptr; });
+            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
             if (iter != tail)
             {
                 auto backup = This();

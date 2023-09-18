@@ -186,6 +186,7 @@ namespace netxs::app::desk
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
             auto& apps_map = *apps_map_ptr;
+            //todo optimize: use a branch_template for sublist instead of recreating whole app list
             for (auto const& [class_id, stat_inst_ptr_list] : apps_map)
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
@@ -241,7 +242,15 @@ namespace netxs::app::desk
                     });
                 if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
                 auto block = item_area->attach(ui::fork::ctor(axis::Y));
-                auto head_area = block->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
+                auto head_pads = block->attach(slot::_1, ui::fork::ctor(axis::X));
+                auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
+                auto count = inst_ptr_list.size();
+                auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
+                    ->plugin<pro::limit>(twod{ count ? -1 : 0,-1 }, twod{ count ? -1 : 0,-1 });
+                if (inst_ptr_list.size())
+                {
+                    auto head_fold = head_bttn->attach(ui::item::ctor(" <  ", faux));
+                }
                 auto head = head_area->attach(ui::item::ctor(obj_desc, true))
                     ->invoke([&](auto& boss)
                     {
@@ -458,7 +467,7 @@ namespace netxs::app::desk
                         viewport = boss.base::area();
                     };
                 });
-            auto taskbar = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::Y))
+            auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::park::ctor())
                 ->colors(menu_bg_color.fgc(), menu_bg_color.bgc())
                 ->plugin<pro::notes>(" LeftDrag to adjust the taskbar width                        \n"
                                      " Ctrl+LeftDrag to adjust the folded taskbar width            \n"
@@ -542,6 +551,7 @@ namespace netxs::app::desk
                         viewport.size.x -= menu_min_size;
                     };
                 });
+            auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y), snap::head, snap::head, snap::head, snap::tail);
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,0 }, dent{}))
                 ->attach(ui::cake::ctor());
@@ -561,12 +571,11 @@ namespace netxs::app::desk
             auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,tall }, dent{ 0,0,0,0 }))
                                         ->plugin<pro::notes>(" List of connected users ");
-            auto label_bttn = label_pads->attach(ui::fork::ctor());
+            auto label_bttn = label_pads->attach(ui::fork::ctor(axis::X));//, 0, 1, 1, true));
             auto label = label_bttn->attach(slot::_1, ui::item::ctor("users", true, faux, true))
                 ->plugin<pro::limit>(twod{ 5,-1 })
                 ->colors(cA.fgc(), cA.bgc());
-            auto bttn_area = label_bttn->attach(slot::_2, ui::fork::ctor());
-            auto bttn_pads = bttn_area->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
+            auto bttn_pads = label_bttn->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
                 ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Show/hide user list ");
             auto collapsed = true;

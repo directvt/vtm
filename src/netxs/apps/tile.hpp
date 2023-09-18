@@ -472,7 +472,7 @@ namespace netxs::app::tile
                 ->branch
                 (
                     menu_block,
-                    snap::stretch, snap::head
+                    snap::head, snap::head
                 );
         };
         auto empty_slot = [](auto&& empty_slot, auto min_state) -> sptr<ui::veer>

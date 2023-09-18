@@ -214,7 +214,7 @@ namespace netxs::app::shared
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail), snap::stretch, menusize ? snap::center : snap::tail);
+                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail), snap::head, menusize ? snap::center : snap::tail);
 
                 auto scrl_grip = scrlarea->attach(scroll_hint);
 
@@ -280,7 +280,7 @@ namespace netxs::app::shared
                         };
                     }
                 });
-            menu_block->attach(menuarea, snap::stretch, snap::center);
+            menu_block->attach(menuarea, snap::head, snap::center);
 
             auto menu = slot1->attach(menu_block);
                     auto border = slot1->attach(ui::mock::ctor())
@@ -387,7 +387,7 @@ namespace netxs::app::shared
     {
         auto area = ui::park::ctor();
         auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master);
-        area->branch(grip, snap::stretch, snap::tail)
+        area->branch(grip, snap::head, snap::tail)
             ->invoke([&](auto& boss)
             {
                 area->visible(grip, faux);
@@ -463,7 +463,7 @@ namespace netxs::app::shared
                  .add(prompt::apps, "See logs for details."));
             auto placeholder = ui::park::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->attach(msg, snap::stretch, snap::stretch);
+                ->attach(msg);
             window->attach(ui::rail::ctor())
                   ->attach(placeholder);
             return window;
