@@ -11,33 +11,6 @@
 
 namespace netxs::ui
 {
-    enum axis { X, Y };
-
-    enum class sort
-    {
-        forward,
-        reverse,
-    };
-
-    enum class snap
-    {
-        none,
-        head,
-        tail,
-        center,
-    };
-
-    enum class slot { _1, _2, _I };
-
-    enum class axes
-    {
-        none   = 0,
-        X_only = 1 << 0,
-        Y_only = 1 << 1,
-        all    = (X_only | Y_only),
-    };
-    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
-
     // controls: base UI element.
     template<class T>
     class form
@@ -95,10 +68,10 @@ namespace netxs::ui
             return This();
         }
         // form: Set control as root.
-        auto isroot(bool state, si32 kind = 0)
+        auto isroot(bool master, si32 family = base::client)
         {
-            base::root(state);
-            base::kind(kind);
+            base::root(master);
+            base::kind(family);
             return This();
         }
         // form: Set the form visible for mouse.

@@ -2003,18 +2003,18 @@ namespace netxs::ui
                 transit{ 0 }
             {
                 boss.base::color(c1.fgc(), c1.bgc());
-                boss.LISTEN(tier::release, e2::form::prop::brush, brush)
+                boss.LISTEN(tier::release, e2::form::prop::filler, filler)
                 {
                     if (!fake)
                     {
-                        auto& fgc = brush.fgc();
-                        auto& bgc = brush.bgc();
+                        auto& fgc = filler.fgc();
+                        auto& bgc = filler.bgc();
                         c1.fgc(fgc);
                         c1.bgc(bgc);
-                        if (brush.fga()) c2.fgc(fgc);
-                        else             c2.fgc(c2_orig.fgc());
-                        if (brush.bga()) c2.bgc(bgc);
-                        else             c2.bgc(c2_orig.bgc());
+                        if (filler.fga()) c2.fgc(fgc);
+                        else              c2.fgc(c2_orig.fgc());
+                        if (filler.bga()) c2.bgc(bgc);
+                        else              c2.bgc(c2_orig.bgc());
                         work(transit);
                     }
                 };
@@ -2743,10 +2743,10 @@ namespace netxs::ui
                         gear.set_clipboard(gear.slot.size, data, mime::ansitext);
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
+                boss.LISTEN(tier::release, e2::form::prop::filler, filler, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.mark(brush);
+                    xmap.mark(filler);
                 };
                 boss.LISTEN(tier::release, e2::size::any, newsize, memo)
                 {
@@ -3030,7 +3030,7 @@ namespace netxs::ui
         subs       tokens; // gate: Subscription tokens.
         bool       direct; // gate: .
         bool       local; // gate: .
-        wptr<base> nexthop; // gate: .
+        wptr       nexthop; // gate: .
         hook       oneoff_focus; // gate: .
 
         void draw_foreign_names(face& parent_canvas)

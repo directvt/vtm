@@ -193,7 +193,7 @@ namespace netxs::app::tile
                                     boss.RISEUP(tier::preview, e2::form::proceed::quit::one, true);
                                     break;
                                 case app::tile::events::ui::toggle.id:
-                                    if (boss.base::kind() == 0) // Only apps can be maximized.
+                                    if (boss.base::kind() == base::client) // Only apps can be maximized.
                                     if (gear.countdown > 0)
                                     {
                                         gear.countdown--; // The only one can be maximized if several are selected.
@@ -349,7 +349,7 @@ namespace netxs::app::tile
         {
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
-            node->isroot(faux, 1) // Set object kind to 1 to be different from others. See empty_slot::select.
+            node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See empty_slot::select.
                 ->template plugin<pro::limit>(dot_00)
                 ->template plugin<pro::focus>()
                 ->invoke([&](auto& boss)
@@ -449,7 +449,7 @@ namespace netxs::app::tile
             });
 
             return ui::park::ctor()
-                ->isroot(true, 2)
+                ->isroot(true, base::placeholder)
                 ->colors(cC.fgc(), cC.bgc())
                 ->plugin<pro::limit>(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
@@ -609,8 +609,8 @@ namespace netxs::app::tile
                     boss.LISTEN(tier::anycast, app::tile::events::ui::select, gear)
                     {
                         auto item_ptr = boss.back();
-                        if (item_ptr->base::kind() != 1) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                        else                             pro::focus::off(item_ptr, gear.id); // Exclude grips.
+                        if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                        else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
                     boss.LISTEN(tier::release, e2::form::layout::fullscreen, gear, -, (oneoff = subs{}))
                     {
@@ -621,7 +621,7 @@ namespace netxs::app::tile
                         else
                         {
                             if (boss.count() > 1) // Preventing the empty slot from maximizing.
-                            if (boss.back()->base::kind() == 0) // Preventing the splitter from maximizing.
+                            if (boss.back()->base::kind() == base::client) // Preventing the splitter from maximizing.
                             if (auto fullscreen_item = boss.pop_back())
                             {
                                 auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
@@ -688,7 +688,7 @@ namespace netxs::app::tile
                     {
                         if (auto parent = boss.base::parent())
                         {
-                            if (boss.count() > 1 && boss.back()->base::kind() == 0) // Only apps can be deleted.
+                            if (boss.count() > 1 && boss.back()->base::kind() == base::client) // Only apps can be deleted.
                             {
                                 auto gear_id_list = pro::focus::get(boss.This());
                                 auto deleted_item = boss.pop_back(); // Throw away.

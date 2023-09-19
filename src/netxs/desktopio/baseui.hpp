@@ -24,8 +24,42 @@ namespace netxs::input
 }
 namespace netxs::ui
 {
-    class face;
-    class base;
+    enum axis { X, Y };
+
+    enum class sort
+    {
+        forward,
+        reverse,
+    };
+
+    enum class snap
+    {
+        none,
+        head,
+        tail,
+        center,
+        both, // Size binding.
+    };
+
+    enum class slot { _1, _2, _I };
+
+    enum class axes
+    {
+        none   = 0,
+        X_only = 1 << 0,
+        Y_only = 1 << 1,
+        all    = (X_only | Y_only),
+    };
+    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
+
+    struct bind
+    {
+        snap x;
+        snap y;
+    };
+
+    struct face;
+    struct base;
 
     using namespace netxs::input;
     using focus_test_t = std::pair<id_t, si32>;
@@ -371,7 +405,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( name      , text           ), // user name.
                     EVENT_XS( zorder    , zpos           ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
-                    EVENT_XS( brush     , const cell     ), // set form brush/color.
+                    EVENT_XS( filler    , const cell     ), // set form brush/color.
                     EVENT_XS( fullscreen, sptr<ui::base> ), // set fullscreen app.
                     EVENT_XS( viewport  , rect           ), // request: return form actual viewport.
                     EVENT_XS( lucidity  , si32           ), // set or request window transparency, si32: 0-255, -1 to request.
@@ -543,9 +577,10 @@ namespace netxs::ui
     };
 
     // console: Textographical canvas.
-    class face
+    struct face
         : public rich, public flow, public std::enable_shared_from_this<face>
     {
+    protected:
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
         vrgb cache;     // face: BlurFX temp buffer.
@@ -725,36 +760,36 @@ namespace netxs::ui
         }
 
         // Use a two letter function if we don't need to return *this
-        face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
-        face& chx (si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
-        face& chy (si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
-        face& cpp (twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
-        face& cpx (si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
-        face& cpy (si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
-        face& cuu (si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
-        face& cud (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
-        face& cuf (si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
-        face& cub (si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
-        face& cnl (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
-        face& cpl (si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
+        face& cup(twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
+        face& chx(si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
+        face& chy(si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
+        face& cpp(twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
+        face& cpx(si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
+        face& cpy(si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
+        face& cuu(si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
+        face& cud(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
+        face& cuf(si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
+        face& cub(si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
+        face& cnl(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
+        face& cpl(si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
 
-        face& ocp (twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
-        face& ocx (si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
-        face& ocy (si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+        face& ocp(twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
+        face& ocx(si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
+        face& ocy(si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
 
-        face& scp ()              { flow::sc(  ); return *this; } // face: Save cursor position.
-        face& rcp ()              { flow::rc(  ); return *this; } // face: Restore cursor position.
-        face& rst ()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
+        face& scp()              { flow::sc(  ); return *this; } // face: Save cursor position.
+        face& rcp()              { flow::rc(  ); return *this; } // face: Restore cursor position.
+        face& rst()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
 
-        face& tab (si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
-        face& eol (si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
+        face& tab(si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
+        face& eol(si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
 
-        void size (twod const& newsize) // face: Change the size of the face/core.
+        void size(twod const& newsize) // face: Change the size of the face/core.
         {
             core::size(newsize);
             flow::size(newsize);
         }
-        auto size () // face: Return size of the face/core.
+        auto size() // face: Return size of the face/core.
         {
             return core::size();
         }
@@ -864,21 +899,34 @@ namespace netxs::ui
     };
 
     // console: Base visual.
-    class base
+    struct base
         : public bell, public std::enable_shared_from_this<base>
     {
-        wptr<base> parent_shadow; // base: Parental visual tree weak-pointer.
-        cell brush;
-        rect square;
-        bool invalid = true; // base: Should the object be redrawn.
-        bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        hook cascade_token;
-        si32 object_kind = {};
+        using wptr = netxs::wptr<base>;
 
-    public:
-        static constexpr auto reflow_root = si32{ -1 }; //todo unify
+        enum type
+        {
+            reflow_root = -1,
+            client = 0,
+            node = 1,
+            placeholder = 2,
+        };
 
-        //todo replace "side" with "dent<si32>"
+        wptr father; // base: Parental visual tree weak-pointer.
+        cell filler; // base: Object color.
+        rect square; // base: Object size and coor.
+        dent extpad; // base: External margins.
+        dent intpad; // base: Internal margins.
+        twod minlim; // base: Minimal size.
+        twod maxlim; // base: Maximal size.
+        bind atgrow; // base: Bindings on enlarging.
+        bind atcrop; // base: Bindings on shrinking.
+        bool active; // base: Participate in resizing.
+        bool wasted; // base: Should the object be redrawn.
+        bool hidden; // base: Ignore rendering.
+        bool master; // base: Anycast root.
+        si32 family; // base: Object type.
+        hook relyon; // base: Subscription to e2::cascade events.
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -887,14 +935,14 @@ namespace netxs::ui
         auto&  coor() const { return square.coor;          }
         auto&  size() const { return square.size;          }
         auto&  area() const { return square;               }
-        void   root(bool b) { visual_root = b;             }
-        bool   root()       { return visual_root;          }
-        si32   kind()       { return object_kind;          }
-        void   kind(si32 k) { object_kind = k;             }
+        void   root(bool b) { master = b;                  }
+        bool   root()       { return master;               }
+        si32   kind()       { return family;               }
+        void   kind(si32 k) { family = k;                  }
         auto center() const { return square.center();      }
-        auto parent()       { return parent_shadow.lock(); }
-        void ruined(bool s) { invalid = s;                 }
-        auto ruined() const { return invalid;              }
+        auto parent()       { return father.lock();        }
+        void ruined(bool s) { wasted = s;                  }
+        auto ruined() const { return wasted;               }
         template<bool Absolute = true>
         auto actual_area() const
         {
@@ -902,21 +950,21 @@ namespace netxs::ui
             if constexpr (Absolute) area.coor += square.coor;
             return area;
         }
-        auto color() const { return brush; }
+        auto color() const { return filler; }
         void color(rgba const& fg_color, rgba const& bg_color)
         {
             // To make an object transparent to mouse events,
-            // no id (cell::id = 0) is used by default in the brush.
+            // no id (cell::id = 0) is used by default in the filler.
             // The bell::id is configurable only with pro::mouse.
-            base::brush.bgc(bg_color)
-                       .fgc(fg_color)
-                       .txt(whitespace);
-            SIGNAL(tier::release, e2::form::prop::brush, brush);
+            base::filler.bgc(bg_color)
+                        .fgc(fg_color)
+                        .txt(whitespace);
+            SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-        void color(cell const& new_brush)
+        void color(cell const& new_filler)
         {
-            base::brush = new_brush;
-            SIGNAL(tier::release, e2::form::prop::brush, brush);
+            base::filler = new_filler;
+            SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
         // base: Move the form to a new place, and return the delta.
         auto moveto(twod new_coor)
@@ -1001,7 +1049,7 @@ namespace netxs::ui
         // base: Mark the form and its subtree as requiring redrawing.
         virtual void deface(rect const& region)
         {
-            invalid = true;
+            wasted = true;
             strike(region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
@@ -1014,7 +1062,7 @@ namespace netxs::ui
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && (!visual_root || (Forced && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            if (parent_ptr && (!master || (Forced && (family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
                 parent_ptr->reflow<Forced>();
             }
@@ -1059,12 +1107,12 @@ namespace netxs::ui
         sptr<bell> gettop() override
         {
             auto parent_ptr = parent();
-            if (!visual_root && parent_ptr) return parent_ptr->gettop();
-            else                            return This();
+            if (!master && parent_ptr) return parent_ptr->gettop();
+            else                       return This();
         }
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:
-        //     toboss([&](auto& parent_ptr) { c.fuse(parent.brush); });
+        //     toboss([&](auto& parent_ptr) { c.fuse(parent.filler); });
         template<class T>
         void toboss(T proc)
         {
@@ -1138,6 +1186,11 @@ namespace netxs::ui
     protected:
         virtual ~base() = default;
         base()
+            : active{ true },
+              wasted{ true },
+              hidden{ faux },
+              master{ faux },
+              family{ type::client }
         {
             LISTEN(tier::request, e2::depth, depth) { depth++; };
 
@@ -1154,15 +1207,15 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
-                if (!visual_root)
+                if (!master)
                 {
-                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, cascade_token)
+                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
                     {
-                        auto backup = This();
+                        auto backup = This(); // Object can be deleted inside proc.
                         backup->SIGNAL(tier::release, e2::cascade, proc);
                     };
                 }
-                parent_shadow = parent_ptr;
+                father = parent_ptr;
                 // Propagate form events up to the visual branch ends (children).
                 // Exec after all subscriptions.
                 //todo implement via e2::cascade
@@ -1171,16 +1224,16 @@ namespace netxs::ui
             {
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
-                    cascade_token.reset();
+                    relyon.reset();
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
 
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (base::brush.wdt())
+                if (base::filler.wdt())
                 {
-                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+                    parent_canvas.fill([&](cell& c) { c.fusefull(base::filler); });
                 }
             };
         }

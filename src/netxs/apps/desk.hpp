@@ -250,16 +250,16 @@ namespace netxs::app::desk
                 auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto count = inst_ptr_list.size();
                 auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
-                    ->plugin<pro::limit>(twod{ count ? -1 : 0,-1 }, twod{ count ? -1 : 0,-1 });
+                    ->template plugin<pro::limit>(twod{ count ? -1 : 0,-1 }, twod{ count ? -1 : 0,-1 });
                 if (inst_ptr_list.size())
                 {
                     auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->plugin<pro::limit>(twod{ 5,1 }, twod{ 5,1 });
+                        ->template plugin<pro::limit>(twod{ 5,1 }, twod{ 5,1 });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
                     auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor("  <  ", faux))
-                        ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
-                        ->plugin<pro::notes>(" Hide active window list.               \n"
-                                             " Use mouse wheel to switch it to close. ")
+                        ->template plugin<pro::fader>(x6, c6, skin::globals().fader_time)
+                        ->template plugin<pro::notes>(" Hide active window list.               \n"
+                                                      " Use mouse wheel to switch it to close. ")
                         ->invoke([&](auto& boss)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -269,8 +269,8 @@ namespace netxs::app::desk
                             };
                         });
                     auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("  ×  ", faux))
-                        ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
-                        ->plugin<pro::notes>(" Close all open windows in that group ")
+                        ->template plugin<pro::fader>(x1, c1, skin::globals().fader_time)
+                        ->template plugin<pro::notes>(" Close all open windows in that group ")
                         ->invoke([&](auto& boss)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

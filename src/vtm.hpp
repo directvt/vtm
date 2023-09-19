@@ -1205,7 +1205,7 @@ namespace netxs::app::vtm
                 ->plugin<pro::focus>()
                 ->invoke([&](auto& boss)
                 {
-                    boss.base::kind(base::reflow_root); //todo unify -- See base::reflow()
+                    boss.base::kind(base::reflow_root);
                     boss.LISTEN(tier::preview, vtm::events::d_n_d::drop, what, -, (menuid = what.menuid))
                     {
                         if (auto applet = boss.pop_back())
