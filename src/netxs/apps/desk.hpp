@@ -250,11 +250,11 @@ namespace netxs::app::desk
                 auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto count = inst_ptr_list.size();
                 auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
-                    ->template plugin<pro::limit>(twod{ count ? -1 : 0,-1 }, twod{ count ? -1 : 0,-1 });
+                    ->limits({ count ? -1 : 0,-1 }, { count ? -1 : 0,-1 });
                 if (inst_ptr_list.size())
                 {
                     auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->template plugin<pro::limit>(twod{ 5,1 }, twod{ 5,1 });
+                        ->limits({ 5,1 }, { 5,1 });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
                     auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor("  <  ", faux))
                         ->template plugin<pro::fader>(x6, c6, skin::globals().fader_time)
@@ -335,9 +335,10 @@ namespace netxs::app::desk
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto x8 = cell{ c8 }.alpha(0x00);
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
-                ->plugin<pro::fader>(x8, c8, 0ms);
-            return ui::park::ctor()
-                ->branch(ver_label, ui::snap::tail, ui::snap::tail)
+                ->plugin<pro::fader>(x8, c8, 0ms)
+                ->alignment({ snap::tail, snap::tail });
+            return ui::cake::ctor()
+                ->branch(ver_label)
                 ->plugin<pro::notes>(" About ")
                 ->invoke([&](auto& boss)
                 {
@@ -517,12 +518,12 @@ namespace netxs::app::desk
                         viewport = boss.base::area();
                     };
                 });
-            auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::park::ctor())
+            auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::cake::ctor())
                 ->colors(menu_bg_color.fgc(), menu_bg_color.bgc())
+                ->limits({ menu_min_size,-1 }, { menu_min_size,-1 })
                 ->plugin<pro::notes>(" LeftDrag to adjust the taskbar width                        \n"
                                      " Ctrl+LeftDrag to adjust the folded taskbar width            \n"
                                      " RightDrag or scroll wheel to slide the taskbar menu up/down ")
-                ->plugin<pro::limit>(twod{ menu_min_size,-1 }, twod{ menu_min_size,-1 })
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
@@ -534,23 +535,19 @@ namespace netxs::app::desk
                     {
                         auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
                         active = state;
-                        auto& limits = boss.template plugins<pro::limit>();
                         auto size = active ? std::max(menu_max_size, menu_min_size)
                                            : menu_min_size;
                         auto lims = twod{ size,-1 };
-                        limits.set(lims, lims);
+                        boss.base::limits(lims, lims);
                         boss.base::reflow();
                     };
                     boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (size_config))
                     {
                         auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        auto& limits = boss.template plugins<pro::limit>();
-                        auto lims = limits.get();
-                        lims.min.x += gear.delta.get().x;
-                        lims.max.x = lims.min.x;
-                        gear.meta(hids::anyCtrl) ? menu_min_size = lims.min.x
-                                                 : menu_max_size = lims.min.x;
-                        limits.set(lims.min, lims.max);
+                        boss.minlim.x += gear.delta.get().x;
+                        boss.maxlim.x = boss.minlim.x;
+                        gear.meta(hids::anyCtrl) ? menu_min_size = boss.minlim.x
+                                                 : menu_max_size = boss.minlim.x;
                         boss.base::reflow();
                     };
                     //todo rewrite taskbar
@@ -581,11 +578,10 @@ namespace netxs::app::desk
                         {
                             auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
                             active = state;
-                            auto& limits = boss.template plugins<pro::limit>();
                             auto size = active ? std::max(menu_max_size, menu_min_size)
                                                : menu_min_size;
                             auto lims = twod{ size,-1 };
-                            limits.set(lims, lims);
+                            boss.base::limits(lims, lims);
                             boss.base::reflow();
                             return faux; // One shot call.
                         };
@@ -601,7 +597,7 @@ namespace netxs::app::desk
                         viewport.size.x -= menu_min_size;
                     };
                 });
-            auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y), snap::head, snap::head, snap::head, snap::tail);
+            auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,0 }, dent{}))
                 ->attach(ui::cake::ctor());
@@ -623,7 +619,7 @@ namespace netxs::app::desk
                                         ->plugin<pro::notes>(" List of connected users ");
             auto label_bttn = label_pads->attach(ui::fork::ctor(axis::X));//, 0, 1, 1, true));
             auto label = label_bttn->attach(slot::_1, ui::item::ctor("users", true, faux, true))
-                ->plugin<pro::limit>(twod{ 5,-1 })
+                ->limits({ 5,-1 })
                 ->colors(cA.fgc(), cA.bgc());
             auto bttn_pads = label_bttn->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
                 ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
@@ -661,11 +657,11 @@ namespace netxs::app::desk
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
-                ->plugin<pro::limit>(twod{ -1, 1 + tall * 2 }, twod{ -1, 1 + tall * 2 });
+                ->limits({ -1, 1 + tall * 2 }, { -1, 1 + tall * 2 });
             bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
-                ->plugin<pro::limit>(bttn_min_size, bttn_max_size);
-            auto disconnect_park = bttns->attach(slot::_1, ui::park::ctor())
+                ->limits(bttn_min_size, bttn_max_size);
+            auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->plugin<pro::fader>(x2, c2, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Leave current session ")
                 ->invoke([&, name = text{ username_view }](auto& boss)
@@ -677,9 +673,9 @@ namespace netxs::app::desk
                         gear.dismiss();
                     };
                 });
-            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall }), snap::head, snap::center);
+            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall })->alignment({ snap::head, snap::center }));
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
-            auto shutdown_park = bttns->attach(slot::_2, ui::park::ctor())
+            auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Disconnect all users and shutdown the server ")
                 ->invoke([&](auto& boss)
@@ -689,7 +685,7 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
                     };
                 });
-            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall }), snap::tail, snap::center);
+            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall })->alignment({ snap::tail, snap::center }));
             auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
             return window;
         };

@@ -582,8 +582,12 @@ namespace netxs
         // dent: Return the coor of the area rectangle.
         constexpr auto corner() const
         {
-            return twod{ west.step,
-                         head.step };
+            return twod{ west.step, head.step };
+        }
+        // dent: Return the coor of the area rectangle.
+        constexpr auto coor(twod const& c) const
+        {
+            return twod{ c.x - west.step, c.y - head.step };
         }
         // dent: Return inner width.
         constexpr auto width(si32 size_x) const

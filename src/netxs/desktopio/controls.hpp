@@ -197,8 +197,7 @@ namespace netxs::ui
         }
         auto limits(twod minlim = -dot_11, twod maxlim = -dot_11)
         {
-            base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
-            base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
+            base::limits(minlim, maxlim);
             return This();
         }
         auto alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
@@ -330,25 +329,26 @@ namespace netxs::ui
                 //size = new_size;
                 if (client_1)
                 {
-                    client_1->SIGNAL(tier::release, e2::size::set, size1);
+                    client_1->base::size_release(size1);
                 }
                 if (client_2)
                 {
-                    client_2->SIGNAL(tier::release, e2::coor::set, coor2);
-                    client_2->SIGNAL(tier::release, e2::size::set, size2);
+                    client_2->base::coor_release(coor2);
+                    client_2->base::size_release(size2);
                 }
                 if (splitter)
                 {
-                    splitter->SIGNAL(tier::release, e2::coor::set, coor3);
-                    splitter->SIGNAL(tier::release, e2::size::set, size3);
+                    splitter->base::coor_release(coor3);
+                    splitter->base::size_release(size3);
                 }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto& basis = base::coor();
-                if (splitter) parent_canvas.render(splitter, basis);
-                if (client_1) parent_canvas.render(client_1, basis);
-                if (client_2) parent_canvas.render(client_2, basis);
+                //todo pads
+                auto basis = base::coor();
+                parent_canvas.render(splitter, basis);
+                parent_canvas.render(client_1, basis);
+                parent_canvas.render(client_2, basis);
             };
 
             _config(alignment, thickness, s1, s2);
@@ -367,7 +367,7 @@ namespace netxs::ui
             if (client_1)
             {
                 auto coor1 = dot_00;
-                client_1->SIGNAL(tier::release, e2::coor::set, coor1);
+                client_1->base::coor_release(coor1);
             }
             base::reflow();
         }
@@ -384,8 +384,7 @@ namespace netxs::ui
                 size1 = xpose({ split, new_size0.y });
                 if (client_1)
                 {
-                    auto& item = *client_1;
-                    item.SIGNAL(tier::preview, e2::size::set, size1);
+                    client_1->base::size_preview(size1);
 
                     split = get_x(size1);
                     new_size0.y = get_y(size1);
@@ -395,8 +394,7 @@ namespace netxs::ui
                 auto test_size2 = size2;
                 if (client_2)
                 {
-                    auto& item = *client_2;
-                    item.SIGNAL(tier::preview, e2::size::set, size2);
+                    client_2->base::size_preview(size2);
                     split = new_size0.x - width - get_x(size2);
 
                     if (test_size2 != size2) // If size2 doesn't fit.
@@ -405,17 +403,14 @@ namespace netxs::ui
                         size1 = xpose({ split, new_size0.y });
                         if (client_1)
                         {
-                            auto& item = *client_1;
-                            item.SIGNAL(tier::preview, e2::size::set, size1);
-
+                            client_1->base::size_preview(size1);
                             split = get_x(size1);
                             new_size0.y = get_y(size1);
                         }
                         size2 = xpose({ maxpos - split, new_size0.y });
                         if (client_2)
                         {
-                            auto& item = *client_2;
-                            item.SIGNAL(tier::preview, e2::size::set, size2);
+                            client_2->base::size_preview(size2);
                             new_size0.y = get_y(size2);
                         }
                     }
@@ -569,11 +564,11 @@ namespace netxs::ui
             : updown{ orientation == axis::Y },
               lineup{ attach_order }
         {
-            LISTEN(tier::preview, e2::size::set, new_sz)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
                 auto  height = si32{};
-                auto& y_size = updown ? new_sz.y : new_sz.x;
-                auto& x_size = updown ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_size.y : new_size.x;
+                auto& x_size = updown ? new_size.x : new_size.y;
                 auto  x_temp = x_size;
                 auto  y_temp = y_size;
 
@@ -583,7 +578,7 @@ namespace netxs::ui
                     for (auto& client : subset)
                     {
                         y_size = 0;
-                        client.first->SIGNAL(tier::preview, e2::size::set, new_sz);
+                        client.first->base::size_preview(new_size);
                         client.second = { x_size, y_size };
                         if (x_size > x_temp) x_temp = x_size;
                         x_size = x_temp;
@@ -593,10 +588,10 @@ namespace netxs::ui
                 meter(); if (x_temp != x_size) meter();
                 y_size = height;
             };
-            LISTEN(tier::release, e2::size::any, new_sz)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
-                auto& y_size = updown ? new_sz.y : new_sz.x;
-                auto& x_size = updown ? new_sz.x : new_sz.y;
+                auto& y_size = updown ? new_size.y : new_size.x;
+                auto& x_size = updown ? new_size.x : new_size.y;
                 auto  new_xy = twod{};
                 auto& y_coor = updown ? new_xy.y : new_xy.x;
                 auto& x_coor = updown ? new_xy.x : new_xy.y;
@@ -619,7 +614,7 @@ namespace netxs::ui
                                 base::anchor += new_xy - anker.coor;
                             }
                         }
-                        entry.SIGNAL(tier::release, e2::coor::set, new_xy);
+                        entry.base::coor_release(new_xy);
                         auto& sz_y = updown ? client.second.y : client.second.x;
                         auto& sz_x = updown ? client.second.x : client.second.y;
                         auto& size = entry.resize(sz_x, sz_y);
@@ -631,7 +626,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto& basis = base::coor();
+                auto basis = base::coor();
                 for (auto& client : subset)
                 {
                     parent_canvas.render(client.first, basis);
@@ -692,7 +687,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: (puff) Layered cake of forms on top of each other.
+    // controls: Layered cake of forms on top of each other.
     class cake
         : public form<cake>
     {
@@ -704,36 +699,30 @@ namespace netxs::ui
             auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
-                auto item_ptr = subset.back();
+                auto client_ptr = subset.back();
                 subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                client_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
             }
         }
         cake()
         {
-            LISTEN(tier::preview, e2::size::set, newsz)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
                 for (auto& client : subset)
                 {
-                    if (client)
-                    {
-                        client->SIGNAL(tier::preview, e2::size::set, newsz);
-                    }
+                    client->base::size_preview(new_size);
                 }
             };
-            LISTEN(tier::release, e2::size::any, newsz)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 for (auto& client : subset)
                 {
-                    if (client)
-                    {
-                        client->SIGNAL(tier::release, e2::size::set, newsz);
-                    }
+                    client->base::size_release(new_size);
                 }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto& basis = base::coor();
+                auto basis = base::coor();
                 for (auto& client : subset)
                 {
                     parent_canvas.render(client, basis);
@@ -758,8 +747,11 @@ namespace netxs::ui
         template<class T>
         auto attach(T item_ptr)
         {
-            subset.push_back(item_ptr);
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            if (item_ptr)
+            {
+                subset.push_back(item_ptr);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            }
             return item_ptr;
         }
         // cake: Remove nested object.
@@ -767,7 +759,7 @@ namespace netxs::ui
         {
             auto head = subset.begin();
             auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            auto iter = std::find_if(head, tail, [&](auto& client){ return client == item_ptr; });
             if (iter != tail)
             {
                 auto backup = This();
@@ -777,140 +769,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Form aligner.
-    class park
-        : public form<park>
-    {
-        struct type
-        {
-            sptr client;
-            snap hzgrow;
-            snap vtgrow;
-            snap hzcrop;
-            snap vtcrop;
-            bool active;
-        };
-        std::list<type> subset;
-
-        void xform(snap align, si32& coor, si32 size, si32 width)
-        {
-            switch (align)
-            {
-                case snap::head:
-                    coor = 0;
-                    break;
-                case snap::tail:
-                    coor = width - size;
-                    break;
-                case snap::center:
-                    coor = (width - size) / 2;
-                    break;
-                default:
-                    break;
-            }
-        }
-
-    public:
-       ~park()
-        {
-            auto empty = e2::form::upon::vtree::detached.param();
-            while (subset.size())
-            {
-                auto item_ptr = subset.back().client;
-                subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
-            }
-        }
-        park()
-        {
-            LISTEN(tier::release, e2::size::any, newsz)
-            {
-                for (auto& s : subset)
-                {
-                    if (s.client && s.active)
-                    {
-                        auto& item = *s.client;
-                        item.resize(newsz); // We always do stretching. Use pro::limit to avoid stretching.
-                        auto area = item.area();
-                        xform(area.size.x > newsz.x ? s.hzcrop : s.hzgrow, area.coor.x, area.size.x, newsz.x);
-                        xform(area.size.y > newsz.y ? s.vtcrop : s.vtgrow, area.coor.y, area.size.y, newsz.y);
-                        if (item.coor() != area.coor) item.moveto(area.coor);
-                    }
-                }
-            };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
-            {
-                auto& basis = base::coor();
-                for (auto& s : subset)
-                {
-                    if (s.active) parent_canvas.render(s.client, basis);
-                }
-            };
-        }
-        // park: Remove the last nested object. Return the object refrence.
-        auto pop_back()
-        {
-            if (subset.size())
-            {
-                auto iter = std::prev(subset.end());
-                auto item_ptr = iter->client;
-                auto backup = This();
-                subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return item_ptr;
-            }
-            return sptr{};
-        }
-        // park: Configure specified object.
-        void config(sptr item_ptr, snap new_hzgrow, snap new_vtgrow, snap new_hzcrop = snap::none, snap new_vtcrop = snap::none)
-        {
-            if (!item_ptr) return;
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
-            if (iter != tail)
-            {
-                iter->hzgrow = new_hzgrow;
-                iter->vtgrow = new_vtgrow;
-                iter->hzcrop = new_hzcrop == snap::none ? new_hzgrow : new_hzcrop;
-                iter->vtcrop = new_vtcrop == snap::none ? new_vtgrow : new_vtcrop;
-            }
-        }
-        // park: Make specified object visible or not.
-        void visible(sptr item_ptr, bool is_visible)
-        {
-            if (!item_ptr) return;
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
-            if (iter != tail) iter->active = is_visible;
-        }
-        // park: Create a new item of the specified subtype and attach it.
-        template<class T>
-        auto attach(T item_ptr, snap hzgrow = snap::head, snap vtgrow = snap::head, snap hzcrop = snap::none, snap vtcrop = snap::none)
-        {
-            if (hzcrop == snap::none) hzcrop = hzgrow;
-            if (vtcrop == snap::none) vtcrop = vtgrow;
-            subset.push_back({ item_ptr, hzgrow, vtgrow, hzcrop, vtcrop, true });
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item_ptr;
-        }
-        // park: Remove nested object.
-        void remove(sptr item_ptr)
-        {
-            auto head = subset.begin();
-            auto tail = subset.end();
-            auto iter = std::find_if(head, tail, [&](auto& s){ return s.client == item_ptr; });
-            if (iter != tail)
-            {
-                auto backup = This();
-                subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            }
-        }
-    };
-
-    // controls: Container for many controls but shows the last one.
+    // controls: Container for multiple controls, but only the last one is shown.
     class veer
         : public form<veer>
     {
@@ -929,20 +788,20 @@ namespace netxs::ui
         }
         veer()
         {
-            LISTEN(tier::preview, e2::size::set, newsz)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
                 if (subset.size())
-                if (auto active = subset.back())
+                if (auto client = subset.back())
                 {
-                    active->SIGNAL(tier::preview, e2::size::set, newsz);
+                    client->base::size_preview(new_size);
                 }
             };
-            LISTEN(tier::release, e2::size::any, newsz)
+            LISTEN(tier::release, e2::size::any, new_size)
             {
                 if (subset.size())
-                if (auto active = subset.back())
+                if (auto client = subset.back())
                 {
-                    active->SIGNAL(tier::release, e2::size::set, newsz);
+                    client->base::size_release(new_size);
                 }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -950,7 +809,7 @@ namespace netxs::ui
                 if (subset.size())
                 if (auto active = subset.back())
                 {
-                    auto& basis = base::coor();
+                    auto basis = base::coor();
                     parent_canvas.render(active, basis);
                 }
             };
@@ -997,15 +856,15 @@ namespace netxs::ui
             if (dt && subset.size() > 1)
             {
                 if (dt > 0) while (dt--)
-                            {
-                                subset.push_front(subset.back());
-                                subset.pop_back();
-                            }
-                else        while (dt++)
-                            {
-                                subset.push_back(subset.front());
-                                subset.pop_front();
-                            }
+                {
+                    subset.push_front(subset.back());
+                    subset.pop_back();
+                }
+                else while (dt++)
+                {
+                    subset.push_back(subset.front());
+                    subset.pop_front();
+                }
             }
         }
         // veer: Create a new item of the specified subtype and attach it.
@@ -1400,10 +1259,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (client)
-                {
-                    parent_canvas.render<faux>(client, base::coor());
-                }
+                parent_canvas.render<faux>(client, base::coor());
             };
         }
         void cutoff()
@@ -1447,9 +1303,9 @@ namespace netxs::ui
         {
             strict[Axis] = true;
             robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
-                {
-                    move<Axis>(p);
-                });
+            {
+                move<Axis>(p);
+            });
         }
         template<axis Axis>
         auto inside()
@@ -1601,7 +1457,7 @@ namespace netxs::ui
         {
             if constexpr (debugmode)
             {
-                if (client != old_item_ptr) log(prompt::rail, "Wrong DOM structure. rail.id=", id);
+                if (client != old_item_ptr) log(prompt::rail, ansi::err("Wrong DOM structure. rail.id=", id));
             }
             if (client)
             {
@@ -1619,7 +1475,6 @@ namespace netxs::ui
         : public flow, public form<gripfx<Axis, drawfx>>
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
-        pro::limit limit{*this }; // grip: Size limits.
 
         using sptr = netxs::sptr<base>;
         using wptr = netxs::wptr<base>;
@@ -1745,7 +1600,7 @@ namespace netxs::ui
             thin = width;
             auto lims = Axis == axis::X ? twod{ -1,width }
                                         : twod{ width,-1 };
-            limit.set(lims, lims);
+            base::limits(lims, lims);
         }
         void giveup(hids& gear)
         {
@@ -2103,8 +1958,6 @@ namespace netxs::ui
     class item
         : public form<item>
     {
-        pro::limit limit{ *this }; // item: Size limits.
-
         static constexpr auto dots = "…"sv;
         para name;
         bool flex; // item: Violate or not the label size, default is faux.
@@ -2115,7 +1968,7 @@ namespace netxs::ui
         {
             auto size = name.size();
             auto lims = flex ? twod{ -1,size.y } : size;
-            limit.set(lims, lims);
+            base::limits(lims, lims);
             base::resize(size);
         }
 
@@ -2287,7 +2140,6 @@ namespace netxs::ui
         : public form<stem_rate<Tier, Event>>
     {
         pro::robot robot{*this }; // stem_rate: Animation controller.
-        pro::limit limit{*this }; // stem_rate: Size limits.
 
         //todo cache specific
         sptr<face> coreface;
@@ -2400,8 +2252,7 @@ namespace netxs::ui
             cur_val = -1;
             RISEUP(Tier, Event{}, cur_val);
 
-            limit.set(twod{ utf::length(caption) + (pad + 2) * 2,
-                           10 });
+            base::limits(twod{ utf::length(caption) + (pad + 2) * 2, 10 });
 
             topic = ansi::wrp(wrap::off).jet(bias::left)
                 .cpy(50).chx(pad + 2).cuu(3).add(caption).cud(3)
@@ -2467,9 +2318,9 @@ namespace netxs::ui
                         gear.setfree();
                         base::deface();
                         robot.actify(bygone.fader<quadratic<si32>>(750ms), [&](auto& delta)
-                            {
-                                move_grip(cur_val + delta);
-                            });
+                        {
+                            move_grip(cur_val + delta);
+                        });
                         gear.dismiss();
                     }
                 };

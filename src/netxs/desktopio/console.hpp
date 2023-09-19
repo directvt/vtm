@@ -2046,49 +2046,6 @@ namespace netxs::ui
             }
         };
 
-        // pro: Limits manager.
-        class limit
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            struct lims_t
-            {
-                twod min = skin::globals().min_value;
-                twod max = skin::globals().max_value;
-            }
-            lims;
-
-        public:
-            limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11)
-                : skill{ boss }
-            {
-                set(min_size, max_size);
-                // Clamping before all.
-                boss.LISTEN(tier::preview, e2::size::any, new_size, memo)
-                {
-                    new_size = std::clamp(new_size, lims.min, lims.max);
-                };
-            }
-            // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11)
-            {
-                lims.min = min_size.less(dot_00, skin::globals().min_value, min_size);
-                lims.max = max_size.less(dot_00, skin::globals().max_value, max_size);
-            }
-            // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits)
-            {
-                set(new_limits.min, new_limits.max);
-            }
-            auto& get() const
-            {
-                return lims;
-            }
-        };
-
         // pro: UI-control cache.
         class cache
             : public skill
@@ -2989,7 +2946,6 @@ namespace netxs::ui
     public:
         pro::mouse mouse{*this }; // gate: Mouse controller.
         pro::robot robot{*this }; // gate: Animation controller.
-        pro::limit limit{*this }; // gate: Limit size to dot_11.
 
         pipe&      canal; // gate: Channel to outside.
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
@@ -3229,7 +3185,7 @@ namespace netxs::ui
             config.set("/config/isolated", faux);
 
             base::root(true);
-            limit.set(dot_11);
+            base::limits(dot_11);
 
             LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
             {

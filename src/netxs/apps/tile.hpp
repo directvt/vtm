@@ -252,9 +252,9 @@ namespace netxs::app::tile
         {
             return ui::fork::ctor(axis::Y)
                     ->template plugin<pro::title>(what.header, what.footer, true, faux, true)
-                    ->template plugin<pro::limit>(twod{ 10,-1 }, twod{ -1,-1 })
                     ->template plugin<pro::light>()
                     ->template plugin<pro::focus>()
+                    ->limits({ 10,-1 }, { -1,-1 })
                     ->isroot(true)
                     ->active()
                     ->invoke([&](auto& boss)
@@ -350,8 +350,8 @@ namespace netxs::app::tile
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
             node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See empty_slot::select.
-                ->template plugin<pro::limit>(dot_00)
                 ->template plugin<pro::focus>()
+                ->limits(dot_00)
                 ->invoke([&](auto& boss)
                 {
                     mouse_subs(boss);
@@ -448,10 +448,10 @@ namespace netxs::app::tile
                 };
             });
 
-            return ui::park::ctor()
+            return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
                 ->colors(cC.fgc(), cC.bgc())
-                ->plugin<pro::limit>(dot_00, -dot_11)
+                ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->plugin<pro::track>(true)
                 ->invoke([&](auto& boss)
@@ -467,13 +467,12 @@ namespace netxs::app::tile
                 ->branch
                 (
                     ui::post::ctor()->upload("Empty Slot", 10)
-                        ->plugin<pro::limit>(twod{ 10,1 }, twod{ 10,1 }),
-                    snap::center, snap::center
+                        ->limits({ 10,1 }, { 10,1 })
+                        ->alignment({ snap::center, snap::center })
                 )
                 ->branch
                 (
-                    menu_block,
-                    snap::head, snap::head
+                    menu_block->alignment({ snap::head, snap::head })
                 );
         };
         auto empty_slot = [](auto&& empty_slot, auto min_state) -> sptr<ui::veer>

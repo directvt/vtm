@@ -213,8 +213,8 @@ namespace netxs::app::shared
                 auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
-                auto scroll_hint = ui::park::ctor();
-                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail), snap::head, menusize ? snap::center : snap::tail);
+                auto scroll_hint = ui::cake::ctor();
+                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::head, menusize ? snap::center : snap::tail }));
 
                 auto scrl_grip = scrlarea->attach(scroll_hint);
 
@@ -228,40 +228,33 @@ namespace netxs::app::shared
                     inner_pads.west = 1;
                 }
 
-            auto menu_block = ui::park::ctor()
-                ->plugin<pro::limit>(twod{ -1, menusize ? 1 : 3 }, twod{ -1, menusize ? 1 : 3 })
-                ->invoke([&](ui::park& boss)
+            auto menu_block = ui::cake::ctor()
+                ->limits({ -1, menusize ? 1 : 3 }, { -1, menusize ? 1 : 3 })
+                ->invoke([&](ui::cake& boss)
                 {
-                    scroll_hint->visible(hints, faux);
+                    hints->base::hide();
                     auto slim_status = ptr::shared(menusize);
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
                         {
-                            auto& limit = boss.plugins<pro::limit>();
-                            auto limits = limit.get();
                             if (new_size.y < 3)
                             {
-                                if (limits.min.y != new_size.y)
+                                if (boss.minlim.y != new_size.y)
                                 {
-                                    limits.min.y = limits.max.y = new_size.y;
-                                    limit.set(limits);
+                                    boss.minlim.y = boss.maxlim.y = new_size.y;
                                 }
                             }
-                            else if (limits.min.y != 3)
+                            else if (boss.minlim.y != 3)
                             {
-                                limits.min.y = limits.max.y = 3;
-                                limit.set(limits);
+                                boss.minlim.y = boss.maxlim.y = 3;
                             }
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (slim_status))
                     {
-                        auto& limit = boss.plugins<pro::limit>();
-                        auto limits = limit.get();
                         *slim_status = slim;
-                        limits.min.y = limits.max.y = slim ? 1 : 3;
-                        limit.set(limits);
+                        boss.minlim.y = boss.maxlim.y = slim ? 1 : 3;
                         boss.reflow();
                     };
                     //todo revise
@@ -274,17 +267,17 @@ namespace netxs::app::shared
                             if (auto scrl_ptr = scrl_shadow.lock())
                             if (auto grip_ptr = grip_shadow.lock())
                             {
-                                scrl_ptr->visible(grip_ptr, active);
+                                grip_ptr->base::hidden = !active;
                                 boss.base::deface();
                             }
                         };
                     }
                 });
-            menu_block->attach(menuarea, snap::head, snap::center);
+            menu_block->attach(menuarea->alignment({ snap::head, snap::center }));
 
             auto menu = slot1->attach(menu_block);
                     auto border = slot1->attach(ui::mock::ctor())
-                                       ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                                       ->limits({ -1,1 }, { -1,1 });
                          if (menushow == faux) autohide = faux;
                     else if (autohide == faux) slot1->roll();
                     slot1->invoke([&](auto& boss)
@@ -385,12 +378,13 @@ namespace netxs::app::shared
     };
     const auto underlined_hz_scrollbars = [](auto master)
     {
-        auto area = ui::park::ctor();
-        auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master);
-        area->branch(grip, snap::head, snap::tail)
+        auto area = ui::cake::ctor();
+        auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master)
+            ->alignment({ snap::head, snap::tail });
+        area->branch(grip)
             ->invoke([&](auto& boss)
             {
-                area->visible(grip, faux);
+                grip->base::hidden = true;
                 auto boss_shadow = ptr::shadow(boss.This());
                 auto park_shadow = ptr::shadow(area);
                 auto grip_shadow = ptr::shadow(grip);
@@ -401,7 +395,7 @@ namespace netxs::app::shared
                     if (auto boss_ptr = boss_shadow.lock())
                     {
                         auto& boss = *boss_ptr;
-                        park_ptr->visible(grip_ptr, active);
+                        grip_ptr->base::hidden = !active;
                         boss_ptr->base::deface();
                     }
                 };
@@ -461,9 +455,9 @@ namespace netxs::app::shared
                   "   type = Region   \n\n"
                 + ansi::nil().wrp(wrap::on).fgc(whitelt)
                  .add(prompt::apps, "See logs for details."));
-            auto placeholder = ui::park::ctor()
+            auto placeholder = ui::cake::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->attach(msg, snap::head, snap::head);
+                ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
                   ->attach(placeholder);
             return window;

@@ -215,7 +215,7 @@ utility like ctags is used to locate the definitions.
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto layers = fields->attach(ui::cake::ctor());
                             auto scroll = layers->attach(ui::rail::ctor())
-                                                ->plugin<pro::limit>(twod{ 4,3 }, twod{ -1,-1 });
+                                                ->limits({ 4,3 }, { -1,-1 });
                                 auto edit_box = scroll->attach(ui::post::ctor(true))
                                                       ->plugin<pro::caret>(true, faux, twod{ 25,1 })
                                                       ->colors(blackdk, whitelt)
@@ -224,7 +224,7 @@ utility like ctags is used to locate the definitions.
                                                       .fgc(highlight_color.bgc())
                                                       .add("From Wikipedia, the free encyclopedia"));
                     auto status_line = body_area->attach(slot::_2, ui::post::ctor())
-                                                ->plugin<pro::limit>(twod{ 1,1 }, twod{ -1,1 })
+                                                ->limits({ 1,1 }, { -1,1 })
                                                 ->upload(ansi::wrp(wrap::off).mgl(1).mgr(1).jet(bias::right).fgc(whitedk)
                                                     .add("INS  Sel: 0:0  Col: 26  Ln: 2/148").nil());
                         layers->attach(app::shared::scroll_bars(scroll));

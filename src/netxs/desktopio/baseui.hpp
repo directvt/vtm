@@ -121,13 +121,13 @@ namespace netxs::events::userland
             {
                 EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
             };
-            SUBSET_XS( size ) // preview: checking by pro::limit.
+            SUBSET_XS( size )
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object size.
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object;
             };
-            SUBSET_XS( coor ) // preview any: checking by pro::limit.
+            SUBSET_XS( coor )
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object coor.
+                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object;
             };
             SUBSET_XS( config )
             {
@@ -851,6 +851,7 @@ namespace netxs::ui
         template<bool Trim = true, class T>
         void render(T& nested, twod const& offset_coor)
         {
+            if (nested.hidden) return;
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
@@ -878,6 +879,7 @@ namespace netxs::ui
         template<bool Post = true, class T>
         void render(T& object)
         {
+            if (object.hidden) return;
             auto canvas_view = core::view();
             auto parent_area = flow::full();
 
@@ -915,13 +917,12 @@ namespace netxs::ui
         wptr father; // base: Parental visual tree weak-pointer.
         cell filler; // base: Object color.
         rect square; // base: Object size and coor.
-        dent extpad; // base: External margins.
-        dent intpad; // base: Internal margins.
+        dent extpad; // base: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
+        dent intpad; // base: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
         twod minlim; // base: Minimal size.
         twod maxlim; // base: Maximal size.
         bind atgrow; // base: Bindings on enlarging.
         bind atcrop; // base: Bindings on shrinking.
-        //bool active; // base: Participate in resizing.
         bool wasted; // base: Should the object be redrawn.
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
@@ -991,16 +992,16 @@ namespace netxs::ui
         auto resize(twod new_size) -> twod //todo MSVC 17.7.0 requires return type
         {
             auto old_size = square.size;
-            SIGNAL(tier::preview, e2::size::set, new_size);
-            SIGNAL(tier::release, e2::size::set, new_size);
+            size_preview(new_size);
+            size_release(new_size);
             return square.size - old_size;
         }
         // base: Resize the form, and return the new size.
         auto& resize(si32 x, si32 y)
         {
             auto new_size = twod{ x,y };
-            SIGNAL(tier::preview, e2::size::set, new_size);
-            SIGNAL(tier::release, e2::size::set, new_size);
+            size_preview(new_size);
+            size_release(new_size);
             return size();
         }
         // base: Resize the form relative the center point.
@@ -1182,25 +1183,79 @@ namespace netxs::ui
         {
             bell::_saveme();
         }
+        // base: Align object.
+        void xform(snap align, si32& coor, si32 size, si32& width)
+        {
+            switch (align)
+            {
+                case snap::head:
+                    coor = 0;
+                    break;
+                case snap::tail:
+                    coor = width - size;
+                    break;
+                case snap::both:
+                    coor = 0;
+                    //width = size;
+                    break;
+                case snap::center:
+                    coor = (width - size) / 2;
+                    break;
+                default:
+                    break;
+            }
+        }
+        void show() { hidden = faux; }
+        void hide() { hidden = true; }
+        void coor_release(twod& new_coor)
+        {
+            square.coor = new_coor;
+            SIGNAL(tier::release, e2::coor::set, new_coor);
+        }
+        void size_preview(twod& new_size)
+        {
+            if (base::hidden) return;
+            new_size = std::clamp(new_size, minlim, maxlim);
+            auto coor = square.coor;
+            //todo revise: snap::both
+            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, square.size.x, new_size.x);
+            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, square.size.y, new_size.y);
+            new_size = std::max(dot_00, new_size - intpad);
+            SIGNAL(tier::preview, e2::size::set, new_size);
+            new_size = new_size + intpad;
+            new_size = std::clamp(new_size, minlim, maxlim);
+        }
+        void size_release(twod& new_size)
+        {
+            if (base::hidden) return;
+            square.size = new_size;
+            auto coor = square.coor;
+            auto size = square.size;
+            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, size.x, new_size.x);
+            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, size.y, new_size.y);
+            if (coor != square.coor) moveto(coor);
+            SIGNAL(tier::release, e2::size::set, std::max(dot_00, new_size - intpad));
+        }
+        void limits(twod minlim = -dot_11, twod maxlim = -dot_11)
+        {
+            base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
+            base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
+        }
 
     protected:
         virtual ~base() = default;
         base()
-            : minlim{ -dot_11 },
-              maxlim{ -dot_11 },
-              //active{ true },
+            : minlim{ skin::globals().min_value },
+              maxlim{ skin::globals().max_value },
               wasted{ true },
               hidden{ faux },
               master{ faux },
               family{ type::client }
         {
-            LISTEN(tier::request, e2::depth, depth) { depth++; };
-
-            LISTEN(tier::release, e2::coor::any, new_coor) { square.coor = new_coor; };
-            LISTEN(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
-            LISTEN(tier::release, e2::size::any, new_size) { square.size = new_size; };
-            LISTEN(tier::request, e2::size::set, size_var) { size_var = square.size; };
-
+            LISTEN(tier::request, e2::depth, depth)
+            {
+                depth++;
+            };
             LISTEN(tier::release, e2::cascade, proc)
             {
                 auto backup = This();
@@ -1230,10 +1285,9 @@ namespace netxs::ui
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
             };
-
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (base::filler.wdt())
+                if (base::filler.wdt() && !base::hidden)
                 {
                     parent_canvas.fill([&](cell& c) { c.fusefull(base::filler); });
                 }

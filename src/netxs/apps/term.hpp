@@ -649,11 +649,11 @@ namespace netxs::app::term
                                 ->colors(cB.fgc(), cB.bgc());
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
-                                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                        ->limits(dot_11, { 400,200 });
             auto scroll = layers->attach(ui::rail::ctor());
             auto min_size = twod{ 12,1 }; // mc crashes when window is too small
             auto max_size = -dot_11;
-            scroll->plugin<pro::limit>(min_size, max_size)
+            scroll->limits(min_size, max_size)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::preview, e2::form::prop::window::size, new_size)
@@ -725,7 +725,7 @@ namespace netxs::app::term
                 }
             };
             auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
-                ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                ->limits({ -1,1 }, { -1,1 })
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, app::term::events::release::colors::bg, bg)

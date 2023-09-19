@@ -1198,11 +1198,11 @@ namespace netxs::app::vtm
                 ->plugin<pro::d_n_d>()
                 ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
-                ->plugin<pro::limit>(dot_11, twod{ 400,200 }) //todo unify, set via config
                 ->plugin<pro::sizer>()
                 ->plugin<pro::frame>()
                 ->plugin<pro::light>()
                 ->plugin<pro::focus>()
+                ->limits(dot_11, { 400,200 }) //todo unify, set via config
                 ->invoke([&](auto& boss)
                 {
                     boss.base::kind(base::reflow_root);

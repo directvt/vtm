@@ -354,12 +354,12 @@ namespace netxs::app::shared
             //                    ->colors(cB.fgc(), cB.bgc());
             //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
-            //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            //                        ->limits(dot_11, { 400,200 });
             auto layers = window->attach(ui::cake::ctor())
                                 ->colors(cB.fgc(), cB.bgc())
-                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
-                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                                        ->limits({ 10,1 }); // mc crashes when window is too small
                     auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
@@ -445,8 +445,8 @@ namespace netxs::app::shared
             auto term_type = shared::app_class(param_shadow);
             param = param_shadow;
             return ui::dtvt::ctor(cwd, param, patch)
-                ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active)
+                ->limits(dot_11)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
