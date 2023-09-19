@@ -463,7 +463,7 @@ namespace netxs::app::shared
                  .add(prompt::apps, "See logs for details."));
             auto placeholder = ui::park::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->attach(msg);
+                ->attach(msg, snap::head, snap::head);
             window->attach(ui::rail::ctor())
                   ->attach(placeholder);
             return window;

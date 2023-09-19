@@ -54,8 +54,8 @@ namespace netxs::ui
 
     struct bind
     {
-        snap x;
-        snap y;
+        snap x = snap::both;
+        snap y = snap::both;
     };
 
     struct face;
@@ -1186,7 +1186,9 @@ namespace netxs::ui
     protected:
         virtual ~base() = default;
         base()
-            : active{ true },
+            : minlim{ -dot_11 },
+              maxlim{ -dot_11 },
+              active{ true },
               wasted{ true },
               hidden{ faux },
               master{ faux },

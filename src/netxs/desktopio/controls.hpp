@@ -195,6 +195,19 @@ namespace netxs::ui
             };
             return backup;
         }
+        auto limits(twod minlim = -dot_11, twod maxlim = -dot_11)
+        {
+            base::minlim = minlim;
+            base::maxlim = maxlim;
+            return This();
+        }
+        auto alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
+        {
+            base::atgrow = atgrow;
+            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
+            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+            return This();
+        }
     };
 
     // controls: Splitter.
