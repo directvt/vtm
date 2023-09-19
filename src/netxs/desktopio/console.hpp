@@ -1993,7 +1993,7 @@ namespace netxs::ui
 
         public:
             fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms)
+            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms, sptr<base> tracking_object = {})
                 : skill{ boss },
                 robo{ boss },
                 fade{ fade_out },
@@ -2018,7 +2018,8 @@ namespace netxs::ui
                         work(transit);
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::state::mouse, active, memo)
+                auto& root = tracking_object ? *tracking_object : boss;
+                root.LISTEN(tier::release, e2::form::state::mouse, active, memo)
                 {
                     robo.pacify();
                     if (active)
