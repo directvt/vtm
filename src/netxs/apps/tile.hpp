@@ -466,7 +466,8 @@ namespace netxs::app::tile
                 })
                 ->branch
                 (
-                    ui::post::ctor()->upload("Empty Slot", 10),
+                    ui::post::ctor()->upload("Empty Slot", 10)
+                        ->plugin<pro::limit>(twod{ 10,1 }, twod{ 10,1 }),
                     snap::center, snap::center
                 )
                 ->branch

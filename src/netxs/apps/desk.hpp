@@ -270,7 +270,7 @@ namespace netxs::app::desk
                         });
                     auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("  ×  ", faux))
                         ->template plugin<pro::fader>(x1, c1, skin::globals().fader_time)
-                        ->template plugin<pro::notes>(" Close all open windows in that group ")
+                        ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
