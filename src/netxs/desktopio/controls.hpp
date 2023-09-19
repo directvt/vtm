@@ -197,8 +197,8 @@ namespace netxs::ui
         }
         auto limits(twod minlim = -dot_11, twod maxlim = -dot_11)
         {
-            base::minlim = minlim;
-            base::maxlim = maxlim;
+            base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
+            base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
             return This();
         }
         auto alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })

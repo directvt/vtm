@@ -2057,57 +2057,31 @@ namespace netxs::ui
             {
                 twod min = skin::globals().min_value;
                 twod max = skin::globals().max_value;
-                void fixed_size(twod const& m)
-                {
-                    min = max = std::clamp(m, min, max);
-                }
             }
             lims;
-            bool sure; // limit: Repeat size checking after all.
 
         public:
             limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced_clamp = faux, bool forced_resize = faux)
+            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11)
                 : skill{ boss }
             {
-                set(min_size, max_size, forced_clamp);
+                set(min_size, max_size);
                 // Clamping before all.
                 boss.LISTEN(tier::preview, e2::size::any, new_size, memo)
                 {
                     new_size = std::clamp(new_size, lims.min, lims.max);
                 };
-                // Clamping after all.
-                boss.LISTEN(tier::preview, e2::size::set, new_size, memo)
-                {
-                    if (sure)
-                    {
-                        new_size = std::clamp(new_size, lims.min, lims.max);
-                    }
-                };
-                if (forced_resize)
-                {
-                    boss.LISTEN(tier::release, e2::form::prop::window::size, new_size, memo)
-                    {
-                        auto reserv = lims;
-                        lims.fixed_size(new_size);
-                        boss.template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
-                        boss.base::template reflow<true>();
-                        boss.template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
-                        lims = reserv;
-                    };
-                }
             }
             // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced_clamp = faux)
+            void set(twod const& min_size, twod const& max_size = -dot_11)
             {
-                sure = forced_clamp;
                 lims.min = min_size.less(dot_00, skin::globals().min_value, min_size);
                 lims.max = max_size.less(dot_00, skin::globals().max_value, max_size);
             }
             // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits, bool forced_clamp = faux)
+            void set(lims_t const& new_limits)
             {
-                set(new_limits.min, new_limits.max, forced_clamp);
+                set(new_limits.min, new_limits.max);
             }
             auto& get() const
             {

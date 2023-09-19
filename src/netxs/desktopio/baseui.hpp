@@ -921,9 +921,9 @@ namespace netxs::ui
         twod maxlim; // base: Maximal size.
         bind atgrow; // base: Bindings on enlarging.
         bind atcrop; // base: Bindings on shrinking.
-        bool active; // base: Participate in resizing.
+        //bool active; // base: Participate in resizing.
         bool wasted; // base: Should the object be redrawn.
-        bool hidden; // base: Ignore rendering.
+        bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         hook relyon; // base: Subscription to e2::cascade events.
@@ -1188,7 +1188,7 @@ namespace netxs::ui
         base()
             : minlim{ -dot_11 },
               maxlim{ -dot_11 },
-              active{ true },
+              //active{ true },
               wasted{ true },
               hidden{ faux },
               master{ faux },

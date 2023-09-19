@@ -653,9 +653,7 @@ namespace netxs::app::term
             auto scroll = layers->attach(ui::rail::ctor());
             auto min_size = twod{ 12,1 }; // mc crashes when window is too small
             auto max_size = -dot_11;
-            auto forced_clamp = faux;
-            auto forced_resize = true;
-            scroll->plugin<pro::limit>(min_size, max_size, forced_clamp, forced_resize)
+            scroll->plugin<pro::limit>(min_size, max_size)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::preview, e2::form::prop::window::size, new_size)
@@ -679,7 +677,15 @@ namespace netxs::app::term
                         {
                             auto size = boss.size();
                             new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
-                            boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                            //todo implement resize from inside
+                            //boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
+                            //auto reserv = lims;
+                            //lims.min = lims.max = std::clamp(new_size, lims.min, lims.max);
+                            boss.template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
+                            boss.base::resize(new_size);
+                            boss.base::reflow<true>();
+                            boss.template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
+                            //lims = reserv;
                         }
                     };
                 });

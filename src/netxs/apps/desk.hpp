@@ -628,13 +628,12 @@ namespace netxs::app::desk
             auto bttn_pads = label_bttn->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
                 ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Show/hide user list ");
-            auto collapsed = true;
-            auto lim_y = twod{ -1, collapsed ? 0 : -1 };
-            auto bttn = bttn_pads->attach(ui::item::ctor(collapsed ? "…" : "<", faux));
+            auto userlist_hidden = true;
+            auto bttn = bttn_pads->attach(ui::item::ctor(userlist_hidden ? "…" : "<", faux));
             auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
-                ->plugin<pro::limit>(lim_y, lim_y, true)
                 ->invoke([&](auto& boss)
                 {
+                    boss.hidden = userlist_hidden;
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, -, (branch_template))
                     {
                         boss.RISEUP(tier::request, e2::config::creator, world_ptr, ());
@@ -648,17 +647,14 @@ namespace netxs::app::desk
             {
                 auto userlist_area_shadow = ptr::shadow(userlist_area);
                 auto bttn_shadow = ptr::shadow(bttn);
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (userlist_area_shadow, bttn_shadow, state = collapsed))
+                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (userlist_area_shadow, bttn_shadow))
                 {
                     if (auto bttn = bttn_shadow.lock())
                     if (auto userlist = userlist_area_shadow.lock())
                     {
-                        state = !state;
-                        bttn->set(state ? "…" : "<");
-                        auto& limits = userlist->plugins<pro::limit>();
-                        auto lims = limits.get();
-                        lims.min.y = lims.max.y = state ? 0 : -1;
-                        limits.set(lims, true);
+                        auto& hidden = userlist->base::hidden;
+                        hidden = !hidden;
+                        bttn->set(hidden ? "…" : "<");
                         userlist->base::reflow();
                     }
                 };
