@@ -711,7 +711,7 @@ namespace netxs::app::vtm
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.
 
-        gate(netxs::sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+        gate(xipc uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
               notes{*this, ansi::add(prompt::gate, props.title) }
         {
@@ -1369,7 +1369,7 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(netxs::sptr<pipe> server, xmls& config, text defapp)
+        hall(xipc server, xmls& config, text defapp)
             : host{ server, config, pro::focus::mode::focusable }
         {
             auto current_module_file = os::process::binary();
@@ -1718,7 +1718,7 @@ namespace netxs::app::vtm
             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(netxs::sptr<pipe> client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
             auto user = base::create<gate>(client, userid, vtmode, config, session_id);

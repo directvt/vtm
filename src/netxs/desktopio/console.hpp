@@ -38,6 +38,64 @@ namespace netxs::ui
         }
     }
 
+    struct pipe;
+    using xipc = sptr<pipe>;
+
+    // console: Fullduplex channel base.
+    struct pipe
+    {
+        flag active; // pipe: Is connected.
+        flag isbusy; // pipe: Buffer is still busy.
+
+        pipe(bool active)
+            : active{ active },
+              isbusy{ faux   }
+        { }
+        virtual ~pipe()
+        { }
+
+        operator bool () const { return active; }
+
+        void start()
+        {
+            active.exchange(true);
+            isbusy.exchange(faux);
+        }
+        virtual bool send(view buff) = 0;
+        virtual qiew recv(char* buff, size_t size) = 0;
+        virtual qiew recv() = 0;
+        virtual bool shut()
+        {
+            return active.exchange(faux);
+        }
+        virtual bool stop()
+        {
+            return pipe::shut();
+        }
+        virtual void wake()
+        {
+            shut();
+        }
+        virtual std::ostream& show(std::ostream& s) const = 0;
+        void output(view data)
+        {
+            send(data);
+        }
+        friend auto& operator << (std::ostream& s, pipe const& sock)
+        {
+            return sock.show(s << "{ " << prompt::xipc) << " }";
+        }
+        friend auto& operator << (std::ostream& s, xipc const& sock)
+        {
+            return s << *sock;
+        }
+        void cleanup()
+        {
+            active.exchange(faux);
+            isbusy.exchange(faux);
+        }
+    };
+
     // console: Client gate.
     class gate
         : public form<gate>
@@ -943,7 +1001,7 @@ namespace netxs::ui
 
     protected:
         //todo revise
-        gate(netxs::sptr<pipe> uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
+        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
@@ -1339,7 +1397,7 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
-        host(netxs::sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
+        host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config },
@@ -1460,7 +1518,7 @@ namespace netxs::ui
             denote(region);
         }
         // host: Create a new root of the specified subtype and attach it.
-        auto invite(netxs::sptr<pipe> uplink, sptr& applet, si32 vtmode, twod winsz)
+        auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)
         {
             auto lock = events::unique_lock();
             auto portal = ui::gate::ctor(uplink, vtmode, host::config);

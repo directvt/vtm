@@ -81,7 +81,7 @@ namespace netxs::os
     using rich = ui::rich;
     using s11n = ui::s11n;
     using pipe = ui::pipe;
-    using xipc = ui::pipe::xipc;
+    using xipc = ui::xipc;
     using deco = ansi::deco;
     using escx = ansi::escx;
 
@@ -1871,7 +1871,7 @@ namespace netxs::os
             {
                 return shut();
             }
-            virtual flux& show(flux& s) const override
+            virtual std::ostream& show(std::ostream& s) const override
             {
                 return s << handle;
             }
@@ -1975,7 +1975,7 @@ namespace netxs::os
             {
                 return client->send(data);
             }
-            flux& show(flux& s) const override
+            std::ostream& show(std::ostream& s) const override
             {
                 return s << "local pipe: server=" << std::showbase << std::hex << server.get() << " client=" << std::showbase << std::hex << client.get();
             }
