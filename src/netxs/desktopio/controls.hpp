@@ -4,8 +4,6 @@
 #pragma once
 
 #include "input.hpp"
-#include "system.hpp"
-#include "scripting.hpp"
 
 namespace netxs::ui
 {
@@ -2299,7 +2297,7 @@ namespace netxs::ui
         auto plugin(Args&&... args)
         {
             auto backup = This();
-            depo[std::type_index(typeid(S))] = std::make_unique<S>(*this, std::forward<Args>(args)...);
+            depo[std::type_index(typeid(S))] = std::make_unique<S>(*backup, std::forward<Args>(args)...);
             base::reflow();
             return backup;
         }

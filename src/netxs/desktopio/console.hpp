@@ -7,6 +7,37 @@
 
 namespace netxs::ui
 {
+    namespace console
+    {
+        static auto id = std::pair<ui32, time>{};
+        static constexpr auto mouse   = 1 << 0;
+        static constexpr auto onlylog = 1 << 5;
+        //todo make 3-bit field for color mode
+        static constexpr auto vtrgb   = 0;
+        static constexpr auto nt16    = 1 << 1;
+        static constexpr auto vt16    = 1 << 2;
+        static constexpr auto vt256   = 1 << 3;
+        static constexpr auto direct  = 1 << 4;
+
+        template<class T>
+        auto str(T mode)
+        {
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse  ) result += "mouse ";
+                if (mode & nt16   ) result += "nt16 ";
+                if (mode & vt16   ) result += "vt16 ";
+                if (mode & vt256  ) result += "vt256 ";
+                if (mode & direct ) result += "direct ";
+                if (mode & onlylog) result += "onlylog ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "vtrgb";
+            return result;
+        }
+    }
+
     // console: Client gate.
     class gate
         : public form<gate>
@@ -57,7 +88,7 @@ namespace netxs::ui
             {
                 auto& focus = lock.thing;
                 auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
-                if (focus.guid != os::process::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
+                if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
                 netxs::events::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
@@ -82,7 +113,7 @@ namespace netxs::ui
             void handle(s11n::xs::logs        lock)
             {
                 auto& logs = lock.thing;
-                if (os::process::id.first == lock.thing.id)
+                if (ui::console::id.first == lock.thing.id)
                 {
                     notify<tier::general>(e2::conio::logs, logs.data);
                 }
@@ -359,21 +390,21 @@ namespace netxs::ui
                 }
                 else
                 {
-                    simple            = !(legacy_mode & os::dtvt::direct);
+                    simple            = !(legacy_mode & ui::console::direct);
                     glow_fx           = faux;
                     title             = "";
                 }
-                vtmode = legacy_mode & os::dtvt::nt16   ? svga::nt16
-                       : legacy_mode & os::dtvt::vt16   ? svga::vt16
-                       : legacy_mode & os::dtvt::vt256  ? svga::vt256
-                       : legacy_mode & os::dtvt::direct ? svga::dtvt
-                                                        : svga::vtrgb;
+                vtmode = legacy_mode & ui::console::nt16   ? svga::nt16
+                       : legacy_mode & ui::console::vt16   ? svga::vt16
+                       : legacy_mode & ui::console::vt256  ? svga::vt256
+                       : legacy_mode & ui::console::direct ? svga::dtvt
+                                                           : svga::vtrgb;
             }
 
             friend auto& operator << (std::ostream& s, props_t const& c)
             {
                 return s << "\n\tuser: " << c.os_user_id
-                         << "\n\tmode: " << os::dtvt::str(c.legacy_mode);
+                         << "\n\tmode: " << ui::console::str(c.legacy_mode);
             }
         };
 
@@ -822,7 +853,7 @@ namespace netxs::ui
             auto& canvas = input.xmap;
             if (damaged)
             {
-                if (props.legacy_mode & os::dtvt::mouse) // Render our mouse pointer.
+                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
                 {
                     draw_mouse_pointer(canvas);
                 }
@@ -1105,7 +1136,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
-                props.legacy_mode |= pointer ? os::dtvt::mouse : 0;
+                props.legacy_mode |= pointer ? ui::console::mouse : 0;
             };
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
@@ -1296,7 +1327,6 @@ namespace netxs::ui
     public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
-        using repl = scripting::repl<host>;
 
         pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
 
@@ -1306,7 +1336,6 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         subs tokens; // host: Subscription tokens.
         flag active; // host: Host is available for connections.
-        repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
 
@@ -1314,8 +1343,7 @@ namespace netxs::ui
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config },
-              active{ true },
-              engine{ *this }
+              active{ true }
         {
             using namespace std::chrono;
             auto& canal = *server;

@@ -86,7 +86,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("--onlylog"))
         {
-            os::dtvt::vtmode |= os::dtvt::onlylog;
+            os::dtvt::vtmode |= ui::console::onlylog;
         }
         else if (getopt.match("--"))
         {
@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
                 auto success = faux;
                 if (os::process::fork(success, prefix, config.utf8()))
                 {
-                    os::dtvt::vtmode |= os::dtvt::onlylog;
+                    os::dtvt::vtmode |= ui::console::onlylog;
                     whoami = type::server;
                 }
                 return success;
@@ -239,7 +239,7 @@ int main(int argc, char* argv[])
             auto success = faux;
             if (os::process::fork(success, prefix, config.utf8()))
             {
-                os::dtvt::vtmode |= os::dtvt::onlylog;
+                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
             }
             else 
@@ -264,6 +264,7 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        domain->plugin<scripting::host>();
         domain->autorun();
 
         log("%%Server started"

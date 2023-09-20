@@ -2418,7 +2418,8 @@ namespace netxs::os
             #else
                 auto id = static_cast<ui32>(::getpid());
             #endif
-            return std::pair{ id, datetime::now() };
+            ui::console::id = std::pair{ id, datetime::now() };
+            return ui::console::id;
         }
         static auto id = process::getid();
         static auto arg0 = text{};
@@ -2819,15 +2820,7 @@ namespace netxs::os
 
     namespace dtvt
     {
-        static constexpr auto mouse   = 1 << 0;
-        static constexpr auto onlylog = 1 << 5;
-        //todo make 3-bit field for color mode
-        static constexpr auto vtrgb   = 0;
-        static constexpr auto nt16    = 1 << 1;
-        static constexpr auto vt16    = 1 << 2;
-        static constexpr auto vt256   = 1 << 3;
-        static constexpr auto direct  = 1 << 4;
-        static auto mode = vtrgb;
+        static auto mode = ui::console::vtrgb;
         static auto scroll = faux; // Viewport/scrollback selector for windows console.
         auto consize()
         {
@@ -2961,7 +2954,7 @@ namespace netxs::os
                                         | nt::console::outmode::vt };
                     if (!::SetConsoleMode(os::stdout_fd, outmode))
                     {
-                        dtvt::mode |= dtvt::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
+                        dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
                         ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
                         log(prompt::os, "16-color windows console");
@@ -3009,12 +3002,12 @@ namespace netxs::os
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                mode |= dtvt::direct;
+                mode |= ui::console::direct;
             }
             else
             {
                 #if defined(__linux__)
-                if (os::linux_console) mode |= dtvt::mouse;
+                if (os::linux_console) mode |= ui::console::mouse;
                 #endif
                 if (auto term = os::env::get("TERM"); term.size())
                 {
@@ -3033,7 +3026,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        mode |= dtvt::vt16;
+                        mode |= ui::console::vt16;
                     }
                     else
                     {
@@ -3041,7 +3034,7 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                mode |= dtvt::vt16;
+                                mode |= ui::console::vt16;
                                 break;
                             }
                         }
@@ -3051,7 +3044,7 @@ namespace netxs::os
                             {
                                 if (term == type)
                                 {
-                                    mode |= dtvt::vt256;
+                                    mode |= ui::console::vt256;
                                     break;
                                 }
                             }
@@ -3061,33 +3054,16 @@ namespace netxs::os
                     if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                     {
                         log("%%macOS Apple Terminal detected", prompt::os);
-                        if (!(mode & dtvt::vt16)) mode |= dtvt::vt256;
+                        if (!(mode & ui::console::vt16)) mode |= ui::console::vt256;
                     }
-                    log(prompt::os, "Color mode: ", mode & dtvt::vt16  ? "16-color"
-                                                  : mode & dtvt::vt256 ? "256-color"
-                                                                       : "true-color");
-                    log(prompt::os, "Mouse mode: ", mode & dtvt::mouse ? "console" : "vt-style");
+                    log(prompt::os, "Color mode: ", mode & ui::console::vt16  ? "16-color"
+                                                  : mode & ui::console::vt256 ? "256-color"
+                                                                              : "true-color");
+                    log(prompt::os, "Mouse mode: ", mode & ui::console::mouse ? "console" : "vt-style");
                 }
             }
             return mode;
         }();
-        template<class T>
-        auto str(T mode)
-        {
-            auto result = text{};
-            if (mode)
-            {
-                if (mode & mouse  ) result += "mouse ";
-                if (mode & nt16   ) result += "nt16 ";
-                if (mode & vt16   ) result += "vt16 ";
-                if (mode & vt256  ) result += "vt256 ";
-                if (mode & direct ) result += "direct ";
-                if (mode & onlylog) result += "onlylog ";
-                if (result.size()) result.pop_back();
-            }
-            else result = "vtrgb";
-            return result;
-        }
 
         struct vtty
         {
@@ -3868,7 +3844,7 @@ namespace netxs::os
     {
         static auto cout = std::function([](qiew utf8)
         {
-            if (dtvt::vtmode & dtvt::nt16)
+            if (dtvt::vtmode & ui::console::nt16)
             {
                 #if defined(_WIN32)
                 static auto parser = nt::console::vtparser{};
@@ -4187,7 +4163,7 @@ namespace netxs::os
                                         check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                                         check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                                         check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
-                                        if (!(dtvt::vtmode & dtvt::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
+                                        if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                                         {
                                             check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                                         }
@@ -4783,7 +4759,7 @@ namespace netxs::os
                 caret.bVisible = FALSE; // Will be restored by the dtvt::backup.caret on exit.
                 ok(::SetConsoleCursorInfo(os::stdout_fd, &caret), "::SetConsoleCursorInfo()", os::unexpected);
 
-                if (dtvt::vtmode & os::dtvt::nt16)
+                if (dtvt::vtmode & ui::console::nt16)
                 {
                     auto c16 = palette;
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
@@ -4791,12 +4767,12 @@ namespace netxs::os
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 
-                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
-                auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & os::dtvt::vt16);
+                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16);
+                auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
                 io::send(os::stdout_fd, vtrun);
             #endif
 
-            tty::stream.mousebar.send(intio, !!(dtvt::vtmode & os::dtvt::mouse));
+            tty::stream.mousebar.send(intio, !!(dtvt::vtmode & ui::console::mouse));
 
             auto alarm = fire{};
             auto alive = flag{ true };
@@ -4818,7 +4794,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
-                if (dtvt::vtmode & os::dtvt::nt16) // Restore pelette.
+                if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
                     auto count = DWORD{};
                     ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::win_sz.x * dtvt::win_sz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
@@ -4853,7 +4829,7 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                if (os::dtvt::vtmode & os::dtvt::onlylog) return;
+                if (os::dtvt::vtmode & ui::console::onlylog) return;
                 thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;
