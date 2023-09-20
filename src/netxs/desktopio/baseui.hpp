@@ -1196,7 +1196,7 @@ namespace netxs::ui
                     break;
                 case snap::both:
                     coor = 0;
-                    //width = size;
+                    width = size;
                     break;
                 case snap::center:
                     coor = (width - size) / 2;
@@ -1215,24 +1215,20 @@ namespace netxs::ui
         void size_preview(twod& new_size)
         {
             if (base::hidden) return;
-            new_size = std::clamp(new_size, minlim, maxlim);
             auto coor = square.coor;
-            //todo revise: snap::both
-            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, square.size.x, new_size.x);
-            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, square.size.y, new_size.y);
+            new_size = std::clamp(new_size, minlim, maxlim);
             new_size = std::max(dot_00, new_size - intpad);
             SIGNAL(tier::preview, e2::size::set, new_size);
-            new_size = new_size + intpad;
-            new_size = std::clamp(new_size, minlim, maxlim);
+            new_size = std::max(dot_00, new_size + intpad);
+            //new_size = std::clamp(new_size, minlim, maxlim); // We must fix nested objects that don't fit instead of clamping.
         }
-        void size_release(twod& new_size)
+        void size_release(twod new_size)
         {
             if (base::hidden) return;
             square.size = new_size;
             auto coor = square.coor;
-            auto size = square.size;
-            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, size.x, new_size.x);
-            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, size.y, new_size.y);
+            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, square.size.x, new_size.x);
+            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, square.size.y, new_size.y);
             if (coor != square.coor) moveto(coor);
             SIGNAL(tier::release, e2::size::set, std::max(dot_00, new_size - intpad));
         }

@@ -2810,7 +2810,7 @@ namespace netxs::ui
             scroll_buf(term& boss)
                 : bufferbase{ boss },
                        batch{ boss.config.def_length, boss.config.def_growdt, boss.config.def_growmx },
-                       index{ 0    },
+                       index{ 1    },
                        place{      },
                        shore{ boss.config.def_margin }
             {
