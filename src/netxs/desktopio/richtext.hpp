@@ -2047,6 +2047,269 @@ namespace netxs::ui
         }
     };
 
+    // richtext: Textographical canvas.
+    class face
+        : public rich, public flow, public std::enable_shared_from_this<face>
+    {
+    protected:
+        twod anker;     // face: The position of the nearest visible paragraph.
+        id_t piece = 1; // face: The nearest to top paragraph.
+        vrgb cache;     // face: BlurFX temp buffer.
+
+        // face: Is the c inside the viewport?
+        bool inside(twod const& c)
+        {
+            return c.y >= 0 && c.y < region.size.y;
+            //todo X-axis
+        }
+
+    public:
+        //todo revise
+        bool caret = faux; // face: Cursor visibility.
+        bool moved = faux; // face: Is reflow required.
+        bool decoy = true; // face: Is the cursor inside the viewport.
+        svga cmode = svga::vtrgb; // face: Color mode.
+
+        // face: Print proxy something else at the specified coor.
+        template<class T, class P>
+        void output_proxy(T const& block, twod const& coord, P proxy)
+        {
+            flow::sync(block);
+            flow::ac(coord);
+            flow::compose<true>(block, proxy);
+        }
+        // face: Print something else at the specified coor.
+        template<class T, class P = noop>
+        void output(T const& block, twod const& coord, P printfx = P())
+        {
+            flow::sync(block);
+            flow::ac(coord);
+            flow::go(block, *this, printfx);
+        }
+        // face: Print something else.
+        template<bool UseFWD = faux, class T, class P = noop>
+        void output(T const& block, P printfx = P())
+        {
+            //todo unify
+            flow::print<UseFWD>(block, *this, printfx);
+        }
+        // face: Print paragraph.
+        void output(para const& block)
+        {
+            flow::print(block, *this);
+        }
+        // face: Print page.
+        template<class P = noop>
+        void output(page const& textpage, P printfx = P())
+        {
+            auto publish = [&](auto const& combo)
+            {
+                flow::print(combo, *this, printfx);
+            };
+            textpage.stream(publish);
+        }
+        // face: Print page with holding top visible paragraph on its own place.
+        void output(page const& textpage, bool reset)
+        {
+            //todo if cursor is visible when tie to the cursor position
+            //     else tie to the first visible text line.
+
+            auto done = faux;
+            // Get vertical position of the nearest paragraph to the top.
+            auto gain = [&](auto const& combo)
+            {
+                auto pred = flow::print(combo, *this);
+
+                auto post = flow::cp();
+                if (!done)
+                {
+                    if (pred.y <= 0 && post.y >= 0)
+                    {
+                        anker.y = pred.y;
+                        piece = combo.id();
+                        done = true;
+                    }
+                    else
+                    {
+                        if (std::abs(anker.y) > std::abs(pred.y))
+                        {
+                            anker.y = pred.y;
+                            piece = combo.id();
+                        }
+                    }
+                }
+            };
+
+            // Get vertical position of the specified paragraph.
+            auto find = [&](auto const& combo)
+            {
+                auto cp = flow::print(combo);
+                if (combo.id() == piece) anker = cp;
+            };
+
+            if (reset)
+            {
+                anker.y = si32max;
+                textpage.stream(gain);
+
+                decoy = caret && inside(flow::cp());
+            }
+            else
+            {
+                textpage.stream(find);
+            }
+        }
+        // face: Reflow text page on the canvas and hold position
+        //       of the top visible paragraph while resizing.
+        void reflow(page& textpage)
+        {
+            if (moved)
+            {
+                flow::zz(); //flow::sc();
+
+                auto delta = anker;
+                output(textpage, faux);
+                std::swap(delta, anker);
+
+                auto  cover = flow::minmax();
+                //auto& basis = flow::origin;
+                auto basis = dot_00;// flow::origin;
+                basis.y += anker.y - delta.y;
+
+                if (decoy)
+                {
+                    // Don't tie the first line if it's the only one. Make one step forward.
+                    if (anker.y == 0
+                     && anker.y == flow::cp().y
+                     && cover.height() > 1)
+                    {
+                        // the increment is removed bcos it shifts mc one row down on Ctrl+O and back
+                        //basis.y++;
+                    }
+
+                    auto newcp = flow::cp();
+                    if (!inside(newcp))
+                    {
+                        if (newcp.y < 0) basis.y -= newcp.y;
+                        else             basis.y -= newcp.y - region.size.y + 1;
+                    }
+                }
+                else
+                {
+                    basis.y = std::clamp(basis.y, -cover.b, region.size.y - cover.t - 1);
+                }
+
+                moved = faux;
+            }
+
+            wipe();
+        }
+
+        // face: Forward call to the core and reset cursor.
+        template<class ...Args>
+        void wipe(Args&&... args) // Optional args.
+        {
+            core::wipe(args...);
+            flow::reset();
+        }
+        // face: Change current context. Return old context.
+        auto bump(dent const& delta)
+        {
+            auto old_full = face::full();
+            auto old_view = core::view();
+            auto new_view = core::area().clip<true>(old_view + delta);
+            auto new_full = old_full + delta;
+            face::full(new_full);
+            core::view(new_view);
+            return std::pair{ old_full, old_view };
+        }
+        // face: Restore previously saved context.
+        void bump(std::pair<rect, rect> ctx)
+        {
+            face::full(ctx.first);
+            core::view(ctx.second);
+        }
+
+        // Use a two letter function if we don't need to return *this
+        face& cup(twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
+        face& chx(si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
+        face& chy(si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
+        face& cpp(twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
+        face& cpx(si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
+        face& cpy(si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
+        face& cuu(si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
+        face& cud(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
+        face& cuf(si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
+        face& cub(si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
+        face& cnl(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
+        face& cpl(si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
+
+        face& ocp(twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
+        face& ocx(si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
+        face& ocy(si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+
+        face& scp()              { flow::sc(  ); return *this; } // face: Save cursor position.
+        face& rcp()              { flow::rc(  ); return *this; } // face: Restore cursor position.
+        face& rst()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
+
+        face& tab(si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
+        face& eol(si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
+
+        void size(twod const& newsize) // face: Change the size of the face/core.
+        {
+            core::size(newsize);
+            flow::size(newsize);
+        }
+        auto size() // face: Return size of the face/core.
+        {
+            return core::size();
+        }
+        template<bool BottomAnchored = faux>
+        void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
+        {
+            core::crop<BottomAnchored>(newsize, c);
+            flow::size(newsize);
+        }
+        template<bool BottomAnchored = faux>
+        void crop(twod const& newsize) // face: Resize while saving the bitmap.
+        {
+            core::crop<BottomAnchored>(newsize, core::mark());
+            flow::size(newsize);
+        }
+        template<class P = noop>
+        void blur(si32 r, P shade = P())
+        {
+            using irgb = vrgb::value_type;
+
+            auto view = core::view();
+            auto size = core::size();
+
+            auto w = std::max(0, view.size.x);
+            auto h = std::max(0, view.size.y);
+            auto s = w * h;
+
+            if (cache.size() < (size_t)s)
+            {
+                cache.resize(s);
+            }
+
+            auto s_ptr = core::data(view.coor);
+            auto d_ptr = cache.data();
+
+            auto s_width = size.x;
+            auto d_width = view.size.x;
+
+            auto s_point = [](cell* c)->auto& { return c->bgc(); };
+            auto d_point = [](irgb* c)->auto& { return *c;       };
+
+            netxs::bokefy<irgb>(s_ptr,
+                                d_ptr, w,
+                                       h, r, s_width,
+                                             d_width, s_point,
+                                                      d_point, shade);
+        }
+    };
+
     // Derivative vt-parser example.
     struct derived_from_page
         : public page
