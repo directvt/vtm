@@ -837,67 +837,6 @@ namespace netxs::ui
                                              d_width, s_point,
                                                       d_point, shade);
         }
-        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
-        template<bool Trim = true, class T>
-        void render(sptr<T> nested_ptr, twod const& basis = {})
-        {
-            if (nested_ptr)
-            {
-                auto& nested = *nested_ptr;
-                face::render<Trim>(nested, basis);
-            }
-        }
-        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
-        template<bool Trim = true, class T>
-        void render(T& nested, twod const& offset_coor)
-        {
-            if (nested.hidden) return;
-            auto canvas_view = core::view();
-            auto parent_area = flow::full();
-
-            auto object_area = nested.area();
-            object_area.coor+= parent_area.coor;
-
-            auto nested_view = canvas_view.clip(object_area);
-            //todo revise: why whole canvas is not used
-            if (Trim ? nested_view : canvas_view)
-            {
-                auto canvas_coor = core::coor();
-                if constexpr (Trim) core::view(nested_view);
-                core::back(offset_coor);
-                flow::full(object_area);
-
-                nested.SIGNAL(tier::release, e2::render::prerender, *this);
-                nested.SIGNAL(tier::release, e2::postrender, *this);
-
-                if constexpr (Trim) core::view(canvas_view);
-                core::move(canvas_coor);
-                flow::full(parent_area);
-            }
-        }
-        // face: Render itself to the canvas using renderproc.
-        template<bool Post = true, class T>
-        void render(T& object)
-        {
-            if (object.hidden) return;
-            auto canvas_view = core::view();
-            auto parent_area = flow::full();
-
-            auto object_area = object.area();
-            object_area.coor-= core::coor();
-
-            if (auto nested_view = canvas_view.clip(object_area))
-            {
-                core::view(nested_view);
-                flow::full(object_area);
-
-                                    object.SIGNAL(tier::release, e2::render::prerender, *this);
-                if constexpr (Post) object.SIGNAL(tier::release, e2::postrender,        *this);
-
-                core::view(canvas_view);
-                flow::full(parent_area);
-            }
-        }
     };
 
     // console: Base visual.
@@ -1238,10 +1177,59 @@ namespace netxs::ui
             base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
             base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
         }
-        void padding(dent intpad, dent extpad = {})
+        void setpad(dent intpad, dent extpad = {})
         {
             base::intpad = intpad;
             base::extpad = extpad;
+        }
+        // canvas.: Render to the canvas using renderproc. Trim = trim viewport to the client area.
+        void render(face& canvas, twod const& offset_coor, bool trim = true)
+        {
+            if (hidden) return;
+            auto canvas_view = canvas.core::view();
+            auto parent_area = canvas.flow::full();
+
+            auto object_area = base::square;
+            object_area.coor+= parent_area.coor;
+
+            auto nested_view = canvas_view.clip(object_area);
+            //todo revise: why whole canvas is not used
+            if (trim ? nested_view : canvas_view)
+            {
+                auto canvas_coor = canvas.core::coor();
+                if (trim) canvas.core::view(nested_view);
+                canvas.core::back(offset_coor);
+                canvas.flow::full(object_area);
+
+                SIGNAL(tier::release, e2::render::prerender, canvas);
+                SIGNAL(tier::release, e2::postrender, canvas);
+
+                if (trim) canvas.core::view(canvas_view);
+                canvas.core::move(canvas_coor);
+                canvas.flow::full(parent_area);
+            }
+        }
+        // base: Render itself to the canvas using renderproc.
+        void render(face& canvas, bool pred = true, bool post = true)
+        {
+            if (hidden) return;
+            auto canvas_view = canvas.core::view();
+            auto parent_area = canvas.flow::full();
+
+            auto object_area = base::square;
+            object_area.coor-= canvas.core::coor();
+
+            if (auto nested_view = canvas_view.clip(object_area))
+            {
+                canvas.core::view(nested_view);
+                canvas.flow::full(object_area);
+
+                if (pred) SIGNAL(tier::release, e2::render::prerender, canvas);
+                if (post) SIGNAL(tier::release, e2::postrender,        canvas);
+
+                canvas.core::view(canvas_view);
+                canvas.flow::full(parent_area);
+            }
         }
 
     protected:

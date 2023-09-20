@@ -505,7 +505,7 @@ namespace netxs::app::desk
                     {
                         if (parent_id == parent_canvas.mark().link())
                         {
-                            parent_canvas.render(ground);
+                            ground->render(parent_canvas);
                         }
                     };
                 };

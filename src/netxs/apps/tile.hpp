@@ -148,7 +148,7 @@ namespace netxs::app::tile
                     auto canvas_area = parent_canvas.core::area();
                     canvas_area.coor = dot_00;
                     parent_canvas.core::view(canvas_area);
-                    parent_canvas.render<faux>(client, basis);
+                    client->render(parent_canvas, basis, faux);
                     parent_canvas.core::view(canvas_view);
                 }
             };

@@ -207,7 +207,7 @@ namespace netxs::ui
         }
         auto setpad(dent intpad, dent extpad = {})
         {
-            base::padding(intpad, extpad);
+            base::setpad(intpad, extpad);
             return This();
         }
     };
@@ -390,9 +390,9 @@ namespace netxs::ui
             {
                 //todo pads
                 auto basis = base::coor();
-                parent_canvas.render(splitter, basis);
-                parent_canvas.render(client_1, basis);
-                parent_canvas.render(client_2, basis);
+                if (splitter) splitter->render(parent_canvas, basis);
+                if (client_1) client_1->render(parent_canvas, basis);
+                if (client_2) client_2->render(parent_canvas, basis);
             };
 
             _config(alignment, thickness, s1, s2);
@@ -563,7 +563,7 @@ namespace netxs::ui
                 auto basis = base::coor();
                 for (auto& client : subset)
                 {
-                    parent_canvas.render(client.first, basis);
+                    client.first->render(parent_canvas, basis);
                 }
             };
         }
@@ -659,7 +659,7 @@ namespace netxs::ui
                 auto basis = base::coor();
                 for (auto& client : subset)
                 {
-                    parent_canvas.render(client, basis);
+                    client->render(parent_canvas, basis);
                 }
             };
         }
@@ -744,7 +744,7 @@ namespace netxs::ui
                 if (auto active = subset.back())
                 {
                     auto basis = base::coor();
-                    parent_canvas.render(active, basis);
+                    active->render(parent_canvas, basis);
                 }
             };
         }
@@ -1193,7 +1193,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                parent_canvas.render<faux>(client, base::coor());
+                if (client) client->render(parent_canvas, base::coor(), faux);
             };
         }
         void cutoff()
@@ -1849,7 +1849,7 @@ namespace netxs::ui
                 parent_canvas.view(view);
                 if (client)
                 {
-                    parent_canvas.render(client, base::coor());
+                    client->render(parent_canvas, base::coor());
                 }
                 this->bell::expire<tier::release>();
             };
@@ -2305,7 +2305,7 @@ namespace netxs::ui
                     cp.x = pin_pos;
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
-                    canvas.render(grip_ctl, base::coor());
+                    grip_ctl->render(canvas, base::coor());
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };

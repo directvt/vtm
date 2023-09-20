@@ -3157,7 +3157,7 @@ namespace netxs::ui
             {
                 auto& canvas = input.xmap;
                 canvas.wipe(world_id);
-                canvas.render(applet, base::coor());
+                if (applet) applet->render(canvas, base::coor());
             }
             _rebuild_scene(damaged);
         }

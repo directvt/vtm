@@ -889,7 +889,7 @@ namespace netxs::app::vtm
                 canvas.wipe(world.id);
                 if (align.what.applet)
                 {
-                    canvas.render(align.what.applet, base::coor());
+                    align.what.applet->render(canvas, base::coor());
                 }
                 else
                 {
@@ -902,8 +902,8 @@ namespace netxs::app::vtm
                     if (applet) // Render main menu/application.
                     {
                         //todo too hacky, unify
-                        if (props.glow_fx) canvas.render(applet, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                           canvas.render(applet, base::coor());
+                        if (props.glow_fx) applet->render(canvas, base::coor()); // Render the main menu twice to achieve the glow effect.
+                                           applet->render(canvas, base::coor());
                     }
                 }
             }
@@ -992,14 +992,13 @@ namespace netxs::app::vtm
                 netxs::online(window, origin, center, pset);
             }
             // hall::node: Visualize the underlying object.
-            template<bool Post = true>
-            void render(face& canvas)
+            void render(face& canvas, bool post = true)
             {
-                canvas.render<Post>(*object);
+                object->render(canvas, true, post);
             }
             void postrender(face& canvas)
             {
-                object->SIGNAL(tier::release, e2::postrender, canvas);
+                object->render(canvas, faux, true);
             }
         };
         struct list // hall: List of objects that can be reordered, etc.
@@ -1040,7 +1039,7 @@ namespace netxs::app::vtm
             {
                 if (size() > 1)
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
-                for (auto& item : items) item->render<faux>(canvas); // Draw shadows without postrendering.
+                for (auto& item : items) item->render(canvas, faux); // Draw shadows without postrendering.
             }
             //hall::list: Draw windows.
             void render(face& canvas)
