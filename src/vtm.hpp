@@ -706,6 +706,7 @@ namespace netxs::app::vtm
     struct gate
         : public ui::gate
     {
+        pro::robot robot{*this }; // gate: Animation controller.
         pro::maker maker{*this }; // gate: Form generator.
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.

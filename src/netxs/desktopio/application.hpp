@@ -8,7 +8,7 @@
     #pragma clang diagnostic ignored "-Wunused-function"
 #endif
 
-#include "controls.hpp"
+#include "console.hpp"
 
 #include <fstream>
 
