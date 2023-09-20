@@ -205,7 +205,7 @@ namespace netxs::ui
             base::alignment(atgrow, atcrop);
             return This();
         }
-        auto padding(dent intpad, dent extpad = {})
+        auto setpad(dent intpad, dent extpad = {})
         {
             base::padding(intpad, extpad);
             return This();

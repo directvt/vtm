@@ -487,7 +487,7 @@ namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 
-    //todo OMG!, make it in another way.
+    //todo reimplement
     struct skin
     {
         poly kb_focus;
@@ -1172,11 +1172,6 @@ namespace netxs::ui
                     });
                 }
             }
-        }
-        // base: Initiate redrawing.
-        virtual void redraw(face& canvas)
-        {
-            SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::base, "Rendering not supported")));
         }
         // base: Syntax sugar helper.
         void _saveme()

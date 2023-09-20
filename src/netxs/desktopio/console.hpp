@@ -3151,12 +3151,12 @@ namespace netxs::ui
             }
         }
         // gate: .
-        virtual void rebuild_scene(base& world, bool damaged)
+        void rebuild_scene(id_t world_id, bool damaged)
         {
             if (damaged)
             {
                 auto& canvas = input.xmap;
-                canvas.wipe(world.bell::id);
+                canvas.wipe(world_id);
                 canvas.render(applet, base::coor());
             }
             _rebuild_scene(damaged);
@@ -3356,11 +3356,7 @@ namespace netxs::ui
                 if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, newsize);
                 auto delta = base::resize(newsize);
                 if (delta && direct)
-                if (auto world_ptr = base::parent())
-                {
-                    paint.cancel();
-                    rebuild_scene(*world_ptr, true);
-                }
+                paint.cancel();
             };
             LISTEN(tier::release, e2::size::any, newsize, tokens)
             {
@@ -3709,7 +3705,11 @@ namespace netxs::ui
             {
                 auto damaged = !debris.empty();
                 debris.clear();
-                screen.rebuild_scene(*this, damaged);
+                screen.rebuild_scene(bell::id, damaged);
+            };
+            screen.LISTEN(tier::release, e2::conio::winsz, newsize, -)
+            {
+                screen.rebuild_scene(bell::id, true);
             };
             lock.unlock();
             portal->launch();

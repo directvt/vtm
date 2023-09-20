@@ -134,6 +134,7 @@ namespace netxs::app::shared
                     if (hover) new_item->plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
                     else       new_item->colors(0,0); //todo for mouse tracking
                     new_item->plugin<pro::notes>(notes) //todo template: GCC complains
+                            ->setpad({ 2,2,0,0 })
                             ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                             {
                                 setup(boss, item);

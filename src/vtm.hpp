@@ -881,12 +881,12 @@ namespace netxs::app::vtm
                 move_viewport(center, viewport);
             }
         }
-        void rebuild_scene(base& world, bool damaged) override
+        void rebuild_scene(auto& world, bool damaged)
         {
             auto& canvas = input.xmap;
             if (damaged)
             {
-                canvas.wipe(world.bell::id);
+                canvas.wipe(world.id);
                 if (align.what.applet)
                 {
                     canvas.render(align.what.applet, base::coor());
@@ -1695,7 +1695,7 @@ namespace netxs::app::vtm
                 if (gear_test.second) log(prompt::hall, "Autofocused items count: ", gear_test.second);
             }
         }
-        void redraw(face& canvas) override
+        void redraw(face& canvas)
         {
             users.prerender (canvas); // Draw backpane for spectators.
             items.render    (canvas); // Draw objects of the world.
@@ -1729,6 +1729,10 @@ namespace netxs::app::vtm
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             this->SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
+            user->LISTEN(tier::release, e2::conio::winsz, newsize, -)
+            {
+                user->rebuild_scene(*this, true);
+            };
             //todo make it configurable
             auto patch = ""s;
             auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
