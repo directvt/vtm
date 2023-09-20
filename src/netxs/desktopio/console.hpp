@@ -9,7 +9,7 @@ namespace netxs::ui
 {
     // console: Client gate.
     class gate
-        : public base
+        : public form<gate>
     {
         // gate: Data decoder.
         struct link
@@ -380,7 +380,7 @@ namespace netxs::ui
         // gate: Input forwarder.
         struct input_t
         {
-            using depo = std::unordered_map<id_t, sptr<hids>>;
+            using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
             using lock = std::recursive_mutex;
 
             template<class T>
@@ -479,7 +479,7 @@ namespace netxs::ui
                 {
                     if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
-                return std::pair{ id_t{}, sptr<hids>{} };
+                return std::pair{ id_t{}, netxs::sptr<hids>{} };
             }
         };
 
@@ -688,8 +688,6 @@ namespace netxs::ui
         };
 
     public:
-        pro::mouse mouse{*this }; // gate: Mouse controller.
-
         pipe&      canal; // gate: Channel to outside.
         bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
         para       uname; // gate: Client name.
@@ -697,7 +695,7 @@ namespace netxs::ui
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
         debug_t    debug; // gate: Statistics monitor.
-        sptr<base> applet; // gate: Standalone application.
+        sptr       applet; // gate: Standalone application.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
         subs       tokens; // gate: Subscription tokens.
@@ -811,7 +809,7 @@ namespace netxs::ui
         }
 
         // gate: Attach a new item.
-        auto attach(sptr<base>& item)
+        auto attach(sptr& item)
         {
             std::swap(applet, item);
             if (local) nexthop = applet;
@@ -914,7 +912,7 @@ namespace netxs::ui
 
     protected:
         //todo revise
-        gate(sptr<pipe> uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
+        gate(netxs::sptr<pipe> uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
@@ -1293,16 +1291,14 @@ namespace netxs::ui
 
     // console: World aether.
     class host
-        : public base
+        : public form<host>
     {
     public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
         using repl = scripting::repl<host>;
 
-        //pro::keybd keybd{*this }; // host: Keyboard controller.
-        pro::mouse mouse{*this }; // host: Mouse controller.
-        pro::focus focus; // host: Focus controller.
+        pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
 
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
@@ -1314,7 +1310,7 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
-        host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
+        host(netxs::sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config },
@@ -1436,10 +1432,10 @@ namespace netxs::ui
             denote(region);
         }
         // host: Create a new root of the specified subtype and attach it.
-        auto invite(sptr<pipe> uplink, sptr<base>& applet, si32 vtmode, twod winsz)
+        auto invite(netxs::sptr<pipe> uplink, sptr& applet, si32 vtmode, twod winsz)
         {
             auto lock = events::unique_lock();
-            auto portal = base::create<gate>(uplink, vtmode, host::config);
+            auto portal = ui::gate::ctor(uplink, vtmode, host::config);
             portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             portal->attach(applet);
             portal->base::resize(winsz);

@@ -552,7 +552,7 @@ namespace netxs::app::shared
         }};
         //if (!config.cd("/config/" + aclass)) config.cd("/config/appearance/");
         config.cd("/config/appearance/runapp/", "/config/appearance/defaults/");
-        auto domain = ui::base::create<ui::host>(server, config);
+        auto domain = ui::host::ctor(server, config);
         auto direct = os::dtvt::active;
         auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
         domain->invite(server, applet, vtmode, winsz);

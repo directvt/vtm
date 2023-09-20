@@ -711,7 +711,7 @@ namespace netxs::app::vtm
         pro::align align{*this, nexthop }; // gate: Fullscreen access controller.
         pro::notes notes; // gate: Tooltips for user.
 
-        gate(sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
+        gate(netxs::sptr<pipe> uplink, view userid, si32 vtmode, xmls& config, si32 session_id)
             : ui::gate{ uplink, vtmode, config, userid, session_id, true },
               notes{*this, ansi::add(prompt::gate, props.title) }
         {
@@ -919,8 +919,6 @@ namespace netxs::app::vtm
     private:
         struct node // hall: Adapter for the object that going to be attached to the world.
         {
-            using sptr = netxs::sptr<base>;
-
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
@@ -1004,7 +1002,7 @@ namespace netxs::app::vtm
         };
         struct list // hall: List of objects that can be reordered, etc.
         {
-            std::list<sptr<node>> items;
+            std::list<netxs::sptr<node>> items;
 
             template<class D>
             auto search(D head, D tail, id_t id)
@@ -1020,7 +1018,7 @@ namespace netxs::app::vtm
             operator bool () { return items.size(); }
             auto size()      { return items.size(); }
             auto back()      { return items.back()->object; }
-            void append(sptr<base> window_ptr)
+            void append(sptr window_ptr)
             {
                 auto& window = *window_ptr;
                 window.LISTEN(tier::preview, e2::form::layout::expose, area, -)
@@ -1134,18 +1132,18 @@ namespace netxs::app::vtm
         };
         struct depo // hall: Actors registry.
         {
-            sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
-            sptr<desk::usrs> usrs_ptr = ptr::shared(desk::usrs{});
-            sptr<desk::menu> menu_ptr = ptr::shared(desk::menu{});
+            netxs::sptr<desk::apps> apps_ptr = ptr::shared(desk::apps{});
+            netxs::sptr<desk::usrs> usrs_ptr = ptr::shared(desk::usrs{});
+            netxs::sptr<desk::menu> menu_ptr = ptr::shared(desk::menu{});
             desk::apps& apps = *apps_ptr;
             desk::usrs& usrs = *usrs_ptr;
             desk::menu& menu = *menu_ptr;
 
-            void append(sptr<base> user)
+            void append(sptr user)
             {
                 usrs.push_back(user);
             }
-            auto remove(sptr<base> item_ptr)
+            auto remove(sptr item_ptr)
             {
                 auto found = faux;
                 for (auto& [class_id, fxd_app_list] : apps) // Remove app.
@@ -1371,7 +1369,7 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(sptr<pipe> server, xmls& config, text defapp)
+        hall(netxs::sptr<pipe> server, xmls& config, text defapp)
             : host{ server, config, pro::focus::mode::focusable }
         {
             auto current_module_file = os::process::binary();
@@ -1663,7 +1661,7 @@ namespace netxs::app::vtm
             vport = host::config.take(path::viewport, dot_00);
             auto what = link{};
             auto apps = host::config.list(path::autorun);
-            auto foci = std::vector<sptr<base>>();
+            auto foci = std::vector<sptr>();
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
             {
@@ -1707,8 +1705,7 @@ namespace netxs::app::vtm
             async.run(process);
         }
         // hall: Attach a new item to the scene.
-        template<class S>
-        void branch(text const& menuid, sptr<S> item, bool fixed = true)
+        void branch(text const& menuid, sptr item, bool fixed = true)
         {
             if (!host::active) return;
             items.append(item);
@@ -1721,7 +1718,7 @@ namespace netxs::app::vtm
             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(sptr<pipe> client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
+        auto invite(netxs::sptr<pipe> client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
             auto user = base::create<gate>(client, userid, vtmode, config, session_id);
