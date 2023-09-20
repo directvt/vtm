@@ -1237,6 +1237,17 @@ namespace netxs::ui
             base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
             base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
         }
+        void alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
+        {
+            base::atgrow = atgrow;
+            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
+            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+        }
+        void padding(dent intpad, dent extpad = {})
+        {
+            base::intpad = intpad;
+            base::extpad = extpad;
+        }
 
     protected:
         virtual ~base() = default;

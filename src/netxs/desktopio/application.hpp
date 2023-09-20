@@ -92,7 +92,7 @@ namespace netxs::app::shared
             }
         };
 
-        using link = std::tuple<netxs::sptr<item>, std::function<void(ui::pads&, item&)>>;
+        using link = std::tuple<netxs::sptr<item>, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
         static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
@@ -117,13 +117,12 @@ namespace netxs::app::shared
             auto x2 = cell{ c2 }.bga(0x00);
             auto c1 = danger_color;
             auto x1 = cell{ c1 }.alpha(0x00);
+            auto fader = skin::globals().fader_time;
+            auto macstyle = skin::globals().macstyle;
 
             auto slot1 = ui::veer::ctor();
             auto menuarea = ui::fork::ctor()->active();
-                auto fader = skin::globals().fader_time;
-                auto macstyle = skin::globals().macstyle;
-
-                auto make_item = [&](auto& body, auto& dest_ptr, auto& fgc, auto& bgc)
+                auto make_item = [&](auto& body, auto& fgc, auto& bgc)
                 {
                     auto& item_ptr = std::get<0>(body);
                     auto& setup = std::get<1>(body);
@@ -131,10 +130,10 @@ namespace netxs::app::shared
                     auto& hover = item.alive;
                     auto& label = item.views.front().label;
                     auto& notes = item.views.front().notes;
-                    if (hover) dest_ptr->template plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
-                    else       dest_ptr->colors(0,0); //todo for mouse tracking
-                    dest_ptr->template plugin<pro::notes>(notes) //todo template: GCC complains
-                            ->branch(ui::item::ctor(label, faux, true))
+                    auto new_item = ui::item::ctor(label, faux, true);
+                    if (hover) new_item->plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
+                    else       new_item->colors(0,0); //todo for mouse tracking
+                    new_item->plugin<pro::notes>(notes) //todo template: GCC complains
                             ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                             {
                                 setup(boss, item);
@@ -143,19 +142,17 @@ namespace netxs::app::shared
                                     item_ptr.reset();
                                 };
                             });
+                    return new_item;
                 };
                 auto ctrlslot = macstyle ? slot::_1 : slot::_2;
                 auto menuslot = macstyle ? slot::_2 : slot::_1;
-                auto tailitem = menuarea->attach(ctrlslot, ui::pads::ctor(dent{ 1,0,1,1 }, dent{ 0 }));
-                auto bttnlist = tailitem->attach(ui::list::ctor(axis::X));
-                auto innerpad = dent{ 1,2,1,1 };
-                auto outerpad = dent{ 1 };
+                auto bttnlist = menuarea->attach(ctrlslot, ui::list::ctor(axis::X));
                 if (custom) // Apply a custom menu controls.
                 {
                     while (custom--)
                     {
-                        auto mid_item = bttnlist->attach<sort::reverse>(ui::pads::ctor(innerpad, outerpad));
-                        make_item(menu_items.back(), mid_item, x1, c1);
+                        auto button = make_item(menu_items.back(), x1, c1);
+                        bttnlist->attach<sort::reverse>(button);
                         menu_items.pop_back();
                     }
                 }
@@ -164,7 +161,7 @@ namespace netxs::app::shared
                     auto control = std::vector<link>
                     {
                         { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize " } }}),
-                        [](ui::pads& boss, auto& item)
+                        [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -173,7 +170,7 @@ namespace netxs::app::shared
                             };
                         }},
                         { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "□", .notes = " Maximize " } }}),
-                        [](ui::pads& boss, auto& item)
+                        [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -182,7 +179,7 @@ namespace netxs::app::shared
                             };
                         }},
                         { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Close " } }}),
-                        [](ui::pads& boss, auto& item)
+                        [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -192,40 +189,30 @@ namespace netxs::app::shared
                             };
                         }},
                     };
-                    auto mid_item1 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
-                    auto mid_item2 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
-                    auto mid_item3 = bttnlist->attach(ui::pads::ctor(innerpad, outerpad));
                     if (macstyle)
                     {
-                        make_item(control[2], mid_item1, x1, c1);
-                        make_item(control[0], mid_item2, x2, c2);
-                        make_item(control[1], mid_item3, x6, c6);
+                        bttnlist->attach(make_item(control[2], x1, c1));
+                        bttnlist->attach(make_item(control[0], x2, c2));
+                        bttnlist->attach(make_item(control[1], x6, c6));
                     }
                     else
                     {
-                        make_item(control[0], mid_item1, x3, c3);
-                        make_item(control[1], mid_item2, x3, c3);
-                        make_item(control[2], mid_item3, x1, c1);
+                        bttnlist->attach(make_item(control[0], x3, c3));
+                        bttnlist->attach(make_item(control[1], x3, c3));
+                        bttnlist->attach(make_item(control[2], x1, c1));
                     }
                 }
-                auto headarea = menuarea->attach(menuslot, ui::pads::ctor(dent{ 0,0,1,1 }, dent{ 0 }));
-                auto scrlarea = headarea->attach(ui::cake::ctor());
+                auto scrlarea = menuarea->attach(menuslot, ui::cake::ctor());
                 auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
                 auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
                 auto scroll_hint = ui::cake::ctor();
-                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::head, menusize ? snap::center : snap::tail }));
-
+                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::both, snap::tail }));
                 auto scrl_grip = scrlarea->attach(scroll_hint);
 
-                auto inner_pads = dent{ 2,2,1,1 };
-                auto outer_pads = dent{ 0 };
                 for (auto& body : menu_items)
                 {
-                    auto mid_item = scrllist->attach(ui::pads::ctor(inner_pads, outer_pads));
-                    make_item(body, mid_item, x3, c3);
-                    outer_pads.west = 1;
-                    inner_pads.west = 1;
+                    scrllist->attach(make_item(body, x3, c3));
                 }
 
             auto menu_block = ui::cake::ctor()
@@ -273,7 +260,7 @@ namespace netxs::app::shared
                         };
                     }
                 });
-            menu_block->attach(menuarea->alignment({ snap::head, snap::center }));
+            menu_block->attach(menuarea->alignment({ snap::both, snap::center }, { macstyle ? snap::head : snap::tail, snap::center }));
 
             auto menu = slot1->attach(menu_block);
                     auto border = slot1->attach(ui::mock::ctor())

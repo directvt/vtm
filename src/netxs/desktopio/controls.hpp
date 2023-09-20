@@ -202,9 +202,12 @@ namespace netxs::ui
         }
         auto alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
         {
-            base::atgrow = atgrow;
-            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
-            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+            base::alignment(atgrow, atcrop);
+            return This();
+        }
+        auto padding(dent intpad, dent extpad = {})
+        {
+            base::padding(intpad, extpad);
             return This();
         }
     };
@@ -322,7 +325,48 @@ namespace netxs::ui
             };
             LISTEN(tier::preview, e2::size::set, new_size)
             {
-                fork::size_preview(new_size);
+                auto new_size0 = xpose(new_size);
+                maxpos = std::max(new_size0.x - width, 0);
+                split = netxs::divround(maxpos * ratio, max_ratio);
+                size1 = xpose({ split, new_size0.y });
+                if (client_1)
+                {
+                    client_1->base::size_preview(size1);
+                    split = get_x(size1);
+                    new_size0.y = get_y(size1);
+                }
+                size2 = xpose({ maxpos - split, new_size0.y });
+                auto test_size2 = size2;
+                if (client_2)
+                {
+                    client_2->base::size_preview(size2);
+                    split = new_size0.x - width - get_x(size2);
+                    if (test_size2 != size2) // If size2 doesn't fit.
+                    {
+                        new_size0.y = get_y(size2);
+                        size1 = xpose({ split, new_size0.y });
+                        if (client_1)
+                        {
+                            client_1->base::size_preview(size1);
+                            split = get_x(size1);
+                            new_size0.y = get_y(size1);
+                        }
+                        size2 = xpose({ maxpos - split, new_size0.y });
+                        if (client_2)
+                        {
+                            client_2->base::size_preview(size2);
+                            new_size0.y = get_y(size2);
+                        }
+                    }
+                    coor2 = xpose({ split + width, 0 });
+                }
+                if (splitter)
+                {
+                    coor3 = xpose({ split, 0 });
+                    size3 = xpose({ width, new_size0.y });
+                }
+                new_size = xpose({ split + width + get_x(size2), new_size0.y });
+                if (fixed) _config_ratio(split, get_x(size2));
             };
             LISTEN(tier::release, e2::size::any, new_size)
             {
@@ -371,121 +415,12 @@ namespace netxs::ui
             }
             base::reflow();
         }
-        // fork: .
-        void size_preview(twod& new_size)
-        {
-            //todo revise/unify
-            //todo client_2 doesn't respect ui::pads
-            auto new_size0 = xpose(new_size);
-            {
-                maxpos = std::max(new_size0.x - width, 0);
-                split = netxs::divround(maxpos * ratio, max_ratio);
-
-                size1 = xpose({ split, new_size0.y });
-                if (client_1)
-                {
-                    client_1->base::size_preview(size1);
-
-                    split = get_x(size1);
-                    new_size0.y = get_y(size1);
-                }
-
-                size2 = xpose({ maxpos - split, new_size0.y });
-                auto test_size2 = size2;
-                if (client_2)
-                {
-                    client_2->base::size_preview(size2);
-                    split = new_size0.x - width - get_x(size2);
-
-                    if (test_size2 != size2) // If size2 doesn't fit.
-                    {
-                        new_size0.y = get_y(size2);
-                        size1 = xpose({ split, new_size0.y });
-                        if (client_1)
-                        {
-                            client_1->base::size_preview(size1);
-                            split = get_x(size1);
-                            new_size0.y = get_y(size1);
-                        }
-                        size2 = xpose({ maxpos - split, new_size0.y });
-                        if (client_2)
-                        {
-                            client_2->base::size_preview(size2);
-                            new_size0.y = get_y(size2);
-                        }
-                    }
-
-                    coor2 = xpose({ split + width, 0 });
-                }
-                if (splitter)
-                {
-                    coor3 = xpose({ split, 0 });
-                    size3 = xpose({ width, new_size0.y });
-                }
-
-                new_size = xpose({ split + width + get_x(size2), new_size0.y });
-
-                if (fixed) _config_ratio(split, get_x(size2));
-            }
-        }
         void move_slider(si32 const& step)
         {
             if (splitter)
             {
                 auto delta = xpose({ step * width, 0 });
                 splitter->SIGNAL(tier::preview, e2::form::upon::changed, delta);
-            }
-        }
-        void slider(action act, twod const& delta)
-        {
-            if (movable)
-            {
-                switch (act)
-                {
-                    case action::seize:
-                        //control_w32::mouse(true);
-                        //start = get_x(stem.coor) - get_x(delta);
-                        break;
-                    case action::drag:
-                        //if (!control_w32::mouse())
-                        //{
-                        //	return;
-                        //}
-                        break;
-                    case action::release:
-                        //if (!control_w32::mouse())
-                        //{
-                        //	return;
-                        //}
-                        //control_w32::mouse(faux);
-                        break;
-                    default:
-                        return;
-                }
-
-                //todo move slider
-
-                //fork::deploy(start + xpose(delta).x, true);
-                //si32 newpos = start + xpose(delta).x;
-                //
-                //auto c1 = base::limit(ctrl::_1);
-                //auto c2 = base::limit(ctrl::_2);
-                //
-                //auto minsplit = std::max(get_x(c1.min), maxpos - get_x(c2.max));
-                //auto maxsplit = std::min(get_x(c1.max), maxpos - get_x(c2.min));
-                //auto split = std::clamp(newpos, minsplit, std::max(minsplit, maxsplit));
-                //
-                //stem = { xpose({ split, 0 }), xpose({ width, get_y(size) }) };
-                //if (client_1)
-                //	client_1->extend(
-                //		rect{ dot_00,                      xpose({ split,          get_y(size) }) });
-                //if (client_2)
-                //	client_2->extend(
-                //		rect{ xpose({ split + width, 0 }), xpose({ maxpos - split, get_y(size) }) });
-
-                ratio = std::clamp(netxs::divround(get_x(stem.coor) * max_ratio, maxpos), 0, max_ratio);
-
-                base::deface();
             }
         }
         template<class T>
@@ -512,7 +447,6 @@ namespace netxs::ui
                     this->base::reflow();
                 };
             }
-
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
