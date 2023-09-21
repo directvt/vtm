@@ -54,8 +54,8 @@ namespace netxs::ui
 
     struct bind
     {
-        snap x = snap::both;
-        snap y = snap::both;
+        snap x = snap::none;
+        snap y = snap::none;
     };
 
     struct base;
@@ -610,22 +610,22 @@ namespace netxs::ui
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
-        auto&  coor() const { return objrec.coor;          }
-        auto&  size() const { return objrec.size;          }
-        auto&  area() const { return objrec;               }
+        auto&  coor() const { return extrec.coor;          }
+        auto&  size() const { return extrec.size;          }
+        auto&  area() const { return extrec;               }
         void   root(bool b) { master = b;                  }
         bool   root()       { return master;               }
         si32   kind()       { return family;               }
         void   kind(si32 k) { family = k;                  }
-        auto center() const { return objrec.center();      }
+        auto center() const { return extrec.center();      }
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
         template<bool Absolute = true>
         auto actual_area() const
         {
-            auto area = rect{ -oversz.topleft(), objrec.size + oversz.summ() };
-            if constexpr (Absolute) area.coor += objrec.coor;
+            auto area = rect{ -oversz.topleft(), extrec.size + oversz.summ() };
+            if constexpr (Absolute) area.coor += extrec.coor;
             return area;
         }
         auto color() const { return filler; }
@@ -647,31 +647,31 @@ namespace netxs::ui
         // base: Move the form to a new place, and return the delta.
         auto moveto(twod new_coor)
         {
-            auto old_coor = objrec.coor;
+            auto old_coor = extrec.coor;
             SIGNAL(tier::preview, e2::coor::set, new_coor);
             SIGNAL(tier::release, e2::coor::set, new_coor);
-            auto delta = objrec.coor - old_coor;
+            auto delta = extrec.coor - old_coor;
             return delta;
         }
         // base: Dry run. Check current position.
         auto moveto()
         {
-            auto new_value = objrec.coor;
+            auto new_value = extrec.coor;
             return moveto(new_value);
         }
         // base: Move the form by the specified step and return the coor delta.
         auto moveby(twod const& step)
         {
-            auto delta = moveto(objrec.coor + step);
+            auto delta = moveto(extrec.coor + step);
             return delta;
         }
         // base: Resize the form, and return the size delta.
-        auto resize(twod new_size) -> twod //todo MSVC 17.7.0 requires return type
+        auto resize(twod new_size) -> twod //todo MSVC 17.7.4 requires return type
         {
-            auto old_size = objrec.size;
+            auto old_size = extrec.size;
             size_preview(new_size);
             size_release(new_size);
-            return objrec.size - old_size;
+            return extrec.size - old_size;
         }
         // base: Resize the form, and return the new size.
         auto& resize(si32 x, si32 y)
@@ -687,7 +687,7 @@ namespace netxs::ui
         //       the center point during resizing.
         auto resize(twod newsize, twod point)
         {
-            point -= objrec.coor;
+            point -= extrec.coor;
             anchor = point; //todo use dot_00 instead of point
             resize(newsize);
             auto delta = moveby(point - anchor);
@@ -696,13 +696,13 @@ namespace netxs::ui
         // base: Dry run (preview then release) current value.
         auto resize()
         {
-            auto new_value = objrec.size;
+            auto new_value = extrec.size;
             return resize(new_value);
         }
         // base: Resize the form by step, and return delta.
         auto sizeby(twod const& step)
         {
-            auto delta = resize(objrec.size + step);
+            auto delta = resize(extrec.size + step);
             return delta;
         }
         // base: Resize and move the form, and return delta.
@@ -713,7 +713,7 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect region)
         {
-            region.coor += objrec.coor;
+            region.coor += extrec.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->deface(region);
@@ -775,7 +775,7 @@ namespace netxs::ui
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
-            coor -= objrec.coor;
+            coor -= extrec.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->global(coor);
@@ -877,11 +877,8 @@ namespace netxs::ui
                     break;
             }
         }
-        void show() { hidden = faux; }
-        void hide() { hidden = true; }
         void coor_release(twod& new_coor)
         {
-            objrec.coor = new_coor;
             SIGNAL(tier::release, e2::coor::set, new_coor);
         }
         void size_preview(twod& new_size)
@@ -907,7 +904,7 @@ namespace netxs::ui
             base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
             base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
         }
-        void alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
+        void alignment(bind atgrow, bind atcrop = {})
         {
             base::atgrow = atgrow;
             base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
@@ -925,7 +922,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::objrec;
+            auto object_area = base::extrec;
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -952,7 +949,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::objrec;
+            auto object_area = base::extrec;
             object_area.coor-= canvas.core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))
@@ -978,6 +975,12 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
+            LISTEN(tier::release, e2::coor::set, new_coor)
+            {
+                extrec.coor = new_coor;
+                objrec = extrec - extpad;
+                intrec = objrec - intpad;
+            };
             LISTEN(tier::request, e2::depth, depth)
             {
                 depth++;

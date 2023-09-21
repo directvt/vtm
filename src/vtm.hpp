@@ -972,15 +972,6 @@ namespace netxs::app::vtm
                 window.coor = dot_00;
                 netxs::online(window, origin, center, pset);
             }
-            // hall::node: Visualize the underlying object.
-            void render(face& canvas, bool post = true)
-            {
-                object->render(canvas, true, post);
-            }
-            void postrender(face& canvas)
-            {
-                object->render(canvas, faux, true);
-            }
         };
         struct list // hall: List of objects that can be reordered, etc.
         {
@@ -1020,21 +1011,20 @@ namespace netxs::app::vtm
             {
                 if (size() > 1)
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
-                for (auto& item : items) item->render(canvas, faux); // Draw shadows without postrendering.
+                for (auto& item : items) item->object->render(canvas, true, faux); // Draw shadows without postrendering.
             }
             //hall::list: Draw windows.
             void render(face& canvas)
             {
                 for (auto& item : items) item->fasten(canvas);
-                //todo optimize
-                for (auto& item : items) if (item->z_order == zpos::backmost) item->render(canvas);
-                for (auto& item : items) if (item->z_order == zpos::plain   ) item->render(canvas);
-                for (auto& item : items) if (item->z_order == zpos::topmost ) item->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::backmost) item->object->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::plain   ) item->object->render(canvas);
+                for (auto& item : items) if (item->z_order == zpos::topmost ) item->object->render(canvas);
             }
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)
             {
-                for (auto& item : items) item->postrender(canvas);
+                for (auto& item : items) item->object->render(canvas, faux, true);
             }
             //hall::list: Delete all items.
             void reset()

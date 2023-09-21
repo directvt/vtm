@@ -7256,7 +7256,7 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        this->SIGNAL(tier::release, e2::size::set, scroll_size);
+                        this->size_release(scroll_size);
                         this->base::moveto(scroll_coor);
                     }
                     base::deface();

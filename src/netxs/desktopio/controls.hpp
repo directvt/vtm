@@ -254,11 +254,11 @@ namespace netxs::ui
                         else                                              g.zoomdt += warp;
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                         auto next = (g.zoomsz + g.zoomdt).clip(viewport);
-                        auto step = boss.extend(next);
+                        auto step = boss.base::extend(next);
                         if (!step.size) // Undo if can't zoom.
                         {
                             g.zoomdt = prev;
-                            boss.moveto(coor);
+                            boss.base::moveto(coor);
                         }
                     }
                 };
@@ -2450,7 +2450,7 @@ namespace netxs::ui
             base::limits(minlim, maxlim);
             return This();
         }
-        auto alignment(bind atgrow, bind atcrop = { .x = snap::none, .y = snap::none })
+        auto alignment(bind atgrow, bind atcrop = {})
         {
             base::alignment(atgrow, atcrop);
             return This();
@@ -2626,13 +2626,13 @@ namespace netxs::ui
                 }
                 if (client_2)
                 {
-                    client_2->base::coor_release(coor2);
                     client_2->base::size_release(size2);
+                    client_2->base::coor_release(coor2);
                 }
                 if (splitter)
                 {
-                    splitter->base::coor_release(coor3);
                     splitter->base::size_release(size3);
+                    splitter->base::coor_release(coor3);
                 }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -2797,10 +2797,10 @@ namespace netxs::ui
                                 base::anchor += new_coor - anker.coor;
                             }
                         }
-                        entry.base::coor_release(new_coor);
                         auto& sz_y = updown ? client.second.y : client.second.x;
                         auto& sz_x = updown ? client.second.x : client.second.y;
                         auto& size = entry.resize(sz_x, sz_y);
+                        entry.base::coor_release(new_coor);
                         sz_x = size.x;
                         sz_y = size.y;
                         y_coor += client.second.y;
@@ -4041,12 +4041,12 @@ namespace netxs::ui
     template<axis Axis>
     using grip = gripfx<Axis, drawfx>;
 
-    // controls: Container with margins (outer space) and padding (inner space).
+    // controls: deprecated.
     class pads
         : public form<pads>
     {
-        dent padding; // pads: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
-        dent margins; // pads: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+        dent padding;
+        dent margins;
 
     public:
         sptr client;
@@ -4069,11 +4069,8 @@ namespace netxs::ui
                 if (client)
                 {
                     auto client_size = new_size - padding;
-                    client->SIGNAL(tier::preview, e2::size::set, client_size);
+                    client->size_preview(client_size);
                     new_size = client_size + padding;
-                    //todo unify
-                    //auto lims = base::limits();
-                    //new_size = std::clamp(new_size, lims.min, lims.max);
                 }
             };
             LISTEN(tier::release, e2::size::any, new_size)
@@ -4082,8 +4079,8 @@ namespace netxs::ui
                 {
                     auto client_size = new_size - padding;
                     auto client_coor = padding.corner();
-                    client->SIGNAL(tier::release, e2::size::set, client_size);
-                    client->SIGNAL(tier::release, e2::coor::set, client_coor);
+                    client->size_release(client_size);
+                    client->coor_release(client_coor);
                 }
             };
             LISTEN(tier::release, e2::render::prerender, parent_canvas)

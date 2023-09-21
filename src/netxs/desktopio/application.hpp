@@ -222,7 +222,7 @@ namespace netxs::app::shared
                 ->limits({ -1, menusize ? 1 : 3 }, { -1, menusize ? 1 : 3 })
                 ->invoke([&](ui::cake& boss)
                 {
-                    hints->base::hide();
+                    hints->base::hidden = true;
                     auto slim_status = ptr::shared(menusize);
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
