@@ -35,10 +35,10 @@ namespace netxs::ui
     enum class snap
     {
         none,
+        both,
         head,
         tail,
         center,
-        both, // Size binding.
     };
 
     enum class slot { _1, _2, _I };
@@ -857,7 +857,7 @@ namespace netxs::ui
             bell::_saveme();
         }
         // base: Align object.
-        void xform(snap align, si32& coor, si32& size, si32 width)
+        void xform(snap align, si32& coor, si32& size, si32& width)
         {
             switch (align)
             {
@@ -885,11 +885,12 @@ namespace netxs::ui
         void size_preview(twod& new_size)
         {
             if (base::hidden) return;
-            new_size = std::clamp(new_size - extpad, minlim, maxlim);
-            new_size = new_size - intpad;
-            SIGNAL(tier::preview, e2::size::set, new_size);
-            new_size = new_size + intpad + extpad; // We must fix nested objects that don't fit instead of clamping.
-            exrect.size = new_size;
+            auto s = std::clamp(new_size - extpad, minlim, maxlim) - intpad;
+            SIGNAL(tier::preview, e2::size::set, s);
+            exrect.size = s + intpad + extpad; // We must fix nested objects that don't fit instead of clamping.
+            //if (snap::both == (exrect.size.x > new_size.x ? atcrop.x : atgrow.x)) new_size.x = exrect.size.x;
+            //if (snap::both == (exrect.size.y > new_size.y ? atcrop.y : atgrow.y)) new_size.y = exrect.size.y;
+            new_size = exrect.size;
         }
         void size_release(twod new_size)
         {
@@ -980,8 +981,6 @@ namespace netxs::ui
             LISTEN(tier::release, e2::coor::set, new_coor)
             {
                 region.coor = new_coor;
-                myrect = region - extpad;
-                inrect = myrect - intpad;
             };
             LISTEN(tier::request, e2::depth, depth)
             {

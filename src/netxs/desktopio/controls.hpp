@@ -2767,8 +2767,7 @@ namespace netxs::ui
                         height += y_size;
                     }
                 };
-                meter();
-                if (x_temp != x_size) meter();
+                meter(); if (subset.size() > 1 && x_temp != x_size) meter();
                 y_size = height;
             };
             LISTEN(tier::release, e2::size::any, new_size)
@@ -2890,10 +2889,12 @@ namespace netxs::ui
         {
             LISTEN(tier::preview, e2::size::set, new_size)
             {
-                for (auto& client : subset)
+                auto saved = new_size;
+                auto meter = [&]
                 {
-                    client->base::size_preview(new_size);
-                }
+                    for (auto& client : subset) client->base::size_preview(new_size);
+                };
+                meter(); if (subset.size() > 1 && saved != new_size) meter();
             };
             LISTEN(tier::release, e2::size::any, new_size)
             {
