@@ -4136,39 +4136,34 @@ namespace netxs::ui
         : public form<item>
     {
         static constexpr auto dots = "…"sv;
-        para name;
-        bool flex; // item: Violate or not the label size, default is faux.
+        para data;
+        bool flex; // item: Violate or not the label size.
         bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
         bool unln; // item: Full width underline.
 
-        void recalc()
-        {
-            auto size = name.size();
-            auto lims = flex ? twod{ -1,size.y } : size;
-            base::limits(lims, lims);
-            base::resize(size);
-        }
-
     public:
-        item(para const& label_para, bool flexible = faux, bool check_size = faux, bool underline = faux)
-            : name{ label_para },
+        item(view label_text, bool flexible = faux, bool check_size = faux, bool underline = faux)
+            : data{ label_text },
               flex{ flexible   },
               test{ check_size },
               unln{ underline  }
         {
-            recalc();
             LISTEN(tier::release, e2::data::utf8, label_text)
             {
                 set(label_text);
             };
+            LISTEN(tier::preview, e2::size::set, new_size)
+            {
+                new_size = { flex ? new_size.x : data.size().x, 1 };
+            };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 parent_canvas.cup(dot_00);
-                parent_canvas.output(name);
+                parent_canvas.output(data);
                 if (test)
                 {
                     auto area = parent_canvas.view();
-                    auto size = name.size();
+                    auto size = data.size();
                     if (area.size > 0 && size.x > 0)
                     {
                         auto full = parent_canvas.full();
@@ -4196,13 +4191,10 @@ namespace netxs::ui
                 }
             };
         }
-        item(text const& label_text, bool flexible = faux, bool check_size = faux, bool underline = faux)
-            : item(para{ label_text }, flexible, check_size, underline)
-        { }
-        void set(text const& label_text)
+        void set(view label_text)
         {
-            name = label_text;
-            recalc();
+            data = label_text;
+            base::reflow();
         }
     };
 
