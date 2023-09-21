@@ -70,14 +70,14 @@ namespace netxs::app::tile
 
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
-            boss.LISTEN(tier::release, e2::size::any, newsz, memo)
+            boss.LISTEN(tier::release, e2::size::any, new_size, memo)
             {
                 if (client)
                 {
-                    auto new_coor = twod{ newsz.x + 2/*todo resize grip width*/, 0 };
-                    auto new_size = twod{ client->size().x, newsz.y };
-                    client->base::moveto(new_coor);
-                    client->base::resize(new_size);
+                    auto coor = twod{ new_size.x + 2/*todo resize grip width*/, 0 };
+                    auto size = twod{ client->size().x, new_size.y };
+                    client->base::moveto(coor);
+                    client->base::resize(size);
                 }
             };
             boss.LISTEN(tier::release, events::enlist, object, memo)

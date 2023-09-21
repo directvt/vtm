@@ -655,9 +655,9 @@ namespace netxs::os
                                 delta(state.srWindow.Top,  state.srWindow.Bottom, coord.y);
                                 ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
                             }
-                            auto newcoor = coord;
-                            if (newcoor.x == state.dwSize.X) newcoor.x--; // win7/8 conhost isn't aware about the deferred cursor position.
-                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)newcoor.x, .Y = (SHORT)newcoor.y }); // Viewport follows to cursor.
+                            auto new_coord = coord;
+                            if (new_coord.x == state.dwSize.X) new_coord.x--; // win7/8 conhost isn't aware about the deferred cursor position.
+                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)new_coord.x, .Y = (SHORT)new_coord.y }); // Viewport follows to cursor.
                         }
                         if (shown == show) return;
                         shown = show;

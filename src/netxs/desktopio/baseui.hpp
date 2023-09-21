@@ -590,10 +590,12 @@ namespace netxs::ui
         };
 
         wptr father; // base: Parental visual tree weak-pointer.
-        cell filler; // base: Object color.
-        rect square; // base: Object size and coor.
-        dent extpad; // base: Space around an element's content, outside of any defined borders. It does not affect the size, only affects the fill. Used in base::renderproc only.
-        dent intpad; // base: Space around an element's content, inside of any defined borders. Containers take this parameter into account when calculating sizes. Used in all conainers.
+        cell filler; //todo deprecated: base: Object color.
+        rect extrec; // base: Extrenal rect.
+        rect intrec; // base: Internal rect.
+        rect objrec; // base: Actual rect.
+        dent extpad; // base: Pad around object.
+        dent intpad; // base: Pad inside object.
         twod minlim; // base: Minimal size.
         twod maxlim; // base: Maximal size.
         bind atgrow; // base: Bindings on enlarging.
@@ -608,22 +610,22 @@ namespace netxs::ui
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
-        auto&  coor() const { return square.coor;          }
-        auto&  size() const { return square.size;          }
-        auto&  area() const { return square;               }
+        auto&  coor() const { return objrec.coor;          }
+        auto&  size() const { return objrec.size;          }
+        auto&  area() const { return objrec;               }
         void   root(bool b) { master = b;                  }
         bool   root()       { return master;               }
         si32   kind()       { return family;               }
         void   kind(si32 k) { family = k;                  }
-        auto center() const { return square.center();      }
+        auto center() const { return objrec.center();      }
         auto parent()       { return father.lock();        }
         void ruined(bool s) { wasted = s;                  }
         auto ruined() const { return wasted;               }
         template<bool Absolute = true>
         auto actual_area() const
         {
-            auto area = rect{ -oversz.topleft(), square.size + oversz.summ() };
-            if constexpr (Absolute) area.coor += square.coor;
+            auto area = rect{ -oversz.topleft(), objrec.size + oversz.summ() };
+            if constexpr (Absolute) area.coor += objrec.coor;
             return area;
         }
         auto color() const { return filler; }
@@ -645,31 +647,31 @@ namespace netxs::ui
         // base: Move the form to a new place, and return the delta.
         auto moveto(twod new_coor)
         {
-            auto old_coor = square.coor;
+            auto old_coor = objrec.coor;
             SIGNAL(tier::preview, e2::coor::set, new_coor);
             SIGNAL(tier::release, e2::coor::set, new_coor);
-            auto delta = square.coor - old_coor;
+            auto delta = objrec.coor - old_coor;
             return delta;
         }
         // base: Dry run. Check current position.
         auto moveto()
         {
-            auto new_value = square.coor;
+            auto new_value = objrec.coor;
             return moveto(new_value);
         }
         // base: Move the form by the specified step and return the coor delta.
         auto moveby(twod const& step)
         {
-            auto delta = moveto(square.coor + step);
+            auto delta = moveto(objrec.coor + step);
             return delta;
         }
         // base: Resize the form, and return the size delta.
         auto resize(twod new_size) -> twod //todo MSVC 17.7.0 requires return type
         {
-            auto old_size = square.size;
+            auto old_size = objrec.size;
             size_preview(new_size);
             size_release(new_size);
-            return square.size - old_size;
+            return objrec.size - old_size;
         }
         // base: Resize the form, and return the new size.
         auto& resize(si32 x, si32 y)
@@ -685,7 +687,7 @@ namespace netxs::ui
         //       the center point during resizing.
         auto resize(twod newsize, twod point)
         {
-            point -= square.coor;
+            point -= objrec.coor;
             anchor = point; //todo use dot_00 instead of point
             resize(newsize);
             auto delta = moveby(point - anchor);
@@ -694,13 +696,13 @@ namespace netxs::ui
         // base: Dry run (preview then release) current value.
         auto resize()
         {
-            auto new_value = square.size;
+            auto new_value = objrec.size;
             return resize(new_value);
         }
         // base: Resize the form by step, and return delta.
         auto sizeby(twod const& step)
         {
-            auto delta = resize(square.size + step);
+            auto delta = resize(objrec.size + step);
             return delta;
         }
         // base: Resize and move the form, and return delta.
@@ -711,7 +713,7 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect region)
         {
-            region.coor += square.coor;
+            region.coor += objrec.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->deface(region);
@@ -720,7 +722,7 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike()
         {
-            strike(square);
+            strike(objrec);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         virtual void deface(rect const& region)
@@ -731,7 +733,7 @@ namespace netxs::ui
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
         {
-            deface(square);
+            deface(objrec);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         template<bool Forced = faux>
@@ -773,7 +775,7 @@ namespace netxs::ui
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
-            coor -= square.coor;
+            coor -= objrec.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->global(coor);
@@ -854,7 +856,7 @@ namespace netxs::ui
             bell::_saveme();
         }
         // base: Align object.
-        void xform(snap align, si32& coor, si32 size, si32& width)
+        void xform(snap align, si32& coor, si32& size, si32 width)
         {
             switch (align)
             {
@@ -866,7 +868,7 @@ namespace netxs::ui
                     break;
                 case snap::both:
                     coor = 0;
-                    width = size;
+                    size = width;
                     break;
                 case snap::center:
                     coor = (width - size) / 2;
@@ -879,28 +881,26 @@ namespace netxs::ui
         void hide() { hidden = true; }
         void coor_release(twod& new_coor)
         {
-            square.coor = new_coor;
+            objrec.coor = new_coor;
             SIGNAL(tier::release, e2::coor::set, new_coor);
         }
         void size_preview(twod& new_size)
         {
             if (base::hidden) return;
-            auto coor = square.coor;
-            new_size = std::clamp(new_size, minlim, maxlim);
-            new_size = std::max(dot_00, new_size - intpad);
+            new_size = std::clamp(new_size - extpad, minlim, maxlim);
+            new_size = new_size - intpad;
             SIGNAL(tier::preview, e2::size::set, new_size);
-            new_size = std::max(dot_00, new_size + intpad);
-            //new_size = std::clamp(new_size, minlim, maxlim); // We must fix nested objects that don't fit instead of clamping.
+            new_size = new_size + intpad + extpad; // We must fix nested objects that don't fit instead of clamping.
+            extrec.size = new_size;
         }
         void size_release(twod new_size)
         {
             if (base::hidden) return;
-            square.size = new_size;
-            auto coor = square.coor;
-            xform(square.size.x > new_size.x ? atcrop.x : atgrow.x, coor.x, square.size.x, new_size.x);
-            xform(square.size.y > new_size.y ? atcrop.y : atgrow.y, coor.y, square.size.y, new_size.y);
-            if (coor != square.coor) moveto(coor);
-            SIGNAL(tier::release, e2::size::set, std::max(dot_00, new_size - intpad));
+            xform(extrec.size.x > new_size.x ? atcrop.x : atgrow.x, extrec.coor.x, extrec.size.x, new_size.x);
+            xform(extrec.size.y > new_size.y ? atcrop.y : atgrow.y, extrec.coor.y, extrec.size.y, new_size.y);
+            objrec = extrec - extpad;
+            intrec = objrec - intpad;
+            SIGNAL(tier::release, e2::size::set, size, (intrec.size));
         }
         void limits(twod minlim = -dot_11, twod maxlim = -dot_11)
         {
@@ -925,7 +925,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::square;
+            auto object_area = base::objrec;
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -952,7 +952,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::square;
+            auto object_area = base::objrec;
             object_area.coor-= canvas.core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))

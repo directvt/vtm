@@ -2088,8 +2088,8 @@ namespace netxs::ui
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
                 };
-                boss.LISTEN(tier::release, e2::coor::any, new_xy,        memo) { canvas.move(new_xy); };
-                boss.LISTEN(tier::release, e2::size::any, new_sz,        memo) { canvas.size(new_sz); };
+                boss.LISTEN(tier::release, e2::coor::any, new_coor,      memo) { canvas.move(new_coor); };
+                boss.LISTEN(tier::release, e2::size::any, new_size,      memo) { canvas.size(new_size); };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
                 {
@@ -2540,24 +2540,23 @@ namespace netxs::ui
 
        ~fork()
         {
-            auto empty = e2::form::upon::vtree::detached.param();
             if (client_1)
             {
                 auto item_ptr = client_1;
                 client_1.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
             if (client_2)
             {
                 auto item_ptr = client_2;
                 client_2.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
             if (splitter)
             {
                 auto item_ptr = splitter;
                 splitter.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         fork(axis alignment = axis::X, si32 thickness = 0, si32 s1 = 1, si32 s2 = 1)
@@ -2736,12 +2735,11 @@ namespace netxs::ui
         }
        ~list()
         {
-            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back().first;
                 subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         list(axis orientation = axis::Y, sort attach_order = sort::forward)
@@ -2765,20 +2763,21 @@ namespace netxs::ui
                         client.first->base::size_preview(new_size);
                         client.second = { x_size, y_size };
                         if (x_size > x_temp) x_temp = x_size;
-                        x_size = x_temp;
+                        else                 x_size = x_temp;
                         height += y_size;
                     }
                 };
-                meter(); if (x_temp != x_size) meter();
+                meter();
+                if (x_temp != x_size) meter();
                 y_size = height;
             };
             LISTEN(tier::release, e2::size::any, new_size)
             {
+                auto new_coor = twod{};
                 auto& y_size = updown ? new_size.y : new_size.x;
                 auto& x_size = updown ? new_size.x : new_size.y;
-                auto  new_xy = twod{};
-                auto& y_coor = updown ? new_xy.y : new_xy.x;
-                auto& x_coor = updown ? new_xy.x : new_xy.y;
+                auto& y_coor = updown ? new_coor.y : new_coor.x;
+                auto& x_coor = updown ? new_coor.x : new_coor.y;
 
                 auto found = faux;
                 for (auto& client : subset)
@@ -2795,10 +2794,10 @@ namespace netxs::ui
                             if (anker.hittest(base::anchor))
                             {
                                 found = true;
-                                base::anchor += new_xy - anker.coor;
+                                base::anchor += new_coor - anker.coor;
                             }
                         }
-                        entry.base::coor_release(new_xy);
+                        entry.base::coor_release(new_coor);
                         auto& sz_y = updown ? client.second.y : client.second.x;
                         auto& sz_x = updown ? client.second.x : client.second.y;
                         auto& size = entry.resize(sz_x, sz_y);
@@ -2880,12 +2879,11 @@ namespace netxs::ui
     public:
        ~cake()
         {
-            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto client_ptr = subset.back();
                 subset.pop_back();
-                client_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                client_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         cake()
@@ -2962,12 +2960,11 @@ namespace netxs::ui
     public:
        ~veer()
         {
-            auto empty = e2::form::upon::vtree::detached.param();
             while (subset.size())
             {
                 auto item_ptr = subset.back();
                 subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         veer()
@@ -3296,10 +3293,9 @@ namespace netxs::ui
         {
             if (client)
             {
-                auto empty = e2::form::upon::vtree::detached.param();
                 auto item_ptr = client;
                 client.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
@@ -4059,10 +4055,9 @@ namespace netxs::ui
         {
             if (client)
             {
-                auto empty = e2::form::upon::vtree::detached.param();
                 auto item_ptr = client;
                 client.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
         pads(dent const& padding_value = {}, dent const& margins_value = {})
@@ -4285,8 +4280,8 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
-            LISTEN(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
+            LISTEN(tier::release, e2::size::any, new_size) { canvas.size(new_size); };
+            LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -4429,8 +4424,8 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::size::any, new_sz) { canvas.size(new_sz); };
-            LISTEN(tier::release, e2::coor::any, new_xy) { canvas.move(new_xy); };
+            LISTEN(tier::release, e2::size::any, new_size) { canvas.size(new_size); };
+            LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;

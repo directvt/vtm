@@ -517,10 +517,10 @@ namespace netxs::ui
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.size(newsize);
                 };
-                boss.LISTEN(tier::release, e2::coor::any, newcoor, memo)
+                boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.move(newcoor);
+                    xmap.move(new_coor);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {

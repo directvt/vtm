@@ -1881,7 +1881,7 @@ namespace netxs
         auto& mark()                           { return marker;                                                             } // core: Return a reference to the default cell value.
         auto& mark() const                     { return marker;                                                             } // core: Return a reference to the default cell value.
         auto& mark(cell const& c)              { marker = c; return marker;                                                 } // core: Set the default cell value.
-        void  move(twod const& newcoor)        { region.coor = newcoor;                                                     } // core: Change the location of the face.
+        void  move(twod const& new_coor)       { region.coor = new_coor;                                                    } // core: Change the location of the face.
         void  step(twod const& delta)          { region.coor += delta;                                                      } // core: Shift location of the face by delta.
         void  back(twod const& delta)          { region.coor -= delta;                                                      } // core: Shift location of the face by -delta.
         auto& back()                           { return canvas.back();                                                      } // core: Return last cell.

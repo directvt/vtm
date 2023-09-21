@@ -393,8 +393,8 @@ namespace netxs::app::vtm
                     if ((s + o).twod::inside(c.coor))
                     {
                         c.coor = std::clamp(c.coor + delta, dot_00, s);
-                        auto newcoor = c.normalize().coor + r2.coor;
-                        boss.moveto(newcoor);
+                        auto new_coor = c.normalize().coor + r2.coor;
+                        boss.moveto(new_coor);
                     }
                     else if (!r2.clip(r0))
                     {
