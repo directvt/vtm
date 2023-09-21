@@ -86,11 +86,10 @@ namespace netxs::app::desk
                         {
                             auto& window = *data_src;
                             auto  center = window.base::area().center();
-                            window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
                             gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
 
                             if (viewport.hittest(center)        // Minimize if visible,
-                             && zpos_state != zpos::hidden      // not minimized,
+                             && !window.hidden                  // not minimized,
                              && pro::focus::test(window, gear)) // and focused.
                             {
                                 if (gear.meta(hids::anyCtrl)) pro::focus::off(data_src, gear.id); // Remove focus if Ctrl pressed.
@@ -100,7 +99,7 @@ namespace netxs::app::desk
                             {
                                 window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                                 gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, window);
-                                if (zpos_state == zpos::hidden) // Restore if hidden.
+                                if (window.hidden) // Restore if hidden.
                                 {
                                     window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                                 }
@@ -115,11 +114,10 @@ namespace netxs::app::desk
                         if (auto data_src = data_src_shadow.lock())
                         {
                             auto& window = *data_src;
-                            window.SIGNAL(tier::request, e2::form::prop::zorder, zpos_state, ());
                             window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
                             window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
-                            if (zpos_state == zpos::hidden) // Restore if minimized.
+                            if (window.hidden) // Restore if minimized.
                             {
                                 window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
                             }

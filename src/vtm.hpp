@@ -922,9 +922,7 @@ namespace netxs::app::vtm
             bool highlighted = faux;
             si32 active = 0;
             tone color = { tone::brighter, tone::shadower };
-            rect region;
             sptr object;
-            id_t obj_id;
             zpos z_order = zpos::plain;
             subs tokens;
 
@@ -932,19 +930,9 @@ namespace netxs::app::vtm
                 : object{ item }
             {
                 auto& inst = *item;
-                obj_id = inst.bell::id;
-
                 inst.LISTEN(tier::release, e2::form::prop::zorder, order, tokens)
                 {
                     z_order = order;
-                };
-                inst.LISTEN(tier::release, e2::size::any, size, tokens)
-                {
-                    region.size = size;
-                };
-                inst.LISTEN(tier::release, e2::coor::any, coor, tokens)
-                {
-                    region.coor = coor;
                 };
                 inst.LISTEN(tier::release, e2::form::state::mouse, state, tokens)
                 {
@@ -958,22 +946,15 @@ namespace netxs::app::vtm
                 {
                     color = new_color;
                 };
-
-                region = inst.area();
                 inst.SIGNAL(tier::request, e2::form::state::mouse, active);
                 inst.SIGNAL(tier::request, e2::form::state::color, color);
-            }
-            // hall::node: Check equality.
-            bool equals(id_t id)
-            {
-                return obj_id == id;
             }
             // hall::node: Draw a navigation string.
             void fasten(face& canvas)
             {
                 auto window = canvas.area();
-                auto center = region.center();
-                if (window.hittest(center) || z_order == zpos::hidden) return;
+                auto center = object->objrec.center();
+                if (window.hittest(center) || object->hidden) return;
                 auto origin = window.size / 2;
                 center -= window.coor;
                 //auto origin = twod{ 6, window.size.y - 3 };
@@ -981,6 +962,7 @@ namespace netxs::app::vtm
                 auto is_active = active || highlighted;
                 auto& grade = skin::grade(is_active ? color.active
                                                     : color.passive);
+                auto obj_id = object->id;
                 auto pset = [&](twod const& p, byte k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
@@ -1009,7 +991,7 @@ namespace netxs::app::vtm
             {
                 if (items.size())
                 {
-                    auto test = [id](auto& a) { return a->equals(id); };
+                    auto test = [id](auto& a) { return a->object->id == id; };
                     return std::find_if(head, tail, test);
                 }
                 return tail;
@@ -1067,7 +1049,7 @@ namespace netxs::app::vtm
                 auto item = search(head, tail, id);
                 if (item != tail)
                 {
-                    area = (**item).region;
+                    area = (**item).object->objrec;
                     items.erase(item);
                 }
                 return area;
@@ -1080,14 +1062,14 @@ namespace netxs::app::vtm
 
                 if (item != head && item != tail)
                 {
-                    auto& area = (**item).region;
-                    if (!area.clip((**std::prev(item)).region))
+                    auto area = (**item).object->objrec;
+                    if (!area.clip((**std::prev(item)).object->objrec))
                     {
                         auto shadow = *item;
                         items.erase(std::next(item).base());
 
                         while (--item != head
-                            && !area.clip((**std::prev(item)).region))
+                            && !area.clip((**std::prev(item)).object->objrec))
                         { }
 
                         items.insert(item.base(), shadow);
@@ -1108,11 +1090,11 @@ namespace netxs::app::vtm
                     auto shadow = *item;
                     items.erase(std::next(item).base());
                     items.push_back(shadow);
-                    if (shadow->z_order == zpos::hidden) // Restore if window minimized.
+                    if (shadow->object->hidden) // Restore if window minimized.
                     {
-                        shadow->z_order = zpos::plain;
+                        shadow->object->hidden = faux;
                     }
-                    return shadow->region;
+                    return shadow->object->objrec;
                 }
 
                 return rect_00;
@@ -1218,42 +1200,42 @@ namespace netxs::app::vtm
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
                     };
-                    auto zpos_state = ptr::shared(zpos::plain);
-                    auto last_state = ptr::shared(zpos::plain);
-                    auto real_state = ptr::shared(zpos::plain);
-                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (zpos_state, last_state, real_state))
+                    auto hide_state = ptr::shared(faux);
+                    auto last_state = ptr::shared(faux);
+                    auto real_state = ptr::shared(faux);
+                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (hide_state, last_state, real_state))
                     {
-                        if (*last_state == zpos::hidden) // Restore if it is hidden.
+                        if (*last_state == true) // Restore if it is hidden.
                         {
-                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *real_state);
+                            boss.hidden = *real_state;
                             *last_state = *real_state;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (zpos_state, last_state, real_state))
+                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (hide_state, last_state, real_state))
                     {
-                        if (*last_state != zpos::hidden && *zpos_state == zpos::hidden) // Return to hidden state.
+                        if (*last_state != true && *hide_state == true) // Return to hidden state.
                         {
-                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *zpos_state);
-                            *last_state = *zpos_state;
+                            boss.hidden = *hide_state;
+                            *last_state = *hide_state;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (zpos_state, last_state, real_state))
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (hide_state, last_state, real_state))
                     {
                         auto This = boss.This();
-                        if (*last_state == zpos::hidden) // Restore if it is hidden.
+                        if (*last_state == true) // Restore if it is hidden.
                         {
-                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *real_state);
+                            boss.hidden = *real_state;
                             *last_state = *real_state;
-                            *zpos_state = *real_state;
+                            *hide_state = *real_state;
                             pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                     : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
                         else // Hide if visible.
                         {
-                            boss.SIGNAL(tier::request, e2::form::prop::zorder, *real_state);
-                            *zpos_state = zpos::hidden;
-                            *last_state = zpos::hidden;
-                            boss.SIGNAL(tier::preview, e2::form::prop::zorder, *zpos_state);
+                            *real_state = boss.hidden;
+                            *hide_state = true;
+                            *last_state = true;
+                            boss.hidden = true;
                             // Refocusing.
                             boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                             if (auto parent = boss.parent())
@@ -1264,17 +1246,17 @@ namespace netxs::app::vtm
                                 {
                                     auto viewport = gear.owner.base::area();
                                     auto window = e2::form::layout::go::prev.param();
-                                    auto visibility = zpos::hidden;
+                                    auto hidden = true;
                                     do
                                     {
                                         parent->SIGNAL(tier::request, e2::form::layout::go::prev, window);
                                         if (window)
                                         {
-                                            window->SIGNAL(tier::request, e2::form::prop::zorder, visibility);
+                                            hidden = window->hidden;
                                         }
-                                        else visibility = zpos::hidden;
+                                        else hidden = true;
                                     }
-                                    while (window != This && (visibility == zpos::hidden || !viewport.hittest(window->center())));
+                                    while (window != This && (hidden == true || !viewport.hittest(window->center())));
                                     if (window != This)
                                     {
                                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
@@ -1709,7 +1691,7 @@ namespace netxs::app::vtm
         {
             if (!host::active) return;
             items.append(item);
-            item->base::root(true); //todo move it to the window creator (main)
+            item->base::root(true);
             auto& [stat, list] = dbase.apps[menuid];
             stat = fixed;
             list.push_back(item);
