@@ -953,7 +953,7 @@ namespace netxs::app::vtm
             void fasten(face& canvas)
             {
                 auto window = canvas.area();
-                auto center = object->objrec.center();
+                auto center = object->region.center();
                 if (window.hittest(center) || object->hidden) return;
                 auto origin = window.size / 2;
                 center -= window.coor;
@@ -1039,7 +1039,7 @@ namespace netxs::app::vtm
                 auto item = search(head, tail, id);
                 if (item != tail)
                 {
-                    area = (**item).object->objrec;
+                    area = (**item).object->region;
                     items.erase(item);
                 }
                 return area;
@@ -1052,14 +1052,14 @@ namespace netxs::app::vtm
 
                 if (item != head && item != tail)
                 {
-                    auto area = (**item).object->objrec;
-                    if (!area.clip((**std::prev(item)).object->objrec))
+                    auto area = (**item).object->region;
+                    if (!area.clip((**std::prev(item)).object->region))
                     {
                         auto shadow = *item;
                         items.erase(std::next(item).base());
 
                         while (--item != head
-                            && !area.clip((**std::prev(item)).object->objrec))
+                            && !area.clip((**std::prev(item)).object->region))
                         { }
 
                         items.insert(item.base(), shadow);
@@ -1084,7 +1084,7 @@ namespace netxs::app::vtm
                     {
                         shadow->object->hidden = faux;
                     }
-                    return shadow->object->objrec;
+                    return shadow->object->region;
                 }
 
                 return rect_00;
