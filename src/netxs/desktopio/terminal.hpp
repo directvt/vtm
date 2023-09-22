@@ -4458,6 +4458,7 @@ namespace netxs::ui
             // scroll_buf: Render to the canvas.
             void output(face& dest) override
             {
+                //log("vsize %% sctop %% scend %% full %%", batch.vsize, sctop, scend, dest.full());
                 dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                 auto view = dest.view();
                 auto full = dest.full();
@@ -7193,21 +7194,26 @@ namespace netxs::ui
                 follow[axis::Y] = target->set_slide(new_coor.y);
                 origin = new_coor;
             };
-            LISTEN(tier::preview, e2::size::set, new_size)
+            LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                auto& console = *target;
-                new_size = std::max(new_size, dot_11);
-
-                auto scroll_coor = origin;
-                console.resize_viewport(new_size);
-                console.recalc_pads(base::oversz);
-
-                scroll(origin);
-                base::anchor += scroll_coor - origin;
-
-                ipccon.resize(new_size);
-
-                new_size.y += console.get_basis();
+                parent->LISTEN(tier::release, e2::size::set, new_size, relyon)
+                {
+                    auto& console = *target;
+                    auto viewport_size = std::max(new_size, dot_11);
+                    auto scroll_coor = origin;
+                    console.resize_viewport(viewport_size);
+                    console.recalc_pads(base::oversz);
+                    scroll(origin);
+                    base::anchor += scroll_coor - origin;
+                    ipccon.resize(viewport_size);
+                };
+            };
+            LISTEN(tier::preview, e2::size::any, new_size)
+            {
+                this->bell::expire<tier::preview>(true); // Prohibit changing our size from outside.
+                //auto& console = *target;
+                //new_size = console.panel;
+                //new_size.y += console.get_basis();
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
@@ -7243,20 +7249,16 @@ namespace netxs::ui
                 {
                     unsync = faux;
                     auto& console = *target;
-
                     auto scroll_size = console.panel;
                     scroll_size.y += console.get_basis();
-
                     auto scroll_coor = origin;
                     scroll(scroll_coor);
-
                     auto adjust_pads = console.recalc_pads(base::oversz);
-
                     if (scroll_size != base::size() // Update scrollbars.
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        this->size_release(scroll_size);
+                        this->base::size_release(scroll_size);
                         this->base::moveto(scroll_coor);
                     }
                     base::deface();

@@ -605,7 +605,7 @@ namespace netxs::ui
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        hook relyon; // base: Subscription to e2::cascade events.
+        subs relyon; // base: Subscription on parent events.
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 

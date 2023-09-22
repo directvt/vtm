@@ -139,7 +139,7 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.router<tier::preview>().skip();
+                    boss.expire<tier::preview>(true);
                 };
                 boss.LISTEN(tier::release, e2::size::any, size, memo, (pads))
                 {
@@ -157,7 +157,7 @@ namespace netxs::app::vtm
                 window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.router<tier::release>().skip();
+                    boss.expire<tier::release>(true);
                 };
                 window_ptr->LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
