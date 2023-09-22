@@ -178,6 +178,7 @@ namespace netxs::app::term
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
         auto x3 = cell{ c3 }.alpha(0x00);
+        auto p3 = std::pair{ x3, c3 };
 
         config.cd("/config/term/", "/config/defapp/");
         auto menudata = config.list("menu/item");
@@ -583,9 +584,8 @@ namespace netxs::app::term
         auto defs = menu::item::look{};
         for (auto data_ptr : menudata)
         {
-            auto item_ptr = ptr::shared<menu::item>();
+            auto item = menu::item{};
             auto& data = *data_ptr;
-            auto& item = *item_ptr;
             auto route = data.take(menu::attr::route, func::Noop,          route_options);
             item.brand = data.take(menu::attr::brand, menu::item::Command, brand_options);
             defs.notes = data.take(menu::attr::notes, ""s);
@@ -600,6 +600,7 @@ namespace netxs::app::term
                     .notes = label->take(menu::attr::notes, defs.notes),
                     .param = label->take(menu::attr::param, defs.param),
                     .onkey = label->take(menu::attr::onkey, defs.onkey),
+                    .brush = p3,
                 });
             }
             if (item.views.empty()) continue; // Menu item without label.
@@ -615,7 +616,7 @@ namespace netxs::app::term
                 auto& initproc = proc_map.find(route)->second;
                 initproc(boss, item);
             };
-            list.push_back({ item_ptr, setup });
+            list.push_back({ item, setup });
         }
         return menu::create(config, list);
     };

@@ -4136,25 +4136,23 @@ namespace netxs::ui
         : public form<item>
     {
         static constexpr auto dots = "…"sv;
-        para data;
-        bool flex; // item: Violate or not the label size.
-        bool test; // item: Place or not(default) the Two Dot Leader when there is not enough space.
-        bool unln; // item: Full width underline.
+        para data{}; // item: Label content.
+        bool flex{}; // item: Violate or not the label size.
+        bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
+        bool unln{}; // item: Draw full-width underline.
 
     public:
-        item(view label_text, bool flexible = faux, bool check_size = faux, bool underline = faux)
-            : data{ label_text },
-              flex{ flexible   },
-              test{ check_size },
-              unln{ underline  }
+        item(view label)
+            : data{ label }
         {
-            LISTEN(tier::release, e2::data::utf8, label_text)
+            LISTEN(tier::release, e2::data::utf8, utf8)
             {
-                set(label_text);
+                set(utf8);
             };
             LISTEN(tier::preview, e2::size::set, new_size)
             {
-                new_size = { flex ? new_size.x : data.size().x, 1 };
+                new_size.x = flex ? new_size.x : data.size().x;
+                new_size.y = std::max(data.size().y, new_size.y);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -4170,11 +4168,14 @@ namespace netxs::ui
                         if (full.coor.x < area.coor.x)
                         {
                             auto coor = area.coor;
+                            coor.y += area.size.y / 2;
                             parent_canvas.core::data(coor)->txt(dots);
                         }
                         if (full.coor.x + size.x > area.coor.x + area.size.x)
                         {
-                            auto coor = area.coor + area.size - dot_11;
+                            auto coor = area.coor;
+                            coor.x += area.size.x - 1;
+                            coor.y += area.size.y / 2;
                             parent_canvas.core::data(coor)->txt(dots);
                         }
                     }
@@ -4191,9 +4192,12 @@ namespace netxs::ui
                 }
             };
         }
-        void set(view label_text)
+        auto flexible(bool b = true) { flex = b; return This(); }
+        auto drawdots(bool b = true) { test = b; return This(); }
+        auto accented(bool b = true) { unln = b; return This(); }
+        void set(view utf8)
         {
-            data = label_text;
+            data = utf8;
             base::reflow();
         }
     };

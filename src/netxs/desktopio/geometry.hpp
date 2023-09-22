@@ -168,11 +168,11 @@ namespace netxs
 
 namespace std
 {
-    template<class T = netxs::si32> static netxs::duplet<T> min  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
-    template<class T = netxs::si32> static netxs::duplet<T> max  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
-    template<class T = netxs::si32> static netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
-    template<class T = netxs::si32> static netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
-    template<class T = netxs::si32> static netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> min  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> max  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
 }
 
 namespace netxs
@@ -183,22 +183,16 @@ namespace netxs
         twod coor;
         twod size;
 
-        // rect: Intersect two rects. If Nested==true when use dot_00 as a base corner.
-        template<bool Nested = faux>
-        constexpr
-        rect clip(rect block) const
+        // rect: Intersect two rects.
+        template<bool Relative = faux>
+        constexpr rect clip(rect r) const
         {
-            auto clamp = [&](auto const& base, auto const& apex)
-            {
-                auto block_apex = block.coor + block.size;
-                block.coor = std::clamp(block.coor, base, apex);
-                block.size = std::clamp(block_apex, base, apex) - block.coor;
-            };
-
-            if constexpr (Nested) clamp(dot_00, size       );
-            else                  clamp(coor  , coor + size);
-
-            return block;
+            if constexpr (Relative) r.coor += coor;
+            auto apex = coor + size;
+            auto r_apex = r.coor + r.size;
+            r.coor = std::clamp(r.coor, coor, apex);
+            r.size = std::clamp(r_apex, coor, apex) - r.coor;
+            return r;
         }
         twod clip(twod point) const
         {

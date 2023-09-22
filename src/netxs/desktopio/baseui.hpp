@@ -890,7 +890,10 @@ namespace netxs::ui
             exrect.size = s + intpad + extpad; // We must fix nested objects that don't fit instead of clamping.
             //if (snap::both == (exrect.size.x > new_size.x ? atcrop.x : atgrow.x)) new_size.x = exrect.size.x;
             //if (snap::both == (exrect.size.y > new_size.y ? atcrop.y : atgrow.y)) new_size.y = exrect.size.y;
-            new_size = exrect.size;
+            auto snap_x = exrect.size.x > new_size.x ? atcrop.x : atgrow.x;
+            auto snap_y = exrect.size.y > new_size.y ? atcrop.y : atgrow.y;
+            if (snap_x == snap::none) new_size.x = exrect.size.x;
+            if (snap_y == snap::none) new_size.y = exrect.size.y;
         }
         void size_release(twod new_size)
         {
@@ -925,7 +928,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::region;
+            auto object_area = base::region.clip<true>(base::myrect);
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -952,7 +955,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::region;
+            auto object_area = base::region.clip<true>(base::myrect);
             object_area.coor-= canvas.core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))

@@ -1028,9 +1028,9 @@ namespace netxs::ui
               index { newid }
         { }
 
-        para              (view utf8) {              ansi::parse(utf8, this);               }
-        auto& operator  = (view utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
-        auto& operator += (view utf8) {              ansi::parse(utf8, this); return *this; }
+        para              (auto utf8) {              ansi::parse(utf8, this);               }
+        auto& operator  = (auto utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
+        auto& operator += (auto utf8) {              ansi::parse(utf8, this); return *this; }
 
         operator writ const& () const { return locus; }
 

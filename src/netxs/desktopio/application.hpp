@@ -60,11 +60,13 @@ namespace netxs::app::shared
 
             struct look
             {
+                using pair = std::pair<cell, cell>; // Accented/idle.
                 text label{};
                 text notes{};
                 text param{};
                 text onkey{};
                 si32 value{};
+                pair brush{};
             };
 
             using imap = std::unordered_map<si32, si32>;
@@ -94,7 +96,7 @@ namespace netxs::app::shared
             }
         };
 
-        using link = std::tuple<netxs::sptr<item>, std::function<void(ui::item&, item&)>>;
+        using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
         static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
@@ -119,182 +121,188 @@ namespace netxs::app::shared
             auto x2 = cell{ c2 }.bga(0x00);
             auto c1 = danger_color;
             auto x1 = cell{ c1 }.alpha(0x00);
-            auto fader = skin::globals().fader_time;
+            auto p1 = std::pair{ x1, c1 };
+            auto p2 = std::pair{ x2, c2 };
+            auto p3 = std::pair{ x3, c3 };
+            auto p6 = std::pair{ x6, c6 };
+            auto turntime = skin::globals().fader_time;
             auto macstyle = skin::globals().macstyle;
 
-            auto slot1 = ui::veer::ctor();
-            auto menuarea = ui::fork::ctor()->active();
-                auto make_item = [&](auto& body, auto& fgc, auto& bgc)
+            auto menuveer = ui::veer::ctor();
+            auto menufork = ui::fork::ctor()
+                //todo
+                //->alignment({ snap::none, snap::none }, { macstyle ? snap::head : snap::tail, snap::none })
+                ->active();
+            auto makeitem = [&](auto& config)
+            {
+                auto& props = std::get<0>(config);
+                auto& setup = std::get<1>(config);
+                auto& hover = props.alive;
+                auto& label = props.views.front().label;
+                auto& notes = props.views.front().notes;
+                auto& brush = props.views.front().brush;
+                auto button = ui::item::ctor(label)->drawdots();
+                if (hover) button->plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
+                else       button->colors(0,0); //todo for mouse tracking
+                button->plugin<pro::notes>(notes)
+                    ->setpad({ 2,2,0,0 })
+                    ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
+                    {
+                        auto props_shadow = ptr::shared(std::move(props));
+                        setup(boss, *props_shadow);
+                        boss.LISTEN(tier::release, e2::dtor, v, -, (props_shadow))
+                        {
+                            props_shadow.reset();
+                        };
+                    });
+                return button;
+            };
+            auto ctrlslot = macstyle ? slot::_1 : slot::_2;
+            auto menuslot = macstyle ? slot::_2 : slot::_1;
+            auto ctrllist = menufork->attach(ctrlslot, ui::list::ctor(axis::X));
+            if (custom) // Apply a custom menu controls.
+            {
+                while (custom--)
                 {
-                    auto& item_ptr = std::get<0>(body);
-                    auto& setup = std::get<1>(body);
-                    auto& item = *item_ptr;
-                    auto& hover = item.alive;
-                    auto& label = item.views.front().label;
-                    auto& notes = item.views.front().notes;
-                    auto new_item = ui::item::ctor(label, faux, true);
-                    if (hover) new_item->plugin<pro::fader>(fgc, bgc, fader); //todo template: GCC complains
-                    else       new_item->colors(0,0); //todo for mouse tracking
-                    new_item->plugin<pro::notes>(notes)
-                            ->setpad({ 2,2,0,0 })
-                            ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
-                            {
-                                setup(boss, item);
-                                boss.LISTEN(tier::release, e2::dtor, v, -, (item_ptr))
-                                {
-                                    item_ptr.reset();
-                                };
-                            });
-                    return new_item;
+                    auto button = makeitem(menu_items.back());
+                    ctrllist->attach<sort::reverse>(button);
+                    menu_items.pop_back();
+                }
+            }
+            else // Add standard menu controls.
+            {
+                auto control = std::vector<link>
+                {
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize ", .brush = p2 } }},
+                    [](auto& boss, auto& item)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                            gear.dismiss();
+                        };
+                    }},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "□", .notes = " Maximize ", .brush = p6 } }},
+                    [](auto& boss, auto& item)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                            gear.dismiss();
+                        };
+                    }},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Close ", .brush = p1 } }},
+                    [](auto& boss, auto& item)
+                    {
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        {
+                            auto backup = boss.This();
+                            boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
+                            gear.dismiss();
+                        };
+                    }},
                 };
-                auto ctrlslot = macstyle ? slot::_1 : slot::_2;
-                auto menuslot = macstyle ? slot::_2 : slot::_1;
-                auto bttnlist = menuarea->attach(ctrlslot, ui::list::ctor(axis::X));
-                if (custom) // Apply a custom menu controls.
+                if (macstyle)
                 {
-                    while (custom--)
-                    {
-                        auto button = make_item(menu_items.back(), x1, c1);
-                        bttnlist->attach<sort::reverse>(button);
-                        menu_items.pop_back();
-                    }
+                    ctrllist->attach(makeitem(control[2]));
+                    ctrllist->attach(makeitem(control[0]));
+                    ctrllist->attach(makeitem(control[1]));
                 }
-                else // Add standard menu controls.
+                else
                 {
-                    auto control = std::vector<link>
-                    {
-                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize " } }}),
-                        [](auto& boss, auto& item)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
-                                gear.dismiss();
-                            };
-                        }},
-                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "□", .notes = " Maximize " } }}),
-                        [](auto& boss, auto& item)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
-                                gear.dismiss();
-                            };
-                        }},
-                        { ptr::shared(menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Close " } }}),
-                        [](auto& boss, auto& item)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                auto backup = boss.This();
-                                boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // fast=faux: Show closing process.
-                                gear.dismiss();
-                            };
-                        }},
-                    };
-                    if (macstyle)
-                    {
-                        bttnlist->attach(make_item(control[2], x1, c1));
-                        bttnlist->attach(make_item(control[0], x2, c2));
-                        bttnlist->attach(make_item(control[1], x6, c6));
-                    }
-                    else
-                    {
-                        bttnlist->attach(make_item(control[0], x3, c3));
-                        bttnlist->attach(make_item(control[1], x3, c3));
-                        bttnlist->attach(make_item(control[2], x1, c1));
-                    }
+                    ctrllist->attach(makeitem(control[0]));
+                    ctrllist->attach(makeitem(control[1]));
+                    ctrllist->attach(makeitem(control[2]));
                 }
-                auto scrlarea = menuarea->attach(menuslot, ui::cake::ctor());
-                auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
-                auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
+            }
+            auto scrlarea = menufork->attach(menuslot, ui::cake::ctor());
+            auto scrlrail = scrlarea->attach(ui::rail::ctor(axes::X_only, axes::all));
+            auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
-                auto scroll_hint = ui::cake::ctor();
-                auto hints = scroll_hint->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::both, snap::tail }));
-                auto scrl_grip = scrlarea->attach(scroll_hint);
+            auto scrlcake = ui::cake::ctor();
+            auto scrlhint = scrlcake->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::none, snap::tail }));
+            auto scrlgrip = scrlarea->attach(scrlcake);
 
-                for (auto& body : menu_items)
+            for (auto& body : menu_items)
+            {
+                scrllist->attach(makeitem(body));
+            }
+
+            auto menucake = menuveer->attach(ui::cake::ctor()->branch(menufork))
+                ->invoke([&](auto& boss)
                 {
-                    scrllist->attach(make_item(body, x3, c3));
-                }
-
-            auto menu_block = ui::cake::ctor()
-                ->limits({ -1, menusize ? 1 : 3 }, { -1, menusize ? 1 : 3 })
-                ->invoke([&](ui::cake& boss)
-                {
-                    hints->base::hidden = true;
+                    scrlhint->base::hidden = true;
                     auto slim_status = ptr::shared(menusize);
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
                     {
                         if (!*slim_status)
                         {
+                            auto height = boss.minlim.y;
                             if (new_size.y < 3)
                             {
-                                if (boss.minlim.y != new_size.y)
+                                if (height != new_size.y)
                                 {
-                                    boss.minlim.y = boss.maxlim.y = new_size.y;
+                                    boss.base::limits({ -1, new_size.y }, { -1, new_size.y });
                                 }
                             }
-                            else if (boss.minlim.y != 3)
+                            else if (height != 3)
                             {
-                                boss.minlim.y = boss.maxlim.y = 3;
+                                boss.base::limits({ -1, 3 }, { -1, 3 });
                             }
                         }
                     };
                     boss.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, -, (slim_status))
                     {
                         *slim_status = slim;
-                        boss.minlim.y = boss.maxlim.y = slim ? 1 : 3;
+                        auto height = slim ? 1 : 3;
+                        boss.base::limits({ -1, height }, { -1, height });
                         boss.reflow();
                     };
                     //todo revise
                     if (menu_items.size()) // Show scrolling hint only if elements exist.
                     {
-                        auto scrl_shadow = ptr::shadow(scroll_hint);
-                        auto grip_shadow = ptr::shadow(hints);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (scrl_shadow, grip_shadow))
+                        auto scrlhint_shadow = ptr::shadow(scrlhint);
+                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (scrlhint_shadow))
                         {
-                            if (auto scrl_ptr = scrl_shadow.lock())
-                            if (auto grip_ptr = grip_shadow.lock())
+                            if (auto scrlhint = scrlhint_shadow.lock())
                             {
-                                grip_ptr->base::hidden = !active;
-                                boss.base::deface();
+                                scrlhint->base::hidden = !active;
+                                //todo add base::active concept
+                                //boss.base::deface();
+                                boss.base::reflow();
                             }
                         };
                     }
                 });
-            menu_block->attach(menuarea->alignment({ snap::both, snap::center }, { macstyle ? snap::head : snap::tail, snap::center }));
-
-            auto menu = slot1->attach(menu_block);
-                    auto border = slot1->attach(ui::mock::ctor())
-                                       ->limits({ -1,1 }, { -1,1 });
-                         if (menushow == faux) autohide = faux;
-                    else if (autohide == faux) slot1->roll();
-                    slot1->invoke([&](auto& boss)
+            auto menutent = menuveer->attach(ui::mock::ctor()->limits({ -1,1 }, { -1,1 }));
+                 if (menushow == faux) autohide = faux;
+            else if (autohide == faux) menuveer->roll();
+            menuveer->limits({ -1, menusize ? 1 : 3 }, { -1, menusize ? 1 : 3 })
+                ->invoke([&](auto& boss)
+                {
+                    auto menutent_shadow = ptr::shadow(menutent);
+                    auto menucake_shadow = ptr::shadow(menucake);
+                    auto autohide_shadow = ptr::shared(autohide);
+                    boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menucake_shadow, autohide_shadow, menutent_shadow))
                     {
-                        auto border_shadow = ptr::shadow(border);
-                        auto menu_shadow = ptr::shadow(menu_block);
-                        auto hide_shadow = ptr::shared(autohide);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (menu_shadow, hide_shadow, border_shadow))
+                        if (*autohide_shadow)
+                        if (auto menucake = menucake_shadow.lock())
                         {
-                            if (*hide_shadow)
-                            if (auto menu_ptr = menu_shadow.lock())
+                            auto menu_visible = boss.back() != menucake;
+                            if (!!hits == menu_visible)
                             {
-                                auto menu_visible = boss.back() != menu_ptr;
-                                if (!!hits == menu_visible)
+                                boss.roll();
+                                boss.reflow();
+                                if (auto menutent = menutent_shadow.lock())
                                 {
-                                    boss.roll();
-                                    boss.reflow();
-                                    if (auto border = border_shadow.lock())
-                                    {
-                                        border->SIGNAL(tier::release, e2::form::state::visible, menu_visible);
-                                    }
+                                    menutent->SIGNAL(tier::release, e2::form::state::visible, menu_visible);
                                 }
                             }
-                        };
-                    });
+                        }
+                    };
+                });
 
-            return std::tuple{ slot1, border, menu_block };
+            return std::tuple{ menuveer, menutent, menucake };
         };
         const auto create = [](xmls& config, list menu_items)
         {
@@ -305,13 +313,17 @@ namespace netxs::app::shared
         };
         const auto demo = [](xmls& config)
         {
+            auto highlight_color = skin::color(tone::highlight);
+            auto c3 = highlight_color;
+            auto x3 = cell{ c3 }.alpha(0x00);
+            auto p3 = std::pair{ x3, c3 };
             auto items = list
             {
-                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " } }}), [&](auto& boss, auto& item){ } },
-                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " } }}), [&](auto& boss, auto& item){ } },
-                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " } }}), [&](auto& boss, auto& item){ } },
-                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " } }}), [&](auto& boss, auto& item){ } },
-                { ptr::shared(item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " } }}), [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);

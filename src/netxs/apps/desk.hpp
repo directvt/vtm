@@ -136,8 +136,8 @@ namespace netxs::app::desk
             auto label_area = item_area->attach(ui::fork::ctor());
             auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
             auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
-                ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣"), faux));
-            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left), true, true));
+                ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣")));
+            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left))->flexible()->drawdots());
             auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
                 ->template plugin<pro::fader>(x5, c5, fader)
                 ->template plugin<pro::notes>(" Close application window ")
@@ -153,7 +153,7 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto app_close = app_close_area->attach(ui::item::ctor("  ×  ", faux));
+            auto app_close = app_close_area->attach(ui::item::ctor("  ×  "));
             return item_area;
         };
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
@@ -201,7 +201,7 @@ namespace netxs::app::desk
                 if (conf.splitter)
                 {
                     auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }))
-                        ->attach(ui::item::ctor(obj_desc, true, faux, true))
+                        ->attach(ui::item::ctor(obj_desc)->flexible()->accented())
                         ->colors(cA.fgc(), cA.bgc())
                         ->template plugin<pro::notes>(obj_note);
                     continue;
@@ -254,7 +254,7 @@ namespace netxs::app::desk
                     auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
                         ->limits({ 5,1 }, { 5,1 });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
-                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor("  <  ", faux))
+                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor("  <  "))
                         ->template plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Hide active window list.               \n"
                                                       " Use mouse wheel to switch it to close. ")
@@ -266,7 +266,7 @@ namespace netxs::app::desk
                                 gear.dismiss();
                             };
                         });
-                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("  ×  ", faux))
+                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("  ×  "))
                         ->template plugin<pro::fader>(x1, c1, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
@@ -278,7 +278,7 @@ namespace netxs::app::desk
                             };
                         });
                 }
-                auto head = head_area->attach(ui::item::ctor(obj_desc, true))
+                auto head = head_area->attach(ui::item::ctor(obj_desc)->flexible())
                     ->invoke([&](auto& boss)
                     {
                         auto boss_shadow = ptr::shadow(boss.This());
@@ -449,7 +449,7 @@ namespace netxs::app::desk
                     ->plugin<pro::notes>(" Connected user ");
                 auto user = item_area->attach(ui::item::ctor(escx(" &").nil().add(" ")
                     //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
-                    .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
+                    .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())->flexible());
                 return item_area;
             };
             auto branch_template = [user_template](auto& data_src, auto& usr_list)
@@ -616,14 +616,14 @@ namespace netxs::app::desk
             auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,tall }, dent{ 0,0,0,0 }))
                                         ->plugin<pro::notes>(" List of connected users ");
             auto label_bttn = label_pads->attach(ui::fork::ctor(axis::X));//, 0, 1, 1, true));
-            auto label = label_bttn->attach(slot::_1, ui::item::ctor("users", true, faux, true))
+            auto label = label_bttn->attach(slot::_1, ui::item::ctor("users")->flexible()->accented())
                 ->limits({ 5,-1 })
                 ->colors(cA.fgc(), cA.bgc());
             auto bttn_pads = label_bttn->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
                 ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                 ->plugin<pro::notes>(" Show/hide user list ");
             auto userlist_hidden = true;
-            auto bttn = bttn_pads->attach(ui::item::ctor(userlist_hidden ? "…" : "<", faux));
+            auto bttn = bttn_pads->attach(ui::item::ctor(userlist_hidden ? "…" : "<"));
             auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
                 ->invoke([&](auto& boss)
                 {
