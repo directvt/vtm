@@ -605,7 +605,7 @@ namespace netxs::ui
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        subs relyon; // base: Subscription on parent events.
+        hook relyon; // base: Subscription on parent events.
         side oversz; // base: Oversize, margin.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
@@ -648,10 +648,9 @@ namespace netxs::ui
         // base: Move the form to a new place, and return the delta.
         auto moveto(twod new_coor)
         {
-            auto old_coor = region.coor;
+            //auto old_coor = region.coor;
             SIGNAL(tier::preview, e2::coor::set, new_coor);
-            SIGNAL(tier::release, e2::coor::set, new_coor);
-            auto delta = region.coor - old_coor;
+            auto delta = coor_release(new_coor);
             return delta;
         }
         // base: Dry run. Check current position.
@@ -878,9 +877,12 @@ namespace netxs::ui
                     break;
             }
         }
-        void coor_release(twod& new_coor)
+        twod coor_release(twod& new_coor)
         {
             SIGNAL(tier::release, e2::coor::set, new_coor);
+            auto delta = new_coor - region.coor;
+            region.coor = new_coor;
+            return delta;
         }
         void size_preview(twod& new_size)
         {
@@ -981,10 +983,6 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
-            LISTEN(tier::release, e2::coor::set, new_coor)
-            {
-                region.coor = new_coor;
-            };
             LISTEN(tier::request, e2::depth, depth)
             {
                 depth++;

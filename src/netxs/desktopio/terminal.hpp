@@ -7194,26 +7194,17 @@ namespace netxs::ui
                 follow[axis::Y] = target->set_slide(new_coor.y);
                 origin = new_coor;
             };
-            LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+            LISTEN(tier::preview, e2::size::set, new_size)
             {
-                parent->LISTEN(tier::release, e2::size::set, new_size, relyon)
-                {
-                    auto& console = *target;
-                    auto viewport_size = std::max(new_size, dot_11);
-                    auto scroll_coor = origin;
-                    console.resize_viewport(viewport_size);
-                    console.recalc_pads(base::oversz);
-                    scroll(origin);
-                    base::anchor += scroll_coor - origin;
-                    ipccon.resize(viewport_size);
-                };
-            };
-            LISTEN(tier::preview, e2::size::any, new_size)
-            {
-                this->bell::expire<tier::preview>(true); // Prohibit changing our size from outside.
-                //auto& console = *target;
-                //new_size = console.panel;
-                //new_size.y += console.get_basis();
+                auto& console = *target;
+                auto scroll_coor = origin;
+                new_size = std::max(new_size, dot_11);
+                console.resize_viewport(new_size);
+                console.recalc_pads(base::oversz);
+                scroll(origin);
+                base::anchor += scroll_coor - origin;
+                ipccon.resize(new_size);
+                new_size.y += console.get_basis();
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
@@ -7243,7 +7234,7 @@ namespace netxs::ui
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
             };
-            LISTEN(tier::general, e2::timer::tick, timestamp)
+            LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
             {
                 if (unsync)
                 {
@@ -7258,6 +7249,7 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
+                        base::exrect.size = scroll_size + base::extpad;
                         this->base::size_release(scroll_size);
                         this->base::moveto(scroll_coor);
                     }

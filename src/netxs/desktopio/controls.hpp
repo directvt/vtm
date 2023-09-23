@@ -2267,7 +2267,7 @@ namespace netxs::ui
         : public base
     {
         std::map<std::type_index, uptr<pro::skill>> depo;
-        std::map<id_t, subs> memomap; // form: Token set for depend submissions.
+        std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
         using sptr = netxs::sptr<base>;
