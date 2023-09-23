@@ -7150,7 +7150,7 @@ namespace netxs::ui
             }
         }
         // term: Recalc dimensions.
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             auto& console = *target;
             auto scroll_coor = origin;

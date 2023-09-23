@@ -643,8 +643,6 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
 
-        // base: Request new size approval.
-        virtual void deform(twod& new_size) {}
         // base: Notify about new prop value.
         template<class Prop, class T>
         void inform(T new_value)
@@ -654,19 +652,15 @@ namespace netxs::ui
             SIGNAL(tier::release, Prop::set, new_value);
             prop = new_value;
         }
-        template<class Prop>
-        void recalc(twod& new_value)
+        template<class Prop, class T>
+        void recalc(T&& new_value)
         {
             if (base::hidden) return;
-            if constexpr (std::is_same_v<Prop, e2::size>) // Using virtual functions to avoid expensive events.
+            if constexpr (std::is_same_v<Prop, e2::size>)
             {
                 new_value = std::clamp(new_value, minlim, maxlim);
-                deform(new_value);
             }
-            else
-            {
-                SIGNAL(tier::preview, e2::coor::set, new_value);
-            }
+            SIGNAL(tier::preview, Prop::set, new_value);
         }
         // base: Select property.
         template<class Prop>
@@ -675,8 +669,8 @@ namespace netxs::ui
             return std::is_same_v<Prop, e2::size> ? region.size : region.coor;
         }
         // base: Change property, and return delta.
-        template<class Prop>
-        void change(twod new_value)
+        template<class Prop, class T>
+        void change(T new_value)
         {
             recalc<Prop>(new_value);
             inform<Prop>(new_value);
@@ -686,14 +680,14 @@ namespace netxs::ui
         {
             auto old_value = region.size;
             change<e2::size>(new_size);
-            return new_size - old_value;
+            return region.size - old_value;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
             auto old_value = region.coor;
             change<e2::coor>(new_coor);
-            return new_coor - old_value;
+            return region.coor - old_value;
         }
         // base: Dry run. Recheck current position.
         auto moveto()

@@ -2285,13 +2285,13 @@ namespace netxs::ui
                     This()->T::remove(shadow);
                 };
             }
-            //if constexpr (requires(twod& new_size) { This()->T::deform(new_size); })
-            //{
-            //    LISTEN(tier::preview, e2::size::set, new_size)
-            //    {
-            //        This()->T::deform(new_size);
-            //    };
-            //}
+            if constexpr (requires(twod& new_size) { This()->T::deform(new_size); })
+            {
+                LISTEN(tier::preview, e2::size::set, new_size)
+                {
+                    This()->T::deform(new_size);
+                };
+            }
             if constexpr (requires(twod new_size) { This()->T::inform(new_size); })
             {
                 LISTEN(tier::release, e2::size::any, new_size)
@@ -2569,7 +2569,7 @@ namespace netxs::ui
                 if (client_2) client_2->render(parent_canvas, basis);
             };
         }
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
            auto meter = [&](auto& newsz_x, auto& newsz_y,
                             auto& size1_x, auto& size1_y,
@@ -2742,7 +2742,7 @@ namespace netxs::ui
                 }
             };
         }
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             auto  height = si32{};
             auto& y_size = updown ? new_size.y : new_size.x;
@@ -2792,7 +2792,7 @@ namespace netxs::ui
                     }
                     auto& sz_y = updown ? client.second.y : client.second.x;
                     auto& sz_x = updown ? client.second.x : client.second.y;
-                    entry.base::change<e2::size>({ sz_x, sz_y }); //todo revise ?change | inform
+                    entry.base::change<e2::size>(twod{ sz_x, sz_y }); //todo revise ?change | inform
                     entry.base::inform<e2::coor>(new_coor);
                     auto& size = entry.base::size();
                     sz_x = size.x;
@@ -2883,7 +2883,7 @@ namespace netxs::ui
             };
         }
         // cake: .
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             auto saved = new_size;
             auto meter = [&]
@@ -2969,7 +2969,7 @@ namespace netxs::ui
             };
         }
         // veer: .
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             if (subset.size())
             if (auto client = subset.back())
@@ -3143,7 +3143,7 @@ namespace netxs::ui
             };
         }
         // post: .
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             recalc(new_size);
             new_size.y = width.y;
@@ -4088,12 +4088,12 @@ namespace netxs::ui
             };
         }
         // pads: .
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             if (client)
             {
                 auto client_size = new_size - padding;
-                client->base::change<e2::size>(client_size);
+                client->base::recalc<e2::size>(client_size);
                 new_size = client_size + padding;
             }
         }
@@ -4198,7 +4198,7 @@ namespace netxs::ui
                 }
             };
         }
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             new_size.x = flex ? new_size.x : data.size().x;
             new_size.y = std::max(data.size().y, new_size.y);
@@ -4279,7 +4279,7 @@ namespace netxs::ui
             recalc();
             return box_len;
         }
-        void deform(twod& new_size) override
+        void deform(twod& new_size)
         {
             new_size = box_len; // Suppress resize.
         }
