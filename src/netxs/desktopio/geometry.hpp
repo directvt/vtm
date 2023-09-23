@@ -678,6 +678,16 @@ namespace netxs
         {
             return area = area - pad;
         }
+        // dent: Return size with padding.
+        friend auto operator += (twod& size, dent const& pad)
+        {
+            return size = size + pad;
+        }
+        // dent: Return size without padding.
+        friend auto operator -= (twod& size, dent const& pad)
+        {
+            return size = size - pad;
+        }
         // dent: Return summ of two paddings.
         friend auto operator + (dent const& pad1, dent const& pad2)
         {

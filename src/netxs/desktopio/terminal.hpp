@@ -7149,6 +7149,19 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
+        // term: Recalc dimensions.
+        void deform(twod& new_size) override
+        {
+            auto& console = *target;
+            auto scroll_coor = origin;
+            new_size = std::max(new_size, dot_11);
+            console.resize_viewport(new_size);
+            console.recalc_pads(base::oversz);
+            scroll(origin);
+            base::anchor += scroll_coor - origin;
+            ipccon.resize(new_size);
+            new_size.y += console.get_basis();
+        }
 
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
@@ -7189,22 +7202,31 @@ namespace netxs::ui
             publish_property(ui::term::events::search::status, [&](auto& v){ v = target->selection_button(); });
             selection_selmod(config.def_selmod);
 
+            LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
+            {
+                if (unsync)
+                {
+                    unsync = faux;
+                    auto& console = *target;
+                    auto scroll_size = console.panel;
+                    scroll_size.y += console.get_basis();
+                    auto scroll_coor = origin;
+                    scroll(scroll_coor);
+                    auto adjust_pads = console.recalc_pads(base::oversz);
+                    if (scroll_size != base::size() // Update scrollbars.
+                     || scroll_coor != origin
+                     || adjust_pads)
+                    {
+                        this->base::inform<e2::size>(scroll_size);
+                        this->base::moveto(scroll_coor);
+                    }
+                    base::deface();
+                }
+            };
             LISTEN(tier::preview, e2::coor::set, new_coor)
             {
                 follow[axis::Y] = target->set_slide(new_coor.y);
                 origin = new_coor;
-            };
-            LISTEN(tier::preview, e2::size::set, new_size)
-            {
-                auto& console = *target;
-                auto scroll_coor = origin;
-                new_size = std::max(new_size, dot_11);
-                console.resize_viewport(new_size);
-                console.recalc_pads(base::oversz);
-                scroll(origin);
-                base::anchor += scroll_coor - origin;
-                ipccon.resize(new_size);
-                new_size.y += console.get_basis();
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
@@ -7233,28 +7255,6 @@ namespace netxs::ui
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
-            };
-            LISTEN(tier::general, e2::timer::tick, timestamp) // Update before world rendering.
-            {
-                if (unsync)
-                {
-                    unsync = faux;
-                    auto& console = *target;
-                    auto scroll_size = console.panel;
-                    scroll_size.y += console.get_basis();
-                    auto scroll_coor = origin;
-                    scroll(scroll_coor);
-                    auto adjust_pads = console.recalc_pads(base::oversz);
-                    if (scroll_size != base::size() // Update scrollbars.
-                     || scroll_coor != origin
-                     || adjust_pads)
-                    {
-                        base::exrect.size = scroll_size + base::extpad;
-                        this->base::size_release(scroll_size);
-                        this->base::moveto(scroll_coor);
-                    }
-                    base::deface();
-                }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

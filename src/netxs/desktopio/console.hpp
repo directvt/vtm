@@ -512,10 +512,10 @@ namespace netxs::ui
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.mark(filler);
                 };
-                boss.LISTEN(tier::release, e2::size::any, newsize, memo)
+                boss.LISTEN(tier::release, e2::size::any, new_size, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.size(newsize);
+                    xmap.size(new_size);
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
@@ -721,9 +721,9 @@ namespace netxs::ui
                     update(f.state);
                     boss.base::strike();
                 };
-                boss.LISTEN(tier::release, e2::size::any, newsize, tokens)
+                boss.LISTEN(tier::release, e2::size::any, new_size, tokens)
                 {
-                    update(newsize);
+                    update(new_size);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
                 {
@@ -1181,16 +1181,15 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
+            LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
             {
-                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, newsize);
-                auto delta = base::resize(newsize);
-                if (delta && direct)
-                paint.cancel();
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
+                auto delta = base::resize(new_size);
+                if (delta && direct) paint.cancel();
             };
-            LISTEN(tier::release, e2::size::any, newsize, tokens)
+            LISTEN(tier::release, e2::size::any, new_size, tokens)
             {
-                if (applet) applet->base::resize(newsize);
+                if (applet) applet->base::resize(new_size);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {

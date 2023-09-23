@@ -141,9 +141,9 @@ namespace netxs::app::vtm
                     unbind();
                     boss.expire<tier::preview>(true);
                 };
-                boss.LISTEN(tier::release, e2::size::any, size, memo, (pads))
+                boss.LISTEN(tier::release, e2::size::any, new_size, memo, (pads))
                 {
-                    what.applet->base::resize(size + pads);
+                    what.applet->base::resize(new_size + pads);
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {

@@ -592,15 +592,12 @@ namespace netxs::ui
         wptr father; // base: Parental visual tree weak-pointer.
         cell filler; //todo deprecated: base: Object color.
         rect region; // base: Region allocated for object.
-        rect exrect; // base: Enclosing rectangle relative to the allocated region.
-        rect myrect; // base: Object rectangle relative to the allocated region.
-        rect inrect; // base: Internal rectangle relative to the allocated region.
-        dent extpad; // base: Pad around object.
-        dent intpad; // base: Pad inside object.
         twod minlim; // base: Minimal size.
         twod maxlim; // base: Maximal size.
-        bind atgrow; // base: Bindings on enlarging.
-        bind atcrop; // base: Bindings on shrinking.
+        //twod minpos; // base: Minimal coor. ?struct lims
+        //twod maxpos; // base: Maximal coor.
+        //bind atgrow; // base: Bindings on enlarging.
+        //bind atcrop; // base: Bindings on shrinking.
         bool wasted; // base: Should the object be redrawn.
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
@@ -645,67 +642,92 @@ namespace netxs::ui
             base::filler = new_filler;
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-        // base: Move the form to a new place, and return the delta.
+
+        // base: Request new size approval.
+        virtual void deform(twod& new_size) {}
+        // base: Notify about new prop value.
+        template<class Prop, class T>
+        void inform(T new_value)
+        {
+            if (base::hidden) return;
+            auto& prop = select<Prop>();
+            SIGNAL(tier::release, Prop::set, new_value);
+            prop = new_value;
+        }
+        template<class Prop>
+        void recalc(twod& new_value)
+        {
+            if (base::hidden) return;
+            if constexpr (std::is_same_v<Prop, e2::size>) // Using virtual functions to avoid expensive events.
+            {
+                new_value = std::clamp(new_value, minlim, maxlim);
+                deform(new_value);
+            }
+            else
+            {
+                SIGNAL(tier::preview, e2::coor::set, new_value);
+            }
+        }
+        // base: Select property.
+        template<class Prop>
+        auto& select()
+        {
+            return std::is_same_v<Prop, e2::size> ? region.size : region.coor;
+        }
+        // base: Change property, and return delta.
+        template<class Prop>
+        void change(twod new_value)
+        {
+            recalc<Prop>(new_value);
+            inform<Prop>(new_value);
+        }
+        // base: Set new size, and return delta.
+        auto resize(twod new_size)
+        {
+            auto old_value = region.size;
+            change<e2::size>(new_size);
+            return new_size - old_value;
+        }
+        // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            //auto old_coor = region.coor;
-            SIGNAL(tier::preview, e2::coor::set, new_coor);
-            auto delta = coor_release(new_coor);
-            return delta;
+            auto old_value = region.coor;
+            change<e2::coor>(new_coor);
+            return new_coor - old_value;
         }
-        // base: Dry run. Check current position.
+        // base: Dry run. Recheck current position.
         auto moveto()
         {
-            auto new_value = region.coor;
-            return moveto(new_value);
+            return moveto(region.coor);
         }
-        // base: Move the form by the specified step and return the coor delta.
-        auto moveby(twod const& step)
+        // base: Move by the specified step and return the coor delta.
+        auto moveby(twod step)
         {
-            auto delta = moveto(region.coor + step);
-            return delta;
+            return moveto(region.coor + step);
         }
-        // base: Resize the form, and return the size delta.
-        auto resize(twod new_size) -> twod //todo MSVC 17.7.4 requires return type
-        {
-            auto old_size = region.size;
-            size_preview(new_size);
-            size_release(new_size);
-            return region.size - old_size;
-        }
-        // base: Resize the form, and return the new size.
-        auto& resize(si32 x, si32 y)
-        {
-            auto new_size = twod{ x,y };
-            size_preview(new_size);
-            size_release(new_size);
-            return size();
-        }
-        // base: Resize the form relative the center point.
+        // base: Resize relative the center point.
         //       Return center point offset.
         //       The object is responsible for correcting
         //       the center point during resizing.
-        auto resize(twod newsize, twod point)
+        auto resize(twod new_size, twod point)
         {
             point -= region.coor;
             anchor = point; //todo use dot_00 instead of point
-            resize(newsize);
+            change<e2::size>(new_size);
             auto delta = moveby(point - anchor);
             return delta;
         }
         // base: Dry run (preview then release) current value.
         auto resize()
         {
-            auto new_value = region.size;
-            return resize(new_value);
+            return resize(region.size);
         }
-        // base: Resize the form by step, and return delta.
+        // base: Resize by step, and return delta.
         auto sizeby(twod const& step)
         {
-            auto delta = resize(region.size + step);
-            return delta;
+            return resize(region.size + step);
         }
-        // base: Resize and move the form, and return delta.
+        // base: Resize and move, and return delta.
         auto extend(rect newloc)
         {
             return rect{ moveto(newloc.coor), resize(newloc.size) };
@@ -744,13 +766,7 @@ namespace netxs::ui
             {
                 parent_ptr->reflow<Forced>();
             }
-            else
-            {
-                if (auto delta = resize())
-                {
-                    //SIGNAL(tier::release, e2::form::upon::resized, delta);
-                }
-            }
+            else change<e2::size>(region.size);
         }
         // base: Remove the form from the visual tree.
         void detach()
@@ -855,58 +871,7 @@ namespace netxs::ui
         {
             bell::_saveme();
         }
-        // base: Align object.
-        void xform(snap align, si32& coor, si32& size, si32& width)
-        {
-            switch (align)
-            {
-                case snap::head:
-                    coor = 0;
-                    break;
-                case snap::tail:
-                    coor = width - size;
-                    break;
-                case snap::both:
-                    coor = 0;
-                    size = width;
-                    break;
-                case snap::center:
-                    coor = (width - size) / 2;
-                    break;
-                default:
-                    break;
-            }
-        }
-        twod coor_release(twod& new_coor)
-        {
-            SIGNAL(tier::release, e2::coor::set, new_coor);
-            auto delta = new_coor - region.coor;
-            region.coor = new_coor;
-            return delta;
-        }
-        void size_preview(twod& new_size)
-        {
-            if (base::hidden) return;
-            auto s = std::clamp(new_size - extpad, minlim, maxlim) - intpad;
-            SIGNAL(tier::preview, e2::size::set, s);
-            exrect.size = s + intpad + extpad; // We must fix nested objects that don't fit instead of clamping.
-            //if (snap::both == (exrect.size.x > new_size.x ? atcrop.x : atgrow.x)) new_size.x = exrect.size.x;
-            //if (snap::both == (exrect.size.y > new_size.y ? atcrop.y : atgrow.y)) new_size.y = exrect.size.y;
-            auto snap_x = exrect.size.x > new_size.x ? atcrop.x : atgrow.x;
-            auto snap_y = exrect.size.y > new_size.y ? atcrop.y : atgrow.y;
-            if (snap_x == snap::none) new_size.x = exrect.size.x;
-            if (snap_y == snap::none) new_size.y = exrect.size.y;
-        }
-        void size_release(twod new_size)
-        {
-            if (base::hidden) return;
-            region.size = new_size;
-            xform(exrect.size.x > region.size.x ? atcrop.x : atgrow.x, exrect.coor.x, exrect.size.x, region.size.x);
-            xform(exrect.size.y > region.size.y ? atcrop.y : atgrow.y, exrect.coor.y, exrect.size.y, region.size.y);
-            myrect = exrect - extpad;
-            inrect = myrect - intpad;
-            SIGNAL(tier::release, e2::size::set, size, (inrect.size));
-        }
+
         void limits(twod minlim = -dot_11, twod maxlim = -dot_11)
         {
             base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
@@ -914,14 +879,14 @@ namespace netxs::ui
         }
         void alignment(bind atgrow, bind atcrop = {})
         {
-            base::atgrow = atgrow;
-            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
-            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+            //base::atgrow = atgrow;
+            //base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
+            //base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
         }
         void setpad(dent intpad, dent extpad = {})
         {
-            base::intpad = intpad;
-            base::extpad = extpad;
+            //base::intpad = intpad;
+            //base::extpad = extpad;
         }
         // base.: Render to the canvas. Trim = trim viewport to the client area.
         void render(face& canvas, twod const& offset_coor, bool trim = true)
@@ -930,7 +895,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::region.clip<true>(base::myrect);
+            auto object_area = base::region;
             object_area.coor+= parent_area.coor;
 
             auto nested_view = canvas_view.clip(object_area);
@@ -957,7 +922,7 @@ namespace netxs::ui
             auto canvas_view = canvas.core::view();
             auto parent_area = canvas.flow::full();
 
-            auto object_area = base::region.clip<true>(base::myrect);
+            auto object_area = base::region;
             object_area.coor-= canvas.core::coor();
 
             if (auto nested_view = canvas_view.clip(object_area))
