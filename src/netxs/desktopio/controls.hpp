@@ -2480,37 +2480,24 @@ namespace netxs::ui
     class fork
         : public form<fork>
     {
-        enum class action { seize, drag, release };
+        sptr client_1{}; // fork: 1st object.
+        sptr client_2{}; // fork: 2nd object.
+        sptr splitter{}; // fork: Resizing grip object.
+        rect region_1{}; // fork: 1st object region.
+        rect region_2{}; // fork: 1nd object region.
+        rect region_3{}; // fork: Resizing grip region.
+        axis rotation{}; // fork: Fork orientation.
+        si32 fraction{}; // fork: Ratio between clients.
+        bool adaptive{}; // fork: Fixed ratio.
 
-        sptr client_1; // fork: 1st object.
-        sptr client_2; // fork: 2nd object.
-        sptr splitter; // fork: Resizing grip.
-
-        twod size1;
-        twod size2;
-        twod coor2;
-        twod size3;
-        twod coor3;
-        si32 split;
-        si32 width;
-        si32 ratio;
-        si32 limit;
-        bool stack;
-        bool fixed;
-
-        twod xpose(twod const& pt) { return stack ? twod{ pt.y, pt.x } : pt; }
-        si32 get_x(twod const& pt) { return stack ? pt.y : pt.x; }
-        si32 get_y(twod const& pt) { return stack ? pt.x : pt.y; }
-
-        void _config(axis alignment, si32 thickness, si32 s1 = 1, si32 s2 = 1)
+        auto xpose(twod const& p)
         {
-            switch (alignment)
-            {
-                case axis::X: stack = faux; break;
-                case axis::Y: stack = true; break;
-                default:      stack = faux; break;
-            }
-            width = std::max(thickness, 0);
+            return rotation == axis::X ? p : twod{ p.y, p.x };
+        }
+        void _config(axis orientation, si32 grip_width, si32 s1 = 1, si32 s2 = 1)
+        {
+            rotation = orientation;
+            region_3.size = xpose({ std::max(0, grip_width), 0 });
             _config_ratio(s1, s2);
         }
         void _config_ratio(si32 s1, si32 s2)
@@ -2518,8 +2505,8 @@ namespace netxs::ui
             if (s1 < 0) s1 = 0;
             if (s2 < 0) s2 = 0;
             auto sum = s1 + s2;
-            ratio = sum ? netxs::divround(s1 * max_ratio, sum)
-                        : max_ratio >> 1;
+            fraction = sum ? netxs::divround(s1 * max_ratio, sum)
+                           : max_ratio >> 1;
         }
 
     public:
@@ -2529,20 +2516,20 @@ namespace netxs::ui
 
         auto get_ratio()
         {
-            return ratio;
+            return fraction;
         }
         auto set_ratio(si32 new_ratio = max_ratio)
         {
-            ratio = new_ratio;
+            fraction = new_ratio;
         }
         void config(si32 s1, si32 s2 = 1)
         {
             _config_ratio(s1, s2);
             base::reflow();
         }
-        auto config(axis alignment, si32 thickness, si32 s1, si32 s2)
+        auto config(axis orientation, si32 grip_width, si32 s1, si32 s2)
         {
-            _config(alignment, thickness, s1, s2);
+            _config(orientation, grip_width, s1, s2);
             return This();
         }
 
@@ -2567,17 +2554,12 @@ namespace netxs::ui
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
             }
         }
-        fork(axis alignment = axis::X, si32 thickness = 0, si32 s1 = 1, si32 s2 = 1)
-            : limit{ 0 },
-              width{ 0 },
-              split{ 0 },
-              stack{ faux },
-              ratio{ 0xFFFF >> 1 },
-              fixed{ faux }
+        fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
         {
-            LISTEN(tier::release, e2::form::prop::fixedsize, is_fixed) //todo unify -- See terminal window self resize
+            _config(orientation, grip_width, s1, s2);
+            LISTEN(tier::release, e2::form::prop::fixedsize, is_fixed)
             {
-                fixed = is_fixed;
+                adaptive = is_fixed;
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2586,75 +2568,76 @@ namespace netxs::ui
                 if (client_1) client_1->render(parent_canvas, basis);
                 if (client_2) client_2->render(parent_canvas, basis);
             };
-            _config(alignment, thickness, s1, s2);
         }
         void deform(twod& new_size) override
         {
-            auto new_size0 = xpose(new_size);
-            limit = std::max(new_size0.x - width, 0);
-            split = netxs::divround(limit * ratio, max_ratio);
-            size1 = xpose({ split, new_size0.y });
-            if (client_1)
+           auto meter = [&](auto& newsz_x, auto& newsz_y,
+                            auto& size1_x, auto& size1_y,
+                            auto& coor2_x, auto& coor2_y,
+                            auto& size2_x, auto& size2_y,
+                            auto& coor3_x, auto& coor3_y,
+                            auto& size3_x, auto& size3_y)
             {
-                client_1->base::recalc<e2::size>(size1);
-                split = get_x(size1);
-                new_size0.y = get_y(size1);
-            }
-            size2 = xpose({ limit - split, new_size0.y });
-            auto test_size2 = size2;
-            if (client_2)
-            {
-                client_2->base::recalc<e2::size>(size2);
-                split = new_size0.x - width - get_x(size2);
-                if (test_size2 != size2) // If size2 doesn't fit.
+                auto limit = std::max(newsz_x - size3_x, 0);
+                auto split = netxs::divround(limit * fraction, max_ratio);
+                auto test = [&]
                 {
-                    new_size0.y = get_y(size2);
-                    size1 = xpose({ split, new_size0.y });
+                    size1_x = split;
+                    size1_y = newsz_y;
                     if (client_1)
                     {
-                        client_1->base::recalc<e2::size>(size1);
-                        split = get_x(size1);
-                        new_size0.y = get_y(size1);
+                        client_1->base::recalc<e2::size>(region_1.size);
+                        split = size1_x;
+                        newsz_y = size1_y;
                     }
-                    size2 = xpose({ limit - split, new_size0.y });
+                    size2_x = limit - split;
+                    size2_y = newsz_y;
+                    auto test_size2 = region_2.size;
                     if (client_2)
                     {
-                        client_2->base::recalc<e2::size>(size2);
-                        new_size0.y = get_y(size2);
+                        client_2->base::recalc<e2::size>(region_2.size);
+                        newsz_y = size2_y;
                     }
-                }
-                coor2 = xpose({ split + width, 0 });
-            }
-            if (splitter)
-            {
-                coor3 = xpose({ split, 0 });
-                size3 = xpose({ width, new_size0.y });
-            }
-            new_size = xpose({ split + width + get_x(size2), new_size0.y });
-            if (fixed) _config_ratio(split, get_x(size2));
+                    return test_size2 == region_2.size;
+                };
+                auto ok = test();
+                split = newsz_x - size3_x - size2_x;
+                if (!ok) test(); // Repeat if client_2 doesn't fit.
+                coor2_x = split + size3_x;
+                coor2_y = 0;
+                coor3_x = split;
+                coor3_y = 0;
+                size3_y = newsz_y;
+                if (adaptive) _config_ratio(split, size2_x);
+                newsz_x = split + size3_x + size2_x;
+            };
+            rotation == axis::X ? meter(new_size.x, new_size.y, region_1.size.x, region_1.size.y, region_2.coor.x, region_2.coor.y, region_2.size.x, region_2.size.y, region_3.coor.x, region_3.coor.y, region_3.size.x, region_3.size.y)
+                                : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
         }
         void inform(twod new_size)
         {
             if (client_1)
             {
-                client_1->base::inform<e2::size>(size1);
+                client_1->base::inform<e2::size>(region_1.size);
             }
             if (client_2)
             {
-                client_2->base::inform<e2::size>(size2);
-                client_2->base::inform<e2::coor>(coor2);
+                client_2->base::inform<e2::size>(region_2.size);
+                client_2->base::inform<e2::coor>(region_2.coor);
             }
             if (splitter)
             {
-                splitter->base::inform<e2::size>(size3);
-                splitter->base::inform<e2::coor>(coor3);
+                splitter->base::inform<e2::size>(region_3.size);
+                splitter->base::inform<e2::coor>(region_3.coor);
             }
         }
         void rotate()
         {
-            stack = !stack;
-                 if (stack  && width == 2) width = 1;
-            else if (!stack && width == 1) width = 2;
+            auto width = xpose(region_3.size).x;
+            rotation = (axis)!rotation;
+                 if (rotation == axis::Y && width == 2) width = 1;
+            else if (rotation == axis::X && width == 1) width = 2;
+            (rotation == axis::X ? region_3.size.x : region_3.size.y) = width;
             base::reflow();
         }
         void swap()
@@ -2662,8 +2645,8 @@ namespace netxs::ui
             std::swap(client_1, client_2);
             if (client_1)
             {
-                auto coor1 = dot_00;
-                client_1->base::inform<e2::coor>(coor1);
+                region_1.coor = dot_00;
+                client_1->base::inform<e2::coor>(region_1.coor);
             }
             base::reflow();
         }
@@ -2671,7 +2654,7 @@ namespace netxs::ui
         {
             if (splitter)
             {
-                auto delta = xpose({ step * width, 0 });
+                auto delta = region_3.size * xpose({ step, 0 });
                 splitter->SIGNAL(tier::preview, e2::form::upon::changed, delta);
             }
         }
@@ -2694,8 +2677,9 @@ namespace netxs::ui
                 splitter = item_ptr;
                 splitter->LISTEN(tier::preview, e2::form::upon::changed, delta)
                 {
-                    split += get_x(delta);
-                    ratio = netxs::divround(max_ratio * split, limit);
+                    auto split = xpose(region_3.coor + delta).x;
+                    auto limit = xpose(base::size() - region_3.size).x;
+                    fraction = netxs::divround(max_ratio * split, limit);
                     this->base::reflow();
                 };
             }
