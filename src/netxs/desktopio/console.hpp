@@ -516,11 +516,6 @@ namespace netxs::ui
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.area(new_area);
                 };
-                boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.move(new_coor);
-                };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {
                     if (m.enabled != hids::stat::ok)
@@ -1189,7 +1184,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::area::any, new_area, tokens)
             {
-                if (applet) applet->base::change<e2::area>(new_area);
+                if (applet) applet->base::change(new_area);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {

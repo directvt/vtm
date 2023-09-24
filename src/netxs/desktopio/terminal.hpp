@@ -7149,6 +7149,27 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
+        // term: Recalc metrics.
+        void deform(rect& new_area)
+        {
+            auto& console = *target;
+            if (new_area.coor != base::coor())
+            {
+                follow[axis::Y] = console.set_slide(new_area.coor.y);
+                origin = new_area.coor;
+            }
+            if (new_area.size != base::size())
+            {
+                auto scroll_coor = origin;
+                new_area.size = std::max(new_area.size, dot_11);
+                console.resize_viewport(new_area.size);
+                console.recalc_pads(base::oversz);
+                scroll(origin);
+                base::anchor += scroll_coor - origin;
+                ipccon.resize(new_area.size);
+                new_area.size.y += console.get_basis();
+            }
+        }
 
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
@@ -7204,29 +7225,10 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        //todo ? this->base::change<e2::area>(rect{ scroll_coor, scroll_size });
-                        this->base::recalc<e2::coor>(scroll_coor);
-                        this->base::inform<e2::area>(rect{ scroll_coor, scroll_size });
+                        this->base::change(rect{ scroll_coor, scroll_size });
                     }
                     base::deface();
                 }
-            };
-            LISTEN(tier::preview, e2::area::set, new_area)
-            {
-                auto& console = *target;
-                auto scroll_coor = origin;
-                new_area.size = std::max(new_area.size, dot_11);
-                console.resize_viewport(new_area.size);
-                console.recalc_pads(base::oversz);
-                scroll(origin);
-                base::anchor += scroll_coor - origin;
-                ipccon.resize(new_area.size);
-                new_area.size.y += console.get_basis();
-            };
-            LISTEN(tier::preview, e2::coor::set, new_coor)
-            {
-                follow[axis::Y] = target->set_slide(new_coor.y);
-                origin = new_coor;
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
@@ -7865,12 +7867,15 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
-            LISTEN(tier::release, e2::coor::any, coor)
+            LISTEN(tier::release, e2::area::any, new_area)
             {
-                auto lock = stream.bitmap_dtvt.freeze();
-                auto& canvas = lock.thing.image;
-                canvas.move(coor);
-                splash.move(coor);
+                if (new_area.coor != base::coor())
+                {
+                    auto lock = stream.bitmap_dtvt.freeze();
+                    auto& canvas = lock.thing.image;
+                    canvas.move(new_area.coor);
+                    splash.move(new_area.coor);
+                }
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

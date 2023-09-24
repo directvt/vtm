@@ -88,8 +88,6 @@ namespace netxs::events::userland
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
             GROUP_XS( area      , rect           ), // release: Object rectangle.
-            GROUP_XS( size      , twod           ), //todo deprecated: release: Object size.
-            GROUP_XS( coor      , twod           ), // release: Object coor.
             GROUP_XS( form      , bool           ),
             GROUP_XS( data      , si32           ),
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
@@ -124,14 +122,6 @@ namespace netxs::events::userland
             SUBSET_XS( area )
             {
                 EVENT_XS( set, rect ), // preview: request new area for object. release: apply new area to object.
-            };
-            SUBSET_XS( size )
-            {
-                EVENT_XS( set, twod ), //todo deprecated: preview: checking by object; release: apply new area to object.
-            };
-            SUBSET_XS( coor )
-            {
-                EVENT_XS( set, twod ), // preview: request new position for object. release: apply new position to object.
             };
             SUBSET_XS( config )
             {
@@ -657,58 +647,41 @@ namespace netxs::ui
         }
 
         // base: Notify about new prop value.
-        template<class Prop, class T>
-        void inform(T new_value)
+        void notify(rect new_area)
         {
             if (base::hidden) return;
-            auto& prop = select<Prop>();
-            SIGNAL(tier::release, Prop::set, new_value);
-            prop = new_value;
+            SIGNAL(tier::release, e2::area::set, new_area);
+            base::region = new_area;
         }
-        template<class Prop, class T>
-        void recalc(T&& new_value)
+        void recalc(rect& new_area)
         {
             if (base::hidden) return;
-            if constexpr (std::is_same_v<Prop, e2::size>)
-            {
-                new_value = std::clamp(new_value, minlim, maxlim);
-            }
-            else if constexpr (std::is_same_v<Prop, e2::area>)
-            {
-                new_value.size = std::clamp(new_value.size, minlim, maxlim);
-            }
-            SIGNAL(tier::preview, Prop::set, new_value);
+            new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
+            SIGNAL(tier::preview, e2::area::set, new_area);
         }
-        // base: Select property.
-        template<class Prop>
-        auto& select()
+        // base: Change object area, and return delta.
+        void change(rect new_area)
         {
-                 if constexpr (std::is_same_v<Prop, e2::area>) return region;
-            else if constexpr (std::is_same_v<Prop, e2::coor>) return region.coor;
-            else if constexpr (std::is_same_v<Prop, e2::size>) return region.size;
-        }
-        // base: Change property, and return delta.
-        template<class Prop, class T>
-        void change(T new_value)
-        {
-            recalc<Prop>(new_value);
-            inform<Prop>(new_value);
+            recalc(new_area);
+            notify(new_area);
         }
         // base: Set new size, and return delta.
         auto resize(twod new_size)
         {
-            auto old_value = region.size;
-            auto area = region;
-            area.size = new_size;
-            change<e2::area>(area);
-            return region.size - old_value;
+            auto old_area = region.size;
+            auto new_area = region;
+            new_area.size = new_size;
+            change(new_area);
+            return region.size - old_area;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            auto old_value = region.coor;
-            change<e2::coor>(new_coor);
-            return region.coor - old_value;
+            auto old_area = region.coor;
+            auto new_area = region;
+            new_area.coor = new_coor;
+            change(new_area);
+            return region.coor - old_area;
         }
         // base: Dry run. Recheck current position.
         auto moveto()
@@ -728,9 +701,9 @@ namespace netxs::ui
         {
             point -= region.coor;
             anchor = point; //todo use dot_00 instead of point
-            auto area = region;
-            area.size = new_size;
-            change<e2::area>(area);
+            auto new_area = region;
+            new_area.size = new_size;
+            change(new_area);
             auto delta = moveby(point - anchor);
             return delta;
         }
@@ -745,9 +718,13 @@ namespace netxs::ui
             return resize(region.size + step);
         }
         // base: Resize and move, and return delta.
-        auto extend(rect newloc)
+        auto extend(rect new_area)
         {
-            return rect{ moveto(newloc.coor), resize(newloc.size) };
+            auto old_area = region;
+            change(new_area);
+            auto delta = region;
+            delta -= old_area;
+            return delta;
         }
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
@@ -783,7 +760,7 @@ namespace netxs::ui
             {
                 parent_ptr->reflow<Forced>();
             }
-            else change<e2::area>(region);
+            else change(region);
         }
         // base: Remove the form from the visual tree.
         void detach()
@@ -896,14 +873,14 @@ namespace netxs::ui
         }
         void alignment(bind atgrow, bind atcrop = {})
         {
-            //base::atgrow = atgrow;
-            //base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
-            //base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+            base::atgrow = atgrow;
+            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
+            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
         }
         void setpad(dent intpad, dent extpad = {})
         {
-            //base::intpad = intpad;
-            //base::extpad = extpad;
+            base::intpad = intpad;
+            base::extpad = extpad;
         }
         // base.: Render to the canvas. Trim = trim viewport to the client area.
         void render(face& canvas, twod const& offset_coor, bool trim = true)

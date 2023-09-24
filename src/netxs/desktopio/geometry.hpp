@@ -199,16 +199,16 @@ namespace netxs
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
         bool operator == (rect const&) const = default;
-        explicit operator bool ()              const { return size.x != 0 && size.y != 0;       }
-        auto   center          ()              const { return coor + size / 2;                  }
-        auto   area            ()              const { return size.x * size.y;                  }
-        twod   map             (twod const& p) const { return p - coor;                         }
-        rect   shift           (twod const& p) const { return { coor + p, size };               }
-        auto&  shift_itself    (twod const& p)       { coor += p; return *this;                 }
-        rect   operator &      (rect const& r) const { return clip(r);                          }
-        rect   operator |      (rect const& r) const { return unite(r);                         }
-        void   operator +=     (rect const& r)       { coor += r.coor; size += r.size;          }
-        void   operator -=     (rect const& r)       { coor -= r.coor; size -= r.size;          }
+        explicit operator bool ()              const { return size.x != 0 && size.y != 0;            }
+        auto   center          ()              const { return coor + size / 2;                       }
+        auto   area            ()              const { return size.x * size.y;                       }
+        twod   map             (twod const& p) const { return p - coor;                              }
+        rect   shift           (twod const& p) const { return { coor + p, size };                    }
+        auto&  shift_itself    (twod const& p)       { coor += p; return *this;                      }
+        rect   operator &      (rect const& r) const { return clip(r);                               }
+        rect   operator |      (rect const& r) const { return unite(r);                              }
+        auto&  operator +=     (rect const& r)       { coor += r.coor; size += r.size; return *this; }
+        auto&  operator -=     (rect const& r)       { coor -= r.coor; size -= r.size; return *this; }
 
         // rect: Is the point inside the rect.
         bool hittest(twod const& p) const

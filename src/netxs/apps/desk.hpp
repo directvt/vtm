@@ -497,7 +497,7 @@ namespace netxs::app::desk
                     };
                     parent->LISTEN(tier::release, e2::area::any, new_area, tokens)
                     {
-                        ground->base::change<e2::area>(new_area);
+                        ground->base::change(new_area);
                     };
                     parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, tokens, (parent_id = parent->id))
                     {

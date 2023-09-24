@@ -76,7 +76,7 @@ namespace netxs::app::tile
                 {
                     auto area = rect{{ new_area.size.x + 2/*todo resize grip width*/, 0 },
                                      { client->size().x, new_area.size.y }};
-                    client->base::change<e2::area>(area);
+                    client->base::change(area);
                 }
             };
             boss.LISTEN(tier::release, events::enlist, object, memo)

@@ -143,11 +143,8 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, e2::area::any, new_area, memo, (pads))
                 {
-                    what.applet->base::resize(new_area.size + pads);
-                };
-                boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
-                {
-                    unbind();
+                    if (new_area.coor != boss.base::coor()) unbind();
+                    else what.applet->base::resize(new_area.size + pads);
                 };
                 window_ptr->LISTEN(tier::release, e2::form::layout::minimize, gear, memo)
                 {
@@ -159,9 +156,9 @@ namespace netxs::app::vtm
                     unbind();
                     boss.expire<tier::release>(true);
                 };
-                window_ptr->LISTEN(tier::release, e2::coor::any, new_coor, memo)
+                window_ptr->LISTEN(tier::release, e2::area::any, new_area, memo)
                 {
-                    if (coor != new_coor) unbind(type::size);
+                    if (coor != new_area.coor) unbind(type::size);
                 };
 
                 window_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());

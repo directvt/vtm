@@ -2088,7 +2088,6 @@ namespace netxs::ui
                 {
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
                 };
-                boss.LISTEN(tier::release, e2::coor::any, new_coor,      memo) { canvas.move(new_coor); };
                 boss.LISTEN(tier::release, e2::area::any, new_area,      memo) { canvas.area(new_area); };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
@@ -2289,18 +2288,22 @@ namespace netxs::ui
             {
                 LISTEN(tier::preview, e2::area::set, new_area)
                 {
+                    new_area.coor -= base::coor();
                     new_area -= base::intpad;
                     This()->T::deform(new_area);
                     new_area += base::intpad;
+                    new_area.coor += base::coor();
                 };
             }
             if constexpr (requires(rect new_area) { This()->T::inform(new_area); })
             {
                 LISTEN(tier::release, e2::area::any, new_area)
                 {
+                    new_area.coor -= base::coor();
                     new_area -= base::intpad;
                     This()->T::inform(new_area);
                     new_area += base::intpad;
+                    new_area.coor += base::coor();
                 };
             }
         }
@@ -2582,7 +2585,7 @@ namespace netxs::ui
                     size1_y = newsz_y;
                     if (client_1)
                     {
-                        client_1->base::recalc<e2::area>(region_1);
+                        client_1->base::recalc(region_1);
                         split = size1_x;
                         newsz_y = size1_y;
                     }
@@ -2593,7 +2596,7 @@ namespace netxs::ui
                     auto test_size2 = region_2.size;
                     if (client_2)
                     {
-                        client_2->base::recalc<e2::area>(region_2);
+                        client_2->base::recalc(region_2);
                         newsz_y = size2_y;
                     }
                     return test_size2 == region_2.size;
@@ -2613,9 +2616,9 @@ namespace netxs::ui
         }
         void inform(rect new_area)
         {
-            if (client_1) client_1->base::inform<e2::area>(region_1);
-            if (client_2) client_2->base::inform<e2::area>(region_2);
-            if (splitter) splitter->base::inform<e2::area>(region_3);
+            if (client_1) client_1->base::notify(region_1);
+            if (client_2) client_2->base::notify(region_2);
+            if (splitter) splitter->base::notify(region_3);
         }
         void rotate()
         {
@@ -2632,7 +2635,7 @@ namespace netxs::ui
             if (client_1)
             {
                 region_1.coor = dot_00;
-                client_1->base::inform<e2::coor>(region_1.coor);
+                client_1->base::notify(region_1);
             }
             base::reflow();
         }
@@ -2744,7 +2747,7 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     y_size = 0;
-                    client.first->base::recalc<e2::area>(new_area);
+                    client.first->base::recalc(new_area);
                     client.second = new_area;//{ x_size, y_size };
                     if (x_size > x_temp) x_temp = x_size;
                     else                 x_size = x_temp;
@@ -2783,7 +2786,7 @@ namespace netxs::ui
                     //auto& sz_x = updown ? client.second.x : client.second.y;
                     //entry.base::change<e2::size>(twod{ sz_x, sz_y }); //todo revise ?change | inform
                     //entry.base::inform<e2::coor>(new_coor);
-                    entry.base::inform<e2::area>(client.second);
+                    entry.base::notify(client.second);
                     //auto& size = entry.base::size();
                     //sz_x = size.x;
                     //sz_y = size.y;
@@ -2882,7 +2885,7 @@ namespace netxs::ui
             {
                 for (auto& client : subset)
                 {
-                    client->base::recalc<e2::area>(new_area);
+                    client->base::recalc(new_area);
                     new_area.coor = new_coor;
                 }
             };
@@ -2897,7 +2900,7 @@ namespace netxs::ui
         {
             for (auto& client : subset)
             {
-                client->base::inform<e2::area>(new_area);
+                client->base::notify(new_area);
             }
         }
         // cake: Remove the last nested object. Return the object refrence.
@@ -2974,7 +2977,7 @@ namespace netxs::ui
             if (subset.size())
             if (auto client = subset.back())
             {
-                client->base::recalc<e2::area>(new_area);
+                client->base::recalc(new_area);
             }
         }
         // veer: .
@@ -2983,7 +2986,7 @@ namespace netxs::ui
             if (subset.size())
             if (auto client = subset.back())
             {
-                client->base::inform<e2::area>(new_area);
+                client->base::notify(new_area);
             }
         }
         // veer: Return the last object or empty sptr.
@@ -3597,14 +3600,6 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             tokens.clear();
-            item_ptr->LISTEN(tier::preview, e2::coor::any, coor, tokens) // any - To check coor first of all.
-            {
-                scroll<true>(coor);
-            };
-            item_ptr->LISTEN(tier::release, e2::coor::any, coor, tokens)
-            {
-                scroll<faux>(coor);
-            };
             item_ptr->LISTEN(tier::preview, e2::area::any, area, tokens) // any - To check coor first of all.
             {
                 scroll<true>(area.coor);
@@ -4080,7 +4075,7 @@ namespace netxs::ui
             if (client)
             {
                 auto client_area = new_area - intpad;
-                client->base::recalc<e2::area>(client_area);
+                client->base::recalc(client_area);
                 new_area = client_area + intpad;
             }
         }
@@ -4090,7 +4085,7 @@ namespace netxs::ui
             if (client)
             {
                 auto client_area = new_area - intpad;
-                client->base::inform<e2::area>(client_area);
+                client->base::notify(client_area);
             }
         }
         // pads: Attach specified item.
@@ -4277,7 +4272,6 @@ namespace netxs::ui
             //todo cache specific
             canvas.link(bell::id);
             LISTEN(tier::release, e2::area::any, new_area) { canvas.area(new_area); };
-            LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -4417,7 +4411,6 @@ namespace netxs::ui
             //todo cache specific
             canvas.link(bell::id);
             LISTEN(tier::release, e2::area::any, new_area) { canvas.area(new_area); };
-            LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
