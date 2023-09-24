@@ -141,9 +141,9 @@ namespace netxs::app::vtm
                     unbind();
                     boss.expire<tier::preview>(true);
                 };
-                boss.LISTEN(tier::release, e2::size::any, new_size, memo, (pads))
+                boss.LISTEN(tier::release, e2::area::any, new_area, memo, (pads))
                 {
-                    what.applet->base::resize(new_size + pads);
+                    what.applet->base::resize(new_area.size + pads);
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
@@ -1186,9 +1186,9 @@ namespace netxs::app::vtm
                             what.menuid = menuid;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::size::any, new_size)
+                    boss.LISTEN(tier::release, e2::area::any, new_area)
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
+                        boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
                     };
                     auto hide_state = ptr::shared(faux);
                     auto last_state = ptr::shared(faux);

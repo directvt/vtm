@@ -7149,19 +7149,6 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
-        // term: Recalc dimensions.
-        void deform(twod& new_size)
-        {
-            auto& console = *target;
-            auto scroll_coor = origin;
-            new_size = std::max(new_size, dot_11);
-            console.resize_viewport(new_size);
-            console.recalc_pads(base::oversz);
-            scroll(origin);
-            base::anchor += scroll_coor - origin;
-            ipccon.resize(new_size);
-            new_size.y += console.get_basis();
-        }
 
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
@@ -7217,11 +7204,24 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        this->base::inform<e2::size>(scroll_size);
-                        this->base::moveto(scroll_coor);
+                        //todo ? this->base::change<e2::area>(rect{ scroll_coor, scroll_size });
+                        this->base::recalc<e2::coor>(scroll_coor);
+                        this->base::inform<e2::area>(rect{ scroll_coor, scroll_size });
                     }
                     base::deface();
                 }
+            };
+            LISTEN(tier::preview, e2::area::set, new_area)
+            {
+                auto& console = *target;
+                auto scroll_coor = origin;
+                new_area.size = std::max(new_area.size, dot_11);
+                console.resize_viewport(new_area.size);
+                console.recalc_pads(base::oversz);
+                scroll(origin);
+                base::anchor += scroll_coor - origin;
+                ipccon.resize(new_area.size);
+                new_area.size.y += console.get_basis();
             };
             LISTEN(tier::preview, e2::coor::set, new_coor)
             {
@@ -7717,12 +7717,12 @@ namespace netxs::ui
                          if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
                     else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
                 };
-                master.LISTEN(tier::release, e2::size::any, new_size, tokens)
+                master.LISTEN(tier::release, e2::area::any, new_area, tokens)
                 {
                     auto winsize = s11n::syswinsz.freeze().thing.winsize;
-                    if (master.ipccon && winsize != new_size)
+                    if (master.ipccon && winsize != new_area.size)
                     {
-                        s11n::syswinsz.send(master, 0, new_size);
+                        s11n::syswinsz.send(master, 0, new_area.size);
                     }
                 };
             }

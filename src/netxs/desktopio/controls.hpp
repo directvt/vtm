@@ -1054,9 +1054,9 @@ namespace netxs::ui
                     if (foot_live) footer(foot_text);
                     //footer(ansi::jet(bias::right).add("test\nmultiline\nfooter"));
                 };
-                boss.LISTEN(tier::release, e2::size::any, new_size, memo)
+                boss.LISTEN(tier::release, e2::area::any, new_area, memo)
                 {
-                    recalc(new_size);
+                    recalc(new_area.size);
                 };
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
@@ -2089,7 +2089,7 @@ namespace netxs::ui
                     boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor,      memo) { canvas.move(new_coor); };
-                boss.LISTEN(tier::release, e2::size::any, new_size,      memo) { canvas.size(new_size); };
+                boss.LISTEN(tier::release, e2::area::any, new_area,      memo) { canvas.area(new_area); };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
                 {
@@ -2285,19 +2285,32 @@ namespace netxs::ui
                     This()->T::remove(shadow);
                 };
             }
-            if constexpr (requires(twod& new_size) { This()->T::deform(new_size); })
+            if constexpr (requires(rect& new_area) { This()->T::deform(new_area); })
             {
-                LISTEN(tier::preview, e2::size::set, new_size)
+                LISTEN(tier::preview, e2::area::set, new_area)
                 {
-                    This()->T::deform(new_size);
+                    new_area -= base::intpad;
+                    This()->T::deform(new_area);
+                    new_area += base::intpad;
                 };
             }
-            if constexpr (requires(twod new_size) { This()->T::inform(new_size); })
+            if constexpr (requires(rect new_area) { This()->T::inform(new_area); })
             {
-                LISTEN(tier::release, e2::size::any, new_size)
+                LISTEN(tier::release, e2::area::any, new_area)
                 {
-                    This()->T::inform(new_size);
+                    new_area -= base::intpad;
+                    This()->T::inform(new_area);
+                    new_area += base::intpad;
                 };
+            }
+        }
+        template<class T>
+        void unmount(std::initializer_list<T> clients)
+        {
+            static auto empty = e2::form::upon::vtree::detached.param();
+            for (auto& client : clients)
+            {
+                if (client) client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty); //todo revise: ? To reset shared ptrs (e.g. to parent).
             }
         }
         template<class ...Args>
@@ -2535,24 +2548,7 @@ namespace netxs::ui
 
        ~fork()
         {
-            if (client_1)
-            {
-                auto item_ptr = client_1;
-                client_1.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-            if (client_2)
-            {
-                auto item_ptr = client_2;
-                client_2.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-            if (splitter)
-            {
-                auto item_ptr = splitter;
-                splitter.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
+            unmount({ client_1, client_2, splitter });
         }
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
         {
@@ -2569,14 +2565,14 @@ namespace netxs::ui
                 if (client_2) client_2->render(parent_canvas, basis);
             };
         }
-        void deform(twod& new_size)
+        void deform(rect& new_area)
         {
-           auto meter = [&](auto& newsz_x, auto& newsz_y,
-                            auto& size1_x, auto& size1_y,
-                            auto& coor2_x, auto& coor2_y,
-                            auto& size2_x, auto& size2_y,
-                            auto& coor3_x, auto& coor3_y,
-                            auto& size3_x, auto& size3_y)
+            auto meter = [&](auto& newsz_x, auto& newsz_y,
+                             auto& size1_x, auto& size1_y,
+                             auto& coor2_x, auto& coor2_y,
+                             auto& size2_x, auto& size2_y,
+                             auto& coor3_x, auto& coor3_y,
+                             auto& size3_x, auto& size3_y)
             {
                 auto limit = std::max(newsz_x - size3_x, 0);
                 auto split = netxs::divround(limit * fraction, max_ratio);
@@ -2586,16 +2582,18 @@ namespace netxs::ui
                     size1_y = newsz_y;
                     if (client_1)
                     {
-                        client_1->base::recalc<e2::size>(region_1.size);
+                        client_1->base::recalc<e2::area>(region_1);
                         split = size1_x;
                         newsz_y = size1_y;
                     }
                     size2_x = limit - split;
                     size2_y = newsz_y;
+                    coor2_x = split + size3_x;
+                    coor2_y = 0;
                     auto test_size2 = region_2.size;
                     if (client_2)
                     {
-                        client_2->base::recalc<e2::size>(region_2.size);
+                        client_2->base::recalc<e2::area>(region_2);
                         newsz_y = size2_y;
                     }
                     return test_size2 == region_2.size;
@@ -2603,33 +2601,21 @@ namespace netxs::ui
                 auto ok = test();
                 split = newsz_x - size3_x - size2_x;
                 if (!ok) test(); // Repeat if client_2 doesn't fit.
-                coor2_x = split + size3_x;
-                coor2_y = 0;
                 coor3_x = split;
                 coor3_y = 0;
                 size3_y = newsz_y;
                 if (adaptive) _config_ratio(split, size2_x);
                 newsz_x = split + size3_x + size2_x;
             };
+            auto& new_size = new_area.size;
             rotation == axis::X ? meter(new_size.x, new_size.y, region_1.size.x, region_1.size.y, region_2.coor.x, region_2.coor.y, region_2.size.x, region_2.size.y, region_3.coor.x, region_3.coor.y, region_3.size.x, region_3.size.y)
                                 : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
         }
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
-            if (client_1)
-            {
-                client_1->base::inform<e2::size>(region_1.size);
-            }
-            if (client_2)
-            {
-                client_2->base::inform<e2::size>(region_2.size);
-                client_2->base::inform<e2::coor>(region_2.coor);
-            }
-            if (splitter)
-            {
-                splitter->base::inform<e2::size>(region_3.size);
-                splitter->base::inform<e2::coor>(region_3.coor);
-            }
+            if (client_1) client_1->base::inform<e2::area>(region_1);
+            if (client_2) client_2->base::inform<e2::area>(region_2);
+            if (splitter) splitter->base::inform<e2::area>(region_3);
         }
         void rotate()
         {
@@ -2703,7 +2689,7 @@ namespace netxs::ui
     class list
         : public form<list>
     {
-        using book = std::list<std::pair<sptr, twod>>;
+        using book = std::list<std::pair<sptr, rect>>;
 
         book subset; // list Content.
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
@@ -2742,9 +2728,12 @@ namespace netxs::ui
                 }
             };
         }
-        void deform(twod& new_size)
+        // list: .
+        void deform(rect& new_area)
         {
-            auto  height = si32{};
+            auto& client_area = new_area;
+            auto& new_size = client_area.size;
+            auto& height = updown ? client_area.coor.y : client_area.coor.x;
             auto& y_size = updown ? new_size.y : new_size.x;
             auto& x_size = updown ? new_size.x : new_size.y;
             auto  x_temp = x_size;
@@ -2755,8 +2744,8 @@ namespace netxs::ui
                 for (auto& client : subset)
                 {
                     y_size = 0;
-                    client.first->base::recalc<e2::size>(new_size);
-                    client.second = { x_size, y_size };
+                    client.first->base::recalc<e2::area>(new_area);
+                    client.second = new_area;//{ x_size, y_size };
                     if (x_size > x_temp) x_temp = x_size;
                     else                 x_size = x_temp;
                     height += y_size;
@@ -2765,39 +2754,42 @@ namespace netxs::ui
             meter(); if (subset.size() > 1 && x_temp != x_size) meter();
             y_size = height;
         }
-        void inform(twod new_size)
+        // list: .
+        void inform(rect new_area)
         {
+            //auto& new_size = new_area.size;
             auto new_coor = twod{};
-            auto& y_size = updown ? new_size.y : new_size.x;
-            auto& x_size = updown ? new_size.x : new_size.y;
+            //auto& y_size = updown ? new_size.y : new_size.x;
+            //auto& x_size = updown ? new_size.x : new_size.y;
             auto& y_coor = updown ? new_coor.y : new_coor.x;
-            auto& x_coor = updown ? new_coor.x : new_coor.y;
+            //auto& x_coor = updown ? new_coor.x : new_coor.y;
             auto found = faux;
             for (auto& client : subset)
             {
-                y_size = client.second.y;
+                //y_size = updown ? client.second.size.y : client.second.size.x;
                 if (client.first)
                 {
                     auto& entry = *client.first;
-                    if (!found)
+                    if (!found) //todo optimize by comparing with y_coor by height.
                     {
-                        //todo optimize: use the only one axis to hittest
-                        //todo detect client during preview, use wptr
-                        auto& anker = entry.base::area();
+                        auto& anker = entry.base::area(); // Use old object position.
                         if (anker.hittest(base::anchor))
                         {
                             found = true;
                             base::anchor += new_coor - anker.coor;
                         }
                     }
-                    auto& sz_y = updown ? client.second.y : client.second.x;
-                    auto& sz_x = updown ? client.second.x : client.second.y;
-                    entry.base::change<e2::size>(twod{ sz_x, sz_y }); //todo revise ?change | inform
-                    entry.base::inform<e2::coor>(new_coor);
-                    auto& size = entry.base::size();
-                    sz_x = size.x;
-                    sz_y = size.y;
-                    y_coor += client.second.y;
+                    //auto& sz_y = updown ? client.second.y : client.second.x;
+                    //auto& sz_x = updown ? client.second.x : client.second.y;
+                    //entry.base::change<e2::size>(twod{ sz_x, sz_y }); //todo revise ?change | inform
+                    //entry.base::inform<e2::coor>(new_coor);
+                    entry.base::inform<e2::area>(client.second);
+                    //auto& size = entry.base::size();
+                    //sz_x = size.x;
+                    //sz_y = size.y;
+                    //y_coor += client.second.size.y;
+                    auto y_size = updown ? client.second.size.y : client.second.size.x;
+                    y_coor += y_size;
                 }
             }
         }
@@ -2820,8 +2812,8 @@ namespace netxs::ui
         auto attach(T item_ptr)
         {
             auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
-            if (order == sort::reverse) subset.push_front({ item_ptr, dot_00 });
-            else                        subset.push_back ({ item_ptr, dot_00 });
+            if (order == sort::reverse) subset.push_front({ item_ptr, rect_00 });
+            else                        subset.push_back ({ item_ptr, rect_00 });
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
@@ -2849,7 +2841,7 @@ namespace netxs::ui
                 auto backup = This();
                 auto pos = subset.erase(iter);
                 old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                subset.insert(pos, std::pair{ new_item_ptr, dot_00 });
+                subset.insert(pos, std::pair{ new_item_ptr, rect_00 });
                 new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
             }
         }
@@ -2883,21 +2875,29 @@ namespace netxs::ui
             };
         }
         // cake: .
-        void deform(twod& new_size)
+        void deform(rect& new_area)
         {
-            auto saved = new_size;
+            auto new_coor = new_area.coor;
             auto meter = [&]
             {
-                for (auto& client : subset) client->base::recalc<e2::size>(new_size);
+                for (auto& client : subset)
+                {
+                    client->base::recalc<e2::area>(new_area);
+                    new_area.coor = new_coor;
+                }
             };
-            meter(); if (subset.size() > 1 && saved != new_size) meter();
+            meter();
+            //if (subset.size() > 1 && new_size != new_area.size)
+            //{
+            //    meter();
+            //}
         }
         // cake: .
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
             for (auto& client : subset)
             {
-                client->base::inform<e2::size>(new_size);
+                client->base::inform<e2::area>(new_area);
             }
         }
         // cake: Remove the last nested object. Return the object refrence.
@@ -2969,21 +2969,21 @@ namespace netxs::ui
             };
         }
         // veer: .
-        void deform(twod& new_size)
+        void deform(rect& new_area)
         {
             if (subset.size())
             if (auto client = subset.back())
             {
-                client->base::recalc<e2::size>(new_size);
+                client->base::recalc<e2::area>(new_area);
             }
         }
         // veer: .
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
             if (subset.size())
             if (auto client = subset.back())
             {
-                client->base::inform<e2::size>(new_size);
+                client->base::inform<e2::area>(new_area);
             }
         }
         // veer: Return the last object or empty sptr.
@@ -3143,20 +3143,21 @@ namespace netxs::ui
             };
         }
         // post: .
-        void deform(twod& new_size)
+        void deform(rect& new_area)
         {
+            auto& new_size = new_area.size;
             recalc(new_size);
             new_size.y = width.y;
         }
         // post: .
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
             //if (width != new_size)
             //{
             //	recalc(new_size);
             //	//width.y = new_size.y;
             //}
-            width = new_size;
+            width = new_area.size;
         }
         // post: .
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
@@ -3167,7 +3168,7 @@ namespace netxs::ui
         {
             source = utf8;
             topic = utf8;
-            base::resize(twod{ initial_width, 0 });
+            base::resize(twod{ initial_width, 0 } + base::intpad);
             base::reflow();
             return this->This();
         }
@@ -3292,12 +3293,7 @@ namespace netxs::ui
         }
        ~rail()
         {
-            if (client)
-            {
-                auto item_ptr = client;
-                client.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
+            unmount({ client });
         }
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
             : permit{ xy(allow_to_scroll)  },
@@ -3436,11 +3432,11 @@ namespace netxs::ui
             };
         }
         // rail: Resize nested object.
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
             if (client)
             {
-                client->base::resize(new_size, base::anchor);
+                client->base::resize(new_area.size, base::anchor);
             }
         }
         // rail: .
@@ -3546,7 +3542,7 @@ namespace netxs::ui
             if (client)
             {
                 auto& item = *client;
-                auto frame = base::size();
+                auto frame = base::size(); //todo revise intpad
                 auto block = item.base::size() + item.oversz.summ();
                 auto basis = item.oversz.topleft();
                 coord -= basis; // Scroll origin basis.
@@ -3609,18 +3605,13 @@ namespace netxs::ui
             {
                 scroll<faux>(coor);
             };
-            item_ptr->LISTEN(tier::release, e2::size::any, size, tokens)
+            item_ptr->LISTEN(tier::preview, e2::area::any, area, tokens) // any - To check coor first of all.
             {
-                if (client)
-                {
-                    auto coor = client->base::coor();
-                    auto delta = scroll<true>(coor);
-                                 scroll<faux>(coor);
-                    if (delta)
-                    {
-                        //todo sync
-                    }
-                }
+                scroll<true>(area.coor);
+            };
+            item_ptr->LISTEN(tier::release, e2::area::any, area, tokens)
+            {
+                scroll<faux>(area.coor);
             };
             item_ptr->LISTEN(tier::release, e2::form::upon::vtree::detached, p, tokens)
             {
@@ -4024,9 +4015,10 @@ namespace netxs::ui
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
-        void inform(twod new_size)
+        // gripfx: .
+        void inform(rect new_area)
         {
-            calc.resize(new_size);
+            calc.resize(new_area.size);
         }
     };
 
@@ -4051,33 +4043,28 @@ namespace netxs::ui
     template<axis Axis>
     using grip = gripfx<Axis, drawfx>;
 
-    // controls: Padding.
+    // controls: deprecated.
     class pads
         : public form<pads>
     {
-        dent padding;
-        dent margins;
+        dent intpad;
+        dent extpad;
 
     public:
         sptr client;
 
        ~pads()
         {
-            if (client)
-            {
-                auto item_ptr = client;
-                client.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
+            unmount({ client });
         }
-        pads(dent const& padding_value = {}, dent const& margins_value = {})
-            : padding{ padding_value },
-              margins{ margins_value }
+        pads(dent const& intpad_value = {}, dent const& extpad_value = {})
+            : intpad{ intpad_value },
+              extpad{ extpad_value }
         {
             LISTEN(tier::release, e2::render::prerender, parent_canvas)
             {
                 auto view = parent_canvas.view();
-                parent_canvas.view(view + margins);
+                parent_canvas.view(view + extpad);
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
                 parent_canvas.view(view);
                 if (client)
@@ -4088,24 +4075,22 @@ namespace netxs::ui
             };
         }
         // pads: .
-        void deform(twod& new_size)
+        void deform(rect& new_area)
         {
             if (client)
             {
-                auto client_size = new_size - padding;
-                client->base::recalc<e2::size>(client_size);
-                new_size = client_size + padding;
+                auto client_area = new_area - intpad;
+                client->base::recalc<e2::area>(client_area);
+                new_area = client_area + intpad;
             }
         }
         // pads: .
-        void inform(twod new_size)
+        void inform(rect new_area)
         {
             if (client)
             {
-                auto client_size = new_size - padding;
-                auto client_coor = padding.corner();
-                client->base::inform<e2::size>(client_size);
-                client->base::inform<e2::coor>(client_coor);
+                auto client_area = new_area - intpad;
+                client->base::inform<e2::area>(client_area);
             }
         }
         // pads: Attach specified item.
@@ -4198,10 +4183,11 @@ namespace netxs::ui
                 }
             };
         }
-        void deform(twod& new_size)
+        // item: .
+        void deform(rect& new_area)
         {
-            new_size.x = flex ? new_size.x : data.size().x;
-            new_size.y = std::max(data.size().y, new_size.y);
+            new_area.size.x = flex ? new_area.size.x : data.size().x;
+            new_area.size.y = std::max(data.size().y, new_area.size.y);
         }
         auto flexible(bool b = true) { flex = b; return This(); }
         auto drawdots(bool b = true) { test = b; return This(); }
@@ -4279,9 +4265,10 @@ namespace netxs::ui
             recalc();
             return box_len;
         }
-        void deform(twod& new_size)
+        // stem_rate_grip: .
+        void deform(rect& new_area)
         {
-            new_size = box_len; // Suppress resize.
+            new_area.size = box_len; // Suppress resize.
         }
 
         stem_rate_grip(view sfx_string)
@@ -4289,7 +4276,7 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::size::any, new_size) { canvas.size(new_size); };
+            LISTEN(tier::release, e2::area::any, new_area) { canvas.area(new_area); };
             LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
@@ -4429,7 +4416,7 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::size::any, new_size) { canvas.size(new_size); };
+            LISTEN(tier::release, e2::area::any, new_area) { canvas.area(new_area); };
             LISTEN(tier::release, e2::coor::any, new_coor) { canvas.move(new_coor); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
@@ -4522,7 +4509,7 @@ namespace netxs::ui
                 };
                 recalc();
             };
-            LISTEN(tier::release, e2::size::any, size)
+            LISTEN(tier::release, e2::area::any, new_area)
             {
                 recalc();
             };

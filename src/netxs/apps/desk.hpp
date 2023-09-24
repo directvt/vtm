@@ -495,9 +495,9 @@ namespace netxs::app::desk
                         previous_default.clear();
                         tokens.clear();
                     };
-                    parent->LISTEN(tier::release, e2::size::any, new_size, tokens)
+                    parent->LISTEN(tier::release, e2::area::any, new_area, tokens)
                     {
-                        ground->base::resize(new_size);
+                        ground->base::change<e2::area>(new_area);
                     };
                     parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, tokens, (parent_id = parent->id))
                     {

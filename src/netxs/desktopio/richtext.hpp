@@ -2255,10 +2255,20 @@ namespace netxs::ui
         face& tab(si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
         face& eol(si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
 
-        void size(twod const& newsize) // face: Change the size of the face/core.
+        auto& area() const // face: Return core::region/area.
         {
-            core::size(newsize);
-            flow::size(newsize);
+            return core::area();
+        }
+        void area(rect const& new_area) // face: Change the area of the face/core.
+        {
+            core::move(new_area.coor);
+            core::size(new_area.size);
+            flow::size(new_area.size);
+        }
+        void size(twod const& new_size) // face: Change the size of the face/core.
+        {
+            core::size(new_size);
+            flow::size(new_size);
         }
         auto size() // face: Return size of the face/core.
         {

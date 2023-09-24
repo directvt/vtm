@@ -457,9 +457,12 @@ namespace netxs
             set(left_right.first, left_right.second);
         }
         auto topleft() const { return twod{ l, t };                       }
+
+        //todo drop summ. it is a dent fns
         auto summ   () const { return twod{ l + r, t + b };               }
         auto vsumm  () const { return b + t;                              }
         auto hsumm  () const { return r + l;                              }
+
         auto height () const { return b - t;                              }
         auto width  () const { return r - l;                              }
         auto area   () const { return rect{ { l, t }, { r - l, b - t } }; }
@@ -482,7 +485,7 @@ namespace netxs
         }
     };
 
-    // geometry: Padding, space around an element's content.
+    // geometry: Padding, space around object.
     struct dent
     {
         template<auto Just>

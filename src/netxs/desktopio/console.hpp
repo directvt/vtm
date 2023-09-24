@@ -496,8 +496,7 @@ namespace netxs::ui
             {
                 xmap.cmode = props.vtmode;
                 xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
-                xmap.move(boss.base::coor());
-                xmap.size(boss.base::size());
+                xmap.area(boss.base::area());
                 boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
                 {
                     auto data = escx{};
@@ -512,10 +511,10 @@ namespace netxs::ui
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.mark(filler);
                 };
-                boss.LISTEN(tier::release, e2::size::any, new_size, memo)
+                boss.LISTEN(tier::release, e2::area::any, new_area, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.size(new_size);
+                    xmap.area(new_area);
                 };
                 boss.LISTEN(tier::release, e2::coor::any, new_coor, memo)
                 {
@@ -721,9 +720,9 @@ namespace netxs::ui
                     update(f.state);
                     boss.base::strike();
                 };
-                boss.LISTEN(tier::release, e2::size::any, new_size, tokens)
+                boss.LISTEN(tier::release, e2::area::any, new_area, tokens)
                 {
-                    update(new_size);
+                    update(new_area.size);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
                 {
@@ -1183,13 +1182,14 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
             {
-                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_size);
+                auto new_area = rect{ dot_00, new_size };
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
                 auto delta = base::resize(new_size);
                 if (delta && direct) paint.cancel();
             };
-            LISTEN(tier::release, e2::size::any, new_size, tokens)
+            LISTEN(tier::release, e2::area::any, new_area, tokens)
             {
-                if (applet) applet->base::resize(new_size);
+                if (applet) applet->base::change<e2::area>(new_area);
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {

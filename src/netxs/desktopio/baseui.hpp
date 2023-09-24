@@ -35,9 +35,9 @@ namespace netxs::ui
     enum class snap
     {
         none,
-        both,
         head,
         tail,
+        both,
         center,
     };
 
@@ -48,7 +48,7 @@ namespace netxs::ui
         none   = 0,
         X_only = 1 << 0,
         Y_only = 1 << 1,
-        all    = (X_only | Y_only),
+        all    = X_only | Y_only,
     };
     constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
 
@@ -87,7 +87,8 @@ namespace netxs::events::userland
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
-            GROUP_XS( size      , twod           ), // release: Object size.
+            GROUP_XS( area      , rect           ), // release: Object rectangle.
+            GROUP_XS( size      , twod           ), //todo deprecated: release: Object size.
             GROUP_XS( coor      , twod           ), // release: Object coor.
             GROUP_XS( form      , bool           ),
             GROUP_XS( data      , si32           ),
@@ -120,13 +121,17 @@ namespace netxs::events::userland
             {
                 EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
             };
+            SUBSET_XS( area )
+            {
+                EVENT_XS( set, rect ), // preview: request new area for object. release: apply new area to object.
+            };
             SUBSET_XS( size )
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object;
+                EVENT_XS( set, twod ), //todo deprecated: preview: checking by object; release: apply new area to object.
             };
             SUBSET_XS( coor )
             {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object;
+                EVENT_XS( set, twod ), // preview: request new position for object. release: apply new position to object.
             };
             SUBSET_XS( config )
             {
@@ -244,7 +249,7 @@ namespace netxs::events::userland
                 {
                     EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
                     EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
-                    EVENT_XS( resized, const twod     ), // anycast: notify about the actual window size.
+                    EVENT_XS( resized, const rect     ), // anycast: notify about the actual window area.
                     EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
                     EVENT_XS( dragged, input::hids    ), // event after drag.
                     EVENT_XS( stopped, bool           ), // release: notify that the main reading loop has exited. arg bool: fast or not.
@@ -590,20 +595,28 @@ namespace netxs::ui
         };
 
         wptr father; // base: Parental visual tree weak-pointer.
-        cell filler; //todo deprecated: base: Object color.
         rect region; // base: Region allocated for object.
+
+        //todo deprecated
+        cell filler; // base: Object color.
+
+        //todo ?bound rect? ?limits
         twod minlim; // base: Minimal size.
         twod maxlim; // base: Maximal size.
-        //twod minpos; // base: Minimal coor. ?struct lims
-        //twod maxpos; // base: Maximal coor.
-        //bind atgrow; // base: Bindings on enlarging.
-        //bind atcrop; // base: Bindings on shrinking.
+        twod minpos; // base: Minimal coor.
+        twod maxpos; // base: Maximal coor.
+
+        dent extpad; // base: Pads around object.
+        dent intpad; // base: Pads inside object.
+        bind atgrow; // base: Bindings on enlarging.
+        bind atcrop; // base: Bindings on shrinking.
         bool wasted; // base: Should the object be redrawn.
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
         hook relyon; // base: Subscription on parent events.
-        side oversz; // base: Oversize, margin.
+        //todo it is a dent. not a side
+        side oversz; // base: Oversize, for scrolling.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         template<class T = base>
@@ -660,13 +673,19 @@ namespace netxs::ui
             {
                 new_value = std::clamp(new_value, minlim, maxlim);
             }
+            else if constexpr (std::is_same_v<Prop, e2::area>)
+            {
+                new_value.size = std::clamp(new_value.size, minlim, maxlim);
+            }
             SIGNAL(tier::preview, Prop::set, new_value);
         }
         // base: Select property.
         template<class Prop>
         auto& select()
         {
-            return std::is_same_v<Prop, e2::size> ? region.size : region.coor;
+                 if constexpr (std::is_same_v<Prop, e2::area>) return region;
+            else if constexpr (std::is_same_v<Prop, e2::coor>) return region.coor;
+            else if constexpr (std::is_same_v<Prop, e2::size>) return region.size;
         }
         // base: Change property, and return delta.
         template<class Prop, class T>
@@ -679,7 +698,9 @@ namespace netxs::ui
         auto resize(twod new_size)
         {
             auto old_value = region.size;
-            change<e2::size>(new_size);
+            auto area = region;
+            area.size = new_size;
+            change<e2::area>(area);
             return region.size - old_value;
         }
         // base: Move and return delta.
@@ -707,7 +728,9 @@ namespace netxs::ui
         {
             point -= region.coor;
             anchor = point; //todo use dot_00 instead of point
-            change<e2::size>(new_size);
+            auto area = region;
+            area.size = new_size;
+            change<e2::area>(area);
             auto delta = moveby(point - anchor);
             return delta;
         }
@@ -760,7 +783,7 @@ namespace netxs::ui
             {
                 parent_ptr->reflow<Forced>();
             }
-            else change<e2::size>(region.size);
+            else change<e2::area>(region);
         }
         // base: Remove the form from the visual tree.
         void detach()

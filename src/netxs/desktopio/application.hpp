@@ -233,16 +233,16 @@ namespace netxs::app::shared
                 {
                     scrlhint->base::hidden = true;
                     auto slim_status = ptr::shared(menusize);
-                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_size, -, (slim_status))
+                    boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (slim_status))
                     {
                         if (!*slim_status)
                         {
                             auto height = boss.minlim.y;
-                            if (new_size.y < 3)
+                            if (new_area.size.y < 3)
                             {
-                                if (height != new_size.y)
+                                if (height != new_area.size.y)
                                 {
-                                    boss.base::limits({ -1, new_size.y }, { -1, new_size.y });
+                                    boss.base::limits({ -1, new_area.size.y }, { -1, new_area.size.y });
                                 }
                             }
                             else if (height != 3)
