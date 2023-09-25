@@ -5,7 +5,7 @@
 
 namespace netxs::app::tile
 {
-    using backups = std::list<sptr<ui::veer>>;
+    using backups = std::list<netxs::sptr<ui::veer>>;
 }
 
 namespace netxs::events::userland
@@ -15,7 +15,7 @@ namespace netxs::events::userland
         EVENTPACK( tile, ui::e2::extra::slot4 )
         {
             EVENT_XS( backup, app::tile::backups ),
-            EVENT_XS( enlist, sptr<ui::base>     ),
+            EVENT_XS( enlist, ui::sptr           ),
             EVENT_XS( delist, bool               ),
             GROUP_XS( ui    , input::hids        ), // Window manager command pack.
 
@@ -48,6 +48,8 @@ namespace netxs::app::tile
     static constexpr auto inheritance_limit = 30; // Tiling limits.
 
     using events = netxs::events::userland::tile;
+    using ui::sptr;
+    using ui::wptr;
 
     // tile: Right-side item list.
     class items
@@ -57,8 +59,8 @@ namespace netxs::app::tile
         using skill::boss,
               skill::memo;
 
-        sptr<ui::list> client;
-        depth_t        depth;
+        netxs::sptr<ui::list> client;
+        depth_t               depth;
 
     public:
         items(base&&) = delete;
@@ -67,7 +69,6 @@ namespace netxs::app::tile
               depth{ 0    }
         {
             client = ui::list::ctor(axis::Y, ui::sort::reverse);
-
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
             boss.LISTEN(tier::release, e2::area::any, new_area, memo)
@@ -159,13 +160,6 @@ namespace netxs::app::tile
                 log(prompt::tile, "Start depth ", depth);
             };
         }
-       ~items()
-        {
-            if (client)
-            {
-                client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-        }
     };
 
     namespace
@@ -174,8 +168,7 @@ namespace netxs::app::tile
         {
             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
             {
-                auto parent_memo = ptr::shared(subs{});
-                parent->LISTEN(tier::anycast, app::tile::events::ui::any, gear, *parent_memo)
+                parent->LISTEN(tier::anycast, app::tile::events::ui::any, gear, boss.relyon)
                 {
                     boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                     if (gear_test.second)
@@ -220,10 +213,6 @@ namespace netxs::app::tile
                             }
                         }
                     }
-                };
-                boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
-                {
-                    parent_memo.reset();
                 };
             };
         };
@@ -482,7 +471,7 @@ namespace netxs::app::tile
                     menu_block->alignment({ snap::head, snap::head })
                 );
         };
-        auto empty_slot = [](auto&& empty_slot, auto min_state) -> sptr<ui::veer>
+        auto empty_slot = [](auto&& empty_slot, auto min_state) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
@@ -572,8 +561,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                     {
-                        auto parent_memo = ptr::shared<subs>();
-                        parent->LISTEN(tier::request, e2::form::proceed::swap, item_ptr, *parent_memo)
+                        parent->LISTEN(tier::request, e2::form::proceed::swap, item_ptr, boss.relyon)
                         {
                             if (item_ptr != boss.This())
                             {
@@ -596,10 +584,6 @@ namespace netxs::app::tile
                                     parent->bell::template expire<tier::request>();
                                 }
                             }
-                        };
-                        boss.LISTEN(tier::request /*swap specific*/, e2::form::upon::vtree::detached, parent, *parent_memo, (parent_memo))
-                        {
-                            parent_memo.reset();
                         };
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -757,7 +741,7 @@ namespace netxs::app::tile
                 })
                 ->branch(empty_pane());
         };
-        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> sptr<ui::veer>
+        auto parse_data = [](auto&& parse_data, view& utf8, auto min_ratio) -> netxs::sptr<ui::veer>
         {
             auto slot = empty_slot(empty_slot, min_ratio);
             utf::trim_front(utf8, ", ");
@@ -821,7 +805,7 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text cwd, view param, xmls& config, text patch) -> sptr<base>
+        auto build_inst = [](text cwd, view param, xmls& config, text patch) -> sptr
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -1021,7 +1005,7 @@ namespace netxs::app::tile
                             if (deed == app::tile::events::ui::swap.id)
                             {
                                 auto empty_slot_list = backups{};
-                                auto proc = e2::form::proceed::functor.param([&](sptr<base> item_ptr)
+                                auto proc = e2::form::proceed::functor.param([&](sptr item_ptr)
                                 {
                                     item_ptr->SIGNAL(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                                     if (gear_test.second)
@@ -1034,13 +1018,12 @@ namespace netxs::app::tile
                                 log(prompt::tile, "Slots count:", slots_count);
                                 if (slots_count >= 2) // Swap selected panes cyclically.
                                 {
-                                    using slot = sptr<base>;
                                     log(prompt::tile, "Swap slots cyclically");
                                     auto i = 0;
-                                    auto emp_slot = slot{};
-                                    auto app_slot = slot{};
-                                    auto emp_next = slot{};
-                                    auto app_next = slot{};
+                                    auto emp_slot = sptr{};
+                                    auto app_slot = sptr{};
+                                    auto emp_next = sptr{};
+                                    auto app_next = sptr{};
                                     for (auto& s : empty_slot_list)
                                     {
                                         if (s->count() == 1) // empty only

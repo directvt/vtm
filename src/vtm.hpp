@@ -9,10 +9,11 @@
 namespace netxs::app::vtm
 {
     static constexpr auto id = "vtm";
+    using ui::sptr;
+    using ui::wptr;
 
     struct link
     {
-        using sptr = netxs::sptr<base>;
         text menuid{};
         text kindid{};
         text header{};
@@ -55,18 +56,18 @@ namespace netxs::app::vtm
     {
         EVENTPACK( events, ui::e2::extra::slot1 )
         {
-            EVENT_XS( newapp  , link       ), // request: create new object using specified meniid.
-            EVENT_XS( apptype , link       ), // request: ask app type.
-            EVENT_XS( handoff , link       ), // general: attach spcified intance and return sptr<base>.
-            EVENT_XS( attached, sptr<base> ), // anycast: inform that the object tree is attached to the world.
-            GROUP_XS( d_n_d   , sptr<base> ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
-            GROUP_XS( gate    , sptr<base> ),
+            EVENT_XS( newapp  , link ), // request: create new object using specified meniid.
+            EVENT_XS( apptype , link ), // request: ask app type.
+            EVENT_XS( handoff , link ), // general: attach spcified intance and return sptr.
+            EVENT_XS( attached, sptr ), // anycast: inform that the object tree is attached to the world.
+            GROUP_XS( d_n_d   , sptr ), // drag&drop functionality. See tiling manager empty slot and pro::d_n_d.
+            GROUP_XS( gate    , sptr ),
 
             SUBSET_XS(d_n_d)
             {
-                EVENT_XS( ask  , sptr<base> ),
-                EVENT_XS( abort, sptr<base> ),
-                EVENT_XS( drop , link       ),
+                EVENT_XS( ask  , sptr ),
+                EVENT_XS( abort, sptr ),
+                EVENT_XS( drop , link ),
             };
             SUBSET_XS(gate)
             {
@@ -91,15 +92,15 @@ namespace netxs::app::vtm
 
         public:
             //todo revise
-            wptr<base>& nexthop;
-            wptr<base> saved;
+            wptr& nexthop;
+            wptr saved;
             link what; // align: Original window properties.
             rect prev; // align: Window size before the fullscreen has applied.
             twod coor; // align: Coor tracking.
             hook maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
-            align(base& boss, wptr<base>& nexthop, bool maximize = true)
+            align(base& boss, wptr& nexthop, bool maximize = true)
                 : skill{ boss },
                   nexthop{ nexthop}
             {
@@ -205,7 +206,6 @@ namespace netxs::app::vtm
             using skill::boss,
                   skill::memo;
 
-            subs  link;
             robot robo;
             zpos  seat;
 
@@ -217,22 +217,17 @@ namespace netxs::app::vtm
             {
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, memo)
                 {
-                    parent->LISTEN(tier::preview, e2::form::global::lucidity, alpha, link)
+                    parent->LISTEN(tier::preview, e2::form::global::lucidity, alpha, boss.relyon)
                     {
                         boss.SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                     };
-                    parent->LISTEN(tier::preview, e2::form::layout::convey, convey_data, link)
+                    parent->LISTEN(tier::preview, e2::form::layout::convey, convey_data, boss.relyon)
                     {
                         convey(convey_data.delta, convey_data.stuff);
                     };
-                    parent->LISTEN(tier::preview, e2::form::layout::shift, delta, link)
+                    parent->LISTEN(tier::preview, e2::form::layout::shift, delta, boss.relyon)
                     {
-                        //boss.base::coor += delta;
                         boss.moveby(delta);
-                    };
-                    parent->LISTEN(tier::preview, e2::form::upon::vtree::detached, p, link)
-                    {
-                        frame::link.clear();
                     };
                     boss.SIGNAL(tier::release, e2::form::prop::zorder, seat);
                 };
@@ -602,7 +597,6 @@ namespace netxs::app::vtm
         class d_n_d
             : public skill
         {
-            using wptr = netxs::wptr<base>;
             using skill::boss,
                   skill::memo;
 

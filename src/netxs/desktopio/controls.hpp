@@ -380,13 +380,13 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            list       items;
-            wptr<base> dest_shadow;
-            sptr<base> dest_object;
+            list items;
+            wptr dest_shadow;
+            sptr dest_object;
 
         public:
             mover(base&&) = delete;
-            mover(base& boss, sptr<base> subject)
+            mover(base& boss, sptr subject)
                 : skill{ boss },
                   items{ boss },
                   dest_shadow{ subject }
@@ -1213,7 +1213,7 @@ namespace netxs::ui
                 bool active{}; // focus: The chain is under the focus.
                 bool focused{}; // focus: Focused endpoint.
                 hook token; // focus: Cleanup token.
-                std::list<wptr<base>> next; // focus: Focus event next hop.
+                std::list<wptr> next; // focus: Focus event next hop.
 
                 template<class P>
                 auto foreach(P proc)
@@ -1289,7 +1289,7 @@ namespace netxs::ui
             friend auto operator ==(si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
 
             template<class T>
-            static void set(sptr<base> item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
+            static void set(sptr item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
             {
                 auto fire = [&](auto id)
                 {
@@ -1300,7 +1300,7 @@ namespace netxs::ui
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
             template<class T>
-            static void off(sptr<base> item_ptr, T&& gear_id)
+            static void off(sptr item_ptr, T&& gear_id)
             {
                 auto fire = [&](auto id)
                 {
@@ -1310,13 +1310,13 @@ namespace netxs::ui
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
-            static void off(sptr<base> item_ptr)
+            static void off(sptr item_ptr)
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 pro::focus::off(item_ptr, gear_id_list);
                 //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
             }
-            static auto get(sptr<base> item_ptr, bool remove_default = faux)
+            static auto get(sptr item_ptr, bool remove_default = faux)
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 for (auto next_id : gear_id_list)
@@ -1732,12 +1732,12 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
-            si32       rent; // mouse: Active gears count.
-            si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
-            si32       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
-            list       mice; // mouse: List of active mice.
+            sptr soul; // mouse: Boss cannot be removed while it has active gears.
+            si32 rent; // mouse: Active gears count.
+            si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
+            bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
+            si32 drag; // mouse: Bitfield of buttons subscribed to mouse drag.
+            list mice; // mouse: List of active mice.
             std::map<si32, subs> dragmemo; // mouse: Draggable subs.
 
         public:
@@ -1991,7 +1991,7 @@ namespace netxs::ui
 
         public:
             fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms, sptr<base> tracking_object = {})
+            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms, sptr tracking_object = {})
                 : skill{ boss },
                 robo{ boss },
                 fade{ fade_out },
@@ -2051,9 +2051,9 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            sptr<face> coreface;
-            byte       lucidity;
-            bool       usecache;
+            netxs::sptr<face> coreface;
+            byte              lucidity;
+            bool              usecache;
 
         public:
             face& canvas; // cache: Bitmap cache.
@@ -2269,53 +2269,45 @@ namespace netxs::ui
         std::map<id_t, subs> memomap; // form: Token set for dependent subscriptions.
 
     public:
-        using sptr = netxs::sptr<base>;
-
         pro::mouse mouse{ *this }; // form: Mouse controller.
         //pro::keybd keybd{ *this }; // form: Keybd controller.
 
-        auto This() { return base::This<T>(); }
+    protected:
         form()
         {
-            if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { This()->T::remove(shadow); })
+            if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { base::This<T>()->T::remove(shadow); })
             {
                 LISTEN(tier::preview, e2::form::proceed::detach, shadow)
                 {
-                    This()->T::remove(shadow);
+                    base::This<T>()->T::remove(shadow);
                 };
             }
-            if constexpr (requires(rect& new_area) { This()->T::deform(new_area); })
+            if constexpr (requires(rect& new_area) { base::This<T>()->T::deform(new_area); })
             {
                 LISTEN(tier::preview, e2::area::set, new_area)
                 {
                     new_area.coor -= base::coor();
                     new_area -= base::intpad;
-                    This()->T::deform(new_area);
+                    base::This<T>()->T::deform(new_area);
                     new_area += base::intpad;
                     new_area.coor += base::coor();
                 };
             }
-            if constexpr (requires(rect new_area) { This()->T::inform(new_area); })
+            if constexpr (requires(rect new_area) { base::This<T>()->T::inform(new_area); })
             {
                 LISTEN(tier::release, e2::area::any, new_area)
                 {
                     new_area.coor -= base::coor();
                     new_area -= base::intpad;
-                    This()->T::inform(new_area);
+                    base::This<T>()->T::inform(new_area);
                     new_area += base::intpad;
                     new_area.coor += base::coor();
                 };
             }
         }
-        template<class T>
-        void unmount(std::initializer_list<T> clients)
-        {
-            static auto empty = e2::form::upon::vtree::detached.param();
-            for (auto& client : clients)
-            {
-                if (client) client->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty); //todo revise: ? To reset shared ptrs (e.g. to parent).
-            }
-        }
+
+    public:
+        auto This() { return base::This<T>(); }
         template<class ...Args>
         static auto ctor(Args&&... args)
         {
@@ -2525,34 +2517,7 @@ namespace netxs::ui
                            : max_ratio >> 1;
         }
 
-    public:
-        static constexpr auto min_ratio = si32{ 0           };
-        static constexpr auto max_ratio = si32{ 0xFFFF      };
-        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
-
-        auto get_ratio()
-        {
-            return fraction;
-        }
-        auto set_ratio(si32 new_ratio = max_ratio)
-        {
-            fraction = new_ratio;
-        }
-        void config(si32 s1, si32 s2 = 1)
-        {
-            _config_ratio(s1, s2);
-            base::reflow();
-        }
-        auto config(axis orientation, si32 grip_width, si32 s1, si32 s2)
-        {
-            _config(orientation, grip_width, s1, s2);
-            return This();
-        }
-
-       ~fork()
-        {
-            unmount({ client_1, client_2, splitter });
-        }
+    protected:
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
         {
             _config(orientation, grip_width, s1, s2);
@@ -2568,6 +2533,7 @@ namespace netxs::ui
                 if (client_2) client_2->render(parent_canvas, basis);
             };
         }
+        // forkL .
         void deform(rect& new_area)
         {
             auto meter = [&](auto& newsz_x, auto& newsz_y,
@@ -2614,11 +2580,36 @@ namespace netxs::ui
             rotation == axis::X ? meter(new_size.x, new_size.y, region_1.size.x, region_1.size.y, region_2.coor.x, region_2.coor.y, region_2.size.x, region_2.size.y, region_3.coor.x, region_3.coor.y, region_3.size.x, region_3.size.y)
                                 : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
         }
+        // fork: .
         void inform(rect new_area)
         {
             if (client_1) client_1->base::notify(region_1);
             if (client_2) client_2->base::notify(region_2);
             if (splitter) splitter->base::notify(region_3);
+        }
+
+    public:
+        static constexpr auto min_ratio = si32{ 0           };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
+
+        auto get_ratio()
+        {
+            return fraction;
+        }
+        auto set_ratio(si32 new_ratio = max_ratio)
+        {
+            fraction = new_ratio;
+        }
+        void config(si32 s1, si32 s2 = 1)
+        {
+            _config_ratio(s1, s2);
+            base::reflow();
+        }
+        auto config(axis orientation, si32 grip_width, si32 s1, si32 s2)
+        {
+            _config(orientation, grip_width, s1, s2);
+            return This();
         }
         void rotate()
         {
@@ -2698,26 +2689,7 @@ namespace netxs::ui
         bool updown; // list: List orientation, true: vertical(default), faux: horizontal.
         sort lineup; // list: Attachment order.
 
-    public:
-        void clear()
-        {
-            auto backup = This();
-            while (subset.size())
-            {
-                auto item_ptr = subset.back().first;
-                subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            }
-        }
-       ~list()
-        {
-            while (subset.size())
-            {
-                auto item_ptr = subset.back().first;
-                subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-        }
+    protected:
         list(axis orientation = axis::Y, sort attach_order = sort::forward)
             : updown{ orientation == axis::Y },
               lineup{ attach_order }
@@ -2796,6 +2768,18 @@ namespace netxs::ui
                 }
             }
         }
+
+    public:
+        void clear()
+        {
+            auto backup = This();
+            while (subset.size())
+            {
+                auto item_ptr = subset.back().first;
+                subset.pop_back();
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
         // list: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
@@ -2856,16 +2840,7 @@ namespace netxs::ui
     {
         std::list<sptr> subset;
 
-    public:
-       ~cake()
-        {
-            while (subset.size())
-            {
-                auto client_ptr = subset.back();
-                subset.pop_back();
-                client_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-        }
+    protected: 
         cake()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -2903,6 +2878,8 @@ namespace netxs::ui
                 client->base::notify(new_area);
             }
         }
+
+    public:
         // cake: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
@@ -2949,16 +2926,7 @@ namespace netxs::ui
     {
         std::list<sptr> subset;
 
-    public:
-       ~veer()
-        {
-            while (subset.size())
-            {
-                auto item_ptr = subset.back();
-                subset.pop_back();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, empty, ());
-            }
-        }
+    protected:
         veer()
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
@@ -2989,6 +2957,8 @@ namespace netxs::ui
                 client->base::notify(new_area);
             }
         }
+
+    public:
         // veer: Return the last object or empty sptr.
         auto back()
         {
@@ -3128,11 +3098,7 @@ namespace netxs::ui
         page_layout layout; // post: .
         bool beyond; // post: Allow vertical scrolling beyond last line.
 
-    public:
-        using post = postfx;
-
-        page topic; // post: Text content.
-
+    protected:
         postfx(bool scroll_beyond = faux)
             : flow{ width },
               beyond{ scroll_beyond }
@@ -3162,6 +3128,9 @@ namespace netxs::ui
             //}
             width = new_area.size;
         }
+
+    public:
+        page topic; // post: Text content.
         // post: .
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         // post: .
@@ -3278,26 +3247,7 @@ namespace netxs::ui
             return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
 
-    public:
-        // rail: .
-        template<axis Axis>
-        auto follow(sptr master = {})
-        {
-            if (master)
-            {
-                master->LISTEN(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
-                {
-                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, master_scinfo);
-                };
-            }
-            else fasten.clear();
-
-            return This();
-        }
-       ~rail()
-        {
-            unmount({ client });
-        }
+    protected:
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
@@ -3442,6 +3392,23 @@ namespace netxs::ui
                 client->base::resize(new_area.size, base::anchor);
             }
         }
+
+    public:
+        // rail: .
+        template<axis Axis>
+        auto follow(sptr master = {})
+        {
+            if (master)
+            {
+                master->LISTEN(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
+                {
+                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, master_scinfo);
+                };
+            }
+            else fasten.clear();
+
+            return This();
+        }
         // rail: .
         void cutoff()
         {
@@ -3514,6 +3481,7 @@ namespace netxs::ui
             if (inside<Axis>()) keepon<Axis>(std::forward<Fx>(func));
             else                lineup<Axis>();
         }
+        // rail: .
         template<axis Axis, bool Forced = faux>
         void cancel()
         {
@@ -3653,8 +3621,6 @@ namespace netxs::ui
     {
         pro::timer timer{*this }; // grip: Minimize by timeout.
 
-        using sptr = netxs::sptr<base>;
-        using wptr = netxs::wptr<base>;
         using form = ui::form<gripfx<Axis, drawfx>>;
         using upon = e2::form::upon;
 
@@ -3814,7 +3780,7 @@ namespace netxs::ui
             return on_pager;
         }
 
-    public:
+    protected:
         gripfx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
               thin{ thickness  },
@@ -4044,14 +4010,9 @@ namespace netxs::ui
     {
         dent intpad;
         dent extpad;
-
-    public:
         sptr client;
 
-       ~pads()
-        {
-            unmount({ client });
-        }
+    protected:
         pads(dent const& intpad_value = {}, dent const& extpad_value = {})
             : intpad{ intpad_value },
               extpad{ extpad_value }
@@ -4088,6 +4049,8 @@ namespace netxs::ui
                 client->base::notify(client_area);
             }
         }
+
+    public:
         // pads: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -4132,7 +4095,7 @@ namespace netxs::ui
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
         bool unln{}; // item: Draw full-width underline.
 
-    public:
+    protected:
         item(view label)
             : data{ label }
         {
@@ -4184,14 +4147,16 @@ namespace netxs::ui
             new_area.size.x = flex ? new_area.size.x : data.size().x;
             new_area.size.y = std::max(data.size().y, new_area.size.y);
         }
+
+    public:
+        // item: .
         auto flexible(bool b = true) { flex = b; return This(); }
+        // item: .
         auto drawdots(bool b = true) { test = b; return This(); }
+        // item: .
         auto accented(bool b = true) { unln = b; return This(); }
-        void set(view utf8)
-        {
-            data = utf8;
-            base::reflow();
-        }
+        // item: .
+        void set(view utf8) { data = utf8; base::reflow(); }
     };
 
     // controls: Textedit box.
@@ -4200,7 +4165,7 @@ namespace netxs::ui
     {
         page data;
 
-    public:
+    protected:
         edit()
         {
         }
@@ -4209,12 +4174,10 @@ namespace netxs::ui
     // DEPRECATED STUFF
 
     class stem_rate_grip
-        : public base
+        : public form<stem_rate_grip>
     {
-        pro::mouse mouse{*this }; // stem_rate_grip: Mouse controller.
-
         //todo cache specific
-        sptr<face> coreface;
+        netxs::sptr<face> coreface;
         face& canvas;
 
     public:
@@ -4260,12 +4223,8 @@ namespace netxs::ui
             recalc();
             return box_len;
         }
-        // stem_rate_grip: .
-        void deform(rect& new_area)
-        {
-            new_area.size = box_len; // Suppress resize.
-        }
 
+    protected:
         stem_rate_grip(view sfx_string)
             : sfx_str{ sfx_string }, canvas{*(coreface = ptr::shared<face>())}
         {
@@ -4298,6 +4257,11 @@ namespace netxs::ui
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
         }
+        // stem_rate_grip: .
+        void deform(rect& new_area)
+        {
+            new_area.size = box_len; // Suppress resize.
+        }
     };
 
     template<tier Tier, class Event>
@@ -4307,7 +4271,7 @@ namespace netxs::ui
         pro::robot robot{*this }; // stem_rate: Animation controller.
 
         //todo cache specific
-        sptr<face> coreface;
+        netxs::sptr<face> coreface;
         face& canvas;
 
         using tail = netxs::datetime::tail<si32>;
@@ -4315,7 +4279,7 @@ namespace netxs::ui
     public:
         page topic; // stem_rate: Text content.
 
-        sptr<stem_rate_grip> grip_ctl;
+        netxs::sptr<stem_rate_grip> grip_ctl;
 
         enum
         {
@@ -4361,7 +4325,6 @@ namespace netxs::ui
             topic[bar_id] = "└" + utf::repeat("─", bar_len) + "┘";
             topic[bar_id].locus.kill().chx(pad);
         }
-
         si32 next_val(si32 delta)
         {
             auto dm = max_val - min_val;
@@ -4370,7 +4333,6 @@ namespace netxs::ui
             bygone.set(c - cur_val);
             return c;
         }
-
         bool _move_grip(si32 new_val)
         {
             new_val = std::clamp(new_val, min_val, max_val);
@@ -4402,6 +4364,7 @@ namespace netxs::ui
             }
         }
 
+    protected:
         stem_rate(text const& caption, si32 min_value, si32 max_value, view suffix)
             : min_val{ min_value },
               max_val{ max_value },

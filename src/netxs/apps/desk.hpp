@@ -32,17 +32,17 @@ namespace netxs::app::desk
     };
 
     using menu = std::unordered_map<text, spec>;
-    using usrs = std::list<sptr<base>>;
+    using usrs = std::list<ui::sptr>;
     using apps = generics::imap<text, std::pair<bool, usrs>>;
 
     struct events
     {
         EVENTPACK( events, ui::e2::extra::slot2 )
         {
-            EVENT_XS( usrs, sptr<desk::usrs> ), // list of connected users.
-            EVENT_XS( apps, sptr<desk::apps> ), // list of running apps.
-            EVENT_XS( menu, sptr<desk::menu> ), // list of registered apps.
-            GROUP_XS( ui  , text             ),
+            EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // list of connected users.
+            EVENT_XS( apps, netxs::sptr<desk::apps> ), // list of running apps.
+            EVENT_XS( menu, netxs::sptr<desk::menu> ), // list of registered apps.
+            GROUP_XS( ui  , text                    ),
 
             SUBSET_XS( ui )
             {
@@ -462,25 +462,25 @@ namespace netxs::app::desk
             window->invoke([menu_max_size, menu_min_size, menu_selected](auto& boss) mutable
             {
                 auto ground = background("gems;About;");
-                auto current_default  = text{ menu_selected };
-                auto previous_default = text{ menu_selected };
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default, previous_default, tokens = subs{}))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
                 {
+                    current_default  = selected;
+                    previous_default = selected;
                     ground->SIGNAL(tier::release, e2::form::upon::vtree::attached, parent);
                     parent->SIGNAL(tier::anycast, events::ui::selected, current_default);
-                    parent->LISTEN(tier::request, e2::data::changed, data, tokens)
+                    parent->LISTEN(tier::request, e2::data::changed, data, boss.relyon)
                     {
                         data = current_default;
                     };
-                    parent->LISTEN(tier::preview, e2::data::changed, data, tokens)
+                    parent->LISTEN(tier::preview, e2::data::changed, data, boss.relyon)
                     {
                         data = previous_default;
                     };
-                    parent->LISTEN(tier::release, e2::data::changed, data, tokens)
+                    parent->LISTEN(tier::release, e2::data::changed, data, boss.relyon)
                     {
                         boss.SIGNAL(tier::anycast, events::ui::selected, data);
                     };
-                    parent->LISTEN(tier::anycast, events::ui::selected, data, tokens)
+                    parent->LISTEN(tier::anycast, events::ui::selected, data, boss.relyon)
                     {
                         auto new_default = data;
                         if (current_default != new_default)
@@ -489,17 +489,11 @@ namespace netxs::app::desk
                             current_default = new_default;
                         }
                     };
-                    parent->LISTEN(tier::release, e2::form::upon::vtree::detached, p, tokens)
-                    {
-                        current_default.clear();
-                        previous_default.clear();
-                        tokens.clear();
-                    };
-                    parent->LISTEN(tier::release, e2::area::any, new_area, tokens)
+                    parent->LISTEN(tier::release, e2::area::any, new_area, boss.relyon)
                     {
                         ground->base::change(new_area);
                     };
-                    parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, tokens, (parent_id = parent->id))
+                    parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, boss.relyon, (parent_id = parent->id))
                     {
                         if (parent_id == parent_canvas.mark().link())
                         {

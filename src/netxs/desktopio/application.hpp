@@ -413,7 +413,7 @@ namespace netxs::app::shared
         return scroll_bars;
     };
 
-    using builder_t = std::function<sptr<base>(text, text, xmls&, text)>;
+    using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
 
     namespace
     {
@@ -426,7 +426,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, xmls&, text) -> sptr<base>
+        [&](text, text, xmls&, text) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()

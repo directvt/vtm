@@ -415,7 +415,7 @@ namespace netxs::directvt
             }
             // stream: .
             template<bool Discard_empty = faux, bool Move = true, class T>
-            void sendby(sptr<T> sender_ptr)
+            void sendby(netxs::sptr<T> sender_ptr)
             {
                 sendby<Discard_empty, Move>(*sender_ptr);
             }
@@ -579,13 +579,13 @@ namespace netxs::directvt
             }
             // wrapper .
             template<bool Discard_empty = faux, class T, class ...Args>
-            void send(sptr<T> sender_ptr, Args&&... args)
+            void send(netxs::sptr<T> sender_ptr, Args&&... args)
             {
                 send<Discard_empty>(*sender_ptr, std::forward<Args>(args)...);
             }
             // wrapper .
             template<class T>
-            auto recv(sptr<T> link)
+            auto recv(netxs::sptr<T> link)
             {
                 auto lock = freeze();
                 thing.load([&](auto... args){ return link->recv(args...); });

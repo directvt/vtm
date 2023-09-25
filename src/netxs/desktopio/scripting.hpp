@@ -34,7 +34,7 @@ namespace netxs::scripting
     {
         using s11n = directvt::binary::s11n;
         using pidt = os::pidt;
-        using vtty = sptr<os::runspace::base_tty<scripting::host>>;
+        using vtty = netxs::sptr<os::runspace::base_tty<scripting::host>>;
         using skill::boss,
               skill::memo;
 

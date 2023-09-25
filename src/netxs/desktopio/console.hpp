@@ -39,7 +39,7 @@ namespace netxs::ui
     }
 
     struct pipe;
-    using xipc = sptr<pipe>;
+    using xipc = netxs::sptr<pipe>;
 
     // console: Fullduplex channel base.
     struct pipe

@@ -39,7 +39,7 @@ struct consrv
     template<class Term>
     static auto create(Term& terminal)
     {
-        auto inst = sptr<consrv>{};
+        auto inst = netxs::sptr<consrv>{};
         if (nt::is_wow64()) inst = ptr::shared<impl<Term, ui64>>(terminal);
         else                inst = ptr::shared<impl<Term, arch>>(terminal);
         return inst;

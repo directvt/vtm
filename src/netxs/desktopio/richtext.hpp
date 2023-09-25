@@ -1009,7 +1009,7 @@ namespace netxs::ui
     class para
         : public ansi::parser
     {
-        using corx = sptr<rich>;
+        using corx = netxs::sptr<rich>;
 
     public:
         si32 caret = 0; // para: Cursor position inside lyric.
@@ -1354,7 +1354,7 @@ namespace netxs::ui
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
-        using iter = std::list<sptr<para>>::const_iterator;
+        using iter = std::list<netxs::sptr<para>>::const_iterator;
         iter source;
         iter finish;
         si32 prefix;
@@ -1486,9 +1486,9 @@ namespace netxs::ui
     class page
         : public ansi::parser
     {
-        using list = std::list<sptr<para>>;
+        using list = std::list<netxs::sptr<para>>;
         using iter = list::iterator;
-        using pmap = std::map<si32, wptr<para>>;
+        using pmap = std::map<si32, netxs::wptr<para>>;
         using redo = std::list<std::pair<deco, ansi::mark>>;
 
     public:

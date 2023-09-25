@@ -270,9 +270,11 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using netxs::ui::base;
-    using netxs::ui::face;
-    using netxs::ui::page;
+    using ui::sptr;
+    using ui::wptr;
+    using ui::base;
+    using ui::face;
+    using ui::page;
 
     namespace key
     {
@@ -504,8 +506,6 @@ namespace netxs::input
 
     struct foci
     {
-        using sptr = netxs::sptr<base>;
-
         id_t   id{}; // foci: Gear id.
         si32 solo{}; // foci: Exclusive focus request.
         bool flip{}; // foci: Toggle focus request.
@@ -1064,7 +1064,7 @@ namespace netxs::input
           public bell
     {
         using events = netxs::events::userland::hids;
-        using list = std::list<wptr<base>>;
+        using list = std::list<wptr>;
 
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
@@ -1296,7 +1296,7 @@ namespace netxs::input
         auto& area() const { return idmap.area(); }
 
         template<tier Tier>
-        void pass(sptr<base> object, twod const& offset, bool relative = faux)
+        void pass(sptr object, twod const& offset, bool relative = faux)
         {
             if (object)
             {
