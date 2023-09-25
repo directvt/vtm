@@ -2286,22 +2286,24 @@ namespace netxs::ui
             {
                 LISTEN(tier::preview, e2::area::set, new_area)
                 {
-                    new_area.coor -= base::coor();
+                    auto new_area_coor = new_area.coor;
+                    new_area.coor = dot_00;
                     new_area -= base::intpad;
                     base::This<T>()->T::deform(new_area);
                     new_area += base::intpad;
-                    new_area.coor += base::coor();
+                    new_area.coor = new_area_coor;
                 };
             }
             if constexpr (requires(rect new_area) { base::This<T>()->T::inform(new_area); })
             {
                 LISTEN(tier::release, e2::area::any, new_area)
                 {
-                    new_area.coor -= base::coor();
+                    auto new_area_coor = new_area.coor;
+                    new_area.coor = dot_00;
                     new_area -= base::intpad;
                     base::This<T>()->T::inform(new_area);
                     new_area += base::intpad;
-                    new_area.coor += base::coor();
+                    new_area.coor = new_area_coor;
                 };
             }
         }

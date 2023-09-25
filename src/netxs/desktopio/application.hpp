@@ -142,9 +142,9 @@ namespace netxs::app::shared
                 auto& notes = props.views.front().notes;
                 auto& brush = props.views.front().brush;
                 auto button = ui::item::ctor(label)->drawdots();
-                if (hover) button->plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
+                if (hover) button->template plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
                 else       button->colors(0,0); //todo for mouse tracking
-                button->plugin<pro::notes>(notes)
+                button->template plugin<pro::notes>(notes)
                     ->setpad({ 2,2,0,0 })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {

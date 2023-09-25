@@ -668,20 +668,20 @@ namespace netxs::ui
         // base: Set new size, and return delta.
         auto resize(twod new_size)
         {
-            auto old_area = region.size;
+            auto old_size = region.size;
             auto new_area = region;
             new_area.size = new_size;
             change(new_area);
-            return region.size - old_area;
+            return region.size - old_size;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            auto old_area = region.coor;
+            auto old_coor = region.coor;
             auto new_area = region;
             new_area.coor = new_coor;
             change(new_area);
-            return region.coor - old_area;
+            return region.coor - old_coor;
         }
         // base: Dry run. Recheck current position.
         auto moveto()
