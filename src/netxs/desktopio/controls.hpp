@@ -2084,10 +2084,6 @@ namespace netxs::ui
                         //boss.deface();
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, memo)
-                {
-                    boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
-                };
                 boss.LISTEN(tier::release, e2::area::any, new_area,      memo) { canvas.area(new_area); };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
@@ -2535,6 +2531,12 @@ namespace netxs::ui
                 if (client_2) client_2->render(parent_canvas, basis);
             };
         }
+
+    public:
+        static constexpr auto min_ratio = si32{ 0           };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
+
         // forkL .
         void deform(rect& new_area)
         {
@@ -2589,30 +2591,29 @@ namespace netxs::ui
             if (client_2) client_2->base::notify(region_2);
             if (splitter) splitter->base::notify(region_3);
         }
-
-    public:
-        static constexpr auto min_ratio = si32{ 0           };
-        static constexpr auto max_ratio = si32{ 0xFFFF      };
-        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
-
+        // fork: .
         auto get_ratio()
         {
             return fraction;
         }
+        // fork: .
         auto set_ratio(si32 new_ratio = max_ratio)
         {
             fraction = new_ratio;
         }
+        // fork: .
         void config(si32 s1, si32 s2 = 1)
         {
             _config_ratio(s1, s2);
             base::reflow();
         }
+        // fork: .
         auto config(axis orientation, si32 grip_width, si32 s1, si32 s2)
         {
             _config(orientation, grip_width, s1, s2);
             return This();
         }
+        // fork: .
         void rotate()
         {
             auto width = xpose(region_3.size).x;
@@ -2622,6 +2623,7 @@ namespace netxs::ui
             (rotation == axis::X ? region_3.size.x : region_3.size.y) = width;
             base::reflow();
         }
+        // fork: .
         void swap()
         {
             std::swap(client_1, client_2);
@@ -2632,6 +2634,7 @@ namespace netxs::ui
             }
             base::reflow();
         }
+        // fork: .
         void move_slider(si32 const& step)
         {
             if (splitter)
@@ -2640,6 +2643,7 @@ namespace netxs::ui
                 splitter->SIGNAL(tier::preview, e2::form::upon::changed, delta);
             }
         }
+        // fork: .
         template<class T>
         auto attach(slot Slot, T item_ptr)
         {
@@ -2705,6 +2709,8 @@ namespace netxs::ui
                 }
             };
         }
+
+    public:
         // list: .
         void deform(rect& new_area)
         {
@@ -2770,8 +2776,7 @@ namespace netxs::ui
                 }
             }
         }
-
-    public:
+        // list: .
         void clear()
         {
             auto backup = This();
@@ -2854,6 +2859,8 @@ namespace netxs::ui
                 }
             };
         }
+
+    public:
         // cake: .
         void deform(rect& new_area)
         {
@@ -2880,8 +2887,6 @@ namespace netxs::ui
                 client->base::notify(new_area);
             }
         }
-
-    public:
         // cake: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
@@ -2941,6 +2946,8 @@ namespace netxs::ui
                 }
             };
         }
+
+    public:
         // veer: .
         void deform(rect& new_area)
         {
@@ -2959,8 +2966,6 @@ namespace netxs::ui
                 client->base::notify(new_area);
             }
         }
-
-    public:
         // veer: Return the last object or empty sptr.
         auto back()
         {
@@ -3113,6 +3118,10 @@ namespace netxs::ui
                 //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
             };
         }
+
+    public:
+        page topic; // post: Text content.
+
         // post: .
         void deform(rect& new_area)
         {
@@ -3130,9 +3139,6 @@ namespace netxs::ui
             //}
             width = new_area.size;
         }
-
-    public:
-        page topic; // post: Text content.
         // post: .
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         // post: .
@@ -3386,6 +3392,8 @@ namespace netxs::ui
                 if (client) client->render(parent_canvas, base::coor(), faux);
             };
         }
+
+    public:
         // rail: Resize nested object.
         void inform(rect new_area)
         {
@@ -3394,8 +3402,6 @@ namespace netxs::ui
                 client->base::resize(new_area.size, base::anchor);
             }
         }
-
-    public:
         // rail: .
         template<axis Axis>
         auto follow(sptr master = {})
@@ -3978,6 +3984,8 @@ namespace netxs::ui
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
+
+    public:
         // gripfx: .
         void inform(rect new_area)
         {
@@ -4032,6 +4040,8 @@ namespace netxs::ui
                 this->bell::expire<tier::release>();
             };
         }
+
+    public:
         // pads: .
         void deform(rect& new_area)
         {
@@ -4051,8 +4061,6 @@ namespace netxs::ui
                 client->base::notify(client_area);
             }
         }
-
-    public:
         // pads: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -4143,14 +4151,14 @@ namespace netxs::ui
                 }
             };
         }
+
+    public:
         // item: .
         void deform(rect& new_area)
         {
             new_area.size.x = flex ? new_area.size.x : data.size().x;
             new_area.size.y = std::max(data.size().y, new_area.size.y);
         }
-
-    public:
         // item: .
         auto flexible(bool b = true) { flex = b; return This(); }
         // item: .
@@ -4225,6 +4233,11 @@ namespace netxs::ui
             recalc();
             return box_len;
         }
+        // stem_rate_grip: .
+        void deform(rect& new_area)
+        {
+            new_area.size = box_len; // Suppress resize.
+        }
 
     protected:
         stem_rate_grip(view sfx_string)
@@ -4258,11 +4271,6 @@ namespace netxs::ui
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
-        }
-        // stem_rate_grip: .
-        void deform(rect& new_area)
-        {
-            new_area.size = box_len; // Suppress resize.
         }
     };
 

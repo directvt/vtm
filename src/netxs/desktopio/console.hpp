@@ -999,11 +999,11 @@ namespace netxs::ui
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
-             paint{ canal, props.vtmode },
-             conio{ canal, *this  },
-             debug{*this },
-             direct{ props.vtmode == svga::dtvt },
-             local{ true }
+              paint{ canal, props.vtmode },
+              conio{ canal, *this  },
+              debug{*this },
+              direct{ props.vtmode == svga::dtvt },
+              local{ true }
         {
             auto isolated = config.take("/config/isolated", faux); // DTVT proxy console case.
             config.set("/config/isolated", faux);
@@ -1391,6 +1391,7 @@ namespace netxs::ui
 
         std::vector<bool> user_numbering; // host: .
 
+    protected:
         host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
@@ -1498,6 +1499,8 @@ namespace netxs::ui
             quartz.ignite(maxfps);
             log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
         }
+
+    public:
         // host: Mark dirty region.
         void denote(rect const& updateregion)
         {

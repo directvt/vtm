@@ -7171,6 +7171,7 @@ namespace netxs::ui
             }
         }
 
+    protected:
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
@@ -7844,6 +7845,7 @@ namespace netxs::ui
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
 
+    protected:
         dtvt(text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },

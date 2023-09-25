@@ -140,7 +140,6 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::anycast, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.expire<tier::preview>(true);
                 };
                 boss.LISTEN(tier::release, e2::area::any, new_area, memo, (pads))
                 {
@@ -1320,15 +1319,15 @@ namespace netxs::app::vtm
         auto create(link& what)
         {
             SIGNAL(tier::request, vtm::events::newapp, what);
-            auto slot = window(what);
+            auto window_ptr = hall::window(what);
             auto& cfg = dbase.menu[what.menuid];
-            if (cfg.winsize && !what.forced) slot->extend({ what.square.coor, cfg.winsize });
-            else                             slot->extend(what.square);
-            slot->attach(what.applet);
+            if (cfg.winsize && !what.forced) window_ptr->extend({ what.square.coor, cfg.winsize });
+            else                             window_ptr->extend(what.square);
+            window_ptr->attach(what.applet);
             if constexpr (debugmode) log(prompt::hall, "App type: ", utf::debase(cfg.type), ", menu item id: ", utf::debase(what.menuid));
-            this->branch(what.menuid, slot, !cfg.hidden);
-            slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
-            return slot;
+            this->branch(what.menuid, window_ptr, !cfg.hidden);
+            window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+            return window_ptr;
         }
 
     protected:

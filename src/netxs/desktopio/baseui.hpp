@@ -584,7 +584,8 @@ namespace netxs::ui
             placeholder = 2,
         };
 
-        wptr father; // base: Parental visual tree weak-pointer.
+        wptr father; // base: Reference to parent.
+        subs relyon; // base: Subscription on parent events.
         rect region; // base: Region allocated for object.
 
         //todo deprecated
@@ -604,7 +605,6 @@ namespace netxs::ui
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        subs relyon; // base: Subscription on parent events.
         //todo it is a dent. not a side
         side oversz; // base: Oversize, for scrolling.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
