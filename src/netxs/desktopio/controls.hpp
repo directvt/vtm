@@ -3531,10 +3531,10 @@ namespace netxs::ui
             if (client)
             {
                 auto& item = *client;
-                auto frame = base::size(); //todo revise intpad
+                auto frame = base::size() - base::intpad;
                 auto coord = item.base::coor() + delta;
-                auto block = item.base::size() + item.oversz.summ();
-                auto basis = item.oversz.topleft();
+                auto block = item.base::size() + item.base::oversz.summ();
+                auto basis = item.base::oversz.topleft() + base::intpad.corner();
                 coord -= basis; // Scroll origin basis.
                 // Preview.
                 auto bound = std::min(frame - block, dot_00);
@@ -3547,16 +3547,9 @@ namespace netxs::ui
                         coord[xy] = clamp[xy];
                     }
                 }
-                // Release.
-                scinfo.beyond = item.oversz;
-                scinfo.region = block;
-                scinfo.window.coor =-coord; // Viewport.
-                scinfo.window.size = frame; //
-                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
-
                 coord += basis; // Client origin basis.
                 client->base::moveto(coord);
-                base::deface(); // Main menu redraw trigger.
+                base::deface();
             }
         }
         // rail: Attach specified item.
@@ -3566,6 +3559,20 @@ namespace netxs::ui
             if (client) remove(client);
             client = item_ptr;
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            item_ptr->LISTEN(tier::release, e2::area::any, new_area, item_ptr->relyon) // Sync scroll info.
+            {
+                auto& item = *client;
+                auto frame = base::size() - base::intpad;
+                auto coord = new_area.coor;
+                auto block = new_area.size + item.base::oversz.summ();
+                auto basis = item.base::oversz.topleft() + base::intpad.corner();
+                coord -= basis; // Scroll origin basis.
+                scinfo.beyond = item.oversz;
+                scinfo.region = block;
+                scinfo.window.coor =-coord; // Viewport.
+                scinfo.window.size = frame; //
+                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+            };
             return item_ptr;
         }
         // rail: Detach specified item.

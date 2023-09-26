@@ -7233,7 +7233,6 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        //todo
                         this->base::notify(rect{ scroll_coor, scroll_size });
                     }
                     base::deface();
