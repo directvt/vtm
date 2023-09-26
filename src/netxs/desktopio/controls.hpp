@@ -3251,7 +3251,7 @@ namespace netxs::ui
         // rail: .
         static constexpr auto xy(axes Axes)
         {
-            return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
+            return twod{ Axes & axes::X_only, Axes & axes::Y_only };
         }
 
     protected:
@@ -3269,24 +3269,24 @@ namespace netxs::ui
                     auto& delta = info.vector;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor }; break;
+                        case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
                         case upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;
                         case upon::scroll::bycoor::y.id: delta = { 0, scinfo.window.coor.y - info.window.coor.y }; break;
-                        case upon::scroll::to_top::v.id: delta = { dot_mx };           break;
-                        case upon::scroll::to_top::x.id: delta = { dot_mx.x, 0 };      break;
-                        case upon::scroll::to_top::y.id: delta = { 0, dot_mx.y };      break;
-                        case upon::scroll::to_end::v.id: delta = { -dot_mx };          break;
-                        case upon::scroll::to_end::x.id: delta = { -dot_mx.x, 0 };     break;
-                        case upon::scroll::to_end::y.id: delta = { 0, -dot_mx.y };     break;
-                        case upon::scroll::bystep::v.id: delta = { info.vector };      break;
-                        case upon::scroll::bystep::x.id: delta = { info.vector.x, 0 }; break;
-                        case upon::scroll::bystep::y.id: delta = { 0, info.vector.y }; break;
-                        case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size }; break;
-                        case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 }; break;
-                        case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y }; break;
-                        case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>(); break;
-                        case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>(); break;
-                        case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>(); break;
+                        case upon::scroll::to_top::v.id: delta = { dot_mx };                                       break;
+                        case upon::scroll::to_top::x.id: delta = { dot_mx.x, 0 };                                  break;
+                        case upon::scroll::to_top::y.id: delta = { 0, dot_mx.y };                                  break;
+                        case upon::scroll::to_end::v.id: delta = { -dot_mx };                                      break;
+                        case upon::scroll::to_end::x.id: delta = { -dot_mx.x, 0 };                                 break;
+                        case upon::scroll::to_end::y.id: delta = { 0, -dot_mx.y };                                 break;
+                        case upon::scroll::bystep::v.id: delta = { info.vector };                                  break;
+                        case upon::scroll::bystep::x.id: delta = { info.vector.x, 0 };                             break;
+                        case upon::scroll::bystep::y.id: delta = { 0, info.vector.y };                             break;
+                        case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size };             break;
+                        case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 };      break;
+                        case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y };      break;
+                        case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>();         break;
+                        case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>();                            break;
+                        case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>();                            break;
                     }
                     if (delta) scroll(delta);
                 }
@@ -3409,7 +3409,14 @@ namespace netxs::ui
         {
             if (client)
             {
-                client->base::resize(new_area.size, base::anchor);
+                //todo revise (ui::list/anchor)
+                auto client_area = rect{ client->base::coor(), new_area.size };
+                auto point = base::anchor - client->base::coor();
+                client->base::anchor = point;
+                client->base::recalc(client_area);
+                auto delta = point - client->base::anchor;
+                client_area.coor += delta;
+                client->base::notify(client_area);
             }
         }
         // rail: .
@@ -3424,7 +3431,6 @@ namespace netxs::ui
                 };
             }
             else fasten.clear();
-
             return This();
         }
         // rail: .
@@ -3485,7 +3491,7 @@ namespace netxs::ui
             if (client && manual[Axis]) // Check overscroll if no auto correction.
             {
                 auto& item = *client;
-                auto frame = base::size()[Axis];
+                auto frame = (base::size() - base::intpad)[Axis];
                 auto coord = item.base::coor()[Axis] - item.oversz.topleft()[Axis]; // coor - scroll origin basis.
                 auto block = item.base::size()[Axis] + item.oversz.summ()[Axis];
                 auto bound = std::min(frame - block, 0);
@@ -3516,7 +3522,7 @@ namespace netxs::ui
                 manual[Axis] = faux;
                 auto block = client->base::area();
                 auto coord = block.coor[Axis];
-                auto bound = std::min(base::size()[Axis] - block.size[Axis], 0);
+                auto bound = std::min((base::size() - base::intpad)[Axis] - block.size[Axis], 0);
                 auto newxy = std::clamp(coord, bound, 0);
                 auto route = newxy - coord;
                 auto tempo = switching;

@@ -703,6 +703,7 @@ namespace netxs::ui
         //       the center point during resizing.
         auto resize(twod new_size, twod point)
         {
+            //todo revise: !double notify
             point -= region.coor;
             anchor = point; //todo use dot_00 instead of point
             auto new_area = region;
