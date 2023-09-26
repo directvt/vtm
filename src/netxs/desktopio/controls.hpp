@@ -3230,7 +3230,6 @@ namespace netxs::ui
         twod permit; // rail: Allowed axes to scroll.
         twod siezed; // rail: Allowed axes to capture.
         twod oversc; // rail: Allow overscroll with auto correct.
-        subs tokens; // rail: Subscriptions on client moveto and resize.
         subs fasten; // rail: Subscriptions on masters to follow they state.
         rack scinfo; // rail: Scroll info.
         sptr client; // rail: Client instance.
@@ -3267,21 +3266,29 @@ namespace netxs::ui
             {
                 if (client)
                 {
+                    auto& delta = info.vector;
                     switch (this->bell::protos<tier::preview>())
                     {
-                        case upon::scroll::bycoor::x.id: move<X>(scinfo.window.coor.x - info.window.coor.x); break;
-                        case upon::scroll::bycoor::y.id: move<Y>(scinfo.window.coor.y - info.window.coor.y); break;
-                        case upon::scroll::to_top::x.id: move<X>(dot_mx.x); break;
-                        case upon::scroll::to_top::y.id: move<Y>(dot_mx.y); break;
-                        case upon::scroll::to_end::x.id: move<X>(-dot_mx.x); break;
-                        case upon::scroll::to_end::y.id: move<Y>(-dot_mx.y); break;
-                        case upon::scroll::bystep::x.id: move<X>(info.vector); break;
-                        case upon::scroll::bystep::y.id: move<Y>(info.vector); break;
-                        case upon::scroll::bypage::x.id: move<X>(info.vector * scinfo.window.size.x); break;
-                        case upon::scroll::bypage::y.id: move<Y>(info.vector * scinfo.window.size.y); break;
-                        case upon::scroll::cancel::x.id: cancel<X, true>(); break;
-                        case upon::scroll::cancel::y.id: cancel<Y, true>(); break;
+                        case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor }; break;
+                        case upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;
+                        case upon::scroll::bycoor::y.id: delta = { 0, scinfo.window.coor.y - info.window.coor.y }; break;
+                        case upon::scroll::to_top::v.id: delta = { dot_mx };           break;
+                        case upon::scroll::to_top::x.id: delta = { dot_mx.x, 0 };      break;
+                        case upon::scroll::to_top::y.id: delta = { 0, dot_mx.y };      break;
+                        case upon::scroll::to_end::v.id: delta = { -dot_mx };          break;
+                        case upon::scroll::to_end::x.id: delta = { -dot_mx.x, 0 };     break;
+                        case upon::scroll::to_end::y.id: delta = { 0, -dot_mx.y };     break;
+                        case upon::scroll::bystep::v.id: delta = { info.vector };      break;
+                        case upon::scroll::bystep::x.id: delta = { info.vector.x, 0 }; break;
+                        case upon::scroll::bystep::y.id: delta = { 0, info.vector.y }; break;
+                        case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size }; break;
+                        case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 }; break;
+                        case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y }; break;
+                        case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>(); break;
+                        case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>(); break;
+                        case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>(); break;
                     }
+                    if (delta) scroll(delta);
                 }
             };
             LISTEN(tier::request, e2::form::upon::scroll::any, req_scinfo)
@@ -3324,7 +3331,7 @@ namespace netxs::ui
                 {
                     auto delta = gear.mouse::delta.get();
                     auto value = permit * delta;
-                    if (value) movexy(value);
+                    if (value) scroll(value);
                     gear.dismiss();
                 }
             };
@@ -3389,7 +3396,10 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (client) client->render(parent_canvas, base::coor(), faux);
+                if (client)
+                {
+                    client->render(parent_canvas, base::coor(), faux);
+                }
             };
         }
 
@@ -3463,7 +3473,9 @@ namespace netxs::ui
             strict[Axis] = true;
             robot.actify(Axis, std::forward<Fx>(func), [&](auto& p)
             {
-                move<Axis>(p);
+                auto delta = Axis == X ? twod{ p, 0 }
+                                       : twod{ 0, p };
+                scroll(delta);
             });
         }
         // rail: .
@@ -3514,59 +3526,37 @@ namespace netxs::ui
             }
         }
         // rail: .
-        template<bool Preview>
-        auto scroll(twod& coord)
+        void scroll(twod& delta)
         {
-            auto delta = dot_00;
             if (client)
             {
                 auto& item = *client;
                 auto frame = base::size(); //todo revise intpad
+                auto coord = item.base::coor() + delta;
                 auto block = item.base::size() + item.oversz.summ();
                 auto basis = item.oversz.topleft();
                 coord -= basis; // Scroll origin basis.
-                if constexpr (Preview)
+                // Preview.
+                auto bound = std::min(frame - block, dot_00);
+                auto clamp = std::clamp(coord, bound, dot_00);
+                for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
                 {
-                    auto bound = std::min(frame - block, dot_00);
-                    auto clamp = std::clamp(coord, bound, dot_00);
-                    for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
+                    if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
                     {
-                        if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
-                        {
-                            delta[xy] = clamp[xy] - coord[xy];
-                            coord[xy] = clamp[xy];
-                        }
+                        delta[xy] = clamp[xy] - coord[xy];
+                        coord[xy] = clamp[xy];
                     }
                 }
-                else
-                {
-                    scinfo.beyond = item.oversz;
-                    scinfo.region = block;
-                    scinfo.window.coor =-coord; // Viewport.
-                    scinfo.window.size = frame; //
-                    SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
-                    base::deface(); // Main menu redraw trigger.
-                }
+                // Release.
+                scinfo.beyond = item.oversz;
+                scinfo.region = block;
+                scinfo.window.coor =-coord; // Viewport.
+                scinfo.window.size = frame; //
+                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+
                 coord += basis; // Client origin basis.
-            }
-            return delta;
-        }
-        // rail: .
-        void movexy(twod const& delta)
-        {
-            if (client)
-            {
-                client->base::moveby(delta);
-            }
-        }
-        // rail: .
-        template<axis Axis>
-        void move(si32 p)
-        {
-            if (p)
-            {
-                if constexpr (Axis == X) movexy({ p, 0 });
-                if constexpr (Axis == Y) movexy({ 0, p });
+                client->base::moveto(coord);
+                base::deface(); // Main menu redraw trigger.
             }
         }
         // rail: Attach specified item.
@@ -3575,23 +3565,6 @@ namespace netxs::ui
         {
             if (client) remove(client);
             client = item_ptr;
-            tokens.clear();
-            item_ptr->LISTEN(tier::preview, e2::area::any, area, tokens) // any - To check coor first of all.
-            {
-                scroll<true>(area.coor);
-            };
-            item_ptr->LISTEN(tier::release, e2::area::any, area, tokens)
-            {
-                scroll<faux>(area.coor);
-            };
-            item_ptr->LISTEN(tier::release, e2::form::upon::vtree::detached, p, tokens)
-            {
-                scinfo.region = {};
-                scinfo.window.coor = {};
-                this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
-                fasten.clear();
-                tokens.clear();
-            };
             item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             return item_ptr;
         }
@@ -3603,6 +3576,10 @@ namespace netxs::ui
                 auto backup = This();
                 client.reset();
                 item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                scinfo.region = {};
+                scinfo.window.coor = {};
+                this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
+                fasten.clear();
             }
         }
         // rail: Update nested object.
@@ -3646,7 +3623,8 @@ namespace netxs::ui
             si32& master_len = master_inf.region     [Axis]; // math: Master len.
             si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
             si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
-            si32& master_dir = master_inf.vector;            // math: Master scroll direction.
+            si32& master_dir = Axis == axis::X ? master_inf.vector.x
+                                               : master_inf.vector.y; // math: Master scroll direction.
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
             si32  scroll_box = 0; // math: Scrollbar grip len.

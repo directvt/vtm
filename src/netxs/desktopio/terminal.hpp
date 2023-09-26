@@ -6586,6 +6586,13 @@ namespace netxs::ui
             styled = state;
             if (styled) ipccon.style(target->parser::style, kbmode);
         }
+        // term: Request to scroll inside viewport.
+        auto scrollby(twod delta)
+        {
+            auto info = rack{ .vector = delta };
+            RISEUP(tier::preview, e2::form::upon::scroll::bystep::v, info);
+            return info.vector;
+        }
         // term: Is the selection allowed.
         auto selection_passed()
         {
@@ -6638,7 +6645,7 @@ namespace netxs::ui
                     delta.y = 0;
                     worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                     {
-                        auto shift = base::moveby(delta);
+                        auto shift = scrollby(delta);
                         return shore-- && (origin.x != limit && !!shift);
                     });
                 }
@@ -6807,7 +6814,7 @@ namespace netxs::ui
                 auto func = constlinearAtoB<twod>(path, time, init);
                 dynamo.actify(func, [&](twod& step)
                 {
-                    base::moveby(step);
+                    scrollby(step);
                     base::deface();
                 });
             }
@@ -6829,12 +6836,12 @@ namespace netxs::ui
             }
             if (delta)
             {
-                auto shift = base::moveby(delta);
+                auto shift = scrollby(delta);
                 coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
                 worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
                                     {
-                                        auto shift = base::moveby(delta);
+                                        auto shift = scrollby(delta);
                                         coord -= shift;
                                         if (console.selection_extend(coord, boxed))
                                         {
@@ -7226,7 +7233,8 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        this->base::change(rect{ scroll_coor, scroll_size });
+                        //todo
+                        this->base::notify(rect{ scroll_coor, scroll_size });
                     }
                     base::deface();
                 }

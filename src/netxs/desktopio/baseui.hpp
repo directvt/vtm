@@ -273,6 +273,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll to_top along X.
                             EVENT_XS( y, rack ), // scroll to_top along Y.
+                            EVENT_XS( v, rack ), // scroll to_top along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -280,6 +281,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll to_end along X.
                             EVENT_XS( y, rack ), // scroll to_end along Y.
+                            EVENT_XS( v, rack ), // scroll to_end along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -287,6 +289,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll absolute along X.
                             EVENT_XS( y, rack ), // scroll absolute along Y.
+                            EVENT_XS( v, rack ), // scroll absolute along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -294,6 +297,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll by delta along X.
                             EVENT_XS( y, rack ), // scroll by delta along Y.
+                            EVENT_XS( v, rack ), // scroll by delta along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -301,6 +305,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll by page along X.
                             EVENT_XS( y, rack ), // scroll by page along Y.
+                            EVENT_XS( v, rack ), // scroll by page along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -308,6 +313,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // cancel scrolling along X.
                             EVENT_XS( y, rack ), // cancel scrolling along Y.
+                            EVENT_XS( v, rack ), // cancel scrolling along XY.
 
                             INDEX_XS( x, y ),
                         };
@@ -677,11 +683,9 @@ namespace netxs::ui
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            auto old_coor = region.coor;
-            auto new_area = region;
-            new_area.coor = new_coor;
-            change(new_area);
-            return region.coor - old_coor;
+            auto delta = new_coor - region.coor;
+            notify({ new_coor, region.size });
+            return delta;
         }
         // base: Dry run. Recheck current position.
         auto moveto()

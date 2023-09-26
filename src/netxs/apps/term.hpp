@@ -420,14 +420,14 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info, ({ .vector = 1 }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info, ({ .vector = dot_01 }));
                 });
             }
             static void TerminalViewportPageDown(ui::item& boss, menu::item& item)
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info, ({ .vector = -1 }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::y, info, ({ .vector = -dot_01 }));
                 });
             }
             static void TerminalViewportLineUp(ui::item& boss, menu::item& item)
@@ -435,7 +435,7 @@ namespace netxs::app::term
                 item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info, ({ .vector = std::abs(item.views[item.taken].value) }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info, ({ .vector = { 0, std::abs(item.views[item.taken].value) }}));
                 });
             }
             static void TerminalViewportLineDown(ui::item& boss, menu::item& item)
@@ -443,7 +443,7 @@ namespace netxs::app::term
                 item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info, ({ .vector = -std::abs(item.views[item.taken].value) }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::y, info, ({ .vector = { 0, -std::abs(item.views[item.taken].value) }}));
                 });
             }
             static void TerminalViewportTop(ui::item& boss, menu::item& item)
@@ -464,14 +464,14 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info, ({ .vector = 1 }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info, ({ .vector = dot_10 }));
                 });
             }
             static void TerminalViewportPageRight(ui::item& boss, menu::item& item)
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info, ({ .vector = -1 }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bypage::x, info, ({ .vector = -dot_10 }));
                 });
             }
             static void TerminalViewportCharLeft(ui::item& boss, menu::item& item)
@@ -479,7 +479,7 @@ namespace netxs::app::term
                 item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = std::abs(item.views[item.taken].value) }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = { std::abs(item.views[item.taken].value), 0 }}));
                 });
             }
             static void TerminalViewportCharRight(ui::item& boss, menu::item& item)
@@ -487,7 +487,7 @@ namespace netxs::app::term
                 item.reindex([](auto& utf8){ auto v = xml::take<si32>(utf8); return v ? v.value() : 1; });
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = -std::abs(item.views[item.taken].value) }));
+                    boss.SIGNAL(tier::anycast, e2::form::upon::scroll::bystep::x, info, ({ .vector = { -std::abs(item.views[item.taken].value), 0 } }));
                 });
             }
             static void TerminalStdioLog(ui::item& boss, menu::item& item)

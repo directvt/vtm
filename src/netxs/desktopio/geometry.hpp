@@ -739,7 +739,7 @@ namespace netxs
         twod region{}; // rack: Available scroll area.
         rect window{}; // rack: Scrolling viewport.
         side beyond{}; // rack: Scroll margins outside of the scroll region.
-        si32 vector{}; // rack: Scroll direction.
+        twod vector{}; // rack: Scroll direction.
 
         auto str() const
         {
