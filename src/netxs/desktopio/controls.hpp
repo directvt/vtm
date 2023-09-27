@@ -2268,18 +2268,6 @@ namespace netxs::ui
         pro::mouse mouse{ *this }; // form: Mouse controller.
         //pro::keybd keybd{ *this }; // form: Keybd controller.
 
-    protected:
-        form()
-        {
-            if constexpr (requires(decltype(e2::form::proceed::detach)::type shadow) { base::This<T>()->T::remove(shadow); })
-            {
-                LISTEN(tier::preview, e2::form::proceed::detach, shadow)
-                {
-                    base::This<T>()->T::remove(shadow);
-                };
-            }
-        }
-
     public:
         auto This() { return base::This<T>(); }
         template<class ...Args>
@@ -2650,7 +2638,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // fork: Remove nested object by it's ptr.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             if (client_1 == item_ptr ? ((void)client_1.reset(), true) :
                 client_2 == item_ptr ? ((void)client_2.reset(), true) :
@@ -2790,7 +2778,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // list: Remove nested object.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             auto head = subset.begin();
             auto tail = subset.end();
@@ -2892,7 +2880,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // cake: Remove nested object.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             auto head = subset.begin();
             auto tail = subset.end();
@@ -3008,7 +2996,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // veer: Remove nested object.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             auto head = subset.begin();
             auto tail = subset.end();
@@ -3575,7 +3563,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // rail: Detach specified item.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             if (client == item_ptr)
             {
@@ -4053,7 +4041,7 @@ namespace netxs::ui
             return item_ptr;
         }
         // pads: Remove item.
-        void remove(sptr item_ptr)
+        void remove(sptr item_ptr) override
         {
             if (client == item_ptr)
             {

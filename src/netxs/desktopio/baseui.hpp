@@ -325,7 +325,6 @@ namespace netxs::events::userland
                     EVENT_XS( createby  , input::hids ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( render    , bool        ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , ui::sptr    ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( detach    , ui::sptr    ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
                     EVENT_XS( swap      , ui::sptr    ), // order to replace existing client. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc    ), // exec functor on behalf (see gate).
@@ -785,7 +784,7 @@ namespace netxs::ui
             if (auto parent_ptr = parent())
             {
                 strike();
-                parent_ptr->SIGNAL(tier::preview, e2::form::proceed::detach, This());
+                parent_ptr->remove(This());
             }
         }
         // base: Remove visual tree branch.
@@ -952,6 +951,7 @@ namespace netxs::ui
     protected:
         virtual void deform(rect& new_area) {}
         virtual void inform(rect new_area) {}
+        virtual void remove(sptr this_ptr) {}
         virtual ~base() = default;
         base()
             : minlim{ skin::globals().min_value },

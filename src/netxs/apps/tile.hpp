@@ -286,7 +286,7 @@ namespace netxs::app::tile
                                 what.square.coor = -what.square.coor;
                                 what.forced = true;
                                 what.applet = applet_ptr;
-                                master.SIGNAL(tier::preview, e2::form::proceed::detach, applet_ptr);
+                                master.remove(applet_ptr);
                                 applet.moveto(dot_00);
 
                                 if (auto parent_ptr = master.parent())

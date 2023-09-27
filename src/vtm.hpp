@@ -1275,11 +1275,6 @@ namespace netxs::app::vtm
                     {
                         pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     };
-                    boss.LISTEN(tier::release, e2::form::proceed::detach, backup)
-                    {
-                        boss.mouse.reset();
-                        boss.base::detach(); // The object kills itself.
-                    };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast)
                     {
                         boss.mouse.reset();
@@ -1466,38 +1461,6 @@ namespace netxs::app::vtm
                     skin::globals().lucidity = alpha;
                     this->SIGNAL(tier::preview, e2::form::global::lucidity, alpha);
                 }
-            };
-            LISTEN(tier::preview, e2::form::proceed::detach, item_ptr)
-            {
-                auto& inst = *item_ptr;
-                host::denote(items.remove(inst.id));
-                auto block = users.remove(inst.id);
-                if (block) // Save user's viewport last position.
-                {
-                    host::denote(block);
-                    vport = block.coor;
-                }
-                if (dbase.remove(item_ptr))
-                {
-                    inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
-                }
-                if (items.size()) // Pass focus to the top most object.
-                {
-                    auto last_ptr = items.back();
-                    item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
-                    for (auto gear_id : gear_id_list)
-                    {
-                        if (auto gear_ptr = bell::getref<hids>(gear_id))
-                        {
-                            this->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear_id, 0));
-                            if (gear_test.second == 1) // If it is the last focused item.
-                            {
-                                pro::focus::set(last_ptr, gear_id, pro::focus::solo::off, pro::focus::flip::off);
-                            }
-                        }
-                    }
-                }
-                this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
             };
             LISTEN(tier::release, e2::form::layout::bubble, area)
             {
@@ -1700,6 +1663,39 @@ namespace netxs::app::vtm
             if (vport) user->base::moveto(vport); // Restore user's last position.
             lock.unlock();
             user->launch();
+        }
+        // hall: Detach user/window.
+        void remove(sptr item_ptr) override
+        {
+            auto& inst = *item_ptr;
+            host::denote(items.remove(inst.id));
+            auto block = users.remove(inst.id);
+            if (block) // Save user's viewport last position.
+            {
+                host::denote(block);
+                vport = block.coor;
+            }
+            if (dbase.remove(item_ptr))
+            {
+                inst.SIGNAL(tier::release, e2::form::upon::vtree::detached, This());
+            }
+            if (items.size()) // Pass focus to the top most object.
+            {
+                auto last_ptr = items.back();
+                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
+                for (auto gear_id : gear_id_list)
+                {
+                    if (auto gear_ptr = bell::getref<hids>(gear_id))
+                    {
+                        SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear_id, 0));
+                        if (gear_test.second == 1) // If it is the last focused item.
+                        {
+                            pro::focus::set(last_ptr, gear_id, pro::focus::solo::off, pro::focus::flip::off);
+                        }
+                    }
+                }
+            }
+            SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr); // Update taskbar app list.
         }
         // hall: Shutdown.
         void stop()
