@@ -2278,30 +2278,6 @@ namespace netxs::ui
                     base::This<T>()->T::remove(shadow);
                 };
             }
-            if constexpr (requires(rect& new_area) { base::This<T>()->T::deform(new_area); })
-            {
-                LISTEN(tier::preview, e2::area::set, new_area)
-                {
-                    auto new_area_coor = new_area.coor;
-                    new_area.coor = dot_00;
-                    new_area -= base::intpad;
-                    base::This<T>()->T::deform(new_area);
-                    new_area += base::intpad;
-                    new_area.coor = new_area_coor;
-                };
-            }
-            if constexpr (requires(rect new_area) { base::This<T>()->T::inform(new_area); })
-            {
-                LISTEN(tier::release, e2::area::any, new_area)
-                {
-                    auto new_area_coor = new_area.coor;
-                    new_area.coor = dot_00;
-                    new_area -= base::intpad;
-                    base::This<T>()->T::inform(new_area);
-                    new_area += base::intpad;
-                    new_area.coor = new_area_coor;
-                };
-            }
         }
 
     public:
@@ -2531,15 +2507,10 @@ namespace netxs::ui
                 if (client_2) client_2->render(parent_canvas, basis);
             };
         }
-
-    public:
-        static constexpr auto min_ratio = si32{ 0           };
-        static constexpr auto max_ratio = si32{ 0xFFFF      };
-        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
-
-        // forkL .
-        void deform(rect& new_area)
+        // fork: .
+        void deform(rect& new_area) override
         {
+            //todo check size (if client.both)
             auto meter = [&](auto& newsz_x, auto& newsz_y,
                              auto& size1_x, auto& size1_y,
                              auto& coor2_x, auto& coor2_y,
@@ -2585,12 +2556,18 @@ namespace netxs::ui
                                 : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
         }
         // fork: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             if (client_1) client_1->base::notify(region_1);
             if (client_2) client_2->base::notify(region_2);
             if (splitter) splitter->base::notify(region_3);
         }
+
+    public:
+        static constexpr auto min_ratio = si32{ 0           };
+        static constexpr auto max_ratio = si32{ 0xFFFF      };
+        static constexpr auto mid_ratio = si32{ 0xFFFF >> 1 };
+
         // fork: .
         auto get_ratio()
         {
@@ -2709,11 +2686,10 @@ namespace netxs::ui
                 }
             };
         }
-
-    public:
         // list: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
+            //todo check size (if client.both)
             auto& client_area = new_area;
             auto& new_size = client_area.size;
             auto& height = updown ? client_area.coor.y : client_area.coor.x;
@@ -2738,7 +2714,7 @@ namespace netxs::ui
             y_size = height;
         }
         // list: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             //auto& new_size = new_area.size;
             auto new_coor = twod{};
@@ -2776,6 +2752,8 @@ namespace netxs::ui
                 }
             }
         }
+
+    public:
         // list: .
         void clear()
         {
@@ -2859,11 +2837,10 @@ namespace netxs::ui
                 }
             };
         }
-
-    public:
         // cake: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
+            //todo check size (if client.both)
             auto new_coor = new_area.coor;
             auto meter = [&]
             {
@@ -2880,13 +2857,15 @@ namespace netxs::ui
             //}
         }
         // cake: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             for (auto& client : subset)
             {
                 client->base::notify(new_area);
             }
         }
+
+    public:
         // cake: Remove the last nested object. Return the object refrence.
         auto pop_back()
         {
@@ -2946,11 +2925,10 @@ namespace netxs::ui
                 }
             };
         }
-
-    public:
         // veer: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
+            //todo check size (if client.both)
             if (subset.size())
             if (auto client = subset.back())
             {
@@ -2958,7 +2936,7 @@ namespace netxs::ui
             }
         }
         // veer: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             if (subset.size())
             if (auto client = subset.back())
@@ -2966,6 +2944,8 @@ namespace netxs::ui
                 client->base::notify(new_area);
             }
         }
+
+    public:
         // veer: Return the last object or empty sptr.
         auto back()
         {
@@ -3118,19 +3098,15 @@ namespace netxs::ui
                 //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
             };
         }
-
-    public:
-        page topic; // post: Text content.
-
         // post: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
             auto& new_size = new_area.size;
             recalc(new_size);
             new_size.y = width.y;
         }
         // post: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             //if (width != new_size)
             //{
@@ -3139,6 +3115,10 @@ namespace netxs::ui
             //}
             width = new_area.size;
         }
+
+    public:
+        page topic; // post: Text content.
+
         // post: .
         auto& lyric(si32 paraid) { return *topic[paraid].lyric; }
         // post: .
@@ -3251,7 +3231,7 @@ namespace netxs::ui
         // rail: .
         static constexpr auto xy(axes Axes)
         {
-            return twod{ Axes & axes::X_only, Axes & axes::Y_only };
+            return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
 
     protected:
@@ -3287,6 +3267,7 @@ namespace netxs::ui
                         case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>();         break;
                         case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>();                            break;
                         case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>();                            break;
+                        default:                         delta = {}; break;
                     }
                     if (delta) scroll(delta);
                 }
@@ -3402,23 +3383,25 @@ namespace netxs::ui
                 }
             };
         }
-
-    public:
         // rail: Resize nested object.
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             if (client)
             {
                 //todo revise (ui::list/anchor)
-                auto client_area = rect{ client->base::coor(), new_area.size };
+                auto block = new_area;
+                block.coor = client->base::coor();
+                auto frame = new_area.size;
                 auto point = base::anchor - client->base::coor();
                 client->base::anchor = point;
-                client->base::recalc(client_area);
+                client->base::recalc(block);
                 auto delta = point - client->base::anchor;
-                client_area.coor += delta;
-                client->base::notify(client_area);
+                revise(block, frame, delta);
+                client->base::notify(block);
             }
         }
+
+    public:
         // rail: .
         template<axis Axis>
         auto follow(sptr master = {})
@@ -3522,7 +3505,9 @@ namespace netxs::ui
                 manual[Axis] = faux;
                 auto block = client->base::area();
                 auto coord = block.coor[Axis];
-                auto bound = std::min((base::size() - base::intpad)[Axis] - block.size[Axis], 0);
+                auto width = block.size[Axis];
+                auto frame = (base::size() - base::intpad)[Axis];
+                auto bound = std::min(frame - width, 0);
                 auto newxy = std::clamp(coord, bound, 0);
                 auto route = newxy - coord;
                 auto tempo = switching;
@@ -3531,30 +3516,38 @@ namespace netxs::ui
                 keepon<Axis>(fader);
             }
         }
+        void revise(rect& block, twod frame, twod& delta)
+        {
+            auto& item = *client;
+            auto& coord = block.coor;
+            auto& width = block.size;
+            auto basis = item.base::oversz.topleft() + base::intpad.corner();
+            frame -= base::intpad;
+            coord -= basis; // Scroll origin basis.
+            coord += delta;
+            width += item.base::oversz.summ();
+            auto bound = std::min(frame - width, dot_00);
+            auto clamp = std::clamp(coord, bound, dot_00);
+            for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
+            {
+                if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
+                {
+                    delta[xy] = clamp[xy] - coord[xy];
+                    coord[xy] = clamp[xy];
+                }
+            }
+            coord += basis; // Client origin basis.
+        }
         // rail: .
         void scroll(twod& delta)
         {
             if (client)
             {
                 auto& item = *client;
-                auto frame = base::size() - base::intpad;
-                auto coord = item.base::coor() + delta;
-                auto block = item.base::size() + item.base::oversz.summ();
-                auto basis = item.base::oversz.topleft() + base::intpad.corner();
-                coord -= basis; // Scroll origin basis.
-                // Preview.
-                auto bound = std::min(frame - block, dot_00);
-                auto clamp = std::clamp(coord, bound, dot_00);
-                for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
-                {
-                    if (coord[xy] != clamp[xy] && manual[xy] && strict[xy]) // Clamp if it is outside the scroll limits and no overscroll.
-                    {
-                        delta[xy] = clamp[xy] - coord[xy];
-                        coord[xy] = clamp[xy];
-                    }
-                }
-                coord += basis; // Client origin basis.
-                client->base::moveto(coord);
+                auto frame = base::size();
+                auto block = item.base::area();
+                revise(block, frame, delta);
+                item.base::moveto(block.coor);
                 base::deface();
             }
         }
@@ -3633,11 +3626,10 @@ namespace netxs::ui
         struct math
         {
             rack  master_inf = {};                           // math: Master scroll info.
+            si32& master_dir = master_inf.vector     [Axis]; // math: Master scroll direction.
             si32& master_len = master_inf.region     [Axis]; // math: Master len.
             si32& master_pos = master_inf.window.coor[Axis]; // math: Master viewport pos.
             si32& master_box = master_inf.window.size[Axis]; // math: Master viewport len.
-            si32& master_dir = Axis == axis::X ? master_inf.vector.x
-                                               : master_inf.vector.y; // math: Master scroll direction.
             si32  scroll_len = 0; // math: Scrollbar len.
             si32  scroll_pos = 0; // math: Scrollbar grip pos.
             si32  scroll_box = 0; // math: Scrollbar grip len.
@@ -3975,10 +3967,8 @@ namespace netxs::ui
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);
             };
         }
-
-    public:
         // gripfx: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             calc.resize(new_area.size);
         }
@@ -4031,11 +4021,10 @@ namespace netxs::ui
                 this->bell::expire<tier::release>();
             };
         }
-
-    public:
         // pads: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
+            //todo check size (if client.both)
             if (client)
             {
                 auto client_area = new_area - intpad;
@@ -4044,7 +4033,7 @@ namespace netxs::ui
             }
         }
         // pads: .
-        void inform(rect new_area)
+        void inform(rect new_area) override
         {
             if (client)
             {
@@ -4052,6 +4041,8 @@ namespace netxs::ui
                 client->base::notify(client_area);
             }
         }
+
+    public:
         // pads: Attach specified item.
         template<class T>
         auto attach(T item_ptr)
@@ -4142,14 +4133,14 @@ namespace netxs::ui
                 }
             };
         }
-
-    public:
         // item: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
             new_area.size.x = flex ? new_area.size.x : data.size().x;
             new_area.size.y = std::max(data.size().y, new_area.size.y);
         }
+
+    public:
         // item: .
         auto flexible(bool b = true) { flex = b; return This(); }
         // item: .
@@ -4224,13 +4215,14 @@ namespace netxs::ui
             recalc();
             return box_len;
         }
+
+    protected:
         // stem_rate_grip: .
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
             new_area.size = box_len; // Suppress resize.
         }
 
-    protected:
         stem_rate_grip(view sfx_string)
             : sfx_str{ sfx_string }, canvas{*(coreface = ptr::shared<face>())}
         {

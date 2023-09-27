@@ -275,7 +275,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // scroll to_top along Y.
                             EVENT_XS( v, rack ), // scroll to_top along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( to_end )
                         {
@@ -283,7 +283,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // scroll to_end along Y.
                             EVENT_XS( v, rack ), // scroll to_end along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bycoor )
                         {
@@ -291,7 +291,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // scroll absolute along Y.
                             EVENT_XS( v, rack ), // scroll absolute along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bystep )
                         {
@@ -299,7 +299,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // scroll by delta along Y.
                             EVENT_XS( v, rack ), // scroll by delta along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bypage )
                         {
@@ -307,7 +307,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // scroll by page along Y.
                             EVENT_XS( v, rack ), // scroll by page along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( cancel )
                         {
@@ -315,7 +315,7 @@ namespace netxs::events::userland
                             EVENT_XS( y, rack ), // cancel scrolling along Y.
                             EVENT_XS( v, rack ), // cancel scrolling along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                     };
                 };
@@ -656,14 +656,23 @@ namespace netxs::ui
         void notify(rect new_area)
         {
             if (base::hidden) return;
+            //todo adjust
+            new_area -= base::extpad;
+            new_area -= base::intpad;
+            inform(new_area);
+            new_area += base::intpad;
             SIGNAL(tier::release, e2::area::set, new_area);
             base::region = new_area;
         }
         void recalc(rect& new_area)
         {
             if (base::hidden) return;
+            new_area -= base::extpad;
             new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
-            SIGNAL(tier::preview, e2::area::set, new_area);
+            new_area -= base::intpad;
+            deform(new_area);
+            new_area += base::intpad;
+            new_area += base::extpad;
         }
         // base: Change object area, and return delta.
         void change(rect new_area)
@@ -676,13 +685,14 @@ namespace netxs::ui
         {
             auto old_size = region.size;
             auto new_area = region;
-            new_area.size = new_size;
+            new_area.size = new_size + base::extpad;
             change(new_area);
             return region.size - old_size;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
+            new_coor += base::extpad;
             auto delta = new_coor - region.coor;
             notify({ new_coor, region.size });
             return delta;
@@ -704,6 +714,7 @@ namespace netxs::ui
         auto resize(twod new_size, twod point)
         {
             //todo revise: !double notify
+            new_size += base::extpad;
             point -= region.coor;
             anchor = point; //todo use dot_00 instead of point
             auto new_area = region;
@@ -725,6 +736,7 @@ namespace netxs::ui
         // base: Resize and move, and return delta.
         auto extend(rect new_area)
         {
+            new_area += base::extpad;
             auto old_area = region;
             change(new_area);
             auto delta = region;
@@ -938,6 +950,8 @@ namespace netxs::ui
         }
 
     protected:
+        virtual void deform(rect& new_area) {}
+        virtual void inform(rect new_area) {}
         virtual ~base() = default;
         base()
             : minlim{ skin::globals().min_value },

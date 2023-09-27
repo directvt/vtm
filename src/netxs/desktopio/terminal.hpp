@@ -6589,7 +6589,7 @@ namespace netxs::ui
         // term: Request to scroll inside viewport.
         auto scrollby(twod delta)
         {
-            auto info = rack{ .vector = delta };
+            auto info = e2::form::upon::scroll::bystep::v.param({ .vector = delta });
             RISEUP(tier::preview, e2::form::upon::scroll::bystep::v, info);
             return info.vector;
         }
@@ -7156,8 +7156,10 @@ namespace netxs::ui
                 else                   altbuf._data(count, proto, fx);
             }
         }
+
+    protected:
         // term: Recalc metrics.
-        void deform(rect& new_area)
+        void deform(rect& new_area) override
         {
             auto& console = *target;
             if (new_area.coor != base::coor())
@@ -7177,8 +7179,6 @@ namespace netxs::ui
                 new_area.size.y += console.get_basis();
             }
         }
-
-    protected:
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },

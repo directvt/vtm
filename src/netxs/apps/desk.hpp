@@ -575,6 +575,7 @@ namespace netxs::app::desk
                             auto lims = twod{ size,-1 };
                             boss.base::limits(lims, lims);
                             boss.base::reflow();
+                            boss.base::deface();
                             return faux; // One shot call.
                         };
                         auto& timer = boss.template plugins<pro::timer>();
