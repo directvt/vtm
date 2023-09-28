@@ -878,34 +878,9 @@ namespace netxs::ui
             }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
-        // Usage example:
-        //          base::riseup<tier::preview, e2::form::prop::ui::header>(txt);
-        template<tier Tier, class Event, class T>
-        void riseup(Event, T&& data, bool forced = faux)
-        {
-            if (forced)
-            {
-                SIGNAL(Tier, Event{}, data);
-                base::toboss([&](auto& boss)
-                {
-                    boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
-                });
-            }
-            else
-            {
-                if (!SIGNAL(Tier, Event{}, data))
-                {
-                    base::toboss([&](auto& boss)
-                    {
-                        boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
-                    });
-                }
-            }
-        }
-        // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
         // Usage example:
-        //          base::raw_riseup<tier::preview, e2::form::prop::ui::header>(txt);
+        //          base::raw_riseup<tier::preview>(e2::form::prop::ui::header, txt);
         template<tier Tier, class T>
         void raw_riseup(hint event_id, T&& param, bool forced = faux)
         {
@@ -927,6 +902,14 @@ namespace netxs::ui
                     });
                 }
             }
+        }
+        // base: Fire an event on yourself and pass it parent if not handled.
+        // Usage example:
+        //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
+        template<tier Tier, class Event, class T>
+        void riseup(Event, T&& param, bool forced = faux)
+        {
+            raw_riseup<Tier>(Event::id, std::forward<T>(param), forced);
         }
         // base: Syntax sugar helper.
         void _saveme()
