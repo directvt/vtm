@@ -877,10 +877,11 @@ namespace netxs::ui
             }
         }
         // base: Execute the proc along the entire visual tree.
-        template<class P>
+        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P>>>
         void diveup(P proc)
         {
-            proc();
+            if constexpr (Plain) proc();
+            else                 if (!proc()) return;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->diveup(proc);
