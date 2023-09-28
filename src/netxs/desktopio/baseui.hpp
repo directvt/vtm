@@ -784,9 +784,9 @@ namespace netxs::ui
         // base: Resize and move, and return delta.
         auto extend(rect new_area)
         {
-            new_area += base::extpad;
             auto old_area = base::region;
-            change(new_area);
+            if (new_area.size == base::region.size) moveto(new_area.coor);
+            else                                    change(new_area + base::extpad);
             auto delta = base::region;
             delta -= old_area;
             return delta;
