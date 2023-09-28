@@ -709,7 +709,7 @@ namespace netxs::ui
             if (base::hidden) return;
             xform(socket.size.x > new_area.size.x ? atcrop.x : atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
             xform(socket.size.y > new_area.size.y ? atcrop.y : atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
-            std::swap(new_area, socket);
+            std::swap(new_area, base::socket);
             new_area -= base::extpad;
             auto c = new_area.coor;
             new_area.coor = dot_00;
@@ -729,29 +729,32 @@ namespace netxs::ui
         // base: Set new size, and return delta.
         auto resize(twod new_size)
         {
-            auto old_size = region.size;
-            auto new_area = region;
-            new_area.size = new_size + base::extpad;
+            auto new_area = base::region;
+            auto old_size = base::region.size;
+            new_area.size = new_size;
+            new_area += base::extpad;
             change(new_area);
-            return region.size - old_size;
+            return base::region.size - old_size;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            new_coor += base::extpad;
-            auto delta = new_coor - region.coor;
-            notify({ new_coor, region.size });
-            return delta;
+            auto new_area = base::region;
+            auto old_coor = base::region.coor;
+            new_area.coor = new_coor;
+            new_area += base::extpad;
+            notify(new_area);
+            return base::region.coor - old_coor;
         }
         // base: Dry run. Recheck current position.
         auto moveto()
         {
-            return moveto(region.coor);
+            return moveto(base::region.coor);
         }
         // base: Move by the specified step and return the coor delta.
         auto moveby(twod step)
         {
-            return moveto(region.coor + step);
+            return moveto(base::region.coor + step);
         }
         // base: Resize relative the center point.
         //       Return center point offset.
@@ -759,40 +762,42 @@ namespace netxs::ui
         //       the center point during resizing.
         auto resize(twod new_size, twod point)
         {
-            //todo revise: !double notify
-            new_size += base::extpad;
-            point -= region.coor;
-            anchor = point; //todo use dot_00 instead of point
-            auto new_area = region;
+            point -= base::region.coor;
+            point += base::intpad.corner();
+            base::anchor = point; //todo use dot_00 instead of point
+            auto old_coor = base::region.coor;
+            auto new_area = base::region;
             new_area.size = new_size;
-            change(new_area);
-            auto delta = moveby(point - anchor);
-            return delta;
+            new_area += base::extpad;
+            recalc(new_area);
+            new_area.coor += point - base::anchor;
+            notify(new_area);
+            return base::region.coor - old_coor;
         }
         // base: Dry run (preview then release) current value.
         auto resize()
         {
-            return resize(region.size);
+            return resize(base::region.size);
         }
         // base: Resize by step, and return delta.
         auto sizeby(twod const& step)
         {
-            return resize(region.size + step);
+            return resize(base::region.size + step);
         }
         // base: Resize and move, and return delta.
         auto extend(rect new_area)
         {
             new_area += base::extpad;
-            auto old_area = region;
+            auto old_area = base::region;
             change(new_area);
-            auto delta = region;
+            auto delta = base::region;
             delta -= old_area;
             return delta;
         }
         // base: Mark the visual subtree as requiring redrawing.
         void strike(rect area)
         {
-            area.coor += region.coor;
+            area.coor += base::region.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->deface(area);
@@ -801,29 +806,29 @@ namespace netxs::ui
         // base: Mark the visual subtree as requiring redrawing.
         void strike()
         {
-            strike(region);
+            strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         virtual void deface(rect const& area)
         {
-            wasted = true;
+            base::wasted = true;
             strike(area);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
         {
-            deface(region);
+            deface(base::region);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         template<bool Forced = faux>
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && (!master || (Forced && (family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            if (parent_ptr && (!base::master || (Forced && (base::family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
                 parent_ptr->reflow<Forced>();
             }
-            else change(region);
+            else change(base::region + base::extpad);
         }
         // base: Remove the form from the visual tree.
         void detach()
@@ -848,7 +853,7 @@ namespace netxs::ui
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
-            coor -= region.coor;
+            coor -= base::region.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->global(coor);
@@ -858,8 +863,8 @@ namespace netxs::ui
         netxs::sptr<bell> gettop() override
         {
             auto parent_ptr = parent();
-            if (!master && parent_ptr) return parent_ptr->gettop();
-            else                       return This();
+            if (!base::master && parent_ptr) return parent_ptr->gettop();
+            else                             return This();
         }
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:
