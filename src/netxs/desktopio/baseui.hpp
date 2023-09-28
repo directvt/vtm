@@ -881,10 +881,10 @@ namespace netxs::ui
         void diveup(P proc)
         {
             proc();
-            base::toboss([&](auto& boss)
+            if (auto parent_ptr = parent())
             {
-                diveup(proc);
-            });
+                parent_ptr->diveup(proc);
+            }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
