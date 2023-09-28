@@ -741,11 +741,10 @@ namespace netxs::ui
         {
             base::socket.coor = new_coor;
             base::socket.size = base::region.size;
-            auto new_area = base::region;
+            auto new_area = base::socket;
             auto old_coor = base::region.coor;
-            new_area.coor = new_coor;
-            new_area += base::extpad;
-            notify(new_area);
+            SIGNAL(tier::release, e2::area::set, new_area);
+            base::region.coor = new_area.coor;
             return base::region.coor - old_coor;
         }
         // base: Dry run. Recheck current position.
