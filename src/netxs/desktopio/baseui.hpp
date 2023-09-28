@@ -701,6 +701,7 @@ namespace netxs::ui
                 required.size.y = new_area.size.y;
             }
             base::socket = new_area;
+            //new_area = required;
         }
         // base: Notify about actual region for the object.
         void notify(rect new_area)
@@ -738,6 +739,8 @@ namespace netxs::ui
         // base: Move and return delta.
         auto moveto(twod new_coor)
         {
+            base::socket.coor = new_coor;
+            base::socket.size = base::region.size;
             auto new_area = base::region;
             auto old_coor = base::region.coor;
             new_area.coor = new_coor;

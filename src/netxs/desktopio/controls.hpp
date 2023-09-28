@@ -2693,26 +2693,40 @@ namespace netxs::ui
             auto& object_area = new_area;
             auto& new_size = object_area.size;
             auto& height = object_area.coor[updown];
-            auto start = height;
             auto& y_size = new_size[updown];
             auto& x_size = new_size[1 - updown];
             auto  x_temp = x_size;
             auto  y_temp = y_size;
+            auto start = height;
+            auto delta = dot_00;
             auto meter = [&]
             {
+                auto found = faux;
                 height = start;
+                delta = dot_00;
                 for (auto& object : subset)
                 {
                     if (!object) continue;
+                    auto& entry = *object;
                     y_size = 0;
-                    object->base::recalc(new_area);
+                    entry.base::recalc(object_area);
                     if (x_size > x_temp) x_temp = x_size;
                     else                 x_size = x_temp;
-                    height += object->base::socket.size[updown];
+                    if (!found) //todo optimize by comparing with y_coor by height.
+                    {
+                        auto& anker = entry.base::area(); // Use old object position.
+                        if (anker.hittest(base::anchor))
+                        {
+                            found = true;
+                            delta = object_area.coor - anker.coor;
+                        }
+                    }
+                    height += entry.base::socket.size[updown];
                 }
             };
             meter(); if (subset.size() > 1 && x_temp != x_size) meter();
             y_size = height;
+            base::anchor += delta;
         }
         // list: .
         void inform(rect new_area) override
@@ -2720,21 +2734,11 @@ namespace netxs::ui
             auto object_area = new_area;
             auto& size_y = object_area.size[updown];
             auto& coor_y = object_area.coor[updown];
-            auto found = faux;
             for (auto& object : subset)
             {
                 if (!object) continue;
                 auto& entry = *object;
-                if (!found) //todo optimize by comparing with y_coor by height.
-                {
-                    auto& anker = entry.base::area(); // Use old object position.
-                    if (anker.hittest(base::anchor))
-                    {
-                        found = true;
-                        base::anchor += object_area.coor - anker.coor;
-                    }
-                }
-                size_y = object->base::socket.size[updown];
+                size_y = entry.base::socket.size[updown];
                 entry.base::notify(object_area);
                 coor_y += size_y;
             }
@@ -3318,15 +3322,22 @@ namespace netxs::ui
         {
             if (object)
             {
-                //todo revise (ui::list/anchor)
-                auto block = new_area;
-                block.coor = object->base::coor();
                 auto frame = new_area.size;
-                auto point = base::anchor - object->base::coor();
+                auto block = object->base::region;
+                block.size = frame - base::intpad;
+
+                auto point = base::anchor - block.coor;
+                point += object->base::intpad.corner();
                 object->base::anchor = point;
+
+                block += object->base::extpad;
                 object->base::recalc(block);
+                block -= object->base::extpad;
+
                 auto delta = point - object->base::anchor;
                 revise(block, frame, delta);
+
+                block += object->base::extpad;
                 object->base::notify(block);
             }
         }
