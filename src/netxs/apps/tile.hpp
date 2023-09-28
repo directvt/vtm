@@ -55,12 +55,11 @@ namespace netxs::app::tile
     class items
         : public pro::skill
     {
-        using depth_t = decltype(e2::depth)::type;
         using skill::boss,
               skill::memo;
 
         netxs::sptr<ui::list> client;
-        depth_t               depth;
+        si32                  depth;
 
     public:
         items(base&&) = delete;
@@ -156,7 +155,7 @@ namespace netxs::app::tile
             {
                 client->clear();
                 depth = 0;
-                boss.template riseup<tier::request>(e2::depth, depth, true);
+                boss.diveup([&]{ depth++; });
                 log(prompt::tile, "Start depth ", depth);
             };
         }
@@ -640,8 +639,8 @@ namespace netxs::app::tile
                     {
                         if (auto deed = boss.bell::template protos<tier::release>())
                         {
-                            auto depth = e2::depth.param();
-                            boss.template riseup<tier::request>(e2::depth, depth, true);
+                            auto depth = 0;
+                            boss.diveup([&]{ depth++; });
                             if constexpr (debugmode) log(prompt::tile, "Depth ", depth);
                             if (depth > inheritance_limit) return;
 

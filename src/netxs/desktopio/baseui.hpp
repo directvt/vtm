@@ -84,7 +84,6 @@ namespace netxs::events::userland
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
-            EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
@@ -869,13 +868,23 @@ namespace netxs::ui
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:
         //     toboss([&](auto& parent_ptr) { c.fuse(parent.filler); });
-        template<class T>
-        void toboss(T proc)
+        template<class P>
+        void toboss(P proc)
         {
             if (auto parent_ptr = parent())
             {
                 proc(*parent_ptr);
             }
+        }
+        // base: Execute the proc along the entire visual tree.
+        template<class P>
+        void diveup(P proc)
+        {
+            proc();
+            base::toboss([&](auto& boss)
+            {
+                diveup(proc);
+            });
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
@@ -1024,10 +1033,6 @@ namespace netxs::ui
               master{ faux },
               family{ type::client }
         {
-            LISTEN(tier::request, e2::depth, depth)
-            {
-                depth++;
-            };
             LISTEN(tier::release, e2::cascade, proc)
             {
                 auto backup = This();
