@@ -7161,6 +7161,7 @@ namespace netxs::ui
         // term: Recalc metrics.
         void deform(rect& new_area) override
         {
+            new_area += base::intpad;
             auto& console = *target;
             if (new_area.coor != base::coor())
             {
@@ -7178,6 +7179,7 @@ namespace netxs::ui
                 ipccon.resize(new_area.size);
                 new_area.size.y += console.get_basis();
             }
+            new_area -= base::intpad;
         }
         term(text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
@@ -7233,7 +7235,14 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        this->base::notify(rect{ scroll_coor, scroll_size });
+                        //todo revise
+                        auto new_area = rect{ scroll_coor, scroll_size };
+                        new_area += base::extpad;
+                        this->base::notify(new_area);
+                        //if (auto delta = scroll_coor - origin)
+                        //{
+                        //    scrollby(delta);
+                        //}
                     }
                     base::deface();
                 }

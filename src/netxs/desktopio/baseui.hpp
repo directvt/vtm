@@ -69,6 +69,7 @@ namespace netxs::ui
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
+    using book = std::list<sptr>;
 }
 
 namespace netxs::events::userland
@@ -224,9 +225,9 @@ namespace netxs::events::userland
                     GROUP_XS( go        , ui::sptr    ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
-                    //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
-                    //EVENT_XS( size      , twod       ), // return client rect size, only preview.
-                    //EVENT_XS( rect      , rect       ), // return client rect.
+                    //EVENT_XS( coor      , twod       ), // return object rect coor, only preview.
+                    //EVENT_XS( size      , twod       ), // return object rect size, only preview.
+                    //EVENT_XS( rect      , rect       ), // return object rect.
                     //EVENT_XS( show      , bool       ), // order to make it visible.
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
                     
@@ -325,7 +326,7 @@ namespace netxs::events::userland
                     EVENT_XS( createby  , input::hids ), // return gear with coordinates of the new object placeholder gear::slot.
                     EVENT_XS( render    , bool        ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
                     EVENT_XS( attach    , ui::sptr    ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( swap      , ui::sptr    ), // order to replace existing client. See tiling manager empty slot.
+                    EVENT_XS( swap      , ui::sptr    ), // order to replace existing object. See tiling manager empty slot.
                     EVENT_XS( functor   , ui::functor ), // exec functor (see pro::focus).
                     EVENT_XS( onbehalf  , ui::proc    ), // exec functor on behalf (see gate).
                     GROUP_XS( quit      , bool        ), // request to quit/detach (arg: fast or not).
@@ -333,7 +334,7 @@ namespace netxs::events::userland
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
-                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
+                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output object canvas.
 
                     SUBSET_XS( quit )
                     {
@@ -456,9 +457,9 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    //EVENT_XS( params   , ui::para ), // notify the client has changed title params.
-                    EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
+                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    //EVENT_XS( params   , ui::para ), // notify the object has changed title params.
+                    EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
                     EVENT_XS( visible  , bool     ),
                     GROUP_XS( keybd    , bool     ),
@@ -589,9 +590,11 @@ namespace netxs::ui
             placeholder = 2,
         };
 
+        book subset; // base: List of nested objects.
         wptr father; // base: Reference to parent.
         subs relyon; // base: Subscription on parent events.
-        rect region; // base: Region allocated for object.
+        rect region; // base: The region occupied by the object.
+        rect socket; // base: The region provided for the object.
 
         //todo deprecated
         cell filler; // base: Object color.
@@ -651,7 +654,18 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
 
-        // base: Notify about new prop value.
+        // base: Recalc actual region for the object.
+        void recalc(rect& new_area)
+        {
+            if (base::hidden) return;
+            new_area -= base::extpad;
+            new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
+            new_area -= base::intpad;
+            deform(new_area);
+            new_area += base::intpad;
+            new_area += base::extpad;
+        }
+        // base: Notify about actual region for the object.
         void notify(rect new_area)
         {
             if (base::hidden) return;
@@ -662,16 +676,6 @@ namespace netxs::ui
             new_area += base::intpad;
             SIGNAL(tier::release, e2::area::set, new_area);
             base::region = new_area;
-        }
-        void recalc(rect& new_area)
-        {
-            if (base::hidden) return;
-            new_area -= base::extpad;
-            new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
-            new_area -= base::intpad;
-            deform(new_area);
-            new_area += base::intpad;
-            new_area += base::extpad;
         }
         // base: Change object area, and return delta.
         void change(rect new_area)
@@ -898,7 +902,7 @@ namespace netxs::ui
             base::intpad = intpad;
             base::extpad = extpad;
         }
-        // base.: Render to the canvas. Trim = trim viewport to the client area.
+        // base.: Render to the canvas. Trim = trim viewport to the nested object region.
         void render(face& canvas, twod const& offset_coor, bool trim = true)
         {
             if (hidden) return;
@@ -951,10 +955,38 @@ namespace netxs::ui
     protected:
         virtual void deform(rect& new_area) {}
         virtual void inform(rect new_area) {}
-        virtual void remove(sptr this_ptr) {}
+        // base: Remove nested object.
+        virtual void remove(sptr item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
+            {
+                auto backup = This();
+                subset.erase(iter);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+        // base: Update nested object.
+        virtual void update(sptr old_item_ptr, sptr new_item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == old_item_ptr; });
+            if (iter != tail)
+            {
+                auto backup = This();
+                auto pos = subset.erase(iter);
+                old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                subset.insert(pos, new_item_ptr);
+                new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            }
+        }
         virtual ~base() = default;
-        base()
-            : minlim{ skin::globals().min_value },
+        base(size_t nested_count = 0)
+            : subset{ nested_count },
+              minlim{ skin::globals().min_value },
               maxlim{ skin::globals().max_value },
               wasted{ true },
               hidden{ faux },
