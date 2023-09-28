@@ -2508,10 +2508,9 @@ namespace netxs::ui
         // fork: .
         void deform(rect& new_area) override
         {
-            auto region_1 = object_1 ? object_1->base::socket : rect{};
-            auto region_2 = object_2 ? object_2->base::socket : rect{};
+            auto region_1 = rect{};
+            auto region_2 = rect{};
             auto region_3 = griparea;
-            //todo check size (if object.both)
             auto meter = [&](auto& newsz_x, auto& newsz_y,
                              auto& size1_x, auto& size1_y,
                              auto& coor2_x, auto& coor2_y,
@@ -2519,21 +2518,21 @@ namespace netxs::ui
                              auto& coor3_x, auto& coor3_y,
                              auto& size3_x, auto& size3_y)
             {
-                auto limit = std::max(newsz_x - size3_x, 0);
-                auto split = netxs::divround(limit * fraction, max_ratio);
+                auto limit_x = std::max(newsz_x - size3_x, 0);
+                auto split_x = netxs::divround(limit_x * fraction, max_ratio);
                 auto test = [&]
                 {
-                    size1_x = split;
+                    size1_x = split_x;
                     size1_y = newsz_y;
                     if (object_1)
                     {
                         object_1->base::recalc(region_1);
-                        split = size1_x;
+                        split_x = size1_x;
                         newsz_y = size1_y;
                     }
-                    size2_x = limit - split;
+                    size2_x = limit_x - split_x;
                     size2_y = newsz_y;
-                    coor2_x = split + size3_x;
+                    coor2_x = split_x + size3_x;
                     coor2_y = 0;
                     auto test_size2 = region_2.size;
                     if (object_2)
@@ -2544,24 +2543,30 @@ namespace netxs::ui
                     return test_size2 == region_2.size;
                 };
                 auto ok = test();
-                split = newsz_x - size3_x - size2_x;
+                split_x = newsz_x - size3_x - size2_x;
                 if (!ok) test(); // Repeat if object_2 doesn't fit.
-                coor3_x = split;
+                coor3_x = split_x;
                 coor3_y = 0;
                 size3_y = newsz_y;
-                if (adaptive) _config_ratio(split, size2_x);
-                newsz_x = split + size3_x + size2_x;
+                if (adaptive) _config_ratio(split_x, size2_x);
+                newsz_x = split_x + size3_x + size2_x;
             };
             auto& new_size = new_area.size;
             rotation == axis::X ? meter(new_size.x, new_size.y, region_1.size.x, region_1.size.y, region_2.coor.x, region_2.coor.y, region_2.size.x, region_2.size.y, region_3.coor.x, region_3.coor.y, region_3.size.x, region_3.size.y)
                                 : meter(new_size.y, new_size.x, region_1.size.y, region_1.size.x, region_2.coor.y, region_2.coor.x, region_2.size.y, region_2.size.x, region_3.coor.y, region_3.coor.x, region_3.size.y, region_3.size.x);
+            if (splitter) splitter->base::recalc(region_3);
+            griparea = region_3;
         }
         // fork: .
         void inform(rect new_area) override
         {
-            auto region_1 = object_1 ? object_1->base::socket : rect{};
-            auto region_2 = object_2 ? object_2->base::socket : rect{};
+            auto corner_2 = twod{ griparea.coor.x + griparea.size.x, 0 };
+            auto region_1 = rect{ dot_00, xpose({ griparea.coor.x, griparea.size.y })};
+            auto region_2 = rect{ xpose(corner_2), xpose({ new_area.size.x - corner_2.x, griparea.size.y })};
             auto region_3 = griparea;
+            region_1.coor += new_area.coor;
+            region_2.coor += new_area.coor;
+            region_3.coor += new_area.coor;
             if (object_1) object_1->base::notify(region_1);
             if (object_2) object_2->base::notify(region_2);
             if (splitter) splitter->base::notify(region_3);
@@ -2608,11 +2613,6 @@ namespace netxs::ui
         void swap()
         {
             std::swap(object_1, object_2);
-            if (object_1)
-            {
-                object_1->base::socket.coor = dot_00;
-                object_1->base::notify(object_1->base::socket);
-            }
             base::reflow();
         }
         // fork: .
@@ -2690,25 +2690,25 @@ namespace netxs::ui
         // list: .
         void deform(rect& new_area) override
         {
-            //todo check size (if object.both)
             auto& object_area = new_area;
             auto& new_size = object_area.size;
-            auto& height = updown ? object_area.coor.y : object_area.coor.x;
-            auto& y_size = updown ? new_size.y : new_size.x;
-            auto& x_size = updown ? new_size.x : new_size.y;
+            auto& height = object_area.coor[updown];
+            auto start = height;
+            auto& y_size = new_size[updown];
+            auto& x_size = new_size[1 - updown];
             auto  x_temp = x_size;
             auto  y_temp = y_size;
             auto meter = [&]
             {
-                height = 0;
+                height = start;
                 for (auto& object : subset)
                 {
+                    if (!object) continue;
                     y_size = 0;
                     object->base::recalc(new_area);
-                    object->base::socket = new_area;//{ x_size, y_size };
                     if (x_size > x_temp) x_temp = x_size;
                     else                 x_size = x_temp;
-                    height += y_size;
+                    height += object->base::socket.size[updown];
                 }
             };
             meter(); if (subset.size() > 1 && x_temp != x_size) meter();
@@ -2717,40 +2717,26 @@ namespace netxs::ui
         // list: .
         void inform(rect new_area) override
         {
-            //auto& new_size = new_area.size;
-            auto new_coor = twod{};
-            //auto& y_size = updown ? new_size.y : new_size.x;
-            //auto& x_size = updown ? new_size.x : new_size.y;
-            auto& y_coor = updown ? new_coor.y : new_coor.x;
-            //auto& x_coor = updown ? new_coor.x : new_coor.y;
+            auto object_area = new_area;
+            auto& size_y = object_area.size[updown];
+            auto& coor_y = object_area.coor[updown];
             auto found = faux;
             for (auto& object : subset)
             {
-                //y_size = updown ? client.second.size.y : client.second.size.x;
-                if (object)
+                if (!object) continue;
+                auto& entry = *object;
+                if (!found) //todo optimize by comparing with y_coor by height.
                 {
-                    auto& entry = *object;
-                    if (!found) //todo optimize by comparing with y_coor by height.
+                    auto& anker = entry.base::area(); // Use old object position.
+                    if (anker.hittest(base::anchor))
                     {
-                        auto& anker = entry.base::area(); // Use old object position.
-                        if (anker.hittest(base::anchor))
-                        {
-                            found = true;
-                            base::anchor += new_coor - anker.coor;
-                        }
+                        found = true;
+                        base::anchor += object_area.coor - anker.coor;
                     }
-                    //auto& sz_y = updown ? client.second.y : client.second.x;
-                    //auto& sz_x = updown ? client.second.x : client.second.y;
-                    //entry.base::change<e2::size>(twod{ sz_x, sz_y }); //todo revise ?change | inform
-                    //entry.base::inform<e2::coor>(new_coor);
-                    entry.base::notify(object->base::socket);
-                    //auto& size = entry.base::size();
-                    //sz_x = size.x;
-                    //sz_y = size.y;
-                    //y_coor += client.second.size.y;
-                    auto y_size = updown ? object->base::socket.size.y : object->base::socket.size.x;
-                    y_coor += y_size;
                 }
+                size_y = object->base::socket.size[updown];
+                entry.base::notify(object_area);
+                coor_y += size_y;
             }
         }
 
@@ -2811,8 +2797,8 @@ namespace netxs::ui
         // cake: .
         void deform(rect& new_area) override
         {
-            //todo check size (if object.both)
             auto new_coor = new_area.coor;
+            auto new_size = new_area.size;
             auto meter = [&]
             {
                 for (auto& object : subset)
@@ -2822,10 +2808,10 @@ namespace netxs::ui
                 }
             };
             meter();
-            //if (subset.size() > 1 && new_size != new_area.size)
-            //{
-            //    meter();
-            //}
+            if (subset.size() > 1 && new_size != new_area.size)
+            {
+                meter();
+            }
         }
         // cake: .
         void inform(rect new_area) override
@@ -2884,7 +2870,6 @@ namespace netxs::ui
         // veer: .
         void deform(rect& new_area) override
         {
-            //todo check size (if object.both)
             if (subset.size())
             if (auto object = subset.back())
             {

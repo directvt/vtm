@@ -654,26 +654,69 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
 
+        // base: Align object.
+        void xform(snap align, si32& coor, si32& size, si32& width)
+        {
+            switch (align)
+            {
+                case snap::head:
+                    coor = 0;
+                    break;
+                case snap::tail:
+                    coor = width - size;
+                    break;
+                case snap::both:
+                    coor = (width - size) / 2;
+                //    coor = 0;
+                //    size = width;
+                    break;
+                case snap::center:
+                    coor = (width - size) / 2;
+                    break;
+                default:
+                    break;
+            }
+        }
         // base: Recalc actual region for the object.
         void recalc(rect& new_area)
         {
             if (base::hidden) return;
+            auto required = new_area;
             new_area -= base::extpad;
             new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
+            auto c = new_area.coor;
+            new_area.coor = dot_00;
             new_area -= base::intpad;
             deform(new_area);
-            new_area += base::intpad;
+            new_area.size += base::intpad;
+            new_area.coor = c;
             new_area += base::extpad;
+            if (required.size.x < new_area.size.x && base::atcrop.x == snap::both
+             || required.size.x > new_area.size.x && base::atgrow.x == snap::both)
+            {
+                required.size.x = new_area.size.x;
+            }
+            if (required.size.y < new_area.size.y && base::atcrop.y == snap::both
+             || required.size.y > new_area.size.y && base::atgrow.y == snap::both)
+            {
+                required.size.y = new_area.size.y;
+            }
+            base::socket = new_area;
         }
         // base: Notify about actual region for the object.
         void notify(rect new_area)
         {
             if (base::hidden) return;
-            //todo adjust
+            xform(socket.size.x > new_area.size.x ? atcrop.x : atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
+            xform(socket.size.y > new_area.size.y ? atcrop.y : atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
+            std::swap(new_area, socket);
             new_area -= base::extpad;
+            auto c = new_area.coor;
+            new_area.coor = dot_00;
             new_area -= base::intpad;
             inform(new_area);
-            new_area += base::intpad;
+            new_area.size += base::intpad;
+            new_area.coor = c;
             SIGNAL(tier::release, e2::area::set, new_area);
             base::region = new_area;
         }
