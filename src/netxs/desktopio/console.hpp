@@ -511,7 +511,7 @@ namespace netxs::ui
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.mark(filler);
                 };
-                boss.LISTEN(tier::release, e2::area::any, new_area, memo)
+                boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.area(new_area);
@@ -715,7 +715,7 @@ namespace netxs::ui
                     update(f.state);
                     boss.base::strike();
                 };
-                boss.LISTEN(tier::release, e2::area::any, new_area, tokens)
+                boss.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
                     update(new_area.size);
                 };
@@ -1182,7 +1182,7 @@ namespace netxs::ui
                 auto delta = base::resize(new_size);
                 if (delta && direct) paint.cancel();
             };
-            LISTEN(tier::release, e2::area::any, new_area, tokens)
+            LISTEN(tier::release, e2::area, new_area, tokens)
             {
                 if (applet) applet->base::change(new_area);
             };

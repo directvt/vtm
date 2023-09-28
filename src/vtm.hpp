@@ -141,7 +141,7 @@ namespace netxs::app::vtm
                 {
                     unbind();
                 };
-                boss.LISTEN(tier::release, e2::area::any, new_area, memo, (pads))
+                boss.LISTEN(tier::release, e2::area, new_area, memo, (pads))
                 {
                     if (new_area.coor != boss.base::coor()) unbind();
                     else what.applet->base::resize(new_area.size + pads);
@@ -156,7 +156,7 @@ namespace netxs::app::vtm
                     unbind();
                     boss.expire<tier::release>(true);
                 };
-                window_ptr->LISTEN(tier::release, e2::area::any, new_area, memo)
+                window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     if (coor != new_area.coor) unbind(type::size);
                 };
@@ -1176,7 +1176,7 @@ namespace netxs::app::vtm
                             what.menuid = menuid;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::area::any, new_area)
+                    boss.LISTEN(tier::release, e2::area, new_area)
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
                     };

@@ -7736,7 +7736,7 @@ namespace netxs::ui
                          if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
                     else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
                 };
-                master.LISTEN(tier::release, e2::area::any, new_area, tokens)
+                master.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
                     auto winsize = s11n::syswinsz.freeze().thing.winsize;
                     if (master.ipccon && winsize != new_area.size)
@@ -7885,7 +7885,7 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
-            LISTEN(tier::release, e2::area::any, new_area)
+            LISTEN(tier::release, e2::area, new_area)
             {
                 if (new_area.coor != base::coor())
                 {

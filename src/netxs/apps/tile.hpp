@@ -70,7 +70,7 @@ namespace netxs::app::tile
             client = ui::list::ctor(axis::Y, ui::sort::reverse);
             client->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.This());
 
-            boss.LISTEN(tier::release, e2::area::any, new_area, memo)
+            boss.LISTEN(tier::release, e2::area, new_area, memo)
             {
                 if (client)
                 {

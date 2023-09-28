@@ -85,11 +85,11 @@ namespace netxs::events::userland
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
+            EVENT_XS( area      , rect           ), // release: Object rectangle.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
-            GROUP_XS( area      , rect           ), // release: Object rectangle.
             GROUP_XS( form      , bool           ),
             GROUP_XS( data      , si32           ),
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
@@ -120,10 +120,6 @@ namespace netxs::events::userland
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
                 EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
-            };
-            SUBSET_XS( area )
-            {
-                EVENT_XS( set, rect ), // preview: request new area for object. release: apply new area to object.
             };
             SUBSET_XS( config )
             {
@@ -717,7 +713,7 @@ namespace netxs::ui
             inform(new_area);
             new_area.size += base::intpad;
             new_area.coor = c;
-            SIGNAL(tier::release, e2::area::set, new_area);
+            SIGNAL(tier::release, e2::area, new_area);
             base::region = new_area;
         }
         // base: Change object area, and return delta.
@@ -743,7 +739,7 @@ namespace netxs::ui
             base::socket.size = base::region.size;
             auto new_area = base::socket;
             auto old_coor = base::region.coor;
-            SIGNAL(tier::release, e2::area::set, new_area);
+            SIGNAL(tier::release, e2::area, new_area);
             base::region.coor = new_area.coor;
             return base::region.coor - old_coor;
         }

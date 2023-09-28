@@ -489,7 +489,7 @@ namespace netxs::app::desk
                             current_default = new_default;
                         }
                     };
-                    parent->LISTEN(tier::release, e2::area::any, new_area, boss.relyon)
+                    parent->LISTEN(tier::release, e2::area, new_area, boss.relyon)
                     {
                         ground->base::change(new_area);
                     };
