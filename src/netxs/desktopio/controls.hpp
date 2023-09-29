@@ -2434,9 +2434,9 @@ namespace netxs::ui
             };
             return backup;
         }
-        auto limits(twod minlim = -dot_11, twod maxlim = -dot_11)
+        auto limits(twod min_sz = -dot_11, twod max_sz = -dot_11)
         {
-            base::limits(minlim, maxlim);
+            base::limits(min_sz, max_sz);
             return This();
         }
         auto alignment(bind atgrow, bind atcrop = {})

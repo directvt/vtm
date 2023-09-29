@@ -237,7 +237,7 @@ namespace netxs::app::shared
                     {
                         if (!*slim_status)
                         {
-                            auto height = boss.minlim.y;
+                            auto height = boss.base::min_sz.y;
                             if (new_area.size.y < 3)
                             {
                                 if (height != new_area.size.y)

@@ -594,12 +594,8 @@ namespace netxs::ui
         //todo deprecated
         cell filler; // base: Object color.
 
-        //todo ?bound rect? ?limits
-        twod minlim; // base: Minimal size.
-        twod maxlim; // base: Maximal size.
-        twod minpos; // base: Minimal coor.
-        twod maxpos; // base: Maximal coor.
-
+        twod min_sz; // base: Minimal size.
+        twod max_sz; // base: Maximal size.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
         dent oversz; // base: Oversize, for scrolling.
         dent extpad; // base: Pads around object.
@@ -677,7 +673,7 @@ namespace netxs::ui
             if (base::hidden) return;
             auto required = new_area;
             new_area -= base::extpad;
-            new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
+            new_area.size = std::clamp(new_area.size, base::min_sz, base::max_sz);
             auto nested_area = rect{ dot_00, new_area.size } - base::intpad;
             deform(nested_area);
             new_area.size = nested_area.size + base::intpad;
@@ -913,10 +909,10 @@ namespace netxs::ui
             bell::_saveme();
         }
 
-        void limits(twod minlim = -dot_11, twod maxlim = -dot_11)
+        void limits(twod min_sz = -dot_11, twod max_sz = -dot_11)
         {
-            base::minlim = minlim.less(dot_00, skin::globals().min_value, minlim);
-            base::maxlim = maxlim.less(dot_00, skin::globals().max_value, maxlim);
+            base::min_sz = min_sz.less(dot_00, skin::globals().min_value, min_sz);
+            base::max_sz = max_sz.less(dot_00, skin::globals().max_value, max_sz);
         }
         void alignment(bind atgrow, bind atcrop = {})
         {
@@ -1013,8 +1009,8 @@ namespace netxs::ui
         virtual ~base() = default;
         base(size_t nested_count = 0)
             : subset{ nested_count },
-              minlim{ skin::globals().min_value },
-              maxlim{ skin::globals().max_value },
+              min_sz{ skin::globals().min_value },
+              max_sz{ skin::globals().max_value },
               wasted{ true },
               hidden{ faux },
               master{ faux },

@@ -536,10 +536,10 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (size_config))
                     {
                         auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        boss.minlim.x += gear.delta.get().x;
-                        boss.maxlim.x = boss.minlim.x;
-                        gear.meta(hids::anyCtrl) ? menu_min_size = boss.minlim.x
-                                                 : menu_max_size = boss.minlim.x;
+                        boss.base::min_sz.x += gear.delta.get().x;
+                        boss.base::max_sz.x = boss.base::min_sz.x;
+                        gear.meta(hids::anyCtrl) ? menu_min_size = boss.base::min_sz.x
+                                                 : menu_max_size = boss.base::min_sz.x;
                         boss.base::reflow();
                     };
                     //todo rewrite taskbar
