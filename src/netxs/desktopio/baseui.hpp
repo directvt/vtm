@@ -608,8 +608,7 @@ namespace netxs::ui
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        //todo it is a dent. not a side
-        side oversz; // base: Oversize, for scrolling.
+        dent oversz; // base: Oversize, for scrolling.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         template<class T = base>
@@ -628,7 +627,7 @@ namespace netxs::ui
         template<bool Absolute = true>
         auto actual_area() const
         {
-            auto area = rect{ -oversz.topleft(), region.size + oversz.summ() };
+            auto area = rect{ -oversz.corner(), region.size + oversz };
             if constexpr (Absolute) area.coor += region.coor;
             return area;
         }

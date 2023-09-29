@@ -1094,7 +1094,7 @@ namespace netxs::ui
             }
 
             virtual void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback) = 0;
-            virtual bool recalc_pads(side& oversz)                                      = 0;
+            virtual bool recalc_pads(dent& oversz)                                      = 0;
             virtual void output(face& canvas)                                           = 0;
             virtual si32 height()                                                       = 0;
             virtual void del_above()                                                    = 0;
@@ -2138,15 +2138,15 @@ namespace netxs::ui
                 return panel.y;
             }
             // alt_screen: Recalc left and right oversize (Always 0 for altbuf).
-            bool recalc_pads(side& oversz) override
+            bool recalc_pads(dent& oversz) override
             {
                 auto left = 0;
                 auto rght = 0;
-                if (oversz.r != rght
-                 || oversz.l != left)
+                if (oversz.east.step != rght
+                 || oversz.west.step != left)
                 {
-                    oversz.r = rght;
-                    oversz.l = left;
+                    oversz.east.step = rght;
+                    oversz.west.step = left;
                     return true;
                 }
                 else return faux;
@@ -3450,7 +3450,7 @@ namespace netxs::ui
                 return batch.vsize;
             }
             // scroll_buf: Recalc left and right oversize.
-            bool recalc_pads(side& oversz) override
+            bool recalc_pads(dent& oversz) override
             {
                 auto coor = get_coord();
                 auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
@@ -3460,11 +3460,13 @@ namespace netxs::ui
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both + (cntr & 1));
                 rght = shore + std::max(rght, both);
-                if (oversz.r != rght || oversz.l != left || oversz.b != bttm)
+                if (oversz.east.step != rght
+                 || oversz.west.step != left
+                 || oversz.foot.step != bttm)
                 {
-                    oversz.r = rght;
-                    oversz.l = left;
-                    oversz.b = bttm;
+                    oversz.east.step = rght;
+                    oversz.west.step = left;
+                    oversz.foot.step = bttm;
                     return true;
                 }
                 else return faux;
@@ -6637,8 +6639,8 @@ namespace netxs::ui
                 worker.pacify();
                 auto shore = console.getpad();
                 auto delta = dot_00;
-                     if (origin.x <= oversz.l && origin.x > oversz.l - shore) delta = {-1, oversz.l - shore };
-                else if (origin.x >=-oversz.r && origin.x < shore - oversz.r) delta = { 1, shore - oversz.r };
+                     if (origin.x <= oversz.west.step && origin.x > oversz.west.step - shore) delta = {-1, oversz.west.step - shore };
+                else if (origin.x >=-oversz.east.step && origin.x < shore - oversz.east.step) delta = { 1, shore - oversz.east.step };
                 if (delta.x)
                 {
                     auto limit = delta.y;
@@ -7291,13 +7293,13 @@ namespace netxs::ui
                 console.output(parent_canvas);
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
 
-                if (oversz.b > 0) // Shade the viewport bottom oversize (futures).
+                if (oversz.foot.step > 0) // Shade the viewport bottom oversize (futures).
                 {
                     auto bottom_oversize = full;
-                    bottom_oversize.coor.x -= oversz.l;
+                    bottom_oversize.coor.x -= oversz.west.step;
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
-                    bottom_oversize.size.y  = oversz.b;
-                    bottom_oversize.size.x += oversz.l + oversz.r;
+                    bottom_oversize.size.y  = oversz.foot.step;
+                    bottom_oversize.size.x += oversz.west.step + oversz.east.step;
                     bottom_oversize = bottom_oversize.clip(view);
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
@@ -7309,8 +7311,8 @@ namespace netxs::ui
                     west.coor.y -= dot_mx.y / 2;
                     auto east = west;
                     auto pads = console.getpad();
-                    west.coor.x -= oversz.l - pads + dot_mx.x;
-                    east.coor.x += oversz.r - pads + console.panel.x;
+                    west.coor.x -= oversz.west.step - pads + dot_mx.x;
+                    east.coor.x += oversz.east.step - pads + console.panel.x;
                     west = west.clip(view);
                     east = east.clip(view);
                     parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));

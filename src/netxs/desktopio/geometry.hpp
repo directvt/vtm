@@ -715,13 +715,16 @@ namespace netxs
                          netxs::letoh(d.head.step),
                          netxs::letoh(d.foot.step) };
         }
+        auto str() const
+        {
+            return '{' + std::to_string(west.step) + ','
+                       + std::to_string(east.step) + ','
+                       + std::to_string(head.step) + ','
+                       + std::to_string(foot.step) + '}';
+        }
         friend auto& operator << (std::ostream& s, dent const& d)
         {
-            return s << '{' << d.west.step << ','
-                            << d.east.step << ','
-                            << d.head.step << ','
-                            << d.foot.step << ','
-                            << '}';
+            return s << d.str();
         }
     };
     // dent: Return difference between area.
@@ -738,7 +741,7 @@ namespace netxs
     {
         twod region{}; // rack: Available scroll area.
         rect window{}; // rack: Scrolling viewport.
-        side beyond{}; // rack: Scroll margins outside of the scroll region.
+        dent beyond{}; // rack: Scroll margins outside of the scroll region.
         twod vector{}; // rack: Scroll direction.
 
         auto str() const

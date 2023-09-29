@@ -3111,10 +3111,10 @@ namespace netxs::ui
             base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
 
             auto& cover = flow::minmax();
-            base::oversz.set(-std::min(0, cover.l),
+            base::oversz = { -std::min(0, cover.l),
                               std::max(0, cover.r - width.x + 1),
                              -std::min(0, cover.t),
-                              0);
+                              0 };
             auto height = cover.width() ? cover.height() + 1
                                         : 0;
             width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
@@ -3407,9 +3407,9 @@ namespace netxs::ui
             {
                 auto& item = *object;
                 auto frame = (base::size() - base::intpad)[Axis];
-                auto coord = item.base::coor()[Axis] - item.oversz.topleft()[Axis]; // coor - scroll origin basis.
-                auto block = item.base::size()[Axis] + item.oversz.summ()[Axis];
-                auto bound = std::min(frame - block, 0);
+                auto block = item.base::area() + item.base::oversz;
+                auto coord = block.coor[Axis];
+                auto bound = std::min(frame - block.size[Axis], 0);
                 auto clamp = std::clamp(coord, bound, 0);
                 return clamp == coord;
             }
@@ -3453,11 +3453,11 @@ namespace netxs::ui
             auto& item = *object;
             auto& coord = block.coor;
             auto& width = block.size;
-            auto basis = item.base::oversz.topleft() + base::intpad.corner();
+            auto basis = base::intpad.corner() + item.base::oversz.corner();
             frame -= base::intpad;
             coord -= basis; // Scroll origin basis.
             coord += delta;
-            width += item.base::oversz.summ();
+            width += item.base::oversz;
             auto bound = std::min(frame - width, dot_00);
             auto clamp = std::clamp(coord, bound, dot_00);
             for (auto xy : { axis::X, axis::Y }) // Check overscroll if no auto correction.
@@ -3495,10 +3495,10 @@ namespace netxs::ui
                 auto& item = *object;
                 auto frame = base::socket.size - base::extpad - base::intpad;
                 auto coord = new_area.coor;
-                auto block = new_area.size + item.base::oversz.summ();
-                auto basis = item.base::oversz.topleft() + base::intpad.corner();
+                auto block = new_area.size + item.base::oversz;
+                auto basis = base::intpad.corner() + item.base::oversz.corner();
                 coord -= basis; // Scroll origin basis.
-                scinfo.beyond = item.oversz;
+                scinfo.beyond = item.base::oversz;
                 scinfo.region = block;
                 scinfo.window.coor =-coord; // Viewport.
                 scinfo.window.size = frame; //
