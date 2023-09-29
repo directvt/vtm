@@ -725,14 +725,14 @@ namespace netxs::ui
         // base: Resize relative anchor point. The object is responsible for correcting the anchor point during deforming. Return new area of object.
         auto resize(twod new_size, bool apply = true)
         {
-            auto old_anchor = base::anchor;
+            auto anchored = base::anchor;
             auto old_size = base::region.size;
             auto new_area = base::region;
             new_area.size = new_size;
             new_area += base::extpad;
             recalc(new_area);
             notify(new_area, faux);
-            new_area.coor += old_anchor - base::anchor;
+            new_area.coor += anchored - base::anchor;
             base::socket = new_area;
             if (apply) accept(new_area);
             return new_area;

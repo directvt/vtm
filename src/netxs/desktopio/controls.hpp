@@ -2698,12 +2698,9 @@ namespace netxs::ui
             auto  x_temp = x_size;
             auto  y_temp = y_size;
             auto start = height;
-            auto delta = dot_00;
             auto meter = [&]
             {
-                auto found = faux;
                 height = start;
-                delta = dot_00;
                 for (auto& object : subset)
                 {
                     if (!object) continue;
@@ -2712,21 +2709,11 @@ namespace netxs::ui
                     entry.base::recalc(object_area);
                     if (x_size > x_temp) x_temp = x_size;
                     else                 x_size = x_temp;
-                    if (!found) //todo optimize by comparing with y_coor by height.
-                    {
-                        auto& anker = entry.base::area(); // Use old object position.
-                        if (anker.hittest(base::anchor))
-                        {
-                            found = true;
-                            delta = object_area.coor - anker.coor;
-                        }
-                    }
                     height += entry.base::socket.size[updown];
                 }
             };
             meter(); if (subset.size() > 1 && x_temp != x_size) meter();
             y_size = height;
-            base::anchor += delta;
         }
         // list: .
         void inform(rect new_area) override
@@ -2734,10 +2721,23 @@ namespace netxs::ui
             auto object_area = new_area;
             auto& size_y = object_area.size[updown];
             auto& coor_y = object_area.coor[updown];
+            auto& lock_y = base::anchor[updown];
+            auto found = faux;
             for (auto& object : subset)
             {
                 if (!object) continue;
                 auto& entry = *object;
+                if (!found) // Looking for anchored list entry.
+                {
+                    auto& anker = entry.base::area(); // Use old entry position.
+                    auto anker_coor_y = anker.coor[updown];
+                    auto anker_size_y = anker.size[updown];
+                    if (lock_y < anker_coor_y + anker_size_y || lock_y < anker_coor_y)
+                    {
+                        base::anchor += object_area.coor - anker.coor;
+                        found = true;
+                    }
+                }
                 size_y = entry.base::socket.size[updown];
                 entry.base::notify(object_area);
                 coor_y += size_y;
@@ -3322,13 +3322,10 @@ namespace netxs::ui
         {
             if (object)
             {
-                auto point = base::anchor;
-                point -= base::region.coor;
-                point += base::intpad.corner();
-                object->base::anchor = point;
+                object->base::anchor = base::anchor - object->base::region.coor;
                 auto block = object->base::resize(new_area.size - object->base::extpad, faux);
-                auto delta = dot_00;
                 auto frame = new_area.size;
+                auto delta = dot_00;
                 revise(block, frame, delta);
                 block += object->base::extpad;
                 object->base::socket = block;
@@ -3496,7 +3493,7 @@ namespace netxs::ui
             item_ptr->LISTEN(tier::release, e2::area, new_area, item_ptr->relyon) // Sync scroll info.
             {
                 auto& item = *object;
-                auto frame = base::size() - base::intpad;
+                auto frame = base::socket.size - base::extpad - base::intpad;
                 auto coord = new_area.coor;
                 auto block = new_area.size + item.base::oversz.summ();
                 auto basis = item.base::oversz.topleft() + base::intpad.corner();
