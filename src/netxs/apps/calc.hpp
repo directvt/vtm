@@ -66,7 +66,7 @@ namespace netxs::ui
                 {
                     curpos = coord;
                     auto area = boss.base::size();
-                    area.x += boss.base::oversz.east.step;
+                    area.x += boss.base::oversz.r;
                     inside = area.inside(curpos);
                 }
                 auto drag(twod const& coord)
@@ -102,7 +102,7 @@ namespace netxs::ui
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     auto step = twod{ 5, 1 };
                     auto area = full;
-                    area.size.x += boss.base::oversz.east.step;
+                    area.size.x += boss.base::oversz.r;
                     items.foreach([&](sock& item)
                     {
                         if (item.region.size)
@@ -135,7 +135,7 @@ namespace netxs::ui
                 {
                     auto& item = items.take(gear);
                     auto area = boss.base::size();
-                    area.x += boss.base::oversz.east.step;
+                    area.x += boss.base::oversz.r;
                     item.region.coor = dot_00;
                     item.region.size = area;
                     recalc();
@@ -167,7 +167,7 @@ namespace netxs::ui
                 auto data = text{};
                 auto step = twod{ 5, 1 };
                 auto size = boss.base::size();
-                size.x += boss.base::oversz.east.step;
+                size.x += boss.base::oversz.r;
                 items.foreach([&](sock& item)
                 {
                     if (item.region.size)

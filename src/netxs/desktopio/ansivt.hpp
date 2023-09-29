@@ -1001,10 +1001,10 @@ namespace netxs::ansi
         auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
         auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
         auto& tbs   (si32  n) { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (si32  n) { margin.west.step = n;                 return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (si32  n) { margin.east.step = n;                 return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (si32  n) { margin.head.step = n;                 return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (si32  n) { margin.foot.step = n;                 return *this; } // deco: fx_ccc_mgb.
+        auto& mgl   (si32  n) { margin.l = n;                         return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (si32  n) { margin.r = n;                         return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (si32  n) { margin.t = n;                         return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (si32  n) { margin.b = n;                         return *this; } // deco: fx_ccc_mgb.
         auto& mgn   (fifo& q) { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
         // deco: Reset to global default.

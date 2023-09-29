@@ -162,8 +162,8 @@ namespace netxs::ui
                     {
                         dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
                         sector = dtcoor.less(dot_11, -dot_11, dot_11);
-                        widths = sector.less(dot_00, twod{-border.east.step,-border.foot.step },
-                                                     twod{ border.west.step, border.head.step });
+                        widths = sector.less(dot_00, twod{-border.r,-border.b },
+                                                     twod{ border.l, border.t });
                     }
                     auto l = sector * (curpos - corner(length));
                     auto a = center * l / center;
@@ -2236,7 +2236,7 @@ namespace netxs::ui
                 : skill{ boss },
                   note { data }
             {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == si32max))
+                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.l == si32max))
                 {
                     if (gear.tooltip_set) return; // Prevent parents from setting tooltip.
                     if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))

@@ -2203,17 +2203,17 @@ namespace netxs
         void cage(rect const& area, dent const& border, P fuse) // core: Draw the cage around specified area.
         {
             auto temp = area;
-            temp.size.y = std::max(0, border.head.step); // Top
+            temp.size.y = std::max(0, border.t); // Top
             fill(temp.clip(area), fuse);
-            temp.coor.y += area.size.y - border.foot.step; // Bottom
-            temp.size.y = std::max(0, border.foot.step);
+            temp.coor.y += area.size.y - border.b; // Bottom
+            temp.size.y = std::max(0, border.b);
             fill(temp.clip(area), fuse);
-            temp.size.x = std::max(0, border.west.step); // Left
-            temp.size.y = std::max(0, area.size.y - border.head.step - border.foot.step);
-            temp.coor.y = area.coor.y + border.head.step;
+            temp.size.x = std::max(0, border.l); // Left
+            temp.size.y = std::max(0, area.size.y - border.t - border.b);
+            temp.coor.y = area.coor.y + border.t;
             fill(temp.clip(area), fuse);
-            temp.coor.x += area.size.x - border.east.step; // Right
-            temp.size.x = std::max(0, border.east.step);
+            temp.coor.x += area.size.x - border.r; // Right
+            temp.size.x = std::max(0, border.r);
             fill(temp.clip(area), fuse);
         }
         template<class Text, class P = noop>

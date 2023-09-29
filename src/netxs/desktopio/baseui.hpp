@@ -600,6 +600,8 @@ namespace netxs::ui
         twod minpos; // base: Minimal coor.
         twod maxpos; // base: Maximal coor.
 
+        twod anchor; // base: Object balance point. Center point for any transform (on preview).
+        dent oversz; // base: Oversize, for scrolling.
         dent extpad; // base: Pads around object.
         dent intpad; // base: Pads inside object.
         bind atgrow; // base: Bindings on enlarging.
@@ -608,8 +610,6 @@ namespace netxs::ui
         bool hidden; // base: Ignore rendering and resizing.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
-        dent oversz; // base: Oversize, for scrolling.
-        twod anchor; // base: Object balance point. Center point for any transform (on preview).
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
