@@ -3322,23 +3322,17 @@ namespace netxs::ui
         {
             if (object)
             {
-                auto frame = new_area.size;
-                auto block = object->base::region;
-                block.size = frame - base::intpad;
-
-                auto point = base::anchor - block.coor;
-                point += object->base::intpad.corner();
+                auto point = base::anchor;
+                point -= base::region.coor;
+                point += base::intpad.corner();
                 object->base::anchor = point;
-
-                block += object->base::extpad;
-                object->base::recalc(block);
-                block -= object->base::extpad;
-
-                auto delta = point - object->base::anchor;
+                auto block = object->base::resize(new_area.size - object->base::extpad, faux);
+                auto delta = dot_00;
+                auto frame = new_area.size;
                 revise(block, frame, delta);
-
                 block += object->base::extpad;
-                object->base::notify(block);
+                object->base::socket = block;
+                object->base::accept(block);
             }
         }
 

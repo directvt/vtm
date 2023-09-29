@@ -1179,7 +1179,8 @@ namespace netxs::ui
             {
                 auto new_area = rect{ dot_00, new_size };
                 if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
-                auto delta = base::resize(new_size);
+                auto old_size = base::size();
+                auto delta = base::resize(new_size).size - old_size;
                 if (delta && direct) paint.cancel();
             };
             LISTEN(tier::release, e2::area, new_area, tokens)

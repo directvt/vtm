@@ -672,19 +672,16 @@ namespace netxs::ui
                     break;
             }
         }
-        // base: Recalc actual region for the object.
+        // base: Recalc actual area (ext rect) for the object.
         void recalc(rect& new_area)
         {
             if (base::hidden) return;
             auto required = new_area;
             new_area -= base::extpad;
             new_area.size = std::clamp(new_area.size, base::minlim, base::maxlim);
-            auto c = new_area.coor;
-            new_area.coor = dot_00;
-            new_area -= base::intpad;
-            deform(new_area);
-            new_area.size += base::intpad;
-            new_area.coor = c;
+            auto nested_area = rect{ dot_00, new_area.size } - base::intpad;
+            deform(nested_area);
+            new_area.size = nested_area.size + base::intpad;
             new_area += base::extpad;
             if (required.size.x < new_area.size.x && base::atcrop.x == snap::both
              || required.size.x > new_area.size.x && base::atgrow.x == snap::both)
@@ -699,22 +696,25 @@ namespace netxs::ui
             base::socket = new_area;
             //new_area = required;
         }
-        // base: Notify about actual region for the object.
-        void notify(rect new_area)
+        // base: Apply new area (ext rect) and notify subscribers.
+        void accept(rect new_area)
         {
-            if (base::hidden) return;
             xform(socket.size.x > new_area.size.x ? atcrop.x : atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
             xform(socket.size.y > new_area.size.y ? atcrop.y : atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
-            auto c = new_area.coor;
-            new_area.coor = dot_00;
-            new_area -= base::intpad;
-            inform(new_area);
-            new_area.size += base::intpad;
-            new_area.coor = c;
             SIGNAL(tier::release, e2::area, new_area);
             base::region = new_area;
+        }
+        // base: Notify about appoved area (ext rect) for the object.
+        void notify(rect new_area, bool apply = true)
+        {
+            if (base::hidden) return;
+            auto nested_area = rect{ dot_00, base::socket.size };
+            nested_area -= base::extpad;
+            nested_area -= base::intpad;
+            inform(nested_area);
+            if (apply) accept(new_area);
         }
         // base: Change object area, and return delta.
         void change(rect new_area)
@@ -722,15 +722,20 @@ namespace netxs::ui
             recalc(new_area);
             notify(new_area);
         }
-        // base: Set new size, and return delta.
-        auto resize(twod new_size)
+        // base: Resize relative anchor point. The object is responsible for correcting the anchor point during deforming. Return new area of object.
+        auto resize(twod new_size, bool apply = true)
         {
-            auto new_area = base::region;
+            auto old_anchor = base::anchor;
             auto old_size = base::region.size;
+            auto new_area = base::region;
             new_area.size = new_size;
             new_area += base::extpad;
-            change(new_area);
-            return base::region.size - old_size;
+            recalc(new_area);
+            notify(new_area, faux);
+            new_area.coor += old_anchor - base::anchor;
+            base::socket = new_area;
+            if (apply) accept(new_area);
+            return new_area;
         }
         // base: Move and return delta.
         auto moveto(twod new_coor)
@@ -753,33 +758,17 @@ namespace netxs::ui
         {
             return moveto(base::region.coor + step);
         }
-        // base: Resize relative the center point.
-        //       Return center point offset.
-        //       The object is responsible for correcting
-        //       the center point during resizing.
-        auto resize(twod new_size, twod point)
-        {
-            point -= base::region.coor;
-            point += base::intpad.corner();
-            base::anchor = point; //todo use dot_00 instead of point
-            auto old_coor = base::region.coor;
-            auto new_area = base::region;
-            new_area.size = new_size;
-            new_area += base::extpad;
-            recalc(new_area);
-            new_area.coor += point - base::anchor;
-            notify(new_area);
-            return base::region.coor - old_coor;
-        }
-        // base: Dry run (preview then release) current value.
+        // base: Dry run current area size value.
         auto resize()
         {
             return resize(base::region.size);
         }
-        // base: Resize by step, and return delta.
+        // base: Resize by step, and return size delta.
         auto sizeby(twod const& step)
         {
-            return resize(base::region.size + step);
+            auto old_size = base::region.size;
+            auto new_size = old_size + step;
+            return resize(new_size).size - old_size;
         }
         // base: Resize and move, and return delta.
         auto extend(rect new_area)
