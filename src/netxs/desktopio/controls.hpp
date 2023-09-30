@@ -2790,7 +2790,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Layered cake of forms on top of each other.
+    // controls: Layered cake of objects on top of each other.
     class cake
         : public form<cake>
     {
@@ -2861,7 +2861,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Container for multiple controls, but only the last one is shown.
+    // controls: Container for multiple objects, but only the last one is shown.
     class veer
         : public form<veer>
     {
@@ -2960,7 +2960,7 @@ namespace netxs::ui
         }
     };
 
-    // controls: Static text page.
+    // controls: Text page.
     template<auto fx>
     class postfx
         : public flow, public form<postfx<fx>>
@@ -3059,14 +3059,13 @@ namespace netxs::ui
 
         using upon = e2::form::upon;
 
-        sptr& object; // rail: Object instance.
-        twod  strict; // rail: Don't allow overscroll.
-        twod  manual; // rail: Manual scrolling (no auto align).
-        twod  permit; // rail: Allowed axes to scroll.
-        twod  siezed; // rail: Allowed axes to capture.
-        twod  oversc; // rail: Allow overscroll with auto correct.
-        subs  fasten; // rail: Subscriptions on masters to follow they state.
-        rack  scinfo; // rail: Scroll info.
+        twod strict; // rail: Don't allow overscroll.
+        twod manual; // rail: Manual scrolling (no auto align).
+        twod permit; // rail: Allowed axes to scroll.
+        twod siezed; // rail: Allowed axes to capture.
+        twod oversc; // rail: Allow overscroll with auto correct.
+        subs fasten; // rail: Subscriptions on masters to follow they state.
+        rack scinfo; // rail: Scroll info.
 
         si32 spd       = skin::globals().spd;
         si32 pls       = skin::globals().pls;
@@ -3087,12 +3086,12 @@ namespace netxs::ui
         {
             return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
+        // rail: .
+        auto empty() { return base::subset.empty() || !base::subset.back(); }
 
     protected:
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
-            : form{ 1 },
-              object{ base::subset[0] },
-              permit{ xy(allow_to_scroll)  },
+            : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
               oversc{ xy(allow_overscroll) },
               strict{ xy(axes::all) },
@@ -3100,33 +3099,30 @@ namespace netxs::ui
         {
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
-                if (object)
+                auto& delta = info.result;
+                switch (this->bell::protos<tier::preview>())
                 {
-                    auto& delta = info.result;
-                    switch (this->bell::protos<tier::preview>())
-                    {
-                        case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
-                        case upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;
-                        case upon::scroll::bycoor::y.id: delta = { 0, scinfo.window.coor.y - info.window.coor.y }; break;
-                        case upon::scroll::to_top::v.id: delta = { dot_mx };                                       break;
-                        case upon::scroll::to_top::x.id: delta = { dot_mx.x, 0 };                                  break;
-                        case upon::scroll::to_top::y.id: delta = { 0, dot_mx.y };                                  break;
-                        case upon::scroll::to_end::v.id: delta = { -dot_mx };                                      break;
-                        case upon::scroll::to_end::x.id: delta = { -dot_mx.x, 0 };                                 break;
-                        case upon::scroll::to_end::y.id: delta = { 0, -dot_mx.y };                                 break;
-                        case upon::scroll::bystep::v.id: delta = { info.vector };                                  break;
-                        case upon::scroll::bystep::x.id: delta = { info.vector.x, 0 };                             break;
-                        case upon::scroll::bystep::y.id: delta = { 0, info.vector.y };                             break;
-                        case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size };             break;
-                        case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 };      break;
-                        case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y };      break;
-                        case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>();         break;
-                        case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>();                            break;
-                        case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>();                            break;
-                        default:                         delta = {}; break;
-                    }
-                    if (delta) scroll(delta);
+                    case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
+                    case upon::scroll::bycoor::x.id: delta = { scinfo.window.coor.x - info.window.coor.x, 0 }; break;
+                    case upon::scroll::bycoor::y.id: delta = { 0, scinfo.window.coor.y - info.window.coor.y }; break;
+                    case upon::scroll::to_top::v.id: delta = { dot_mx };                                       break;
+                    case upon::scroll::to_top::x.id: delta = { dot_mx.x, 0 };                                  break;
+                    case upon::scroll::to_top::y.id: delta = { 0, dot_mx.y };                                  break;
+                    case upon::scroll::to_end::v.id: delta = { -dot_mx };                                      break;
+                    case upon::scroll::to_end::x.id: delta = { -dot_mx.x, 0 };                                 break;
+                    case upon::scroll::to_end::y.id: delta = { 0, -dot_mx.y };                                 break;
+                    case upon::scroll::bystep::v.id: delta = { info.vector };                                  break;
+                    case upon::scroll::bystep::x.id: delta = { info.vector.x, 0 };                             break;
+                    case upon::scroll::bystep::y.id: delta = { 0, info.vector.y };                             break;
+                    case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size };             break;
+                    case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 };      break;
+                    case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y };      break;
+                    case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>();         break;
+                    case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>();                            break;
+                    case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>();                            break;
+                    default:                         delta = {}; break;
                 }
+                if (delta) scroll(delta);
             };
             LISTEN(tier::request, e2::form::upon::scroll::any, req_scinfo)
             {
@@ -3233,26 +3229,24 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (object)
-                {
-                    object->render(parent_canvas, base::coor(), faux);
-                }
+                if (empty()) return;
+                auto& item = *base::subset.back();
+                item.render(parent_canvas, base::coor(), faux);
             };
         }
         // rail: Resize nested object.
         void inform(rect new_area) override
         {
-            if (object)
-            {
-                object->base::anchor = base::anchor - object->base::region.coor;
-                auto block = object->base::resize(new_area.size - object->base::extpad, faux);
-                auto frame = new_area.size;
-                auto delta = dot_00;
-                revise(block, frame, delta);
-                block += object->base::extpad;
-                object->base::socket = block;
-                object->base::accept(block);
-            }
+            if (empty()) return;
+            auto& item = *base::subset.back();
+            item.base::anchor = base::anchor - item.base::region.coor;
+            auto block = item.base::resize(new_area.size - item.base::extpad, faux);
+            auto frame = new_area.size;
+            auto delta = dot_00;
+            revise(item, block, frame, delta);
+            block += item.base::extpad;
+            item.base::socket = block;
+            item.base::accept(block);
         }
 
     public:
@@ -3322,21 +3316,18 @@ namespace netxs::ui
                 scroll(delta);
             });
         }
-        // rail: .
+        // rail: Check overscroll if no auto correction.
         template<axis Axis>
         auto inside()
         {
-            if (object && manual[Axis]) // Check overscroll if no auto correction.
-            {
-                auto& item = *object;
-                auto frame = (base::size() - base::intpad)[Axis];
-                auto block = item.base::area() + item.base::oversz;
-                auto coord = block.coor[Axis];
-                auto bound = std::min(frame - block.size[Axis], 0);
-                auto clamp = std::clamp(coord, bound, 0);
-                return clamp == coord;
-            }
-            return true;
+            if (empty() || !manual[Axis]) return true;
+            auto& item = *base::subset.back();
+            auto frame = (base::size() - base::intpad)[Axis];
+            auto block = item.base::area() + item.base::oversz;
+            auto coord = block.coor[Axis];
+            auto bound = std::min(frame - block.size[Axis], 0);
+            auto clamp = std::clamp(coord, bound, 0);
+            return clamp == coord;
         }
         // rail: .
         template<axis Axis, class Fx>
@@ -3355,25 +3346,23 @@ namespace netxs::ui
         template<axis Axis>
         void lineup()
         {
-            if (object)
-            {
-                manual[Axis] = faux;
-                auto block = object->base::area();
-                auto coord = block.coor[Axis];
-                auto width = block.size[Axis];
-                auto frame = (base::size() - base::intpad)[Axis];
-                auto bound = std::min(frame - width, 0);
-                auto newxy = std::clamp(coord, bound, 0);
-                auto route = newxy - coord;
-                auto tempo = switching;
-                auto start = 0;
-                auto fader = constlinearAtoB<si32>(route, tempo, start);
-                keepon<Axis>(fader);
-            }
+            if (empty()) return;
+            manual[Axis] = faux;
+            auto& item = *base::subset.back();
+            auto block = item.base::area();
+            auto coord = block.coor[Axis];
+            auto width = block.size[Axis];
+            auto frame = (base::size() - base::intpad)[Axis];
+            auto bound = std::min(frame - width, 0);
+            auto newxy = std::clamp(coord, bound, 0);
+            auto route = newxy - coord;
+            auto tempo = switching;
+            auto start = 0;
+            auto fader = constlinearAtoB<si32>(route, tempo, start);
+            keepon<Axis>(fader);
         }
-        void revise(rect& block, twod frame, twod& delta)
+        void revise(base& item, rect& block, twod frame, twod& delta)
         {
-            auto& item = *object;
             auto& coord = block.coor;
             auto& width = block.size;
             auto basis = base::intpad.corner() + item.base::oversz.corner();
@@ -3396,26 +3385,25 @@ namespace netxs::ui
         // rail: .
         void scroll(twod& delta)
         {
-            if (object)
-            {
-                auto& item = *object;
-                auto frame = base::size();
-                auto block = item.base::area();
-                revise(block, frame, delta);
-                item.base::moveto(block.coor);
-                base::deface();
-            }
+            if (empty()) return;
+            auto& item = *base::subset.back();
+            auto frame = base::size();
+            auto block = item.base::area();
+            revise(item, block, frame, delta);
+            item.base::moveto(block.coor);
+            base::deface();
         }
         // rail: Attach specified item.
         template<class T>
-        auto attach(T new_object)
+        auto attach(T object)
         {
-            if (object) remove(object);
-            object = new_object;
+            if (!empty()) remove(base::subset.back());
+            base::subset.push_back(object);
             object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             object->LISTEN(tier::release, e2::area, new_area, object->relyon) // Sync scroll info.
             {
-                auto& item = *object;
+                if (empty()) return;
+                auto& item = *base::subset.back();
                 auto frame = base::socket.size - base::extpad - base::intpad;
                 auto coord = new_area.coor;
                 auto block = new_area.size + item.base::oversz;
@@ -3427,36 +3415,38 @@ namespace netxs::ui
                 scinfo.window.size = frame; //
                 SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
             };
-            return new_object;
+            return object;
         }
-        // rail: Detach specified item.
-        void remove(sptr item_ptr) override
+        // rail: Detach specified object.
+        void remove(sptr object) override
         {
-            if (object == item_ptr)
+            if (!empty() && base::subset.back() == object)
             {
                 auto backup = This();
-                object.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                base::subset.pop_back();
+                object->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
                 scinfo.region = {};
                 scinfo.window.coor = {};
                 this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo); // Reset dependent scrollbars.
                 fasten.clear();
             }
+            else base::subset.clear();
         }
         // rail: Update nested object.
-        void update(sptr old_item_ptr, sptr new_item_ptr) override
+        void update(sptr old_object, sptr new_object) override
         {
-            if constexpr (debugmode)
+            auto object_coor = dot_00;
+            if (!empty())
             {
-                if (object != old_item_ptr) log(prompt::rail, ansi::err("Wrong DOM structure. rail.id=", id));
+                auto object = base::subset.back();
+                object_coor = object->base::coor();
+                remove(old_object);
             }
-            if (object)
+            if (new_object)
             {
-                auto current_position = object->base::coor();
-                attach(new_item_ptr);
-                if (new_item_ptr) new_item_ptr->base::moveto(current_position);
+                new_object->base::moveto(object_coor);
+                attach(new_object);
             }
-            else attach(new_item_ptr);
         }
     };
 
@@ -3854,15 +3844,15 @@ namespace netxs::ui
     class pads
         : public form<pads>
     {
-        sptr& object;
-        dent  intpad;
-        dent  extpad;
+        dent intpad;
+        dent extpad;
+
+        // pads: .
+        auto empty() { return base::subset.empty() || !base::subset.back(); }
 
     protected:
         pads(dent const& intpad_value = {}, dent const& extpad_value = {})
-            : form{ 1 },
-              object{ base::subset[0] },
-              intpad{ intpad_value },
+            : intpad{ intpad_value },
               extpad{ extpad_value }
         {
             LISTEN(tier::release, e2::render::prerender, parent_canvas)
@@ -3871,9 +3861,10 @@ namespace netxs::ui
                 parent_canvas.view(view + extpad);
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
                 parent_canvas.view(view);
-                if (object)
+                if (!empty())
                 {
-                    object->render(parent_canvas, base::coor());
+                    auto& item = *base::subset.back();
+                    item.render(parent_canvas, base::coor());
                 }
                 this->bell::expire<tier::release>();
             };
@@ -3881,51 +3872,47 @@ namespace netxs::ui
         // pads: .
         void deform(rect& new_area) override
         {
-            //todo check size (if object.both)
-            if (object)
-            {
-                auto object_area = new_area - intpad;
-                object->base::recalc(object_area);
-                new_area = object_area + intpad;
-            }
+            if (empty()) return;
+            auto& item = *base::subset.back();
+            auto object_area = new_area - intpad;
+            item.base::recalc(object_area);
+            new_area = object_area + intpad;
         }
         // pads: .
         void inform(rect new_area) override
         {
-            if (object)
-            {
-                auto object_area = new_area - intpad;
-                object->base::notify(object_area);
-            }
+            if (empty()) return;
+            auto& item = *base::subset.back();
+            auto object_area = new_area - intpad;
+            item.base::notify(object_area);
         }
 
     public:
-        // pads: Attach specified item.
+        // pads: Attach specified object.
         template<class T>
-        auto attach(T item_ptr)
+        auto attach(T object)
         {
-            if (object) remove(object);
-            object = item_ptr;
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item_ptr;
+            if (!empty()) remove(base::subset.back());
+            base::subset.push_back(object);
+            object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return object;
         }
-        // pads: Remove item.
-        void remove(sptr item_ptr) override
+        // pads: Remove object.
+        void remove(sptr object) override
         {
-            if (object == item_ptr)
+            if (!empty() && base::subset.back() == object)
             {
                 auto backup = This();
-                object.reset();
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                base::subset.pop_back();
+                object->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
             }
+            else base::subset.clear();
         }
         // pads: Update nested object.
-        void update(sptr old_item_ptr, sptr new_item_ptr)
+        void update(sptr old_object, sptr new_object)
         {
-            auto backup = This();
-            object = new_item_ptr;
-            old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-            new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            remove(old_object);
+            attach(new_object);
         }
     };
 
@@ -3934,7 +3921,7 @@ namespace netxs::ui
         : public form<mock>
     { };
 
-    // controls: Menu item.
+    // controls: Text label.
     class item
         : public form<item>
     {
