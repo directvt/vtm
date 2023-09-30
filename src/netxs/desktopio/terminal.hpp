@@ -6593,7 +6593,7 @@ namespace netxs::ui
         {
             auto info = e2::form::upon::scroll::bystep::v.param({ .vector = delta });
             RISEUP(tier::preview, e2::form::upon::scroll::bystep::v, info);
-            return info.vector;
+            return info.result;
         }
         // term: Is the selection allowed.
         auto selection_passed()

@@ -373,9 +373,9 @@ namespace netxs::app::shared
     const auto scroll_bars = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
-            auto scroll_down = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-                auto hz = scroll_down->attach(slot::_2, ui::grip<axis::X>::ctor(master));
-                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        auto scroll_bttm = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = scroll_bttm->attach(slot::_2, ui::grip<axis::X>::ctor(master));
+        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
     const auto underlined_hz_scrollbars = [](auto master)
@@ -407,9 +407,9 @@ namespace netxs::app::shared
     const auto scroll_bars_term = [](auto master)
     {
         auto scroll_bars = ui::fork::ctor();
-            auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-                auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
-                auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
+        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
         return scroll_bars;
     };
 

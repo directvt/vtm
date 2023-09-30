@@ -1366,20 +1366,21 @@ namespace netxs::ui
               prefix{ prefix },
               finish{ finish },
               suffix{ suffix },
-              volume{ volume }
-              ,style{(**source).style}
+              volume{ volume },
+              style{(**source).style}
         { }
 
     public:
         deco style;
+        twod coord;
 
         rope(iter const& head, iter const& tail, twod const& size)
             : source{ head },
               finish{ tail },
               prefix{ 0    },
               suffix{ 0    },
-              volume{ size }
-              ,style{(**head).style}
+              volume{ size },
+              style{ (**head).style }
         { }
 
         operator writ const& () const { return **source; }
@@ -1469,10 +1470,10 @@ namespace netxs::ui
             }
         }
         constexpr
-        auto  size  () const { return volume;            } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;          } // rope: Return the length of the source content.
-        auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
-        auto& front () const { return (**source).at(prefix); } // rope: Return first cell.
+        auto   size() const { return volume;                } // rope: Return volume of the source content.
+        auto length() const { return volume.x;              } // rope: Return the length of the source content.
+        auto     id() const { return (**source).id();       } // rope: Return paragraph id.
+        auto& front() const { return (**source).at(prefix); } // rope: Return first cell.
 
         //todo unify
         auto& at(si32 p) const // rope: .
@@ -1492,15 +1493,16 @@ namespace netxs::ui
         using redo = std::list<std::pair<deco, ansi::mark>>;
 
     public:
-        ui32 index = {};              // page: Current paragraph id.
-        list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
-        iter layer = batch.begin();   // page: Current paragraph.
-        pmap parts = {};              // page: Paragraph index.
-        redo stack = {};              // page: Style state stack.
+        ui32 index{};              // page: Current paragraph id.
+        list batch{ ptr::shared<para>(index) }; // page: Paragraph source list.
+        iter layer{ batch.begin() };   // page: Current paragraph.
+        pmap parts{};              // page: Paragraph index.
+        redo stack{};              // page: Style state stack.
+        std::vector<rope> ropes;   // page: Printable paragraphs.
 
         //todo use ring
         ui32 limit = si32max; // page: Paragraphs number limit.
-        void shrink() // page: Remove over limit paragraphs.
+        void shrink(bool forced_reindex = faux) // page: Remove over limit paragraphs.
         {
             auto size = batch.size();
             if (size > limit)
@@ -1513,7 +1515,9 @@ namespace netxs::ui
                 batch.front()->locus.clear();
                 // Update current layer ptr if it gets out.
                 if (item < size - limit) layer = batch.begin();
+                reindex();
             }
+            else if (forced_reindex) reindex();
         }
         // page: Set the limit of paragraphs.
         void maxlen(ui32 m)
@@ -1550,9 +1554,9 @@ namespace netxs::ui
             vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
             #undef V
         }
-        page              (view utf8) {          ansi::parse(utf8, this);               }
-        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
-        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
+        page              (view utf8) {          ansi::parse(utf8, this); reindex();               }
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); reindex(); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); reindex(); return *this; }
 
         page ()                         = default;
         page (page&&)                   = default;
@@ -1567,7 +1571,7 @@ namespace netxs::ui
                 batch.push_back(a);
                 batch.back()->id(++index);
             }
-            shrink();
+            shrink(true);
             layer = std::prev(batch.end());
             return *this;
         }
@@ -1613,38 +1617,28 @@ namespace netxs::ui
             auto& item = **layer;
             item.id(index);
             item.wipe(parser::brush);
+            reindex();
             return *this;
         }
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
         //       Call publish(rope{first, last, length}):
         //       a range of [ first,last ] is the uniform consecutive paragraphs set.
         //       Length is the sum of the lengths of the paragraphs.
-        template<class F>
-        void stream(F publish) const
+        template<class P>
+        void stream(P publish)
         {
-            auto next = twod{};
-            auto last = batch.begin();
-            auto tail = batch.end();
-            while (last != tail)
+            for (auto& p : ropes)
             {
-                auto size = (**last).size();
-                auto head = last;
-                while (++last != tail
-                   && (**last).bare()
-                   && size.y == (next = (**last).size()).y)
-                {
-                    size.x += next.x;
-                }
-                publish(rope{ head, std::prev(last), size });
+                publish(p);
             }
         }
         // page: Print to.
         template<class P = noop>
-        void print(flow& printer, core& canvas, P printfx = P()) const
+        void print(flow& printer, core& canvas, P printfx = P())
         {
-            auto publish = [&](auto const& combo)
+            auto publish = [&](auto& combo)
             {
-                printer.flow::print(combo, canvas, printfx);
+                combo.coord = printer.flow::print(combo, canvas, printfx);
             };
             stream(publish);
         }
@@ -1730,6 +1724,60 @@ namespace netxs::ui
                 size.y += s.y;
             }
             return size;
+        }
+        // page: Re-glue paragraphs.
+        void reindex()
+        {
+            ropes.clear();
+            ropes.reserve(batch.size());
+            auto next = dot_00;
+            auto last = batch.begin();
+            auto tail = batch.end();
+            while (last != tail)
+            {
+                auto size = (**last).size();
+                auto head = last;
+                while (++last != tail
+                   && (**last).bare()
+                   && size.y == (next = (**last).size()).y)
+                {
+                    size.x += next.x;
+                }
+                ropes.emplace_back(head, std::prev(last), size);
+            }
+        }
+        auto get_entry(si32 anker)
+        {
+            struct item
+            {
+                ui32 id;
+                twod coor;
+            };
+            auto pred = item{ 0, twod{ 0, si32max } };
+            auto minp = item{ 0, twod{ 0, si32max } };
+            auto mindist = si32max;
+
+            //todo optimize, use binary search
+            //start from the end
+            for (auto& p : ropes)
+            {
+                auto post = p.coord.y;
+                if (pred.coor.y <= anker && post > anker) // inside the entry
+                {
+                    return pred;
+                }
+                else
+                {
+                    auto dist = std::abs(anker - post);
+                    if (dist < mindist)
+                    {
+                        minp = { p.id(), p.coord };
+                        mindist = dist;
+                    }
+                }
+                pred = { p.id(), p.coord };
+            }
+            return minp;
         }
 
         struct rtf_dest_t
@@ -2100,26 +2148,26 @@ namespace netxs::ui
         }
         // face: Print page.
         template<class P = noop>
-        void output(page const& textpage, P printfx = P())
+        void output(page& textpage, P printfx = P())
         {
-            auto publish = [&](auto const& combo)
+            auto publish = [&](auto& combo)
             {
-                flow::print(combo, *this, printfx);
+                combo.coord = flow::print(combo, *this, printfx);
             };
             textpage.stream(publish);
         }
         // face: Print page with holding top visible paragraph on its own place.
-        void output(page const& textpage, bool reset)
+        void output(page& textpage, bool reset)
         {
             //todo if cursor is visible when tie to the cursor position
             //     else tie to the first visible text line.
 
             auto done = faux;
             // Get vertical position of the nearest paragraph to the top.
-            auto gain = [&](auto const& combo)
+            auto gain = [&](auto& combo)
             {
-                auto pred = flow::print(combo, *this);
-
+                combo.coord = flow::print(combo, *this);
+                auto pred = combo.coord;
                 auto post = flow::cp();
                 if (!done)
                 {
@@ -2141,10 +2189,10 @@ namespace netxs::ui
             };
 
             // Get vertical position of the specified paragraph.
-            auto find = [&](auto const& combo)
+            auto find = [&](auto& combo)
             {
-                auto cp = flow::print(combo);
-                if (combo.id() == piece) anker = cp;
+                combo.coord = flow::print(combo);
+                if (combo.id() == piece) anker = combo.coord;
             };
 
             if (reset)

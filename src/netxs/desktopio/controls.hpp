@@ -2954,73 +2954,19 @@ namespace netxs::ui
         }
     };
 
-    struct page_layout
-    {
-        struct item
-        {
-            ui32 id;
-            twod coor;
-        };
-
-        size_t len = 0;
-
-        static const auto init_layout_len = si32{ 10000 };
-        std::vector<item> layout;
-        page_layout()
-        {
-            layout.reserve(init_layout_len);
-        }
-
-        auto get_entry(twod const& anchor)
-        {
-            auto& anker = anchor.y;
-            auto pred = item{ 0, twod{ 0, si32max } };
-            auto minp = item{ 0, twod{ 0, si32max } };
-            auto mindist = si32max;
-
-            //todo optimize, use binary search
-            //start from the end
-            for (auto& p : layout)
-            {
-                auto& post = p.coor.y;
-                if (pred.coor.y <= anker && post > anker) // inside the entry
-                {
-                    return pred;
-                }
-                else
-                {
-                    auto dist = std::abs(anker - post);
-                    if (dist < mindist)
-                    {
-                        minp = p;
-                        mindist = dist;
-                    }
-                }
-                pred = p;
-            }
-            return minp;
-        }
-        auto begin() { return layout.begin(); }
-        auto capacity() { return layout.capacity(); }
-        void reserve(size_t newsize) { layout.reserve(newsize); }
-        void push_back(item const& p) { layout.push_back(p); }
-        void clear() { layout.clear(); }
-    };
-
     // controls: Static text page.
     template<auto fx>
     class postfx
         : public flow, public form<postfx<fx>>
     {
-        twod width; // post: Page dimensions.
-        text source; // post: Raw content.
-        page_layout layout; // post: .
-        bool beyond; // post: Allow vertical scrolling beyond last line.
+
+        text source; // post: Text source.
+        bool beyond; // post: Allow vertical scrolling beyond the last line.
 
     protected:
         postfx(bool scroll_beyond = faux)
-            : flow{ width },
-              beyond{ scroll_beyond }
+            :   flow{ base::region.size },
+              beyond{ scroll_beyond     }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -3033,19 +2979,35 @@ namespace netxs::ui
         // post: .
         void deform(rect& new_area) override
         {
-            auto& new_size = new_area.size;
-            recalc(new_size);
-            new_size.y = width.y;
+            auto entry = topic.get_entry(base::anchor.y); // Take the object under central point
+            flow::reset();
+            auto publish = [&](auto& combo)
+            {
+                combo.coord = flow::print(combo);
+                if (combo.id() == entry.id) entry.coor.y -= combo.coord.y;
+            };
+            topic.stream(publish);
+
+            // Apply only vertical anchoring for this type of control.
+            base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
+
+            auto& cover = flow::minmax();
+            base::oversz = { -std::min(0, cover.l),
+                              std::max(0, cover.r - new_area.size.x + 1),
+                             -std::min(0, cover.t),
+                              0 };
+            auto height = cover.width() ? cover.height() + 1
+                                        : 0;
+            if (beyond) new_area.size.y += height;
+            else        new_area.size.y  = height;
         }
         // post: .
         void inform(rect new_area) override
         {
-            //if (width != new_size)
-            //{
-            //	recalc(new_size);
-            //	//width.y = new_size.y;
-            //}
-            width = new_area.size;
+            if (base::socket.size != new_area.size)
+            {
+            	deform(new_area);
+            }
         }
 
     public:
@@ -3078,52 +3040,6 @@ namespace netxs::ui
                 flow::print(combo, canvas, fx);
             };
             topic.stream(publish);
-        }
-        // post: .
-        auto get_size() const
-        {
-            return width;
-        }
-        // post: .
-        void recalc()
-        {
-            auto s = (size_t)topic.size();
-            if (s > layout.capacity())
-            {
-                layout.reserve(s * 2);
-            }
-
-            auto entry = layout.get_entry(base::anchor); // Take the object under central point
-            layout.clear();
-
-            flow::reset();
-            auto publish = [&](auto const& combo)
-            {
-                auto cp = flow::print(combo);
-
-                auto id = combo.id();
-                if (id == entry.id) entry.coor.y -= cp.y;
-                layout.push_back({ id,cp });
-            };
-            topic.stream(publish);
-
-            // Apply only vertical anchoring for this type of control.
-            base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
-
-            auto& cover = flow::minmax();
-            base::oversz = { -std::min(0, cover.l),
-                              std::max(0, cover.r - width.x + 1),
-                             -std::min(0, cover.t),
-                              0 };
-            auto height = cover.width() ? cover.height() + 1
-                                        : 0;
-            width.y = height + (beyond ? width.y : 0); //todo unify (text editor)
-        }
-        // post: .
-        void recalc(twod const& size)
-        {
-            width = size;
-            recalc();
         }
     };
 
@@ -3180,7 +3096,7 @@ namespace netxs::ui
             {
                 if (object)
                 {
-                    auto& delta = info.vector;
+                    auto& delta = info.result;
                     switch (this->bell::protos<tier::preview>())
                     {
                         case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
@@ -3342,7 +3258,8 @@ namespace netxs::ui
             {
                 master->LISTEN(tier::release, upon::scroll::bycoor::any, master_scinfo, fasten)
                 {
-                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, master_scinfo);
+                    auto backup_scinfo = master_scinfo;
+                    this->SIGNAL(tier::preview, e2::form::upon::scroll::bycoor::_<Axis>, backup_scinfo);
                 };
             }
             else fasten.clear();
@@ -3664,8 +3581,8 @@ namespace netxs::ui
         void config(si32 width)
         {
             thin = width;
-            auto lims = Axis == axis::X ? twod{ -1,width }
-                                        : twod{ width,-1 };
+            auto lims = Axis == axis::X ? twod{ -1, width }
+                                        : twod{ width, -1 };
             base::limits(lims, lims);
         }
         void giveup(hids& gear)
