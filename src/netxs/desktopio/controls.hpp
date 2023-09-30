@@ -2694,8 +2694,6 @@ namespace netxs::ui
                         if (bound(object) >= max_y) break;
                     }
                 }
-                //auto upper = std::ranges::upper_bound(subset, max_y, std::less{}, [xy = updown](auto& o){ return o->region.coor[xy]; });
-                //std::for_each(lower, upper, [&](auto& o){ o->render(parent_canvas, basis); });
             };
         }
         // list: .
