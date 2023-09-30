@@ -1746,38 +1746,17 @@ namespace netxs::ui
                 ropes.emplace_back(head, std::prev(last), size);
             }
         }
-        auto get_entry(si32 anker)
+        auto lookup(twod anker)
         {
-            struct item
+            struct entry
             {
                 ui32 id;
                 twod coor;
             };
-            auto pred = item{ 0, twod{ 0, si32max } };
-            auto minp = item{ 0, twod{ 0, si32max } };
-            auto mindist = si32max;
-
-            //todo optimize, use binary search
-            //start from the end
-            for (auto& p : ropes)
-            {
-                auto post = p.coord.y;
-                if (pred.coor.y <= anker && post > anker) // inside the entry
-                {
-                    return pred;
-                }
-                else
-                {
-                    auto dist = std::abs(anker - post);
-                    if (dist < mindist)
-                    {
-                        minp = { p.id(), p.coord };
-                        mindist = dist;
-                    }
-                }
-                pred = { p.id(), p.coord };
-            }
-            return minp;
+            auto bound = [](auto& r) { return r.coord.y; };
+            auto found = std::ranges::lower_bound(ropes, anker.y, {}, bound);
+            if (found != ropes.end()) return entry{ found->id(), found->coord };
+            else                      return entry{ 0,     twod{ 0, si32max } };
         }
 
         struct rtf_dest_t

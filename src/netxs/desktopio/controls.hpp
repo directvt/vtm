@@ -2985,7 +2985,7 @@ namespace netxs::ui
         // post: .
         void deform(rect& new_area) override
         {
-            auto entry = topic.get_entry(base::anchor.y); // Take the object under central point
+            auto entry = topic.lookup(base::anchor);
             flow::reset();
             auto publish = [&](auto& combo)
             {
