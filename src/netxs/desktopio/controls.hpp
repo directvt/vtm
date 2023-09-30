@@ -2680,12 +2680,22 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                //todo drop invisible using std::binary_search
                 auto basis = base::coor();
-                for (auto& object : subset)
+                auto frame = parent_canvas.view();
+                auto min_y = -basis[updown];
+                auto max_y = min_y + frame.size[updown];
+                auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
+                auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
+                while (start != base::subset.end())
                 {
-                    object->render(parent_canvas, basis);
+                    if (auto& object = *start++)
+                    {
+                        object->render(parent_canvas, basis);
+                        if (bound(object) >= max_y) break;
+                    }
                 }
+                //auto upper = std::ranges::upper_bound(subset, max_y, std::less{}, [xy = updown](auto& o){ return o->region.coor[xy]; });
+                //std::for_each(lower, upper, [&](auto& o){ o->render(parent_canvas, basis); });
             };
         }
         // list: .
