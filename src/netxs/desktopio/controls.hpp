@@ -2485,9 +2485,9 @@ namespace netxs::ui
     protected:
         fork(axis orientation = axis::X, si32 grip_width = 0, si32 s1 = 1, si32 s2 = 1)
             : form{ 3 },
-              object_1{ base::subset.front() },
-              object_2{ *std::next(base::subset.begin()) },
-              splitter{ base::subset.back() },
+              object_1{ base::subset[0] },
+              object_2{ base::subset[1] },
+              splitter{ base::subset[2] },
               rotation{ },
               fraction{ },
               adaptive{ }
@@ -2680,6 +2680,7 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
+                //todo drop invisible using std::binary_search
                 auto basis = base::coor();
                 for (auto& object : subset)
                 {
@@ -2761,24 +2762,23 @@ namespace netxs::ui
         {
             if (subset.size())
             {
-                auto iter = std::prev(subset.end());
-                auto item_ptr = *iter;
+                auto object = subset.back();
                 auto backup = This();
-                subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return item_ptr;
+                subset.pop_back();
+                object->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return object;
             }
             return sptr{};
         }
         // list: Attach specified item.
         template<sort Order = sort::forward, class T>
-        auto attach(T item_ptr)
+        auto attach(T object)
         {
             auto order = Order == sort::forward ? lineup : lineup == sort::reverse ? sort::forward : sort::reverse;
-            if (order == sort::reverse) subset.push_front(item_ptr);
-            else                        subset.push_back (item_ptr);
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item_ptr;
+            if (order == sort::reverse) subset.insert(subset.begin(), object);
+            else                        subset.push_back(object);
+            object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return object;
         }
     };
 
@@ -2832,25 +2832,24 @@ namespace netxs::ui
         {
             if (subset.size())
             {
-                auto iter = std::prev(subset.end());
-                auto item_ptr = *iter;
+                auto object = subset.back();
                 auto backup = This();
-                subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return item_ptr;
+                subset.pop_back();
+                object->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return object;
             }
             return sptr{};
         }
         // cake: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(T item_ptr)
+        auto attach(T object)
         {
-            if (item_ptr)
+            if (object)
             {
-                subset.push_back(item_ptr);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+                subset.push_back(object);
+                object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
             }
-            return item_ptr;
+            return object;
         }
     };
 
@@ -2864,10 +2863,10 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (subset.size())
-                if (auto active = subset.back())
+                if (auto object = subset.back())
                 {
                     auto basis = base::coor();
-                    active->render(parent_canvas, basis);
+                    object->render(parent_canvas, basis);
                 }
             };
         }
@@ -2918,12 +2917,11 @@ namespace netxs::ui
         {
             if (subset.size())
             {
-                auto iter = std::prev(subset.end());
-                auto item_ptr = *iter;
+                auto object = subset.back();
                 auto backup = This();
-                subset.erase(iter);
-                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
-                return item_ptr;
+                subset.pop_back();
+                object->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                return object;
             }
             return sptr{};
         }
@@ -2934,23 +2932,23 @@ namespace netxs::ui
             {
                 if (dt > 0) while (dt--)
                 {
-                    subset.push_front(subset.back());
+                    subset.insert(subset.begin(), subset.back());
                     subset.pop_back();
                 }
                 else while (dt++)
                 {
                     subset.push_back(subset.front());
-                    subset.pop_front();
+                    subset.erase(subset.begin());
                 }
             }
         }
         // veer: Create a new item of the specified subtype and attach it.
         template<class T>
-        auto attach(T item_ptr)
+        auto attach(T object)
         {
-            subset.push_back(item_ptr);
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            return item_ptr;
+            subset.push_back(object);
+            object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            return object;
         }
     };
 
@@ -3085,7 +3083,7 @@ namespace netxs::ui
     protected:
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
             : form{ 1 },
-              object{ base::subset.front() },
+              object{ base::subset[0] },
               permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
               oversc{ xy(allow_overscroll) },
@@ -3402,12 +3400,12 @@ namespace netxs::ui
         }
         // rail: Attach specified item.
         template<class T>
-        auto attach(T item_ptr)
+        auto attach(T new_object)
         {
             if (object) remove(object);
-            object = item_ptr;
-            item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
-            item_ptr->LISTEN(tier::release, e2::area, new_area, item_ptr->relyon) // Sync scroll info.
+            object = new_object;
+            object->SIGNAL(tier::release, e2::form::upon::vtree::attached, This());
+            object->LISTEN(tier::release, e2::area, new_area, object->relyon) // Sync scroll info.
             {
                 auto& item = *object;
                 auto frame = base::socket.size - base::extpad - base::intpad;
@@ -3421,7 +3419,7 @@ namespace netxs::ui
                 scinfo.window.size = frame; //
                 SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
             };
-            return item_ptr;
+            return new_object;
         }
         // rail: Detach specified item.
         void remove(sptr item_ptr) override
@@ -3855,7 +3853,7 @@ namespace netxs::ui
     protected:
         pads(dent const& intpad_value = {}, dent const& extpad_value = {})
             : form{ 1 },
-              object{ base::subset.front() },
+              object{ base::subset[0] },
               intpad{ intpad_value },
               extpad{ extpad_value }
         {

@@ -69,7 +69,7 @@ namespace netxs::ui
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
-    using book = std::list<sptr>;
+    using book = std::vector<sptr>;
 }
 
 namespace netxs::events::userland

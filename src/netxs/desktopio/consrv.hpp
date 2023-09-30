@@ -609,7 +609,6 @@ struct impl : consrv
         }
         auto generate(wchr c1, wchr c2)
         {
-            stream.reserve(stream.size() + 2);
             generate(c1);
             generate(c2);
             return true;

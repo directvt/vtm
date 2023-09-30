@@ -1586,7 +1586,7 @@ namespace netxs::app::vtm
             vport = host::config.take(path::viewport, dot_00);
             auto what = link{};
             auto apps = host::config.list(path::autorun);
-            auto foci = std::vector<sptr>();
+            auto foci = book{};
             foci.reserve(apps.size());
             for (auto app_ptr : apps)
             {
