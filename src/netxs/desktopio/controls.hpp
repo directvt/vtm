@@ -2680,17 +2680,17 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor();
+                auto basis = parent_canvas.full();
                 auto frame = parent_canvas.view();
-                auto min_y = -basis[updown];
-                auto max_y = min_y + frame.size[updown];
+                auto min_y = frame.coor[updown] - basis.coor[updown];
+                auto max_y = frame.size[updown] + min_y;
                 auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
                 auto start = std::ranges::lower_bound(base::subset, min_y, {}, bound);
                 while (start != base::subset.end())
                 {
                     if (auto& object = *start++)
                     {
-                        object->render(parent_canvas, basis);
+                        object->render(parent_canvas, basis.coor);
                         if (bound(object) >= max_y) break;
                     }
                 }
