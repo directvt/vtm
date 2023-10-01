@@ -54,8 +54,8 @@ namespace netxs::ui
 
     struct bind
     {
-        snap x = snap::none;
-        snap y = snap::none;
+        snap x = snap::both;
+        snap y = snap::both;
     };
 
     struct base;
@@ -656,7 +656,7 @@ namespace netxs::ui
                     coor = width - size;
                     break;
                 case snap::both:
-                    coor = (width - size) / 2;
+                //    coor = (width - size) / 2;
                 //    coor = 0;
                 //    size = width;
                     break;
@@ -689,7 +689,7 @@ namespace netxs::ui
                 required.size.y = new_area.size.y;
             }
             base::socket = new_area;
-            //new_area = required;
+            new_area = required;
         }
         // base: Apply new area (ext rect) and notify subscribers.
         void accept(rect new_area)
@@ -914,7 +914,7 @@ namespace netxs::ui
             base::min_sz = min_sz.less(dot_00, skin::globals().min_value, min_sz);
             base::max_sz = max_sz.less(dot_00, skin::globals().max_value, max_sz);
         }
-        void alignment(bind atgrow, bind atcrop = {})
+        void alignment(bind atgrow, bind atcrop = { snap::none, snap::none })
         {
             base::atgrow = atgrow;
             base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;

@@ -2439,7 +2439,7 @@ namespace netxs::ui
             base::limits(min_sz, max_sz);
             return This();
         }
-        auto alignment(bind atgrow, bind atcrop = {})
+        auto alignment(bind atgrow, bind atcrop = { snap::none, snap::none })
         {
             base::alignment(atgrow, atcrop);
             return This();
@@ -3503,6 +3503,8 @@ namespace netxs::ui
             // math: Calc master to scroll metrics.
             void m_to_s()
             {
+                if (master_box == 0) return;
+                if (master_len == 0) master_len = master_box;
                 r = (double)scroll_len / master_len;
                 auto master_middle = master_pos + master_box / 2.0;
                 auto scroll_middle = master_middle * r;
@@ -3823,26 +3825,37 @@ namespace netxs::ui
         }
     };
 
-    static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+    namespace drawfx
     {
-        if (object_len && handle_len != region_len) // Show only if it is oversized.
+        static constexpr auto xlight = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
         {
-            // Brightener isn't suitable for white backgrounds.
-            //auto bright = skin::color(tone::brighter);
-            //bright.bga(bright.bga() / 2).fga(0);
-            //bright.link(bell::id);
-
-            if (wide) // Draw full scrollbar on mouse hover
+            if (object_len && handle_len != region_len) // Show only if it is oversized.
             {
-                canvas.fill([&](cell& c) { c.link(boss.bell::id).xlight(); });
+                // Brightener isn't suitable for white backgrounds.
+                //auto bright = skin::color(tone::brighter);
+                //bright.bga(bright.bga() / 2).fga(0);
+                //bright.link(bell::id);
+
+                if (wide) // Draw full scrollbar on mouse hover
+                {
+                    canvas.fill([&](cell& c) { c.link(boss.bell::id).xlight(); });
+                }
+                //canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
+                canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).xlight(); });
             }
-            //canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
-            canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).xlight(); });
-        }
-    };
+        };
+        static constexpr auto underline = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+        {
+            if (object_len && handle_len != region_len) // Show only if it is oversized.
+            {
+                //canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
+                canvas.fill(handle, [](cell& c) { c.und(true); });
+            }
+        };
+    }
 
     template<axis Axis>
-    using grip = gripfx<Axis, drawfx>;
+    using grip = gripfx<Axis, drawfx::xlight>;
 
     // controls: deprecated.
     class pads

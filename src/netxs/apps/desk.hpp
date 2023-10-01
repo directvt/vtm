@@ -334,6 +334,7 @@ namespace netxs::app::desk
             auto x8 = cell{ c8 }.alpha(0x00);
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
                 ->plugin<pro::fader>(x8, c8, 0ms)
+                ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
                 ->branch(ver_label)
@@ -651,7 +652,7 @@ namespace netxs::app::desk
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
                 ->limits({ -1, 1 + tall * 2 }, { -1, 1 + tall * 2 });
-            bttns_cake->attach(app::shared::underlined_hz_scrollbars(bttns_area));
+            bttns_cake->attach(app::shared::underlined_hz_scrollbar(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())

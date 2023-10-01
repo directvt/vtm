@@ -29,6 +29,82 @@ namespace netxs::app::shared
     static const auto usr_config = "~/.config/vtm/settings.xml";
     static const auto env_config = "$VTM_CONFIG"s;
 
+    enum class app_type
+    {
+        simple,
+        normal,
+    };
+
+    const auto app_class = [](view& v)
+    {
+        auto type = app_type::normal;
+        if (!v.empty() && v.front() == '!')
+        {
+            type = app_type::simple;
+            v.remove_prefix(1);
+            v = utf::trim(v);
+        }
+        return type;
+    };
+    const auto closing_on_quit = [](auto& boss)
+    {
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+        {
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+        };
+    };
+    const auto closing_by_gesture = [](auto& boss)
+    {
+        boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
+        {
+            auto backup = boss.This();
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
+            gear.dismiss();
+        };
+        boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
+        {
+            auto backup = boss.This();
+            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
+            gear.dismiss();
+        };
+    };
+    const auto scroll_bars = [](auto master)
+    {
+        auto scroll_bars = ui::fork::ctor();
+        auto scroll_bttm = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = scroll_bttm->attach(slot::_2, ui::grip<axis::X>::ctor(master));
+        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        return scroll_bars;
+    };
+    const auto underlined_hz_scrollbar = [](auto scrlrail)
+    {
+        auto grip = ui::gripfx<axis::X, ui::drawfx::underline>::ctor(scrlrail)
+            ->alignment({ snap::both, snap::tail })
+            ->invoke([&](auto& boss)
+            {
+                boss.base::hidden = true;
+                scrlrail->LISTEN(tier::release, e2::form::state::mouse, active, -, (grip_shadow = ptr::shadow(boss.This())))
+                {
+                    if (auto grip_ptr = grip_shadow.lock())
+                    {
+                        grip_ptr->base::hidden = !active;
+                        grip_ptr->base::reflow();
+                    }
+                };
+            });
+        return grip;
+    };
+    const auto scroll_bars_term = [](auto master)
+    {
+        auto scroll_bars = ui::fork::ctor();
+        auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
+        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        return scroll_bars;
+    };
+
+    using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
+
     namespace menu
     {
         namespace attr
@@ -99,14 +175,6 @@ namespace netxs::app::shared
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
-        static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
-        {
-            if (object_len && handle_len != region_len) // Show only if it is oversized.
-            {
-                //canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
-                canvas.fill(handle, [](cell& c) { c.und(true); });
-            }
-        };
         static auto mini(bool autohide, bool menushow, bool menusize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
@@ -131,7 +199,7 @@ namespace netxs::app::shared
             auto menuveer = ui::veer::ctor();
             auto menufork = ui::fork::ctor()
                 //todo
-                //->alignment({ snap::none, snap::none }, { macstyle ? snap::head : snap::tail, snap::none })
+                //->alignment({ snap::both, snap::both }, { macstyle ? snap::head : snap::tail, snap::both })
                 ->active();
             auto makeitem = [&](auto& config)
             {
@@ -220,7 +288,7 @@ namespace netxs::app::shared
             auto scrllist = scrlrail->attach(ui::list::ctor(axis::X));
 
             auto scrlcake = ui::cake::ctor();
-            auto scrlhint = scrlcake->attach(ui::gripfx<axis::X, drawfx>::ctor(scrlrail)->alignment({ snap::none, snap::tail }));
+            auto scrlhint = scrlcake->attach(underlined_hz_scrollbar(scrlrail));
             auto scrlgrip = scrlarea->attach(scrlcake);
 
             for (auto& body : menu_items)
@@ -231,7 +299,6 @@ namespace netxs::app::shared
             auto menucake = menuveer->attach(ui::cake::ctor()->branch(menufork))
                 ->invoke([&](auto& boss)
                 {
-                    scrlhint->base::hidden = true;
                     auto slim_status = ptr::shared(menusize);
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (slim_status))
                     {
@@ -258,21 +325,6 @@ namespace netxs::app::shared
                         boss.base::limits({ -1, height }, { -1, height });
                         boss.reflow();
                     };
-                    //todo revise
-                    if (menu_items.size()) // Show scrolling hint only if elements exist.
-                    {
-                        auto scrlhint_shadow = ptr::shadow(scrlhint);
-                        boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (scrlhint_shadow))
-                        {
-                            if (auto scrlhint = scrlhint_shadow.lock())
-                            {
-                                scrlhint->base::hidden = !active;
-                                //todo add base::active concept
-                                //boss.base::deface();
-                                boss.base::reflow();
-                            }
-                        };
-                    }
                 });
             auto menutent = menuveer->attach(ui::mock::ctor()->limits({ -1,1 }, { -1,1 }));
                  if (menushow == faux) autohide = faux;
@@ -330,91 +382,6 @@ namespace netxs::app::shared
             return menu;
         };
     }
-
-    enum class app_type
-    {
-        simple,
-        normal,
-    };
-
-    const auto app_class = [](view& v)
-    {
-        auto type = app_type::normal;
-        if (!v.empty() && v.front() == '!')
-        {
-            type = app_type::simple;
-            v.remove_prefix(1);
-            v = utf::trim(v);
-        }
-        return type;
-    };
-    const auto closing_on_quit = [](auto& boss)
-    {
-        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-        {
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
-        };
-    };
-    const auto closing_by_gesture = [](auto& boss)
-    {
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
-        {
-            auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
-            gear.dismiss();
-        };
-        boss.LISTEN(tier::release, hids::events::mouse::button::click::middle, gear)
-        {
-            auto backup = boss.This();
-            boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
-            gear.dismiss();
-        };
-    };
-    const auto scroll_bars = [](auto master)
-    {
-        auto scroll_bars = ui::fork::ctor();
-        auto scroll_bttm = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-        auto hz = scroll_bttm->attach(slot::_2, ui::grip<axis::X>::ctor(master));
-        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-        return scroll_bars;
-    };
-    const auto underlined_hz_scrollbars = [](auto master)
-    {
-        auto area = ui::cake::ctor();
-        auto grip = ui::gripfx<axis::X, menu::drawfx>::ctor(master)
-            ->alignment({ snap::head, snap::tail });
-        area->branch(grip)
-            ->invoke([&](auto& boss)
-            {
-                grip->base::hidden = true;
-                auto boss_shadow = ptr::shadow(boss.This());
-                auto park_shadow = ptr::shadow(area);
-                auto grip_shadow = ptr::shadow(grip);
-                master->LISTEN(tier::release, e2::form::state::mouse, active, -, (boss_shadow, park_shadow, grip_shadow))
-                {
-                    if (auto park_ptr = park_shadow.lock())
-                    if (auto grip_ptr = grip_shadow.lock())
-                    if (auto boss_ptr = boss_shadow.lock())
-                    {
-                        auto& boss = *boss_ptr;
-                        grip_ptr->base::hidden = !active;
-                        boss_ptr->base::deface();
-                    }
-                };
-            });
-        return area;
-    };
-    const auto scroll_bars_term = [](auto master)
-    {
-        auto scroll_bars = ui::fork::ctor();
-        auto scroll_head = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-        auto hz = scroll_head->attach(slot::_1, ui::grip<axis::X>::ctor(master));
-        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-        return scroll_bars;
-    };
-
-    using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
-
     namespace
     {
         auto& creator()
