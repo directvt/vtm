@@ -608,7 +608,8 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y));
+            auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y))
+                ->limits({ -1,1 });
             auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,tall }, dent{ 0,0,0,0 }))
                                         ->plugin<pro::notes>(" List of connected users ");
             auto label_bttn = label_pads->attach(ui::fork::ctor(axis::X));//, 0, 1, 1, true));
@@ -620,10 +621,10 @@ namespace netxs::app::desk
                 ->plugin<pro::notes>(" Show/hide user list ");
             auto userlist_hidden = true;
             auto bttn = bttn_pads->attach(ui::item::ctor(userlist_hidden ? "…" : "<"));
-            auto userlist_area = users_area->attach(slot::_2, ui::pads::ctor())
+            auto userlist_area = users_area->attach(slot::_2, ui::cake::ctor())
                 ->invoke([&](auto& boss)
                 {
-                    boss.hidden = userlist_hidden;
+                    boss.base::hidden = userlist_hidden;
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, -, (branch_template))
                     {
                         boss.RISEUP(tier::request, e2::config::creator, world_ptr, ());
@@ -640,12 +641,12 @@ namespace netxs::app::desk
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (userlist_area_shadow, bttn_shadow))
                 {
                     if (auto bttn = bttn_shadow.lock())
-                    if (auto userlist = userlist_area_shadow.lock())
+                    if (auto userlist_area = userlist_area_shadow.lock())
                     {
-                        auto& hidden = userlist->base::hidden;
+                        auto& hidden = userlist_area->base::hidden;
                         hidden = !hidden;
                         bttn->set(hidden ? "…" : "<");
-                        userlist->base::reflow();
+                        userlist_area->base::reflow();
                     }
                 };
             });
