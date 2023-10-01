@@ -2965,14 +2965,14 @@ namespace netxs::ui
     class postfx
         : public flow, public form<postfx<fx>>
     {
-
+        twod square; // post: Page area.
         text source; // post: Text source.
         bool beyond; // post: Allow vertical scrolling beyond the last line.
 
     protected:
         postfx(bool scroll_beyond = faux)
-            :   flow{ base::region.size },
-              beyond{ scroll_beyond     }
+            :   flow{ square        },
+              beyond{ scroll_beyond }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2985,6 +2985,7 @@ namespace netxs::ui
         // post: .
         void deform(rect& new_area) override
         {
+            square.x = new_area.size.x;
             auto entry = topic.lookup(base::anchor);
             flow::reset();
             auto publish = [&](auto& combo)
@@ -2998,19 +2999,21 @@ namespace netxs::ui
             base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
 
             auto& cover = flow::minmax();
+            //todo move it to flow
             base::oversz = { -std::min(0, cover.l),
-                              std::max(0, cover.r - new_area.size.x + 1),
+                              std::max(0, cover.r - square.x + 1),
                              -std::min(0, cover.t),
                               0 };
             auto height = cover.width() ? cover.height() + 1
                                         : 0;
-            if (beyond) new_area.size.y += height;
-            else        new_area.size.y  = height;
+            if (beyond) square.y += height;
+            else        square.y  = height;
+            new_area.size.y = square.y;
         }
         // post: .
         void inform(rect new_area) override
         {
-            if (base::socket.size != new_area.size)
+            if (square.x != new_area.size.x)
             {
             	deform(new_area);
             }
@@ -3363,8 +3366,8 @@ namespace netxs::ui
         }
         void revise(base& item, rect& block, twod frame, twod& delta)
         {
-            auto& coord = block.coor;
-            auto& width = block.size;
+            auto coord = block.coor;
+            auto width = block.size;
             auto basis = base::intpad.corner() + item.base::oversz.corner();
             frame -= base::intpad;
             coord -= basis; // Scroll origin basis.
@@ -3381,6 +3384,7 @@ namespace netxs::ui
                 }
             }
             coord += basis; // Object origin basis.
+            block.coor = coord;
         }
         // rail: .
         void scroll(twod& delta)
