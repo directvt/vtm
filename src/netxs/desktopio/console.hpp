@@ -818,7 +818,7 @@ namespace netxs::ui
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clipboard_preview(face& canvas, time const& stamp)
+        void /*!*/draw_clipboard_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {

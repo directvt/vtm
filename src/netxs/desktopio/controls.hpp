@@ -871,7 +871,7 @@ namespace netxs::ui
                             }
                         };
                     }
-                    boss.LISTEN(tier::release, e2::postrender, canvas, memo)
+                    boss.LISTEN(tier::release, /*!*/e2::postrender, canvas, memo)
                     {
                         done = live;
                         auto state = down ? (step == span::zero() ? faux : true)
@@ -880,7 +880,7 @@ namespace netxs::ui
                         {
                             auto field = canvas.core::view();
                             auto point = body;
-                            point.coor += field.coor + boss.base::coor();
+                            point.coor += field.coor;
                             if (auto area = field.clip(point))
                             {
                                 auto& test = canvas.peek(point.coor);

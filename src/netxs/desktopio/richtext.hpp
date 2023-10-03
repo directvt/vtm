@@ -2260,7 +2260,25 @@ namespace netxs::ui
                 rect canvas_view;
                 twod canvas_coor;
                 bool nested_view;
+
                 operator bool () { return nested_view; };
+
+                ctx(face& canvas, rect parent_full = {}, rect canvas_view = {}, twod canvas_coor = {}, bool nested_view = {})
+                    :      canvas{ canvas      },
+                      parent_full{ parent_full },
+                      canvas_view{ canvas_view },
+                      canvas_coor{ canvas_coor },
+                      nested_view{ nested_view }
+                { }
+                ctx(ctx&& c)
+                    :      canvas{ c.canvas      },
+                      parent_full{ c.parent_full },
+                      canvas_view{ c.canvas_view },
+                      canvas_coor{ c.canvas_coor },
+                      nested_view{ c.nested_view }
+                {
+                    c.nested_view = faux;
+                }
                ~ctx()
                 {
                     if (nested_view)
