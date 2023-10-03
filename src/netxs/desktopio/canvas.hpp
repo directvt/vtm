@@ -1806,7 +1806,7 @@ namespace netxs
 
     protected:
         si32 digest = 0; // core: Resize stamp.
-        rect region; // core: Physical square of canvas in the Universe.
+        rect region; // core: Physical square of canvas relative to current basis (top-left corner of the current rendering object, see face::change_basis).
         rect client; // core: Active canvas area relative to current basis.
         grid canvas; // core: Cell data.
         cell marker; // core: Current brush.
@@ -1941,18 +1941,15 @@ namespace netxs
             wipe(marker);
             marker.link(my_id);
         }
-        template<class P>
+        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, cell&>>>
         auto each(P proc) // core: Exec a proc for each cell.
         {
-            using ret_t = std::invoke_result_t<P, cell&>;
-            static constexpr auto plain = std::is_same_v<void, ret_t>;
-
             for (auto& c : canvas)
             {
-                if constexpr (plain) proc(c);
+                if constexpr (Plain) proc(c);
                 else             if (proc(c)) return faux;
             }
-            if constexpr (!plain) return true;
+            if constexpr (!Plain) return true;
         }
         template<class P>
         void each(rect region, P proc) // core: Exec a proc for each cell of the specified region.

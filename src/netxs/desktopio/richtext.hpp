@@ -2275,9 +2275,9 @@ namespace netxs::ui
             if (nested_view)
             {
                 auto context = ctx{ *this, flow::full(), core::view(), core::coor(), true };
-                core::step(                   - object_area.coor);
-                core::view({ nested_view.coor - object_area.coor,   nested_view.size });
-                flow::full({ dot_00         /*- object_area.coor*/, object_area.size });
+                core::step(                       - object_area.coor);
+                core::view({     nested_view.coor - object_area.coor,   nested_view.size });
+                flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
                 return context;
             }
             return ctx{ *this };

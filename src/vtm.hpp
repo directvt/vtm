@@ -847,7 +847,7 @@ namespace netxs::app::vtm
                     canvas.bump(saved_context);
                 }
             };
-            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
+            LISTEN(tier::release, /*!*/e2::postrender, parent_canvas, tokens)
             {
                 if (&parent_canvas != &input.xmap)
                 {

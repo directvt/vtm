@@ -1033,11 +1033,9 @@ namespace netxs::os
 
     #endif
 
-    template<class T>
+    template<class T, class E = std::invoke_result_t<decltype(os::error)>>
     struct syscall
     {
-        using E = std::invoke_result_t<decltype(os::error)>;
-
         T value;
         E error;
 
