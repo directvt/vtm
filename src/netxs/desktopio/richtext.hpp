@@ -1495,37 +1495,10 @@ namespace netxs::ui
     public:
         ui32 index{};              // page: Current paragraph id.
         list batch{ ptr::shared<para>(index) }; // page: Paragraph source list.
-        iter layer{ batch.begin() };   // page: Current paragraph.
         pmap parts{};              // page: Paragraph index.
         redo stack{};              // page: Style state stack.
+        iter layer{ batch.begin() };   // page: Current paragraph.
         std::vector<rope> ropes;   // page: Printable paragraphs.
-
-        //todo use ring
-        ui32 limit = si32max; // page: Paragraphs number limit.
-        void shrink(bool forced_reindex = faux) // page: Remove over limit paragraphs.
-        {
-            auto size = batch.size();
-            if (size > limit)
-            {
-                auto item = static_cast<size_t>(std::distance(batch.begin(), layer));
-                while (batch.size() > limit)
-                {
-                    batch.pop_front();
-                }
-                batch.front()->locus.clear();
-                // Update current layer ptr if it gets out.
-                if (item < size - limit) layer = batch.begin();
-                reindex();
-            }
-            else if (forced_reindex) reindex();
-        }
-        // page: Set the limit of paragraphs.
-        void maxlen(ui32 m)
-        {
-            limit = std::clamp<ui32>(m, 1, si32max);
-            shrink();
-        }
-        auto maxlen() { return limit; } // page: Get the limit of paragraphs.
 
         using ring = generics::ring<std::vector<para>>;
         struct buff : public ring
@@ -1554,14 +1527,39 @@ namespace netxs::ui
             vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
             #undef V
         }
-        page              (view utf8) {          ansi::parse(utf8, this); reindex();               }
+
         auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); reindex(); return *this; }
         auto& operator += (view utf8) {          ansi::parse(utf8, this); reindex(); return *this; }
-
-        page ()                         = default;
-        page (page&&)                   = default;
-        page (page const&)              = default;
-        page& operator =  (page const&) = default;
+        page(view utf8)               {          ansi::parse(utf8, this); reindex();               }
+        page() = default;
+        page(page&& p)
+            : index{ p.index },
+              batch{ std::move(p.batch) },
+              parts{ std::move(p.parts) },
+              stack{ std::move(p.stack) },
+              layer{ std::prev(batch.end()) }
+        {
+            reindex();
+        }
+        page (page const& p)
+            : index{ p.index },
+              batch{ p.batch },
+              parts{ p.parts },
+              stack{ p.stack },
+              layer{ std::prev(batch.end()) }
+        {
+            reindex();
+        }
+        page& operator = (page const& p)
+        {
+            index = p.index;
+            batch = p.batch;
+            parts = p.parts;
+            stack = p.stack;
+            layer = std::prev(batch.end());
+            reindex();
+            return *this;
+        }
         auto& operator += (page const& p)
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
@@ -1571,7 +1569,6 @@ namespace netxs::ui
                 batch.push_back(a);
                 batch.back()->id(++index);
             }
-            shrink(true);
             layer = std::prev(batch.end());
             return *this;
         }
@@ -1649,7 +1646,6 @@ namespace netxs::ui
             if constexpr (Flush) parser::flush();
             layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
             (**layer).id(++index);
-            shrink();
         }
         // page: Split the text run and associate the next paragraph with id.
         void fork(si32 id)

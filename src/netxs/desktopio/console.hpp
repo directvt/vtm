@@ -788,36 +788,31 @@ namespace netxs::ui
         wptr       nexthop; // gate: .
         hook       oneoff_focus; // gate: .
 
-        void draw_foreign_names(face& parent_canvas)
+        void /*!*/draw_foreign_names(face& parent_canvas)
         {
             auto& header = *uname.lyric;
-            auto  basexy = base::coor();
             auto  half_x = header.size().x / 2;
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                auto coor = basexy;
-                coor += gear.coord;
-                coor.y--;
+                auto coor = gear.coord;
+                coor.y -= 1;
                 coor.x -= half_x;
-                //todo unify header coords
                 header.move(coor);
                 parent_canvas.fill(header, cell::shaders::fuse);
             }
         }
-        void draw_mouse_pointer(face& canvas)
+        void /*!*/draw_mouse_pointer(face& canvas)
         {
             auto brush = cell{};
-            auto coor = base::coor();
-            auto area = rect{ coor, dot_11 };
+            auto area = rect_11;
             auto base = canvas.core::coor();
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                area.coor = coor + gear.coord;
-                area.coor -= base;
+                area.coor = gear.coord - base;
                 if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
                 else                brush.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
                 canvas.fill(area, cell::shaders::fuse(brush));
