@@ -496,7 +496,7 @@ namespace netxs::ui
             {
                 xmap.cmode = props.vtmode;
                 xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
-                xmap.area(boss.base::area());
+                xmap.face::area(boss.base::area());
                 boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
                 {
                     auto data = escx{};
@@ -514,7 +514,8 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.area(new_area);
+                    xmap.face::area(new_area);
+                log("xmap area: %% view: %% full: %%", xmap.area(), xmap.view(), xmap.full());
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {
@@ -642,7 +643,7 @@ namespace netxs::ui
                 status[prop::last_event].set(stress) = "focus";
                 status[prop::focused].set(stress) = focus_state ? "active" : "lost";
             }
-            void update(twod const& new_size)
+            void update(twod new_size)
             {
                 shadow();
                 status[prop::last_event].set(stress) = "size";
@@ -651,13 +652,13 @@ namespace netxs::ui
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
             }
-            void update(span const& watch, si32 delta)
+            void update(span watch, si32 delta)
             {
                 track.output = watch;
                 track.frsize = delta;
                 track.totals+= delta;
             }
-            void update(time const& timestamp)
+            void update(time timestamp)
             {
                 track.render = datetime::now() - timestamp;
             }
@@ -981,7 +982,11 @@ namespace netxs::ui
             {
                 auto& canvas = input.xmap;
                 canvas.wipe(world_id);
-                if (applet) applet->render(canvas, base::coor());
+                if (applet)
+                if (auto context = canvas.change_basis(base::area()))
+                {
+                    applet->render(canvas);
+                }
             }
             _rebuild_scene(damaged);
         }
@@ -1183,10 +1188,6 @@ namespace netxs::ui
                 auto delta = base::resize(new_size).size - old_size;
                 if (delta && direct) paint.cancel();
             };
-            LISTEN(tier::release, e2::area, new_area, tokens)
-            {
-                if (applet) applet->base::change(new_area);
-            };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
                 props.legacy_mode |= pointer ? ui::console::mouse : 0;
@@ -1371,6 +1372,14 @@ namespace netxs::ui
                 };
             }
         }
+        // gate: .
+        void inform(rect new_area) override
+        {
+            if (applet)
+            {
+                applet->base::resize(new_area.size);
+            }
+        }
     };
 
     // console: World aether.
@@ -1503,14 +1512,14 @@ namespace netxs::ui
 
     public:
         // host: Mark dirty region.
-        void denote(rect const& updateregion)
+        void denote(rect updateregion)
         {
             if (updateregion)
             {
                 debris.push_back(updateregion);
             }
         }
-        void deface(rect const& region) override
+        void deface(rect region) override
         {
             base::deface(region);
             denote(region);
@@ -1530,7 +1539,7 @@ namespace netxs::ui
                 debris.clear();
                 screen.rebuild_scene(bell::id, damaged);
             };
-            screen.LISTEN(tier::release, e2::conio::winsz, newsize, -)
+            screen.LISTEN(tier::release, e2::conio::winsz, new_size, -)
             {
                 screen.rebuild_scene(bell::id, true);
             };

@@ -229,12 +229,12 @@ namespace netxs::ui
         { }
 
         void vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
-        void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size.
-        void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect.
-        auto& full() const           { return pagerect;      } // flow: Get client full rect reference.
-        auto& minmax() const         { return boundary;      } // flow: Return the output range.
-        void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod.
-        void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect.
+        void  size(twod size)   { pagerect.size = size; } // flow: Set client full size.
+        void  full(rect area)   { pagerect = area;      } // flow: Set client full rect.
+        auto& full() const      { return pagerect;      } // flow: Get client full rect reference.
+        auto& minmax() const    { return boundary;      } // flow: Return the output range.
+        void  minmax(twod p)    { boundary |= p;        } // flow: Register twod.
+        void  minmax(rect r)    { boundary |= r;        } // flow: Register rect.
 
         // flow: Sync paragraph style.
         template<class T>
@@ -326,18 +326,18 @@ namespace netxs::ui
             return coor;
         }
 
-        void ax	(si32 x)        { caretpos.x  = x;                 }
-        void ay	(si32 y)        { caretpos.y  = y;                 }
-        void ac	(twod const& c) { ax(c.x); ay(c.y);                }
-        void ox	(si32 x)        { caretpos.x  = x - 1;             }
-        void oy	(si32 y)        { caretpos.y  = y - 1;             }
-        void oc	(twod const& c) { ox(c.x); oy(c.y);                }
-        void dx	(si32 n)        { caretpos.x += n;                 }
-        void dy	(si32 n)        { caretpos.y += n;                 }
-        void nl	(si32 n)        { ax(0); dy(n);                    }
-        void px	(si32 x)        { ax(textpads.h_ratio(x, size_x)); }
-        void py	(si32 y)        { ay(textpads.v_ratio(y, size_y)); }
-        void pc	(twod const& c) { px(c.x); py(c.y);                }
+        void ax	(si32 x) { caretpos.x  = x;                 }
+        void ay	(si32 y) { caretpos.y  = y;                 }
+        void ac	(twod c) { ax(c.x); ay(c.y);                }
+        void ox	(si32 x) { caretpos.x  = x - 1;             }
+        void oy	(si32 y) { caretpos.y  = y - 1;             }
+        void oc	(twod c) { ox(c.x); oy(c.y);                }
+        void dx	(si32 n) { caretpos.x += n;                 }
+        void dy	(si32 n) { caretpos.y += n;                 }
+        void nl	(si32 n) { ax(0); dy(n);                    }
+        void px	(si32 x) { ax(textpads.h_ratio(x, size_x)); }
+        void py	(si32 y) { ay(textpads.v_ratio(y, size_y)); }
+        void pc	(twod c) { px(c.x); py(c.y);                }
         void tb	(si32 n)
         {
             if (n)
@@ -360,7 +360,7 @@ namespace netxs::ui
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        void zz (twod const& offset = dot_00)
+        void zz (twod offset = dot_00)
         {
             runstyle.reset();
             caretpos = dot_00;
@@ -389,7 +389,7 @@ namespace netxs::ui
             caretpos      = std::get<1>(state);
             pagerect.coor = std::get<2>(state);
         }
-        void reset(twod const& offset = dot_00) // flow: Reset flow state.
+        void reset(twod offset = dot_00) // flow: Reset flow state.
         {
             flow::zz(offset);
             flow::sc();
@@ -471,7 +471,7 @@ namespace netxs::ui
         auto  same       (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
 
         template<bool RtoL, class P = noop>
-        auto output(core& canvas, twod const& pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
+        auto output(core& canvas, twod pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
         {
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? width, basis.size().y } };
@@ -919,7 +919,7 @@ namespace netxs::ui
             }
         }
         // rich: Put n blanks on top of the chars and cut them off with the right edge.
-        void splice(twod const& at, si32 count, cell const& blank)
+        void splice(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -931,7 +931,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Put n blanks on top of the chars and wrap them at the right edge.
-        void backsp(twod const& at, si32 count, cell const& blank)
+        void backsp(twod at, si32 count, cell const& blank)
         {
             auto len = size();
             if (at.y >= len.y || (at.y == len.y - 1 && at.x >= len.x)) return;
@@ -948,7 +948,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert(twod const& at, si32 count, cell const& blank)
+        void insert(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -963,7 +963,7 @@ namespace netxs::ui
             while (dst != end) *--dst = blank;
         }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
-        void cutoff(twod const& at, si32 count, cell const& blank)
+        void cutoff(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -978,7 +978,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the specified coor to the bottom.
-        void del_below(twod const& pos, cell const& blank)
+        void del_below(twod pos, cell const& blank)
         {
             auto len = size();
             auto ptr = iter();
@@ -988,7 +988,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the top to the specified coor.
-        void del_above(twod const& pos, cell const& blank)
+        void del_above(twod pos, cell const& blank)
         {
             auto len = size();
             auto dst = iter();
@@ -1361,7 +1361,7 @@ namespace netxs::ui
         si32 suffix;
         twod volume; // Rope must consist of text lines of the same height.
 
-        rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod const& volume)
+        rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod volume)
             : source{ source },
               prefix{ prefix },
               finish{ finish },
@@ -1374,7 +1374,7 @@ namespace netxs::ui
         deco style;
         twod coord;
 
-        rope(iter const& head, iter const& tail, twod const& size)
+        rope(iter head, iter tail, twod size)
             : source{ head },
               finish{ tail },
               prefix{ 0    },
@@ -1678,7 +1678,7 @@ namespace netxs::ui
             parts.emplace(id, *layer);
         }
         // page: Add a locus command. In case of text presence change current target.
-        void task(ansi::rule const& cmd)
+        void task(ansi::rule cmd)
         {
             test();
             auto& item = **layer;
@@ -1791,7 +1791,7 @@ namespace netxs::ui
                     }
                 }
             }
-            auto clr(rgba const& c, view tag1, view tag2)
+            auto clr(rgba c, view tag1, view tag2)
             {
                 auto size = clrs.size();
                 auto iter = clrs.try_emplace(c.token, size).first;
@@ -1802,13 +1802,13 @@ namespace netxs::ui
                 data += istr;
             }
             template<svga Mode = svga::vtrgb>
-            auto fgc(rgba const& c)
+            auto fgc(rgba c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
             template<svga Mode = svga::vtrgb>
-            auto bgc(rgba const& c)
+            auto bgc(rgba c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)
                            : clr(c, bg_1, bg_2);
@@ -1964,9 +1964,9 @@ namespace netxs::ui
                 }
             }
             template<svga Mode>
-            auto fgc(rgba const&) { }
+            auto fgc(rgba ) { }
             template<svga Mode>
-            auto bgc(rgba const&) { }
+            auto bgc(rgba ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
@@ -2039,9 +2039,9 @@ namespace netxs::ui
                 data += utf8;
             }
             template<svga Mode>
-            auto fgc(rgba const&) { }
+            auto fgc(rgba ) { }
             template<svga Mode>
-            auto bgc(rgba const&) { }
+            auto bgc(rgba ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
@@ -2084,7 +2084,7 @@ namespace netxs::ui
         vrgb cache;     // face: BlurFX temp buffer.
 
         // face: Is the c inside the viewport?
-        bool inside(twod const& c)
+        bool inside(twod c)
         {
             return c.y >= 0 && c.y < region.size.y;
             //todo X-axis
@@ -2099,7 +2099,7 @@ namespace netxs::ui
 
         // face: Print proxy something else at the specified coor.
         template<class T, class P>
-        void output_proxy(T const& block, twod const& coord, P proxy)
+        void output_proxy(T const& block, twod coord, P proxy)
         {
             flow::sync(block);
             flow::ac(coord);
@@ -2107,7 +2107,7 @@ namespace netxs::ui
         }
         // face: Print something else at the specified coor.
         template<class T, class P = noop>
-        void output(T const& block, twod const& coord, P printfx = P())
+        void output(T const& block, twod coord, P printfx = P())
         {
             flow::sync(block);
             flow::ac(coord);
@@ -2138,11 +2138,11 @@ namespace netxs::ui
         // face: Print page with holding top visible paragraph on its own place.
         void output(page& textpage, bool reset)
         {
-            //todo if cursor is visible when tie to the cursor position
-            //     else tie to the first visible text line.
+            //todo if the cursor is visible then bind to the cursor position,
+            //     otherwise bind to the first visible text line.
 
             auto done = faux;
-            // Get vertical position of the nearest paragraph to the top.
+            // Take the vertical position of the paragraph closest to the top.
             auto gain = [&](auto& combo)
             {
                 combo.coord = flow::print(combo, *this);
@@ -2166,8 +2166,7 @@ namespace netxs::ui
                     }
                 }
             };
-
-            // Get vertical position of the specified paragraph.
+            // Take the vertical position of the specified paragraph.
             auto find = [&](auto& combo)
             {
                 combo.coord = flow::print(combo);
@@ -2178,7 +2177,6 @@ namespace netxs::ui
             {
                 anker.y = si32max;
                 textpage.stream(gain);
-
                 decoy = caret && inside(flow::cp());
             }
             else
@@ -2188,7 +2186,7 @@ namespace netxs::ui
         }
         // face: Reflow text page on the canvas and hold position
         //       of the top visible paragraph while resizing.
-        void reflow(page& textpage)
+        void reflow_deprecated(page& textpage)
         {
             if (moved)
             {
@@ -2198,7 +2196,7 @@ namespace netxs::ui
                 output(textpage, faux);
                 std::swap(delta, anker);
 
-                auto  cover = flow::minmax();
+                auto cover = flow::minmax();
                 //auto& basis = flow::origin;
                 auto basis = dot_00;// flow::origin;
                 basis.y += anker.y - delta.y;
@@ -2210,7 +2208,7 @@ namespace netxs::ui
                      && anker.y == flow::cp().y
                      && cover.height() > 1)
                     {
-                        // the increment is removed bcos it shifts mc one row down on Ctrl+O and back
+                        //todo? the increment is removed bcos it shifts mc one row down on Ctrl+O and back
                         //basis.y++;
                     }
 
@@ -2240,40 +2238,71 @@ namespace netxs::ui
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto bump(dent const& delta)
+        auto bump(dent delta)
         {
-            auto old_full = face::full();
+            auto old_full = flow::full();
             auto old_view = core::view();
             auto new_view = core::area().clip<true>(old_view + delta);
             auto new_full = old_full + delta;
-            face::full(new_full);
+            flow::full(new_full);
             core::view(new_view);
             return std::pair{ old_full, old_view };
         }
         // face: Restore previously saved context.
         void bump(std::pair<rect, rect> ctx)
         {
-            face::full(ctx.first);
+            flow::full(ctx.first);
             core::view(ctx.second);
         }
-
+        // face: Dive into object context.
+        auto change_basis(rect object_area, bool trim = true)
+        {
+            struct ctx
+            {
+                face& canvas;
+                rect parent_full;
+                rect canvas_view;
+                twod canvas_coor;
+                bool nested_view;
+                operator bool () { return nested_view; };
+               ~ctx()
+                {
+                    if (nested_view)
+                    {
+                        canvas.flow::full(parent_full);
+                        canvas.core::view(canvas_view);
+                        canvas.core::move(canvas_coor);
+                    }
+                }
+            };
+            auto nested_view = trim ? core::view().clip(object_area) : core::view();
+            if (nested_view)
+            {
+                auto context = ctx{ *this, flow::full(), core::view(), core::coor(), true };
+                core::step(                   - object_area.coor);
+                core::view({ nested_view.coor - object_area.coor,   nested_view.size });
+                flow::full({ dot_00         /*- object_area.coor*/, object_area.size });
+                return context;
+            }
+            return ctx{ *this };
+        }
         // Use a two letter function if we don't need to return *this
-        face& cup(twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
-        face& chx(si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
-        face& chy(si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
-        face& cpp(twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
-        face& cpx(si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
-        face& cpy(si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
-        face& cuu(si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
-        face& cud(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
-        face& cuf(si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
-        face& cub(si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
-        face& cnl(si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
-        face& cpl(si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
+        face& cup(twod p)     { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
+        face& chx(si32 x)     { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
+        face& chy(si32 y)     { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
+        face& cpp(twod p)     { flow::pc( p); return *this; } // face: Cursor percent position.
+        face& cpx(si32 x)     { flow::px( x); return *this; } // face: Cursor H percent position.
+        face& cpy(si32 y)     { flow::py( y); return *this; } // face: Cursor V percent position.
+        face& cuu(si32 n = 1) { flow::dy(-n); return *this; } // face: cursor up.
+        face& cud(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor down.
+        face& cuf(si32 n = 1) { flow::dx( n); return *this; } // face: Cursor forward.
+        face& cub(si32 n = 1) { flow::dx(-n); return *this; } // face: Cursor backward.
+        face& cnl(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor next line.
+        face& cpl(si32 n = 1) { flow::dy(-n); return *this; } // face: Cursor previous line.
 
-        face& ocp(twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
-        face& ocx(si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
-        face& ocy(si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+        face& ocp(twod p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
+        face& ocx(si32 x) { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
+        face& ocy(si32 y) { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
 
         face& scp()              { flow::sc(  ); return *this; } // face: Save cursor position.
         face& rcp()              { flow::rc(  ); return *this; } // face: Restore cursor position.
@@ -2286,13 +2315,15 @@ namespace netxs::ui
         {
             return core::area();
         }
-        void area(rect const& new_area) // face: Change the area of the face/core.
+        void area(rect new_area) // face: Change the area of the face/core.
         {
-            core::move(new_area.coor);
-            core::size(new_area.size);
+            //core::move(new_area.coor);
+            //core::size(new_area.size);
+            //flow::size(new_area.size);
+            core::area(new_area);
             flow::size(new_area.size);
         }
-        void size(twod const& new_size) // face: Change the size of the face/core.
+        void size(twod new_size) // face: Change the size of the face/core.
         {
             core::size(new_size);
             flow::size(new_size);
@@ -2302,16 +2333,16 @@ namespace netxs::ui
             return core::size();
         }
         template<bool BottomAnchored = faux>
-        void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
+        void crop(twod new_size, cell const& c) // face: Resize while saving the bitmap.
         {
-            core::crop<BottomAnchored>(newsize, c);
-            flow::size(newsize);
+            core::crop<BottomAnchored>(new_size, c);
+            flow::size(new_size);
         }
         template<bool BottomAnchored = faux>
-        void crop(twod const& newsize) // face: Resize while saving the bitmap.
+        void crop(twod new_size) // face: Resize while saving the bitmap.
         {
-            core::crop<BottomAnchored>(newsize, core::mark());
-            flow::size(newsize);
+            core::crop<BottomAnchored>(new_size, core::mark());
+            flow::size(new_size);
         }
         template<class P = noop>
         void blur(si32 r, P shade = P())

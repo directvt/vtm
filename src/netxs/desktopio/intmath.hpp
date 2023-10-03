@@ -346,7 +346,7 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        quadratic(twod const& speed, type cycle, type limit, type start)
+        quadratic(twod speed, type cycle, type limit, type start)
             :	speed{ speed         },
                 limit{ limit         },
                 phase{ limit * 2     },
@@ -400,7 +400,7 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        constlinear(twod const& speed, type cycle, type limit, type start)
+        constlinear(twod speed, type cycle, type limit, type start)
             :	limit{ limit         },
                 phase{ limit * 2     },
                 speed{ speed * phase },
@@ -447,7 +447,7 @@ namespace netxs
         mutable twod total; // constlinearAtoB: Current point on the path.
 
     public:
-        constlinearAtoB(twod const& range, type limit, type start)
+        constlinearAtoB(twod range, type limit, type start)
             :	limit{ limit },
                 range{ range },
                 start{ start },

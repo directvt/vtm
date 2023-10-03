@@ -123,13 +123,13 @@ namespace netxs::utf
         size_t balance;
         size_t utf8len;
 
-        cpit(view const& utf8)
+        cpit(view utf8)
             : textptr{ utf8.data() },
               balance{ utf8.size() },
               utf8len{ 0           }
         { }
 
-        void redo(view const& utf8)
+        void redo(view utf8)
         {
             textptr = utf8.data();
             balance = utf8.size();
@@ -317,7 +317,7 @@ namespace netxs::utf
     };
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    auto letter(view const& utf8)
+    auto letter(view utf8)
     {
         return frag{ utf8 };
     }
@@ -325,7 +325,7 @@ namespace netxs::utf
     // utf: Break the text into the enriched grapheme clusters.
     //      Forward the result to the dest using the "serve" and "yield" lambdas.
     //      serve: Handle escaped control sequences.
-    //             auto s = [&](utf::prop const& traits, view const& utf8) -> view;
+    //             auto s = [&](utf::prop const& traits, view utf8) -> view;
     //      yield: Handle grapheme clusters.
     //             auto y = [&](frag const& cluster){};
     //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)

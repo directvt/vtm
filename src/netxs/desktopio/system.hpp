@@ -728,7 +728,7 @@ namespace netxs::os
                         }
                         else return 0;
                     }
-                    void task(ansi::rule const& cmd)
+                    void task(ansi::rule cmd)
                     {
                         parser::flush();
                         if (cmd.cmd == ansi::fn::tb)
@@ -3408,11 +3408,11 @@ namespace netxs::os
                 }
                 return faux;
             }
-            void resize(twod const& newsize)
+            void resize(twod new_size)
             {
                 if (attached)
                 {
-                    if (termsize(newsize))
+                    if (termsize(new_size))
                     {
                         termlink->winsz(termsize);
                     }
@@ -3470,7 +3470,7 @@ namespace netxs::os
                     }
                 }
             }
-            void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
+            void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state)
             {
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;

@@ -628,7 +628,7 @@ namespace netxs::ui
             return area;
         }
         auto color() const { return filler; }
-        void color(rgba const& fg_color, rgba const& bg_color)
+        void color(rgba fg_color, rgba bg_color)
         {
             // To make an object transparent to mouse events,
             // no id (cell::id = 0) is used by default in the filler.
@@ -711,7 +711,7 @@ namespace netxs::ui
             inform(nested_area);
             if (apply) accept(new_area);
         }
-        // base: Change object area, and return delta.
+        // base: Change object area (ext rect), and return delta.
         void change(rect new_area)
         {
             recalc(new_area);
@@ -759,7 +759,7 @@ namespace netxs::ui
             return resize(base::region.size);
         }
         // base: Resize by step, and return size delta.
-        auto sizeby(twod const& step)
+        auto sizeby(twod step)
         {
             auto old_size = base::region.size;
             auto new_size = old_size + step;
@@ -790,7 +790,7 @@ namespace netxs::ui
             strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
-        virtual void deface(rect const& area)
+        virtual void deface(rect area)
         {
             base::wasted = true;
             strike(area);
@@ -926,52 +926,13 @@ namespace netxs::ui
             base::extpad = extpad;
         }
         // base.: Render to the canvas. Trim = trim viewport to the nested object region.
-        void render(face& canvas, twod const& offset_coor, bool trim = true)
+        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
         {
             if (hidden) return;
-            auto canvas_view = canvas.core::view();
-            auto parent_area = canvas.flow::full();
-
-            auto object_area = base::region;
-            object_area.coor+= parent_area.coor;
-
-            auto nested_view = canvas_view.clip(object_area);
-            //todo revise: why whole canvas is not used
-            if (trim ? nested_view : canvas_view)
+            if (auto context = canvas.change_basis(base::region, trim)) // Basis = base::region.coor.
             {
-                auto canvas_coor = canvas.core::coor();
-                if (trim) canvas.core::view(nested_view);
-                canvas.core::back(offset_coor);
-                canvas.flow::full(object_area);
-
-                SIGNAL(tier::release, e2::render::prerender, canvas);
-                SIGNAL(tier::release, e2::postrender, canvas);
-
-                if (trim) canvas.core::view(canvas_view);
-                canvas.core::move(canvas_coor);
-                canvas.flow::full(parent_area);
-            }
-        }
-        // base: Render itself to the canvas.
-        void render(face& canvas, bool pred = true, bool post = true)
-        {
-            if (hidden) return;
-            auto canvas_view = canvas.core::view();
-            auto parent_area = canvas.flow::full();
-
-            auto object_area = base::region;
-            object_area.coor-= canvas.core::coor();
-
-            if (auto nested_view = canvas_view.clip(object_area))
-            {
-                canvas.core::view(nested_view);
-                canvas.flow::full(object_area);
-
                 if (pred) SIGNAL(tier::release, e2::render::prerender, canvas);
                 if (post) SIGNAL(tier::release, e2::postrender,        canvas);
-
-                canvas.core::view(canvas_view);
-                canvas.flow::full(parent_area);
             }
         }
 

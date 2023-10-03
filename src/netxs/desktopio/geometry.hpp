@@ -160,10 +160,10 @@ namespace netxs
     static constexpr const auto dot_mx = twod{ si32max / 2,
                                                si32max / 2 };
 
-    static twod divround(twod const& p, si32 n       ) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
-    static twod divround(si32 n       , twod const& p) { return { divround(n  , p.x), divround(n  , p.y) }; }
-    static twod divround(twod const& n, twod const& p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
-    static twod divupper(twod const& n, twod const& p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
+    static twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
+    static twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
+    static twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
+    static twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
 }
 
 namespace std
@@ -199,19 +199,19 @@ namespace netxs
             return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
         }
         bool operator == (rect const&) const = default;
-        explicit operator bool ()              const { return size.x != 0 && size.y != 0;            }
-        auto   center          ()              const { return coor + size / 2;                       }
-        auto   area            ()              const { return size.x * size.y;                       }
-        twod   map             (twod const& p) const { return p - coor;                              }
-        rect   shift           (twod const& p) const { return { coor + p, size };                    }
-        auto&  shift_itself    (twod const& p)       { coor += p; return *this;                      }
-        rect   operator &      (rect const& r) const { return clip(r);                               }
-        rect   operator |      (rect const& r) const { return unite(r);                              }
-        auto&  operator +=     (rect const& r)       { coor += r.coor; size += r.size; return *this; }
-        auto&  operator -=     (rect const& r)       { coor -= r.coor; size -= r.size; return *this; }
+        explicit operator bool ()       const { return size.x != 0 && size.y != 0;            }
+        auto   center          ()       const { return coor + size / 2;                       }
+        auto   area            ()       const { return size.x * size.y;                       }
+        twod   map             (twod p) const { return p - coor;                              }
+        rect   shift           (twod p) const { return { coor + p, size };                    }
+        auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
+        rect   operator &      (rect r) const { return clip(r);                               }
+        rect   operator |      (rect r) const { return unite(r);                              }
+        auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
+        auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }
 
         // rect: Is the point inside the rect.
-        bool hittest(twod const& p) const
+        bool hittest(twod p) const
         {
             bool test;
             if (size.x > 0)
@@ -241,7 +241,7 @@ namespace netxs
             }
             return faux;
         }
-        rect rotate(twod const& dir) const
+        rect rotate(twod dir) const
         {
             rect r;
             if ((dir.x ^ size.x) < 0)
@@ -320,7 +320,7 @@ namespace netxs
             return *this;
         }
         // rect: Intersect the rect with rect{ dot_00, edge }.
-        rect trunc(twod const& edge) const
+        rect trunc(twod edge) const
         {
             rect r;
             r.coor = std::clamp(coor, dot_00, edge);
@@ -328,7 +328,7 @@ namespace netxs
             return r;
         }
         // rect: Return circumscribed rect.
-        rect unite(rect const& annex) const
+        rect unite(rect annex) const
         {
             auto r1 = annex.normalize();
             auto r2 = normalize();
@@ -337,7 +337,7 @@ namespace netxs
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
-        bool overlap(rect const& r) const
+        bool overlap(rect r) const
         {
             return coor.x          < r.coor.x + r.size.x
                 && coor.y          < r.coor.y + r.size.y
@@ -348,12 +348,12 @@ namespace netxs
         {
             return "{" + coor.str() + ", " + size.str() + "}";
         }
-        friend auto& operator << (std::ostream& s, rect const& r)
+        friend auto& operator << (std::ostream& s, rect r)
         {
             return s << '{' << r.coor << ", " << r.size << '}';
         }
         // rect: Change endianness to LE.
-        friend auto letoh(rect const& r)
+        friend auto letoh(rect r)
         {
             return rect{ netxs::letoh(r.coor), netxs::letoh(r.size) };
         }
@@ -377,10 +377,10 @@ namespace netxs
             : l{ l }, r{ r }, t{ t }, b{ b }
         { }
         constexpr side(side const&) = default;
-        constexpr side(twod const& p)
+        constexpr side(twod p)
             : l{ p.x }, r{ p.x }, t{ p.y }, b{ p.y }
         { }
-        constexpr side(rect const& a)
+        constexpr side(rect a)
             : l{ a.coor.x }, r{ a.coor.x + a.size.x },
               t{ a.coor.y }, b{ a.coor.y + a.size.y }
         { }
@@ -393,7 +393,7 @@ namespace netxs
         }
         bool operator == (side const&) const = default;
         // side: Unite the two rectangles.
-        void operator |= (side const& s)
+        void operator |= (side s)
         {
             l = std::min(l, s.l);
             t = std::min(t, s.t);
@@ -401,7 +401,7 @@ namespace netxs
             b = std::max(b, s.b);
         }
         // side: Unite the two rectangles (normalized).
-        void operator |= (rect const& a)
+        void operator |= (rect a)
         {
             l = std::min(l, a.coor.x);
             t = std::min(t, a.coor.y);
@@ -409,7 +409,7 @@ namespace netxs
             b = std::max(b, a.coor.y + (a.size.y > 0 ? a.size.y - 1 : 0));
         }
         // side: Unite the two rectangles (0-based, normalized).
-        void operator |= (twod const& p)
+        void operator |= (twod p)
         {
             l = std::min(l, p.x);
             t = std::min(t, p.y);
@@ -417,7 +417,7 @@ namespace netxs
             b = std::max(b, p.y);
         }
         // side: Shift rectangle by the twod.
-        void operator += (twod const& p)
+        void operator += (twod p)
         {
             l += p.x;
             r += p.x;
@@ -425,7 +425,7 @@ namespace netxs
             b += p.y;
         }
         // side: Shift rectangle by the twod.
-        void operator -= (twod const& p)
+        void operator -= (twod p)
         {
             l -= p.x;
             r -= p.x;
@@ -452,12 +452,12 @@ namespace netxs
             return "{ l:" + std::to_string(l) + " r: " + std::to_string(r) +
                     " t:" + std::to_string(t) + " b: " + std::to_string(b) + " }";
         }
-        friend auto& operator << (std::ostream& s, side const& p)
+        friend auto& operator << (std::ostream& s, side p)
         {
             return s << p.str();
         }
         // side: Change endianness to LE.
-        friend auto letoh(side const& s)
+        friend auto letoh(side s)
         {
             return side{ netxs::letoh(s.l),
                          netxs::letoh(s.r),
@@ -480,7 +480,7 @@ namespace netxs
                                               || r != 0
                                               || t != 0
                                               || b != 0; }
-        constexpr auto& operator -= (dent const& pad)
+        constexpr auto& operator -= (dent pad)
         {
             l -= pad.l;
             r -= pad.r;
@@ -488,7 +488,7 @@ namespace netxs
             b -= pad.b;
             return *this;
         }
-        constexpr auto& operator += (dent const& pad)
+        constexpr auto& operator += (dent pad)
         {
             l += pad.l;
             r += pad.r;
@@ -503,12 +503,12 @@ namespace netxs
             return rect{{ l, t }, { std::max(0, size_x - (r + l)), std::max(0, size_y - (b + t)) }};
         }
         // dent: Return inner area rectangle.
-        constexpr auto area(twod const& size) const
+        constexpr auto area(twod size) const
         {
             return area(size.x, size.y);
         }
         // dent: Return inner area rectangle.
-        constexpr auto area(rect const& content) const
+        constexpr auto area(rect content) const
         {
             auto field = area(content.size.x, content.size.y);
             field.coor += content.coor;
@@ -520,7 +520,7 @@ namespace netxs
             return twod{ l, t };
         }
         // dent: Return the coor of the area rectangle.
-        constexpr auto coor(twod const& c) const
+        constexpr auto coor(twod c) const
         {
             return twod{ c.x - l, c.y - t };
         }
@@ -535,7 +535,7 @@ namespace netxs
             return std::max(0, size_y - (b + t));
         }
         // dent: Return size of the inner rectangle.
-        constexpr auto size(twod const& size) const
+        constexpr auto size(twod size) const
         {
             return twod{ width(size.x), height(size.y) };
         }
@@ -562,24 +562,24 @@ namespace netxs
             return dent{ -l, -r, -t, -b };
         }
         // dent: Scale padding.
-        constexpr auto operator * (si32 const& factor) const
+        constexpr auto operator * (si32 factor) const
         {
             return dent{ l * factor, r * factor, t * factor, b * factor };
         }
         // dent: Return size with padding.
-        friend auto operator + (twod const& size, dent const& pad)
+        friend auto operator + (twod size, dent pad)
         {
             return twod{ std::max(0, size.x + (pad.l + pad.r)),
                          std::max(0, size.y + (pad.t + pad.b)) };
         }
         // dent: Return size without padding.
-        friend auto operator - (twod const& size, dent const& pad)
+        friend auto operator - (twod size, dent pad)
         {
             return twod{ std::max(0, size.x - (pad.l + pad.r)),
                          std::max(0, size.y - (pad.t + pad.b)) };
         }
         // dent: Return area with padding.
-        friend auto operator + (rect const& area, dent const& pad)
+        friend auto operator + (rect area, dent pad)
         {
             return rect{{ area.coor.x - pad.l,
                           area.coor.y - pad.t },
@@ -587,7 +587,7 @@ namespace netxs
                           std::max(0, area.size.y + (pad.t + pad.b)) }};
         }
         // dent: Return area without padding.
-        friend auto operator - (rect const& area, dent const& pad)
+        friend auto operator - (rect area, dent pad)
         {
             return rect{{ area.coor.x + pad.l,
                           area.coor.y + pad.t },
@@ -595,27 +595,27 @@ namespace netxs
                           std::max(0, area.size.y - (pad.t + pad.b)) }};
         }
         // dent: Return area with padding.
-        friend auto operator += (rect& area, dent const& pad)
+        friend auto operator += (rect& area, dent pad)
         {
             return area = area + pad;
         }
         // dent: Return area without padding.
-        friend auto operator -= (rect& area, dent const& pad)
+        friend auto operator -= (rect& area, dent pad)
         {
             return area = area - pad;
         }
         // dent: Return size with padding.
-        friend auto operator += (twod& size, dent const& pad)
+        friend auto operator += (twod& size, dent pad)
         {
             return size = size + pad;
         }
         // dent: Return size without padding.
-        friend auto operator -= (twod& size, dent const& pad)
+        friend auto operator -= (twod& size, dent pad)
         {
             return size = size - pad;
         }
         // dent: Return summ of two paddings.
-        friend auto operator + (dent const& pad1, dent const& pad2)
+        friend auto operator + (dent pad1, dent pad2)
         {
             return dent{ pad1.l + pad2.l,
                          pad1.r + pad2.r,
@@ -623,7 +623,7 @@ namespace netxs
                          pad1.b + pad2.b };
         }
         // dent: Return diff of two paddings.
-        friend auto operator - (dent const& pad1, dent const& pad2)
+        friend auto operator - (dent pad1, dent pad2)
         {
             return dent{ pad1.l - pad2.l,
                          pad1.r - pad2.r,
@@ -631,7 +631,7 @@ namespace netxs
                          pad1.b - pad2.b };
         }
         // dent: Change endianness to LE.
-        friend auto letoh(dent const& d)
+        friend auto letoh(dent d)
         {
             return dent{ netxs::letoh(d.l),
                          netxs::letoh(d.r),
@@ -645,13 +645,13 @@ namespace netxs
                        + std::to_string(t) + ','
                        + std::to_string(b) + '}';
         }
-        friend auto& operator << (std::ostream& s, dent const& d)
+        friend auto& operator << (std::ostream& s, dent d)
         {
             return s << d.str();
         }
     };
     // dent: Return difference between area.
-    auto operator - (rect const& r1, rect const& r2)
+    auto operator - (rect r1, rect r2)
     {
         auto top = r2.coor - r1.coor;
         auto end = r1.size - r2.size - top;

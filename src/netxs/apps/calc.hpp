@@ -49,7 +49,7 @@ namespace netxs::ui
                       seized{ faux }
                 { }
                 operator bool () { return inside || seized || region.size; }
-                auto grab(twod const& coord, bool resume)
+                auto grab(twod coord, bool resume)
                 {
                     if (inside)
                     {
@@ -62,14 +62,14 @@ namespace netxs::ui
                     }
                     return seized;
                 }
-                auto calc(base const& boss, twod const& coord)
+                auto calc(base const& boss, twod coord)
                 {
                     curpos = coord;
                     auto area = boss.base::size();
                     area.x += boss.base::oversz.r;
                     inside = area.inside(curpos);
                 }
-                auto drag(twod const& coord)
+                auto drag(twod coord)
                 {
                     if (seized)
                     {

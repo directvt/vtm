@@ -450,8 +450,8 @@ namespace netxs::app::test
                                                         static auto counter = 0; counter++;
                                                         static auto textclr =  ansi::bgc(reddk).fgc(whitelt);
                                                         self.content(test_topic_vars::object1) = textclr + " inlined #1: " + std::to_string(counter) + " hits ";
-                                                        self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.area().size.str() + " ";
-                                                        self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.full().coor.str() + " ";
+                                                        self.content(test_topic_vars::object2) = textclr + " inlined #2: " + canvas.face::area().size.str() + " ";
+                                                        self.content(test_topic_vars::object3) = textclr + " inlined #3: " + canvas.flow::full().coor.str() + " ";
                                                     };
                                                     //todo
                                                     //self.LISTEN(tier::general, e2::form::canvas, canvas_ptr)

@@ -462,7 +462,7 @@ namespace netxs::app::desk
 
             window->invoke([menu_max_size, menu_min_size, menu_selected](auto& boss) mutable
             {
-                auto ground = background("gems;About;");
+                auto ground = background("gems;About;"); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
                 {
                     current_default  = selected;
@@ -492,7 +492,10 @@ namespace netxs::app::desk
                     };
                     parent->LISTEN(tier::release, e2::area, new_area, boss.relyon)
                     {
-                        ground->base::change(new_area);
+                        if (ground->size() != new_area.size)
+                        {
+                            ground->base::resize(new_area.size);
+                        }
                     };
                     parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, boss.relyon, (parent_id = parent->id))
                     {

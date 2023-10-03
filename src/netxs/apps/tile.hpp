@@ -142,12 +142,11 @@ namespace netxs::app::tile
                 //todo magic numbers
                 if (depth < 4 && client)
                 {
-                    auto& basis = boss.base::coor();
                     auto canvas_view = parent_canvas.core::view();
                     auto canvas_area = parent_canvas.core::area();
                     canvas_area.coor = dot_00;
                     parent_canvas.core::view(canvas_area);
-                    client->render(parent_canvas, basis, faux);
+                    client->render(parent_canvas, faux);
                     parent_canvas.core::view(canvas_view);
                 }
             };

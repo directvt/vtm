@@ -853,7 +853,7 @@ namespace netxs::directvt
                 glyph = 1 << 4,
             };
 
-            void set(id_t winid, twod const& coord, core& cache, flag& abort, sz_t& delta)
+            void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
@@ -882,7 +882,7 @@ namespace netxs::directvt
                         sum = 0;
                     }
                 };
-                auto tax = [](cell const& c1, cell const& c2)
+                auto tax = [](cell c1, cell const& c2)
                 {
                     auto meaning = 0;
                     auto cluster = byte{ 0 };
@@ -1068,7 +1068,7 @@ namespace netxs::directvt
                 : stream{ Kind }
             { }
 
-            void set(id_t winid, twod const& winxy, core& cache, flag& abort, sz_t& delta)
+            void set(id_t winid, twod winxy, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
                 auto saved = state;

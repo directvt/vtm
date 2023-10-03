@@ -1223,7 +1223,7 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint cause, twod const& coord, twod const& delta, ui32 button_state, ui32 ctlstat)
+        void replay(hint cause, twod coord, twod delta, ui32 button_state, ui32 ctlstat)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
@@ -1296,7 +1296,7 @@ namespace netxs::input
         auto& area() const { return idmap.area(); }
 
         template<tier Tier>
-        void pass(sptr object, twod const& offset, bool relative = faux)
+        void pass(sptr object, twod offset, bool relative = faux)
         {
             if (object)
             {

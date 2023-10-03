@@ -673,7 +673,7 @@ struct impl : consrv
             ondata.reset();
             signal.notify_one();
         }
-        void mouse(input::hids& gear, bool moved, twod const& coord)
+        void mouse(input::hids& gear, bool moved, twod coord)
         {
             auto state = os::nt::ms_kbstate(gear.ctlstate);
             auto bttns = gear.m.buttons & 0b00011111;
@@ -4836,11 +4836,11 @@ struct consrv : ipc::stdcon
         }
         stdcon::cleanup();
     }
-    void winsz(twod const& newsize)
+    void winsz(twod new_size)
     {
         //todo win32-input-mode
         using type = decltype(winsize::ws_row);
-        auto size = winsize{ .ws_row = (type)newsize.y, .ws_col = (type)newsize.x };
+        auto size = winsize{ .ws_row = (type)new_size.y, .ws_col = (type)new_size.x };
         ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected);
     }
     template<class Term>
@@ -4930,7 +4930,7 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
     }
-    void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
+    void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state)
     {
         //todo win32-input-mode
     }

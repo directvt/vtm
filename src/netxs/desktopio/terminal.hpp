@@ -895,7 +895,7 @@ namespace netxs::ui
                     : index{ newid },
                       style{ style }
                 { }
-                line(id_t newid, deco const& style, span const& dt, twod const& sz)
+                line(id_t newid, deco const& style, span dt, twod sz)
                     : rich { dt,sz },
                       index{ newid },
                       style{ style }
@@ -1142,7 +1142,7 @@ namespace netxs::ui
                 y_top = std::clamp(sctop        , 0, y_end);
             }
             // bufferbase: Resize viewport.
-    virtual void resize_viewport(twod const& new_sz, bool forced = faux)
+    virtual void resize_viewport(twod new_sz, bool forced = faux)
             {
                 panel = std::max(new_sz, dot_11);
                 resize_tabstops(panel.x);
@@ -1169,18 +1169,18 @@ namespace netxs::ui
                 cup0(dot_00);
             }
             // bufferbase: Set cursor position.
-    virtual void set_coord(twod const& new_coord)
+    virtual void set_coord(twod new_coord)
             {
                 coord = new_coord;
             }
             // bufferbase: Return current 0-based cursor position in the viewport.
-    virtual twod get_coord(twod const& origin)
+    virtual twod get_coord(twod origin)
             {
                 return coord;
             }
             // bufferbase: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
-            void task(ansi::rule const& property)
+            void task(ansi::rule property)
             {
                 parser::flush();
                 log(prompt::term, "Desktopio vt-extensions are not supported");
@@ -1999,7 +1999,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Pickup selected data from canvas.
-            void selection_pickup(escx& buffer, rich& canvas, twod const& seltop, twod const& selend, si32 selmod, bool selbox)
+            void selection_pickup(escx& buffer, rich& canvas, twod seltop, twod selend, si32 selmod, bool selbox)
             {
                 auto limits = panel - dot_11;
                 auto curtop = std::clamp(seltop, dot_00, limits);
@@ -2068,7 +2068,7 @@ namespace netxs::ui
                                               : find(0, match.length(), uirev, uifwd);
             }
             // bufferbase: Return match navigation state.
-    virtual si32 selection_button(twod const& delta = {})
+    virtual si32 selection_button(twod delta = {})
             {
                 auto forward_is_available = uifwd ? 1 << 0 : 0;
                 auto reverse_is_available = uirev ? 1 << 1 : 0;
@@ -2126,7 +2126,7 @@ namespace netxs::ui
             si32 get_step() const override { return 0;       }
 
             // alt_screen: Resize viewport.
-            void resize_viewport(twod const& new_sz, bool forced = faux) override
+            void resize_viewport(twod new_sz, bool forced = faux) override
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
@@ -2151,7 +2151,7 @@ namespace netxs::ui
                 }
                 else return faux;
             }
-            static void _el(si32 n, core& canvas, twod const& coord, twod const& panel, cell const& blank)
+            static void _el(si32 n, core& canvas, twod coord, twod panel, cell const& blank)
             {
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
@@ -2671,7 +2671,7 @@ namespace netxs::ui
                     dec_height(vsize, kind, size);
                 }
                 // buff: Check buffer size.
-                bool check_size(twod const& new_size)
+                bool check_size(twod new_size)
                 {
                     auto old_value = vsize;
                     set_width(new_size.x);
@@ -3248,7 +3248,7 @@ namespace netxs::ui
                 }
             }
             // scroll_buf: Resize viewport.
-            void resize_viewport(twod const& new_sz, bool forced = faux) override
+            void resize_viewport(twod new_sz, bool forced = faux) override
             {
                 if (new_sz == panel && !forced) return;
 
@@ -3495,7 +3495,7 @@ namespace netxs::ui
                 return avail;
             }
             // scroll_buf: Return current 0-based cursor position in the scrollback.
-            twod get_coord(twod const& origin = {}) override
+            twod get_coord(twod origin = {}) override
             {
                 auto coor = coord;
                 if (coor.y >= y_top
@@ -3530,7 +3530,7 @@ namespace netxs::ui
                 return coor;
             }
             // scroll_buf: Set cursor position and sync it with buffer.
-            void set_coord(twod const& new_coord) override
+            void set_coord(twod new_coord) override
             {
                 bufferbase::set_coord(new_coord);
                 sync_coord();
@@ -4592,7 +4592,7 @@ namespace netxs::ui
                 assert(test_futures());
 
                 auto blank = brush.dry();
-                auto clear = [&](twod const& coor)
+                auto clear = [&](twod coor)
                 {
                     auto& from = index[coor.y];
                     auto topid = from.index;
@@ -4677,7 +4677,7 @@ namespace netxs::ui
             void del_above() override
             {
                 auto blank = brush.dry();
-                auto clear = [&](twod const& from)
+                auto clear = [&](twod from)
                 {
                     auto head = index.begin();
                     auto tail = head + from.y;
@@ -5060,7 +5060,7 @@ namespace netxs::ui
                     auto edge2 = twod{-dot_mx.x, scrolling_margin };
                     auto edge3 = twod{ dot_mx.x, scrolling_margin + arena - 1 };
                     auto edge4 = twod{-dot_mx.x, 0 };
-                    auto set_grip_coor_and_role = [](twod const& c, grip::type r)
+                    auto set_grip_coor_and_role = [](twod c, grip::type r)
                     {
                         return grip{ .coor = c, .role = r };
                     };
@@ -6168,7 +6168,7 @@ namespace netxs::ui
                 return delta;
             }
             // scroll_buf: Return match navigation state.
-            si32 selection_button(twod const& delta = {}) override
+            si32 selection_button(twod delta = {}) override
             {
                 auto forward_is_available = si32{};
                 auto reverse_is_available = si32{};

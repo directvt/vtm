@@ -318,7 +318,7 @@ namespace netxs::app::vtm
             };
 
             // pro::frame: Fly to the specified position.
-            void appear(twod const& target)
+            void appear(twod target)
             {
                 auto& screen = boss.base::area();
                 auto  oldpos = screen.coor;
@@ -335,7 +335,7 @@ namespace netxs::app::vtm
             /*
             // pro::frame: Search for a non-overlapping form position in
             //             the visual tree along a specified direction.
-            rect bounce(rect const& block, twod const& dir)
+            rect bounce(rect block, twod dir)
             {
                 auto result = block.rotate(dir);
                 auto parity = std::abs(dir.x) > std::abs(dir.y);
@@ -369,7 +369,7 @@ namespace netxs::app::vtm
             }
             */
             // pro::frame: Move the form no further than the parent canvas.
-            void convey(twod const& delta, rect const& boundary)//, bool notify = true)
+            void convey(twod delta, rect boundary)//, bool notify = true)
             {
                 auto& r0 = boss.base::area();
                 if (delta && r0.clip(boundary))
@@ -663,7 +663,7 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
-                    auto full = parent_canvas.face::full();
+                    auto full = parent_canvas.flow::full();
                     auto size = parent_canvas.core::size();
                     auto coor = full.coor + coord;
                     if (size.inside(coor))
@@ -731,6 +731,27 @@ namespace netxs::app::vtm
             {
                 //todo deprecated
                 //todo unify
+                auto F12 = (gear.keycode == input::key::F12 && gear.meta(hids::anyAlt)) || gear.keystrokes == "\033[24;3~"s;
+                if (F12 && gear.pressed) // Disconnect by Alt+F12.
+                {
+                    gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
+                    this->bell::expire<tier::preview>();
+                    gear.set_handled(true);
+                    return;
+                }
+                auto F10 = gear.keycode == input::key::F10 || gear.keystrokes == "\033[21~"s;
+                if (F10 && gear.pressed)
+                {
+                    auto window_ptr = e2::form::layout::go::item.param();
+                    this->RISEUP(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
+                    if (!window_ptr)
+                    {
+                        this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::gate, "Server shutdown")));
+                        this->bell::expire<tier::preview>();
+                        gear.set_handled(true);
+                    }
+                    return;
+                }
                 auto& keystrokes = gear.keystrokes;
                 auto pgup = keystrokes == "\033[5;5~"s
                         || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
@@ -874,13 +895,17 @@ namespace netxs::app::vtm
         }
         void rebuild_scene(auto& world, bool damaged)
         {
-            auto& canvas = input.xmap;
             if (damaged)
             {
+                auto& canvas = input.xmap;
+                log("1. input.xmap area: %% view: %% full: %%", input.xmap.area(), input.xmap.view(), input.xmap.full());
                 canvas.wipe(world.id);
                 if (align.what.applet)
                 {
-                    align.what.applet->render(canvas, base::coor());
+                    if (auto context = canvas.change_basis(base::area()))
+                    {
+                        align.what.applet->render(canvas);
+                    }
                 }
                 else
                 {
@@ -891,10 +916,11 @@ namespace netxs::app::vtm
                     }
                     world.redraw(canvas); // Put the rest of the world on my canvas.
                     if (applet) // Render main menu/application.
+                    if (auto context = canvas.change_basis(base::area()))
                     {
                         //todo too hacky, unify
-                        if (props.glow_fx) applet->render(canvas, base::coor()); // Render the main menu twice to achieve the glow effect.
-                                           applet->render(canvas, base::coor());
+                        if (props.glow_fx) applet->render(canvas); // Render the taskbar menu twice to achieve the glow effect.
+                                           applet->render(canvas);
                     }
                 }
             }
@@ -953,7 +979,7 @@ namespace netxs::app::vtm
                 auto& grade = skin::grade(is_active ? color.active
                                                     : color.passive);
                 auto obj_id = object->id;
-                auto pset = [&](twod const& p, byte k)
+                auto pset = [&](twod p, byte k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
                     //canvas[p].fuse(grade[k], obj_id);
@@ -1001,7 +1027,7 @@ namespace netxs::app::vtm
             {
                 if (size() > 1)
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
-                for (auto& item : items) item->object->render(canvas, true, faux); // Draw shadows without postrendering.
+                for (auto& item : items) item->object->render(canvas, true, true, faux); // Draw shadows without postrendering.
             }
             //hall::list: Draw windows.
             void render(face& canvas)
@@ -1014,7 +1040,7 @@ namespace netxs::app::vtm
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)
             {
-                for (auto& item : items) item->object->render(canvas, faux, true);
+                for (auto& item : items) item->object->render(canvas, true, faux, true);
             }
             //hall::list: Delete all items.
             void reset()
@@ -1651,7 +1677,7 @@ namespace netxs::app::vtm
             dbase.append(user);
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             this->SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
-            user->LISTEN(tier::release, e2::conio::winsz, newsize, -)
+            user->LISTEN(tier::release, e2::conio::winsz, new_size, -)
             {
                 user->rebuild_scene(*this, true);
             };

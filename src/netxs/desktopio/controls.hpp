@@ -135,11 +135,11 @@ namespace netxs::ui
                 { }
 
                 operator bool () { return inside || seized; }
-                auto corner(twod const& length)
+                auto corner(twod length)
                 {
                     return dtcoor.less(dot_11, length, dot_00);
                 }
-                auto grab(base const& master, twod curpos, dent const& outer)
+                auto grab(base const& master, twod curpos, dent outer)
                 {
                     if (inside)
                     {
@@ -148,7 +148,7 @@ namespace netxs::ui
                     }
                     return seized;
                 }
-                auto calc(base const& master, twod curpos, dent const& outer, dent const& inner, dent const& border)
+                auto calc(base const& master, twod curpos, dent outer, dent inner, dent border)
                 {
                     auto area = rect{ dot_00, master.base::size() };
                     auto inner_rect = area + inner;
@@ -180,7 +180,7 @@ namespace netxs::ui
                     vtgrip.size.y += s.y;
                     return lastxy(curpos);
                 }
-                auto drag(base& master, twod const& curpos, dent const& outer, bool zoom)
+                auto drag(base& master, twod curpos, dent outer, bool zoom)
                 {
                     if (seized)
                     {
@@ -212,7 +212,7 @@ namespace netxs::ui
             bool alive; // pro::sizer: The sizer state.
 
         public:
-            void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
+            void props(dent outer_rect = {2,2,1,1}, dent inner_rect = {})
             {
                 outer = outer_rect;
                 inner = inner_rect;
@@ -224,7 +224,7 @@ namespace netxs::ui
             }
 
             sizer(base&&) = delete;
-            sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
+            sizer(base& boss, dent outer_rect = {2,2,1,1}, dent inner_rect = {})
                 : skill{ boss          },
                   items{ boss          },
                   outer{ outer_rect    },
@@ -362,12 +362,12 @@ namespace netxs::ui
             struct sock
             {
                 twod origin; // sock: Grab's initial coord info.
-                void grab(base const& master, twod const& curpos)
+                void grab(base const& master, twod curpos)
                 {
                     auto center = master.base::size() / 2;
                     origin = curpos - center;
                 }
-                void drag(base& master, twod const& coord)
+                void drag(base& master, twod coord)
                 {
                     auto delta = coord - origin;
                     auto center = master.base::size() / 2;
@@ -775,7 +775,7 @@ namespace netxs::ui
                 }
             }
             // pro::caret: Set blink period.
-            void blink_period(span const& new_step = skin::globals().blink_period)
+            void blink_period(span new_step = skin::globals().blink_period)
             {
                 auto changed = (step == span::zero()) != (new_step == span::zero());
                 step = new_step;
@@ -825,7 +825,7 @@ namespace netxs::ui
                 reset();
             }
             // pro::caret: Set caret position.
-            void coor(twod const& coor)
+            void coor(twod coor)
             {
                 if (body.coor != coor)
                 {
@@ -988,7 +988,7 @@ namespace netxs::ui
                 size.y = cover.height() + 1;
                 return cp;
             }
-            void recalc(twod const& new_size)
+            void recalc(twod new_size)
             {
                 head_size = new_size;
                 foot_size = new_size;
@@ -2068,6 +2068,7 @@ namespace netxs::ui
                 canvas.link(boss.bell::id);
                 canvas.move(boss.base::coor());
                 canvas.size(boss.base::size());
+                //todo canvas.area(boss.base::area());
                 boss.LISTEN(tier::preview, e2::form::prop::ui::cache, state, memo)
                 {
                     usecache = state;
@@ -2084,7 +2085,7 @@ namespace netxs::ui
                         //boss.deface();
                     }
                 };
-                boss.LISTEN(tier::release, e2::area, new_area,      memo) { canvas.area(new_area); };
+                boss.LISTEN(tier::release, e2::area, new_area, memo) { canvas.face::area(new_area); };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
                 if (rendered)
                 {
@@ -2463,7 +2464,7 @@ namespace netxs::ui
         si32  fraction; // fork: Ratio between objects.
         bool  adaptive; // fork: Fixed ratio.
 
-        auto xpose(twod const& p)
+        auto xpose(twod p)
         {
             return rotation == axis::X ? p : twod{ p.y, p.x };
         }
@@ -2499,10 +2500,9 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor();
-                if (splitter) splitter->render(parent_canvas, basis);
-                if (object_1) object_1->render(parent_canvas, basis);
-                if (object_2) object_2->render(parent_canvas, basis);
+                if (splitter) splitter->render(parent_canvas);
+                if (object_1) object_1->render(parent_canvas);
+                if (object_2) object_2->render(parent_canvas);
             };
         }
         // fork: .
@@ -2616,7 +2616,7 @@ namespace netxs::ui
             base::reflow();
         }
         // fork: .
-        void move_slider(si32 const& step)
+        void move_slider(si32 step)
         {
             if (splitter)
             {
@@ -2690,7 +2690,7 @@ namespace netxs::ui
                 {
                     if (auto& object = *start++)
                     {
-                        object->render(parent_canvas, basis.coor);
+                        object->render(parent_canvas);
                         if (bound(object) >= max_y) break;
                     }
                 }
@@ -2799,10 +2799,9 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto basis = base::coor();
                 for (auto& object : subset)
                 {
-                    object->render(parent_canvas, basis);
+                    object->render(parent_canvas);
                 }
             };
         }
@@ -2873,8 +2872,7 @@ namespace netxs::ui
                 if (subset.size())
                 if (auto object = subset.back())
                 {
-                    auto basis = base::coor();
-                    object->render(parent_canvas, basis);
+                    object->render(parent_canvas);
                 }
             };
         }
@@ -3234,10 +3232,10 @@ namespace netxs::ui
             {
                 if (empty()) return;
                 auto& item = *base::subset.back();
-                item.render(parent_canvas, base::coor(), faux);
+                item.render(parent_canvas, faux);
             };
         }
-        // rail: Resize nested object.
+        // rail: Resize nested object with scroll bounds checking.
         void inform(rect new_area) override
         {
             if (empty()) return;
@@ -3529,7 +3527,7 @@ namespace netxs::ui
                 master_inf = scinfo;
                 m_to_s();
             }
-            void resize(twod const& new_size)
+            void resize(twod new_size)
             {
                 scroll_len = new_size[Axis];
                 m_to_s();
@@ -3868,7 +3866,7 @@ namespace netxs::ui
         auto empty() { return base::subset.empty() || !base::subset.back(); }
 
     protected:
-        pads(dent const& intpad_value = {}, dent const& extpad_value = {})
+        pads(dent intpad_value = {}, dent extpad_value = {})
             : intpad{ intpad_value },
               extpad{ extpad_value }
         {
@@ -3881,7 +3879,7 @@ namespace netxs::ui
                 if (!empty())
                 {
                     auto& item = *base::subset.back();
-                    item.render(parent_canvas, base::coor());
+                    item.render(parent_canvas);
                 }
                 this->bell::expire<tier::release>();
             };
@@ -4089,7 +4087,7 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::area, new_area) { canvas.area(new_area); };
+            LISTEN(tier::release, e2::area, new_area) { canvas.face::area(new_area); };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -4227,7 +4225,11 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::area, new_area) { canvas.area(new_area); };
+            LISTEN(tier::release, e2::area, new_area)
+            {
+                canvas.face::area(new_area);
+                recalc();
+            };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             cur_val = -1;
@@ -4319,10 +4321,6 @@ namespace netxs::ui
                 };
                 recalc();
             };
-            LISTEN(tier::release, e2::area, new_area)
-            {
-                recalc();
-            };
             LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
             {
                 base::color(canvas.mark().fgc(), (tint)((++bgclr) % 16));
@@ -4352,7 +4350,7 @@ namespace netxs::ui
                     cp.x = pin_pos;
                     cp.y -= 3;
                     grip_ctl->base::moveto(cp);
-                    grip_ctl->render(canvas, base::coor());
+                    grip_ctl->render(canvas);
                 }
                 parent_canvas.fill(canvas, cell::shaders::fusefull);
             };
