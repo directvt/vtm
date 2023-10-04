@@ -805,16 +805,16 @@ namespace netxs::ui
         }
         void /*!*/draw_mouse_pointer(face& canvas)
         {
-            auto brush = cell{};
+            static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+            static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto area = rect_11;
-            auto base = canvas.core::coor();
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                area.coor = gear.coord - base;
-                if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
-                else                brush.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+                area.coor = gear.coord;
+                auto brush = gear.m.buttons ? cell{ busy }.txt(64 + gear.m.buttons/*A-Z*/)
+                                            : idle;
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }

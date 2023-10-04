@@ -2185,7 +2185,7 @@ namespace netxs::os
                 return state;
             }
             template<role Role, bool Log = true, class P = noop>
-            static auto open(text path, span retry_timeout = {}, P retry_proc = P())
+            static auto open(text path, span retry_timeout = {}, P retry_proc = {})
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;

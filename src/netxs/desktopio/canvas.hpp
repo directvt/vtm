@@ -1858,7 +1858,6 @@ namespace netxs
         auto  iend()                           { return canvas.end();                                                       }
         auto  iter() const                     { return canvas.begin();                                                     }
         auto  iend() const                     { return canvas.end();                                                       }
-        auto  test(twod coord) const           { return region.size.inside(coord);                                          } // core: Check the coor inside the canvas.
         auto  data(twod coord)                 { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
         auto  data(twod coord) const           { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
         auto& data(size_t offset)              { return*(data() + offset);                                                  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
@@ -1870,7 +1869,7 @@ namespace netxs
         void  step(twod delta)                 { region.coor += delta;                                                      } // core: Shift location of the face by delta.
         auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
         void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
-        auto  link(twod coord) const           { return test(coord) ? (*(data(coord))).link() : 0;                          } // core: Return ID of the object in cell at the specified coordinates.
+        auto  link(twod coord) const           { return region.size.inside(coord) ? (*(data(coord))).link() : 0;            } // core: Return ID of the object in cell at the specified coordinates.
         auto  view() const                     { return client;                                                             }
         void  view(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
@@ -1928,7 +1927,6 @@ namespace netxs
         {
             region.size.x = 0;
             client.size.x = 0;
-            client.coor.x = 0;
             canvas.resize(0);
             digest++;
         }
@@ -2008,14 +2006,14 @@ namespace netxs
         }
         auto& peek(twod p) // core: Take the cell at the specified coor.
         {
+            p -= region.coor;
             auto& c = *(iter() + p.x + p.y * region.size.x);
             return c;
         }
         template<class P>
-        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        void /*!*/fill(rect block, P fuse) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
-            block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
         template<class P>
@@ -2057,7 +2055,7 @@ namespace netxs
                 ++y;
                 z = y * y * 4;
             };
-            netxs::onrect(*this, region, allfx, eolfx);
+            netxs::onrect(*this, client, allfx, eolfx);
         }
         void swap(core& other) // core: Unconditionally swap canvases.
         {
@@ -2168,22 +2166,7 @@ namespace netxs
             return word<Direction>(twod{ offset, 0 });
         }
         template<class P>
-        void cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
-        {
-            auto temp = area;
-            temp.size.y = std::max(0, border_width.y); // Top
-            fill(temp.clip(area), fuse);
-            temp.coor.y += area.size.y - border_width.y; // Bottom
-            fill(temp.clip(area), fuse);
-            temp.size.x = std::max(0, border_width.x); // Left
-            temp.size.y = std::max(0, area.size.y - border_width.y * 2);
-            temp.coor.y = area.coor.y + border_width.y;
-            fill(temp.clip(area), fuse);
-            temp.coor.x += area.size.x - border_width.x; // Right
-            fill(temp.clip(area), fuse);
-        }
-        template<class P>
-        void cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
+        void /*!*/cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top
@@ -2199,8 +2182,13 @@ namespace netxs
             temp.size.x = std::max(0, border.r);
             fill(temp.clip(area), fuse);
         }
+        template<class P>
+        void /*!*/cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
+        {
+            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fuse);
+        }
         template<class Text, class P = noop>
-        void text(twod pos, Text const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        void text(twod pos, Text const& txt, bool rtl = faux, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);

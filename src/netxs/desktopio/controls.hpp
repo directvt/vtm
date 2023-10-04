@@ -878,17 +878,15 @@ namespace netxs::ui
                                           : live;
                         if (state)
                         {
-                            auto field = canvas.core::view();
-                            auto point = body;
-                            point.coor += field.coor;
-                            if (auto area = field.clip(point))
+                            auto view = canvas.core::view();
+                            if (auto area = view.clip(body))
                             {
-                                auto& test = canvas.peek(point.coor);
+                                auto& test = canvas.peek(body.coor);
                                 if (test.wdt() == 2) // Extend cursor to adjacent halves.
                                 {
-                                    if (field.hittest(point.coor + dot_10))
+                                    if (view.hittest(body.coor + dot_10))
                                     {
-                                        auto& next = canvas.peek(point.coor + dot_10);
+                                        auto& next = canvas.peek(body.coor + dot_10);
                                         if (next.wdt() == 3 && test.same_txt(next))
                                         {
                                             area.size.x++;
@@ -897,9 +895,9 @@ namespace netxs::ui
                                 }
                                 else if (test.wdt() == 3)
                                 {
-                                    if (field.hittest(point.coor - dot_10))
+                                    if (view.hittest(body.coor - dot_10))
                                     {
-                                        auto& prev = canvas.peek(point.coor - dot_10);
+                                        auto& prev = canvas.peek(body.coor - dot_10);
                                         if (prev.wdt() == 2 && test.same_txt(prev))
                                         {
                                             area.size.x++;
