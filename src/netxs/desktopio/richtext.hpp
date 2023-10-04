@@ -2235,7 +2235,7 @@ namespace netxs::ui
         {
             auto old_full = flow::full();
             auto old_view = core::view();
-            auto new_view = core::area().clip<true>(old_view + delta);
+            auto new_view = core::area().clip(old_view + delta);
             auto new_full = old_full + delta;
             flow::full(new_full);
             core::view(new_view);

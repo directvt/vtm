@@ -1054,7 +1054,10 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    recalc(new_area.size);
+                    if (boss.base::size() != new_area.size)
+                    {
+                        recalc(new_area.size);
+                    }
                 };
                 boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
