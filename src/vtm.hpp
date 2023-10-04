@@ -542,14 +542,13 @@ namespace netxs::app::vtm
                     handle_drop(gear);
                 };
 
-                boss.LISTEN(tier::release, e2::postrender, canvas, memo)
+                boss.LISTEN(tier::release, /*!*/e2::postrender, canvas, memo)
                 {
                     //todo Highlighted area drawn twice
-                    auto offset = boss.coor() - canvas.coor();
                     for (auto const& [key, data] : slots)
                     {
                         auto slot = data.slot;
-                        slot.coor += offset;
+                        slot.coor -= canvas.coor();
                         if (auto area = canvas.area().clip<true>(slot))
                         {
                             if (data.ctrl)
