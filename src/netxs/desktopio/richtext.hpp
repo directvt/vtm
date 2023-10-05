@@ -2328,11 +2328,8 @@ namespace netxs::ui
         }
         void area(rect new_area) // face: Change the area of the face/core.
         {
-            //core::move(new_area.coor);
-            //core::size(new_area.size);
-            //flow::size(new_area.size);
             core::area(new_area);
-            flow::size(new_area.size);
+            flow::full(new_area);
         }
         void size(twod new_size) // face: Change the size of the face/core.
         {

@@ -1636,12 +1636,14 @@ namespace netxs::app::vtm
                 if (gear_test.second) log(prompt::hall, "Autofocused items count: ", gear_test.second);
             }
         }
+        // hall: .
         void redraw(face& canvas)
         {
             users.prerender (canvas); // Draw backpane for spectators.
             items.render    (canvas); // Draw objects of the world.
             users.postrender(canvas); // Draw spectator's mouse pointers.
         }
+        // hall: .
         template<class P>
         void run(P process)
         {
