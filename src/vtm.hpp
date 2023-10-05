@@ -662,10 +662,9 @@ namespace netxs::app::vtm
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
-                    auto full = parent_canvas.flow::full();
-                    auto size = parent_canvas.core::size();
-                    auto coor = full.coor + coord;
-                    if (size.inside(coor))
+                    auto area = parent_canvas.core::area();
+                    auto coor = coord - area.coor;
+                    if (area.size.inside(coor))
                     {
                         auto& c = parent_canvas[coor];
                         auto new_under = c.link();
