@@ -834,9 +834,12 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(face& canvas, time const& stamp)
+        void /*!*/draw_tooltips(face& canvas, time const& stamp)
         {
             auto full = canvas.full();
+            auto area = canvas.area();
+            auto zero = rect{ dot_00, area.size };
+            canvas.area(zero);
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
@@ -854,10 +857,11 @@ namespace netxs::ui
                         canvas.full(area);
                         canvas.cup(dot_00);
                         canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
-                        canvas.full(full);
                     }
                 }
             }
+            canvas.area(area);
+            canvas.full(full);
         }
         void send_tooltips()
         {
