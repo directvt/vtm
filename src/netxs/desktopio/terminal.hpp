@@ -7473,10 +7473,10 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(master.id)) gear.setfree(true);
-                        auto basis = dot_00;
+                        auto basis = gear.owner.base::coor();
                         master.global(basis);
                         gear.replay(m.cause, m.coord - basis, m.delta, m.buttons, m.ctlstat);
-                        gear.pass<tier::release>(parent_ptr, dot_00, true);
+                        gear.pass<tier::release>(parent_ptr, gear.owner.base::coor(), true);
                     }
                 });
             }
