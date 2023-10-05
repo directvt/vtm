@@ -29,6 +29,7 @@ namespace netxs::app::desk
         text     type{};
         text    param{};
         text    patch{};
+        bool   folded{};
     };
 
     using menu = std::unordered_map<text, spec>;
@@ -153,7 +154,7 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto app_close = app_close_area->attach(ui::item::ctor("  ×  "));
+            auto app_close = app_close_area->attach(ui::item::ctor("×")->setpad({ 2,2 }));
             return item_area;
         };
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
@@ -208,7 +209,7 @@ namespace netxs::app::desk
                 }
                 auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }));
                 if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
-                auto block = item_area->attach(ui::fork::ctor(axis::Y));
+                auto block = item_area->attach(ui::fork::ctor(axis::Y))->limits({ -1,tall ? 3 : 1 });
                 auto head_pads = block->attach(slot::_1, ui::fork::ctor(axis::X))
                     ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast)
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
@@ -245,6 +246,8 @@ namespace netxs::app::desk
                             gear.dismiss();
                         };
                     });
+                auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }))
+                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast, head_pads);
                 auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto count = inst_ptr_list.size();
                 auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
@@ -254,19 +257,28 @@ namespace netxs::app::desk
                     auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
                         ->limits({ 5,1 }, { 5,1 });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
-                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor("  <  "))
+                    auto& isfolded = conf.folded;
+                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<")->setpad({ 2,2 }))
                         ->template plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Hide active window list.               \n"
                                                       " Use mouse wheel to switch it to close. ")
                         ->invoke([&](auto& boss)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            list_pads->base::hidden = isfolded;
+                            auto list_pads_shadow = ptr::shadow(list_pads);
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (list_pads_shadow))
                             {
-                                boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
+                                if (auto list_pads = list_pads_shadow.lock())
+                                {
+                                    isfolded = !isfolded;
+                                    boss.set(isfolded ? "…" : "<");
+                                    list_pads->base::hidden = isfolded;
+                                    list_pads->base::reflow();
+                                }
                                 gear.dismiss();
                             };
                         });
-                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("  ×  "))
+                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×")->setpad({ 2,2 }))
                         ->template plugin<pro::fader>(x1, c1, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
@@ -289,8 +301,6 @@ namespace netxs::app::desk
                             boss.deface();
                         };
                     });
-                auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }))
-                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast, head_pads);
                 auto insts = list_pads->attach(ui::list::ctor())
                     ->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
                         [&](auto inst_ptr)
