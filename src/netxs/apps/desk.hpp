@@ -43,6 +43,7 @@ namespace netxs::app::desk
             EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // list of connected users.
             EVENT_XS( apps, netxs::sptr<desk::apps> ), // list of running apps.
             EVENT_XS( menu, netxs::sptr<desk::menu> ), // list of registered apps.
+            EVENT_XS( quit, bool                    ), // request to close all instances.
             GROUP_XS( ui  , text                    ),
 
             SUBSET_XS( ui )
@@ -145,6 +146,16 @@ namespace netxs::app::desk
                 ->invoke([&](auto& boss)
                 {
                     auto data_src_shadow = ptr::shadow(data_src);
+                    item_area->LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_src_shadow))
+                    {
+                        parent->LISTEN(tier::release, desk::events::quit, fast, boss.tracker, (data_src_shadow))
+                        {
+                            if (auto data_src = data_src_shadow.lock())
+                            {
+                                data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, fast); // Show closing process.
+                            }
+                        };
+                    };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow))
                     {
                         if (auto data_src = data_src_shadow.lock())
@@ -248,6 +259,7 @@ namespace netxs::app::desk
                     });
                 auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }))
                     ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast, head_pads);
+                auto insts = list_pads->attach(ui::list::ctor());
                 auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
                 auto count = inst_ptr_list.size();
                 auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
@@ -283,9 +295,13 @@ namespace netxs::app::desk
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
                         {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            auto insts_shadow = ptr::shadow(insts);
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (insts_shadow))
                             {
-                                boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
+                                if (auto insts = insts_shadow.lock())
+                                {
+                                    insts->SIGNAL(tier::release, desk::events::quit, faux); // Show closing process.
+                                }
                                 gear.dismiss();
                             };
                         });
@@ -301,8 +317,7 @@ namespace netxs::app::desk
                             boss.deface();
                         };
                     });
-                auto insts = list_pads->attach(ui::list::ctor())
-                    ->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
+                insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
                         [&](auto inst_ptr)
                         {
                             auto& window = *inst_ptr;
