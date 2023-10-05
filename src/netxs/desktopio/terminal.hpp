@@ -7887,16 +7887,6 @@ namespace netxs::ui
                 if (value == -1) value = opaque;
                 else             opaque = value;
             };
-            LISTEN(tier::release, e2::area, new_area)
-            {
-                if (new_area.coor != base::coor())
-                {
-                    auto lock = stream.bitmap_dtvt.freeze();
-                    auto& canvas = lock.thing.image;
-                    canvas.move(new_area.coor);
-                    splash.move(new_area.coor);
-                }
-            };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto size = base::size();

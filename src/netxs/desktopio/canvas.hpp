@@ -1985,7 +1985,7 @@ namespace netxs
             //flow::cursor
         }
         template<class P>
-        void fill(core const& block, P fuse) // core: Fill canvas by the specified face using its coordinates.
+        void fill(core const& block, P fuse) // core: Fill canvas by the specified block using its coordinates.
         {
             netxs::onbody(*this, block, fuse);
         }

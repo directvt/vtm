@@ -2086,8 +2086,14 @@ namespace netxs::ui
                         //boss.deface();
                     }
                 };
-                boss.LISTEN(tier::release, e2::area, new_area, memo) { canvas.face::area(new_area); };
-                boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
+                boss.LISTEN(tier::release, e2::area, new_area, memo)
+                {
+                    canvas.face::area(new_area);
+                };
+                boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo)
+                {
+                    canvas_ptr = coreface;
+                };
                 if (rendered)
                 {
                     boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
@@ -2984,7 +2990,7 @@ namespace netxs::ui
         // post: .
         void deform(rect& new_area) override
         {
-            square.x = new_area.size.x;
+            square = new_area.size;
             auto entry = topic.lookup(base::anchor);
             flow::reset();
             auto publish = [&](auto& combo)
