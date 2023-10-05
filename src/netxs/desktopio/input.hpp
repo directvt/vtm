@@ -1010,6 +1010,7 @@ namespace netxs::input
         }
         void update(sysboard& b) // Update clipboard preview.
         {
+            board::image.move(dot_00); // Reset basis.
             auto draw_shadow = [&](auto& block, auto size)
             {
                 board::image.mark(cell{});
