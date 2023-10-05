@@ -380,7 +380,7 @@ namespace netxs::app::tile
         auto empty_pane = []
         {
             auto menu_black = skin::color(tone::menu_black);
-            auto cC = menu_black;
+            auto cC = menu_black.fgc(whitedk);
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
             auto c3 = highlight_color;
