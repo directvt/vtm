@@ -3957,6 +3957,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
+                auto full = parent_canvas.full();
                 auto context = parent_canvas.bump(-base::intpad, faux);
                 parent_canvas.cup(dot_00);
                 parent_canvas.output(data);
@@ -3966,25 +3967,24 @@ namespace netxs::ui
                     auto size = data.size();
                     if (area.size > 0 && size.x > 0)
                     {
-                        auto full = parent_canvas.full();
                         if (full.coor.x < area.coor.x)
                         {
-                            auto coor = area.coor;
-                            coor.y += area.size.y / 2;
+                            auto coor = area.coor - parent_canvas.coor();
+                            coor.y += std::min(area.size.y - 1, base::intpad.t);
                             parent_canvas.core::data(coor)->txt(dots);
                         }
-                        if (full.coor.x + size.x > area.coor.x + area.size.x)
+                        if (full.coor.x + base::intpad.l + size.x + base::intpad.r > area.coor.x + area.size.x)
                         {
-                            auto coor = area.coor;
+                            auto coor = area.coor - parent_canvas.coor();
                             coor.x += area.size.x - 1;
-                            coor.y += area.size.y / 2;
+                            coor.y += std::min(area.size.y - 1, base::intpad.t);
                             parent_canvas.core::data(coor)->txt(dots);
                         }
                     }
                 }
                 if (unln)
                 {
-                    auto area = parent_canvas.view();
+                    auto area = parent_canvas.full();
                     parent_canvas.fill(area, [](cell& c)
                     {
                         auto u = c.und();
