@@ -2231,14 +2231,17 @@ namespace netxs::ui
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto bump(dent delta)
+        auto bump(dent delta, bool clip = true)
         {
             auto old_full = flow::full();
             auto old_view = core::view();
-            auto new_view = core::area().clip(old_view + delta);
+            if (clip)
+            {
+                auto new_view = core::area().clip(old_view + delta);
+                core::view(new_view);
+            }
             auto new_full = old_full + delta;
             flow::full(new_full);
-            core::view(new_view);
             return std::pair{ old_full, old_view };
         }
         // face: Restore previously saved context.

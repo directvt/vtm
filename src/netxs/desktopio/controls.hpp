@@ -3957,6 +3957,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
+                auto context = parent_canvas.bump(-base::intpad, faux);
                 parent_canvas.cup(dot_00);
                 parent_canvas.output(data);
                 if (test)
@@ -3991,6 +3992,7 @@ namespace netxs::ui
                         else        c.und(1);
                     });
                 }
+                parent_canvas.bump(context);
             };
         }
         // item: .

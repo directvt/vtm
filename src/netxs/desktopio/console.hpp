@@ -515,7 +515,6 @@ namespace netxs::ui
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
                     xmap.face::area(new_area);
-                log("xmap area: %% view: %% full: %%", xmap.area(), xmap.view(), xmap.full());
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {

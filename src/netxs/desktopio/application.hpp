@@ -175,7 +175,7 @@ namespace netxs::app::shared
         using link = std::tuple<item, std::function<void(ui::item&, item&)>>;
         using list = std::list<link>;
 
-        static auto mini(bool autohide, bool menushow, bool menusize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
+        static auto mini(bool autohide, bool menushow, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
@@ -213,7 +213,7 @@ namespace netxs::app::shared
                 if (hover) button->template plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
                 else       button->colors(0,0); //todo for mouse tracking
                 button->template plugin<pro::notes>(notes)
-                    ->setpad({ 2,2,0,0 })
+                    ->setpad({ 2,2,!slimsize,!slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
                         auto props_shadow = ptr::shared(std::move(props));
@@ -299,7 +299,7 @@ namespace netxs::app::shared
             auto menucake = menuveer->attach(ui::cake::ctor()->branch(menufork))
                 ->invoke([&](auto& boss)
                 {
-                    auto slim_status = ptr::shared(menusize);
+                    auto slim_status = ptr::shared(slimsize);
                     boss.LISTEN(tier::anycast, e2::form::upon::resized, new_area, -, (slim_status))
                     {
                         if (!*slim_status)
@@ -329,7 +329,7 @@ namespace netxs::app::shared
             auto menutent = menuveer->attach(ui::mock::ctor()->limits({ -1,1 }, { -1,1 }));
                  if (menushow == faux) autohide = faux;
             else if (autohide == faux) menuveer->roll();
-            menuveer->limits({ -1, menusize ? 1 : 3 }, { -1, menusize ? 1 : 3 })
+            menuveer->limits({ -1, slimsize ? 1 : 3 }, { -1, slimsize ? 1 : 3 })
                 ->invoke([&](auto& boss)
                 {
                     auto menutent_shadow = ptr::shadow(menutent);
@@ -360,8 +360,8 @@ namespace netxs::app::shared
         {
             auto autohide = config.take("menu/autohide", faux);
             auto menushow = config.take("menu/enabled" , true);
-            auto menusize = config.take("menu/slim"    , faux);
-            return mini(autohide, menushow, menusize, 0, menu_items);
+            auto slimsize = config.take("menu/slim"    , faux);
+            return mini(autohide, menushow, slimsize, 0, menu_items);
         };
         const auto demo = [](xmls& config)
         {

@@ -890,7 +890,6 @@ namespace netxs::app::vtm
             if (damaged)
             {
                 auto& canvas = input.xmap;
-                log("1. input.xmap area: %% view: %% full: %%", input.xmap.area(), input.xmap.view(), input.xmap.full());
                 canvas.wipe(world.id);
                 if (align.what.applet)
                 {
