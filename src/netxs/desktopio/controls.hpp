@@ -2052,24 +2052,21 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            netxs::sptr<face> coreface;
-            byte              lucidity;
-            bool              usecache;
+            netxs::sptr<face> coreface; //todo revise necessity
+            byte              lucidity; // cacheL .
+            bool              usecache; // cacheL .
+            face&             bosscopy; // cache: Boss bitmap cache.
 
         public:
-            face& canvas; // cache: Bitmap cache.
-
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
-                  canvas{*(coreface = ptr::shared<face>())},
+                  bosscopy{*(coreface = ptr::shared<face>())},
                   lucidity{ 0xFF },
                   usecache{ true }
             {
-                canvas.link(boss.bell::id);
-                canvas.move(boss.base::coor());
-                canvas.size(boss.base::size());
-                //todo canvas.area(boss.base::area());
+                bosscopy.link(boss.bell::id);
+                bosscopy.size(boss.base::size());
                 boss.LISTEN(tier::preview, e2::form::prop::ui::cache, state, memo)
                 {
                     usecache = state;
@@ -2083,12 +2080,14 @@ namespace netxs::ui
                     else
                     {
                         lucidity = value;
-                        //boss.deface();
                     }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    canvas.face::area(new_area);
+                    if (bosscopy.size() != new_area.size)
+                    {
+                        bosscopy.size(new_area.size);
+                    }
                 };
                 boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo)
                 {
@@ -2101,12 +2100,15 @@ namespace netxs::ui
                         if (!usecache) return;
                         if (boss.base::ruined())
                         {
-                            canvas.wipe();
+                            bosscopy.wipe();
                             boss.base::ruined(faux);
-                            boss.SIGNAL(tier::release, e2::render::any, canvas);
+                            boss.SIGNAL(tier::release, e2::render::any, bosscopy);
                         }
-                        if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
-                        else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
+                        auto full = parent_canvas.full();
+                        bosscopy.move(full.coor);
+                        if (lucidity == 0xFF) parent_canvas.fill(bosscopy, cell::shaders::fusefull);
+                        else                  parent_canvas.fill(bosscopy, cell::shaders::transparent(lucidity));
+                        bosscopy.move(dot_00);
                         boss.bell::expire<tier::release>();
                     };
                 }
@@ -4096,7 +4098,13 @@ namespace netxs::ui
         {
             //todo cache specific
             canvas.link(bell::id);
-            LISTEN(tier::release, e2::area, new_area) { canvas.face::area(new_area); };
+            LISTEN(tier::release, e2::area, new_area)
+            {
+                if (canvas.size() != new_area.size)
+                {
+                    canvas.size(new_area.size);
+                }
+            };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
 
             sfx_len = utf::length(sfx_str);
@@ -4236,7 +4244,10 @@ namespace netxs::ui
             canvas.link(bell::id);
             LISTEN(tier::release, e2::area, new_area)
             {
-                canvas.face::area(new_area);
+                if (canvas.size() != new_area.size)
+                {
+                    canvas.size(new_area.size);
+                }
                 recalc();
             };
             LISTEN(tier::request, e2::form::canvas, canvas) { canvas = coreface; };
