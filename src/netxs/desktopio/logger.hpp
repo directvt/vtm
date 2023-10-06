@@ -143,10 +143,6 @@ namespace
         {
             input << format;
         }
-        void print(auto& input, netxs::view& format, auto&& arg)
-        {
-            input << crop(format) << std::forward<decltype(arg)>(arg) << format;
-        }
         void print(auto& input, netxs::view& format, auto&& arg, auto&& ...args)
         {
             input << crop(format) << std::forward<decltype(arg)>(arg);
