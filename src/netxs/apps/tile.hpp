@@ -74,9 +74,8 @@ namespace netxs::app::tile
             {
                 if (client)
                 {
-                    auto area = rect{{ new_area.size.x + 2/*todo resize grip width*/, 0 },
-                                     { client->size().x, new_area.size.y }};
-                    client->base::change(area);
+                    auto coor = twod{ new_area.size.x + 2/*resize grip width*/, 0 };
+                    client->base::moveto(coor);
                 }
             };
             boss.LISTEN(tier::release, events::enlist, object, memo)
@@ -87,10 +86,9 @@ namespace netxs::app::tile
                     auto highlight_color = skin::color(tone::highlight);
                     auto c3 = highlight_color;
                     auto x3 = cell{ c3 }.alpha(0x00);
-
-                    return ui::pads::ctor(dent{ 1, 1, 0, 0 }, dent{})
+                    return ui::item::ctor(header.empty() ? "- no title -" : header)
+                        ->setpad({ 1, 1 })
                         ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
-                        ->branch(ui::item::ctor(header.empty() ? "- no title -" : header))
                         ->invoke([&](auto& boss)
                         {
                             auto update_focus = [](auto& boss, auto state)
@@ -107,7 +105,12 @@ namespace netxs::app::tile
                                 {
                                     data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::state, state, ());
                                     update_focus(boss, state);
+                                    parent->resize();
                                 }
+                            };
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent, boss.tracker)
+                            {
+                                if (parent) parent->resize(); // Rebuild list.
                             };
                             data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::state, state, boss.tracker)
                             {
@@ -139,15 +142,11 @@ namespace netxs::app::tile
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, memo)
             {
-                //todo magic numbers
-                if (depth < 4 && client)
+                if (depth < 4/*we're not in the tile manager*/ && client)
                 {
-                    auto canvas_view = parent_canvas.core::view();
-                    auto canvas_area = parent_canvas.core::area();
-                    canvas_area.coor = dot_00;
-                    parent_canvas.core::view(canvas_area);
-                    client->render(parent_canvas, faux);
-                    parent_canvas.core::view(canvas_view);
+                    auto context = parent_canvas.bump({ 0, si32max / 2, 0, si32max / 2 });
+                    client->render(parent_canvas);
+                    parent_canvas.bump(context);
                 }
             };
             boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
@@ -155,7 +154,7 @@ namespace netxs::app::tile
                 client->clear();
                 depth = 0;
                 boss.diveup([&]{ depth++; });
-                log(prompt::tile, "Start depth ", depth);
+                if constexpr (debugmode) log(prompt::tile, "Start depth %%", depth);
             };
         }
     };
