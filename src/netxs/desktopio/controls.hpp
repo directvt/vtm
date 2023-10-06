@@ -4074,6 +4074,7 @@ namespace netxs::ui
             topic[pin_id] = pin_str;
             topic[txt_id].locus.kill().chx(pin_pos - cur_len).cud(1);
             topic[pin_id].locus.kill().chx(pin_pos);
+            topic.reindex();
 
             base::resize(box_len);
             deface();
@@ -4171,7 +4172,7 @@ namespace netxs::ui
         si32 deltas = 0;
 
         //todo unify mint = 1/fps60 = 16ms
-        //seems that the 4ms is enough, no need to bind with fps (opened question)
+        //it seems that 4ms is enough, there is no need to be tied to fps (an open question)
         tail bygone{ 75ms, 4ms };
 
         text grip_suffix;
@@ -4193,6 +4194,7 @@ namespace netxs::ui
             pin_pos = pad + pin_abs - pin_len.x / 2;
             topic[bar_id] = "└" + utf::repeat("─", bar_len) + "┘";
             topic[bar_id].locus.kill().chx(pad);
+            topic.reindex();
         }
         si32 next_val(si32 delta)
         {
