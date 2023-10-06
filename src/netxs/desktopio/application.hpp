@@ -241,7 +241,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "—", .notes = " Minimize ", .brush = p2 } }},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize ", .brush = p2 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -250,7 +250,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "□", .notes = " Maximize ", .brush = p6 } }},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize ", .brush = p6 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -259,7 +259,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Close ", .brush = p1 } }},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .brush = p1 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -371,11 +371,11 @@ namespace netxs::app::shared
             auto p3 = std::pair{ x3, c3 };
             auto items = list
             {
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item ", .brush = p3 } }}, [&](auto& boss, auto& item){ } },
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);

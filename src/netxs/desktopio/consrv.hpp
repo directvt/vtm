@@ -1348,25 +1348,25 @@ struct impl : consrv
                 {
                     case KEY_EVENT:
                         crop.add("\ttype: key",
-                                " ctrl:", utf::to_hex_0x(r.Event.KeyEvent.dwControlKeyState),
-                                " vcod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualKeyCode),
-                                " scod:", utf::to_hex_0x(r.Event.KeyEvent.wVirtualScanCode),
-                                " wchr:", utf::to_hex_0x(r.Event.KeyEvent.uChar.UnicodeChar),
-                                " down:",                r.Event.KeyEvent.bKeyDown ? '1':'0',
-                                " count:",               r.Event.KeyEvent.wRepeatCount, '\n');
+                                " ctrl: ", utf::to_hex_0x(r.Event.KeyEvent.dwControlKeyState),
+                                " vcod: ", utf::to_hex_0x(r.Event.KeyEvent.wVirtualKeyCode),
+                                " scod: ", utf::to_hex_0x(r.Event.KeyEvent.wVirtualScanCode),
+                                " wchr: ", utf::to_hex_0x(r.Event.KeyEvent.uChar.UnicodeChar),
+                                " down: ",                r.Event.KeyEvent.bKeyDown ? '1':'0',
+                                " count: ",               r.Event.KeyEvent.wRepeatCount, '\n');
                         break;
                     case MOUSE_EVENT:
                         crop.add("\ttype: mouse",
-                                " ctrl:", utf::to_hex_0x(r.Event.MouseEvent.dwControlKeyState),
-                                " coor:",          twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y },
-                                " bttn:", utf::to_hex_0x(r.Event.MouseEvent.dwButtonState),
-                                " flag:", utf::to_hex_0x(r.Event.MouseEvent.dwEventFlags), '\n');
+                                " ctrl: ", utf::to_hex_0x(r.Event.MouseEvent.dwControlKeyState),
+                                " coor: ",          twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y },
+                                " bttn: ", utf::to_hex_0x(r.Event.MouseEvent.dwButtonState),
+                                " flag: ", utf::to_hex_0x(r.Event.MouseEvent.dwEventFlags), '\n');
                         break;
                     case WINDOW_BUFFER_SIZE_EVENT:
                         crop.add("\ttype: winsize ", twod{ r.Event.WindowBufferSizeEvent.dwSize.X, r.Event.WindowBufferSizeEvent.dwSize.Y }, '\n');
                         break;
                     case MENU_EVENT:
-                        crop.add("\ttype: menu command:", r.Event.MenuEvent.dwCommandId, '\n');
+                        crop.add("\ttype: menu command: ", r.Event.MenuEvent.dwCommandId, '\n');
                         break;
                     case FOCUS_EVENT:
                         crop.add("\ttype: focus ", r.Event.FocusEvent.bSetFocus ? "on" : "off", '\n');

@@ -393,7 +393,7 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
             menu::list
             {
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "+", .notes = " New app ", .brush = p3 } }},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " New app ", .brush = p3 }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -402,7 +402,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "│", .notes = " Split horizontally ", .brush = p3 } }},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .notes = " Split horizontally ", .brush = p3 }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -411,7 +411,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "──", .notes = " Split vertically ", .brush = p3 } }},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split vertically ", .brush = p3 }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -420,7 +420,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "×", .notes = " Delete pane ", .brush = p1 } }},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Delete pane ", .brush = p1 }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -854,7 +854,7 @@ namespace netxs::app::tile
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " ┐└ ", .notes = " Maximize/restore active pane ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┐└ ", .notes = " Maximize/restore active pane ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -864,7 +864,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " + ", .notes = " Create and run a new app in active panes ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -873,7 +873,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = ":::", .notes = " Select all panes ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .notes = " Select all panes ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -882,7 +882,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " │ ", .notes = " Split active panes horizontally ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .notes = " Split active panes horizontally ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -891,7 +891,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "──", .notes = " Split active panes vertically ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split active panes vertically ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -900,7 +900,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " ┌┘ ", .notes = " Change split orientation ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┌┘ ", .notes = " Change split orientation ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -909,7 +909,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = "<->", .notes = " Swap two or more panes ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .notes = " Swap two or more panes ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -918,7 +918,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = ">|<", .notes = " Equalize split ratio ", .brush = p3 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .notes = " Equalize split ratio ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -927,7 +927,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{ { .label = " × ", .notes = " Close active app or remove pane if there is no running app ", .brush = p1 } }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " × ", .notes = " Close active app or remove pane if there is no running app ", .brush = p1 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

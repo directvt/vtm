@@ -1983,8 +1983,8 @@ namespace netxs::ui
                                 square.size -= dot_11 + dot_11;
                                 std::swap(a, b);
                             }
-                            auto west = rect{ { 0, curtop.y + 1 }, { a,           size_0.y } };
-                            auto east = rect{ { b, curtop.y     }, { panel.x - b, size_0.y } };
+                            auto west = rect{{ 0, curtop.y + 1 }, { a,           size_0.y }};
+                            auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }};
                             west.coor += full.coor;
                             east.coor += full.coor;
                             west = west.clip(view);
@@ -2020,9 +2020,9 @@ namespace netxs::ui
                 else
                 {
                     if (grip_1.coor.y > grip_2.coor.y) std::swap(grip_1, grip_2);
-                    auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1 }              };
-                    auto part_2 = rect{ {0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) } };
-                    auto part_3 = rect{ {0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1 }                    };
+                    auto part_1 = rect{ grip_1.coor,             { panel.x - grip_1.coor.x, 1              }};
+                    auto part_2 = rect{{ 0, grip_1.coor.y + 1 }, { panel.x, std::max(0, square.size.y - 2) }};
+                    auto part_3 = rect{{ 0, grip_2.coor.y     }, { grip_2.coor.x + 1, 1                    }};
                     if (selmod == mime::textonly
                      || selmod == mime::safetext
                      || selmod == mime::disabled)
@@ -5697,7 +5697,7 @@ namespace netxs::ui
                         dest.full(full);
                     }
                     if (upmid.role == grip::idle) return;
-                    auto scrolling_region = rect{ { -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
+                    auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
                     scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
                     //todo Clang 15 don't get it
@@ -7323,7 +7323,7 @@ namespace netxs::ui
                 //{
                 //    auto size = console.panel;
                 //    size.y -= console.sctop + console.scend;
-                //    auto vp = rect{ { 0,console.get_basis() + console.sctop }, size };
+                //    auto vp = rect{{ 0,console.get_basis() + console.sctop }, size };
                 //    vp.coor += parent_canvas.full().coor;
                 //    vp = vp.clip(parent_canvas.view());
                 //    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });

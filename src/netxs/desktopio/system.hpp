@@ -1012,13 +1012,13 @@ namespace netxs::os
                          && smap.unicode != 0x2584) *dstptr++ = smap;
                     }
                     dstmap.entry_ct = dstptr - dstmap.entries;
-                    unipair new_recs[] = { { 0x2580,  10 },
-                                           { 0x2219, 211 },
-                                           { 0x2022, 211 },
-                                           { 0x25CF, 211 },
-                                           { 0x25A0, 254 },
-                                           { 0x25AE, 254 },
-                                           { 0x2584, 254 } };
+                    unipair new_recs[] = {{ 0x2580,  10 },
+                                          { 0x2219, 211 },
+                                          { 0x2022, 211 },
+                                          { 0x25CF, 211 },
+                                          { 0x25A0, 254 },
+                                          { 0x25AE, 254 },
+                                          { 0x2584, 254 }};
                     if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
                     {
                         for (auto& p : new_recs) *dstptr++ = p;
