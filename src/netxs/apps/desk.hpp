@@ -226,15 +226,13 @@ namespace netxs::app::desk
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
                     {
-                        //boss.mouse.take_all_events(faux);
-                        //auto boss_shadow = ptr::shadow(boss.This());
-                        //auto data_src_shadow = ptr::shadow(data_src);
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (inst_id))
                         {
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
                         };
-                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux, offset = dot_00))
+                        boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux))
                         {
+                            static auto offset = dot_00; // static: Share initial offset between all instances.
                             if (gear.meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin)) // Not supported with any modifier but Ctrl.
                             {
                                 if (gear.meta(hids::anyCtrl)) // Toggle group focus.
@@ -250,7 +248,7 @@ namespace netxs::app::desk
                             boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
                             viewport.coor += gear.area().coor;
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                            gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32 + dot_11;
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
                             boss.RISEUP(tier::request, e2::form::proceed::createby, gear);

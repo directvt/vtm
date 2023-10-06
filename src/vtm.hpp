@@ -1196,43 +1196,31 @@ namespace netxs::app::vtm
                     {
                         boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
                     };
-                    auto hide_state = ptr::shared(faux);
                     auto last_state = ptr::shared(faux);
-                    auto real_state = ptr::shared(faux);
-                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (hide_state, last_state, real_state))
+                    boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (last_state))
                     {
-                        if (*last_state == true) // Restore if it is hidden.
+                        *last_state = boss.hidden;
+                        boss.hidden = faux; // Restore if it is hidden.
+                    };
+                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (last_state))
+                    {
+                        if (*last_state == true) // Return to hidden state.
                         {
-                            boss.hidden = *real_state;
-                            *last_state = *real_state;
+                            boss.hidden = true;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::unselect, gear, -, (hide_state, last_state, real_state))
-                    {
-                        if (*last_state != true && *hide_state == true) // Return to hidden state.
-                        {
-                            boss.hidden = *hide_state;
-                            *last_state = *hide_state;
-                        }
-                    };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (hide_state, last_state, real_state))
+                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear)
                     {
                         auto This = boss.This();
-                        if (*last_state == true) // Restore if it is hidden.
+                        if (boss.hidden) // Restore if it is hidden.
                         {
-                            boss.hidden = *real_state;
-                            *last_state = *real_state;
-                            *hide_state = *real_state;
+                            boss.hidden = faux;
                             pro::focus::set(This, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                     : pro::focus::solo::on, pro::focus::flip::off, true);
                         }
-                        else // Hide if visible.
+                        else // Hide if visible and refocus.
                         {
-                            *real_state = boss.hidden;
-                            *hide_state = true;
-                            *last_state = true;
                             boss.hidden = true;
-                            // Refocusing.
                             boss.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
                             if (auto parent = boss.parent())
                             if (gear_test.second) // If it is focused pass the focus to the next desktop window.
