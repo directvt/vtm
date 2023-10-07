@@ -4465,7 +4465,7 @@ namespace netxs::ui
                 auto view = dest.view();
                 auto full = dest.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
-                auto stop = view.coor.y + view.size.y;
+                auto stop = batch.slide + panel.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
                 auto find = selection_active() && match.length() && owner.selmod == mime::textonly;
@@ -4557,8 +4557,8 @@ namespace netxs::ui
                 auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
                 upbox.move(top_coor);
                 dnbox.move(end_coor);
-                dest.plot(upbox, cell::shaders::xlucent(owner.config.def_lucent));
-                dest.plot(dnbox, cell::shaders::xlucent(owner.config.def_lucent));
+                dest.fill(upbox, cell::shaders::xlucent(owner.config.def_lucent));
+                dest.fill(dnbox, cell::shaders::xlucent(owner.config.def_lucent));
                 if (find && panel.y != arena)
                 {
                     auto draw = [&](auto const& block)
@@ -5676,6 +5676,8 @@ namespace netxs::ui
                     auto mode = owner.selmod;
                     auto view = dest.view();
                     auto full = dest.full();
+                    view.coor -= dest.coor();
+                    full.coor -= dest.coor();
 
                     if (panel.y != arena)
                     {
@@ -7160,27 +7162,19 @@ namespace netxs::ui
         }
 
     protected:
-        // term: Recalc metrics.
+        // term: Recalc metrics for the new viewport size.
         void deform(rect& new_area) override
         {
             new_area += base::intpad;
             auto& console = *target;
-            if (new_area.coor != base::coor())
-            {
-                follow[axis::Y] = console.set_slide(new_area.coor.y);
-                origin = new_area.coor;
-            }
-            if (new_area.size != base::size())
-            {
-                auto scroll_coor = origin;
-                new_area.size = std::max(new_area.size, dot_11);
-                console.resize_viewport(new_area.size);
-                console.recalc_pads(base::oversz);
-                scroll(origin);
-                base::anchor += scroll_coor - origin;
-                ipccon.resize(new_area.size);
-                new_area.size.y += console.get_basis();
-            }
+            auto scroll_coor = origin;
+            new_area.size = std::max(new_area.size, dot_11);
+            console.resize_viewport(new_area.size);
+            console.recalc_pads(base::oversz);
+            scroll(origin);
+            base::anchor += scroll_coor - origin;
+            ipccon.resize(new_area.size);
+            new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
         term(text cwd, text cmd, xmls& xml_config)
@@ -7237,16 +7231,20 @@ namespace netxs::ui
                      || scroll_coor != origin
                      || adjust_pads)
                     {
-                        //todo revise
                         auto new_area = rect{ scroll_coor, scroll_size };
-                        new_area += base::extpad;
-                        this->base::notify(new_area);
-                        //if (auto delta = scroll_coor - origin)
-                        //{
-                        //    scrollby(delta);
-                        //}
+                        this->SIGNAL(tier::release, e2::area, new_area);
+                        base::region = new_area;
                     }
                     base::deface();
+                }
+            };
+            LISTEN(tier::release, e2::area, new_area)
+            {
+                if (new_area.coor != base::coor())
+                {
+                    auto& console = *target;
+                    follow[axis::Y] = console.set_slide(new_area.coor.y);
+                    origin = new_area.coor;
                 }
             };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
