@@ -7302,10 +7302,10 @@ namespace netxs::ui
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 
-                if (full.coor.x) // Shade left and right margins.
+                if (view.coor.x) // Shade left and right margins.
                 {
                     auto west = full;
-                    west.size = dot_mx; //todo set only visible
+                    west.size = dot_mx;
                     west.coor.y -= dot_mx.y / 2;
                     auto east = west;
                     auto pads = console.getpad();
