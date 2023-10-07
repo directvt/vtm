@@ -3109,7 +3109,7 @@ namespace netxs::ui
         {
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
-                auto& delta = info.result;
+                auto delta = dot_00;
                 switch (this->bell::protos<tier::preview>())
                 {
                     case upon::scroll::bycoor::v.id: delta = { scinfo.window.coor - info.window.coor };        break;
@@ -3127,10 +3127,10 @@ namespace netxs::ui
                     case upon::scroll::bypage::v.id: delta = { info.vector * scinfo.window.size };             break;
                     case upon::scroll::bypage::x.id: delta = { info.vector.x * scinfo.window.size.x, 0 };      break;
                     case upon::scroll::bypage::y.id: delta = { 0, info.vector.y * scinfo.window.size.y };      break;
-                    case upon::scroll::cancel::v.id: delta = {}; cancel<X, true>(); cancel<Y, true>();         break;
-                    case upon::scroll::cancel::x.id: delta = {}; cancel<X, true>();                            break;
-                    case upon::scroll::cancel::y.id: delta = {}; cancel<Y, true>();                            break;
-                    default:                         delta = {}; break;
+                    case upon::scroll::cancel::v.id: cancel<X, true>(); cancel<Y, true>();                     break;
+                    case upon::scroll::cancel::x.id: cancel<X, true>();                                        break;
+                    case upon::scroll::cancel::y.id: cancel<Y, true>();                                        break;
+                    default:                         break;
                 }
                 if (delta) scroll(delta);
             };

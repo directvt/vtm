@@ -1962,9 +1962,10 @@ namespace netxs::ui
                 {
                     auto mode = owner.selmod;
                     auto view = dest.view();
-                    auto full = dest.full();
-                    auto grip_1 = rect{ curtop + full.coor, dot_11 };
-                    auto grip_2 = rect{ curend + full.coor, dot_11 };
+                    auto grip_1 = rect{ curtop, dot_11 };
+                    auto grip_2 = rect{ curend, dot_11 };
+                    grip_1.coor.x += view.coor.x; // Compensate scrollback's hz movement.
+                    grip_2.coor.x += view.coor.x; //
                     auto square = grip_1 | grip_2;
                     square.normalize_itself();
                     auto work = [&](auto fill)
@@ -1985,8 +1986,8 @@ namespace netxs::ui
                             }
                             auto west = rect{{ 0, curtop.y + 1 }, { a,           size_0.y }};
                             auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }};
-                            west.coor += full.coor;
-                            east.coor += full.coor;
+                            west.coor.x += view.coor.x; // Compensate scrollback's hz movement.
+                            east.coor.x += view.coor.x; //
                             west = west.clip(view);
                             east = east.clip(view);
                             dest.fill(west, fill);
@@ -4460,7 +4461,6 @@ namespace netxs::ui
             // scroll_buf: Render to the canvas.
             void output(face& dest) override
             {
-                //log("vsize %% sctop %% scend %% full %%", batch.vsize, sctop, scend, dest.full());
                 dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
                 auto view = dest.view();
                 auto full = dest.full();
@@ -5538,8 +5538,8 @@ namespace netxs::ui
                 }
                 upbox.move({ 0, y_top - sctop });
                 dnbox.move({ 0, y_end + 1     });
-                dest.plot(upbox, cell::shaders::full);
-                dest.plot(dnbox, cell::shaders::full);
+                dest.fill(upbox, cell::shaders::full);
+                dest.fill(dnbox, cell::shaders::full);
             }
             // scroll_buf: Materialize selection of the scrollbuffer part.
             void selection_pickup(escx& yield, si32 selmod)
@@ -5675,15 +5675,8 @@ namespace netxs::ui
                 {
                     auto mode = owner.selmod;
                     auto view = dest.view();
-                    auto full = dest.full();
-                    view.coor -= dest.coor();
-                    full.coor -= dest.coor();
-
                     if (panel.y != arena)
                     {
-                        auto temp = full;
-                        temp.coor.x = 0;
-                        dest.full(temp);
                         auto draw_area = [&](auto grip_1, auto grip_2, auto offset)
                         {
                             if (grip_1.role != grip::idle)
@@ -5696,19 +5689,15 @@ namespace netxs::ui
                         };
                         draw_area(uptop, dntop, batch.slide);
                         draw_area(upend, dnend, batch.slide + y_top + arena);
-                        dest.full(full);
                     }
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
-                    scrolling_region.coor += full.coor;
                     view = view.clip(scrolling_region);
                     //todo Clang 15 don't get it
                     //auto [curtop, curend] = selection_take_grips();
                     auto tempvr = selection_take_grips();
                     auto curtop = tempvr.first;
                     auto curend = tempvr.second;
-                    curtop += full.coor;
-                    curend += full.coor;
                     auto grip_1 = rect{ curtop, dot_11 };
                     auto grip_2 = rect{ curend, dot_11 };
                     if (selection_selbox())
@@ -5769,7 +5758,7 @@ namespace netxs::ui
                                 else
                                 {
                                     auto align = curln.style.jet();
-                                    auto coord = coor + full.coor;
+                                    auto coord = coor;
                                     switch (align)
                                     {
                                         case bias::none:
@@ -6590,12 +6579,13 @@ namespace netxs::ui
             styled = state;
             if (styled) ipccon.style(target->parser::style, kbmode);
         }
-        // term: Request to scroll inside viewport.
+        // term: Request to scroll inside viewport and return actual delta.
         auto scrollby(twod delta)
         {
+            auto coor = base::coor();
             auto info = e2::form::upon::scroll::bystep::v.param({ .vector = delta });
             RISEUP(tier::preview, e2::form::upon::scroll::bystep::v, info);
-            return info.result;
+            return base::coor() - coor;
         }
         // term: Is the selection allowed.
         auto selection_passed()

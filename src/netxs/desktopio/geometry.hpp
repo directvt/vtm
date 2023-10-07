@@ -667,7 +667,6 @@ namespace netxs
         rect window; // rack: Scrolling viewport.
         dent beyond; // rack: Scroll margins outside of the scroll region.
         twod vector; // rack: Scroll direction.
-        twod result; // rack: Scroll actual scroll step.
 
         auto str() const
         {
