@@ -1984,8 +1984,8 @@ namespace netxs::ui
                                 square.size -= dot_11 + dot_11;
                                 std::swap(a, b);
                             }
-                            auto west = rect{{ 0, curtop.y + 1 }, { a,           size_0.y }};
-                            auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }};
+                            auto west = rect{{ 0, curtop.y + 1 }, { a,           size_0.y }}.normalize();
+                            auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }}.normalize();
                             west.coor.x += view.coor.x; // Compensate scrollback's hz movement.
                             east.coor.x += view.coor.x; //
                             west = west.clip(view);
