@@ -265,7 +265,17 @@ namespace netxs::app::desk
                 if (inst_ptr_list.size())
                 {
                     auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->limits({ 5,1 }, { 5,1 });
+                        ->limits({ 5,1 }, { 5,1 })
+                        ->invoke([&](auto& boss)
+                        {
+                            boss.LISTEN(tier::release, e2::form::state::mouse, active)
+                            {
+                                if (!active)
+                                {
+                                    boss.RISEUP(tier::preview, e2::form::upon::scroll::to_top::v, info, ());
+                                }
+                            };
+                        });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
                     auto& isfolded = conf.folded;
                     auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<")->setpad({ 2,2 }))
