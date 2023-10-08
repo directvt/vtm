@@ -125,7 +125,6 @@ R"==(
                             <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                             <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                         </item>
-                        <item label="  "    notes=" ...empty menu block/splitter for safety "/>
                         <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
                     </menu>
 )=="
@@ -342,7 +341,6 @@ R"==(
             <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
-            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
             <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->

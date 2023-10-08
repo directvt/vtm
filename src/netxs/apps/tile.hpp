@@ -433,6 +433,7 @@ namespace netxs::app::tile
             });
             menu_data->colors(cC.fgc(), cC.bgc());
             auto menu_id = menu_block->id;
+            cover->setpad({ 0,0,3,0 });
             cover->invoke([&](auto& boss)
             {
                 boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (menu_id))
@@ -854,16 +855,16 @@ namespace netxs::app::tile
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┐└ ", .notes = " Maximize/restore active pane ", .brush = p3 }}},
-                        [](auto& boss, auto& item)
-                        {
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
-                            {
-                                gear.countdown = 1;
-                                boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
-                                gear.dismiss(true);
-                            };
-                        }},
+                        //{ menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┐└ ", .notes = " Maximize/restore active pane ", .brush = p3 }}},
+                        //[](auto& boss, auto& item)
+                        //{
+                        //    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                        //    {
+                        //        gear.countdown = 1;
+                        //        boss.SIGNAL(tier::anycast, app::tile::events::ui::toggle, gear);
+                        //        gear.dismiss(true);
+                        //    };
+                        //}},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes ", .brush = p3 }}},
                         [](auto& boss, auto& item)
                         {
