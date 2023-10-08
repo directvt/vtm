@@ -2312,7 +2312,7 @@ namespace netxs::ui
                          && match.length()
                          && owner.selmod == mime::textonly;
                 canvas.move(full.coor);
-                dest.plot(canvas, cell::shaders::fuse);
+                dest.fill(canvas, cell::shaders::fuse);
                 if (find)
                 {
                     if (auto area = canvas.area())
