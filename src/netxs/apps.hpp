@@ -55,7 +55,6 @@ namespace netxs::app::region
 }
 
 #include "apps/term.hpp"
-#include "apps/tile.hpp"
 #include "apps/calc.hpp"
 #include "apps/text.hpp"
 #include "apps/shop.hpp"

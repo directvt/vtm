@@ -1,8 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#include "vtm.hpp"
 #include "netxs/apps.hpp"
+#include "netxs/apps/desk.hpp"
+#include "vtm.hpp"
+#include "netxs/apps/tile.hpp"
 
 using namespace netxs;
 

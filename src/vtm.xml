@@ -148,6 +148,11 @@ R"==(
         </width>
         <color fgc=whitedk bgc=0x60202020 />
     </menu>
+    <panel> <!-- Desktop info panel. -->
+        <cmd = ""/> <!-- Command-line to activate. -->
+        <cwd = ""/> <!-- Working directory. -->
+        <height = 1 /> <!-- Desktop space reserved on top. -->
+    </panel>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow/>
         <key="Ctrl+PgDn" action=NextWindow/>

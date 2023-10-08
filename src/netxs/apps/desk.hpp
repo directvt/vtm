@@ -443,7 +443,16 @@ namespace netxs::app::desk
             auto bttn_min_size = twod{ 31, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
-            auto window = ui::cake::ctor();
+            auto window = ui::fork::ctor(axis::Y, 0, 0, 1);
+            auto panel_top = config.take("/config/panel/height", 1);
+            auto panel_cwd = config.take("/config/panel/cwd", ""s);
+            auto panel_cmd = config.take("/config/panel/cmd", ""s);
+            auto panel = window->attach(slot::_1, ui::cake::ctor());
+            if (panel_cmd.size())
+            {
+                panel->limits({ -1, panel_top }, { -1, panel_top })
+                     ->attach(app::shared::builder(app::headless::id)(panel_cwd, panel_cmd, config, ""s));
+            }
             auto my_id = id_t{};
 
             auto user_info = utf::divide(v, ";");
@@ -539,7 +548,7 @@ namespace netxs::app::desk
                     };
                 };
             });
-            auto taskbar_viewport = window->attach(ui::fork::ctor(axis::X))
+            auto taskbar_viewport = window->attach(slot::_2, ui::fork::ctor(axis::X))
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::prop::viewport, viewport)
