@@ -928,6 +928,14 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .notes = " Set tiling manager window title using clipboard data ", .brush = p3 }}},
+                        [](auto& boss, auto& item)
+                        {
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                            {
+                                app::shared::set_title(boss, gear);
+                            };
+                        }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " × ", .notes = " Close active app or remove pane if there is no running app ", .brush = p1 }}},
                         [](auto& boss, auto& item)
                         {

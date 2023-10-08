@@ -182,23 +182,7 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
-                                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                                auto& data = gear.board::cargo;
-
-                                if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
-                                {
-                                    auto align = ansi::jet(bias::center);
-                                    boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
-                                }
-                                // Copy clipboard data to title.
-                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
-                                gear.dismiss();
-
-                                if (old_title.size()) // Copy old title to clipboard.
-                                {
-                                    gear.set_clipboard(dot_00, old_title, mime::ansitext);
-                                }
+                                app::shared::set_title(boss, gear, bias::center);
                             };
                         };
                     });
