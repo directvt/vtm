@@ -107,18 +107,25 @@ namespace netxs::app::shared
         boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
         gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
         auto& data = gear.board::cargo;
-        if (utf::is_plain(data.utf8) || alignment != bias::left) // Reset aligning to the center if text is plain.
+        if (data.utf8.empty())
         {
-            auto align = ansi::jet(alignment);
-            boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
+            log("%%Clipboard is empty or contains non-text data", prompt::desk);
         }
-        // Copy clipboard data to title.
-        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
+        else
+        {
+            if (utf::is_plain(data.utf8) || alignment != bias::left) // Reset aligning to the center if text is plain.
+            {
+                auto align = ansi::jet(alignment);
+                boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
+            }
+            // Copy clipboard data to title.
+            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
+            if (old_title.size()) // Copy old title to clipboard.
+            {
+                gear.set_clipboard(dot_00, old_title, mime::ansitext);
+            }
+        }
         gear.dismiss(true);
-        if (old_title.size()) // Copy old title to clipboard.
-        {
-            gear.set_clipboard(dot_00, old_title, mime::ansitext);
-        }
     };
 
     using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;

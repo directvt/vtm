@@ -88,7 +88,7 @@ namespace netxs::app::tile
                     auto x3 = cell{ c3 }.alpha(0x00);
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
-                        ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
+                        ->template plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                         ->invoke([&](auto& boss)
                         {
                             auto update_focus = [](auto& boss, auto state)
