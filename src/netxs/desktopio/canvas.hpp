@@ -1913,8 +1913,7 @@ namespace netxs
             auto block = core{ region.coor, new_size, c };
             if constexpr (BottomAnchored) block.step({ 0, region.size.y - new_size.y });
             netxs::onbody(block, *this, cell::shaders::full);
-            region.size = new_size;
-            client.size = region.size;
+            client.size = new_size;
             swap(block);
             digest++;
         }

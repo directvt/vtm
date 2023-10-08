@@ -3651,7 +3651,6 @@ namespace netxs::ui
                 {
                     if (begin >= index.size) return;
                     limit = std::min(limit, index.size);
-
                     dissect(begin);
                     dissect(limit);
                     auto from = index[begin    ].index;
@@ -3660,11 +3659,10 @@ namespace netxs::ui
                     auto head = batch.begin() + base;
                     auto size = static_cast<si32>(upto - from);
                     auto tail = head + size;
-                    auto view = rect{ origin, { panel.x, limit - begin }};
-                    auto full = rect{ dot_00, block.core::size()        };
-                    block.full(full);
-                    block.view(view);
-                    block.ac(view.coor);
+                    auto area = block.area();
+                    block.full(area);
+                    block.view(area);
+                    block.ac(origin);
                     do
                     {
                         auto& curln = *head;
@@ -4553,7 +4551,7 @@ namespace netxs::ui
                     ++head;
                 }
 
-                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop };
+                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop }; //todo ?replace view.coor.y with batch.slide
                 auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
                 upbox.move(top_coor);
                 dnbox.move(end_coor);
