@@ -480,7 +480,7 @@ namespace netxs::ui
                 static constexpr auto title     = si32{ 2  }; // Sub commands.
                 static constexpr auto set_winsz = si32{ 8  }; // Set window size in characters.
                 static constexpr auto maximize  = si32{ 9  }; // Toggle maximize/restore.
-                static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode (todo: hide menu).
+                static constexpr auto full_scrn = si32{ 10 }; // Toggle fullscreen mode.
                 static constexpr auto view_size = si32{ 18 }; // Report viewport size.
                 static constexpr auto get_label = si32{ 20 }; // Report icon   label. (Report as OSC L label ST).
                 static constexpr auto get_title = si32{ 21 }; // Report window title. (Report as OSC l title ST).
@@ -1543,7 +1543,7 @@ namespace netxs::ui
                     else                        break;
                 }
             }
-            // bufferbase: CSI ? W  Reset tabstops to the 8 (todo hardcoded?) column defaults.
+            // bufferbase: CSI ? W  Reset tabstops to defaults.
             void rtb()
             {
                 notab = faux;
@@ -2821,7 +2821,7 @@ namespace netxs::ui
                 index_rebuild();
 
                 auto brush = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
-                boss.base::color(brush); //todo unify (config with defaults)
+                boss.base::color(brush);
                 parser::brush.reset(brush);
             }
             si32 get_size() const override { return batch.size;     }
@@ -4551,7 +4551,7 @@ namespace netxs::ui
                     ++head;
                 }
 
-                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop }; //todo ?replace view.coor.y with batch.slide
+                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop }; //todo ? replace view.coor.y with batch.slide
                 auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
                 upbox.move(top_coor);
                 dnbox.move(end_coor);
@@ -4835,7 +4835,7 @@ namespace netxs::ui
                         // Insert block.
                         while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
 
-                        batch.reindex(start); //todo The index may be outdated due to the ring.
+                        batch.reindex(start); //todo revise ? The index may be outdated due to the ring.
                         index_rebuild();
                     }
                 }
@@ -4872,7 +4872,7 @@ namespace netxs::ui
                         // Insert block.
                         while (count-- > 0) batch.insert(start, id_t{}, parser::style);
 
-                        batch.reindex(start); //todo The index may be outdated due to the ring.
+                        batch.reindex(start); //todo revise ? The index may be outdated due to the ring.
                     }
                     index_rebuild();
                 }
@@ -6568,7 +6568,7 @@ namespace netxs::ui
                 queue.settop(queue.desub(param));
                 parser.table[ansi::csi_sgr].execute(queue, ptr);
             }
-            else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor); //todo unify (config with defaults)
+            else mark.brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor);
             set_color(mark.brush);
         }
         // term: CCC_LSR: Enable line style reporting.
@@ -6635,7 +6635,7 @@ namespace netxs::ui
                 {
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec.
                     {
                         auto shift = scrollby(delta);
                         return shore-- && (origin.x != limit && !!shift);
@@ -6831,7 +6831,7 @@ namespace netxs::ui
                 auto shift = scrollby(delta);
                 coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
-                worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec. //todo make it configurable
+                worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec.
                                     {
                                         auto shift = scrollby(delta);
                                         coord -= shift;
@@ -7402,7 +7402,6 @@ namespace netxs::ui
                 auto& k = lock.thing;
                 master.trysync(master.active, [&]
                 {
-                    //todo move it to the static pro::focus::cut(gear_id, item_ptr)
                     if (auto gear_ptr = bell::getref<hids>(k.gear_id))
                     if (auto parent_ptr = master.base::parent())
                     {
