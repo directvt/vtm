@@ -283,7 +283,7 @@ namespace netxs::ui
                         canvas.fill(side_y, fuse);
                     });
                 };
-                boss.LISTEN(tier::release, e2::form::layout::swarp, warp, memo)
+                boss.LISTEN(tier::preview, e2::form::layout::swarp, warp, memo)
                 {
                     auto area = boss.base::area();
                     auto next = area + warp;
@@ -2503,9 +2503,10 @@ namespace netxs::ui
               adaptive{ }
         {
             _config(orientation, grip_width, s1, s2);
-            LISTEN(tier::release, e2::form::prop::fixedsize, is_fixed)
+            LISTEN(tier::preview, e2::form::layout::swarp, warp)
             {
-                adaptive = is_fixed;
+                adaptive = true; // Adjust the grip ratio on coming resize.
+                this->bell::expire<tier::preview>(true);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2579,6 +2580,7 @@ namespace netxs::ui
             if (object_1) object_1->base::notify(region_1);
             if (object_2) object_2->base::notify(region_2);
             if (splitter) splitter->base::notify(region_3);
+            adaptive = faux;
         }
 
     public:

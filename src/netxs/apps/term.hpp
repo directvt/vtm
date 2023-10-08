@@ -672,18 +672,18 @@ namespace netxs::app::term
                         }
                         else
                         {
-                            auto size = boss.size();
-                            new_size = new_size.less(dot_11, size, std::max(dot_11, new_size));
-                            //todo implement resize from inside
-                            //boss.SIGNAL(tier::release, e2::form::prop::window::size, new_size);
-                            //auto reserv = lims;
-                            //lims.min = lims.max = std::clamp(new_size, lims.min, lims.max);
-                            boss.template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
+                            auto panel = boss.size();
+                            new_size = new_size.less(dot_11, panel, std::max(dot_11, new_size));
+                            auto warp = rect{ dot_00, new_size } - rect{ dot_00, panel };
+                            boss.base::locked = faux; // Unlock resizing.
                             boss.base::resize(new_size);
-                            boss.base::reflow<true>();
-                            boss.template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
-                            //lims = reserv;
+                            boss.base::locked = true; // Lock resizing until reflow is complete.
+                            boss.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                         }
+                    };
+                    boss.LISTEN(tier::release, e2::area, new_area)
+                    {
+                        boss.base::locked = faux; // Unlock resizing.
                     };
                 });
 

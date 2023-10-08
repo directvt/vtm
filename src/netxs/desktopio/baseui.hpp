@@ -406,7 +406,6 @@ namespace netxs::events::userland
                     EVENT_XS( fullscreen, ui::sptr   ), // set fullscreen app.
                     EVENT_XS( viewport  , rect       ), // request: return form actual viewport.
                     EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.
-                    EVENT_XS( fixedsize , bool       ), // set ui::fork ratio.
                     GROUP_XS( window    , twod       ), // set or request window properties.
                     GROUP_XS( ui        , text       ), // set or request textual properties.
                     GROUP_XS( colors    , rgba       ), // set or request bg/fg colors.
@@ -604,6 +603,7 @@ namespace netxs::ui
         bind atcrop; // base: Bindings on shrinking.
         bool wasted; // base: Should the object be redrawn.
         bool hidden; // base: Ignore rendering and resizing.
+        bool locked; // base: Object has fixed size.
         bool master; // base: Anycast root.
         si32 family; // base: Object type.
 
@@ -673,7 +673,8 @@ namespace netxs::ui
             if (base::hidden) return;
             auto required = new_area;
             new_area -= base::extpad;
-            new_area.size = std::clamp(new_area.size, base::min_sz, base::max_sz);
+            new_area.size = base::locked ? base::region.size
+                                         : std::clamp(new_area.size, base::min_sz, base::max_sz);
             auto nested_area = rect{ dot_00, new_area.size } - base::intpad;
             deform(nested_area);
             new_area.size = nested_area.size + base::intpad;
@@ -974,6 +975,7 @@ namespace netxs::ui
               max_sz{ skin::globals().max_value },
               wasted{ true },
               hidden{ faux },
+              locked{ faux },
               master{ faux },
               family{ type::client }
         {

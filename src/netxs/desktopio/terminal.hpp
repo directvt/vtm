@@ -7129,9 +7129,6 @@ namespace netxs::ui
         // term: Resize terminal window.
         void window_resize(twod winsz)
         {
-            auto size = winsz.less(dot_11, target->panel, std::max(dot_11, winsz));
-            auto warp = rect{ dot_00, size } - rect{ dot_00, target->panel };
-            RISEUP(tier::preview, e2::form::layout::swarp, warp);
             RISEUP(tier::preview, e2::form::prop::window::size, winsz);
         }
         // term: Custom data output (ConSrv callback).
@@ -7572,7 +7569,7 @@ namespace netxs::ui
                 netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
                 {
                     //todo use window_id
-                    master.RISEUP(tier::release, e2::form::layout::swarp, warp);
+                    master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
             void handle(s11n::xs::vt_command          lock)
@@ -7725,6 +7722,7 @@ namespace netxs::ui
                 };
                 master.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
+                    //todo implement deform/inform (for incoming XTWINOPS/swarp)
                     auto winsize = s11n::syswinsz.freeze().thing.winsize;
                     if (master.ipccon && winsize != new_area.size)
                     {
