@@ -3941,7 +3941,7 @@ namespace netxs::ui
             else base::subset.clear();
         }
         // pads: Update nested object.
-        void update(sptr old_object, sptr new_object)
+        void update(sptr old_object, sptr new_object) override
         {
             remove(old_object);
             attach(new_object);

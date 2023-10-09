@@ -147,7 +147,7 @@ namespace
         {
             input << crop(format) << std::forward<decltype(arg)>(arg);
             if (format.length()) print(input, format, std::forward<decltype(args)>(args)...);
-            else                 (input << ... << std::forward<decltype(args)>(args));
+            else                (void)(input << ...<< std::forward<decltype(args)>(args));
         }
     }
     template<bool Newline = true, class ...Args>
