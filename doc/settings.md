@@ -223,7 +223,7 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term>  <!-- Set selected using menu item id. -->
+    <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
@@ -285,7 +285,13 @@ Note: The following configuration sections are not implemented yet
             <folded=4/>
             <expanded=31/>
         </width>
+        <color fgc=whitedk bgc=0x60202020 />
     </menu>
+    <panel> <!-- Desktop info panel. -->
+        <cmd = ""/> <!-- Command-line to activate. -->
+        <cwd = ""/> <!-- Working directory. -->
+        <height = 1 /> <!-- Desktop space reserved on top. -->
+    </panel>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow />
         <key="Ctrl+PgDn" action=NextWindow />
@@ -296,6 +302,7 @@ Note: The following configuration sections are not implemented yet
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
+            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
