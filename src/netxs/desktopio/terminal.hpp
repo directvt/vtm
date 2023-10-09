@@ -5561,12 +5561,13 @@ namespace netxs::ui
                     auto dest = face{};
                     auto mark = cell{};
                     auto coor = dot_00;
-                    auto view = rect{{ std::min(upcur.coor.x,  dncur.coor.x), upcur.coor.y },
+                    auto area = rect{{ std::min(upcur.coor.x,  dncur.coor.x), upcur.coor.y },
                                      { std::abs(upcur.coor.x - dncur.coor.x) + 1, selection_height(head, tail, upcur, dncur) }};
-                    auto full = rect{ -view.coor, { panel.x, view.coor.y + view.size.y }};
+                    auto view = rect{ dot_00, area.size };
+                    auto full = rect{ -area.coor, { panel.x, area.coor.y + area.size.y }};
+                    dest.core::size(area.size, brush.dry());
+                    dest.core::view(view);
                     dest.flow::full(full);
-                    dest.core::move(view.coor);
-                    dest.core::size(view.size, brush.dry());
                     do
                     {
                         auto& curln = *head;
