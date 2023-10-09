@@ -718,7 +718,7 @@ namespace netxs::app::desk
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
-                ->plugin<pro::notes>(" Disconnect all users and shutdown the server ")
+                ->plugin<pro::notes>(" Disconnect all users and shutdown ")
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
