@@ -3099,7 +3099,10 @@ namespace netxs::ui
             return twod{ !!(Axes & axes::X_only), !!(Axes & axes::Y_only) };
         }
         // rail: .
-        auto empty() { return base::subset.empty() || !base::subset.back(); }
+        bool empty() //todo VS2019 requires bool
+        {
+            return base::subset.empty() || !base::subset.back();
+        }
 
     protected:
         rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
@@ -3426,7 +3429,7 @@ namespace netxs::ui
                 scinfo.region = block;
                 scinfo.window.coor =-coord; // Viewport.
                 scinfo.window.size = frame; //
-                SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
+                this->SIGNAL(tier::release, upon::scroll::bycoor::any, scinfo);
             };
             return object;
         }
@@ -3874,7 +3877,10 @@ namespace netxs::ui
         dent extpad;
 
         // pads: .
-        auto empty() { return base::subset.empty() || !base::subset.back(); }
+        bool empty() //todo VS2019 requires bool
+        {
+            return base::subset.empty() || !base::subset.back();
+        }
 
     protected:
         pads(dent intpad_value = {}, dent extpad_value = {})
