@@ -34,6 +34,7 @@ Build-time dependencies
 Use any terminal as a build environment
 ```
 git clone https://github.com/netxs-group/vtm.git
+cd vtm
 cmake . -B bin
 cmake --build bin
 sudo cmake --install bin
@@ -63,6 +64,7 @@ Use Developer Command Prompt as a build environment
 
 ```
 git clone https://github.com/netxs-group/vtm.git
+cd vtm
 cmake . -B bin
 cmake --build bin --config Release
 bin\Release\vtm.exe
