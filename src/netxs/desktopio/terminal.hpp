@@ -7104,8 +7104,8 @@ namespace netxs::ui
         }
         void restart()
         {
-            resume = true;
-            ipccon.sighup();
+            resume.exchange(true);
+            ipccon.sighup(faux);
         }
         void sighup(bool fast)
         {

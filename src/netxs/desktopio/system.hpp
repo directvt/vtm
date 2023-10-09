@@ -3397,9 +3397,9 @@ namespace netxs::os
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
             }
-            auto sighup()
+            auto sighup(bool state = true)
             {
-                if (attached && !signaled.exchange(true))
+                if (attached && !signaled.exchange(state))
                 {
                     termlink->sighup();
                     return true;
