@@ -450,6 +450,7 @@ namespace netxs::app::desk
             auto panel = window->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {
+                panel_top = std::max(1, panel_top);
                 panel->limits({ -1, panel_top }, { -1, panel_top })
                      ->attach(app::shared::builder(app::headless::id)(panel_cwd, panel_cmd, config, ""s));
             }
