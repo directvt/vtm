@@ -4440,7 +4440,7 @@ struct impl : consrv
     }
     auto api_input_history_clear             ()
     {
-        log(prompt, "ClearConsoleCommandHistory");
+        log(prompt, "ExpungeConsoleCommandHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4509,7 +4509,7 @@ struct impl : consrv
     }
     auto api_input_history_info_get          ()
     {
-        log(prompt, "GetConsoleHistory");
+        log(prompt, "GetConsoleHistoryInfo");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4528,7 +4528,7 @@ struct impl : consrv
     }
     auto api_input_history_info_set          ()
     {
-        log(prompt, "SetConsoleHistory");
+        log(prompt, "SetConsoleHistoryInfo");
         struct payload : drvpacket<payload>
         {
             struct
