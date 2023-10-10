@@ -64,7 +64,7 @@ namespace netxs
         constexpr rgba()
             : token{ 0 }
         { }
-
+        constexpr rgba(rgba const&) = default;
         template<class T, class A = byte>
         constexpr rgba(T r, T g, T b, A a = 0xff)
             : chan{ static_cast<byte>(r),
@@ -72,19 +72,12 @@ namespace netxs
                     static_cast<byte>(b),
                     static_cast<byte>(a) }
         { }
-
-        constexpr rgba(rgba const& c)
-            : token{ c.token }
-        { }
-
         constexpr rgba(ui32 c)
             : token{ netxs::letoh(c) }
         { }
-
         constexpr rgba(tint c)
             : rgba{ vt256[c] }
         { }
-
         rgba(fifo& queue)
         {
             static constexpr auto mode_RGB = 2;
@@ -133,11 +126,11 @@ namespace netxs
         {
             return token;
         }
-        constexpr auto operator == (rgba const& c) const
+        constexpr auto operator == (rgba c) const
         {
             return token == c.token;
         }
-        constexpr auto operator != (rgba const& c) const
+        constexpr auto operator != (rgba c) const
         {
             return !operator==(c);
         }
@@ -201,7 +194,7 @@ namespace netxs
             chan.b = c.chan.b = (chan.b + c.chan.b) >> 1;
         }
         // rgba: One-side alpha blending RGBA colors.
-        void inline mix_one(rgba const& c)
+        void inline mix_one(rgba c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -221,7 +214,7 @@ namespace netxs
             }
         }
         // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba const& c)
+        void inline mix(rgba c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -247,7 +240,7 @@ namespace netxs
             }
         }
         // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
-        static auto transit(rgba const& c1, rgba const& c2, si32 level)
+        static auto transit(rgba c1, rgba c2, si32 level)
         {
             auto inverse = 256 - level;
             return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
@@ -256,7 +249,7 @@ namespace netxs
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
         // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba const& c, byte alpha)
+        void inline mix(rgba c, byte alpha)
         {
             if (alpha == 0xFF)
             {
@@ -272,7 +265,7 @@ namespace netxs
             }
         }
         // rgba: Rough alpha blending RGBA colors.
-        //void mix_alpha(rgba const& c)
+        //void mix_alpha(rgba c)
         //{
         //	auto blend = [] (auto const& c1, auto const& c2, auto const& alpha)
         //	{
@@ -302,7 +295,7 @@ namespace netxs
         //}
 
         //// rgba: Are the colors identical.
-        //bool like(rgba const& c) const
+        //bool like(rgba c) const
         //{
         //
         //	static constexpr auto k = ui32{ 0b11110000 };
@@ -458,7 +451,7 @@ namespace netxs
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
         };
-        friend auto& operator << (std::ostream& s, rgba const& c)
+        friend auto& operator << (std::ostream& s, rgba c)
         {
             return s << "{" << (int)c.chan.r
                      << "," << (int)c.chan.g
@@ -667,7 +660,7 @@ namespace netxs
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
 
-        irgb(rgba const& c)
+        irgb(rgba c)
             : r { c.chan.r },
               g { c.chan.g },
               b { c.chan.b },
@@ -711,14 +704,14 @@ namespace netxs
             b -= c.b;
             a -= c.a;
         }
-        void operator += (rgba const& c)
+        void operator += (rgba c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
             a += c.chan.a;
         }
-        void operator -= (rgba const& c)
+        void operator -= (rgba c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
@@ -765,7 +758,7 @@ namespace netxs
             {
                 set(c);
             }
-            glyf(glyf const& c, view const& utf8, size_t width)
+            glyf(glyf const& c, view utf8, size_t width)
                 : token{ c.token }
             {
                 set(utf8, width);
@@ -828,7 +821,7 @@ namespace netxs
                 glyph[1]    = '^';
                 glyph[2]    = '@' + (c & 0b00011111);
             }
-            void set(view const& utf8, size_t cwidth)
+            void set(view utf8, size_t cwidth)
             {
                 auto count = utf8.size();
                 if (count >= limit)
@@ -847,7 +840,7 @@ namespace netxs
                     std::memcpy(glyph + 1, utf8.data(), count);
                 }
             }
-            void set(view const& utf8)
+            void set(view utf8)
             {
                 if (utf8.empty()) token = 0;
                 else
@@ -970,7 +963,7 @@ namespace netxs
             {
                 return !operator==(b);
             }
-            bool like(body const& b) const
+            bool like(body b) const
             {
                 return param.shared.token == b.param.shared.token;
             }
@@ -1170,7 +1163,7 @@ namespace netxs
               id{ base.id }
         { }
 
-        cell(cell const& base, view const& cluster, size_t ucwidth)
+        cell(cell const& base, view cluster, size_t ucwidth)
             : uv{ base.uv },
               st{ base.st },
               id{ base.id },
@@ -1274,8 +1267,8 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge two cells and update ID with COOR.
-        void fuse(cell const& c, id_t oid)//, twod const& pos)
+        // cell: Merge two cells and update id.
+        void fuse(cell const& c, id_t oid)
         {
             fuse(c);
             id = oid;
@@ -1435,8 +1428,8 @@ namespace netxs
         auto& set(cell const& c)  { uv = c.uv;
                                     st = c.st;
                                     gc = c.gc;          return *this; }
-        auto& bgc (rgba const& c) { uv.bg = c;          return *this; } // cell: Set Background color.
-        auto& fgc (rgba const& c) { uv.fg = c;          return *this; } // cell: Set Foreground color.
+        auto& bgc (rgba c)        { uv.bg = c;          return *this; } // cell: Set Background color.
+        auto& fgc (rgba c)        { uv.fg = c;          return *this; } // cell: Set Foreground color.
         auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
         auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
         auto& alpha(byte k)       { uv.bg.chan.a = k;
@@ -1589,7 +1582,7 @@ namespace netxs
                 {
                     return func<C>(brush);
                 }
-                static inline auto invert(rgba const& color)
+                static inline auto invert(rgba color)
                 {
                     return color.luma() >= threshold ? 0xFF000000
                                                      : 0xFFffffff;
@@ -1798,25 +1791,25 @@ namespace netxs
     class core
     {
         // Prefill canvas using brush.
-        core(twod const& coor, twod const& size, cell const& brush)
+        core(twod coor, twod size, cell const& brush)
             : region{ coor  , size },
               client{ dot_00, size },
               canvas(size.x * size.y, brush),
               marker{ brush }
         { }
         // Prefill canvas using zero.
-        core(twod const& coor, twod const& size)
+        core(twod coor, twod size)
             : region{ coor  , size },
               client{ dot_00, size },
               canvas(size.x * size.y)
         { }
 
     protected:
-        si32 digest = 0;
-        cell marker;
-        rect region;
-        grid canvas;
-        rect client;
+        si32 digest = 0; // core: Resize stamp.
+        rect region; // core: Physical square of canvas relative to current basis (top-left corner of the current rendering object, see face::change_basis).
+        rect client; // core: Active canvas area relative to current basis.
+        grid canvas; // core: Cell data.
+        cell marker; // core: Current brush.
 
     public:
         using span = std::span<cell const>;
@@ -1826,7 +1819,7 @@ namespace netxs
         core(core const&)              = default;
         core& operator = (core&&)      = default;
         core& operator = (core const&) = default;
-        core(span const& body, twod const& size)
+        core(span body, twod size)
             : region{ dot_00, size },
               client{ dot_00, size },
               canvas( body.begin(), body.end() )
@@ -1834,19 +1827,11 @@ namespace netxs
             assert(size.x * size.y == std::distance(body.begin(), body.end()));
         }
         core(cell const& fill, si32 length)
-            : region{ dot_00, twod{ length, 1 } },
-              client{ dot_00, twod{ length, 1 } },
+            : region{ dot_00, { length, 1 } },
+              client{ dot_00, { length, 1 } },
               canvas( length, fill )
         { }
 
-        friend void swap(core& lhs, core& rhs)
-        {
-            std::swap(lhs.digest, rhs.digest);
-            std::swap(lhs.marker, rhs.marker);
-            std::swap(lhs.region, rhs.region);
-            std::swap(lhs.canvas, rhs.canvas);
-            std::swap(lhs.client, rhs.client);
-        }
         template<class P>
         auto same(core const& c, P compare) const // core: Compare content.
         {
@@ -1865,6 +1850,7 @@ namespace netxs
         constexpr auto& size() const           { return region.size;                                                        }
         auto& coor() const                     { return region.coor;                                                        }
         auto& area() const                     { return region;                                                             }
+        auto  area(rect new_area)              { size(new_area.size); move(new_area.coor); view(new_area);                  }
         auto  data() const -> cell const*      { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto  data()       -> cell*            { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto& pick()                           { return canvas;                                                             }
@@ -1872,51 +1858,49 @@ namespace netxs
         auto  iend()                           { return canvas.end();                                                       }
         auto  iter() const                     { return canvas.begin();                                                     }
         auto  iend() const                     { return canvas.end();                                                       }
-        auto  test(twod const& coord) const    { return region.size.inside(coord);                                          } // core: Check the coor inside the canvas.
-        auto  data(twod const& coord)          { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
-        auto  data(twod const& coord) const    { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
+        auto  data(twod coord)                 { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
+        auto  data(twod coord) const           { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
         auto& data(size_t offset)              { return*(data() + offset);                                                  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator [] (twod const& c)      { return*(data(c));                                                          } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto& operator [] (twod coord)         { return*(data(coord));                                                      } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
         auto& mark()                           { return marker;                                                             } // core: Return a reference to the default cell value.
         auto& mark() const                     { return marker;                                                             } // core: Return a reference to the default cell value.
-        auto& mark(cell const& c)              { marker = c; return marker;                                                 } // core: Set the default cell value.
-        void  move(twod const& newcoor)        { region.coor = newcoor;                                                     } // core: Change the location of the face.
-        void  step(twod const& delta)          { region.coor += delta;                                                      } // core: Shift location of the face by delta.
-        void  back(twod const& delta)          { region.coor -= delta;                                                      } // core: Shift location of the face by -delta.
+        auto& mark(cell const& new_marker)     { marker = new_marker; return marker;                                        } // core: Set the default cell value.
+        void  move(twod new_coor)              { region.coor = new_coor;                                                    } // core: Change the location of the face.
+        void  step(twod delta)                 { region.coor += delta;                                                      } // core: Shift location of the face by delta.
         auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
         void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
-        auto  link(twod const& coord) const    { return test(coord) ? (*(data(coord))).link() : 0;                          } // core: Return ID of the object in cell at the specified coordinates.
+        auto  link(twod coord) const           { return region.size.inside(coord) ? (*(data(coord))).link() : 0;            } // core: Return ID of the object in cell at the specified coordinates.
         auto  view() const                     { return client;                                                             }
-        void  view(rect const& viewreg)        { client = viewreg;                                                          }
+        void  view(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
-        void  size(twod const& newsize, cell const& c) // core: Change the size of the face.
+        void size(twod new_size, cell const& c) // core: Change the size of the face.
         {
-            if (region.size(std::max(dot_00, newsize)))
+            if (region.size(std::max(dot_00, new_size)))
             {
                 client.size = region.size;
                 digest++;
                 canvas.assign(region.size.x * region.size.y, c);
             }
         }
-        void size(twod const& newsize) // core: Change the size of the face.
+        void size(twod new_size) // core: Change the size of the face.
         {
-            size(newsize, marker);
+            size(new_size, marker);
         }
-        void size(si32 newsizex, cell const& c) // core: Change the size of the face.
+        void size(si32 new_size_x, cell const& c) // core: Change the size of the face.
         {
-            region.size.x = newsizex;
+            region.size.x = new_size_x;
             region.size.y = 1;
             client.size = region.size;
-            canvas.assign(newsizex, c);
+            canvas.assign(new_size_x, c);
             digest++;
         }
-        void crop(si32 newsizex, cell const& c = {}) // core: Resize while saving the textline.
+        void crop(si32 new_size_x, cell const& c = {}) // core: Resize while saving the textline.
         {
-            region.size.x = newsizex;
+            region.size.x = new_size_x;
             region.size.y = 1;
             client.size = region.size;
-            canvas.resize(newsizex, c);
+            canvas.resize(new_size_x, c);
             digest++;
         }
         void push(cell const& c) // core: Push cell back.
@@ -1924,20 +1908,19 @@ namespace netxs
             crop(region.size.x + 1, c);
         }
         template<bool BottomAnchored = faux>
-        void crop(twod const& newsize, cell const& c) // core: Resize while saving the bitmap.
+        void crop(twod new_size, cell const& c) // core: Resize while saving the bitmap.
         {
-            auto block = core{ region.coor, newsize, c };
-            if constexpr (BottomAnchored) block.step({ 0, region.size.y - newsize.y });
+            auto block = core{ region.coor, new_size, c };
+            if constexpr (BottomAnchored) block.step({ 0, region.size.y - new_size.y });
             netxs::onbody(block, *this, cell::shaders::full);
-            region.size = newsize;
-            client.size = region.size;
+            client.size = new_size;
             swap(block);
             digest++;
         }
         template<bool BottomAnchored = faux>
-        void crop(twod const& newsize) // core: Resize while saving the bitmap.
+        void crop(twod new_size) // core: Resize while saving the bitmap.
         {
-            crop<BottomAnchored>(newsize, marker);
+            crop<BottomAnchored>(new_size, marker);
         }
         void kill() // core: Collapse canvas to size zero (see para).
         {
@@ -1950,26 +1933,23 @@ namespace netxs
         void wipe()              { wipe(marker); } // core: Fill canvas with default color.
         void wipe(id_t id)                         // core: Fill canvas with specified id.
         {
-            auto my = marker.link();
+            auto my_id = marker.link();
             marker.link(id);
             wipe(marker);
-            marker.link(my);
+            marker.link(my_id);
         }
-        template<class P>
+        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, cell&>>>
         auto each(P proc) // core: Exec a proc for each cell.
         {
-            using ret_t = std::invoke_result_t<P, cell&>;
-            static constexpr auto plain = std::is_same_v<void, ret_t>;
-
             for (auto& c : canvas)
             {
-                if constexpr (plain) proc(c);
+                if constexpr (Plain) proc(c);
                 else             if (proc(c)) return faux;
             }
-            if constexpr (!plain) return true;
+            if constexpr (!Plain) return true;
         }
         template<class P>
-        void each(rect const& region, P proc) // core: Exec a proc for each cell of the specified region.
+        void each(rect region, P proc) // core: Exec a proc for each cell of the specified region.
         {
             netxs::onrect(*this, region, proc);
         }
@@ -2004,7 +1984,7 @@ namespace netxs
             //flow::cursor
         }
         template<class P>
-        void fill(core const& block, P fuse) // core: Fill canvas by the specified face using its coordinates.
+        void fill(core const& block, P fuse) // core: Fill canvas by the specified block using its coordinates.
         {
             netxs::onbody(*this, block, fuse);
         }
@@ -2014,25 +1994,26 @@ namespace netxs
             netxs::zoomin(*this, block, fuse);
         }
         template<class P>
-        void plot(core const& block, P fuse) // core: Fill view by the specified face using its coordinates.
+        void plot(core const& block, P fuse) // core: Fill view by the specified block using its coordinates inside canvas area.
         {
-            auto joint = view().clip(block.area());
+            auto local = rect{ client.coor - region.coor, client.size };
+            auto joint = local.clip(block.region);
             if (joint)
             {
-                auto place = joint.coor - block.coor();
+                auto place = joint.coor - block.region.coor;
                 netxs::inbody<faux>(*this, block, joint, place, fuse);
             }
         }
-        auto& peek(twod const& p) // core: Take the cell at the specified coor.
+        auto& peek(twod p) // core: Take the cell at the specified coor.
         {
+            p -= region.coor;
             auto& c = *(iter() + p.x + p.y * region.size.x);
             return c;
         }
         template<class P>
-        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        void /*!*/fill(rect block, P fuse) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
-            block.coor += region.coor;
             netxs::onrect(*this, block, fuse);
         }
         template<class P>
@@ -2040,11 +2021,11 @@ namespace netxs
         {
             fill(view(), fuse);
         }
-        void fill(cell c) // core: Fill the client area using brush.
+        void fill(cell const& c) // core: Fill the client area using brush.
         {
             fill(view(), cell::shaders::full(c));
         }
-        void grad(rgba const& c1, rgba const& c2) // core: Fill the specified region with the linear gradient.
+        void grad(rgba c1, rgba c2) // core: Fill the specified region with the linear gradient.
         {
             auto mx = (float)region.size.x;
             auto my = (float)region.size.y;
@@ -2074,7 +2055,7 @@ namespace netxs
                 ++y;
                 z = y * y * 4;
             };
-            netxs::onrect(*this, region, allfx, eolfx);
+            netxs::onrect(*this, client, allfx, eolfx);
         }
         void swap(core& other) // core: Unconditionally swap canvases.
         {
@@ -2185,45 +2166,35 @@ namespace netxs
             return word<Direction>(twod{ offset, 0 });
         }
         template<class P>
-        void cage(rect const& area, twod const& border_width, P fuse) // core: Draw the cage around specified area.
+        void /*!*/cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
         {
             auto temp = area;
-            temp.size.y = std::max(0, border_width.y); // Top
+            temp.size.y = std::max(0, border.t); // Top
             fill(temp.clip(area), fuse);
-            temp.coor.y += area.size.y - border_width.y; // Bottom
+            temp.coor.y += area.size.y - border.b; // Bottom
+            temp.size.y = std::max(0, border.b);
             fill(temp.clip(area), fuse);
-            temp.size.x = std::max(0, border_width.x); // Left
-            temp.size.y = std::max(0, area.size.y - border_width.y * 2);
-            temp.coor.y = area.coor.y + border_width.y;
+            temp.size.x = std::max(0, border.l); // Left
+            temp.size.y = std::max(0, area.size.y - border.t - border.b);
+            temp.coor.y = area.coor.y + border.t;
             fill(temp.clip(area), fuse);
-            temp.coor.x += area.size.x - border_width.x; // Right
+            temp.coor.x += area.size.x - border.r; // Right
+            temp.size.x = std::max(0, border.r);
             fill(temp.clip(area), fuse);
         }
         template<class P>
-        void cage(rect const& area, dent const& border, P fuse) // core: Draw the cage around specified area.
+        void /*!*/cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
         {
-            auto temp = area;
-            temp.size.y = std::max(0, border.head.step); // Top
-            fill(temp.clip(area), fuse);
-            temp.coor.y += area.size.y - border.foot.step; // Bottom
-            temp.size.y = std::max(0, border.foot.step);
-            fill(temp.clip(area), fuse);
-            temp.size.x = std::max(0, border.west.step); // Left
-            temp.size.y = std::max(0, area.size.y - border.head.step - border.foot.step);
-            temp.coor.y = area.coor.y + border.head.step;
-            fill(temp.clip(area), fuse);
-            temp.coor.x += area.size.x - border.east.step; // Right
-            temp.size.x = std::max(0, border.east.step);
-            fill(temp.clip(area), fuse);
+            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fuse);
         }
         template<class Text, class P = noop>
-        void text(twod const& pos, Text const& txt, bool rtl = faux, P print = P()) // core: Put the specified text substring to the specified coordinates on the canvas.
+        void text(twod pos, Text const& txt, bool rtl = faux, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
         {
             rtl ? txt.template output<true>(*this, pos, print)
                 : txt.template output<faux>(*this, pos, print);
         }
-        template<class SI32>
-        auto find(core const& what, SI32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
+        template<class Si32>
+        auto find(core const& what, Si32&& from, feed dir = feed::fwd) const // core: Find the substring and place its offset in &from.
         {
             assert(     canvas.size() <= si32max);
             assert(what.canvas.size() <= si32max);

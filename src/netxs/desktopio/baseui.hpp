@@ -24,16 +24,52 @@ namespace netxs::input
 }
 namespace netxs::ui
 {
-    class face;
-    class base;
+    enum axis { X, Y };
+
+    enum class sort
+    {
+        forward,
+        reverse,
+    };
+
+    enum class snap
+    {
+        none,
+        head,
+        tail,
+        both,
+        center,
+    };
+
+    enum class slot { _1, _2, _I };
+
+    enum class axes
+    {
+        none   = 0,
+        X_only = 1 << 0,
+        Y_only = 1 << 1,
+        all    = X_only | Y_only,
+    };
+    constexpr auto operator & (axes l, axes r) { return static_cast<si32>(l) & static_cast<si32>(r); }
+
+    struct bind
+    {
+        snap x = snap::both;
+        snap y = snap::both;
+    };
+
+    struct base;
 
     using namespace netxs::input;
+    using sptr = netxs::sptr<base>;
+    using wptr = netxs::wptr<base>;
     using focus_test_t = std::pair<id_t, si32>;
     using gear_id_list_t = std::list<id_t>;
-    using functor = std::function<void(sptr<base>)>;
+    using functor = std::function<void(sptr)>;
     using proc = std::function<void(hids&)>;
     using s11n = directvt::binary::s11n;
     using escx = ansi::escx;
+    using book = std::vector<sptr>;
 }
 
 namespace netxs::events::userland
@@ -48,14 +84,12 @@ namespace netxs::events::userland
         {
             EVENT_XS( postrender, ui::face       ), // release: UI-tree post-rendering. Draw debug overlay, maker, titles, etc.
             EVENT_XS( nextframe , bool           ), // general: Signal for rendering the world, the parameter indicates whether the world has been modified since the last rendering.
-            EVENT_XS( depth     , si32           ), // request: Determine the depth of the hierarchy.
             EVENT_XS( shutdown  , const text     ), // general: Server shutdown.
+            EVENT_XS( area      , rect           ), // release: Object rectangle.
             GROUP_XS( extra     , si32           ), // Event extension slot.
             GROUP_XS( timer     , time           ), // timer tick, arg: current moment (now).
             GROUP_XS( render    , ui::face       ), // release: UI-tree rendering.
             GROUP_XS( conio     , si32           ),
-            GROUP_XS( size      , twod           ), // release: Object size.
-            GROUP_XS( coor      , twod           ), // release: Object coor.
             GROUP_XS( form      , bool           ),
             GROUP_XS( data      , si32           ),
             GROUP_XS( config    , si32           ), // set/notify/get/global_set configuration data.
@@ -87,20 +121,12 @@ namespace netxs::events::userland
             {
                 EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
             };
-            SUBSET_XS( size ) // preview: checking by pro::limit.
-            {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object size.
-            };
-            SUBSET_XS( coor ) // preview any: checking by pro::limit.
-            {
-                EVENT_XS( set, twod ), // preview: checking by object; release: apply to object; request: request object coor.
-            };
             SUBSET_XS( config )
             {
-                EVENT_XS( creator, sptr<ui::base> ), // request: pointer to world object.
-                EVENT_XS( fps    , si32           ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret  , span           ), // any kind of intervals property.
-                GROUP_XS( plugins, si32           ),
+                EVENT_XS( creator, ui::sptr ), // request: pointer to world object.
+                EVENT_XS( fps    , si32     ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
+                GROUP_XS( caret  , span     ), // any kind of intervals property.
+                GROUP_XS( plugins, si32     ),
 
                 SUBSET_XS( caret )
                 {
@@ -154,17 +180,17 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<core>     ), // request global canvas.
-                GROUP_XS( layout   , const twod     ),
-                GROUP_XS( draggable, bool           ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( upon     , bool           ),
-                GROUP_XS( proceed  , bool           ),
-                GROUP_XS( cursor   , bool           ),
-                GROUP_XS( drag     , input::hids    ),
-                GROUP_XS( prop     , text           ),
-                GROUP_XS( global   , twod           ),
-                GROUP_XS( state    , const twod     ),
-                GROUP_XS( animate  , id_t           ),
+                EVENT_XS( canvas   , sptr<core> ), // request global canvas.
+                GROUP_XS( layout   , const twod ),
+                GROUP_XS( draggable, bool       ), // signal to the form to enable draggablity for specified mouse button.
+                GROUP_XS( upon     , bool       ),
+                GROUP_XS( proceed  , bool       ),
+                GROUP_XS( cursor   , bool       ),
+                GROUP_XS( drag     , input::hids),
+                GROUP_XS( prop     , text       ),
+                GROUP_XS( global   , twod       ),
+                GROUP_XS( state    , const twod ),
+                GROUP_XS( animate  , id_t       ),
 
                 SUBSET_XS( draggable )
                 {
@@ -179,55 +205,56 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( fullscreen, input::hids    ), // request to fullscreen.
-                    EVENT_XS( minimize  , input::hids    ), // request to minimize.
-                    EVENT_XS( unselect  , input::hids    ), // inform if unselected.
-                    EVENT_XS( selected  , input::hids    ), // inform if selected.
-                    EVENT_XS( restore   , sptr<ui::base> ), // request to restore.
-                    EVENT_XS( shift     , const twod     ), // request a global shifting  with delta.
-                    EVENT_XS( convey    , cube           ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble    , ui::base       ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose    , ui::base       ), // order to bring the requested item on top of the visual tree (release: ask parent to expose specified child; preview: ask child to expose itself).
-                    EVENT_XS( appear    , twod           ), // fly to the specified coords.
-                    EVENT_XS( swarp     , const dent     ), // preview: form swarping
-                    GROUP_XS( go        , sptr<ui::base> ), // preview: form swarping
+                    EVENT_XS( fullscreen, input::hids ), // request to fullscreen.
+                    EVENT_XS( minimize  , input::hids ), // request to minimize.
+                    EVENT_XS( unselect  , input::hids ), // inform if unselected.
+                    EVENT_XS( selected  , input::hids ), // inform if selected.
+                    EVENT_XS( restore   , ui::sptr    ), // request to restore.
+                    EVENT_XS( shift     , const twod  ), // request a global shifting with delta.
+                    EVENT_XS( jumpto    , ui::base    ), // fly to the specified object.
+                    EVENT_XS( convey    , cube        ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble    , rect        ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose    , rect        ), // order to bring the requested item on top of the visual tree.
+                    EVENT_XS( appear    , twod        ), // fly to the specified coords.
+                    EVENT_XS( swarp     , const dent  ), // preview: form swarping
+                    GROUP_XS( go        , ui::sptr    ), // preview: form swarping
                     //EVENT_XS( order     , si32       ), // return
                     //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
-                    //EVENT_XS( coor      , twod       ), // return client rect coor, only preview.
-                    //EVENT_XS( size      , twod       ), // return client rect size, only preview.
-                    //EVENT_XS( rect      , rect       ), // return client rect.
+                    //EVENT_XS( coor      , twod       ), // return object rect coor, only preview.
+                    //EVENT_XS( size      , twod       ), // return object rect size, only preview.
+                    //EVENT_XS( rect      , rect       ), // return object rect.
                     //EVENT_XS( show      , bool       ), // order to make it visible.
                     //EVENT_XS( hide      , bool       ), // order to make it hidden.
                     
                     SUBSET_XS( go )
                     {
-                        EVENT_XS( next , sptr<ui::base> ), // request: proceed request for available objects (next)
-                        EVENT_XS( prev , sptr<ui::base> ), // request: proceed request for available objects (prev)
-                        EVENT_XS( item , sptr<ui::base> ), // request: proceed request for available objects (current)
+                        EVENT_XS( next , ui::sptr ), // request: proceed request for available objects (next)
+                        EVENT_XS( prev , ui::sptr ), // request: proceed request for available objects (prev)
+                        EVENT_XS( item , ui::sptr ), // request: proceed request for available objects (current)
                     };
                 };
                 SUBSET_XS( upon )
                 {
-                    EVENT_XS( created, input::hids    ), // release: notify the instance of who created it.
-                    EVENT_XS( started, sptr<ui::base> ), // release: notify the instance is commissioned. arg: visual root.
-                    EVENT_XS( resized, const twod     ), // anycast: notify about the actual window size.
-                    EVENT_XS( changed, twod           ), // event after resize, arg: diff bw old and new size.
-                    EVENT_XS( dragged, input::hids    ), // event after drag.
-                    EVENT_XS( stopped, bool           ), // release: notify that the main reading loop has exited. arg bool: fast or not.
-                    GROUP_XS( vtree  , sptr<ui::base> ), // visual tree events, arg: parent base_sptr.
-                    GROUP_XS( scroll , rack           ), // event after scroll.
+                    EVENT_XS( created, input::hids ), // release: notify the instance of who created it.
+                    EVENT_XS( started, ui::sptr    ), // release: notify the instance is commissioned. arg: visual root.
+                    EVENT_XS( resized, const rect  ), // anycast: notify about the actual window area.
+                    EVENT_XS( changed, twod        ), // event after resize, arg: diff bw old and new size.
+                    EVENT_XS( dragged, input::hids ), // event after drag.
+                    EVENT_XS( stopped, bool        ), // release: notify that the main reading loop has exited. arg bool: fast or not.
+                    GROUP_XS( vtree  , ui::sptr    ), // visual tree events, arg: parent base_sptr.
+                    GROUP_XS( scroll , rack        ), // event after scroll.
                     //EVENT_XS( redrawn, ui::face       ), // inform about camvas is completely redrawn.
                     //EVENT_XS( cached , ui::face       ), // inform about camvas is cached.
                     //EVENT_XS( wiped  , ui::face       ), // event after wipe the canvas.
-                    //EVENT_XS( created    , sptr<ui::base> ), // event after itself creation, arg: itself bell_sptr.
+                    //EVENT_XS( created    , ui::sptr   ), // event after itself creation, arg: itself bell_sptr.
                     //EVENT_XS( detached   , bell_sptr      ), // inform that subject is detached, arg: parent bell_sptr.
                     //EVENT_XS( invalidated, bool           ),
                     //EVENT_XS( moved      , twod           ), // release: event after moveto, arg: diff bw old and new coor twod. preview: event after moved by somebody.
 
                     SUBSET_XS( vtree )
                     {
-                        EVENT_XS( attached, sptr<ui::base> ), // Child has been attached, arg: parent sptr<base>.
-                        EVENT_XS( detached, sptr<ui::base> ), // Child has been detached, arg: parent sptr<base>.
+                        EVENT_XS( attached, ui::sptr ), // Child has been attached, arg: parent ui::sptr.
+                        EVENT_XS( detached, ui::sptr ), // Child has been detached, arg: parent ui::sptr.
                     };
                     SUBSET_XS( scroll )
                     {
@@ -242,62 +269,67 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( x, rack ), // scroll to_top along X.
                             EVENT_XS( y, rack ), // scroll to_top along Y.
+                            EVENT_XS( v, rack ), // scroll to_top along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( to_end )
                         {
                             EVENT_XS( x, rack ), // scroll to_end along X.
                             EVENT_XS( y, rack ), // scroll to_end along Y.
+                            EVENT_XS( v, rack ), // scroll to_end along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bycoor )
                         {
                             EVENT_XS( x, rack ), // scroll absolute along X.
                             EVENT_XS( y, rack ), // scroll absolute along Y.
+                            EVENT_XS( v, rack ), // scroll absolute along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bystep )
                         {
                             EVENT_XS( x, rack ), // scroll by delta along X.
                             EVENT_XS( y, rack ), // scroll by delta along Y.
+                            EVENT_XS( v, rack ), // scroll by delta along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( bypage )
                         {
                             EVENT_XS( x, rack ), // scroll by page along X.
                             EVENT_XS( y, rack ), // scroll by page along Y.
+                            EVENT_XS( v, rack ), // scroll by page along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                         SUBSET_XS( cancel )
                         {
                             EVENT_XS( x, rack ), // cancel scrolling along X.
                             EVENT_XS( y, rack ), // cancel scrolling along Y.
+                            EVENT_XS( v, rack ), // cancel scrolling along XY.
 
-                            INDEX_XS( x, y ),
+                            INDEX_XS( x, y, v ),
                         };
                     };
                 };
                 SUBSET_XS( proceed )
                 {
-                    EVENT_XS( create    , rect           ), // return coordinates of the new object placeholder.
-                    EVENT_XS( createby  , input::hids    ), // return gear with coordinates of the new object placeholder gear::slot.
-                    EVENT_XS( render    , bool           ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
-                    EVENT_XS( attach    , sptr<ui::base> ), // order to attach a child, arg is a parent base_sptr.
-                    EVENT_XS( detach    , sptr<ui::base> ), // order to detach a child, tier::release - kill itself, tier::preview - detach the child specified in args, arg is a child sptr.
-                    EVENT_XS( swap      , sptr<ui::base> ), // order to replace existing client. See tiling manager empty slot.
-                    EVENT_XS( functor   , ui::functor    ), // exec functor (see pro::focus).
-                    EVENT_XS( onbehalf  , ui::proc       ), // exec functor on behalf (see gate).
-                    GROUP_XS( quit      , bool           ), // request to quit/detach (arg: fast or not).
-                    //EVENT_XS( focus      , sptr<ui::base>     ), // order to set focus to the specified object, arg is a object sptr.
+                    EVENT_XS( create    , rect        ), // return coordinates of the new object placeholder.
+                    EVENT_XS( createby  , input::hids ), // return gear with coordinates of the new object placeholder gear::slot.
+                    EVENT_XS( render    , bool        ), // ask children to render itself to the parent canvas, arg is the world is damaged or not.
+                    EVENT_XS( attach    , ui::sptr    ), // order to attach a child, arg is a parent base_sptr.
+                    EVENT_XS( swap      , ui::sptr    ), // order to replace existing object. See tiling manager empty slot.
+                    EVENT_XS( functor   , ui::functor ), // exec functor (see pro::focus).
+                    EVENT_XS( onbehalf  , ui::proc    ), // exec functor on behalf (see gate).
+                    GROUP_XS( quit      , bool        ), // request to quit/detach (arg: fast or not).
+                    //EVENT_XS( focus      , ui::sptr           ), // order to set focus to the specified object, arg is a object sptr.
                     //EVENT_XS( commit     , si32               ), // order to output the targets, arg is a frame number.
                     //EVENT_XS( multirender, vector<sptr<face>> ), // ask children to render itself to the set of canvases, arg is an array of the face sptrs.
                     //EVENT_XS( draw       , face               ), // ????  order to render itself to the canvas.
-                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output client canvas.
+                    //EVENT_XS( checkin    , face_sptr          ), // order to register an output object canvas.
 
                     SUBSET_XS( quit )
                     {
@@ -368,16 +400,15 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( prop )
                 {
-                    EVENT_XS( name      , text           ), // user name.
-                    EVENT_XS( zorder    , zpos           ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
-                    EVENT_XS( brush     , const cell     ), // set form brush/color.
-                    EVENT_XS( fullscreen, sptr<ui::base> ), // set fullscreen app.
-                    EVENT_XS( viewport  , rect           ), // request: return form actual viewport.
-                    EVENT_XS( lucidity  , si32           ), // set or request window transparency, si32: 0-255, -1 to request.
-                    EVENT_XS( fixedsize , bool           ), // set ui::fork ratio.
-                    GROUP_XS( window    , twod           ), // set or request window properties.
-                    GROUP_XS( ui        , text           ), // set or request textual properties.
-                    GROUP_XS( colors    , rgba           ), // set or request bg/fg colors.
+                    EVENT_XS( name      , text       ), // user name.
+                    EVENT_XS( zorder    , zpos       ), // set form z-order, si32: -1 backmost, 0 plain, 1 topmost.
+                    EVENT_XS( filler    , const cell ), // set form brush/color.
+                    EVENT_XS( fullscreen, ui::sptr   ), // set fullscreen app.
+                    EVENT_XS( viewport  , rect       ), // request: return form actual viewport.
+                    EVENT_XS( lucidity  , si32       ), // set or request window transparency, si32: 0-255, -1 to request.
+                    GROUP_XS( window    , twod       ), // set or request window properties.
+                    GROUP_XS( ui        , text       ), // set or request textual properties.
+                    GROUP_XS( colors    , rgba       ), // set or request bg/fg colors.
 
                     SUBSET_XS( window )
                     {
@@ -409,20 +440,20 @@ namespace netxs::events::userland
 
                     //SUBSET_XS( object )
                     //{
-                    //    EVENT_XS( attached, sptr<base> ), // global: object attached to the world.
-                    //    EVENT_XS( detached, sptr<base> ), // global: object detached from the world.
+                    //    EVENT_XS( attached, sptr ), // global: object attached to the world.
+                    //    EVENT_XS( detached, sptr ), // global: object detached from the world.
                     //};
                     //SUBSET_XS( user )
                     //{
-                    //    EVENT_XS( attached, sptr<base> ), // global: user attached to the world.
-                    //    EVENT_XS( detached, sptr<base> ), // global: user detached from the world.
+                    //    EVENT_XS( attached, sptr ), // global: user attached to the world.
+                    //    EVENT_XS( detached, sptr ), // global: user detached from the world.
                     //};
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32     ), // notify the client if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
-                    //EVENT_XS( params   , ui::para ), // notify the client has changed title params.
-                    EVENT_XS( color    , ui::tone ), // notify the client has changed tone, preview to set.
+                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    //EVENT_XS( params   , ui::para ), // notify the object has changed title params.
+                    EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
                     EVENT_XS( visible  , bool     ),
                     GROUP_XS( keybd    , bool     ),
@@ -452,7 +483,7 @@ namespace netxs::ui
 {
     using e2 = netxs::events::userland::e2;
 
-    //todo OMG!, make it in another way.
+    //todo reimplement
     struct skin
     {
         poly kb_focus;
@@ -467,12 +498,15 @@ namespace netxs::ui
         cell action;
         cell label;
         cell inactive;
+        cell selected;
         cell menu_white;
         cell menu_black;
 
         twod bordersz = dot_11;
         si32 lucidity = 0xFF;
         bool tracking = faux;
+        bool menuwide = faux;
+        bool macstyle = faux;
 
         si32 spd;
         si32 pls;
@@ -511,6 +545,7 @@ namespace netxs::ui
                 case tone::prop::shadow:     return g.shadow;
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
+                case tone::prop::selected:   return g.selected;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;
@@ -537,489 +572,234 @@ namespace netxs::ui
         }
     };
 
-    // console: Textographical canvas.
-    class face
-        : public rich, public flow, public std::enable_shared_from_this<face>
-    {
-        twod anker;     // face: The position of the nearest visible paragraph.
-        id_t piece = 1; // face: The nearest to top paragraph.
-        vrgb cache;     // face: BlurFX temp buffer.
-
-        // face: Is the c inside the viewport?
-        bool inside(twod const& c)
-        {
-            return c.y >= 0 && c.y < region.size.y;
-            //todo X-axis
-        }
-
-    public:
-        //todo revise
-        bool caret = faux; // face: Cursor visibility.
-        bool moved = faux; // face: Is reflow required.
-        bool decoy = true; // face: Is the cursor inside the viewport.
-        svga cmode = svga::vtrgb; // face: Color mode.
-
-        // face: Print proxy something else at the specified coor.
-        template<class T, class P>
-        void output_proxy(T const& block, twod const& coord, P proxy)
-        {
-            flow::sync(block);
-            flow::ac(coord);
-            flow::compose<true>(block, proxy);
-        }
-        // face: Print something else at the specified coor.
-        template<class T, class P = noop>
-        void output(T const& block, twod const& coord, P printfx = P())
-        {
-            flow::sync(block);
-            flow::ac(coord);
-            flow::go(block, *this, printfx);
-        }
-        // face: Print something else.
-        template<bool UseFWD = faux, class T, class P = noop>
-        void output(T const& block, P printfx = P())
-        {
-            //todo unify
-            flow::print<UseFWD>(block, *this, printfx);
-        }
-        // face: Print paragraph.
-        void output(para const& block)
-        {
-            flow::print(block, *this);
-        }
-        // face: Print page.
-        template<class P = noop>
-        void output(page const& textpage, P printfx = P())
-        {
-            auto publish = [&](auto const& combo)
-            {
-                flow::print(combo, *this, printfx);
-            };
-            textpage.stream(publish);
-        }
-        // face: Print page with holding top visible paragraph on its own place.
-        void output(page const& textpage, bool reset)
-        {
-            //todo if cursor is visible when tie to the cursor position
-            //     else tie to the first visible text line.
-
-            auto done = faux;
-            // Get vertical position of the nearest paragraph to the top.
-            auto gain = [&](auto const& combo)
-            {
-                auto pred = flow::print(combo, *this);
-
-                auto post = flow::cp();
-                if (!done)
-                {
-                    if (pred.y <= 0 && post.y >= 0)
-                    {
-                        anker.y = pred.y;
-                        piece = combo.id();
-                        done = true;
-                    }
-                    else
-                    {
-                        if (std::abs(anker.y) > std::abs(pred.y))
-                        {
-                            anker.y = pred.y;
-                            piece = combo.id();
-                        }
-                    }
-                }
-            };
-
-            // Get vertical position of the specified paragraph.
-            auto find = [&](auto const& combo)
-            {
-                auto cp = flow::print(combo);
-                if (combo.id() == piece) anker = cp;
-            };
-
-            if (reset)
-            {
-                anker.y = si32max;
-                textpage.stream(gain);
-
-                decoy = caret && inside(flow::cp());
-            }
-            else
-            {
-                textpage.stream(find);
-            }
-        }
-        // face: Reflow text page on the canvas and hold position
-        //       of the top visible paragraph while resizing.
-        void reflow(page& textpage)
-        {
-            if (moved)
-            {
-                flow::zz(); //flow::sc();
-
-                auto delta = anker;
-                output(textpage, faux);
-                std::swap(delta, anker);
-
-                auto  cover = flow::minmax();
-                //auto& basis = flow::origin;
-                auto basis = dot_00;// flow::origin;
-                basis.y += anker.y - delta.y;
-
-                if (decoy)
-                {
-                    // Don't tie the first line if it's the only one. Make one step forward.
-                    if (anker.y == 0
-                     && anker.y == flow::cp().y
-                     && cover.height() > 1)
-                    {
-                        // the increment is removed bcos it shifts mc one row down on Ctrl+O and back
-                        //basis.y++;
-                    }
-
-                    auto newcp = flow::cp();
-                    if (!inside(newcp))
-                    {
-                        if (newcp.y < 0) basis.y -= newcp.y;
-                        else             basis.y -= newcp.y - region.size.y + 1;
-                    }
-                }
-                else
-                {
-                    basis.y = std::clamp(basis.y, -cover.b, region.size.y - cover.t - 1);
-                }
-
-                moved = faux;
-            }
-
-            wipe();
-        }
-
-        // face: Forward call to the core and reset cursor.
-        template<class ...Args>
-        void wipe(Args&&... args) // Optional args.
-        {
-            core::wipe(args...);
-            flow::reset();
-        }
-        // face: Change current context. Return old context.
-        auto bump(dent const& delta)
-        {
-            auto old_full = face::full();
-            auto old_view = core::view();
-            auto new_view = core::area().clip<true>(old_view + delta);
-            auto new_full = old_full + delta;
-            face::full(new_full);
-            core::view(new_view);
-            return std::pair{ old_full, old_view };
-        }
-        // face: Restore previously saved context.
-        void bump(std::pair<rect, rect> ctx)
-        {
-            face::full(ctx.first);
-            core::view(ctx.second);
-        }
-
-        // Use a two letter function if we don't need to return *this
-        face& cup (twod const& p) { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
-        face& chx (si32 x)        { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
-        face& chy (si32 y)        { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
-        face& cpp (twod const& p) { flow::pc( p); return *this; } // face: Cursor percent position.
-        face& cpx (si32 x)        { flow::px( x); return *this; } // face: Cursor H percent position.
-        face& cpy (si32 y)        { flow::py( y); return *this; } // face: Cursor V percent position.
-        face& cuu (si32 n = 1)    { flow::dy(-n); return *this; } // face: cursor up.
-        face& cud (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor down.
-        face& cuf (si32 n = 1)    { flow::dx( n); return *this; } // face: Cursor forward.
-        face& cub (si32 n = 1)    { flow::dx(-n); return *this; } // face: Cursor backward.
-        face& cnl (si32 n = 1)    { flow::dy( n); return *this; } // face: Cursor next line.
-        face& cpl (si32 n = 1)    { flow::dy(-n); return *this; } // face: Cursor previous line.
-
-        face& ocp (twod const& p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
-        face& ocx (si32 x)        { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
-        face& ocy (si32 y)        { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
-
-        face& scp ()              { flow::sc(  ); return *this; } // face: Save cursor position.
-        face& rcp ()              { flow::rc(  ); return *this; } // face: Restore cursor position.
-        face& rst ()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
-
-        face& tab (si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
-        face& eol (si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
-
-        void size (twod const& newsize) // face: Change the size of the face/core.
-        {
-            core::size(newsize);
-            flow::size(newsize);
-        }
-        auto size () // face: Return size of the face/core.
-        {
-            return core::size();
-        }
-        template<bool BottomAnchored = faux>
-        void crop(twod const& newsize, cell const& c) // face: Resize while saving the bitmap.
-        {
-            core::crop<BottomAnchored>(newsize, c);
-            flow::size(newsize);
-        }
-        template<bool BottomAnchored = faux>
-        void crop(twod const& newsize) // face: Resize while saving the bitmap.
-        {
-            core::crop<BottomAnchored>(newsize, core::mark());
-            flow::size(newsize);
-        }
-        template<class P = noop>
-        void blur(si32 r, P shade = P())
-        {
-            using irgb = vrgb::value_type;
-
-            auto view = core::view();
-            auto size = core::size();
-
-            auto w = std::max(0, view.size.x);
-            auto h = std::max(0, view.size.y);
-            auto s = w * h;
-
-            if (cache.size() < (size_t)s)
-            {
-                cache.resize(s);
-            }
-
-            auto s_ptr = core::data(view.coor);
-            auto d_ptr = cache.data();
-
-            auto s_width = size.x;
-            auto d_width = view.size.x;
-
-            auto s_point = [](cell* c)->auto& { return c->bgc(); };
-            auto d_point = [](irgb* c)->auto& { return *c;       };
-
-            netxs::bokefy<irgb>(s_ptr,
-                                d_ptr, w,
-                                       h, r, s_width,
-                                             d_width, s_point,
-                                                      d_point, shade);
-        }
-        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
-        template<bool Trim = true, class T>
-        void render(sptr<T> nested_ptr, twod const& basis = {})
-        {
-            if (nested_ptr)
-            {
-                auto& nested = *nested_ptr;
-                face::render<Trim>(nested, basis);
-            }
-        }
-        // face: Render nested object to the canvas using renderproc. Trim = trim viewport to the client area.
-        template<bool Trim = true, class T>
-        void render(T& nested, twod const& offset_coor)
-        {
-            auto canvas_view = core::view();
-            auto parent_area = flow::full();
-
-            auto object_area = nested.area();
-            object_area.coor+= parent_area.coor;
-
-            auto nested_view = canvas_view.clip(object_area);
-            //todo revise: why whole canvas is not used
-            if (Trim ? nested_view : canvas_view)
-            {
-                auto canvas_coor = core::coor();
-                if constexpr (Trim) core::view(nested_view);
-                core::back(offset_coor);
-                flow::full(object_area);
-
-                nested.SIGNAL(tier::release, e2::render::prerender, *this);
-                nested.SIGNAL(tier::release, e2::postrender, *this);
-
-                if constexpr (Trim) core::view(canvas_view);
-                core::move(canvas_coor);
-                flow::full(parent_area);
-            }
-        }
-        // face: Render itself to the canvas using renderproc.
-        template<bool Post = true, class T>
-        void render(T& object)
-        {
-            auto canvas_view = core::view();
-            auto parent_area = flow::full();
-
-            auto object_area = object.area();
-            object_area.coor-= core::coor();
-
-            if (auto nested_view = canvas_view.clip(object_area))
-            {
-                core::view(nested_view);
-                flow::full(object_area);
-
-                                    object.SIGNAL(tier::release, e2::render::prerender, *this);
-                if constexpr (Post) object.SIGNAL(tier::release, e2::postrender,        *this);
-
-                core::view(canvas_view);
-                flow::full(parent_area);
-            }
-        }
-    };
-
     // console: Base visual.
-    class base
+    struct base
         : public bell, public std::enable_shared_from_this<base>
     {
-        wptr<base> parent_shadow; // base: Parental visual tree weak-pointer.
-        cell brush;
-        rect square;
-        bool invalid = true; // base: Should the object be redrawn.
-        bool visual_root = faux; // Whether the size is tied to the size of the clients.
-        hook cascade_token;
-        si32 object_kind = {};
+        enum type
+        {
+            reflow_root = -1,
+            client = 0,
+            node = 1,
+            placeholder = 2,
+        };
 
-    public:
-        static constexpr auto reflow_root = si32{ -1 }; //todo unify
+        book subset; // base: List of nested objects.
+        wptr father; // base: Reference to parent.
+        subs relyon; // base: Subscription on parent events.
+        rect region; // base: The region occupied by the object.
+        rect socket; // base: The region provided for the object.
 
-        //todo replace "side" with "dent<si32>"
-        side oversz; // base: Oversize, margin.
+        //todo deprecated
+        cell filler; // base: Object color.
+
+        twod min_sz; // base: Minimal size.
+        twod max_sz; // base: Maximal size.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
+        dent oversz; // base: Oversize, for scrolling.
+        dent extpad; // base: Pads around object.
+        dent intpad; // base: Pads inside object.
+        bind atgrow; // base: Bindings on enlarging.
+        bind atcrop; // base: Bindings on shrinking.
+        bool wasted; // base: Should the object be redrawn.
+        bool hidden; // base: Ignore rendering and resizing.
+        bool locked; // base: Object has fixed size.
+        bool master; // base: Anycast root.
+        si32 family; // base: Object type.
 
         template<class T = base>
         auto   This()       { return std::static_pointer_cast<std::remove_reference_t<T>>(shared_from_this()); }
-        auto&  coor() const { return square.coor;          }
-        auto&  size() const { return square.size;          }
-        auto&  area() const { return square;               }
-        void   root(bool b) { visual_root = b;             }
-        bool   root()       { return visual_root;          }
-        si32   kind()       { return object_kind;          }
-        void   kind(si32 k) { object_kind = k;             }
-        auto center() const { return square.center();      }
-        auto parent()       { return parent_shadow.lock(); }
-        void ruined(bool s) { invalid = s;                 }
-        auto ruined() const { return invalid;              }
+        auto&  coor() const { return region.coor;          }
+        auto&  size() const { return region.size;          }
+        auto&  area() const { return region;               }
+        void   root(bool b) { master = b;                  }
+        bool   root()       { return master;               }
+        si32   kind()       { return family;               }
+        void   kind(si32 k) { family = k;                  }
+        auto center() const { return region.center();      }
+        auto parent()       { return father.lock();        }
+        void ruined(bool s) { wasted = s;                  }
+        auto ruined() const { return wasted;               }
         template<bool Absolute = true>
         auto actual_area() const
         {
-            auto area = rect{ -oversz.topleft(), square.size + oversz.summ() };
-            if constexpr (Absolute) area.coor += square.coor;
+            auto area = rect{ -oversz.corner(), region.size + oversz };
+            if constexpr (Absolute) area.coor += region.coor;
             return area;
         }
-        auto color() const { return brush; }
-        void color(rgba const& fg_color, rgba const& bg_color)
+        auto color() const { return filler; }
+        void color(rgba fg_color, rgba bg_color)
         {
             // To make an object transparent to mouse events,
-            // no id (cell::id = 0) is used by default in the brush.
+            // no id (cell::id = 0) is used by default in the filler.
             // The bell::id is configurable only with pro::mouse.
-            base::brush.bgc(bg_color)
-                       .fgc(fg_color)
-                       .txt(whitespace);
-            SIGNAL(tier::release, e2::form::prop::brush, brush);
+            base::filler.bgc(bg_color)
+                        .fgc(fg_color)
+                        .txt(whitespace);
+            SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-        void color(cell const& new_brush)
+        void color(cell const& new_filler)
         {
-            base::brush = new_brush;
-            SIGNAL(tier::release, e2::form::prop::brush, brush);
+            base::filler = new_filler;
+            SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-        // base: Move the form to a new place, and return the delta.
+
+        // base: Align object.
+        void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
+        {
+            switch (size > width ? atcrop : atgrow)
+            {
+                case snap::head:   coor = 0;                  break;
+                case snap::tail:   coor = width - size;       break;
+                case snap::center: coor = (width - size) / 2; break;
+                case snap::both:
+                case snap::none: break;
+            }
+        }
+        // base: Recalc actual area (ext rect) for the object.
+        void recalc(rect& new_area)
+        {
+            if (base::hidden) return;
+            auto required = new_area;
+            new_area -= base::extpad;
+            new_area.size = base::locked ? base::region.size
+                                         : std::clamp(new_area.size, base::min_sz, base::max_sz);
+            auto nested_area = rect{ dot_00, new_area.size } - base::intpad;
+            deform(nested_area);
+            new_area.size = nested_area.size + base::intpad;
+            new_area += base::extpad;
+            if ((required.size.x < new_area.size.x && base::atcrop.x == snap::both)
+             || (required.size.x > new_area.size.x && base::atgrow.x == snap::both))
+            {
+                required.size.x = new_area.size.x;
+            }
+            if ((required.size.y < new_area.size.y && base::atcrop.y == snap::both)
+             || (required.size.y > new_area.size.y && base::atgrow.y == snap::both))
+            {
+                required.size.y = new_area.size.y;
+            }
+            base::socket = new_area;
+            new_area = required;
+        }
+        // base: Apply new area (ext rect) and notify subscribers.
+        void accept(rect new_area)
+        {
+            xform(atcrop.x, atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
+            xform(atcrop.y, atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
+            std::swap(new_area, base::socket);
+            new_area -= base::extpad;
+            SIGNAL(tier::release, e2::area, new_area);
+            base::region = new_area;
+        }
+        // base: Notify about appoved area (ext rect) for the object.
+        void notify(rect new_area, bool apply = true)
+        {
+            if (base::hidden) return;
+            auto nested_area = rect{ dot_00, base::socket.size };
+            nested_area -= base::extpad;
+            nested_area -= base::intpad;
+            inform(nested_area);
+            if (apply) accept(new_area);
+        }
+        // base: Change object area (ext rect), and return delta.
+        void change(rect new_area)
+        {
+            recalc(new_area);
+            notify(new_area);
+        }
+        // base: Resize relative anchor point. The object is responsible for correcting the anchor point during deforming. Return new area of object.
+        auto resize(twod new_size, bool apply = true)
+        {
+            auto anchored = base::anchor;
+            auto old_size = base::region.size;
+            auto new_area = base::region;
+            new_area.size = new_size;
+            new_area += base::extpad;
+            recalc(new_area);
+            notify(new_area, faux);
+            new_area.coor += anchored - base::anchor;
+            base::socket = new_area;
+            if (apply) accept(new_area);
+            return new_area;
+        }
+        // base: Move and return delta.
         auto moveto(twod new_coor)
         {
-            auto old_coor = square.coor;
-            SIGNAL(tier::preview, e2::coor::set, new_coor);
-            SIGNAL(tier::release, e2::coor::set, new_coor);
-            auto delta = square.coor - old_coor;
-            return delta;
+            base::socket.coor = new_coor;
+            base::socket.size = base::region.size;
+            auto new_area = base::socket;
+            auto old_coor = base::region.coor;
+            SIGNAL(tier::release, e2::area, new_area);
+            base::region.coor = new_area.coor;
+            return base::region.coor - old_coor;
         }
-        // base: Dry run. Check current position.
+        // base: Dry run. Recheck current position.
         auto moveto()
         {
-            auto new_value = square.coor;
-            return moveto(new_value);
+            return moveto(base::region.coor);
         }
-        // base: Move the form by the specified step and return the coor delta.
-        auto moveby(twod const& step)
+        // base: Move by the specified step and return the coor delta.
+        auto moveby(twod step)
         {
-            auto delta = moveto(square.coor + step);
-            return delta;
+            return moveto(base::region.coor + step);
         }
-        // base: Resize the form, and return the size delta.
-        auto resize(twod new_size) -> twod //todo MSVC 17.7.0 requires return type
-        {
-            auto old_size = square.size;
-            SIGNAL(tier::preview, e2::size::set, new_size);
-            SIGNAL(tier::release, e2::size::set, new_size);
-            return square.size - old_size;
-        }
-        // base: Resize the form, and return the new size.
-        auto& resize(si32 x, si32 y)
-        {
-            auto new_size = twod{ x,y };
-            SIGNAL(tier::preview, e2::size::set, new_size);
-            SIGNAL(tier::release, e2::size::set, new_size);
-            return size();
-        }
-        // base: Resize the form relative the center point.
-        //       Return center point offset.
-        //       The object is responsible for correcting
-        //       the center point during resizing.
-        auto resize(twod newsize, twod point)
-        {
-            point -= square.coor;
-            anchor = point; //todo use dot_00 instead of point
-            resize(newsize);
-            auto delta = moveby(point - anchor);
-            return delta;
-        }
-        // base: Dry run (preview then release) current value.
+        // base: Dry run current area size value.
         auto resize()
         {
-            auto new_value = square.size;
-            return resize(new_value);
+            return resize(base::region.size);
         }
-        // base: Resize the form by step, and return delta.
-        auto sizeby(twod const& step)
+        // base: Resize by step, and return size delta.
+        auto sizeby(twod step)
         {
-            auto delta = resize(square.size + step);
+            auto old_size = base::region.size;
+            auto new_size = old_size + step;
+            return resize(new_size).size - old_size;
+        }
+        // base: Resize and move, and return delta.
+        auto extend(rect new_area)
+        {
+            auto old_area = base::region;
+            if (new_area.size == base::region.size) moveto(new_area.coor);
+            else                                    change(new_area + base::extpad);
+            auto delta = base::region;
+            delta -= old_area;
             return delta;
         }
-        // base: Resize and move the form, and return delta.
-        auto extend(rect newloc)
-        {
-            return rect{ moveto(newloc.coor), resize(newloc.size) };
-        }
         // base: Mark the visual subtree as requiring redrawing.
-        void strike(rect region)
+        void strike(rect area)
         {
-            region.coor += square.coor;
+            area.coor += base::region.coor;
             if (auto parent_ptr = parent())
             {
-                parent_ptr->deface(region);
+                parent_ptr->deface(area);
             }
         }
         // base: Mark the visual subtree as requiring redrawing.
         void strike()
         {
-            strike(square);
+            strike(base::region);
         }
         // base: Mark the form and its subtree as requiring redrawing.
-        virtual void deface(rect const& region)
+        virtual void deface(rect area)
         {
-            invalid = true;
-            strike(region);
+            base::wasted = true;
+            strike(area);
         }
         // base: Mark the form and its subtree as requiring redrawing.
         void deface()
         {
-            deface(square);
+            deface(base::region);
         }
         // base: Going to rebuild visual tree. Retest current size, ask parent if it is linked.
         template<bool Forced = faux>
         void reflow()
         {
             auto parent_ptr = parent();
-            if (parent_ptr && (!visual_root || (Forced && (kind() != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
+            if (parent_ptr && (!base::master || (Forced && (base::family != base::reflow_root)))) //todo unify -- See basewindow in vtm.cpp
             {
                 parent_ptr->reflow<Forced>();
             }
-            else
-            {
-                if (auto delta = resize())
-                {
-                    //SIGNAL(tier::release, e2::form::upon::resized, delta);
-                }
-            }
+            else change(base::region + base::extpad);
         }
         // base: Remove the form from the visual tree.
         void detach()
@@ -1027,7 +807,7 @@ namespace netxs::ui
             if (auto parent_ptr = parent())
             {
                 strike();
-                parent_ptr->SIGNAL(tier::preview, e2::form::proceed::detach, This());
+                parent_ptr->remove(This());
             }
         }
         // base: Remove visual tree branch.
@@ -1044,59 +824,45 @@ namespace netxs::ui
         // base: Recursively calculate global coordinate.
         void global(twod& coor)
         {
-            coor -= square.coor;
+            coor -= base::region.coor;
             if (auto parent_ptr = parent())
             {
                 parent_ptr->global(coor);
             }
         }
         // base: Recursively find the root of the visual tree.
-        sptr<bell> gettop() override
+        netxs::sptr<bell> gettop() override
         {
             auto parent_ptr = parent();
-            if (!visual_root && parent_ptr) return parent_ptr->gettop();
-            else                            return This();
+            if (!base::master && parent_ptr) return parent_ptr->gettop();
+            else                             return This();
         }
         // base: Invoke a lambda with parent as a parameter.
         // Usage example:
-        //     toboss([&](auto& parent_ptr) { c.fuse(parent.brush); });
-        template<class T>
-        void toboss(T proc)
+        //     toboss([&](auto& parent_ptr) { c.fuse(parent.filler); });
+        template<class P>
+        void toboss(P proc)
         {
             if (auto parent_ptr = parent())
             {
                 proc(*parent_ptr);
             }
         }
-        // base: Fire an event on yourself and pass it parent if not handled.
-        // Usage example:
-        //          base::riseup<tier::preview, e2::form::prop::ui::header>(txt);
-        template<tier Tier, class Event, class T>
-        void riseup(Event, T&& data, bool forced = faux)
+        // base: Execute the proc along the entire visual tree.
+        template<class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P>>>
+        void diveup(P proc)
         {
-            if (forced)
+            if constexpr (Plain) proc();
+            else                 if (!proc()) return;
+            if (auto parent_ptr = parent())
             {
-                SIGNAL(Tier, Event{}, data);
-                base::toboss([&](auto& boss)
-                {
-                    boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
-                });
-            }
-            else
-            {
-                if (!SIGNAL(Tier, Event{}, data))
-                {
-                    base::toboss([&](auto& boss)
-                    {
-                        boss.base::template riseup<Tier>(Event{}, std::forward<T>(data), forced);
-                    });
-                }
+                parent_ptr->diveup(proc);
             }
         }
         // base: Fire an event on yourself and pass it parent if not handled.
         // Warning: The parameter type is not checked/casted.
         // Usage example:
-        //          base::raw_riseup<tier::preview, e2::form::prop::ui::header>(txt);
+        //          base::raw_riseup<tier::preview>(e2::form::prop::ui::header, txt);
         template<tier Tier, class T>
         void raw_riseup(hint event_id, T&& param, bool forced = faux)
         {
@@ -1119,10 +885,13 @@ namespace netxs::ui
                 }
             }
         }
-        // base: Initiate redrawing.
-        virtual void redraw(face& canvas)
+        // base: Fire an event on yourself and pass it parent if not handled.
+        // Usage example:
+        //          base::riseup<tier::preview>(e2::form::prop::ui::header, txt);
+        template<tier Tier, class Event, class T>
+        void riseup(Event, T&& param, bool forced = faux)
         {
-            SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::base, "Rendering not supported")));
+            raw_riseup<Tier>(Event::id, std::forward<T>(param), forced);
         }
         // base: Syntax sugar helper.
         void _saveme()
@@ -1130,17 +899,75 @@ namespace netxs::ui
             bell::_saveme();
         }
 
-    protected:
-        virtual ~base() = default;
-        base()
+        void limits(twod min_sz = -dot_11, twod max_sz = -dot_11)
         {
-            LISTEN(tier::request, e2::depth, depth) { depth++; };
+            base::min_sz = min_sz.less(dot_00, skin::globals().min_value, min_sz);
+            base::max_sz = max_sz.less(dot_00, skin::globals().max_value, max_sz);
+        }
+        void alignment(bind atgrow, bind atcrop = { snap::none, snap::none })
+        {
+            base::atgrow = atgrow;
+            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
+            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+        }
+        void setpad(dent intpad, dent extpad = {})
+        {
+            base::intpad = intpad;
+            base::extpad = extpad;
+        }
+        // base.: Render to the canvas. Trim = trim viewport to the nested object region.
+        void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
+        {
+            if (hidden) return;
+            if (auto context = canvas.change_basis(base::region, trim)) // Basis = base::region.coor.
+            {
+                if (pred) SIGNAL(tier::release, e2::render::prerender, canvas);
+                if (post) SIGNAL(tier::release, e2::postrender,        canvas);
+            }
+        }
 
-            LISTEN(tier::release, e2::coor::any, new_coor) { square.coor = new_coor; };
-            LISTEN(tier::request, e2::coor::set, coor_var) { coor_var = square.coor; };
-            LISTEN(tier::release, e2::size::any, new_size) { square.size = new_size; };
-            LISTEN(tier::request, e2::size::set, size_var) { size_var = square.size; };
-
+    protected:
+        virtual void deform(rect& new_area) {}
+        virtual void inform(rect new_area) {}
+        // base: Remove nested object.
+        virtual void remove(sptr item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
+            if (iter != tail)
+            {
+                auto backup = This();
+                subset.erase(iter);
+                item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+            }
+        }
+        // base: Update nested object.
+        virtual void update(sptr old_item_ptr, sptr new_item_ptr)
+        {
+            auto head = subset.begin();
+            auto tail = subset.end();
+            auto iter = std::find_if(head, tail, [&](auto& c){ return c == old_item_ptr; });
+            if (iter != tail)
+            {
+                auto backup = This();
+                auto pos = subset.erase(iter);
+                old_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::detached, backup);
+                subset.insert(pos, new_item_ptr);
+                new_item_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, backup);
+            }
+        }
+        virtual ~base() = default;
+        base(size_t nested_count = 0)
+            : subset{ nested_count },
+              min_sz{ skin::globals().min_value },
+              max_sz{ skin::globals().max_value },
+              wasted{ true },
+              hidden{ faux },
+              locked{ faux },
+              master{ faux },
+              family{ type::client }
+        {
             LISTEN(tier::release, e2::cascade, proc)
             {
                 auto backup = This();
@@ -1149,93 +976,35 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
             {
-                if (!visual_root)
+                if (!master)
                 {
-                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, cascade_token)
+                    parent_ptr->LISTEN(tier::release, e2::cascade, proc, relyon)
                     {
-                        auto backup = This();
+                        auto backup = This(); // Object can be deleted inside proc.
                         backup->SIGNAL(tier::release, e2::cascade, proc);
                     };
                 }
-                parent_shadow = parent_ptr;
+                father = parent_ptr;
                 // Propagate form events up to the visual branch ends (children).
                 // Exec after all subscriptions.
                 //todo implement via e2::cascade
             };
-            LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr)
+            LISTEN(tier::release, e2::form::upon::vtree::any, parent_ptr) // any: Run after all.
             {
                 if (this->bell::protos<tier::release>(e2::form::upon::vtree::detached))
                 {
-                    cascade_token.reset();
+                    relyon.reset();
                 }
-                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive
+                if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
             };
-
-            LISTEN(tier::release, e2::render::any, parent_canvas)
+            //todo deprecated
+            LISTEN(tier::release, /*!*/e2::render::any, parent_canvas)
             {
-                if (base::brush.wdt())
+                if (base::filler.wdt() && !base::hidden)
                 {
-                    parent_canvas.fill([&](cell& c) { c.fusefull(base::brush); });
+                    parent_canvas.fill([&](cell& c) { c.fusefull(base::filler); });
                 }
             };
-        }
-    };
-
-    // console: Fullduplex channel base.
-    struct pipe
-    {
-        using flux = std::ostream;
-        using xipc = sptr<pipe>;
-
-        flag active; // pipe: Is connected.
-        flag isbusy; // pipe: Buffer is still busy.
-
-        pipe(bool active)
-            : active{ active },
-              isbusy{ faux   }
-        { }
-        virtual ~pipe()
-        { }
-
-        operator bool () const { return active; }
-
-        void start()
-        {
-            active.exchange(true);
-            isbusy.exchange(faux);
-        }
-        virtual bool send(view buff) = 0;
-        virtual qiew recv(char* buff, size_t size) = 0;
-        virtual qiew recv() = 0;
-        virtual bool shut()
-        {
-            return active.exchange(faux);
-        }
-        virtual bool stop()
-        {
-            return pipe::shut();
-        }
-        virtual void wake()
-        {
-            shut();
-        }
-        virtual flux& show(flux& s) const = 0;
-        void output(view data)
-        {
-            send(data);
-        }
-        friend auto& operator << (flux& s, pipe const& sock)
-        {
-            return sock.show(s << "{ " << prompt::xipc) << " }";
-        }
-        friend auto& operator << (flux& s, xipc const& sock)
-        {
-            return s << *sock;
-        }
-        void cleanup()
-        {
-            active.exchange(faux);
-            isbusy.exchange(faux);
         }
     };
 }

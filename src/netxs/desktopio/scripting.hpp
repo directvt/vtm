@@ -2,8 +2,7 @@
 // Licensed under the MIT license.
 
 #pragma once
-
-#include "application.hpp"
+#include "system.hpp"
 
 namespace netxs::scripting
 {
@@ -30,20 +29,20 @@ namespace netxs::scripting
         bool* target{ &normal }; // nullterm: Current buffer stub.
     };
 
-    template<class Host>
-    struct repl
-        : public nullterm
+    struct host
+        : public nullterm, public pro::skill
     {
         using s11n = directvt::binary::s11n;
         using pidt = os::pidt;
-        using vtty = sptr<os::runspace::base_tty<repl>>;
+        using vtty = netxs::sptr<os::runspace::base_tty<scripting::host>>;
+        using skill::boss,
+              skill::memo;
 
-        Host& owner;
-        // repl: Event handler.
+        // scripting::host: Event handler.
         class xlat
             : public s11n
         {
-            Host& owner; // xlat: Boss object reference.
+            ui::host& owner; // xlat: Boss object reference.
             subs  token; // xlat: Subscription tokens.
 
         public:
@@ -70,7 +69,7 @@ namespace netxs::scripting
                 //...
             };
 
-            xlat(Host& owner)
+            xlat(ui::host& owner)
                 : s11n{ *this },
                  owner{ owner }
             {
@@ -85,28 +84,27 @@ namespace netxs::scripting
             }
         };
 
-        subs tokens; // repl: Event subsription tokens.
-        xlat stream; // repl: Event tracker.
-        text curdir; // repl: Current working directory.
-        text cmdarg; // repl: Startup command line arguments.
-        flag active; // repl: Scripting engine lifetime.
-        vtty engine; // repl: Scripting engine instance.
+        xlat stream; // scripting::host: Event tracker.
+        text curdir; // scripting::host: Current working directory.
+        text cmdarg; // scripting::host: Startup command line arguments.
+        flag active; // scripting::host: Scripting engine lifetime.
+        vtty engine; // scripting::host: Scripting engine instance.
 
-        // repl: Proceed input.
+        // scripting::host: Proceed input.
         void ondata(view data)
         {
             log<faux>(ansi::fgc(greenlt).add(data).nil());
         }
-        // repl: Cooked read input.
+        // scripting::host: Cooked read input.
         void data(rich& data)
         {
-            owner.bell::trysync(active, [&]
+            boss.bell::trysync(active, [&]
             {
                 // It is a powershell readline echo.
                 //log<faux>(ansi::fgc(cyanlt).add(data.utf8()).nil());
             });
         }
-        // repl: Shutdown callback handler.
+        // scripting::host: Shutdown callback handler.
         void onexit(si32 code, view msg = {})
         {
             //todo initiate global shutdown
@@ -115,19 +113,19 @@ namespace netxs::scripting
             //{
             //    if (code) log(ansi::bgc(reddk).fgc(whitelt).add('\n', prompt::repl, "Exit code ", utf::to_hex_0x(code), ' ').nil());
             //    else      log(prompt::repl, "Exit code 0");
-            //    //backup.reset(); // Call repl::dtor.
+            //    //backup.reset(); // Call scripting::host::dtor.
             //});
         }
-        // repl: .
+        // scripting::host: .
         template<class P>
         void update(P api_proc)
         {
-            owner.bell::trysync(active, [&]
+            boss.bell::trysync(active, [&]
             {
                 api_proc();
             });
         }
-        // repl: Write client data.
+        // scripting::host: Write client data.
         template<bool Echo = true>
         void write(text data)
         {
@@ -138,7 +136,7 @@ namespace netxs::scripting
             }
             engine->write(data + '\n');
         }
-        // repl: Start a new process.
+        // scripting::host: Start a new process.
         void start(text cwd, text cmd)
         {
             if (!engine) return;
@@ -157,8 +155,8 @@ namespace netxs::scripting
             if (engine->connected()) engine->shut();
         }
 
-        repl(Host& owner)
-            :  owner{ owner },
+        host(ui::host& owner)
+            :  skill{ owner },
               stream{ owner },
               active{ true  }
         {
@@ -172,14 +170,14 @@ namespace netxs::scripting
                 auto cmd = config.take(attr::cmd, ""s);
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
-                if (tty) engine = ptr::shared<os::runspace::tty<repl>>(*this);
-                else     engine = ptr::shared<os::runspace::raw<repl>>(*this);
+                if (tty) engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
+                else     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
                 start(cwd, cmd);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();
             }
-            owner.LISTEN(tier::release, e2::conio::readline, utf8, tokens)
+            owner.LISTEN(tier::release, e2::conio::readline, utf8, skill::memo)
             {
                 if (engine) write(utf8);
                 else        log(prompt::repl, utf::debase<faux, faux>(utf8));

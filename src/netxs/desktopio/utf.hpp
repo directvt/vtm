@@ -123,13 +123,13 @@ namespace netxs::utf
         size_t balance;
         size_t utf8len;
 
-        cpit(view const& utf8)
+        cpit(view utf8)
             : textptr{ utf8.data() },
               balance{ utf8.size() },
               utf8len{ 0           }
         { }
 
-        void redo(view const& utf8)
+        void redo(view utf8)
         {
             textptr = utf8.data();
             balance = utf8.size();
@@ -317,7 +317,7 @@ namespace netxs::utf
     };
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    auto letter(view const& utf8)
+    auto letter(view utf8)
     {
         return frag{ utf8 };
     }
@@ -325,7 +325,7 @@ namespace netxs::utf
     // utf: Break the text into the enriched grapheme clusters.
     //      Forward the result to the dest using the "serve" and "yield" lambdas.
     //      serve: Handle escaped control sequences.
-    //             auto s = [&](utf::prop const& traits, view const& utf8) -> view;
+    //             auto s = [&](utf::prop const& traits, view utf8) -> view;
     //      yield: Handle grapheme clusters.
     //             auto y = [&](frag const& cluster){};
     //      Clusterize: parse by grapheme clusters (true) or codepoints (faux)
@@ -522,7 +522,11 @@ namespace netxs::utf
         int rb;
         int cp;
     };
-
+    void capacity(auto& target, auto additional)
+    {
+        auto required = target.size() + additional;
+        if (target.capacity() < required) target.reserve(std::max(target.size(), additional));
+    }
     void to_utf(char const* utf8, size_t size, wide& wide_text)
     {
         // � The standard also recommends replacing each error with the replacement character.
@@ -530,8 +534,7 @@ namespace netxs::utf
         // In terms of the newline, Unicode introduced U+2028 LINE SEPARATOR
         // and U+2029 PARAGRAPH SEPARATOR.
         //  c̳̻͚̻̩̻͉̯̄̏͑̋͆̎͐ͬ͑͌́͢h̵͔͈͍͇̪̯͇̞͖͇̜͉̪̪̤̙ͧͣ̓̐̓ͤ͋͒ͥ͑̆͒̓͋̑́͞ǎ̡̮̤̤̬͚̝͙̞͎̇ͧ͆͊ͅo̴̲̺͓̖͖͉̜̟̗̮̳͉̻͉̫̯̫̍̋̿̒͌̃̂͊̏̈̏̿ͧ́ͬ̌ͥ̇̓̀͢͜s̵̵̘̹̜̝̘̺̙̻̠̱͚̤͓͚̠͙̝͕͆̿̽ͥ̃͠͡
-
-        wide_text.reserve(wide_text.size() + size);
+        capacity(wide_text, size);
         auto code = utfx{};
         auto tail = utf8 + size;
         while (utf8 < tail)
@@ -648,7 +651,7 @@ namespace netxs::utf
     }
     void to_utf(wchr const* wide_text, size_t size, text& utf8)
     {
-        utf8.reserve(utf8.size() + size * 3/*worst case*/);
+        capacity(utf8, size * 3/*worst case*/);
         auto code = utfx{ 0 };
         auto tail = wide_text + size;
         while (wide_text < tail)
@@ -851,7 +854,7 @@ namespace netxs::utf
             if (what_sz < repl_sz)
             {
                 auto temp = text{};
-                temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid allocations.
+                temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid reallocations.
                 auto shadow = view{ utf8 };
                 while ((spot = utf8.find(frag, last)) != text::npos)
                 {
@@ -1271,7 +1274,7 @@ namespace netxs::utf
         auto mode = si32{};
         auto init = buff.size();
         auto size = utf8.size();
-        buff.reserve(size * 2);
+        capacity(buff, size * 2);
         auto head  = size - 1; // Begining with ESC is a special case.
         auto s = [&](prop const& traits, view& utf8)
         {

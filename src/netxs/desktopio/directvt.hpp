@@ -415,7 +415,7 @@ namespace netxs::directvt
             }
             // stream: .
             template<bool Discard_empty = faux, bool Move = true, class T>
-            void sendby(sptr<T> sender_ptr)
+            void sendby(netxs::sptr<T> sender_ptr)
             {
                 sendby<Discard_empty, Move>(*sender_ptr);
             }
@@ -579,13 +579,13 @@ namespace netxs::directvt
             }
             // wrapper .
             template<bool Discard_empty = faux, class T, class ...Args>
-            void send(sptr<T> sender_ptr, Args&&... args)
+            void send(netxs::sptr<T> sender_ptr, Args&&... args)
             {
                 send<Discard_empty>(*sender_ptr, std::forward<Args>(args)...);
             }
             // wrapper .
             template<class T>
-            auto recv(sptr<T> link)
+            auto recv(netxs::sptr<T> link)
             {
                 auto lock = freeze();
                 thing.load([&](auto... args){ return link->recv(args...); });
@@ -853,7 +853,7 @@ namespace netxs::directvt
                 glyph = 1 << 4,
             };
 
-            void set(id_t winid, twod const& coord, core& cache, flag& abort, sz_t& delta)
+            void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
             {
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
@@ -882,7 +882,7 @@ namespace netxs::directvt
                         sum = 0;
                     }
                 };
-                auto tax = [](cell const& c1, cell const& c2)
+                auto tax = [](cell c1, cell const& c2)
                 {
                     auto meaning = 0;
                     auto cluster = byte{ 0 };
@@ -1068,7 +1068,7 @@ namespace netxs::directvt
                 : stream{ Kind }
             { }
 
-            void set(id_t winid, twod const& winxy, core& cache, flag& abort, sz_t& delta)
+            void set(id_t winid, twod winxy, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
                 auto saved = state;
@@ -1301,7 +1301,7 @@ namespace netxs::directvt
             X(footer_request   ) /* Request window footer.                        */\
             X(warping          ) /* Warp resize.                                  */\
             X(minimize         ) /* Minimize window.                              */\
-            X(expose           ) /* Bring the form to the front.                  */\
+            X(expose           ) /* Bring window to the front.                    */\
             X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
             X(frames           ) /* Received frames.                              */\
             X(tooltip_element  ) /* Tooltip text.                                 */\

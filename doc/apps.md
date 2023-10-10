@@ -250,4 +250,4 @@ TerminalStdioLog             | Stdin/stdout log toggle.
   - `LeftClick` -- Set exclusive focus
   - `Ctrl+LeftClick` -- Set/Unset group focus
   - `double LeftClick` -- Maxixmize/restore
-- Configurable via settings (See configuration example above).
+- Configurable via settings (See configuration example in doc\settings.md`).

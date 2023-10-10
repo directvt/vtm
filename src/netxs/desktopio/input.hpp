@@ -270,9 +270,11 @@ namespace netxs::events::userland
 
 namespace netxs::input
 {
-    using netxs::ui::base;
-    using netxs::ui::face;
-    using netxs::ui::page;
+    using ui::sptr;
+    using ui::wptr;
+    using ui::base;
+    using ui::face;
+    using ui::page;
 
     namespace key
     {
@@ -504,8 +506,6 @@ namespace netxs::input
 
     struct foci
     {
-        using sptr = netxs::sptr<base>;
-
         id_t   id{}; // foci: Gear id.
         si32 solo{}; // foci: Exclusive focus request.
         bool flip{}; // foci: Toggle focus request.
@@ -1010,6 +1010,7 @@ namespace netxs::input
         }
         void update(sysboard& b) // Update clipboard preview.
         {
+            board::image.move(dot_00); // Reset basis.
             auto draw_shadow = [&](auto& block, auto size)
             {
                 board::image.mark(cell{});
@@ -1064,7 +1065,7 @@ namespace netxs::input
           public bell
     {
         using events = netxs::events::userland::hids;
-        using list = std::list<wptr<base>>;
+        using list = std::list<wptr>;
 
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
@@ -1079,6 +1080,7 @@ namespace netxs::input
         time        tooltip_time = {}; // hids: The moment to show tooltip.
         bool        tooltip_show = faux; // hids: Show tooltip or not.
         bool        tooltip_stop = true; // hids: Disable tooltip.
+        bool        tooltip_set  = faux; // hids: Tooltip has been set.
         testy<twod> tooltip_coor = {}; // hids: .
 
         base& owner;
@@ -1136,6 +1138,7 @@ namespace netxs::input
         }
         void set_tooltip(view data, bool update = faux)
         {
+            tooltip_set = true;
             if (!update || data != tooltip_data)
             {
                 tooltip_data = data;
@@ -1221,7 +1224,7 @@ namespace netxs::input
             return faux;
         }
 
-        void replay(hint cause, twod const& coord, twod const& delta, ui32 button_state, ui32 ctlstat)
+        void replay(hint cause, twod coord, twod delta, ui32 button_state, ui32 ctlstat)
         {
             static constexpr auto mask = netxs::events::level_mask(hids::events::mouse::button::any.id);
             static constexpr auto base = mask & hids::events::mouse::button::any.id;
@@ -1294,7 +1297,7 @@ namespace netxs::input
         auto& area() const { return idmap.area(); }
 
         template<tier Tier>
-        void pass(sptr<base> object, twod const& offset, bool relative = faux)
+        void pass(sptr object, twod offset, bool relative = faux)
         {
             if (object)
             {
@@ -1342,6 +1345,7 @@ namespace netxs::input
                 // acquired by children.
                 auto start_l = mouse::start;
                 mouse::start = 0; // The first one to track the mouse will assign itself by calling gear.direct<true>(id).
+                tooltip_set = faux;
                 boss.SIGNAL(tier::release, events::notify::mouse::enter, *this);
                 mouse_leave(mouse::hover, start_l);
                 mouse::hover = boss.id;

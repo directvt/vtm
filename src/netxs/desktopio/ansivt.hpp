@@ -335,46 +335,46 @@ namespace netxs::ansi
             return add(std::forward<Args>(data_list)...);
         }
 
-        auto& bld(bool b)           { return add(b ? "\033[1m" : "\033[22m"         ); } // basevt: SGR 𝗕𝗼𝗹𝗱 attribute.
-        auto& und(si32 n)           { return add(n==0 ? "\033[24m" :
-                                                 n==2 ? "\033[21m" : "\033[4m"      ); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
-        auto& blk(bool b)           { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
-        auto& inv(bool b)           { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
-        auto& itc(bool b)           { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
-        auto& stk(bool b)           { return add(b ? "\033[9m" : "\033[29m"         ); } // basevt: SGR Strikethrough attribute.
-        auto& ovr(bool b)           { return add(b ? "\033[53m": "\033[55m"         ); } // basevt: SGR Overline attribute.
-        auto& sav()                 { return add("\033[10m"                         ); } // basevt: Save SGR attributes.
-        auto& nil()                 { return add("\033[m"                           ); } // basevt: Reset SGR attributes to zero.
-        auto& fgc()                 { return add("\033[39m"                         ); } // basevt: Set default foreground color.
-        auto& bgc()                 { return add("\033[49m"                         ); } // basevt: Set default background color.
-        auto& scroll_wipe()         { return add("\033[2J"                          ); } // basevt: Erase scrollback.
-        auto& locate(twod const& p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // basevt: 0-Based caret position.
-        auto& cuu(si32 n)           { return add("\033[", n, 'A'                    ); } // basevt: Caret up.
-        auto& cud(si32 n)           { return add("\033[", n, 'B'                    ); } // basevt: Caret down.
-        auto& cuf(si32 n)           { return add("\033[", n, 'C'                    ); } // basevt: Caret forward.  Negative values can wrap to the prev line.
-        auto& cub(si32 n)           { return add("\033[", n, 'D'                    ); } // basevt: Caret backward. Negative values can wrap to the next line.
-        auto& cnl(si32 n)           { return add("\033[", n, 'E'                    ); } // basevt: caret next line.
-        auto& cpl(si32 n)           { return add("\033[", n, 'F'                    ); } // basevt: Caret previous line.
-        auto& ocx(si32 n)           { return add("\033[", n, 'G'                    ); } // basevt: Caret 1-based horizontal absolute.
-        auto& ocy(si32 n)           { return add("\033[", n, 'd'                    ); } // basevt: Caret 1-based vertical absolute.
-        auto& dch(si32 n)           { return add("\033[", n, 'P'                    ); } // basevt: DCH
-        auto& fwd(si32 n)           { return n > 0 ? add("\033[",-n, 'D')
-                                           : n < 0 ? add("\033[", n, 'C') : *this;     } // basevt: Move caret n cell in line with wrapping.
-        auto& del()                 { return add('\x7F'                             ); } // basevt: Delete cell backwards.
-        auto& scp()                 { return add("\033[s"                           ); } // basevt: Save caret position in memory.
-        auto& rcp()                 { return add("\033[u"                           ); } // basevt: Restore caret position from memory.
-        auto& pushsgr()             { return add("\033[#{"                          ); } // basevt: Push SGR attributes onto stack.
-        auto& popsgr()              { return add("\033[#}"                          ); } // basevt: Pop  SGR attributes from stack.
-        auto& fcs(bool b)           { return add("\033[", b ? 'I' : 'O'             ); } // basevt: Terminal window focus.
-        auto& eol()                 { return add("\n"                               ); } // basevt: EOL.
-        auto& edl()                 { return add("\033[K"                           ); } // basevt: EDL.
-        auto& del(si32 n)           { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
-        auto& del_below()           { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
-        auto& fgx(rgba const& c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
+        auto& bld(bool b)    { return add(b ? "\033[1m" : "\033[22m"         ); } // basevt: SGR 𝗕𝗼𝗹𝗱 attribute.
+        auto& und(si32 n)    { return add(n==0 ? "\033[24m" :
+                                          n==2 ? "\033[21m" : "\033[4m"      ); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
+        auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
+        auto& itc(bool b)    { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
+        auto& stk(bool b)    { return add(b ? "\033[9m" : "\033[29m"         ); } // basevt: SGR Strikethrough attribute.
+        auto& ovr(bool b)    { return add(b ? "\033[53m": "\033[55m"         ); } // basevt: SGR Overline attribute.
+        auto& sav()          { return add("\033[10m"                         ); } // basevt: Save SGR attributes.
+        auto& nil()          { return add("\033[m"                           ); } // basevt: Reset SGR attributes to zero.
+        auto& fgc()          { return add("\033[39m"                         ); } // basevt: Set default foreground color.
+        auto& bgc()          { return add("\033[49m"                         ); } // basevt: Set default background color.
+        auto& scroll_wipe()  { return add("\033[2J"                          ); } // basevt: Erase scrollback.
+        auto& locate(twod p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // basevt: 0-Based caret position.
+        auto& cuu(si32 n)    { return add("\033[", n, 'A'                    ); } // basevt: Caret up.
+        auto& cud(si32 n)    { return add("\033[", n, 'B'                    ); } // basevt: Caret down.
+        auto& cuf(si32 n)    { return add("\033[", n, 'C'                    ); } // basevt: Caret forward.  Negative values can wrap to the prev line.
+        auto& cub(si32 n)    { return add("\033[", n, 'D'                    ); } // basevt: Caret backward. Negative values can wrap to the next line.
+        auto& cnl(si32 n)    { return add("\033[", n, 'E'                    ); } // basevt: caret next line.
+        auto& cpl(si32 n)    { return add("\033[", n, 'F'                    ); } // basevt: Caret previous line.
+        auto& ocx(si32 n)    { return add("\033[", n, 'G'                    ); } // basevt: Caret 1-based horizontal absolute.
+        auto& ocy(si32 n)    { return add("\033[", n, 'd'                    ); } // basevt: Caret 1-based vertical absolute.
+        auto& dch(si32 n)    { return add("\033[", n, 'P'                    ); } // basevt: DCH
+        auto& fwd(si32 n)    { return n > 0 ? add("\033[",-n, 'D')
+                                    : n < 0 ? add("\033[", n, 'C') : *this;     } // basevt: Move caret n cell in line with wrapping.
+        auto& del()          { return add('\x7F'                             ); } // basevt: Delete cell backwards.
+        auto& scp()          { return add("\033[s"                           ); } // basevt: Save caret position in memory.
+        auto& rcp()          { return add("\033[u"                           ); } // basevt: Restore caret position from memory.
+        auto& pushsgr()      { return add("\033[#{"                          ); } // basevt: Push SGR attributes onto stack.
+        auto& popsgr()       { return add("\033[#}"                          ); } // basevt: Pop  SGR attributes from stack.
+        auto& fcs(bool b)    { return add("\033[", b ? 'I' : 'O'             ); } // basevt: Terminal window focus.
+        auto& eol()          { return add("\n"                               ); } // basevt: EOL.
+        auto& edl()          { return add("\033[K"                           ); } // basevt: EDL.
+        auto& del(si32 n)    { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
+        auto& del_below()    { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
+        auto& fgx(rgba c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
                                                                c.chan.g, ':',
                                                                c.chan.b, ':',
                                                                c.chan.a, 'm'); }
-        auto& bgx(rgba const& c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
+        auto& bgx(rgba c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
                                                                c.chan.g, ':',
                                                                c.chan.b, ':',
                                                                c.chan.a, 'm'); }
@@ -390,7 +390,7 @@ namespace netxs::ansi
             return add("\033[", b + 40, 'm');
         }
         template<svga Mode = svga::vtrgb>
-        auto& fgc(rgba const& c) // basevt: SGR Foreground color. RGB: red, green, blue.
+        auto& fgc(rgba c) // basevt: SGR Foreground color. RGB: red, green, blue.
         {
                  if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
             else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
@@ -401,7 +401,7 @@ namespace netxs::ansi
             else return block;
         }
         template<svga Mode = svga::vtrgb>
-        auto& bgc(rgba const& c) // basevt: SGR Background color. RGB: red, green, blue.
+        auto& bgc(rgba c) // basevt: SGR Background color. RGB: red, green, blue.
         {
                  if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
             else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
@@ -543,8 +543,8 @@ namespace netxs::ansi
         auto& appkey(bool b)        { return add(b ? "\033[?1h"    : "\033[?1l"      ); } // escx: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
         auto& bpmode(bool b)        { return add(b ? "\033[?2004h" : "\033[?2004l"   ); } // escx: Set bracketed paste mode.
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // escx: Set autowrap mode.
-        auto& report(twod const& p) { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based caret position (CPR).
-        auto& win_sz(twod const& p) { return add("\033[", p.y, ";", p.x, "t"         ); } // escx: Report viewport size (Reply on CSI 18 t).
+        auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based caret position (CPR).
+        auto& win_sz(twod p)        { return add("\033[", p.y, ";", p.x, "t"         ); } // escx: Report viewport size (Reply on CSI 18 t).
         auto& locate_wipe()         { return add("\033[r"                            ); } // escx: Enable scrolling for entire display (clear screen).
         auto& locate_call()         { return add("\033[6n"                           ); } // escx: Report caret position.
         auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset caret location.
@@ -559,13 +559,13 @@ namespace netxs::ansi
         {
             return add("\033]52;", mime::meta(size, form), ";", utf::base64(utf8), c0_bel);
         }
-        auto& old_palette(si32 i, rgba const& c) // escx: Set color palette (Linux console).
+        auto& old_palette(si32 i, rgba c) // escx: Set color palette (Linux console).
         {
             return add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
                                                     utf::to_hex(c.chan.g, 2),
                                                     utf::to_hex(c.chan.b, 2), '\033');
         }
-        auto& osc_palette(si32 i, rgba const& c) // escx: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
+        auto& osc_palette(si32 i, rgba c) // escx: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
                                               utf::to_hex(c.chan.g), '/',
@@ -600,7 +600,7 @@ namespace netxs::ansi
             return *this;
         }
         template<class T>
-        auto& mouse_sgr(T const& gear, twod const& coor) // escx: Mouse tracking report (SGR).
+        auto& mouse_sgr(T const& gear, twod coor) // escx: Mouse tracking report (SGR).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -665,7 +665,7 @@ namespace netxs::ansi
                            coor.y + 1, pressed ? 'M' : 'm');
         }
         template<class T>
-        auto& mouse_x11(T const& gear, twod const& coor, bool utf8) // escx: Mouse tracking report (X11).
+        auto& mouse_x11(T const& gear, twod coor, bool utf8) // escx: Mouse tracking report (X11).
         {
             using hids = T;
             static constexpr auto left     = si32{ 0  };
@@ -739,14 +739,14 @@ namespace netxs::ansi
         auto& chy(si32 n)        { return add("\033[22:", n  , csi_ccc); } // escx: Caret 0-based vertical absolute.
         auto& cpx(si32 n)        { return add("\033[3:" , n  , csi_ccc); } // escx: Caret horizontal percent position.
         auto& cpy(si32 n)        { return add("\033[4:" , n  , csi_ccc); } // escx: Caret vertical percent position.
-        auto& cup(twod const& p) { return add("\033[20:", p.y, ':',        // escx: 0-Based caret position.
-                                                          p.x, csi_ccc); }
-        auto& cpp(twod const& p) { return add("\033[2:" , p.x, ':',        // escx: Caret percent position.
-                                                          p.y, csi_ccc); }
-        auto& mgn(side const& n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
-                                                          n.r, ':',
-                                                          n.t, ':',
-                                                          n.b, csi_ccc); }
+        auto& cup(twod p) { return add("\033[20:", p.y, ':',        // escx: 0-Based caret position.
+                                                   p.x, csi_ccc); }
+        auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Caret percent position.
+                                                   p.y, csi_ccc); }
+        auto& mgn(side n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
+                                                   n.r, ':',
+                                                   n.t, ':',
+                                                   n.b, csi_ccc); }
         auto& mgl(si32 n)        { return add("\033[7:" , n  , csi_ccc); } // escx: Left margin. Positive - native binding. Negative - opposite binding.
         auto& mgr(si32 n)        { return add("\033[8:" , n  , csi_ccc); } // escx: Right margin. Positive - native binding. Negative - opposite binding.
         auto& mgt(si32 n)        { return add("\033[9:" , n  , csi_ccc); } // escx: Top margin. Positive - native binding. Negative - opposite binding.
@@ -782,7 +782,7 @@ namespace netxs::ansi
     static auto err(Args&&... data)   { return escx{}.err(std::forward<Args>(data)...); } // ansi: Add error message.
     template<class ...Args>
     static auto hi(Args&&... data)    { return escx{}.hi(std::forward<Args>(data)...); } // ansi: Add highlighted message.
-    static auto cup(twod const& n)    { return escx{}.cup(n);        } // ansi: 0-Based caret position.
+    static auto cup(twod p)           { return escx{}.cup(p);        } // ansi: 0-Based caret position.
     static auto cuu(si32 n)           { return escx{}.cuu(n);        } // ansi: Caret up.
     static auto cud(si32 n)           { return escx{}.cud(n);        } // ansi: Caret down.
     static auto cuf(si32 n)           { return escx{}.cuf(n);        } // ansi: Caret forward.
@@ -803,10 +803,10 @@ namespace netxs::ansi
     static auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
     static auto stk(bool b = true)    { return escx{}.stk(b);        } // ansi: SGR Strikethrough attribute.
     static auto ovr(bool b = true)    { return escx{}.ovr(b);        } // ansi: SGR Overline attribute.
-    static auto fgc(rgba const& n)    { return escx{}.fgc(n);        } // ansi: SGR Foreground color.
-    static auto bgc(rgba const& n)    { return escx{}.bgc(n);        } // ansi: SGR Background color.
-    static auto fgx(rgba const& n)    { return escx{}.fgx(n);        } // ansi: SGR Foreground color with alpha.
-    static auto bgx(rgba const& n)    { return escx{}.bgx(n);        } // ansi: SGR Background color with alpha.
+    static auto fgc(rgba n)           { return escx{}.fgc(n);        } // ansi: SGR Foreground color.
+    static auto bgc(rgba n)           { return escx{}.bgc(n);        } // ansi: SGR Background color.
+    static auto fgx(rgba n)           { return escx{}.fgx(n);        } // ansi: SGR Foreground color with alpha.
+    static auto bgx(rgba n)           { return escx{}.bgx(n);        } // ansi: SGR Background color with alpha.
     static auto fgc()                 { return escx{}.fgc( );        } // ansi: Set default foreground color.
     static auto bgc()                 { return escx{}.bgc( );        } // ansi: Set default background color.
     static auto sav()                 { return escx{}.sav( );        } // ansi: Save SGR attributes.
@@ -820,11 +820,11 @@ namespace netxs::ansi
     static auto del(si32 n)           { return escx{}.del(n);        } // ansi: CSI n J  Erase display.
     static auto pushsgr()             { return escx{}.pushsgr();     } // ansi: Push SGR attrs onto stack.
     static auto popsgr()              { return escx{}.popsgr();      } // ansi: Pop  SGR attrs from stack.
-    static auto cpp(twod const& n)    { return escx{}.cpp(n);        } // ansi: Caret percent position.
+    static auto cpp(twod p)           { return escx{}.cpp(p);        } // ansi: Caret percent position.
     static auto cpx(si32 n)           { return escx{}.cpx(n);        } // ansi: Caret horizontal percent position.
     static auto cpy(si32 n)           { return escx{}.cpy(n);        } // ansi: Caret vertical percent position.
     static auto tbs(si32 n)           { return escx{}.tbs(n);        } // ansi: Tabulation step length.
-    static auto mgn(side const& n)    { return escx{}.mgn(n);        } // ansi: Margin (left, right, top, bottom).
+    static auto mgn(side s)           { return escx{}.mgn(s);        } // ansi: Margin (left, right, top, bottom).
     static auto mgl(si32 n)           { return escx{}.mgl(n);        } // ansi: Left margin.
     static auto mgr(si32 n)           { return escx{}.mgr(n);        } // ansi: Right margin.
     static auto mgt(si32 n)           { return escx{}.mgt(n);        } // ansi: Top margin.
@@ -841,7 +841,7 @@ namespace netxs::ansi
     static auto show_mouse(bool b)    { return escx{}.show_mouse(b); } // ansi: Should the mouse poiner to be drawn.
     static auto shellmouse(bool b)    { return escx{}.shellmouse(b); } // ansi: Mouse shell integration on/off.
     static auto vmouse(bool b)        { return escx{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
-    static auto locate(twod const& n) { return escx{}.locate(n);     } // ansi: 1-Based caret position.
+    static auto locate(twod p)        { return escx{}.locate(p);     } // ansi: 1-Based caret position.
     static auto locate_wipe()         { return escx{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
     static auto locate_call()         { return escx{}.locate_call(); } // ansi: Report caret position.
     static auto scrn_reset()          { return escx{}.scrn_reset();  } // ansi: Reset palette, erase scrollback and reset caret location.
@@ -1001,10 +1001,10 @@ namespace netxs::ansi
         auto& rtl_or(rtol  n) { if (r_to_l == rtol::none) r_to_l = n; return *this; } // deco: RTL.
         auto& rlf_or(feed  n) { if (rlfeed == feed::none) rlfeed = n; return *this; } // deco: Reverse line feed.
         auto& tbs   (si32  n) { tablen = std::min(n, maxtab);         return *this; } // deco: fx_ccc_tbs.
-        auto& mgl   (si32  n) { margin.west.step = n;                 return *this; } // deco: fx_ccc_mgl.
-        auto& mgr   (si32  n) { margin.east.step = n;                 return *this; } // deco: fx_ccc_mgr.
-        auto& mgt   (si32  n) { margin.head.step = n;                 return *this; } // deco: fx_ccc_mgt.
-        auto& mgb   (si32  n) { margin.foot.step = n;                 return *this; } // deco: fx_ccc_mgb.
+        auto& mgl   (si32  n) { margin.l = n;                         return *this; } // deco: fx_ccc_mgl.
+        auto& mgr   (si32  n) { margin.r = n;                         return *this; } // deco: fx_ccc_mgr.
+        auto& mgt   (si32  n) { margin.t = n;                         return *this; } // deco: fx_ccc_mgt.
+        auto& mgb   (si32  n) { margin.b = n;                         return *this; } // deco: fx_ccc_mgb.
         auto& mgn   (fifo& q) { margin.set(q);                        return *this; } // deco: fx_ccc_mgn.
         auto& rst   ()        { *this = {};                           return *this; } // deco: Reset.
         // deco: Reset to global default.
@@ -1119,8 +1119,8 @@ namespace netxs::ansi
             * - void sav();                          // Set current SGR as default.
             * - void rfg();                          // Reset foreground color to default.
             * - void rbg();                          // Reset background color to default.
-            * - void fgc(rgba const& c);             // Set foreground color.
-            * - void bgc(rgba const& c);             // Set background color.
+            * - void fgc(rgba c);                    // Set foreground color.
+            * - void bgc(rgba c);                    // Set background color.
             * - void bld(bool b);                    // Set bold attribute.
             * - void itc(bool b);                    // Set italic attribute.
             * - void inv(bool b);                    // Set inverse attribute.
@@ -1708,10 +1708,10 @@ namespace netxs::ansi
     {
         using list = std::list<ansi::rule>;
 
-        inline void  push(rule const& cmd)   { list::push_back(cmd); } // Append single command to the locus.
-        inline void   pop()                  { list::pop_back();     } // Append single command to the locus.
-        inline bool  bare()    const         { return list::empty(); } // Is it empty the list of commands?
-        inline writ& kill()    { list::clear();        return *this; } // Clear command list.
+        inline void  push(rule cmd) { list::push_back(cmd);        } // Append single command to the locus.
+        inline void   pop()         { list::pop_back();            } // Append single command to the locus.
+        inline bool  bare() const   { return list::empty();        } // Is it empty the list of commands?
+        inline writ& kill()         { list::clear(); return *this; } // Clear command list.
 
         writ& rst()           { push({ fn::zz, 0   }); return *this; } // Reset formatting parameters. Do not clear the command list.
         writ& cpp(twod p)     { push({ fn::px, p.x });                 // Caret percent position.

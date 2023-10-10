@@ -81,7 +81,7 @@ namespace netxs::os
     using rich = ui::rich;
     using s11n = ui::s11n;
     using pipe = ui::pipe;
-    using xipc = ui::pipe::xipc;
+    using xipc = ui::xipc;
     using deco = ansi::deco;
     using escx = ansi::escx;
 
@@ -655,9 +655,9 @@ namespace netxs::os
                                 delta(state.srWindow.Top,  state.srWindow.Bottom, coord.y);
                                 ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
                             }
-                            auto newcoor = coord;
-                            if (newcoor.x == state.dwSize.X) newcoor.x--; // win7/8 conhost isn't aware about the deferred cursor position.
-                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)newcoor.x, .Y = (SHORT)newcoor.y }); // Viewport follows to cursor.
+                            auto new_coord = coord;
+                            if (new_coord.x == state.dwSize.X) new_coord.x--; // win7/8 conhost isn't aware about the deferred cursor position.
+                            ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)new_coord.x, .Y = (SHORT)new_coord.y }); // Viewport follows to cursor.
                         }
                         if (shown == show) return;
                         shown = show;
@@ -728,7 +728,7 @@ namespace netxs::os
                         }
                         else return 0;
                     }
-                    void task(ansi::rule const& cmd)
+                    void task(ansi::rule cmd)
                     {
                         parser::flush();
                         if (cmd.cmd == ansi::fn::tb)
@@ -875,6 +875,32 @@ namespace netxs::os
                 modstate = state;
                 return changed;
             }
+            template<class T1, class T2 = si32>
+            auto modstat(si32& modstate, T1 ms_ctrls, T2 scancode, bool pressed)
+            {
+                struct
+                {
+                    bool changed{}; // Modifiers state changed.
+                    bool repeats{}; // Modifier repeated.
+                } stat;
+                stat.changed = kbstate(modstate, ms_ctrls, scancode, pressed);
+                if (!pressed) return stat;
+                if (stat.changed) return stat;
+                scancode |= ms_ctrls & ENHANCED_KEY;
+                stat.repeats = scancode == 0x002a  // input::hids::LShift
+                            || scancode == 0x0036  // input::hids::RShift (Windows command prompt)
+                            || scancode == 0x0136  // input::hids::RShift (Windows terminal)
+                            || scancode == 0x005b  // input::hids::LWin
+                            || scancode == 0x005c  // input::hids::RWin
+                            || scancode == 0x001d  // input::hids::LCtrl
+                            || scancode == 0x011d  // input::hids::RCtrl
+                            || scancode == 0x0038  // input::hids::LAlt
+                            || scancode == 0x0138  // input::hids::RAlt
+                            || scancode == 0x0145  // input::hids::NumLock
+                            || scancode == 0x003a  // input::hids::CapsLock
+                            || scancode == 0x0046; // input::hids::ScrlLock
+                return stat;
+            }
             auto ms_kbstate()
             {
                 auto vkeys = std::array<BYTE, 256>{};
@@ -986,13 +1012,13 @@ namespace netxs::os
                          && smap.unicode != 0x2584) *dstptr++ = smap;
                     }
                     dstmap.entry_ct = dstptr - dstmap.entries;
-                    unipair new_recs[] = { { 0x2580,  10 },
-                                           { 0x2219, 211 },
-                                           { 0x2022, 211 },
-                                           { 0x25CF, 211 },
-                                           { 0x25A0, 254 },
-                                           { 0x25AE, 254 },
-                                           { 0x2584, 254 } };
+                    unipair new_recs[] = {{ 0x2580,  10 },
+                                          { 0x2219, 211 },
+                                          { 0x2022, 211 },
+                                          { 0x25CF, 211 },
+                                          { 0x25A0, 254 },
+                                          { 0x25AE, 254 },
+                                          { 0x2584, 254 }};
                     if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
                     {
                         for (auto& p : new_recs) *dstptr++ = p;
@@ -1007,11 +1033,9 @@ namespace netxs::os
 
     #endif
 
-    template<class T>
+    template<class T, class E = std::invoke_result_t<decltype(os::error)>>
     struct syscall
     {
-        using E = std::invoke_result_t<decltype(os::error)>;
-
         T value;
         E error;
 
@@ -1845,7 +1869,7 @@ namespace netxs::os
             {
                 return shut();
             }
-            virtual flux& show(flux& s) const override
+            virtual std::ostream& show(std::ostream& s) const override
             {
                 return s << handle;
             }
@@ -1949,7 +1973,7 @@ namespace netxs::os
             {
                 return client->send(data);
             }
-            flux& show(flux& s) const override
+            std::ostream& show(std::ostream& s) const override
             {
                 return s << "local pipe: server=" << std::showbase << std::hex << server.get() << " client=" << std::showbase << std::hex << client.get();
             }
@@ -2161,7 +2185,7 @@ namespace netxs::os
                 return state;
             }
             template<role Role, bool Log = true, class P = noop>
-            static auto open(text path, span retry_timeout = {}, P retry_proc = P())
+            static auto open(text path, span retry_timeout = {}, P retry_proc = {})
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;
@@ -2392,7 +2416,8 @@ namespace netxs::os
             #else
                 auto id = static_cast<ui32>(::getpid());
             #endif
-            return std::pair{ id, datetime::now() };
+            ui::console::id = std::pair{ id, datetime::now() };
+            return ui::console::id;
         }
         static auto id = process::getid();
         static auto arg0 = text{};
@@ -2793,15 +2818,7 @@ namespace netxs::os
 
     namespace dtvt
     {
-        static constexpr auto mouse   = 1 << 0;
-        static constexpr auto onlylog = 1 << 5;
-        //todo make 3-bit field for color mode
-        static constexpr auto vtrgb   = 0;
-        static constexpr auto nt16    = 1 << 1;
-        static constexpr auto vt16    = 1 << 2;
-        static constexpr auto vt256   = 1 << 3;
-        static constexpr auto direct  = 1 << 4;
-        static auto mode = vtrgb;
+        static auto mode = ui::console::vtrgb;
         static auto scroll = faux; // Viewport/scrollback selector for windows console.
         auto consize()
         {
@@ -2935,7 +2952,7 @@ namespace netxs::os
                                         | nt::console::outmode::vt };
                     if (!::SetConsoleMode(os::stdout_fd, outmode))
                     {
-                        dtvt::mode |= dtvt::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
+                        dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
                         ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
                         log(prompt::os, "16-color windows console");
@@ -2983,12 +3000,12 @@ namespace netxs::os
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                mode |= dtvt::direct;
+                mode |= ui::console::direct;
             }
             else
             {
                 #if defined(__linux__)
-                if (os::linux_console) mode |= dtvt::mouse;
+                if (os::linux_console) mode |= ui::console::mouse;
                 #endif
                 if (auto term = os::env::get("TERM"); term.size())
                 {
@@ -3007,7 +3024,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        mode |= dtvt::vt16;
+                        mode |= ui::console::vt16;
                     }
                     else
                     {
@@ -3015,7 +3032,7 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                mode |= dtvt::vt16;
+                                mode |= ui::console::vt16;
                                 break;
                             }
                         }
@@ -3025,7 +3042,7 @@ namespace netxs::os
                             {
                                 if (term == type)
                                 {
-                                    mode |= dtvt::vt256;
+                                    mode |= ui::console::vt256;
                                     break;
                                 }
                             }
@@ -3035,33 +3052,16 @@ namespace netxs::os
                     if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
                     {
                         log("%%macOS Apple Terminal detected", prompt::os);
-                        if (!(mode & dtvt::vt16)) mode |= dtvt::vt256;
+                        if (!(mode & ui::console::vt16)) mode |= ui::console::vt256;
                     }
-                    log(prompt::os, "Color mode: ", mode & dtvt::vt16  ? "16-color"
-                                                  : mode & dtvt::vt256 ? "256-color"
-                                                                       : "true-color");
-                    log(prompt::os, "Mouse mode: ", mode & dtvt::mouse ? "console" : "vt-style");
+                    log(prompt::os, "Color mode: ", mode & ui::console::vt16  ? "16-color"
+                                                  : mode & ui::console::vt256 ? "256-color"
+                                                                              : "true-color");
+                    log(prompt::os, "Mouse mode: ", mode & ui::console::mouse ? "console" : "vt-style");
                 }
             }
             return mode;
         }();
-        template<class T>
-        auto str(T mode)
-        {
-            auto result = text{};
-            if (mode)
-            {
-                if (mode & mouse  ) result += "mouse ";
-                if (mode & nt16   ) result += "nt16 ";
-                if (mode & vt16   ) result += "vt16 ";
-                if (mode & vt256  ) result += "vt256 ";
-                if (mode & direct ) result += "direct ";
-                if (mode & onlylog) result += "onlylog ";
-                if (result.size()) result.pop_back();
-            }
-            else result = "vtrgb";
-            return result;
-        }
 
         struct vtty
         {
@@ -3397,20 +3397,20 @@ namespace netxs::os
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
             }
-            auto sighup()
+            auto sighup(bool state = true)
             {
-                if (attached && !signaled.exchange(true))
+                if (attached && !signaled.exchange(state))
                 {
                     termlink->sighup();
                     return true;
                 }
                 return faux;
             }
-            void resize(twod const& newsize)
+            void resize(twod new_size)
             {
                 if (attached)
                 {
-                    if (termsize(newsize))
+                    if (termsize(new_size))
                     {
                         termlink->winsz(termsize);
                     }
@@ -3468,7 +3468,7 @@ namespace netxs::os
                     }
                 }
             }
-            void mouse(input::hids& gear, bool moved, twod const& coord, input::mouse::prot encod, input::mouse::mode state)
+            void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state)
             {
                 using mode = input::mouse::mode;
                 using prot = input::mouse::prot;
@@ -3842,7 +3842,7 @@ namespace netxs::os
     {
         static auto cout = std::function([](qiew utf8)
         {
-            if (dtvt::vtmode & dtvt::nt16)
+            if (dtvt::vtmode & ui::console::nt16)
             {
                 #if defined(_WIN32)
                 static auto parser = nt::console::vtparser{};
@@ -3883,7 +3883,6 @@ namespace netxs::os
             {
                 auto& header_request = lock.thing;
                 auto header = s11n::header.freeze();
-                header.thing.window_id = {};
                 header.thing.sendby<faux, faux>(dtvt::client);
             }
             void handle(s11n::xs::footer_request   lock)
@@ -3895,15 +3894,17 @@ namespace netxs::os
             void handle(s11n::xs::footer           lock)
             {
                 auto& footer = lock.thing;
+                footer.set();
             }
             void handle(s11n::xs::header           lock)
             {
-                auto& utf8 = lock.thing.utf8;
-                if (utf8.length())
+                auto& header = lock.thing;
+                if (header.utf8.length())
                 {
-                    auto filtered = para{ utf8 }.lyric->utf8();
+                    auto filtered = para{ header.utf8 }.lyric->utf8();
                     tty::title(filtered);
                 }
+                header.set();
             }
             void handle(s11n::xs::clipdata         lock)
             {
@@ -3935,7 +3936,8 @@ namespace netxs::os
             proxy()
                 : s11n{ *this }
             {
-                //s11n::header.set(id_t{}, tty::title());
+                s11n::header.set(id_t{}, ""s);
+                s11n::footer.set(id_t{}, ""s);
             }
         };
         static auto stream = proxy{}; // tty: Serialization proxy.
@@ -4048,7 +4050,10 @@ namespace netxs::os
                                 switch (r.EventType)
                                 {
                                     case KEY_EVENT:
-                                        if (os::nt::kbstate(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown))
+                                    {
+                                        auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
+                                             if (modstat.repeats) break; // We don't repeat modifiers.
+                                        else if (modstat.changed)
                                         {
                                             k.ctlstat = kbmod;
                                             m.ctlstat = kbmod;
@@ -4105,6 +4110,7 @@ namespace netxs::os
                                         point = {};
                                         toutf.clear();
                                         break;
+                                    }
                                     case MENU_EVENT: // Forward console control events.
                                         if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                                         switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
@@ -4148,7 +4154,6 @@ namespace netxs::os
                                         break;
                                     case MOUSE_EVENT:
                                     {
-                                        os::nt::kbstate(kbmod, r.Event.MouseEvent.dwControlKeyState);
                                         auto changed = 0;
                                         check(changed, m.ctlstat, kbmod);
                                         check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
@@ -4156,7 +4161,7 @@ namespace netxs::os
                                         check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                                         check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                                         check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
-                                        if (!(dtvt::vtmode & dtvt::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
+                                        if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                                         {
                                             check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                                         }
@@ -4752,7 +4757,7 @@ namespace netxs::os
                 caret.bVisible = FALSE; // Will be restored by the dtvt::backup.caret on exit.
                 ok(::SetConsoleCursorInfo(os::stdout_fd, &caret), "::SetConsoleCursorInfo()", os::unexpected);
 
-                if (dtvt::vtmode & os::dtvt::nt16)
+                if (dtvt::vtmode & ui::console::nt16)
                 {
                     auto c16 = palette;
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
@@ -4760,12 +4765,12 @@ namespace netxs::os
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 
-                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & os::dtvt::vt16);
-                auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & os::dtvt::vt16);
+                auto vtrun = ansi::altbuf(true).bpmode(true).cursor(faux).vmouse(true).set_palette(dtvt::vtmode & ui::console::vt16);
+                auto vtend = ansi::scrn_reset().altbuf(faux).bpmode(faux).cursor(true).vmouse(faux).rst_palette(dtvt::vtmode & ui::console::vt16);
                 io::send(os::stdout_fd, vtrun);
             #endif
 
-            tty::stream.mousebar.send(intio, !!(dtvt::vtmode & os::dtvt::mouse));
+            tty::stream.mousebar.send(intio, !!(dtvt::vtmode & ui::console::mouse));
 
             auto alarm = fire{};
             auto alive = flag{ true };
@@ -4787,7 +4792,7 @@ namespace netxs::os
 
             #if defined(_WIN32)
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
-                if (dtvt::vtmode & os::dtvt::nt16) // Restore pelette.
+                if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
                     auto count = DWORD{};
                     ok(::FillConsoleOutputAttribute(os::stdout_fd, 0, dtvt::win_sz.x * dtvt::win_sz.y, {}, &count), "::FillConsoleOutputAttribute()", os::unexpected); // To avoid palette flickering.
@@ -4822,7 +4827,7 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                if (os::dtvt::vtmode & os::dtvt::onlylog) return;
+                if (os::dtvt::vtmode & ui::console::onlylog) return;
                 thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;

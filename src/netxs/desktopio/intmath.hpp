@@ -346,7 +346,7 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        quadratic(twod const& speed, type cycle, type limit, type start)
+        quadratic(twod speed, type cycle, type limit, type start)
             :	speed{ speed         },
                 limit{ limit         },
                 phase{ limit * 2     },
@@ -400,7 +400,7 @@ namespace netxs
         //     cycle - time period ΔT
         //     limit - activity period
         //     start - deffered start time
-        constlinear(twod const& speed, type cycle, type limit, type start)
+        constlinear(twod speed, type cycle, type limit, type start)
             :	limit{ limit         },
                 phase{ limit * 2     },
                 speed{ speed * phase },
@@ -447,7 +447,7 @@ namespace netxs
         mutable twod total; // constlinearAtoB: Current point on the path.
 
     public:
-        constlinearAtoB(twod const& range, type limit, type start)
+        constlinearAtoB(twod range, type limit, type start)
             :	limit{ limit },
                 range{ range },
                 start{ start },
@@ -568,7 +568,7 @@ namespace netxs
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
     template<bool RtoL, class T, class D, class R, class C, class P, class NewlineFx = noop>
-    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = NewlineFx())
+    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         auto& base1 = region.coor;
 
@@ -627,7 +627,7 @@ namespace netxs
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
     template<class T, class D, class P, class NewlineFx = noop>
-    void onbody(T& canvas, D const& bitmap, P handle, NewlineFx online = NewlineFx())
+    void onbody(T& canvas, D const& bitmap, P handle, NewlineFx online = {})
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -644,13 +644,9 @@ namespace netxs
     // intmath: Draw the rectangle region inside the canvas by
     //          invoking handle(canvas_element)
     //          (without boundary checking).
-    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop>
-    void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = NewlineFx())
+    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().data()))>>>
+    void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
-        //using ret_t = std::template result_of_t<P(decltype(*(canvas.data())))>;
-        using ret_t = std::invoke_result_t<P, decltype(*(canvas.data()))>;
-        static constexpr auto plain = std::is_same_v<void, ret_t>;
-
         auto& place = canvas.area();
         if (auto joint = region.clip(place))
         {
@@ -665,12 +661,12 @@ namespace netxs
                 {
                     if constexpr (RtoL)
                     {
-                        if constexpr (plain) handle(*--limit);
+                        if constexpr (Plain) handle(*--limit);
                         else             if (handle(*--limit)) return;
                     }
                     else
                     {
-                        if constexpr (plain) handle(*frame++);
+                        if constexpr (Plain) handle(*frame++);
                         else             if (handle(*frame++)) return;
                     }
                 }
@@ -914,7 +910,7 @@ namespace netxs
                                  Int_t h, Int_t rad_0,
                                           Int_t rad_x, Int_t s_dtx, Int_t s_dty,
                                                        Int_t d_dtx, Int_t d_dty,
-            P_Base s_ref, P_Dest d_ref, PostFx shade = PostFx())
+            P_Base s_ref, P_Dest d_ref, PostFx shade = {})
         {
             auto rad_1 = rad_0 + 1;
             auto count = rad_0 + rad_1;
@@ -1041,7 +1037,7 @@ namespace netxs
                 Dst_t d_ptr, Int_t w,
                              Int_t h, Int_t r, Int_t s_dty,
                                                Int_t d_dty,
-        P_Base s_ref, P_Dest d_ref, PostFx shade = PostFx())
+        P_Base s_ref, P_Dest d_ref, PostFx shade = {})
     {
         //auto rx = std::min(r + r, w - 1) >> 1;
         auto rx = std::min((r + r) << 1, w - 1) >> 1; // x2 to preserve 2:1 text proportions

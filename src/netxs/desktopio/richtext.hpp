@@ -229,12 +229,12 @@ namespace netxs::ui
         { }
 
         void vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
-        void  size(twod const& size) { pagerect.size = size; } // flow: Set client full size.
-        void  full(rect const& area) { pagerect = area;      } // flow: Set client full rect.
-        auto& full() const           { return pagerect;      } // flow: Get client full rect reference.
-        auto& minmax() const         { return boundary;      } // flow: Return the output range.
-        void  minmax(twod const& p)  { boundary |= p;        } // flow: Register twod.
-        void  minmax(rect const& r)  { boundary |= r;        } // flow: Register rect.
+        void  size(twod size)   { pagerect.size = size; } // flow: Set client full size.
+        void  full(rect area)   { pagerect = area;      } // flow: Set client full rect.
+        auto& full() const      { return pagerect;      } // flow: Get client full rect reference.
+        auto& minmax() const    { return boundary;      } // flow: Return the output range.
+        void  minmax(twod p)    { boundary |= p;        } // flow: Register twod.
+        void  minmax(rect r)    { boundary |= r;        } // flow: Register rect.
 
         // flow: Sync paragraph style.
         template<class T>
@@ -245,7 +245,7 @@ namespace netxs::ui
         // flow: Split specified textblock on the substrings
         //       and place it to the form by the specified proc.
         template<bool Split, class T, class P = noop>
-        void compose(T const& block, P print = P())
+        void compose(T const& block, P print = {})
         {
             auto block_size = block.size();
             textsize = getlen(block_size);
@@ -294,7 +294,7 @@ namespace netxs::ui
             compose<Split>(block);
         }
         template<bool Split = true, class T, class P = noop>
-        void go(T const& block, core& canvas, P printfx = P())
+        void go(T const& block, core& canvas, P printfx = {})
         {
             compose<Split>(block, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                                   {
@@ -302,7 +302,7 @@ namespace netxs::ui
                                   });
         }
         template<bool UseLocus = true, class T, class P = noop>
-        auto print(T const& block, core& canvas, P printfx = P())
+        auto print(T const& block, core& canvas, P printfx = {})
         {
             sync(block);
             auto coor = std::invoke_result_t<decltype(&flow::cp), flow>{};
@@ -326,18 +326,18 @@ namespace netxs::ui
             return coor;
         }
 
-        void ax	(si32 x)        { caretpos.x  = x;                 }
-        void ay	(si32 y)        { caretpos.y  = y;                 }
-        void ac	(twod const& c) { ax(c.x); ay(c.y);                }
-        void ox	(si32 x)        { caretpos.x  = x - 1;             }
-        void oy	(si32 y)        { caretpos.y  = y - 1;             }
-        void oc	(twod const& c) { ox(c.x); oy(c.y);                }
-        void dx	(si32 n)        { caretpos.x += n;                 }
-        void dy	(si32 n)        { caretpos.y += n;                 }
-        void nl	(si32 n)        { ax(0); dy(n);                    }
-        void px	(si32 x)        { ax(textpads.h_ratio(x, size_x)); }
-        void py	(si32 y)        { ay(textpads.v_ratio(y, size_y)); }
-        void pc	(twod const& c) { px(c.x); py(c.y);                }
+        void ax	(si32 x) { caretpos.x  = x;                 }
+        void ay	(si32 y) { caretpos.y  = y;                 }
+        void ac	(twod c) { ax(c.x); ay(c.y);                }
+        void ox	(si32 x) { caretpos.x  = x - 1;             }
+        void oy	(si32 y) { caretpos.y  = y - 1;             }
+        void oc	(twod c) { ox(c.x); oy(c.y);                }
+        void dx	(si32 n) { caretpos.x += n;                 }
+        void dy	(si32 n) { caretpos.y += n;                 }
+        void nl	(si32 n) { ax(0); dy(n);                    }
+        void px	(si32 x) { ax(textpads.h_ratio(x, size_x)); }
+        void py	(si32 y) { ay(textpads.v_ratio(y, size_y)); }
+        void pc	(twod c) { px(c.x); py(c.y);                }
         void tb	(si32 n)
         {
             if (n)
@@ -360,7 +360,7 @@ namespace netxs::ui
             boundary |= cp; /* |= cursor*/;
             return cp;
         }
-        void zz (twod const& offset = dot_00)
+        void zz (twod offset = dot_00)
         {
             runstyle.reset();
             caretpos = dot_00;
@@ -389,7 +389,7 @@ namespace netxs::ui
             caretpos      = std::get<1>(state);
             pagerect.coor = std::get<2>(state);
         }
-        void reset(twod const& offset = dot_00) // flow: Reset flow state.
+        void reset(twod offset = dot_00) // flow: Reset flow state.
         {
             flow::zz(offset);
             flow::sc();
@@ -412,55 +412,54 @@ namespace netxs::ui
     // richtext: The shadow of the para.
     class shot
     {
-        core const& basis;
-        si32        start;
-        si32        width;
+        core const& body;
+        si32        skip;
+        si32        used;
 
     public:
         shot(shot const&) = default;
 
         constexpr
-        shot(core const& basis, si32 begin, si32 piece)
-            : basis{ basis },
-              start{ std::max(0, begin) },
-              width{ std::min(std::max(0, piece), basis.size().x - start) }
+        shot(core const& body, si32 start, si32 length)
+            : body{ body },
+              skip{ std::max(0, start) },
+              used{ std::min(std::max(0, length), body.size().x - skip) }
         {
-            if (basis.size().x <= start)
+            if (body.size().x <= skip)
             {
-                start = 0;
-                width = 0;
+                skip = 0;
+                used = 0;
             }
         }
 
         constexpr
-        shot(core const& basis)
-            : basis{ basis },
-              start{       },
-              width{ basis.size().x }
+        shot(core const& body)
+            : body{ body },
+              skip{ 0    },
+              used{ body.size().x }
         { }
 
         constexpr
-        auto substr(si32 begin, si32 piece = si32max) const
+        auto substr(si32 start, si32 length = si32max) const
         {
-            auto w = basis.size().x;
-            auto a = start + std::max(begin, 0);
-            return a < w ? shot{ basis, a, std::min(std::max(piece, 0), w - a) }
-                         : shot{ basis, 0, 0 };
+            auto w = body.size().x;
+            auto a = skip + std::max(0, start);
+            return a < w ? shot{ body, a, std::min(std::max(0, length), w - a) }
+                         : shot{ body, 0, 0 };
         }
-
-                  auto& mark  () const { return  basis.mark();         }
-                  auto  data  () const { return  basis.data() + start; }
-        constexpr auto  size  () const { return  basis.size();         }
-        constexpr auto  empty () const { return !width;                }
-        constexpr auto  length() const { return  width;                }
+                  auto&  mark() const { return  body.mark();        }
+                  auto   data() const { return  body.data() + skip; }
+        constexpr auto   size() const { return  body.size();        }
+        constexpr auto  empty() const { return !used;               }
+        constexpr auto length() const { return  used;               }
         // shot: Compare content.
         template<class P>
         auto same(shot const& s, P compare) const
         {
-            if (width != s.width) return faux;
-            auto dest = s.basis.iter();
-            auto head =   basis.iter();
-            auto tail = head + width;
+            if (used != s.used) return faux;
+            auto dest = s.body.iter();
+            auto head =   body.iter();
+            auto tail = head + used;
             while (head != tail)
             {
                 if (!compare(*head++, *dest++)) return faux;
@@ -471,33 +470,28 @@ namespace netxs::ui
         auto  same       (shot const& s) const { return same(s, [](auto const& a, auto const& b){ return a.same_txt(b); }); }
 
         template<bool RtoL, class P = noop>
-        auto output(core& canvas, twod const& pos, P print = P()) const  // shot: Print the source content using the specified print proc, which returns the number of characters printed.
+        auto output(core& canvas, twod coord, P print = {}) const  // shot: Print the source content using the specified print proc.
         {
             //todo place is wrong if RtoL==true
-            //rect place{ pos, { RtoL ? width, basis.size().y } };
-            //auto joint = canvas.view().clip(place);
-            auto place = rect{ pos, { width, basis.size().y } };
+            //rect place{ pos, { RtoL ? used, body.size().y } };
+            auto place = rect{ coord, { used, body.size().y } };
             auto joint = canvas.view().clip(place);
-            //auto joint = canvas.area().clip(place);
-
             if (joint)
             {
                 if constexpr (RtoL)
                 {
-                    place.coor.x += place.size.x - joint.coor.x - joint.size.x;
+                    place.coor.x -= joint.coor.x - place.size.x + joint.size.x;
                     place.coor.y  = joint.coor.y - place.coor.y;
                 }
                 else
                 {
                     place.coor = joint.coor - place.coor;
                 }
-                place.coor.x += start;
-
-                if constexpr (std::is_same_v<P, noop>) netxs::inbody<RtoL>(canvas, basis, joint, place.coor, cell::shaders::fusefull);
-                else                                   netxs::inbody<RtoL>(canvas, basis, joint, place.coor, print);
+                joint.coor -= canvas.coor();
+                place.coor.x += skip;
+                if constexpr (std::is_same_v<P, noop>) netxs::inbody<RtoL>(canvas, body, joint, place.coor, cell::shaders::fusefull);
+                else                                   netxs::inbody<RtoL>(canvas, body, joint, place.coor, print);
             }
-
-            return width;
         }
     };
 
@@ -919,7 +913,7 @@ namespace netxs::ui
             }
         }
         // rich: Put n blanks on top of the chars and cut them off with the right edge.
-        void splice(twod const& at, si32 count, cell const& blank)
+        void splice(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -931,7 +925,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Put n blanks on top of the chars and wrap them at the right edge.
-        void backsp(twod const& at, si32 count, cell const& blank)
+        void backsp(twod at, si32 count, cell const& blank)
         {
             auto len = size();
             if (at.y >= len.y || (at.y == len.y - 1 && at.x >= len.x)) return;
@@ -948,7 +942,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Insert n blanks by shifting chars to the right. Same as delete(twod), but shifts from left to right.
-        void insert(twod const& at, si32 count, cell const& blank)
+        void insert(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -963,7 +957,7 @@ namespace netxs::ui
             while (dst != end) *--dst = blank;
         }
         // rich: Delete n chars and add blanks at the right. Same as insert(twod), but shifts from right to left.
-        void cutoff(twod const& at, si32 count, cell const& blank)
+        void cutoff(twod at, si32 count, cell const& blank)
         {
             if (count <= 0) return;
             auto len = size();
@@ -978,7 +972,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the specified coor to the bottom.
-        void del_below(twod const& pos, cell const& blank)
+        void del_below(twod pos, cell const& blank)
         {
             auto len = size();
             auto ptr = iter();
@@ -988,7 +982,7 @@ namespace netxs::ui
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the top to the specified coor.
-        void del_above(twod const& pos, cell const& blank)
+        void del_above(twod pos, cell const& blank)
         {
             auto len = size();
             auto dst = iter();
@@ -1009,7 +1003,7 @@ namespace netxs::ui
     class para
         : public ansi::parser
     {
-        using corx = sptr<rich>;
+        using corx = netxs::sptr<rich>;
 
     public:
         si32 caret = 0; // para: Cursor position inside lyric.
@@ -1028,9 +1022,9 @@ namespace netxs::ui
               index { newid }
         { }
 
-        para              (view utf8) {              ansi::parse(utf8, this);               }
-        auto& operator  = (view utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
-        auto& operator += (view utf8) {              ansi::parse(utf8, this); return *this; }
+        para              (auto utf8) {              ansi::parse(utf8, this);               }
+        auto& operator  = (auto utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
+        auto& operator += (auto utf8) {              ansi::parse(utf8, this); return *this; }
 
         operator writ const& () const { return locus; }
 
@@ -1354,32 +1348,33 @@ namespace netxs::ui
     // richtext: Cascade of the identical paragraphs.
     class rope
     {
-        using iter = std::list<sptr<para>>::const_iterator;
+        using iter = std::list<netxs::sptr<para>>::const_iterator;
         iter source;
         iter finish;
         si32 prefix;
         si32 suffix;
         twod volume; // Rope must consist of text lines of the same height.
 
-        rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod const& volume)
+        rope(iter& source, si32 prefix, iter& finish, si32 suffix, twod volume)
             : source{ source },
               prefix{ prefix },
               finish{ finish },
               suffix{ suffix },
-              volume{ volume }
-              ,style{(**source).style}
+              volume{ volume },
+              style{(**source).style}
         { }
 
     public:
         deco style;
+        twod coord;
 
-        rope(iter const& head, iter const& tail, twod const& size)
+        rope(iter head, iter tail, twod size)
             : source{ head },
               finish{ tail },
               prefix{ 0    },
               suffix{ 0    },
-              volume{ size }
-              ,style{(**head).style}
+              volume{ size },
+              style{ (**head).style }
         { }
 
         operator writ const& () const { return **source; }
@@ -1410,15 +1405,16 @@ namespace netxs::ui
         // rope: Print the source content using the specified print proc,
         //       which returns the number of characters printed.
         template<bool RtoL, class P = noop>
-        void output(core& canvas, twod locate, P print = P()) const
+        void output(core& canvas, twod coord, P print = {}) const
         {
             auto total = volume.x;
 
             auto draw = [&](auto& item, auto start, auto width)
             {
                 auto line = item.substr(start, width);
-                auto size = line.template output<RtoL>(canvas, locate, print);
-                locate.x += size;
+                line.template output<RtoL>(canvas, coord, print);
+                auto size = line.length();
+                coord.x += size;
                 return size;
             };
 
@@ -1469,10 +1465,10 @@ namespace netxs::ui
             }
         }
         constexpr
-        auto  size  () const { return volume;            } // rope: Return volume of the source content.
-        auto  length() const { return volume.x;          } // rope: Return the length of the source content.
-        auto  id    () const { return (**source).id();   } // rope: Return paragraph id.
-        auto& front () const { return (**source).at(prefix); } // rope: Return first cell.
+        auto   size() const { return volume;                } // rope: Return volume of the source content.
+        auto length() const { return volume.x;              } // rope: Return the length of the source content.
+        auto     id() const { return (**source).id();       } // rope: Return paragraph id.
+        auto& front() const { return (**source).at(prefix); } // rope: Return first cell.
 
         //todo unify
         auto& at(si32 p) const // rope: .
@@ -1486,42 +1482,18 @@ namespace netxs::ui
     class page
         : public ansi::parser
     {
-        using list = std::list<sptr<para>>;
+        using list = std::list<netxs::sptr<para>>;
         using iter = list::iterator;
-        using pmap = std::map<si32, wptr<para>>;
+        using pmap = std::map<si32, netxs::wptr<para>>;
         using redo = std::list<std::pair<deco, ansi::mark>>;
 
     public:
-        ui32 index = {};              // page: Current paragraph id.
-        list batch = { ptr::shared<para>(index) }; // page: Paragraph list.
-        iter layer = batch.begin();   // page: Current paragraph.
-        pmap parts = {};              // page: Paragraph index.
-        redo stack = {};              // page: Style state stack.
-
-        //todo use ring
-        ui32 limit = si32max; // page: Paragraphs number limit.
-        void shrink() // page: Remove over limit paragraphs.
-        {
-            auto size = batch.size();
-            if (size > limit)
-            {
-                auto item = static_cast<size_t>(std::distance(batch.begin(), layer));
-                while (batch.size() > limit)
-                {
-                    batch.pop_front();
-                }
-                batch.front()->locus.clear();
-                // Update current layer ptr if it gets out.
-                if (item < size - limit) layer = batch.begin();
-            }
-        }
-        // page: Set the limit of paragraphs.
-        void maxlen(ui32 m)
-        {
-            limit = std::clamp<ui32>(m, 1, si32max);
-            shrink();
-        }
-        auto maxlen() { return limit; } // page: Get the limit of paragraphs.
+        ui32 index{};              // page: Current paragraph id.
+        list batch{ ptr::shared<para>(index) }; // page: Paragraph source list.
+        pmap parts{};              // page: Paragraph index.
+        redo stack{};              // page: Style state stack.
+        iter layer{ batch.begin() };   // page: Current paragraph.
+        std::vector<rope> ropes;   // page: Printable paragraphs.
 
         using ring = generics::ring<std::vector<para>>;
         struct buff : public ring
@@ -1550,14 +1522,39 @@ namespace netxs::ui
             vt.csier.table_hash[csi_hsh_pop] = V{ p->popsgr();  }; // CSI # }  Pop  current SGR attributes and style from stack.
             #undef V
         }
-        page              (view utf8) {          ansi::parse(utf8, this);               }
-        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); return *this; }
-        auto& operator += (view utf8) {          ansi::parse(utf8, this); return *this; }
 
-        page ()                         = default;
-        page (page&&)                   = default;
-        page (page const&)              = default;
-        page& operator =  (page const&) = default;
+        auto& operator  = (view utf8) { clear(); ansi::parse(utf8, this); reindex(); return *this; }
+        auto& operator += (view utf8) {          ansi::parse(utf8, this); reindex(); return *this; }
+        page(view utf8)               {          ansi::parse(utf8, this); reindex();               }
+        page() = default;
+        page(page&& p)
+            : index{ p.index },
+              batch{ std::move(p.batch) },
+              parts{ std::move(p.parts) },
+              stack{ std::move(p.stack) },
+              layer{ std::prev(batch.end()) }
+        {
+            reindex();
+        }
+        page (page const& p)
+            : index{ p.index },
+              batch{ p.batch },
+              parts{ p.parts },
+              stack{ p.stack },
+              layer{ std::prev(batch.end()) }
+        {
+            reindex();
+        }
+        page& operator = (page const& p)
+        {
+            index = p.index;
+            batch = p.batch;
+            parts = p.parts;
+            stack = p.stack;
+            layer = std::prev(batch.end());
+            reindex();
+            return *this;
+        }
         auto& operator += (page const& p)
         {
             parts.insert(p.parts.begin(), p.parts.end()); // Part id should be unique across pages
@@ -1567,7 +1564,6 @@ namespace netxs::ui
                 batch.push_back(a);
                 batch.back()->id(++index);
             }
-            shrink();
             layer = std::prev(batch.end());
             return *this;
         }
@@ -1613,38 +1609,28 @@ namespace netxs::ui
             auto& item = **layer;
             item.id(index);
             item.wipe(parser::brush);
+            reindex();
             return *this;
         }
         // page: Disintegrate the page content into atomic contiguous pieces - ropes.
         //       Call publish(rope{first, last, length}):
         //       a range of [ first,last ] is the uniform consecutive paragraphs set.
         //       Length is the sum of the lengths of the paragraphs.
-        template<class F>
-        void stream(F publish) const
+        template<class P>
+        void stream(P publish)
         {
-            auto next = twod{};
-            auto last = batch.begin();
-            auto tail = batch.end();
-            while (last != tail)
+            for (auto& p : ropes)
             {
-                auto size = (**last).size();
-                auto head = last;
-                while (++last != tail
-                   && (**last).bare()
-                   && size.y == (next = (**last).size()).y)
-                {
-                    size.x += next.x;
-                }
-                publish(rope{ head, std::prev(last), size });
+                publish(p);
             }
         }
         // page: Print to.
         template<class P = noop>
-        void print(flow& printer, core& canvas, P printfx = P()) const
+        void print(flow& printer, core& canvas, P printfx = {})
         {
-            auto publish = [&](auto const& combo)
+            auto publish = [&](auto& combo)
             {
-                printer.flow::print(combo, canvas, printfx);
+                combo.coord = printer.flow::print(combo, canvas, printfx);
             };
             stream(publish);
         }
@@ -1655,7 +1641,6 @@ namespace netxs::ui
             if constexpr (Flush) parser::flush();
             layer = batch.insert(std::next(layer), ptr::shared<para>(parser::style));
             (**layer).id(++index);
-            shrink();
         }
         // page: Split the text run and associate the next paragraph with id.
         void fork(si32 id)
@@ -1684,7 +1669,7 @@ namespace netxs::ui
             parts.emplace(id, *layer);
         }
         // page: Add a locus command. In case of text presence change current target.
-        void task(ansi::rule const& cmd)
+        void task(ansi::rule cmd)
         {
             test();
             auto& item = **layer;
@@ -1731,6 +1716,39 @@ namespace netxs::ui
             }
             return size;
         }
+        // page: Re-glue paragraphs.
+        void reindex()
+        {
+            ropes.clear();
+            ropes.reserve(batch.size());
+            auto next = dot_00;
+            auto last = batch.begin();
+            auto tail = batch.end();
+            while (last != tail)
+            {
+                auto size = (**last).size();
+                auto head = last;
+                while (++last != tail
+                   && (**last).bare()
+                   && size.y == (next = (**last).size()).y)
+                {
+                    size.x += next.x;
+                }
+                ropes.emplace_back(head, std::prev(last), size);
+            }
+        }
+        auto lookup(twod anker)
+        {
+            struct entry
+            {
+                ui32 id;
+                twod coor;
+            };
+            auto bound = [](auto& r) { return r.coord.y; };
+            auto found = std::ranges::lower_bound(ropes, anker.y, {}, bound);
+            if (found != ropes.end()) return entry{ found->id(), found->coord };
+            else                      return entry{ 0,     twod{ 0, si32max } };
+        }
 
         struct rtf_dest_t
         {
@@ -1764,7 +1782,7 @@ namespace netxs::ui
                     }
                 }
             }
-            auto clr(rgba const& c, view tag1, view tag2)
+            auto clr(rgba c, view tag1, view tag2)
             {
                 auto size = clrs.size();
                 auto iter = clrs.try_emplace(c.token, size).first;
@@ -1775,13 +1793,13 @@ namespace netxs::ui
                 data += istr;
             }
             template<svga Mode = svga::vtrgb>
-            auto fgc(rgba const& c)
+            auto fgc(rgba c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
             template<svga Mode = svga::vtrgb>
-            auto bgc(rgba const& c)
+            auto bgc(rgba c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)
                            : clr(c, bg_1, bg_2);
@@ -1937,9 +1955,9 @@ namespace netxs::ui
                 }
             }
             template<svga Mode>
-            auto fgc(rgba const&) { }
+            auto fgc(rgba ) { }
             template<svga Mode>
-            auto bgc(rgba const&) { }
+            auto bgc(rgba ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
@@ -2012,9 +2030,9 @@ namespace netxs::ui
                 data += utf8;
             }
             template<svga Mode>
-            auto fgc(rgba const&) { }
+            auto fgc(rgba ) { }
             template<svga Mode>
-            auto bgc(rgba const&) { }
+            auto bgc(rgba ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
@@ -2044,6 +2062,328 @@ namespace netxs::ui
                 });
             }
             return dest.data;
+        }
+    };
+
+    // richtext: Textographical canvas.
+    class face
+        : public rich, public flow, public std::enable_shared_from_this<face>
+    {
+    protected:
+        twod anker;     // face: The position of the nearest visible paragraph.
+        id_t piece = 1; // face: The nearest to top paragraph.
+        vrgb cache;     // face: BlurFX temp buffer.
+
+        // face: Is the c inside the viewport?
+        bool inside(twod c)
+        {
+            return c.y >= 0 && c.y < region.size.y;
+            //todo X-axis
+        }
+
+    public:
+        //todo revise
+        bool caret = faux; // face: Cursor visibility.
+        bool moved = faux; // face: Is reflow required.
+        bool decoy = true; // face: Is the cursor inside the viewport.
+        svga cmode = svga::vtrgb; // face: Color mode.
+
+        // face: Print proxy something else at the specified coor.
+        template<class T, class P>
+        void output_proxy(T const& block, twod coord, P proxy)
+        {
+            flow::sync(block);
+            flow::ac(coord);
+            flow::compose<true>(block, proxy);
+        }
+        // face: Print something else at the specified coor.
+        template<class T, class P = noop>
+        void output(T const& block, twod coord, P printfx = {})
+        {
+            flow::sync(block);
+            flow::ac(coord);
+            flow::go(block, *this, printfx);
+        }
+        // face: Print something else.
+        template<bool UseFWD = faux, class T, class P = noop>
+        void output(T const& block, P printfx = {})
+        {
+            //todo unify
+            flow::print<UseFWD>(block, *this, printfx);
+        }
+        // face: Print paragraph.
+        void output(para const& block)
+        {
+            flow::print(block, *this);
+        }
+        // face: Print page.
+        template<class P = noop>
+        void output(page& textpage, P printfx = {})
+        {
+            auto publish = [&](auto& combo)
+            {
+                combo.coord = flow::print(combo, *this, printfx);
+            };
+            textpage.stream(publish);
+        }
+        // face: Print page with holding top visible paragraph on its own place.
+        void output(page& textpage, bool reset)
+        {
+            //todo if the cursor is visible then bind to the cursor position,
+            //     otherwise bind to the first visible text line.
+
+            auto done = faux;
+            // Take the vertical position of the paragraph closest to the top.
+            auto gain = [&](auto& combo)
+            {
+                combo.coord = flow::print(combo, *this);
+                auto pred = combo.coord;
+                auto post = flow::cp();
+                if (!done)
+                {
+                    if (pred.y <= 0 && post.y >= 0)
+                    {
+                        anker.y = pred.y;
+                        piece = combo.id();
+                        done = true;
+                    }
+                    else
+                    {
+                        if (std::abs(anker.y) > std::abs(pred.y))
+                        {
+                            anker.y = pred.y;
+                            piece = combo.id();
+                        }
+                    }
+                }
+            };
+            // Take the vertical position of the specified paragraph.
+            auto find = [&](auto& combo)
+            {
+                combo.coord = flow::print(combo);
+                if (combo.id() == piece) anker = combo.coord;
+            };
+
+            if (reset)
+            {
+                anker.y = si32max;
+                textpage.stream(gain);
+                decoy = caret && inside(flow::cp());
+            }
+            else
+            {
+                textpage.stream(find);
+            }
+        }
+        // face: Reflow text page on the canvas and hold position
+        //       of the top visible paragraph while resizing.
+        void reflow_deprecated(page& textpage)
+        {
+            if (moved)
+            {
+                flow::zz(); //flow::sc();
+
+                auto delta = anker;
+                output(textpage, faux);
+                std::swap(delta, anker);
+
+                auto cover = flow::minmax();
+                //auto& basis = flow::origin;
+                auto basis = dot_00;// flow::origin;
+                basis.y += anker.y - delta.y;
+
+                if (decoy)
+                {
+                    // Don't tie the first line if it's the only one. Make one step forward.
+                    if (anker.y == 0
+                     && anker.y == flow::cp().y
+                     && cover.height() > 1)
+                    {
+                        //todo? the increment is removed bcos it shifts mc one row down on Ctrl+O and back
+                        //basis.y++;
+                    }
+
+                    auto newcp = flow::cp();
+                    if (!inside(newcp))
+                    {
+                        if (newcp.y < 0) basis.y -= newcp.y;
+                        else             basis.y -= newcp.y - region.size.y + 1;
+                    }
+                }
+                else
+                {
+                    basis.y = std::clamp(basis.y, -cover.b, region.size.y - cover.t - 1);
+                }
+
+                moved = faux;
+            }
+
+            wipe();
+        }
+
+        // face: Forward call to the core and reset cursor.
+        template<class ...Args>
+        void wipe(Args&&... args) // Optional args.
+        {
+            core::wipe(args...);
+            flow::reset();
+        }
+        // face: Change current context. Return old context.
+        auto bump(dent delta, bool clip = true)
+        {
+            auto old_full = flow::full();
+            auto old_view = core::view();
+            if (clip)
+            {
+                auto new_view = core::area().clip(old_view + delta);
+                core::view(new_view);
+            }
+            auto new_full = old_full + delta;
+            flow::full(new_full);
+            return std::pair{ old_full, old_view };
+        }
+        // face: Restore previously saved context.
+        void bump(std::pair<rect, rect> ctx)
+        {
+            flow::full(ctx.first);
+            core::view(ctx.second);
+        }
+        // face: Dive into object context.
+        auto change_basis(rect object_area, bool trim = true)
+        {
+            struct ctx
+            {
+                face& canvas;
+                rect canvas_full;
+                rect canvas_view;
+                twod canvas_coor;
+                bool nested_view;
+
+                operator bool () { return nested_view; };
+
+                ctx(face& canvas, rect canvas_full = {}, rect canvas_view = {}, twod canvas_coor = {}, bool nested_view = {})
+                    :      canvas{ canvas      },
+                      canvas_full{ canvas_full },
+                      canvas_view{ canvas_view },
+                      canvas_coor{ canvas_coor },
+                      nested_view{ nested_view }
+                { }
+                ctx(ctx&& c)
+                    :      canvas{ c.canvas      },
+                      canvas_full{ c.canvas_full },
+                      canvas_view{ c.canvas_view },
+                      canvas_coor{ c.canvas_coor },
+                      nested_view{ c.nested_view }
+                {
+                    c.nested_view = faux;
+                }
+               ~ctx()
+                {
+                    if (nested_view)
+                    {
+                        canvas.flow::full(canvas_full);
+                        canvas.core::view(canvas_view);
+                        canvas.core::move(canvas_coor);
+                    }
+                }
+            };
+            auto nested_view = trim ? core::view().clip(object_area) : core::view();
+            if (nested_view)
+            {
+                auto context = ctx{ *this, flow::full(), core::view(), core::coor(), true };
+                core::step(                       - object_area.coor);
+                core::view({     nested_view.coor - object_area.coor,   nested_view.size });
+                flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
+                return context;
+            }
+            return ctx{ *this };
+        }
+        // Use a two letter function if we don't need to return *this
+        face& cup(twod p)     { flow::ac( p); return *this; } // face: Cursor 0-based absolute position.
+        face& chx(si32 x)     { flow::ax( x); return *this; } // face: Cursor 0-based horizontal absolute.
+        face& chy(si32 y)     { flow::ay( y); return *this; } // face: Cursor 0-based vertical absolute.
+        face& cpp(twod p)     { flow::pc( p); return *this; } // face: Cursor percent position.
+        face& cpx(si32 x)     { flow::px( x); return *this; } // face: Cursor H percent position.
+        face& cpy(si32 y)     { flow::py( y); return *this; } // face: Cursor V percent position.
+        face& cuu(si32 n = 1) { flow::dy(-n); return *this; } // face: cursor up.
+        face& cud(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor down.
+        face& cuf(si32 n = 1) { flow::dx( n); return *this; } // face: Cursor forward.
+        face& cub(si32 n = 1) { flow::dx(-n); return *this; } // face: Cursor backward.
+        face& cnl(si32 n = 1) { flow::dy( n); return *this; } // face: Cursor next line.
+        face& cpl(si32 n = 1) { flow::dy(-n); return *this; } // face: Cursor previous line.
+
+        face& ocp(twod p) { flow::oc( p); return *this; } // face: Cursor 1-based absolute position.
+        face& ocx(si32 x) { flow::ox( x); return *this; } // face: Cursor 1-based horizontal absolute.
+        face& ocy(si32 y) { flow::oy( y); return *this; } // face: Cursor 1-based vertical absolute.
+
+        face& scp()              { flow::sc(  ); return *this; } // face: Save cursor position.
+        face& rcp()              { flow::rc(  ); return *this; } // face: Restore cursor position.
+        face& rst()  { flow::zz(); flow::sc(  ); return *this; } // face: Reset to zero all cursor params.
+
+        face& tab(si32 n = 1)    { flow::tb( n); return *this; } // face: Proceed the \t .
+        face& eol(si32 n = 1)    { flow::nl( n); return *this; } // face: Proceed the \r || \n || \r\n .
+
+        auto& area() const // face: Return core::region/area.
+        {
+            return core::area();
+        }
+        void area(rect new_area) // face: Change the area of the face/core.
+        {
+            core::area(new_area);
+            flow::full(new_area);
+        }
+        void size(twod new_size) // face: Change the size of the face/core.
+        {
+            core::size(new_size);
+            flow::size(new_size);
+        }
+        auto size() // face: Return size of the face/core.
+        {
+            return core::size();
+        }
+        template<bool BottomAnchored = faux>
+        void crop(twod new_size, cell const& c) // face: Resize while saving the bitmap.
+        {
+            core::crop<BottomAnchored>(new_size, c);
+            flow::size(new_size);
+        }
+        template<bool BottomAnchored = faux>
+        void crop(twod new_size) // face: Resize while saving the bitmap.
+        {
+            core::crop<BottomAnchored>(new_size, core::mark());
+            flow::size(new_size);
+        }
+        template<class P = noop>
+        void /*!*/blur(si32 r, P shade = {}) // face: .
+        {
+            using irgb = vrgb::value_type;
+
+            auto area = core::area();
+            auto view = core::view();
+
+            auto w = std::max(0, view.size.x);
+            auto h = std::max(0, view.size.y);
+            auto s = w * h;
+
+            if (cache.size() < (size_t)s)
+            {
+                cache.resize(s);
+            }
+
+            auto s_ptr = core::data(view.coor - area.coor);
+            auto d_ptr = cache.data();
+
+            auto s_width = area.size.x;
+            auto d_width = view.size.x;
+
+            auto s_point = [](cell* c)->auto& { return c->bgc(); };
+            auto d_point = [](irgb* c)->auto& { return *c;       };
+
+            netxs::bokefy<irgb>(s_ptr,
+                                d_ptr, w,
+                                       h, r, s_width,
+                                             d_width, s_point,
+                                                      d_point, shade);
         }
     };
 
@@ -2082,6 +2422,7 @@ namespace netxs::ui
         X(warning   , "Warning color")                 \
         X(danger    , "Danger color")                  \
         X(action    , "Action color")                  \
+        X(selected  , "Selected item color")           \
         X(label     , "Static label color")            \
         X(inactive  , "Inactive label color")          \
         X(menu_white, "Light menu color")              \

@@ -223,7 +223,7 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term>  <!-- Set selected using menu item id. -->
+    <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
@@ -234,7 +234,7 @@ Note: The following configuration sections are not implemented yet
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 />
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " param="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -260,14 +260,14 @@ Note: The following configuration sections are not implemented yet
                 </term>
             </config>
         </item>
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run Windows PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" run Far Manager in its own window "/> -->
-   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" run Midnight Commander in its own window "/> -->
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" set desktop region "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" run Settings " winsize=50,15 />
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"            param="$0 -q -r term $0 -m" notes=" run Logs "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/>
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" Far Manager in its own window "/> -->
+   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" Midnight Commander in its own window "/> -->
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Tiling window manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                           notes=" Desktop region marker "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" Settings " winsize=50,15 />
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"            param="$0 -q -r term $0 -m" notes=" Log monitor "/>
    <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
    <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
    <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
@@ -285,7 +285,13 @@ Note: The following configuration sections are not implemented yet
             <folded=4/>
             <expanded=31/>
         </width>
+        <color fgc=whitedk bgc=0x60202020 />
     </menu>
+    <panel> <!-- Desktop info panel. -->
+        <cmd = ""/> <!-- Command-line to activate. -->
+        <cwd = ""/> <!-- Working directory. -->
+        <height = 1 /> <!-- Desktop space reserved on top. -->
+    </panel>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow />
         <key="Ctrl+PgDn" action=NextWindow />
@@ -296,6 +302,7 @@ Note: The following configuration sections are not implemented yet
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
+            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->

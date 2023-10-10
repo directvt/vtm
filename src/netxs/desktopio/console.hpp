@@ -3,2331 +3,102 @@
 
 #pragma once
 
-#include "input.hpp"
-#include "system.hpp"
-#include "scripting.hpp"
+#include "controls.hpp"
 
 namespace netxs::ui
 {
-    // console: Base class behavior extensions.
-    namespace pro
+    namespace console
     {
-        // pro: Base class for plugins.
-        struct skill
+        static auto id = std::pair<ui32, time>{};
+        static constexpr auto mouse   = 1 << 0;
+        static constexpr auto onlylog = 1 << 5;
+        //todo make 3-bit field for color mode
+        static constexpr auto vtrgb   = 0;
+        static constexpr auto nt16    = 1 << 1;
+        static constexpr auto vt16    = 1 << 2;
+        static constexpr auto vt256   = 1 << 3;
+        static constexpr auto direct  = 1 << 4;
+
+        template<class T>
+        auto str(T mode)
         {
-            base& boss;
-            subs  memo;
-
-            skill(base&&) = delete;
-            skill(base& boss) : boss{ boss } { }
-            virtual ~skill() = default; // In order to allow man derived class via base ptr.
-
-            template<class T>
-            struct socks
-            {
-                struct sock : public T
-                {
-                    id_t    id; // sock: Hids ID.
-                    si32 count; // sock: Clients count.
-
-                    sock(id_t ctrl)
-                        :    id{ ctrl },
-                          count{ 0    }
-                    { }
-
-                    operator bool () { return T::operator bool(); }
-                };
-
-                std::vector<sock> items; // sock: Registered hids.
-                subs              token; // sock: Hids subscriptions.
-
-                socks(base& boss)
-                {
-                    boss.LISTEN(tier::general, hids::events::die, gear, token)
-                    {
-                        del(gear);
-                    };
-                    boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, token)
-                    {
-                        add(gear);
-                    };
-                    boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, token)
-                    {
-                        dec(gear);
-                    };
-                }
-                template<bool ConstWarn = true>
-                auto& take(hids& gear)
-                {
-                    for (auto& item : items) // Linear search, because a few items.
-                    {
-                        if (item.id == gear.id) return item;
-                    }
-
-                    if constexpr (ConstWarn)
-                    {
-                        log(prompt::sock, "Access to unregistered input device, ", gear.id);
-                    }
-
-                    return items.emplace_back(gear.id);
-                }
-                template<class P>
-                void foreach(P proc)
-                {
-                    for (auto& item : items)
-                    {
-                        if (item) proc(item);
-                    }
-                }
-                void add(hids& gear)
-                {
-                    auto& item = take<faux>(gear);
-                    ++item.count;
-                }
-                void dec(hids& gear)
-                {
-                    auto& item = take(gear);
-                    if (--item.count < 1) // item.count could be equal to 0 due to unregistered access.
-                    {
-                        if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                        items.pop_back();
-                    }
-                }
-                void del(hids& gear)
-                {
-                    for (auto& item : items) // Linear search, because a few items.
-                    {
-                        if (item.id == gear.id)
-                        {
-                            if (items.size() > 1) item = items.back(); // Remove an item without allocations.
-                            items.pop_back();
-                            return;
-                        }
-                    }
-                }
-            };
-        };
-
-        // pro: Provides resizing by dragging.
-        class sizer
-            : public skill
-        {
-            struct sock
-            {
-                using test = testy<twod>;
-
-                twod origin; // sock: Grab's initial coord info.
-                twod dtcoor; // sock: The form coor parameter change factor while resizing.
-                twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
-                rect hzgrip; // sock: Horizontal grip.
-                rect vtgrip; // sock: Vertical grip.
-                twod widths; // sock: Grip's widths.
-                bool inside; // sock: Is active.
-                bool seized; // sock: Is seized.
-                test lastxy; // sock: Change tracker.
-                rect zoomsz; // sock: Captured area for zooming.
-                dent zoomdt; // sock: Zoom step.
-                bool zoomon; // sock: Zoom in progress.
-                twod zoomat; // sock: Zoom pivot.
-
-                sock()
-                    : inside{ faux },
-                      seized{ faux },
-                      zoomon{ faux }
-                { }
-
-                operator bool () { return inside || seized; }
-                auto corner(twod const& length)
-                {
-                    return dtcoor.less(dot_11, length, dot_00);
-                }
-                auto grab(base const& master, twod curpos, dent const& outer)
-                {
-                    if (inside)
-                    {
-                        origin = curpos - corner(master.base::size() + outer);
-                        seized = true;
-                    }
-                    return seized;
-                }
-                auto calc(base const& master, twod curpos, dent const& outer, dent const& inner, dent const& border)
-                {
-                    auto area = rect{ dot_00, master.base::size() };
-                    auto inner_rect = area + inner;
-                    auto outer_rect = area + outer;
-                    inside = !inner_rect.hittest(curpos)
-                           && outer_rect.hittest(curpos);
-                    auto& length = outer_rect.size;
-                    curpos += outer.corner();
-                    auto center = std::max(length / 2, dot_11);
-                    if (!seized)
-                    {
-                        dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
-                        sector = dtcoor.less(dot_11, -dot_11, dot_11);
-                        widths = sector.less(dot_00, twod{-border.east.step,-border.foot.step },
-                                                     twod{ border.west.step, border.head.step });
-                    }
-                    auto l = sector * (curpos - corner(length));
-                    auto a = center * l / center;
-                    auto b = center *~l /~center;
-                    auto s = sector * std::max(a - b + center, dot_00);
-
-                    hzgrip.coor.x = widths.x;
-                    hzgrip.coor.y = 0;
-                    hzgrip.size.y = widths.y;
-                    hzgrip.size.x = s.x;
-
-                    vtgrip.coor = dot_00;
-                    vtgrip.size = widths;
-                    vtgrip.size.y += s.y;
-                    return lastxy(curpos);
-                }
-                auto drag(base& master, twod const& curpos, dent const& outer, bool zoom)
-                {
-                    if (seized)
-                    {
-                        auto width = master.base::size() + outer;
-                        auto delta = (corner(width) + origin - curpos) * sector;
-                        if (auto dxdy = master.base::sizeby(zoom ? delta * 2 : delta))
-                        {
-                            auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
-                            master.base::moveby(step);
-                            master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
-                        }
-                    }
-                    return seized;
-                }
-                void drop()
-                {
-                    seized = faux;
-                }
-            };
-
-            using list = socks<sock>;
-            using skill::boss,
-                  skill::memo;
-
-            list items;
-            dent outer;
-            dent inner;
-            dent width;
-            bool alive; // pro::sizer: The sizer state.
-
-        public:
-            void props(dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
-            {
-                outer = outer_rect;
-                inner = inner_rect;
-                width = outer - inner;
-            }
-            auto get_props()
-            {
-                return std::pair{ outer, inner };
-            }
-
-            sizer(base&&) = delete;
-            sizer(base& boss, dent const& outer_rect = {2,2,1,1}, dent const& inner_rect = {})
-                : skill{ boss          },
-                  items{ boss          },
-                  outer{ outer_rect    },
-                  inner{ inner_rect    },
-                  width{ outer - inner },
-                  alive{ true          }
-            {
-                boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
-                {
-                    if (gear.meta(hids::anyCtrl))
-                    {
-                        auto& g = items.take(gear);
-                        if (!g.zoomon)// && g.inside)
-                        {
-                            g.zoomdt = {};
-                            g.zoomon = true;
-                            g.zoomsz = boss.base::area();
-                            g.zoomat = gear.coord;
-                            gear.capture(boss.id);
-                        }
-                        static constexpr auto warp = dent{ 2,2,1,1 } * 2;
-                        //todo respect pivot
-                        auto prev = g.zoomdt;
-                        auto coor = boss.coor();
-                        auto deed = boss.bell::protos<tier::release>();
-                        if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
-                        else                                              g.zoomdt += warp;
-                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto next = (g.zoomsz + g.zoomdt).clip(viewport);
-                        auto step = boss.extend(next);
-                        if (!step.size) // Undo if can't zoom.
-                        {
-                            g.zoomdt = prev;
-                            boss.moveto(coor);
-                        }
-                    }
-                };
-                boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state, memo)
-                {
-                    alive = state;
-                };
-                boss.LISTEN(tier::release, e2::postrender, canvas, memo)
-                {
-                    if (!alive) return;
-                    auto area = canvas.full() + outer;
-                    auto fuse = [&](cell& c){ c.xlight(); };
-                    canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
-                    items.foreach([&](sock& item)
-                    {
-                        auto corner = item.corner(area.size);
-                        auto side_x = item.hzgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).clip(area);
-                        auto side_y = item.vtgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).clip(area);
-                        canvas.fill(side_x, fuse);
-                        canvas.fill(side_y, fuse);
-                    });
-                };
-                boss.LISTEN(tier::release, e2::form::layout::swarp, warp, memo)
-                {
-                    auto area = boss.base::area();
-                    auto next = area + warp;
-                    auto step = boss.extend(next);
-                };
-                boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
-                {
-                    outer = outer_rect;
-                    width = outer - inner;
-                };
-                boss.LISTEN(tier::release, e2::config::plugins::sizer::inner, inner_rect, memo)
-                {
-                    inner = inner_rect;
-                    width = outer - inner;
-                };
-                boss.LISTEN(tier::request, e2::config::plugins::sizer::inner, inner_rect, memo)
-                {
-                    inner_rect = inner;
-                };
-                boss.LISTEN(tier::request, e2::config::plugins::sizer::outer, outer_rect, memo)
-                {
-                    outer_rect = outer;
-                };
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
-                {
-                    auto& g = items.take(gear);
-                    if (g.zoomon && !gear.meta(hids::anyCtrl))
-                    {
-                        g.zoomon = faux;
-                        gear.setfree();
-                    }
-                    if (g.calc(boss, gear.coord, outer, inner, width))
-                    {
-                        boss.base::deface(); // Deface only if mouse moved.
-                    }
-                };
-                engage<hids::buttons::left>();
-                engage<hids::buttons::leftright>();
-            }
-            // pro::sizer: Configuring the mouse button to operate.
-            template<hids::buttons Button>
-            void engage()
-            {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
-                {
-                    if (items.take(gear).grab(boss, gear.coord, outer))
-                    {
-                        gear.dismiss();
-                        boss.bell::expire<tier::release>(); // To prevent d_n_d triggering.
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
-                {
-                    if (items.take(gear).drag(boss, gear.coord, outer, gear.meta(hids::anyCtrl)))
-                    {
-                        gear.dismiss();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
-                {
-                    items.take(gear).drop();
-                };
-                boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
-                {
-                    items.take(gear).drop();
-                    boss.SIGNAL(tier::release, e2::form::upon::dragged, gear);
-                };
-            }
-        };
-
-        // pro: Provides moving by dragging.
-        class mover
-            : public skill
-        {
-            struct sock
-            {
-                twod origin; // sock: Grab's initial coord info.
-                void grab(base const& master, twod const& curpos)
-                {
-                    auto center = master.base::size() / 2;
-                    origin = curpos - center;
-                }
-                void drag(base& master, twod const& coord)
-                {
-                    auto delta = coord - origin;
-                    auto center = master.base::size() / 2;
-                    delta -= center;
-                    master.base::moveby(delta);
-                }
-            };
-
-            using list = socks<sock>;
-            using skill::boss,
-                  skill::memo;
-
-            list       items;
-            wptr<base> dest_shadow;
-            sptr<base> dest_object;
-
-        public:
-            mover(base&&) = delete;
-            mover(base& boss, sptr<base> subject)
-                : skill{ boss },
-                  items{ boss },
-                  dest_shadow{ subject }
-            {
-                engage<hids::buttons::left>();
-            }
-            mover(base& boss)
-                : mover{ boss, boss.This() }
-            { }
-            // pro::mover: Configuring the mouse button to operate.
-            template<hids::buttons Button>
-            void engage()
-            {
-                boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
-                boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
-                {
-                    if ((dest_object = dest_shadow.lock()))
-                    {
-                        items.take(gear).grab(*dest_object, gear.coord);
-                        gear.dismiss();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
-                {
-                    if (dest_object)
-                    {
-                        items.take(gear).drag(*dest_object, gear.coord);
-                        auto delta = gear.delta.get();
-                        dest_object->SIGNAL(tier::preview, e2::form::upon::changed, delta);
-                        gear.dismiss();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::drag::cancel::_<Button>, gear, memo)
-                {
-                    if (dest_object)
-                    {
-                        dest_object.reset();
-                        gear.dismiss();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::drag::stop::_<Button>, gear, memo)
-                {
-                    if (dest_object)
-                    {
-                        dest_object->SIGNAL(tier::release, e2::form::upon::dragged, gear);
-                        dest_object.reset();
-                        gear.dismiss();
-                    }
-                };
-            }
-        };
-
-        // pro: Keybd/Mouse highlighter.
-        class track
-            : public skill
-        {
-            struct sock
-            {
-                twod cursor{}; // sock: Coordinates of the active cursor.
-                bool inside{}; // sock: Is active.
-
-                operator bool () { return inside; }
-                auto calc(base const& master, twod curpos)
-                {
-                    auto area = rect{ dot_00, master.base::size() };
-                    cursor = curpos;
-                    inside = area.hittest(curpos);
-                }
-            };
-
-            using pool = std::list<id_t>;
-            using list = socks<sock>;
-            using skill::boss,
-                  skill::memo;
-
-            pool focus; // track: Is keybd focused.
-            list items; // track: .
-            bool alive; // track: Is active.
-
-            void add_keybd(id_t gear_id)
-            {
-                if (gear_id != id_t{})
-                {
-                    auto stat = focus.empty();
-                    auto iter = std::find(focus.begin(), focus.end(), gear_id);
-                    if (iter == focus.end())
-                    {
-                        focus.push_back(gear_id);
-                        if (stat) boss.deface();
-                    }
-                }
-            }
-            void del_keybd(id_t gear_id)
-            {
-                if (gear_id != id_t{})
-                {
-                    auto stat = focus.size();
-                    auto iter = std::find(focus.begin(), focus.end(), gear_id);
-                    if (iter != focus.end())
-                    {
-                        focus.erase(iter);
-                        if (stat) boss.deface();
-                    }
-                }
-            }
-
-        public:
-            track(base&&) = delete;
-            track(base& boss, bool keybd_only = faux)
-                : skill{ boss },
-                  items{ boss },
-                  alive{ true }
-            {
-                // Keybd focus.
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
-                {
-                    add_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
-                {
-                    del_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
-                {
-                    del_keybd(gear.id);
-                };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                {
-                    if (focus.empty() || !alive) return;
-                    static constexpr auto title_fg_color = rgba{ 0xFFffffff };
-                    //todo revise, too many fillings (mold's artifacts)
-                    auto normal = boss.base::color();
-                    auto bright = skin::color(tone::brighter);
-                    auto shadow = skin::color(tone::shadower);
-                    //todo unify, make it more contrast
-                    shadow.alpha(0x80);
-                    bright.fgc(title_fg_color);
-                    shadow.fgc(title_fg_color);
-                    auto fillup = [&](auto bright, auto shadow)
-                    {
-                        parent_canvas.fill(shadow);
-                    };
-                    if (normal.bgc().alpha())
-                    {
-                        auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                        auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-                        fillup(fuse_shadow, fuse_bright);
-                    }
-                    else
-                    {
-                        auto only_bright = [&](cell& c) { c.fuse(bright); };
-                        auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-                        fillup(only_shadow, only_bright);
-                    }
-                    // Draw the border around
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::kb_focus);
-                    mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c) { c.fuse(mark); };
-                    parent_canvas.cage(area, dot_21, fill);
-                };
-                boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
-                {
-                    if (lucidity != -1) alive = lucidity == 0xFF;
-                };
-                if (keybd_only || !skin::globals().tracking) return;
-                // Mouse focus.
-                boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
-                {
-                    items.take(gear).calc(boss, gear.coord);
-                };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                {
-                    if (!alive) return;
-                    auto full = parent_canvas.full();
-                    auto view = parent_canvas.view();
-                    auto mark = cell{}.bgc(0xFFffffff);
-                    auto fill = [&](cell& c) { c.fuse(mark); };
-                    items.foreach([&](sock& item)
-                    {
-                        auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
-                        area.coor += full.coor;
-                        parent_canvas.fill(area.clip(full), fill);
-                    });
-                };
-            }
-        };
-
-        // pro: Provides functionality for runtime animation (time-based).
-        class robot
-            : public skill
-        {
-            using subs = std::map<id_t, hook>;
-            using skill::boss;
-
-            subs memo;
-
-        public:
-            using skill::skill; // Inherits ctors.
-
-            // pro::robot: Every timer tick, yield the
-            //             delta from the flow and, if delta,
-            //             Call the proc (millisecond precision).
-            template<class P, class S>
-            void actify(id_t ID, S flow, P proc)
-            {
-                auto init = datetime::now();
-                boss.LISTEN(tier::general, e2::timer::any, p, memo[ID], (ID, proc, flow, init))
-                {
-                    auto now = datetime::round<si32>(p - init);
-                    if (auto data = flow(now))
-                    {
-                        static constexpr auto zero = std::decay_t<decltype(data.value())>{};
-                        auto& v = data.value();
-                        if (v != zero) proc(v);
-                    }
-                    else
-                    {
-                        pacify(ID);
-                    }
-                };
-                boss.SIGNAL(tier::release, e2::form::animate::start, ID);
-            }
-            // pro::robot: Optional proceed every timer tick,
-            //             yield the delta from the flow and,
-            //             if delta, Call the proc (millisecond precision).
-            template<class P, class S>
-            void actify(id_t ID, std::optional<S> flow, P proc)
-            {
-                if (flow)
-                {
-                    actify(ID, flow.value(), proc);
-                }
-            }
-            template<class P, class S>
-            void actify(S flow, P proc)
-            {
-                actify(bell::noid, flow, proc);
-            }
-            template<class P, class S>
-            void actify(std::optional<S> flow, P proc)
-            {
-                if (flow)
-                {
-                    actify(bell::noid, flow.value(), proc);
-                }
-            }
-            // pro::robot: Cancel tick activity.
-            void pacify(id_t id = bell::noid)
-            {
-                if (id == bell::noid) memo.clear(); // Stop all animations.
-                else                  memo.erase(id);
-                boss.SIGNAL(tier::release, e2::form::animate::stop, id);
-            }
-            // pro::robot: Check activity by id.
-            bool active(id_t id)
-            {
-                return memo.contains(id);
-            }
-            // pro::robot: Check any activity.
-            operator bool ()
-            {
-                return !memo.empty();
-            }
-        };
-
-        // pro: Invokes specified proc after timeout.
-        class timer
-            : public skill
-        {
-            using subs = std::map<id_t, hook>;
-            using skill::boss;
-
-            subs memo;
-
-        public:
-            using skill::skill; // Inherits ctors.
-
-            // pro::timer: Start countdown for specified ID.
-            template<class P>
-            void actify(id_t ID, span timeout, P lambda)
-            {
-                auto alarm = datetime::now() + timeout;
-                boss.LISTEN(tier::general, e2::timer::any, now, memo[ID], (ID, timeout, lambda, alarm))
-                {
-                    if (now > alarm)
-                    {
-                        alarm = now + timeout;
-                        if (!lambda(ID)) pacify(ID);
-                    }
-                };
-            }
-            // pro::timer: Start countdown.
-            template<class P>
-            void actify(span timeout, P lambda)
-            {
-                actify(bell::noid, timeout, lambda);
-            }
-            // pro::timer: Cancel timer ('id=noid' for all).
-            void pacify(id_t id = bell::noid)
-            {
-                if (id == bell::noid) memo.clear(); // Stop all timers.
-                else                  memo.erase(id);
-                //boss.SIGNAL(tier::release, e2::form::animate::stop, id);
-            }
-            // pro::timer: Check activity by id.
-            bool active(id_t id)
-            {
-                return memo.contains(id);
-            }
-            // pro::timer: Check any activity.
-            operator bool ()
-            {
-                return !memo.empty();
-            }
-        };
-
-        // pro: The text caret controller.
-        class caret
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            subs conf; // caret: Configuration subscriptions.
-            bool live; // caret: Should the caret be drawn.
-            bool done; // caret: Is the caret already drawn.
-            bool down; // caret: Is the caret suppressed (lost focus).
-            bool form; // caret: Caret style.
-            rect body; // caret: Caret position.
-            span step; // caret: Blink interval. span::zero() if steady.
-            time next; // caret: Time of next blinking.
-
-        public:
-            caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = skin::globals().blink_period)
-                : skill{ boss },
-                   live{ faux },
-                   done{ faux },
-                   down{ true },
-                   form{ abox },
-                   body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
-                   step{ freq }
-            {
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::state, state, conf)
-                {
-                    down = !state;
-                };
-                boss.LISTEN(tier::request, e2::config::caret::blink, req_step, conf)
-                {
-                    req_step = step;
-                };
-                boss.LISTEN(tier::request, e2::config::caret::style, req_style, conf)
-                {
-                    req_style = form ? 1 : 0;
-                };
-                boss.LISTEN(tier::general, e2::config::caret::blink, new_step, conf)
-                {
-                    blink_period(new_step);
-                };
-                boss.LISTEN(tier::preview, e2::config::caret::blink, new_step, conf)
-                {
-                    blink_period(new_step);
-                };
-                boss.LISTEN(tier::general, e2::config::caret::style, new_style, conf)
-                {
-                    style(new_style);
-                };
-                boss.LISTEN(tier::preview, e2::config::caret::style, new_style, conf)
-                {
-                    style(new_style);
-                };
-                if (visible) show();
-            }
-
-            operator bool () const { return memo.count(); }
-
-            // pro::caret: Set caret style.
-            void style(bool new_form)
-            {
-                if (form != new_form)
-                {
-                    hide();
-                    form = new_form;
-                    show();
-                }
-            }
-            // pro::caret: Set blink period.
-            void blink_period(span const& new_step = skin::globals().blink_period)
-            {
-                auto changed = (step == span::zero()) != (new_step == span::zero());
-                step = new_step;
-                if (changed)
-                {
-                    hide();
-                    show();
-                }
-            }
-            void style(si32 mode)
-            {
-                switch (mode)
-                {
-                    case 0: // n = 0  blinking box
-                    case 1: // n = 1  blinking box (default)
-                        blink_period();
-                        style(true);
-                        break;
-                    case 2: // n = 2  steady box
-                        blink_period(span::zero());
-                        style(true);
-                        break;
-                    case 3: // n = 3  blinking underline
-                        blink_period();
-                        style(faux);
-                        break;
-                    case 4: // n = 4  steady underline
-                        blink_period(span::zero());
-                        style(faux);
-                        break;
-                    case 5: // n = 5  blinking I-bar
-                        blink_period();
-                        style(true);
-                        break;
-                    case 6: // n = 6  steady I-bar
-                        blink_period(span::zero());
-                        style(true);
-                        break;
-                    default:
-                        log(prompt::term, "Unsupported cursor style requested, ", mode);
-                        break;
-                }
-            }
-            void toggle()
-            {
-                style(!form);
-                reset();
-            }
-            // pro::caret: Set caret position.
-            void coor(twod const& coor)
-            {
-                if (body.coor != coor)
-                {
-                    reset();
-                    body.coor = coor;
-                }
-            }
-            // pro::caret: Get caret position.
-            auto& coor() const
-            {
-                return body.coor;
-            }
-            // pro::caret: Get caret style.
-            auto style() const
-            {
-                return std::pair{ form, !!(*this) };
-            }
-            // pro::caret: Force to redraw caret.
-            void reset()
-            {
-                if (step != span::zero())
-                {
-                    live = faux;
-                    next = {};
-                }
-            }
-            // pro::caret: Enable caret.
-            void show()
-            {
-                if (!*this)
-                {
-                    done = faux;
-                    live = step == span::zero();
-                    if (!live)
-                    {
-                        boss.LISTEN(tier::general, e2::timer::tick, timestamp, memo)
-                        {
-                            if (timestamp > next)
-                            {
-                                next = timestamp + step;
-                                live = !live;
-                                boss.deface(body);
-                            }
-                        };
-                    }
-                    boss.LISTEN(tier::release, e2::postrender, canvas, memo)
-                    {
-                        done = live;
-                        auto state = down ? (step == span::zero() ? faux : true)
-                                          : live;
-                        if (state)
-                        {
-                            auto field = canvas.core::view();
-                            auto point = body;
-                            point.coor += field.coor + boss.base::coor();
-                            if (auto area = field.clip(point))
-                            {
-                                auto& test = canvas.peek(point.coor);
-                                if (test.wdt() == 2) // Extend cursor to adjacent halves.
-                                {
-                                    if (field.hittest(point.coor + dot_10))
-                                    {
-                                        auto& next = canvas.peek(point.coor + dot_10);
-                                        if (next.wdt() == 3 && test.same_txt(next))
-                                        {
-                                            area.size.x++;
-                                        }
-                                    }
-                                }
-                                else if (test.wdt() == 3)
-                                {
-                                    if (field.hittest(point.coor - dot_10))
-                                    {
-                                        auto& prev = canvas.peek(point.coor - dot_10);
-                                        if (prev.wdt() == 2 && test.same_txt(prev))
-                                        {
-                                            area.size.x++;
-                                            area.coor.x--;
-                                        }
-                                    }
-                                }
-
-                                if (form)
-                                {
-                                    canvas.fill(area, [](cell& c)
-                                    {
-                                        auto b = c.bgc();
-                                        auto f = c.fgc();
-                                        if (c.inv()) c.bgc(f).fgc(cell::shaders::contrast.invert(f));
-                                        else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
-                                    });
-                                }
-                                else canvas.fill(area, [](cell& c) { c.und() ? c.und(0) : c.und(1); });
-                            }
-                            else if (area.size.y)
-                            {
-                                auto chr = area.coor.x ? '>' : '<';
-                                area.coor.x -= area.coor.x ? 1 : 0;
-                                area.size.x = 1;
-                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())); });
-                            }
-                        }
-                    };
-                }
-            }
-            // pro::caret: Disable caret.
-            void hide()
-            {
-                if (*this)
-                {
-                    memo.clear();
-                    if (done)
-                    {
-                        boss.deface(body);
-                        done = faux;
-                    }
-                }
-            }
-        };
-
-        // pro: Title/footer support.
-        class title
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-        public:
-            page head_page; // title: Owner's caption header.
-            page foot_page; // title: Owner's caption footer.
-            escx head_foci; // title: Original header + foci status.
-            text head_text; // title: Original header.
-            text foot_text; // title: Original footer.
-            twod head_size; // title: Header page size.
-            twod foot_size; // title: Footer page size.
-            bool head_live; // title: Handle header events.
-            bool foot_live; // title: Handle footer events.
-            flow ooooooooo; // title: .
-
-            struct user
-            {
-                id_t gear_id;
-                text icon;
-            };
-            std::list<user> user_icon;
-
-            bool live = true; // title: Title visibility.
-
-            auto recalc(page& object, twod& size)
-            {
-                auto cp = dot_00;
-                ooooooooo.flow::reset();
-                ooooooooo.flow::size(size);
-                auto publish = [&](auto const& combo)
-                {
-                    cp = ooooooooo.flow::print(combo);
-                };
-                object.stream(publish);
-                auto& cover = ooooooooo.flow::minmax();
-                size.y = cover.height() + 1;
-                return cp;
-            }
-            void recalc(twod const& new_size)
-            {
-                head_size = new_size;
-                foot_size = new_size;
-                if (head_live) recalc(head_page, head_size);
-                if (foot_live) recalc(foot_page, foot_size);
-            }
-            void header(view newtext)
-            {
-                head_text = newtext;
-                rebuild();
-            }
-            void footer(view newtext)
-            {
-                foot_text = newtext;
-                foot_page = foot_text;
-                recalc(foot_page, foot_size);
-                boss.SIGNAL(tier::release, e2::form::prop::ui::footer, foot_text);
-            }
-            void rebuild()
-            {
-                head_foci = head_text;
-                if (user_icon.size())
-                {
-                    head_foci.add(text(user_icon.size() * 2, '\0')); // Reserv space for focus markers.
-                    //if (head_live) // Add a new line if there is no space for focus markers.
-                    //{
-                    //    head_page = head_foci;
-                    //    auto cp = recalc(head_page, head_size);
-                    //    if (cp.x + user_icon.size() * 2 - 1 < head_size.x) head_foci.eol();
-                    //}
-                    head_foci.nop().pushsgr().chx(0).jet(bias::right);
-                    for (auto& gear : user_icon)
-                    {
-                        head_foci.add(gear.icon);
-                    }
-                    head_foci.nop().popsgr();
-                }
-                if (head_live)
-                {
-                    head_page = head_foci;
-                    recalc(head_page, head_size);
-                }
-                boss.SIGNAL(tier::release, e2::form::prop::ui::header, head_text);
-                boss.SIGNAL(tier::release, e2::form::prop::ui::title , head_foci);
-            }
-
-            title(base&&) = delete;
-            title(base& boss, view title = {}, view foots = {}, bool visible = true,
-                                                                bool on_header = true,
-                                                                bool on_footer = true)
-                : skill{ boss },
-                  live{ visible },
-                  head_live{ on_header },
-                  foot_live{ on_footer }
-            {
-                head_text = title;
-                foot_text = foots;
-                head_page = head_text;
-                foot_page = foot_text;
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
-                {
-                    if (head_live) header(head_text);
-                    if (foot_live) footer(foot_text);
-                    //footer(ansi::jet(bias::right).add("test\nmultiline\nfooter"));
-                };
-                boss.LISTEN(tier::release, e2::size::any, new_size, memo)
-                {
-                    recalc(new_size);
-                };
-                boss.LISTEN(tier::release, e2::postrender, canvas, memo)
-                {
-                    if (live)
-                    {
-                        auto saved_context = canvas.bump(dent{ 0,0,head_size.y,foot_size.y });
-                        if (head_live)
-                        {
-                            canvas.cup(dot_00);
-                            canvas.output(head_page, cell::shaders::contrast);
-                        }
-                        if (foot_live)
-                        {
-                            canvas.cup({ 0, head_size.y + boss.size().y });
-                            canvas.output(foot_page, cell::shaders::contrast);
-                        }
-                        canvas.bump(saved_context);
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, memo)
-                {
-                    if (!gear_id) return;
-                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                    if (iter == user_icon.end())
-                    if (auto gear_ptr = bell::getref<hids>(gear_id))
-                    {
-                        auto index = gear_ptr->user_index;
-                        auto color = rgba::vt256[4 + index % (256 - 4)];
-                        auto image = ansi::fgc(color).add("\0▀"sv);
-                        user_icon.push_front({ gear_id, image });
-                        rebuild();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::off, gear_id, memo)
-                {
-                    if (!gear_id) return;
-                    auto iter = std::find_if(user_icon.begin(), user_icon.end(), [&](auto& a){ return a.gear_id == gear_id; });
-                    if (iter != user_icon.end())
-                    {
-                        user_icon.erase(iter);
-                        rebuild();
-                    }
-                };
-                boss.LISTEN(tier::preview, e2::form::prop::ui::header, newtext, memo)
-                {
-                    header(newtext);
-                };
-                boss.LISTEN(tier::request, e2::form::prop::ui::header, curtext, memo)
-                {
-                    curtext = head_text;
-                };
-                boss.LISTEN(tier::request, e2::form::prop::ui::title, curtext, memo)
-                {
-                    curtext = head_foci;
-                };
-                boss.LISTEN(tier::preview, e2::form::prop::ui::footer, newtext, memo)
-                {
-                    footer(newtext);
-                };
-                boss.LISTEN(tier::request, e2::form::prop::ui::footer, curtext, memo)
-                {
-                    curtext = foot_text;
-                };
-            }
-        };
-
-        // pro: Deprecated. Perform graceful shutdown functionality. LIMIT in seconds, ESC_THRESHOLD in milliseconds.
-        class guard
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            static constexpr auto threshold = 500ms; // guard: Double escape threshold.
-
-            bool wait; // guard: Ready to close.
-            time stop; // guard: Timeout for single Esc.
-
-        public:
-            guard(base&&) = delete;
-            guard(base& boss) : skill{ boss },
-                wait{ faux }
-            {
-                // Suspected early completion.
-                boss.LISTEN(tier::release, e2::conio::preclose, pre_close, memo)
-                {
-                    if ((wait = pre_close))
-                    {
-                        stop = datetime::now() + threshold;
-                    }
-                };
-                // Double escape catcher.
-                boss.LISTEN(tier::general, e2::timer::any, timestamp, memo)
-                {
-                    if (wait && (timestamp > stop))
-                    {
-                        wait = faux;
-                        auto shadow = boss.This();
-                        log(prompt::gate, "Shutdown by double escape");
-                        boss.SIGNAL(tier::preview, e2::conio::quit, deal, ());
-                        memo.clear();
-                    }
-                };
-            }
-        };
-
-        // pro: Close owner on mouse inactivity timeout.
-        class watch
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            static constexpr auto limit = 600s; //todo unify // watch: Idle timeout in seconds.
-
-            hook pong; // watch: Alibi subsciption token.
-            hook ping; // watch: Zombie check countdown token.
-            time stop; // watch: Timeout for zombies.
-
-        public:
-            watch(base&&) = delete;
-            watch(base& boss) : skill{ boss }
-            {
-                stop = datetime::now() + limit;
-
-                // No mouse events watchdog.
-                boss.LISTEN(tier::preview, hids::events::mouse::any, something, pong)
-                {
-                    stop = datetime::now() + limit;
-                };
-                boss.LISTEN(tier::general, e2::timer::any, something, ping)
-                {
-                    if (datetime::now() > stop)
-                    {
-                        auto backup = boss.This();
-                        log(prompt::gate, "No mouse clicking events");
-                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
-                        ping.reset();
-                        memo.clear();
-                    }
-                };
-            }
-        };
-
-        // pro: Keyboard focus.
-        class focus
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            struct config
-            {
-                bool active{}; // focus: The chain is under the focus.
-                bool focused{}; // focus: Focused endpoint.
-                hook token; // focus: Cleanup token.
-                std::list<wptr<base>> next; // focus: Focus event next hop.
-
-                template<class P>
-                auto foreach(P proc)
-                {
-                    auto head = next.begin();
-                    auto tail = next.end();
-                    while (head != tail)
-                    {
-                        auto n = head++;
-                        if (auto nexthop = n->lock()) proc(nexthop);
-                        else                          next.erase(n);
-                    }
-                }
-            };
-
-            //todo kb navigation type: transit, cyclic, plain, disabled, closed
-            bool focusable; // focus: Boss could be a focus endpoint.
-            bool scope; // focus: Cutoff threshold for the focus branch.
-            //todo std::list<config>??? std::unordered_map is too expensive
-            std::unordered_map<id_t, config> gears;
-
-            template<bool On = true>
-            void signal_state()
-            {
-                if constexpr (On == faux)
-                {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        if (gear_id != id_t{} && route.active) return;
-                    }
-                }
-                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::state, On);
-            }
-            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
-            {
-                auto iter = gears.emplace(gear_id, std::move(cfg)).first;
-                if (gear_id != id_t{})
-                {
-                    auto& route = iter->second;
-                    boss.LISTEN(tier::general, hids::events::die, gear, route.token)
-                    {
-                        auto iter = gears.find(gear.id);
-                        if (iter != gears.end())
-                        {
-                            //if constexpr (debugmode) log(prompt::foci, "Gears cleanup boss:", boss.id, " hid:", gear.id);
-                            auto& route = iter->second;
-                            auto  token = std::move(route.token);
-                            if (route.active) // Keep only the active branch.
-                            {
-                                route.active = faux;
-                                gears[id_t{}] = std::move(route);
-                                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, gear.id);
-                                signal_state<faux>();
-                            }
-                            boss.SIGNAL(tier::release, hids::events::die, gear);
-                            gears.erase(iter);
-                        }
-                    };
-                }
-                return iter;
-            }
-            auto& get_route(id_t gear_id)
-            {
-                auto iter = gears.find(gear_id);
-                if (iter == gears.end()) iter = add_route(gear_id);
-                return iter->second;
-            }
-
-        public:
-            enum class mode { hub, focusable, focused, active };
-            enum class solo { off, on, mix };
-            enum class flip { off = faux, on = true };
-            friend auto operator ==(si32 l, solo r) { return l == static_cast<std::underlying_type_t<solo>>(r); }
-
-            template<class T>
-            static void set(sptr<base> item_ptr, T&& gear_id, solo s, flip f, bool skip = faux)
-            {
-                auto fire = [&](auto id)
-                {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::set, seed, ({ .id = id, .solo = (si32)s, .flip = (bool)f, .skip = skip }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus set gear:", seed.id, " item:", item_ptr->id);
-                };
-                if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
-                else                    for (auto next_id : gear_id) fire(next_id);
-            }
-            template<class T>
-            static void off(sptr<base> item_ptr, T&& gear_id)
-            {
-                auto fire = [&](auto id)
-                {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::off, seed, ({ .id = id }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus off gear:", seed.id, " item:", item_ptr->id);
-                };
-                if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
-                else                    for (auto next_id : gear_id) fire(next_id);
-            }
-            static void off(sptr<base> item_ptr)
-            {
-                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
-                pro::focus::off(item_ptr, gear_id_list);
-                //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
-            }
-            static auto get(sptr<base> item_ptr, bool remove_default = faux)
-            {
-                item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
-                for (auto next_id : gear_id_list)
-                {
-                    item_ptr->RISEUP(tier::preview, hids::events::keybd::focus::get, seed, ({ .id = next_id }));
-                    //if constexpr (debugmode) log(prompt::foci, "Focus get gear:", seed.id, " item:", item_ptr->id);
-                }
-                if (remove_default)
-                if (auto parent = item_ptr->parent())
-                {
-                    parent->RISEUP(tier::preview, hids::events::keybd::focus::dry, seed, ({ .item = item_ptr }));
-                }
-                return gear_id_list;
-            }
-
-            focus(base&&) = delete;
-            focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)
-                : skill{ boss },
-                  focusable{ m != mode::hub && m != mode::active },
-                  scope{ cut_scope }
-            {
-                if (m == mode::focused || m == mode::active) // Pave default focus path at startup.
-                {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr, memo, (m))
-                    {
-                        pro::focus::set(boss.This(), id_t{}, solo::off, flip::off, m == mode::active ? true : faux);
-                    };
-                }
-                boss.LISTEN(tier::request, e2::form::state::keybd::check, state, memo)
-                {
-                    state = faux;
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        state |= gear_id != id_t{} && route.active;
-                        if (state) return;
-                    }
-                };
-                // Set unique focus on left click. Set group focus on Ctrl+LeftClick.
-                boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, memo)
-                {
-                    if (gear.meta(hids::anyCtrl)) pro::focus::set(boss.This(), gear.id, solo::off, flip::on );
-                    else                          pro::focus::set(boss.This(), gear.id, solo::on,  flip::off);
-                    gear.dismiss();
-                };
-                // Subscribe on keybd events.
-                boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
-                {
-                    //if constexpr (debugmode) log(prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
-                    if (!gear) return;
-                    auto& route = get_route(gear.id);
-                    if (route.active)
-                    {
-                        auto alive = gear.alive;
-                        auto accum = alive;
-                        route.foreach([&](auto& nexthop)
-                        {
-                            nexthop->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
-                            accum &= gear.alive;
-                            gear.alive = alive;
-                        });
-                        gear.alive = accum;
-                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
-                    }
-                };
-                // Subscribe on focus chain events.
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, memo) // Forward the bus event up.
-                {
-                    auto& route = get_route(seed.id);
-                    auto deed = boss.bell::template protos<tier::release>();
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep++ * 4, ' '), "---bus::any gear:", seed.id, " hub:", boss.id);
-                    route.foreach([&](auto& nexthop){ nexthop->bell::template signal<tier::release>(deed, seed); });
-                    //if constexpr (debugmode) log(prompt::foci, text(--seed.deep * 4, ' '), "----------------");
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
-                {
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::on gear:", seed.id, " hub:", boss.id, " gears.size:", gears.size());
-                    auto iter = gears.find(seed.id);
-                    if (iter == gears.end())
-                    {
-                        if (!focusable && seed.id) // Restore dtvt focus after reconnection.
-                        {
-                            boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
-                        }
-                        auto& route = get_route(seed.id);
-                        route.active = true;
-                        if (seed.id) boss.SIGNAL(tier::release, e2::form::state::keybd::focus::on, seed.id);
-                    }
-                    else
-                    {
-                        auto& route = iter->second;
-                        route.active = true;
-                        if (seed.id) boss.SIGNAL(tier::release, e2::form::state::keybd::focus::on, seed.id);
-                    }
-                    if (seed.id != id_t{}) signal_state();
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
-                {
-                    auto& route = get_route(seed.id);
-                    if (seed.id != id_t{})
-                    {
-                        route.active = faux;
-                        boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
-                        signal_state<faux>();
-                    }
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::copy, seed, memo) // Copy default focus route if it is and activate it.
-                {
-                    //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::copy gear:", seed.id, " hub:", boss.id);
-                    if (!gears.contains(seed.id)) // gears[seed.id] = gears[id_t{}]
-                    {
-                        auto def_route = gears.find(id_t{}); // Check if the default route is present.
-                        if (def_route != gears.end()) add_route(seed.id, def_route->second);
-                        else                          add_route(seed.id, config{});
-                    }
-                };
-                // Truncate the maximum path without branches.
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::cut, seed, memo)
-                {
-                    auto& route = get_route(seed.id);
-                    auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                    if (iter != route.next.end())
-                    {
-                        if (scope || route.next.size() != 1) // The root of the branch.
-                        {
-                            route.next.erase(iter);
-                        }
-                        else
-                        {
-                            if (auto parent_ptr = boss.parent())
-                            {
-                                seed.item = boss.This();
-                                parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
-                            }
-                            return;
-                        }
-                    }
-                    if (seed.item)
-                    {
-                        seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed);
-                        boss.expire<tier::preview>();
-                    }
-                };
-                // Subscribe on focus offers. Build a focus tree.
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::set, seed, memo)
-                {
-                    auto focusable = seed.skip ? faux : this->focusable; // Ignore focusablity if it is requested.
-                    if (!focusable && !seed.item && seed.id) // Copy the default up-route for the focus hub.
-                    {
-                        boss.SIGNAL(tier::release, hids::events::keybd::focus::bus::copy, seed);
-                    }
-
-                    auto& route = get_route(seed.id);
-                    if (!seed.item) // No focused item. We are the first.
-                    {
-                        if (route.active)
-                        {
-                            if (seed.flip) // Focus flip-off is always a truncation of the maximum path without branches.
-                            {
-                                if (focusable) route.focused = faux;
-                                boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
-                                return;
-                            }
-                            if (seed.solo != solo::on) // Group focus.
-                            {
-                                route.focused = focusable;
-                                return;
-                            }
-                            if (focusable)
-                            {
-                                route.foreach([&](auto& nexthop){ nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
-                                route.next.clear();
-                            }
-                        }
-                        route.focused = focusable;
-                    }
-                    else // Build focus tree.
-                    {
-                        if (seed.solo == solo::on || (seed.solo == solo::mix && !route.active))
-                        {
-                            if (route.active)
-                            {
-                                route.foreach([&](auto& nexthop){ if (nexthop != seed.item) nexthop->SIGNAL(tier::release, hids::events::keybd::focus::bus::off, seed); });
-                            }
-                            route.next.clear();
-                            route.next.push_back(seed.item);
-                        }
-                        else // Group focus.
-                        {
-                            auto iter = std::find_if(route.next.begin(), route.next.end(), [&](auto& n){ return n.lock() == seed.item; });
-                            if (iter == route.next.end()) route.next.push_back(seed.item);
-                            if (route.active)
-                            {
-                                seed.item->SIGNAL(tier::release, hids::events::keybd::focus::bus::on, seed);
-                                return;
-                            }
-                        }
-                    }
-
-                    if (auto parent = boss.parent())
-                    {
-                        seed.item = boss.This();
-                        parent->RISEUP(tier::preview, hids::events::keybd::focus::set, seed);
-                    }
-                };
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::off, seed, memo)
-                {
-                    auto& route = get_route(seed.id);
-                    if (route.active)
-                    {
-                        route.focused = faux;
-                        if (auto parent_ptr = boss.parent())
-                        {
-                            auto temp = seed.item;
-                            seed.item = boss.This();
-                            parent_ptr->RISEUP(tier::preview, hids::events::keybd::focus::cut, seed);
-                            seed.item = temp;
-                        }
-                    }
-                };
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::get, seed, memo)
-                {
-                    boss.SIGNAL(tier::preview, hids::events::keybd::focus::off, seed);
-                    gears.erase(seed.id);
-                };
-                boss.LISTEN(tier::preview, hids::events::keybd::focus::dry, seed, memo)
-                {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        route.next.remove_if([&](auto& next){ return next.lock() == seed.item; });
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::state::keybd::enlist, gear_id_list, memo)
-                {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::state::keybd::focus::state, state, memo)
-                {
-                    //todo revise: same as e2::form::state::keybd::check
-                    state = faux;
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        state |= gear_id != id_t{} && route.active;
-                        if (state) return;
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
-                {
-                    auto iter = gears.find(gear_test.first);
-                    if (iter != gears.end() && iter->second.active) gear_test.second++;
-                };
-                boss.LISTEN(tier::request, e2::form::state::keybd::next, gear_test, memo)
-                {
-                    auto iter = gears.find(gear_test.first);
-                    if (iter != gears.end())
-                    {
-                        auto& route = iter->second;
-                        if (route.active)
-                        {
-                            route.foreach([&](auto& nexthop){ gear_test.second++; });
-                        }
-                    }
-                };
-                boss.LISTEN(tier::general, e2::form::proceed::functor, proc, memo)
-                {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        if (gear_id != id_t{} && route.next.empty() && route.active) // route.focused === route.active & route.next.empty().
-                        {
-                            proc(boss.This());
-                        }
-                    }
-                };
-            }
-        };
-/*
-        // pro: Provides functionality related to keyboard input.
-        class keybd
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            subs kb_subs{};
-            //todo foci
-            //std::list<id_t> saved;
-
-        public:
-            keybd(base&&) = delete;
-            keybd(base& boss) : skill{ boss }
-            {
-                //todo deprecated
-                //boss.LISTEN(tier::preview, hids::events::keybd::data, gear, memo)
-                //{
-                //    boss.SIGNAL(tier::release, hids::events::keybd::data, gear);
-                //};
-            };
-
-            // pro::keybd: Keybd offers promoter.
-            void active()
-            {
-                boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, kb_subs)
-                {
-                    if (!gear) return;
-                    auto deed = boss.bell::protos<tier::release>();
-                    if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
-                    {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(boss.This());
-                        else                          gear.kb_offer_5(boss.This());
-                        pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                       : pro::focus::solo::on, pro::focus::flip::off);
-                        gear.dismiss();
-                    }
-                    else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
-                    {
-                        gear.kb_offer_1(boss.This());
-                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                        gear.dismiss();
-                    }
-                };
-            }
-            //todo foci
-            // pro::keybd: Set focus root.
-            //void master()
-            //{
-            //    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
-            //    {
-            //        log("restore");
-            //        //if (boss.root()) // Restore focused state.
-            //        {
-            //            boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
-            //        }
-            //        if (gear.focus_changed())
-            //        {
-            //            boss.bell::expire<tier::release>();
-            //        }
-            //    };
-            //};
-            // pro::keybd: Subscribe on keybd offers.
-            void accept(bool value)
-            {
-                if (value)
-                {
-                    active();
-                    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
-                    {
-                        if (!gear.focus_changed())
-                        {
-                            gear.set_kb_focus(boss.This());
-                            //todo foci
-                            //boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear); // Drop saved foci.
-                            boss.bell::expire<tier::release>();
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::upevent::kbannul, gear, kb_subs)
-                    {
-                        gear.remove_from_kb_focus(boss.This());
-                    };
-
-                    ////todo foci
-                    //boss.LISTEN(tier::anycast, hids::events::upevent::kboffer, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    log("restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
-                    //    for (auto gear_id : saved) // Restore saved focus.
-                    //    {
-                    //        if (gear_id == gear.id)
-                    //        {
-                    //            log(" good ");
-                    //            gear.kb_offer_1(boss.This());
-                    //            pro::focus::set(boss.This(), gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                    //        }
-                    //    }
-                    //};
-                    //boss.LISTEN(tier::preview, hids::events::notify::keybd::lost, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    log("save boss.id=", boss.id, " gear_id=", gear.id);
-                    //    saved.push_back(gear.id);
-                    //};
-                    //boss.LISTEN(tier::anycast, hids::events::upevent::kbannul, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    if (gear.focus_force_group = faux)
-                    //    {
-                    //        log("wipe ", boss.id);
-                    //        saved.remove_if([&](auto&& gear_id) { return gear_id == gear.id; });
-                    //    }
-                    //};
-                }
-                else
-                {
-                    kb_subs.clear();
-                }
-            }
-        };
-*/
-        // pro: Provides functionality related to mouse interaction.
-        class mouse
-            : public skill
-        {
-            struct sock
-            {
-                operator bool () { return true; }
-            };
-
-            using list = socks<sock>;
-            using skill::boss,
-                  skill::memo;
-
-            sptr<base> soul; // mouse: Boss cannot be removed while it has active gears.
-            si32       rent; // mouse: Active gears count.
-            si32       full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            bool       omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
-            si32       drag; // mouse: Bitfield of buttons subscribed to mouse drag.
-            list       mice; // mouse: List of active mice.
-            std::map<si32, subs> dragmemo; // mouse: Draggable subs.
-
-        public:
-            mouse(base&&) = delete;
-            mouse(base& boss, bool take_all_events = true)
-                : skill{ boss            },
-                   mice{ boss            },
-                   omni{ take_all_events },
-                   rent{ 0               },
-                   full{ 0               },
-                   drag{ 0               }
-            {
-                auto brush = boss.base::color();
-                boss.base::color(brush.link(boss.bell::id));
-                // pro::mouse: Refocus all active mice on detach (to keep the mouse event tree consistent).
-                boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memo)
-                {
-                    if (parent_ptr)
-                    {
-                        auto& parent = *parent_ptr;
-                        mice.foreach([&](auto& gear)
-                        {
-                            if (auto gear_ptr = bell::getref<hids>(gear.id))
-                            {
-                                gear_ptr->redirect_mouse_focus(parent);
-                            }
-                        });
-                    }
-                };
-                // pro::mouse: Propagate form events down to the visual branch. Executed last.
-                boss.LISTEN(tier::release, hids::events::notify::any, gear)
-                {
-                    if (auto parent_ptr = boss.parent())
-                    if (auto deed = boss.bell::protos<tier::release>())
-                    {
-                        parent_ptr->bell::signal<tier::release>(deed, gear);
-                    }
-                };
-                // pro::mouse: Forward preview to all parents.
-                boss.LISTEN(tier::preview, hids::events::mouse::any, gear, memo)
-                {
-                    auto& offset = boss.base::coor();
-                    gear.pass<tier::preview>(boss.parent(), offset);
-
-                    if (gear) gear.okay(boss);
-                    else      boss.bell::expire<tier::preview>();
-                };
-                // pro::mouse: Forward all not expired mouse events to all parents.
-                boss.LISTEN(tier::release, hids::events::mouse::any, gear, memo)
-                {
-                    if (gear && !gear.captured())
-                    {
-                        auto& offset = boss.base::coor();
-                        gear.pass<tier::release>(boss.parent(), offset);
-                    }
-                };
-                // pro::mouse: Notify form::state::active when the number of clients is positive.
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo)
-                {
-                    if (!full++)
-                    {
-                        soul = boss.This();
-                    }
-                    if (gear.direct<true>(boss.bell::id) || omni)
-                    {
-                        if (!rent++)
-                        {
-                            boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
-                        }
-                    }
-                    //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
-                };
-                // pro::mouse: Notify form::state::active when the number of clients is zero.
-                boss.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, memo)
-                {
-                    if (gear.direct<faux>(boss.bell::id) || omni)
-                    {
-                        if (!--rent)
-                        {
-                            boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
-                        }
-                    }
-                    //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
-                    if (!--full)
-                    {
-                        soul->base::strike();
-                        soul.reset();
-                    }
-                };
-                boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
-                {
-                    state = rent;
-                };
-                boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
-                {
-                    switch (auto deed = boss.bell::protos<tier::release>())
-                    {
-                        default:
-                        case e2::form::draggable::left     .id: draggable<hids::buttons::left     >(enabled); break;
-                        case e2::form::draggable::right    .id: draggable<hids::buttons::right    >(enabled); break;
-                        case e2::form::draggable::middle   .id: draggable<hids::buttons::middle   >(enabled); break;
-                        case e2::form::draggable::wheel    .id: draggable<hids::buttons::wheel    >(enabled); break;
-                        case e2::form::draggable::win      .id: draggable<hids::buttons::win      >(enabled); break;
-                        case e2::form::draggable::leftright.id: draggable<hids::buttons::leftright>(enabled); break;
-                    }
-                };
-            }
-            void reset()
-            {
-                auto lock = events::sync{};
-                if (full)
-                {
-                    full = 0;
-                    soul.reset();
-                }
-            }
-            void take_all_events(bool b)
-            {
-                omni = b;
-            }
-            template<hids::buttons Button>
-            void draggable(bool enabled)
-            {
-                if (!enabled)
-                {
-                    dragmemo[Button].clear();
-                    drag &= ~(1 << Button);
-                }
-                else if (!(drag & 1 << Button))
-                {
-                    drag |= 1 << Button;
-                    //using bttn = hids::events::mouse::button; //MSVC 16.9.4 don't get it
-                    boss.LISTEN(tier::release, hids::events::mouse::button::drag::start::_<Button>, gear, dragmemo[Button])
-                    {
-                        if (gear.capture(boss.bell::id))
-                        {
-                            boss.SIGNAL(tier::release, e2::form::drag::start::_<Button>, gear);
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::drag::pull::_<Button>, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.SIGNAL(tier::release, e2::form::drag::pull::_<Button>, gear);
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::drag::cancel::_<Button>, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<Button>, gear);
-                            gear.setfree();
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::general, hids::events::halt, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.SIGNAL(tier::release, e2::form::drag::cancel::_<Button>, gear);
-                            gear.setfree();
-                            gear.dismiss();
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::drag::stop::_<Button>, gear, dragmemo[Button])
-                    {
-                        if (gear.captured(boss.bell::id))
-                        {
-                            boss.SIGNAL(tier::release, e2::form::drag::stop::_<Button>, gear);
-                            gear.setfree();
-                            gear.dismiss();
-                        }
-                    };
-                }
-            }
-        };
-
-        // pro: Glow gradient filter.
-        class grade
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-        public:
-            grade(base&&) = delete;
-            grade(base& boss) : skill{ boss }
-            {
-                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
-                {
-                    auto size = si32{ 5 }; // grade: Vertical gradient size.
-                    auto step = si32{ 2 }; // grade: Vertical gradient step.
-                    //cell shadow{ cell{}.vis(cell::highlighter) };
-                    //cell bright{ cell{}.vis(cell::darklighter) };
-                    auto shadow = rgba{0xFF000000};
-                    auto bright = rgba{0xFFffffff};
-
-                    //todo optimize - don't fill the head and foot twice
-                    auto area = parent_canvas.view();
-                    auto n = std::clamp(size, 0, area.size.y / 2) + 1;
-                    //auto n = std::clamp(size, 0, boss.base::size().y / 2) + 1;
-
-                    auto head = area;
-                    head.size.y = 1;
-                    auto foot = head;
-                    head.coor.y = area.coor.y + n - 2;
-                    foot.coor.y = area.coor.y + area.size.y - n + 1;
-
-                    for (auto i = 1; i < n; i++)
-                    {
-                        bright.alpha(i * step);
-                        shadow.alpha(i * step);
-
-                        parent_canvas.core::fill(head, [&](cell& c) { c.bgc().mix(bright); });
-                        parent_canvas.core::fill(foot, [&](cell& c) { c.bgc().mix(shadow); });
-
-                        head.coor.y--;
-                        foot.coor.y++;
-                    }
-                };
-            }
-        };
-
-        // pro: Fader animation.
-        class fader
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            robot  robo;   // fader: .
-            span fade;
-            si32 transit;
-            cell c1;
-            cell c2;
-            cell c2_orig;
-            bool fake = faux;
-
-            //todo use lambda
-            void work(si32 transit)
-            {
-                auto brush = boss.base::color();
-                brush.avg(c1, c2, transit);
-                fake = true;
-                boss.base::color(brush);
-                fake = faux;
-                boss.base::deface();
-            }
-
-        public:
-            fader(base&&) = delete;
-            fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms)
-                : skill{ boss },
-                robo{ boss },
-                fade{ fade_out },
-                c1 { default_state },
-                c2 { highlighted_state },
-                c2_orig { highlighted_state },
-                transit{ 0 }
-            {
-                boss.base::color(c1.fgc(), c1.bgc());
-                boss.LISTEN(tier::release, e2::form::prop::brush, brush)
-                {
-                    if (!fake)
-                    {
-                        auto& fgc = brush.fgc();
-                        auto& bgc = brush.bgc();
-                        c1.fgc(fgc);
-                        c1.bgc(bgc);
-                        if (brush.fga()) c2.fgc(fgc);
-                        else             c2.fgc(c2_orig.fgc());
-                        if (brush.bga()) c2.bgc(bgc);
-                        else             c2.bgc(c2_orig.bgc());
-                        work(transit);
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::state::mouse, active, memo)
-                {
-                    robo.pacify();
-                    if (active)
-                    {
-                        transit = 256;
-                        work(transit);
-                    }
-                    else
-                    {
-                        if (fade != fade.zero())
-                        {
-                            auto range = transit;
-                            auto limit = datetime::round<si32>(fade);
-                            auto start = 0;
-                            robo.actify(constlinearAtoB<si32>(range, limit, start), [&](auto step)
-                            {
-                                transit -= step;
-                                work(transit);
-                            });
-                        }
-                        else work(transit = 0);
-                    }
-                };
-            }
-        };
-
-        // pro: Limits manager.
-        class limit
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            struct lims_t
-            {
-                twod min = skin::globals().min_value;
-                twod max = skin::globals().max_value;
-                void fixed_size(twod const& m)
-                {
-                    min = max = std::clamp(m, min, max);
-                }
-            }
-            lims;
-            bool sure; // limit: Reepeat size checking afetr all.
-
-        public:
-            limit(base&&) = delete;
-            limit(base& boss, twod const& min_size = -dot_11, twod const& max_size = -dot_11, bool forced_clamp = faux, bool forced_resize = faux)
-                : skill{ boss }
-            {
-                set(min_size, max_size, forced_clamp);
-                // Clamping before all.
-                boss.LISTEN(tier::preview, e2::size::any, new_size, memo)
-                {
-                    new_size = std::clamp(new_size, lims.min, lims.max);
-                };
-                // Clamping after all.
-                boss.LISTEN(tier::preview, e2::size::set, new_size, memo)
-                {
-                    if (sure)
-                    {
-                        new_size = std::clamp(new_size, lims.min, lims.max);
-                    }
-                };
-                if (forced_resize)
-                {
-                    boss.LISTEN(tier::release, e2::form::prop::window::size, new_size, memo)
-                    {
-                        auto reserv = lims;
-                        lims.fixed_size(new_size);
-                        boss.template riseup<tier::release>(e2::form::prop::fixedsize, true, true); //todo unify - Inform ui::fork to adjust ratio.
-                        boss.base::template reflow<true>();
-                        boss.template riseup<tier::release>(e2::form::prop::fixedsize, faux, true);
-                        lims = reserv;
-                    };
-                }
-            }
-            // pro::limit: Set size limits (min, max). Preserve current value if specified arg less than 0.
-            void set(twod const& min_size, twod const& max_size = -dot_11, bool forced_clamp = faux)
-            {
-                sure = forced_clamp;
-                lims.min = min_size.less(dot_00, skin::globals().min_value, min_size);
-                lims.max = max_size.less(dot_00, skin::globals().max_value, max_size);
-            }
-            // pro::limit: Set resize limits (min, max). Preserve current value if specified arg less than 0.
-            void set(lims_t const& new_limits, bool forced_clamp = faux)
-            {
-                set(new_limits.min, new_limits.max, forced_clamp);
-            }
-            auto& get() const
-            {
-                return lims;
-            }
-        };
-
-        // pro: UI-control cache.
-        class cache
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            sptr<face> coreface;
-            byte       lucidity;
-            bool       usecache;
-
-        public:
-            face& canvas; // cache: Bitmap cache.
-
-            cache(base&&) = delete;
-            cache(base& boss, bool rendered = true)
-                : skill{ boss },
-                  canvas{*(coreface = ptr::shared<face>())},
-                  lucidity{ 0xFF },
-                  usecache{ true }
-            {
-                canvas.link(boss.bell::id);
-                canvas.move(boss.base::coor());
-                canvas.size(boss.base::size());
-                boss.LISTEN(tier::preview, e2::form::prop::ui::cache, state, memo)
-                {
-                    usecache = state;
-                };
-                boss.LISTEN(tier::anycast, e2::form::prop::lucidity, value, memo)
-                {
-                    if (value == -1)
-                    {
-                        value = lucidity;
-                    }
-                    else
-                    {
-                        lucidity = value;
-                        //boss.deface();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, memo)
-                {
-                    boss.SIGNAL(tier::general, e2::form::canvas, canvas.shared_from_this());
-                };
-                boss.LISTEN(tier::release, e2::coor::any, new_xy,        memo) { canvas.move(new_xy); };
-                boss.LISTEN(tier::release, e2::size::any, new_sz,        memo) { canvas.size(new_sz); };
-                boss.LISTEN(tier::request, e2::form::canvas, canvas_ptr, memo) { canvas_ptr = coreface; };
-                if (rendered)
-                {
-                    boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                    {
-                        if (!usecache) return;
-                        if (boss.base::ruined())
-                        {
-                            canvas.wipe();
-                            boss.base::ruined(faux);
-                            boss.SIGNAL(tier::release, e2::render::any, canvas);
-                        }
-                        if (lucidity == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
-                        else                  parent_canvas.fill(canvas, cell::shaders::transparent(lucidity));
-                        boss.bell::expire<tier::release>();
-                    };
-                }
-            }
-        };
-
-        // pro: Acrylic blur.
-        class acryl
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            si32 width; // acryl: Blur radius.
-            bool alive; // acryl: Is active.
-
-        public:
-            acryl(base&&) = delete;
-            acryl(base& boss, si32 size = 5)
-                : skill{ boss },
-                  width{ size },
-                  alive{ true }
-            {
-                boss.LISTEN(tier::preview, e2::form::prop::ui::acryl, state, memo)
-                {
-                    alive = state;
-                };
-                boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
-                {
-                    if (lucidity != -1) alive = lucidity == 0xFF;
-                };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                {
-                    if (!alive) return;
-                    auto brush = boss.base::color();
-                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(brush); });
-                    else             parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
-                };
-            }
-        };
-
-        // pro: Background Highlighter.
-        class light
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            bool highlighted = faux; // light: .
-            rgba title_fg_color = 0xFFffffff;
-
-        public:
-            light(base&&) = delete;
-            light(base& boss, bool track_mouse = faux)
-                : skill{ boss }
-            {
-                boss.LISTEN(tier::release, e2::form::state::highlight, state, memo)
-                {
-                    highlighted = state;
-                    boss.base::deface();
-                };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
-                {
-                    if (highlighted)
-                    {
-                        auto area = parent_canvas.full();
-                        auto mark = skin::color(tone::brighter);
-                             mark.fgc(title_fg_color); //todo unify, make it more contrast
-                        auto fill = [&](cell& c) { c.fuse(mark); };
-                        parent_canvas.fill(area, fill);
-                    }
-                };
-            }
-        };
-
-        // pro: Custom highlighter.
-        template<auto fx>
-        class shade
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            bool highlighted = faux; // light2: .
-
-        public:
-            shade(base&&) = delete;
-            shade(base& boss)
-                : skill{ boss }
-            {
-                boss.LISTEN(tier::release, e2::form::state::mouse, active, memo)
-                {
-                    highlighted = active;
-                    boss.base::deface();
-                };
-                boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
-                {
-                    if (highlighted)
-                    {
-                        auto area = parent_canvas.full();
-                        parent_canvas.fill(area, fx);
-                    }
-                };
-            }
-        };
-
-        // pro: Drag&roll.
-        class glide
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-        public:
-            glide(base&&) = delete;
-            glide(base& boss)
-                : skill{ boss }
-            {
-
-            }
-        };
-
-        // pro: Tooltip.
-        class notes
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
-
-            text note;
-
-        public:
-            notes(base&&) = delete;
-            notes(base& boss, view data, dent wrap = { si32max })
-                : skill{ boss },
-                  note { data }
-            {
-                boss.LISTEN(tier::release, hids::events::notify::mouse::enter, gear, memo, (wrap, full = wrap.west.step == si32max))
-                {
-                    if (full || !(boss.area() + wrap).hittest(gear.coord + boss.coor()))
-                    {
-                        gear.set_tooltip(note);
-                    }
-                };
-                boss.LISTEN(tier::preview, e2::form::prop::ui::tooltip, new_note, memo)
-                {
-                    note = new_note;
-                };
-            }
-            void update(view new_note)
-            {
-                note = new_note;
-            }
-        };
+            auto result = text{};
+            if (mode)
+            {
+                if (mode & mouse  ) result += "mouse ";
+                if (mode & nt16   ) result += "nt16 ";
+                if (mode & vt16   ) result += "vt16 ";
+                if (mode & vt256  ) result += "vt256 ";
+                if (mode & direct ) result += "direct ";
+                if (mode & onlylog) result += "onlylog ";
+                if (result.size()) result.pop_back();
+            }
+            else result = "vtrgb";
+            return result;
+        }
     }
+
+    struct pipe;
+    using xipc = netxs::sptr<pipe>;
+
+    // console: Fullduplex channel base.
+    struct pipe
+    {
+        flag active; // pipe: Is connected.
+        flag isbusy; // pipe: Buffer is still busy.
+
+        pipe(bool active)
+            : active{ active },
+              isbusy{ faux   }
+        { }
+        virtual ~pipe()
+        { }
+
+        operator bool () const { return active; }
+
+        void start()
+        {
+            active.exchange(true);
+            isbusy.exchange(faux);
+        }
+        virtual bool send(view buff) = 0;
+        virtual qiew recv(char* buff, size_t size) = 0;
+        virtual qiew recv() = 0;
+        virtual bool shut()
+        {
+            return active.exchange(faux);
+        }
+        virtual bool stop()
+        {
+            return pipe::shut();
+        }
+        virtual void wake()
+        {
+            shut();
+        }
+        virtual std::ostream& show(std::ostream& s) const = 0;
+        void output(view data)
+        {
+            send(data);
+        }
+        friend auto& operator << (std::ostream& s, pipe const& sock)
+        {
+            return sock.show(s << "{ " << prompt::xipc) << " }";
+        }
+        friend auto& operator << (std::ostream& s, xipc const& sock)
+        {
+            return s << *sock;
+        }
+        void cleanup()
+        {
+            active.exchange(faux);
+            isbusy.exchange(faux);
+        }
+    };
 
     // console: Client gate.
     class gate
-        : public base
+        : public form<gate>
     {
         // gate: Data decoder.
         struct link
@@ -2375,7 +146,7 @@ namespace netxs::ui
             {
                 auto& focus = lock.thing;
                 auto deed = netxs::events::makeid(hids::events::keybd::focus::bus::any.id, focus.cause);
-                if (focus.guid != os::process::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
+                if (focus.guid != ui::console::id.second || deed != hids::events::keybd::focus::bus::copy.id) // To avoid focus tree infinite looping.
                 netxs::events::enqueue(owner.This(), [d = focus, deed](auto& boss) mutable
                 {
                     auto seed = hids::events::keybd::focus::bus::on.param({ .id = d.gear_id });
@@ -2400,7 +171,7 @@ namespace netxs::ui
             void handle(s11n::xs::logs        lock)
             {
                 auto& logs = lock.thing;
-                if (os::process::id.first == lock.thing.id)
+                if (ui::console::id.first == lock.thing.id)
                 {
                     notify<tier::general>(e2::conio::logs, logs.data);
                 }
@@ -2490,7 +261,7 @@ namespace netxs::ui
                 sz_t delta{}; // diff::stat: Last ansi-rendered frame size.
             };
 
-            pipe& canal;
+            pipe& canal; // diff: Channel to outside.
             lock  mutex; // diff: Mutex between renderer and committer threads.
             cond  synch; // diff: Synchronization between renderer and committer.
             core  cache; // diff: The current content buffer which going to be checked and processed.
@@ -2677,28 +448,28 @@ namespace netxs::ui
                 }
                 else
                 {
-                    simple            = !(legacy_mode & os::dtvt::direct);
+                    simple            = !(legacy_mode & ui::console::direct);
                     glow_fx           = faux;
                     title             = "";
                 }
-                vtmode = legacy_mode & os::dtvt::nt16   ? svga::nt16
-                       : legacy_mode & os::dtvt::vt16   ? svga::vt16
-                       : legacy_mode & os::dtvt::vt256  ? svga::vt256
-                       : legacy_mode & os::dtvt::direct ? svga::dtvt
-                                                        : svga::vtrgb;
+                vtmode = legacy_mode & ui::console::nt16   ? svga::nt16
+                       : legacy_mode & ui::console::vt16   ? svga::vt16
+                       : legacy_mode & ui::console::vt256  ? svga::vt256
+                       : legacy_mode & ui::console::direct ? svga::dtvt
+                                                           : svga::vtrgb;
             }
 
             friend auto& operator << (std::ostream& s, props_t const& c)
             {
                 return s << "\n\tuser: " << c.os_user_id
-                         << "\n\tmode: " << os::dtvt::str(c.legacy_mode);
+                         << "\n\tmode: " << ui::console::str(c.legacy_mode);
             }
         };
 
-        // gate: .
+        // gate: Input forwarder.
         struct input_t
         {
-            using depo = std::unordered_map<id_t, sptr<hids>>;
+            using depo = std::unordered_map<id_t, netxs::sptr<hids>>;
             using lock = std::recursive_mutex;
 
             template<class T>
@@ -2725,8 +496,7 @@ namespace netxs::ui
             {
                 xmap.cmode = props.vtmode;
                 xmap.mark(props.background_color.txt(whitespace).link(boss.bell::id));
-                xmap.move(boss.base::coor());
-                xmap.size(boss.base::size());
+                xmap.face::area(boss.base::area());
                 boss.LISTEN(tier::release, e2::command::printscreen, gear, memo)
                 {
                     auto data = escx{};
@@ -2736,20 +506,15 @@ namespace netxs::ui
                         gear.set_clipboard(gear.slot.size, data, mime::ansitext);
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::prop::brush, brush, memo)
+                boss.LISTEN(tier::release, e2::form::prop::filler, filler, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.mark(brush);
+                    xmap.mark(filler);
                 };
-                boss.LISTEN(tier::release, e2::size::any, newsize, memo)
+                boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.size(newsize);
-                };
-                boss.LISTEN(tier::release, e2::coor::any, newcoor, memo)
-                {
-                    auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.move(newcoor);
+                    xmap.face::area(new_area);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, memo)
                 {
@@ -2797,11 +562,11 @@ namespace netxs::ui
                 {
                     if (gear_ptr->id == gear_id) return std::pair{ foreign_id, gear_ptr };
                 }
-                return std::pair{ id_t{}, sptr<hids>{} };
+                return std::pair{ id_t{}, netxs::sptr<hids>{} };
             }
         };
 
-        // gate: Realtime telemetry.
+        // gate: Realtime statistics.
         struct debug_t
         {
             #define prop_list                     \
@@ -2877,7 +642,7 @@ namespace netxs::ui
                 status[prop::last_event].set(stress) = "focus";
                 status[prop::focused].set(stress) = focus_state ? "active" : "lost";
             }
-            void update(twod const& new_size)
+            void update(twod new_size)
             {
                 shadow();
                 status[prop::last_event].set(stress) = "size";
@@ -2886,13 +651,13 @@ namespace netxs::ui
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
             }
-            void update(span const& watch, si32 delta)
+            void update(span watch, si32 delta)
             {
                 track.output = watch;
                 track.frsize = delta;
                 track.totals+= delta;
             }
-            void update(time const& timestamp)
+            void update(time timestamp)
             {
                 track.render = datetime::now() - timestamp;
             }
@@ -2950,9 +715,9 @@ namespace netxs::ui
                     update(f.state);
                     boss.base::strike();
                 };
-                boss.LISTEN(tier::release, e2::size::any, newsize, tokens)
+                boss.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
-                    update(newsize);
+                    update(new_area.size);
                 };
                 boss.LISTEN(tier::release, e2::conio::mouse, m, tokens)
                 {
@@ -3006,62 +771,53 @@ namespace netxs::ui
         };
 
     public:
-        pro::mouse mouse{*this }; // gate: Mouse controller.
-        pro::robot robot{*this }; // gate: Animation controller.
-        pro::limit limit{*this }; // gate: Limit size to dot_11.
+        pipe&      canal; // gate: Channel to outside.
+        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        para       uname; // gate: Client name.
+        text       uname_txt; // gate: Client name (original).
+        props_t    props; // gate: Application properties.
+        input_t    input; // gate: Input event handler.
+        debug_t    debug; // gate: Statistics monitor.
+        sptr       applet; // gate: Standalone application.
+        diff       paint; // gate: Render.
+        link       conio; // gate: Input data parser.
+        subs       tokens; // gate: Subscription tokens.
+        bool       direct; // gate: .
+        bool       local; // gate: .
+        wptr       nexthop; // gate: .
+        hook       oneoff_focus; // gate: .
 
-        pipe& canal;
-        bool  yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
-        para  uname; // gate: Client name.
-        text  uname_txt; // gate: Client name (original).
-        props_t props; // gate: Application properties.
-        input_t input; // gate: Input event handler.
-        debug_t debug; // gate: Debug telemetry.
-        sptr<base> applet; // gate: .
-        diff  paint; // gate: Render.
-        link  conio; // gate: Data IO.
-        subs  tokens; // gate: Subscription tokens.
-        bool direct; // gate: .
-        bool local; // gate: .
-        wptr<base> nexthop;
-        hook oneoff_focus; // gate: .
-
-        void draw_foreign_names(face& parent_canvas)
+        void /*!*/draw_foreign_names(face& parent_canvas)
         {
             auto& header = *uname.lyric;
-            auto  basexy = base::coor();
             auto  half_x = header.size().x / 2;
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                auto coor = basexy;
-                coor += gear.coord;
-                coor.y--;
+                auto coor = gear.coord;
+                coor.y -= 1;
                 coor.x -= half_x;
-                //todo unify header coords
                 header.move(coor);
                 parent_canvas.fill(header, cell::shaders::fuse);
             }
         }
-        void draw_mouse_pointer(face& canvas)
+        void /*!*/draw_mouse_pointer(face& canvas)
         {
-            auto brush = cell{};
-            auto coor = base::coor();
-            auto area = rect{ coor, dot_11 };
-            auto base = canvas.core::coor();
+            static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+            static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
+            auto area = rect_11;
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
-                area.coor = coor + gear.coord;
-                area.coor -= base;
-                if (gear.m.buttons) brush.txt(64 + gear.m.buttons).bgc(reddk).fgc(0xFFffffff);
-                else                brush.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
+                area.coor = gear.coord;
+                auto brush = gear.m.buttons ? cell{ busy }.txt(64 + gear.m.buttons/*A-Z*/)
+                                            : idle;
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void draw_clipboard_preview(face& canvas, time const& stamp)
+        void /*!*/draw_clipboard_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
@@ -3078,9 +834,12 @@ namespace netxs::ui
                 }
             }
         }
-        void draw_tooltips(face& canvas, time const& stamp)
+        void /*!*/draw_tooltips(face& canvas, time const& stamp)
         {
             auto full = canvas.full();
+            auto area = canvas.area();
+            auto zero = rect{ dot_00, area.size };
+            canvas.area(zero);
             for (auto& [id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
@@ -3094,13 +853,15 @@ namespace netxs::ui
                         auto tooltip_page = page{ tooltip_data };
                         auto area = full;
                         area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        area.size.x = dot_mx.x; // Prevent line wrapping.
                         canvas.full(area);
                         canvas.cup(dot_00);
                         canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
-                        canvas.full(full);
                     }
                 }
             }
+            canvas.area(area);
+            canvas.full(full);
         }
         void send_tooltips()
         {
@@ -3130,7 +891,7 @@ namespace netxs::ui
         }
 
         // gate: Attach a new item.
-        auto attach(sptr<base>& item)
+        auto attach(sptr& item)
         {
             std::swap(applet, item);
             if (local) nexthop = applet;
@@ -3143,7 +904,7 @@ namespace netxs::ui
             auto& canvas = input.xmap;
             if (damaged)
             {
-                if (props.legacy_mode & os::dtvt::mouse) // Render our mouse pointer.
+                if (props.legacy_mode & ui::console::mouse) // Render our mouse pointer.
                 {
                     draw_mouse_pointer(canvas);
                 }
@@ -3213,13 +974,17 @@ namespace netxs::ui
             }
         }
         // gate: .
-        virtual void rebuild_scene(base& world, bool damaged)
+        void rebuild_scene(id_t world_id, bool damaged)
         {
             if (damaged)
             {
                 auto& canvas = input.xmap;
-                canvas.wipe(world.bell::id);
-                canvas.render(applet, base::coor());
+                canvas.wipe(world_id);
+                if (applet)
+                if (auto context = canvas.change_basis(base::area()))
+                {
+                    applet->render(canvas);
+                }
             }
             _rebuild_scene(damaged);
         }
@@ -3233,21 +998,21 @@ namespace netxs::ui
 
     protected:
         //todo revise
-        gate(sptr<pipe> uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
+        gate(xipc uplink, si32 vtmode, xmls& config, view userid = {}, si32 session_id = 0, bool isvtm = faux)
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
-             paint{ canal, props.vtmode },
-             conio{ canal, *this  },
-             debug{*this },
-             direct{ props.vtmode == svga::dtvt },
-             local{ true }
+              paint{ canal, props.vtmode },
+              conio{ canal, *this  },
+              debug{*this },
+              direct{ props.vtmode == svga::dtvt },
+              local{ true }
         {
             auto isolated = config.take("/config/isolated", faux); // DTVT proxy console case.
             config.set("/config/isolated", faux);
 
             base::root(true);
-            limit.set(dot_11);
+            base::limits(dot_11);
 
             LISTEN(tier::release, hids::events::focus::set, gear, oneoff_focus) // Restore all foci for the first user.
             {
@@ -3286,30 +1051,6 @@ namespace netxs::ui
                     }
                 };
             }
-            //todo deprecated
-            //LISTEN(tier::release, hids::events::notify::focus::got, from_gear, tokens)
-            //{
-            //    auto myid = from_gear.id;
-            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-            //    if (!gear_ptr) return;
-            //    auto& gear = *gear_ptr;
-            //    gear.kb_offer_4(applet);
-            //    pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::on);
-            //    if (gear.focus_changed()) gear.dismiss();
-            //};
-            ////todo revise: nobody signal it
-            ////todo deprecated
-            //LISTEN(tier::release, hids::events::notify::focus::lost, from_gear, tokens)
-            //{
-            //    auto myid = from_gear.id;
-            //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(myid);
-            //    if (gear_ptr)
-            //    {
-            //        auto& gear = *gear_ptr;
-            //        gear.kb_offer_5(applet);
-            //        pro::focus::set(applet, gear.id, pro::focus::solo::off, pro::focus::flip::off);
-            //    }
-            //};
 
             LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
             {
@@ -3371,15 +1112,6 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
-                //todo deprecated
-                //LISTEN(tier::preview, hids::events::notify::focus::any, from_gear, tokens)
-                //{
-                //    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(from_gear.id);
-                //    if (!gear_ptr) return;
-                //    auto cause = this->bell::protos<tier::preview>();
-                //    auto state = cause == hids::events::notify::focus::got.id;
-                //    conio.focus.send(canal, ext_gear_id, state, from_gear.focus_combine, from_gear.focus_force_group);
-                //};
                 LISTEN(tier::release, hids::events::keybd::data::any, gear) // Return back unhandled keybd events.
                 {
                     if (gear)
@@ -3399,7 +1131,6 @@ namespace netxs::ui
                     }
                 };
             }
-
 
             LISTEN(tier::release, e2::form::proceed::quit::any, fast, tokens)
             {
@@ -3447,24 +1178,17 @@ namespace netxs::ui
                     gear.dismiss();
                 }
             };
-            LISTEN(tier::release, e2::conio::winsz, newsize, tokens)
+            LISTEN(tier::release, e2::conio::winsz, new_size, tokens)
             {
-                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, newsize);
-                auto delta = base::resize(newsize);
-                if (delta && direct)
-                if (auto world_ptr = base::parent())
-                {
-                    paint.cancel();
-                    rebuild_scene(*world_ptr, true);
-                }
-            };
-            LISTEN(tier::release, e2::size::any, newsize, tokens)
-            {
-                if (applet) applet->base::resize(newsize);
+                auto new_area = rect{ dot_00, new_size };
+                if (applet) applet->SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
+                auto old_size = base::size();
+                auto delta = base::resize(new_size).size - old_size;
+                if (delta && direct) paint.cancel();
             };
             LISTEN(tier::release, e2::conio::pointer, pointer, tokens)
             {
-                props.legacy_mode |= pointer ? os::dtvt::mouse : 0;
+                props.legacy_mode |= pointer ? ui::console::mouse : 0;
             };
             LISTEN(tier::release, e2::conio::error, errcode, tokens)
             {
@@ -3506,46 +1230,27 @@ namespace netxs::ui
             {
                 auto window_id = id_t{};
                 auto footer = conio.footer.freeze();
-                //if (direct)
-                {
-                    conio.footer_request.send(canal, window_id);
-                    footer.wait();
-                }
+                conio.footer_request.send(canal, window_id);
+                footer.wait();
                 f = footer.thing.utf8;
             };
             LISTEN(tier::request, e2::form::prop::ui::header, h, tokens)
             {
+                auto window_id = id_t{};
                 auto header = conio.header.freeze();
-                //if (direct)
-                {
-                    conio.header_request.send(canal, id_t{});
-                    header.wait();
-                }
+                conio.header_request.send(canal, window_id);
+                header.wait();
                 h = header.thing.utf8;
             };
             LISTEN(tier::preview, e2::form::prop::ui::footer, newfooter, tokens)
             {
-                //if (direct)
-                {
-                    conio.footer.send(canal, id_t{}, newfooter);
-                }
+                auto window_id = id_t{};
+                conio.footer.send(canal, window_id, newfooter);
             };
             LISTEN(tier::preview, e2::form::prop::ui::header, newheader, tokens)
             {
-                //if (direct)
-                {
-                    conio.header.send(canal, id_t{}, newheader);
-                }
-                //else if (newheader.length())
-                //{
-                //    auto lock = conio.header.freeze();
-                //    auto& header = lock.thing.utf8;
-                //    header.clear();
-                //    header.reserve(newheader.length());
-                //    para{ newheader }.lyric->utf8(header);
-                //    if constexpr (debugmode) log(prompt::gate, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(header)));
-                //    canal.output(ansi::header(header));
-                //}
+                auto window_id = id_t{};
+                conio.header.send(canal, window_id, newheader);
             };
             LISTEN(tier::release, hids::events::clipbrd, from_gear, tokens)
             {
@@ -3650,7 +1355,7 @@ namespace netxs::ui
                 {
                     conio.expose.send(canal);
                 };
-                LISTEN(tier::anycast, e2::form::layout::expose, item, tokens)
+                LISTEN(tier::preview, e2::form::layout::expose, item, tokens)
                 {
                     conio.expose.send(canal);
                 };
@@ -3665,20 +1370,25 @@ namespace netxs::ui
                 };
             }
         }
+        // gate: .
+        void inform(rect new_area) override
+        {
+            if (applet)
+            {
+                applet->base::resize(new_area.size);
+            }
+        }
     };
 
     // console: World aether.
     class host
-        : public base
+        : public form<host>
     {
     public:
         using tick = datetime::quartz<events::reactor<>, hint>;
         using list = std::vector<rect>;
-        using repl = scripting::repl<host>;
 
-        //pro::keybd keybd{*this }; // host: Keyboard controller.
-        pro::mouse mouse{*this }; // host: Mouse controller.
-        pro::focus focus; // host: Focus controller.
+        pro::focus focus; // host: Focus controller. Must be the first of all focus subscriptions.
 
         tick quartz; // host: Frame rate synchronizator.
         si32 maxfps; // host: Frame rate.
@@ -3686,16 +1396,15 @@ namespace netxs::ui
         xmls config; // host: Running configuration.
         subs tokens; // host: Subscription tokens.
         flag active; // host: Host is available for connections.
-        repl engine; // host: Scripting engine.
 
         std::vector<bool> user_numbering; // host: .
 
-        host(sptr<pipe> server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
+    protected:
+        host(xipc server, xmls config, pro::focus::mode m = pro::focus::mode::hub)
             :  focus{ *this, m, faux },
               quartz{ bell::router<tier::general>(), e2::timer::tick.id },
               config{ config },
-              active{ true },
-              engine{ *this }
+              active{ true }
         {
             using namespace std::chrono;
             auto& canal = *server;
@@ -3707,6 +1416,7 @@ namespace netxs::ui
             g.shadow         = config.take("shadow"                , cell{});//180);//5);
             g.selector       = config.take("selector"              , cell{});//48);
             g.highlight      = config.take("highlight"             , cell{});
+            g.selected       = config.take("selected"              , cell{});
             g.warning        = config.take("warning"               , cell{});
             g.danger         = config.take("danger"                , cell{});
             g.action         = config.take("action"                , cell{});
@@ -3717,6 +1427,7 @@ namespace netxs::ui
             g.lucidity       = config.take("lucidity");
             g.tracking       = config.take("tracking"              , faux);
             g.bordersz       = config.take("bordersz"              , dot_11);
+            g.macstyle       = config.take("macstyle"              , faux);
             g.spd            = config.take("timings/spd"           , 10  );
             g.pls            = config.take("timings/pls"           , 167 );
             g.spd_accel      = config.take("timings/spd_accel"     , 1   );
@@ -3734,6 +1445,7 @@ namespace netxs::ui
             g.fader_time     = config.take("timings/fader/duration", span{ 150ms });
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
             g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
+            g.menuwide       = config.take("/config/menu/wide"     , faux);
 
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;
@@ -3795,24 +1507,26 @@ namespace netxs::ui
             quartz.ignite(maxfps);
             log(prompt::host, "Rendering refresh rate: ", maxfps, " fps");
         }
+
+    public:
         // host: Mark dirty region.
-        void denote(rect const& updateregion)
+        void denote(rect updateregion)
         {
             if (updateregion)
             {
                 debris.push_back(updateregion);
             }
         }
-        void deface(rect const& region) override
+        void deface(rect region) override
         {
             base::deface(region);
             denote(region);
         }
         // host: Create a new root of the specified subtype and attach it.
-        auto invite(sptr<pipe> uplink, sptr<base>& applet, si32 vtmode, twod winsz)
+        auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)
         {
             auto lock = events::unique_lock();
-            auto portal = base::create<gate>(uplink, vtmode, host::config);
+            auto portal = ui::gate::ctor(uplink, vtmode, host::config);
             portal->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             portal->attach(applet);
             portal->base::resize(winsz);
@@ -3821,7 +1535,11 @@ namespace netxs::ui
             {
                 auto damaged = !debris.empty();
                 debris.clear();
-                screen.rebuild_scene(*this, damaged);
+                screen.rebuild_scene(bell::id, damaged);
+            };
+            screen.LISTEN(tier::release, e2::conio::winsz, new_size, -)
+            {
+                screen.rebuild_scene(bell::id, true);
             };
             lock.unlock();
             portal->launch();

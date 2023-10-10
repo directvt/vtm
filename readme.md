@@ -26,7 +26,7 @@ Text-baased desktop inside your console.
 
 Build-time dependencies
  - 64-bit system host
- - `git`, `cmake`,  `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 13](https://clang.llvm.org/cxx_status.html), [MSVC](https://visualstudio.microsoft.com/downloads/))
+ - `git`, `cmake`,  `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html), [MSVC](https://visualstudio.microsoft.com/downloads/))
  - RAM requirements for compilation:
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
@@ -34,6 +34,7 @@ Build-time dependencies
 Use any terminal as a build environment
 ```
 git clone https://github.com/netxs-group/vtm.git
+cd vtm
 cmake . -B bin
 cmake --build bin
 sudo cmake --install bin
@@ -63,6 +64,7 @@ Use Developer Command Prompt as a build environment
 
 ```
 git clone https://github.com/netxs-group/vtm.git
+cd vtm
 cmake . -B bin
 cmake --build bin --config Release
 bin\Release\vtm.exe

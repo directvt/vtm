@@ -49,7 +49,7 @@ namespace netxs::ui
                       seized{ faux }
                 { }
                 operator bool () { return inside || seized || region.size; }
-                auto grab(twod const& coord, bool resume)
+                auto grab(twod coord, bool resume)
                 {
                     if (inside)
                     {
@@ -62,14 +62,14 @@ namespace netxs::ui
                     }
                     return seized;
                 }
-                auto calc(base const& boss, twod const& coord)
+                auto calc(base const& boss, twod coord)
                 {
                     curpos = coord;
-                    auto area = boss.size();
-                    area.x += boss.oversz.r;
+                    auto area = boss.base::size();
+                    area.x += boss.base::oversz.r;
                     inside = area.inside(curpos);
                 }
-                auto drag(twod const& coord)
+                auto drag(twod coord)
                 {
                     if (seized)
                     {
@@ -102,7 +102,7 @@ namespace netxs::ui
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     auto step = twod{ 5, 1 };
                     auto area = full;
-                    area.size.x += boss.oversz.r;
+                    area.size.x += boss.base::oversz.r;
                     items.foreach([&](sock& item)
                     {
                         if (item.region.size)
@@ -134,8 +134,8 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, memo)
                 {
                     auto& item = items.take(gear);
-                    auto area = boss.size();
-                    area.x += boss.oversz.r;
+                    auto area = boss.base::size();
+                    area.x += boss.base::oversz.r;
                     item.region.coor = dot_00;
                     item.region.size = area;
                     recalc();
@@ -166,8 +166,8 @@ namespace netxs::ui
             {
                 auto data = text{};
                 auto step = twod{ 5, 1 };
-                auto size = boss.size();
-                size.x += boss.oversz.r;
+                auto size = boss.base::size();
+                size.x += boss.base::oversz.r;
                 items.foreach([&](sock& item)
                 {
                     if (item.region.size)
@@ -330,7 +330,7 @@ namespace netxs::app::calc
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->colors(whitelt, 0x601A5f00)
-                  ->plugin<pro::limit>(twod{ 10,7 },twod{ -1,-1 })
+                  ->limits({ 10,7 }, { -1,-1 })
                   ->plugin<pro::track>()
                   ->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
@@ -354,28 +354,28 @@ namespace netxs::app::calc
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto all_rail = object->attach(slot::_2, ui::rail::ctor());
                 auto all_stat = all_rail->attach(ui::fork::ctor(axis::Y))
-                                        ->plugin<pro::limit>(twod{ -1,-1 },twod{ 136,102 });
+                                        ->limits({ -1,-1 },{ 136,102 });
                     auto func_body_pad = all_stat->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto func_body = func_body_pad->attach(ui::fork::ctor(axis::Y));
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
                                                     ->plugin<pro::fader>(c7, c3, fader)
-                                                    ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 4,-1 })
+                                                    ->limits({ 3,-1 }, { 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
                                                          ->plugin<pro::fader>(c7, c3, fader)
-                                                         ->plugin<pro::limit>(twod{ -1,1 }, twod{ 3,-1 })
+                                                         ->limits({ -1,1 }, { 3,-1 })
                                                          ->upload(ansi::wrp(wrap::off).add(" … "));
                             auto body_area = func_body->attach(slot::_2, ui::fork::ctor(axis::Y));
                                 auto corner_cols = body_area->attach(slot::_1, ui::fork::ctor());
                                     auto corner = corner_cols->attach(slot::_1, ui::post::ctor())
-                                                             ->plugin<pro::limit>(twod{ 4,1 }, twod{ 4,1 })
+                                                             ->limits({ 4,1 }, { 4,1 })
                                                              ->upload(ansi::bgc(0xFFffffff - 0x1f1f1f).fgc(0xFF000000).add("    "));
                                 auto rows_body = body_area->attach(slot::_2, ui::fork::ctor());
                                     auto layers = rows_body->attach(slot::_2, ui::cake::ctor());
                                     auto scroll = layers->attach(ui::rail::ctor())
-                                                        ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,-1 });
+                                                        ->limits({ -1,1 }, { -1,-1 });
                                         auto grid = scroll->attach(ui::post::ctor())
                                                           ->colors(0xFF000000, 0xFFffffff)
                                                           ->plugin<pro::cell_highlight>()
@@ -395,27 +395,27 @@ namespace netxs::app::calc
                                     auto cols_area = corner_cols->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::X_only))
                                                                 ->follow<axis::X>(scroll);
                                         auto cols = cols_area->attach(ui::post::ctor())
-                                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 })
+                                                             ->limits({ -1,1 }, { -1,1 })
                                                              ->upload(cellatix_cols); //todo grid  A  B  C ...
                                     auto rows_area = rows_body->attach(slot::_1, ui::rail::ctor(axes::Y_only, axes::Y_only))
                                                               ->follow<axis::Y>(scroll)
-                                                              ->plugin<pro::limit>(twod{ 4,-1 }, twod{ 4,-1 });
+                                                              ->limits({ 4,-1 }, { 4,-1 });
                                         auto rows = rows_area->attach(ui::post::ctor())
                                                              ->upload(cellatix_rows); //todo grid  1 \n 2 \n 3 \n ...
                     auto stat_area = all_stat->attach(slot::_2, ui::rail::ctor())
-                                             ->plugin<pro::limit>(twod{ -1,1 }, twod{ -1,1 });
+                                             ->limits({ -1,1 }, { -1,1 });
                         auto sheet_plus = stat_area->attach(ui::fork::ctor());
                             auto sheet = sheet_plus->attach(slot::_1, ui::post::ctor())
-                                                   ->plugin<pro::limit>(twod{ -1,-1 }, twod{ 13,-1 })
+                                                   ->limits({ -1,-1 }, { 13,-1 })
                                                    ->upload(ansi::wrp(wrap::off).add("     ")
                                                        .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
                                                     ->plugin<pro::fader>(c7, c3, fader)
-                                                    ->plugin<pro::limit>(twod{ 3,-1 }, twod{ 3,-1 })
+                                                    ->limits({ 3,-1 }, { 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())
-                                                   ->plugin<pro::limit>(twod{ 1,1 }, twod{ 1,1 });
+                                                   ->limits({ 1,1 }, { 1,1 });
                     layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };

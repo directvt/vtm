@@ -766,11 +766,11 @@ namespace netxs::generics
             else                                             sure = true;
             proc = func;
         }
-        auto& resize(size_t newsize)
+        auto& resize(size_t new_size)
         {
             proc = nullptr;
             sure = true;
-            bulk::resize(newsize);
+            bulk::resize(new_size);
             return *this;
         }
         template<bool NoMultiArg = faux>

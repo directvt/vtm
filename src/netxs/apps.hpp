@@ -55,7 +55,6 @@ namespace netxs::app::region
 }
 
 #include "apps/term.hpp"
-#include "apps/tile.hpp"
 #include "apps/calc.hpp"
 #include "apps/text.hpp"
 #include "apps/shop.hpp"
@@ -182,23 +181,7 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                boss.RISEUP(tier::request, e2::form::prop::ui::header, old_title, ());
-                                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                                auto& data = gear.board::cargo;
-
-                                if (utf::is_plain(data.utf8)) // Reset aligning to the center if text is plain.
-                                {
-                                    auto align = ansi::jet(bias::center);
-                                    boss.RISEUP(tier::preview, e2::form::prop::ui::header, align);
-                                }
-                                // Copy clipboard data to title.
-                                boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (data.utf8));
-                                gear.dismiss();
-
-                                if (old_title.size()) // Copy old title to clipboard.
-                                {
-                                    gear.set_clipboard(dot_00, old_title, mime::ansitext);
-                                }
+                                app::shared::set_title(boss, gear, bias::center);
                             };
                         };
                     });
@@ -354,12 +337,12 @@ namespace netxs::app::shared
             //                    ->colors(cB.fgc(), cB.bgc());
             //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
-            //                        ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+            //                        ->limits(dot_11, { 400,200 });
             auto layers = window->attach(ui::cake::ctor())
                                 ->colors(cB.fgc(), cB.bgc())
-                                ->plugin<pro::limit>(dot_11, twod{ 400,200 });
+                                ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
-                                        ->plugin<pro::limit>(twod{ 10,1 }); // mc crashes when window is too small
+                                        ->limits({ 10,1 }); // mc crashes when window is too small
                     auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
                     auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
@@ -445,8 +428,8 @@ namespace netxs::app::shared
             auto term_type = shared::app_class(param_shadow);
             param = param_shadow;
             return ui::dtvt::ctor(cwd, param, patch)
-                ->plugin<pro::limit>(dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::active)
+                ->limits(dot_11)
                 ->invoke([](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)

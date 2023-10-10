@@ -1,8 +1,10 @@
 // Copyright (c) NetXS Group.
 // Licensed under the MIT license.
 
-#include "vtm.hpp"
 #include "netxs/apps.hpp"
+#include "netxs/apps/desk.hpp"
+#include "vtm.hpp"
+#include "netxs/apps/tile.hpp"
 
 using namespace netxs;
 
@@ -86,7 +88,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("--onlylog"))
         {
-            os::dtvt::vtmode |= os::dtvt::onlylog;
+            os::dtvt::vtmode |= ui::console::onlylog;
         }
         else if (getopt.match("--"))
         {
@@ -216,7 +218,7 @@ int main(int argc, char* argv[])
                 auto success = faux;
                 if (os::process::fork(success, prefix, config.utf8()))
                 {
-                    os::dtvt::vtmode |= os::dtvt::onlylog;
+                    os::dtvt::vtmode |= ui::console::onlylog;
                     whoami = type::server;
                 }
                 return success;
@@ -239,7 +241,7 @@ int main(int argc, char* argv[])
             auto success = faux;
             if (os::process::fork(success, prefix, config.utf8()))
             {
-                os::dtvt::vtmode |= os::dtvt::onlylog;
+                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
             }
             else 
@@ -264,6 +266,7 @@ int main(int argc, char* argv[])
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        domain->plugin<scripting::host>();
         domain->autorun();
 
         log("%%Server started"

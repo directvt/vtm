@@ -12,7 +12,7 @@ R"==(
         </javascript>
     </scripting>
     <isolated=0/>  <!-- For internal use only. -->
-    <menu selected=Term>  <!-- Set selected using menu item id. -->
+    <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested attributes
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
@@ -26,11 +26,11 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" run Windows Command Prompt " param="$0 -r term">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" Windows Command Prompt " param="$0 -r term">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" run built-in Terminal " param="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " param="$0 -r term">
 )=="
 #endif
 R"==(
@@ -64,15 +64,15 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" run Windows PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" run default WSL profile "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
+        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/>
 )=="
 #endif
 R"==(
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" run Tiling Window Manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                              notes=" set desktop region "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" run Settings " winsize=50,15/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" run Logs ">
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"                              notes=" Desktop region marker "/>
+        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" Settings " winsize=50,15/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" Log monitor ">
             <config>
                 <term>
                     <logs=off/>
@@ -125,7 +125,6 @@ R"==(
                             <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                             <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
                         </item>
-                        <item label="  "    notes=" ...empty menu block/splitter for safety "/>
                         <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
                     </menu>
 )=="
@@ -147,7 +146,13 @@ R"==(
             <folded=4/>
             <expanded=31/>
         </width>
+        <color fgc=whitedk bgc=0x60202020 />
     </menu>
+    <panel> <!-- Desktop info panel. -->
+        <cmd = ""/> <!-- Command-line to activate. -->
+        <cwd = ""/> <!-- Working directory. -->
+        <height = 1 /> <!-- Desktop space reserved on top. -->
+    </panel>
     <hotkeys key*>    <!-- not implemented -->
         <key="Ctrl+PgUp" action=PrevWindow/>
         <key="Ctrl+PgDn" action=NextWindow/>
@@ -158,12 +163,14 @@ R"==(
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
+            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
+            <selected   fgc=puregreen                 />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
             <action     fgc=whitelt   bgc=greenlt     />
@@ -215,6 +222,9 @@ R"==(
         <whitelt   = 0xFFf3f3f3 />
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
+        <purered   = 0xFF0000ff />
+        <puregreen = 0xFF00ff00 />
+        <pureblue  = 0xFFff0000 />
         <nocolor   = 0x00000000 />
         <transparent = nocolor  />
     </set>
@@ -295,6 +305,7 @@ R"==(
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                                \n"
+                    " - Jump to previous match with selection       \n"
                     " - Clipboard data will be used if no selection \n"
                     " - Scroll one page up if clipboard is empty    "
                 </notes>
@@ -303,6 +314,7 @@ R"==(
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                                    \n"
+                    " - Jump to next match with selection           \n"
                     " - Clipboard data will be used if no selection \n"
                     " - Scroll one page down if clipboard is empty  "
                 </notes>
@@ -334,7 +346,6 @@ R"==(
             <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>
             </item>
-            <item label="  "    notes=" ...empty menu block/splitter for safety "/>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
             <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->

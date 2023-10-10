@@ -107,7 +107,7 @@ namespace netxs::datetime
         {
             return alive;
         }
-        void ignite(span const& interval)
+        void ignite(span interval)
         {
             pulse = interval;
             if (!alive.exchange(true))
@@ -124,7 +124,7 @@ namespace netxs::datetime
             delay = pause2;
             letup = true;
         }
-        bool stopwatch(span const& p)
+        bool stopwatch(span p)
         {
             if (watch > p)
             {
@@ -175,7 +175,7 @@ namespace netxs::datetime
         span period; // tail: Period of time to be stored.
         span minint; // tail: The minimal period of time between the records stored.
 
-        tail(span const& period = 75ms, span const& minint = 4ms) //todo unify the minint=1/fps
+        tail(span period = 75ms, span minint = 4ms) //todo unify the minint=1/fps
             : size{ 1 },
               iter{ 0 },
               period{ period },
