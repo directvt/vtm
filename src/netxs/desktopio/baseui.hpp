@@ -645,26 +645,15 @@ namespace netxs::ui
         }
 
         // base: Align object.
-        void xform(snap align, si32& coor, si32& size, si32& width)
+        void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
         {
-            switch (align)
+            switch (size > width ? atcrop : atgrow)
             {
-                case snap::head:
-                    coor = 0;
-                    break;
-                case snap::tail:
-                    coor = width - size;
-                    break;
+                case snap::head:   coor = 0;                  break;
+                case snap::tail:   coor = width - size;       break;
+                case snap::center: coor = (width - size) / 2; break;
                 case snap::both:
-                //    coor = (width - size) / 2;
-                //    coor = 0;
-                //    size = width;
-                    break;
-                case snap::center:
-                    coor = (width - size) / 2;
-                    break;
-                default:
-                    break;
+                case snap::none: break;
             }
         }
         // base: Recalc actual area (ext rect) for the object.
@@ -679,13 +668,13 @@ namespace netxs::ui
             deform(nested_area);
             new_area.size = nested_area.size + base::intpad;
             new_area += base::extpad;
-            if (required.size.x < new_area.size.x && base::atcrop.x == snap::both
-             || required.size.x > new_area.size.x && base::atgrow.x == snap::both)
+            if ((required.size.x < new_area.size.x && base::atcrop.x == snap::both)
+             || (required.size.x > new_area.size.x && base::atgrow.x == snap::both))
             {
                 required.size.x = new_area.size.x;
             }
-            if (required.size.y < new_area.size.y && base::atcrop.y == snap::both
-             || required.size.y > new_area.size.y && base::atgrow.y == snap::both)
+            if ((required.size.y < new_area.size.y && base::atcrop.y == snap::both)
+             || (required.size.y > new_area.size.y && base::atgrow.y == snap::both))
             {
                 required.size.y = new_area.size.y;
             }
@@ -695,8 +684,8 @@ namespace netxs::ui
         // base: Apply new area (ext rect) and notify subscribers.
         void accept(rect new_area)
         {
-            xform(socket.size.x > new_area.size.x ? atcrop.x : atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
-            xform(socket.size.y > new_area.size.y ? atcrop.y : atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
+            xform(atcrop.x, atgrow.x, socket.coor.x, socket.size.x, new_area.size.x);
+            xform(atcrop.y, atgrow.y, socket.coor.y, socket.size.y, new_area.size.y);
             std::swap(new_area, base::socket);
             new_area -= base::extpad;
             SIGNAL(tier::release, e2::area, new_area);
