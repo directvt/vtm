@@ -1712,7 +1712,7 @@ struct impl : consrv
                 toWIDE.clear();
             }
         }
-        auto decode_run(auto& toANSI, text& toUTF8)
+        auto decode_run(auto&& toANSI, text& toUTF8)
         {
             auto head = toANSI.begin();
             auto tail = toANSI.end();
@@ -2518,7 +2518,7 @@ struct impl : consrv
             {
                 byte utf16;
                 byte EOFon;
-                ui16 exesz;
+                ui16 execb;
                 ui32 affix;
                 ui32 stops;
             }
@@ -2537,7 +2537,7 @@ struct impl : consrv
             log("\tread mode: raw ReadFile emulation");
             packet.input = { .EOFon = 1 };
         }
-        auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
+        auto namesize = static_cast<ui32>(packet.input.execb * sizeof(wchr));
         if (!size_check(packet.echosz,  packet.input.affix)
          || !size_check(packet.echosz,  answer.sendoffset())) return;
         auto readstep = packet.echosz - answer.sendoffset();
@@ -2545,7 +2545,7 @@ struct impl : consrv
         buffer.resize(datasize);
         if (!answer.recv_data(condrv, buffer)) return;
 
-        auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
+        auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.execb);
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
         if (!packet.input.utf16 && inpenc->codepage != CP_UTF8)
         {
@@ -4322,16 +4322,16 @@ struct impl : consrv
             {
                 struct
                 {
-                    ui16 srcsz;
+                    ui16 srccb; // Length in bytes.
                     ui16 pad_1;
-                    ui16 exesz;
+                    ui16 execb; // Length in bytes.
                     byte utf16;
                 }
                 input;
                 struct
                 {
                     ui16 pad_1;
-                    ui16 dstsz;
+                    ui16 dstcb; // Length in bytes.
                     ui16 pad_2;
                     byte pad_3;
                 }
@@ -4339,7 +4339,43 @@ struct impl : consrv
             };
         };
         auto& packet = payload::cast(upload);
-        packet.reply.dstsz = 0; // Far crashed if it is not set.
+        auto src = text{};
+        auto exe = text{};
+        auto dst = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.execb)
+            {
+                auto shadow = wiew{ data.data(), data.size() };
+                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
+                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
+            }
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            if (data.size() == packet.input.srccb + packet.input.execb)
+            {
+                auto shadow = view{ data.data(), data.size() };
+                if (inpenc->codepage == CP_UTF8)
+                {
+                    src = utf::pop_front(shadow, packet.input.srccb);
+                    exe = utf::pop_front(shadow, packet.input.execb);
+                }
+                else
+                {
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
+                }
+            }
+        }
+        packet.reply.dstcb = 0; // Far crashed if it is not set.
+
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tsrc: ", src,
+          "\n\texe: ", exe,
+          "\n\treply.dst: ", dst);
     }
     auto api_alias_add                       ()
     {
@@ -4348,15 +4384,52 @@ struct impl : consrv
         {
             struct
             {
-                ui16 srcsz;
-                ui16 dstsz;
-                ui16 exesz;
+                ui16 srccb; // Length in bytes.
+                ui16 dstcb; // Length in bytes.
+                ui16 execb; // Length in bytes.
                 byte utf16;
             }
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto src = text{};
+        auto exe = text{};
+        auto dst = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.dstcb + packet.input.execb)
+            {
+                auto shadow = wiew{ data.data(), data.size() };
+                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
+                utf::to_utf(utf::pop_front(shadow, packet.input.dstcb / sizeof(wchr)), dst);
+                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
+            }
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            if (data.size() == packet.input.srccb + packet.input.dstcb + packet.input.execb)
+            {
+                auto shadow = view{ data.data(), data.size() };
+                if (inpenc->codepage == CP_UTF8)
+                {
+                    src = utf::pop_front(shadow, packet.input.srccb);
+                    dst = utf::pop_front(shadow, packet.input.dstcb);
+                    exe = utf::pop_front(shadow, packet.input.execb);
+                }
+                else
+                {
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.dstcb), dst);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
+                }
+            }
+        }
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tsrc: ", src,
+          "\n\tdst: ", dst,
+          "\n\texe: ", exe);
     }
     auto api_alias_exes_get_volume           ()
     {
@@ -4375,8 +4448,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo
         packet.reply.bytes = 0;
 
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_alias_exes_get                  ()
     {
@@ -4395,8 +4471,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo
         packet.reply.bytes = 0;
 
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get_volume              ()
     {
@@ -4415,8 +4494,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo
         packet.reply.bytes = 0;
 
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get                     ()
     {
@@ -4436,7 +4518,9 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         packet.reply.bytes = 0;
-
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.bytes: ", packet.reply.bytes);
+            //todo macro list
     }
     auto api_input_history_clear             ()
     {
@@ -4450,11 +4534,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        log("\t", show_page(packet.input.utf16, inpenc->codepage));
     }
     auto api_input_history_limit_set         ()
     {
-        log(prompt, "SetConsoleNumberOfCommands");
+        log(prompt, "SetConsoleNumberOfCommands (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4465,7 +4549,8 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tlimit: ", packet.input.count);
     }
     auto api_input_history_get_volume        ()
     {
@@ -4484,8 +4569,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo
         packet.reply.count = 0; // Requires by the "doskey /history".
 
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.count: ", packet.reply.count);
     }
     auto api_input_history_get               ()
     {
@@ -4504,12 +4592,15 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo
         packet.reply.bytes = 0;
 
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_info_get          ()
     {
-        log(prompt, "GetConsoleHistoryInfo");
+        log(prompt, "GetConsoleHistoryInfo (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4521,14 +4612,16 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.flags = 0;
         packet.reply.limit = 0;
         packet.reply.count = 0;
-
+        packet.reply.flags = 0;
+        log("\treply.limit: ", packet.reply.limit,
+          "\n\treply.count: ", packet.reply.count,
+          "\n\treply.flags: ", packet.reply.flags);
     }
     auto api_input_history_info_set          ()
     {
-        log(prompt, "SetConsoleHistoryInfo");
+        log(prompt, "SetConsoleHistoryInfo (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4540,7 +4633,9 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        log("\tlimit: ", packet.input.limit,
+          "\n\tcount: ", packet.input.count,
+          "\n\tflags: ", packet.input.flags);
     }
 
     using apis = std::vector<void(impl::*)()>;

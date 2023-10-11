@@ -1515,6 +1515,13 @@ namespace netxs::utf
         if (stop == tail) utf8 = view{};
         else              utf8.remove_prefix(std::distance(head, stop));
     }
+    template<class View>
+    auto pop_front(View&& line, auto size)
+    {
+        auto crop = line.substr(0, size);
+        line.remove_prefix(size);
+        return crop;
+    }
     template<class TextOrView>
     auto is_plain(TextOrView&& utf8)
     {
