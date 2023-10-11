@@ -4611,6 +4611,7 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
+        auto input_exe = exe;
         utf::to_low(exe);
         auto exe_iter = macros.find(exe);
         if (exe_iter == macros.end())
@@ -4644,6 +4645,7 @@ struct impl : consrv
             packet.reply.bytes = static_cast<ui16>(toANSI.size());
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(input_exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
@@ -4679,6 +4681,7 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
+        auto input_exe = exe;
         utf::to_low(exe);
         auto exe_iter = macros.find(exe);
         if (exe_iter == macros.end())
@@ -4715,6 +4718,7 @@ struct impl : consrv
             answer.send_data(condrv, toANSI, true);
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(input_exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
@@ -4730,7 +4734,26 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        log("\t", show_page(packet.input.utf16, inpenc->codepage));
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        auto input_exe = exe;
+        utf::to_low(exe);
+        //todo implement
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)));
     }
     auto api_input_history_limit_set         ()
     {
@@ -4765,10 +4788,27 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        auto input_exe = exe;
+        utf::to_low(exe);
         packet.reply.count = 0; // Requires by the "doskey /history".
-
+        //todo implement
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
           "\n\treply.count: ", packet.reply.count);
     }
     auto api_input_history_get               ()
@@ -4788,10 +4828,27 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        auto input_exe = exe;
+        utf::to_low(exe);
         packet.reply.bytes = 0;
-
+        //todo implement
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_info_get          ()
