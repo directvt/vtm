@@ -4313,6 +4313,87 @@ struct impl : consrv
                           packet.input.keyflag & 0x20 ? "\t\tPrtsc\n"     : "",
                           packet.input.keyflag & 0x40 ? "\t\tCtrl+Esc\n"  : "");
     }
+
+    std::unordered_map<text, std::unordered_map<text, text>> macros;
+    auto api_alias_add                       ()
+    {
+        log(prompt, "AddConsoleAlias");
+        struct payload : drvpacket<payload>
+        {
+            struct
+            {
+                ui16 srccb;
+                ui16 dstcb;
+                ui16 execb;
+                byte utf16;
+            }
+            input;
+        };
+        auto& packet = payload::cast(upload);
+        auto exe = text{};
+        auto src = text{};
+        auto dst = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.dstcb + packet.input.execb)
+            {
+                auto shadow = wiew{ data.data(), data.size() };
+                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
+                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
+                utf::to_utf(utf::pop_front(shadow, packet.input.dstcb / sizeof(wchr)), dst);
+            }
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            if (data.size() == packet.input.srccb + packet.input.dstcb + packet.input.execb)
+            {
+                auto shadow = view{ data.data(), data.size() };
+                if (inpenc->codepage == CP_UTF8)
+                {
+                    exe = utf::pop_front(shadow, packet.input.execb);
+                    src = utf::pop_front(shadow, packet.input.srccb);
+                    dst = utf::pop_front(shadow, packet.input.dstcb);
+                }
+                else
+                {
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.dstcb), dst);
+                }
+            }
+        }
+        if (exe.size() && src.size())
+        {
+            if (dst.size())
+            {
+                utf::to_low(exe);
+                utf::to_low(src);
+                macros[exe][src] = dst;
+            }
+            else
+            {
+                if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+                {
+                    auto& src_map = exe_iter->second;
+                    if (auto src_iter = src_map.find(src); src_iter != src_map.end())
+                    {
+                        src_map.erase(src_iter);
+                    }
+                    if (src_map.empty())
+                    {
+                        macros.erase(exe_iter);
+                    }
+                }
+            }
+        }
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)),
+          "\n\tmacro index size: ", macros.size());
+    }
     auto api_alias_get                       ()
     {
         log(prompt, "GetConsoleAlias");
@@ -4370,66 +4451,44 @@ struct impl : consrv
                 }
             }
         }
-        packet.reply.dstcb = 0; // Far crashed if it is not set.
-
-        log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\texe: ",       ansi::hi(utf::debase<faux, faux>(exe)),
-          "\n\tsrc: ",       ansi::hi(utf::debase<faux, faux>(src)),
-          "\n\treply.dst: ", ansi::hi(utf::debase<faux, faux>(dst)));
-    }
-    auto api_alias_add                       ()
-    {
-        log(prompt, "AddConsoleAlias");
-        struct payload : drvpacket<payload>
+        packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
+        if (exe.size() && src.size())
         {
-            struct
+            utf::to_low(exe);
+            utf::to_low(src);
+            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
             {
-                ui16 srccb;
-                ui16 dstcb;
-                ui16 execb;
-                byte utf16;
-            }
-            input;
-        };
-        auto& packet = payload::cast(upload);
-        auto exe = text{};
-        auto src = text{};
-        auto dst = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.dstcb + packet.input.execb)
-            {
-                auto shadow = wiew{ data.data(), data.size() };
-                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
-                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
-                utf::to_utf(utf::pop_front(shadow, packet.input.dstcb / sizeof(wchr)), dst);
-            }
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            if (data.size() == packet.input.srccb + packet.input.dstcb + packet.input.execb)
-            {
-                auto shadow = view{ data.data(), data.size() };
-                if (inpenc->codepage == CP_UTF8)
+                auto& src_map = exe_iter->second;
+                if (auto src_iter = src_map.find(src); src_iter != src_map.end())
                 {
-                    exe = utf::pop_front(shadow, packet.input.execb);
-                    src = utf::pop_front(shadow, packet.input.srccb);
-                    dst = utf::pop_front(shadow, packet.input.dstcb);
-                }
-                else
-                {
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.dstcb), dst);
+                    dst = src_iter->second;
+                    if (packet.input.utf16)
+                    {
+                        toWIDE.clear();
+                        utf::to_utf(dst, toWIDE);
+                        packet.reply.dstcb = sizeof(wchr) * static_cast<ui16>(toWIDE.size() + 1 /*null terminator*/);
+                        answer.send_data(condrv, toWIDE, true);
+                    }
+                    else if (inpenc->codepage == CP_UTF8)
+                    {
+                        packet.reply.dstcb = static_cast<ui16>(dst.size() + 1 /*null terminator*/);
+                        answer.send_data(condrv, dst, true);
+                    }
+                    else
+                    {
+                        auto shadow = view{ dst };
+                        auto toANSI = inpenc->encode(shadow);
+                        packet.reply.dstcb = static_cast<ui16>(toANSI.size() + 1 /*null terminator*/);
+                        answer.send_data(condrv, toANSI, true);
+                    }
                 }
             }
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
-          "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
-          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
+          "\n\texecb: ",       packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrccb: ",       packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\treply.dstcb: ", packet.reply.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)),
+          "\n\tmacro index size: ", macros.size());
     }
     auto api_alias_exes_get_volume           ()
     {
