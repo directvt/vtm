@@ -4507,10 +4507,30 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo
-        packet.reply.bytes = 0;
-
+        auto crop = text{};
+        for (auto& [exe, map] : macros)
+        {
+            crop += exe;
+            crop += '\0';
+        }
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_alias_exes_get                  ()
@@ -4530,10 +4550,33 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo
-        packet.reply.bytes = 0;
-
+        auto crop = text{};
+        for (auto& [exe, map] : macros)
+        {
+            crop += exe;
+            crop += '\0';
+        }
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+            answer.send_data(condrv, toWIDE, true);
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+            answer.send_data(condrv, crop, true);
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+            answer.send_data(condrv, toANSI, true);
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get_volume              ()
