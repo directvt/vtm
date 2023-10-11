@@ -4768,7 +4768,25 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        auto input_exe = exe;
+        utf::to_low(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
           "\n\tlimit: ", packet.input.count);
     }
     auto api_input_history_get_volume        ()
