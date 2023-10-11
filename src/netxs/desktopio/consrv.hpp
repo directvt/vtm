@@ -4596,10 +4596,55 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo
-        packet.reply.bytes = 0;
-
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        utf::to_low(exe);
+        auto exe_iter = macros.find(exe);
+        if (exe_iter == macros.end())
+        {
+            packet.reply.bytes = 0;
+            return;
+        }
+        auto& src_map = exe_iter->second;
+        auto crop = text{};
+        for (auto& [key, val] : src_map)
+        {
+            crop += key;
+            crop += '=';
+            crop += val;
+            crop += '\0';
+        }
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get                     ()
@@ -4619,10 +4664,59 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
+        //todo depuplicate code
+        auto exe = text{};
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            auto shadow = wiew{ data.data(), data.size() };
+            utf::to_utf(shadow, exe);
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            auto shadow = view{ data.data(), data.size() };
+            if (inpenc->codepage == CP_UTF8) exe = shadow;
+            else                             inpenc->decode_run(shadow, exe);
+        }
+        utf::to_low(exe);
+        auto exe_iter = macros.find(exe);
+        if (exe_iter == macros.end())
+        {
+            packet.reply.bytes = 0;
+            return;
+        }
+        auto& src_map = exe_iter->second;
+        auto crop = text{};
+        for (auto& [key, val] : src_map)
+        {
+            crop += key;
+            crop += '=';
+            crop += val;
+            crop += '\0';
+        }
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+            answer.send_data(condrv, toWIDE, true);
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+            answer.send_data(condrv, crop, true);
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+            answer.send_data(condrv, toANSI, true);
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
-            //todo macro list
     }
     auto api_input_history_clear             ()
     {
