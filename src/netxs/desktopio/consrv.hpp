@@ -4339,8 +4339,8 @@ struct impl : consrv
             };
         };
         auto& packet = payload::cast(upload);
-        auto src = text{};
         auto exe = text{};
+        auto src = text{};
         auto dst = text{};
         if (packet.input.utf16)
         {
@@ -4348,8 +4348,8 @@ struct impl : consrv
             if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.execb)
             {
                 auto shadow = wiew{ data.data(), data.size() };
-                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
                 utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
+                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
             }
         }
         else
@@ -4360,22 +4360,22 @@ struct impl : consrv
                 auto shadow = view{ data.data(), data.size() };
                 if (inpenc->codepage == CP_UTF8)
                 {
-                    src = utf::pop_front(shadow, packet.input.srccb);
                     exe = utf::pop_front(shadow, packet.input.execb);
+                    src = utf::pop_front(shadow, packet.input.srccb);
                 }
                 else
                 {
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
                     inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
                 }
             }
         }
         packet.reply.dstcb = 0; // Far crashed if it is not set.
 
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tsrc: ", src,
-          "\n\texe: ", exe,
-          "\n\treply.dst: ", dst);
+          "\n\texe: ",       ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrc: ",       ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\treply.dst: ", ansi::hi(utf::debase<faux, faux>(dst)));
     }
     auto api_alias_add                       ()
     {
@@ -4392,8 +4392,8 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto src = text{};
         auto exe = text{};
+        auto src = text{};
         auto dst = text{};
         if (packet.input.utf16)
         {
@@ -4401,9 +4401,9 @@ struct impl : consrv
             if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.dstcb + packet.input.execb)
             {
                 auto shadow = wiew{ data.data(), data.size() };
+                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
                 utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
                 utf::to_utf(utf::pop_front(shadow, packet.input.dstcb / sizeof(wchr)), dst);
-                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
             }
         }
         else
@@ -4414,22 +4414,22 @@ struct impl : consrv
                 auto shadow = view{ data.data(), data.size() };
                 if (inpenc->codepage == CP_UTF8)
                 {
+                    exe = utf::pop_front(shadow, packet.input.execb);
                     src = utf::pop_front(shadow, packet.input.srccb);
                     dst = utf::pop_front(shadow, packet.input.dstcb);
-                    exe = utf::pop_front(shadow, packet.input.execb);
                 }
                 else
                 {
+                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
                     inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
                     inpenc->decode_run(utf::pop_front(shadow, packet.input.dstcb), dst);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
                 }
             }
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tsrc: ", src,
-          "\n\tdst: ", dst,
-          "\n\texe: ", exe);
+          "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
     }
     auto api_alias_exes_get_volume           ()
     {
