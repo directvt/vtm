@@ -4322,16 +4322,16 @@ struct impl : consrv
             {
                 struct
                 {
-                    ui16 srccb; // Length in bytes.
+                    ui16 srccb;
                     ui16 pad_1;
-                    ui16 execb; // Length in bytes.
+                    ui16 execb;
                     byte utf16;
                 }
                 input;
                 struct
                 {
                     ui16 pad_1;
-                    ui16 dstcb; // Length in bytes.
+                    ui16 dstcb;
                     ui16 pad_2;
                     byte pad_3;
                 }
@@ -4384,9 +4384,9 @@ struct impl : consrv
         {
             struct
             {
-                ui16 srccb; // Length in bytes.
-                ui16 dstcb; // Length in bytes.
-                ui16 execb; // Length in bytes.
+                ui16 srccb;
+                ui16 dstcb;
+                ui16 execb;
                 byte utf16;
             }
             input;
