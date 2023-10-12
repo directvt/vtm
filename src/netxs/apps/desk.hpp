@@ -74,11 +74,11 @@ namespace netxs::app::desk
             auto fastfader = skin::globals().fader_fast;
             auto fader = skin::globals().fader_time;
             auto item_area = ui::fork::ctor()
-                ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->plugin<pro::fader>(x4, c4, fastfader)
                 ->plugin<pro::notes>(" Application window:              \n"
                                      "   Left click to go to the window \n"
                                      "   Right click to pull the window ")
+                ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->invoke([&](auto& boss)
                 {
                     auto data_src_shadow = ptr::shadow(data_src);
@@ -498,8 +498,8 @@ namespace netxs::app::desk
                         .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
-                    ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
-                    ->plugin<pro::notes>(" Connected user ");
+                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_time)
+                    ->template plugin<pro::notes>(" Connected user ");
                 return user;
             };
             auto branch_template = [user_template](auto& data_src, auto& usr_list)
