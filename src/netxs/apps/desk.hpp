@@ -64,7 +64,7 @@ namespace netxs::app::desk
     {
         auto app_template = [](auto& data_src, auto const& utf8)
         {
-            auto& tall = skin::globals().menuwide;
+            auto tall = si32{ skin::globals().menuwide };
             auto danger_color    = skin::globals().danger;
             auto highlight_color = skin::globals().highlight;
             auto c4 = cell{}.bgc(highlight_color.bgc());
@@ -73,7 +73,8 @@ namespace netxs::app::desk
             auto x5 = cell{ c5 }.alpha(0x00);
             auto fastfader = skin::globals().fader_fast;
             auto fader = skin::globals().fader_time;
-            auto item_area = ui::pads::ctor(dent{ 1,0,tall,0 }, dent{ 0,0,0,tall })
+            auto item_area = ui::fork::ctor()
+                ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 })
                 ->plugin<pro::fader>(x4, c4, fastfader)
                 ->plugin<pro::notes>(" Application window:              \n"
                                      "   Left click to go to the window \n"
@@ -135,14 +136,17 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto label_area = item_area->attach(ui::fork::ctor());
-            auto mark_app = label_area->attach(slot::_1, ui::fork::ctor());
-            auto mark = mark_app->attach(slot::_1, ui::pads::ctor(dent{ 2,1,0,0 }, dent{ 0,0,0,0 }))
-                ->attach(ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣")));
-            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left))->flexible()->drawdots());
-            auto app_close_area = label_area->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
+            auto mark_app = item_area->attach(slot::_1, ui::fork::ctor());
+            auto mark = mark_app->attach(slot::_1, ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣")))
+                ->setpad({ 3, 1, tall, tall });
+            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
+                ->setpad({ 0, 0, tall, tall })
+                ->flexible()
+                ->drawdots();
+            auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->template plugin<pro::fader>(x5, c5, fader)
                 ->template plugin<pro::notes>(" Close application window ")
+                ->setpad({ 2, 2, tall, tall })
                 ->invoke([&](auto& boss)
                 {
                     auto data_src_shadow = ptr::shadow(data_src);
@@ -165,12 +169,11 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto app_close = app_close_area->attach(ui::item::ctor("×")->setpad({ 2,2 }));
             return item_area;
         };
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
-            auto& tall = skin::globals().menuwide;
+            auto tall = si32{ skin::globals().menuwide };
             auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
@@ -212,17 +215,21 @@ namespace netxs::app::desk
                 auto& obj_note = conf.notes;
                 if (conf.splitter)
                 {
-                    auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }))
-                        ->attach(ui::item::ctor(obj_desc)->flexible()->accented())
+                    auto item_area = apps->attach(ui::item::ctor(obj_desc))
+                        ->flexible()
+                        ->accented()
+                        ->setpad({ 0, 0, tall, tall },{ 0, 0, -tall, 0 })
                         ->colors(cA.fgc(), cA.bgc())
                         ->template plugin<pro::notes>(obj_note);
                     continue;
                 }
-                auto item_area = apps->attach(ui::pads::ctor(dent{ 0,0,0,tall }, dent{ 0,0,tall,0 }));
-                if (!state) item_area->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
-                auto block = item_area->attach(ui::fork::ctor(axis::Y))->limits({ -1,tall ? 3 : 1 });
-                auto head_pads = block->attach(slot::_1, ui::fork::ctor(axis::X))
-                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast)
+                auto head_fork = ui::fork::ctor(axis::X, 0, 1, 0);
+                auto block = apps->attach(ui::list::ctor())
+                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast, head_fork)
+                    ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
+                if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
+                block->attach(head_fork)
+                    ->active()
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
                     ->invoke([&](auto& boss)
                     {
@@ -255,17 +262,25 @@ namespace netxs::app::desk
                             gear.dismiss();
                         };
                     });
-                auto list_pads = block->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,0,0 }))
-                    ->template plugin<pro::fader>(x3, c3, skin::globals().fader_fast, head_pads);
-                auto insts = list_pads->attach(ui::list::ctor());
-                auto head_area = head_pads->attach(slot::_1, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }));
-                auto count = inst_ptr_list.size();
-                auto head_bttn = head_pads->attach(slot::_2, ui::pads::ctor(dent{ 0,0,0,0 }, dent{ 0,0,tall,tall }))
-                    ->limits({ count ? -1 : 0,-1 }, { count ? -1 : 0,-1 });
-                if (inst_ptr_list.size())
+                auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)
+                    ->flexible())
+                    ->setpad({ 0, 0, tall, tall })
+                    ->invoke([&](auto& boss)
+                    {
+                        auto boss_shadow = ptr::shadow(boss.This());
+                        boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc, c9))
+                        {
+                            auto selected = inst_id == data;
+                            boss.set(ansi::fgx(selected ? c9.fgc() : 0x00000000).add(obj_desc));
+                            boss.deface();
+                        };
+                    });
+                if (auto count = inst_ptr_list.size())
                 {
-                    auto bttn_rail = head_bttn->attach(ui::rail::ctor(axes::X_only, axes::all, axes::none))
-                        ->limits({ 5,1 }, { 5,1 })
+                    auto insts = block->attach(ui::list::ctor())
+                        ->setpad({ 0, 0, tall, -tall }, { 0, 0, -tall, 0 });
+                    auto bttn_rail = head_fork->attach(slot::_2, ui::rail::ctor(axes::X_only, axes::all, axes::none))
+                        ->limits({ 5, -1 }, { 5, -1 })
                         ->invoke([&](auto& boss)
                         {
                             boss.LISTEN(tier::release, e2::form::state::mouse, active)
@@ -278,27 +293,29 @@ namespace netxs::app::desk
                         });
                     auto bttn_fork = bttn_rail->attach(ui::fork::ctor(axis::X));
                     auto& isfolded = conf.folded;
-                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<")->setpad({ 2,2 }))
+                    auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
+                        ->setpad({ 2, 2, tall, tall })
                         ->template plugin<pro::fader>(x6, c6, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Hide active window list.               \n"
-                                                      " Use mouse wheel to switch it to close. ")
+                                                    " Use mouse wheel to switch it to close. ")
                         ->invoke([&](auto& boss)
                         {
-                            list_pads->base::hidden = isfolded;
-                            auto list_pads_shadow = ptr::shadow(list_pads);
-                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (list_pads_shadow))
+                            insts->base::hidden = isfolded;
+                            auto insts_shadow = ptr::shadow(insts);
+                            boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (insts_shadow))
                             {
-                                if (auto list_pads = list_pads_shadow.lock())
+                                if (auto insts = insts_shadow.lock())
                                 {
                                     isfolded = !isfolded;
                                     boss.set(isfolded ? "…" : "<");
-                                    list_pads->base::hidden = isfolded;
-                                    list_pads->base::reflow();
+                                    insts->base::hidden = isfolded;
+                                    insts->base::reflow();
                                 }
                                 gear.dismiss();
                             };
                         });
-                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×")->setpad({ 2,2 }))
+                    auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
+                        ->setpad({ 2, 2, tall, tall })
                         ->template plugin<pro::fader>(x1, c1, skin::globals().fader_time)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
@@ -313,50 +330,39 @@ namespace netxs::app::desk
                                 gear.dismiss();
                             };
                         });
-                }
-                auto head = head_area->attach(ui::item::ctor(obj_desc)->flexible())
-                    ->invoke([&](auto& boss)
+                    insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
+                            [&](auto inst_ptr)
+                            {
+                                auto& window = *inst_ptr;
+                                auto& boss = *block;
+                                boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
+                                {
+                                    auto deed = boss.bell::template protos<tier::release>();
+                                         if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                                    else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
+                                };
+                            });
+                    insts->invoke([&](auto& boss)
                     {
-                        auto boss_shadow = ptr::shadow(boss.This());
-                        boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc, c9))
+                        auto& group_area = *block;
+                        boss.LISTEN(tier::release, hids::events::notify::mouse::any, gear, -, (count = 0)) // Turn off group highlighning.
                         {
-                            auto selected = inst_id == data;
-                            boss.set(ansi::fgx(selected ? c9.fgc() : 0x00000000).add(obj_desc));
-                            boss.deface();
+                            auto deed = boss.bell::template protos<tier::release>();
+                            if (deed == hids::events::notify::mouse::leave.id)
+                            {
+                                if (--count == 0)
+                                group_area.SIGNAL(tier::release, e2::form::state::mouse, 1);
+                            }
+                            else
+                            {
+                                if (count++ == 0)
+                                group_area.SIGNAL(tier::release, e2::form::state::mouse, 0);
+                            }
+                            //group_area.mouse.take_all_events(true);
+                            //group_area.deface();
                         };
                     });
-                insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
-                        [&](auto inst_ptr)
-                        {
-                            auto& window = *inst_ptr;
-                            auto& boss = *item_area;
-                            boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
-                            {
-                                auto deed = boss.bell::template protos<tier::release>();
-                                     if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                                else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
-                            };
-                        });
-                insts->invoke([&](auto& boss)
-                {
-                    auto& group_area = *item_area;
-                    boss.LISTEN(tier::release, hids::events::notify::mouse::any, gear, -, (count = 0)) // Turn off group highlighning.
-                    {
-                        auto deed = boss.bell::template protos<tier::release>();
-                        if (deed == hids::events::notify::mouse::leave.id)
-                        {
-                            if (--count == 0)
-                            group_area.SIGNAL(tier::release, e2::form::state::mouse, 1);
-                        }
-                        else
-                        {
-                            if (count++ == 0)
-                            group_area.SIGNAL(tier::release, e2::form::state::mouse, 0);
-                        }
-                        //group_area.mouse.take_all_events(true);
-                        //group_area.deface();
-                    };
-                });
+                }
             }
             return apps;
         };
@@ -421,7 +427,7 @@ namespace netxs::app::desk
 
         auto build = [](text cwd, text v, xmls& config, text patch)
         {
-            auto& tall = skin::globals().menuwide;
+            auto tall = si32{ skin::globals().menuwide };
             auto highlight_color = skin::globals().highlight;
             auto action_color    = skin::globals().action;
             auto inactive_color  = skin::globals().inactive;
@@ -483,22 +489,24 @@ namespace netxs::app::desk
 
             auto user_template = [my_id](auto& data_src, auto const& utf8)
             {
-                auto& tall = skin::globals().menuwide;
+                auto tall = si32{ skin::globals().menuwide };
                 auto highlight_color = skin::color(tone::highlight);
                 auto c3 = highlight_color;
                 auto x3 = cell{ c3 }.alpha(0x00);
-
-                auto item_area = ui::pads::ctor(dent{ 1,0,0,tall }, dent{ 0,0,tall,0 })
+                auto user = ui::item::ctor(escx(" &").nil().add(" ")
+                        //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
+                        .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())
+                    ->flexible()
+                    ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->plugin<pro::fader>(x3, c3, skin::globals().fader_time)
                     ->plugin<pro::notes>(" Connected user ");
-                auto user = item_area->attach(ui::item::ctor(escx(" &").nil().add(" ")
-                    //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
-                    .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())->flexible());
-                return item_area;
+                return user;
             };
             auto branch_template = [user_template](auto& data_src, auto& usr_list)
             {
+                auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()
+                    ->setpad({ 0, 0, tall, -tall }, { 0, 0, 0, 0 })
                     ->attach_collection(e2::form::prop::name, *usr_list, user_template);
                 return users;
             };
@@ -559,7 +567,7 @@ namespace netxs::app::desk
                 });
             auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::cake::ctor())
                 ->colors(menu_bg_color.fgc(), menu_bg_color.bgc())
-                ->limits({ menu_min_size,-1 }, { menu_min_size,-1 })
+                ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 ->plugin<pro::notes>(" LeftDrag to adjust the taskbar width                        \n"
                                      " Ctrl+LeftDrag to adjust the folded taskbar width            \n"
                                      " RightDrag or scroll wheel to slide the taskbar menu up/down ")
@@ -576,7 +584,7 @@ namespace netxs::app::desk
                         active = state;
                         auto size = active ? std::max(menu_max_size, menu_min_size)
                                            : menu_min_size;
-                        auto lims = twod{ size,-1 };
+                        auto lims = twod{ size, -1 };
                         boss.base::limits(lims, lims);
                         boss.base::reflow();
                     };
@@ -619,7 +627,7 @@ namespace netxs::app::desk
                             active = state;
                             auto size = active ? std::max(menu_max_size, menu_min_size)
                                                : menu_min_size;
-                            auto lims = twod{ size,-1 };
+                            auto lims = twod{ size, -1 };
                             boss.base::limits(lims, lims);
                             boss.base::reflow();
                             boss.base::deface();
@@ -639,10 +647,9 @@ namespace netxs::app::desk
                 });
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
-            auto applist_area = apps_users->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,0 }, dent{}))
-                ->attach(ui::cake::ctor());
+            auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
-                ->colors(0x00, 0x00) //todo mouse events passthrough
+                ->active()
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, parent_ptr)
@@ -654,20 +661,21 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto users_area = apps_users->attach(slot::_2, ui::fork::ctor(axis::Y))
-                ->limits({ -1,1 });
-            auto label_pads = users_area->attach(slot::_1, ui::pads::ctor(dent{ 0,0,tall,tall }, dent{ 0,0,0,0 }))
+            auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
+            auto label_bttn = users_area->attach(ui::fork::ctor(axis::X))
                                         ->plugin<pro::notes>(" List of connected users ");
-            auto label_bttn = label_pads->attach(ui::fork::ctor(axis::X));//, 0, 1, 1, true));
-            auto label = label_bttn->attach(slot::_1, ui::item::ctor("users")->flexible()->accented())
-                ->limits({ 5,-1 })
+            auto label = label_bttn->attach(slot::_1, ui::item::ctor("users"))
+                ->flexible()
+                ->accented()
+                ->setpad({ 0, 0, tall, tall })
+                ->limits({ 5, -1 })
                 ->colors(cA.fgc(), cA.bgc());
-            auto bttn_pads = label_bttn->attach(slot::_2, ui::pads::ctor(dent{ 2,2,0,0 }, dent{ 0,0,tall,tall }))
-                ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
-                ->plugin<pro::notes>(" Show/hide user list ");
             auto userlist_hidden = true;
-            auto bttn = bttn_pads->attach(ui::item::ctor(userlist_hidden ? "…" : "<"));
-            auto userlist_area = users_area->attach(slot::_2, ui::cake::ctor())
+            auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
+                ->plugin<pro::fader>(x6, c6, skin::globals().fader_time)
+                ->plugin<pro::notes>(" Show/hide user list ")
+                ->setpad({ 2, 2, tall, tall });
+            auto userlist_area = users_area->attach(ui::cake::ctor())
                 ->invoke([&](auto& boss)
                 {
                     boss.base::hidden = userlist_hidden;
@@ -680,7 +688,7 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            bttn_pads->invoke([&](auto& boss)
+            bttn->invoke([&](auto& boss)
             {
                 auto userlist_area_shadow = ptr::shadow(userlist_area);
                 auto bttn_shadow = ptr::shadow(bttn);
@@ -714,7 +722,7 @@ namespace netxs::app::desk
                         gear.dismiss();
                     };
                 });
-            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall })->alignment({ snap::head, snap::center }));
+            auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2, 3, tall, tall })->alignment({ snap::head, snap::center }));
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->plugin<pro::fader>(x1, c1, skin::globals().fader_time)
@@ -726,7 +734,7 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
                     };
                 });
-            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2,3,tall,tall })->alignment({ snap::tail, snap::center }));
+            auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2, 3, tall, tall })->alignment({ snap::tail, snap::center }));
             auto shutdown = shutdown_area->attach(ui::item::ctor("× Shutdown"));
             return window;
         };

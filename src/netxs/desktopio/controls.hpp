@@ -2702,7 +2702,7 @@ namespace netxs::ui
                     if (auto& object = *start++)
                     {
                         object->render(parent_canvas);
-                        if (bound(object) >= max_y) break;
+                        if (!object->base::hidden && bound(object) >= max_y) break;
                     }
                 }
             };
@@ -2723,7 +2723,7 @@ namespace netxs::ui
                 height = start;
                 for (auto& object : subset)
                 {
-                    if (!object) continue;
+                    if (!object || object->base::hidden) continue;
                     auto& entry = *object;
                     y_size = 0;
                     entry.base::recalc(object_area);
@@ -2745,11 +2745,11 @@ namespace netxs::ui
             auto found = faux;
             for (auto& object : subset)
             {
-                if (!object) continue;
+                if (!object || object->base::hidden) continue;
                 auto& entry = *object;
                 if (!found) // Looking for anchored list entry.
                 {
-                    auto& anker = entry.base::area(); // Use old entry position.
+                    auto anker = entry.base::area() + entry.base::extpad; // Use old entry position.
                     auto anker_coor_y = anker.coor[updown];
                     auto anker_size_y = anker.size[updown];
                     if (lock_y < anker_coor_y + anker_size_y || lock_y < anker_coor_y)
