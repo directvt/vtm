@@ -431,6 +431,11 @@ namespace netxs::utf
                  operator text () const { return text{ data(), size() }; }
         explicit operator bool () const { return view::length(); }
 
+        // qiew: Return substring.
+        constexpr auto substr(size_t offset = 0, size_t count = npos) const
+        {
+            return qiew{ view::substr(offset, count) };
+        }
         // qiew: Convert to text.
         auto str() const { return operator text(); }
         // qiew: Peek front char.
@@ -773,7 +778,7 @@ namespace netxs::utf
     }
     auto substr(qiew utf8, size_t start, size_t length = text::npos)
     {
-        if (length == 0) return view{};
+        if (length == 0) return qiew{};
         auto head = utf8.data();
         auto stop = head + utf8.size();
         auto calc = [](auto& it, auto& count, auto limit)

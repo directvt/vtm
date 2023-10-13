@@ -516,7 +516,7 @@ struct impl : consrv
                leader{      }
         { }
 
-        void add_macro(text& exe, text& src, text& dst)
+        void add_alias(text& exe, text& src, text& dst)
         {
             auto lock = std::lock_guard{ locker };
             if (exe.size() && src.size())
@@ -544,7 +544,7 @@ struct impl : consrv
                 }
             }
         }
-        auto get_macro(text& exe, text& src)
+        auto get_alias(text& exe, text& src)
         {
             auto lock = std::lock_guard{ locker };
             auto crop = text{};
@@ -591,6 +591,22 @@ struct impl : consrv
                 }
             }
             return crop;
+        }
+        void map_aliases(text& name, text& line)
+        {
+            if (macros.empty() || line.empty()) return;
+            utf::to_low(name);
+            auto name_iter = macros.find(name);
+            if (name_iter == macros.end()) return;
+            auto& src_map = name_iter->second;
+            if (src_map.empty()) return;
+            auto args = qiew{ line };
+            auto crop = utf::get_tail<faux>(args, " \r\n");
+            auto iter = src_map.find(utf::to_low(crop));
+            if (iter == src_map.end()) return;
+            auto data = qiew{ iter->second };
+            //todo expand $ with args in data
+            line = text{ data } + text{ args };
         }
         void reset()
         {
@@ -1022,7 +1038,7 @@ struct impl : consrv
             signal.notify_one();
         }
         template<class L>
-        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
+        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, text& nameview, memo& hist)
         {
             //todo bracketed paste support
             // save server.uiterm.bpmode
@@ -1258,7 +1274,7 @@ struct impl : consrv
                 auto EOFpos = cooked.ustr.find(EOFkey);
                 if (EOFpos != text::npos) cooked.ustr.resize(EOFpos);
             }
-
+            map_aliases(nameview, cooked.ustr);
             cooked.save(utf16);
             if (stream.empty()) ondata.flush();
 
@@ -1350,7 +1366,7 @@ struct impl : consrv
                     {
                         if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                         else                    cooked.ustr = initdata;
-                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, client.inputs);
+                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, nameview, client.inputs);
                     }
                     else
                     {
@@ -4440,7 +4456,7 @@ struct impl : consrv
                 }
             }
         }
-        events.add_macro(exe, src, dst);
+        events.add_alias(exe, src, dst);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
@@ -4503,7 +4519,7 @@ struct impl : consrv
             }
         }
         packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
-        auto dst = events.get_macro(exe, src);
+        auto dst = events.get_alias(exe, src);
         if (dst.size())
         {
             if (packet.input.utf16)
