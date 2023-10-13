@@ -485,6 +485,7 @@ struct impl : consrv
         using vect = std::vector<INPUT_RECORD>;
         using irec = INPUT_RECORD;
         using work = std::thread;
+        using cast = std::unordered_map<text, std::unordered_map<text, text>>;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
@@ -506,6 +507,7 @@ struct impl : consrv
         text  toANSI; // events_t: ANSI   decoder buffer.
         irec  leader; // events_t: Hanging key event record (lead byte).
         work  ostask; // events_t: Console task thread for the child process.
+        cast  macros; // events_t: Doskey macros storage.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -514,6 +516,82 @@ struct impl : consrv
                leader{      }
         { }
 
+        void add_macro(text& exe, text& src, text& dst)
+        {
+            auto lock = std::lock_guard{ locker };
+            if (exe.size() && src.size())
+            {
+                utf::to_low(exe);
+                utf::to_low(src);
+                if (dst.size())
+                {
+                    macros[exe][src] = dst;
+                }
+                else
+                {
+                    if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+                    {
+                        auto& src_map = exe_iter->second;
+                        if (auto src_iter = src_map.find(src); src_iter != src_map.end())
+                        {
+                            src_map.erase(src_iter);
+                        }
+                        if (src_map.empty())
+                        {
+                            macros.erase(exe_iter);
+                        }
+                    }
+                }
+            }
+        }
+        auto get_macro(text& exe, text& src)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            if (exe.size() && src.size())
+            {
+                utf::to_low(exe);
+                utf::to_low(src);
+                if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+                {
+                    auto& src_map = exe_iter->second;
+                    if (auto src_iter = src_map.find(src); src_iter != src_map.end())
+                    {
+                        crop = src_iter->second;
+                    }
+                }
+            }
+            return crop;
+        }
+        auto get_exes()
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            for (auto& [exe, map] : macros)
+            {
+                crop += exe;
+                crop += '\0';
+            }
+            return crop;
+        }
+        auto get_aliases(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            utf::to_low(exe);
+            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+            {
+                auto& src_map = exe_iter->second;
+                for (auto& [key, val] : src_map)
+                {
+                    crop += key;
+                    crop += '=';
+                    crop += val;
+                    crop += '\0';
+                }
+            }
+            return crop;
+        }
         void reset()
         {
             auto lock = std::lock_guard{ locker };
@@ -4313,8 +4391,6 @@ struct impl : consrv
                           packet.input.keyflag & 0x20 ? "\t\tPrtsc\n"     : "",
                           packet.input.keyflag & 0x40 ? "\t\tCtrl+Esc\n"  : "");
     }
-
-    std::unordered_map<text, std::unordered_map<text, text>> macros;
     auto api_alias_add                       ()
     {
         log(prompt, "AddConsoleAlias");
@@ -4364,35 +4440,11 @@ struct impl : consrv
                 }
             }
         }
-        if (exe.size() && src.size())
-        {
-            if (dst.size())
-            {
-                utf::to_low(exe);
-                utf::to_low(src);
-                macros[exe][src] = dst;
-            }
-            else
-            {
-                if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
-                {
-                    auto& src_map = exe_iter->second;
-                    if (auto src_iter = src_map.find(src); src_iter != src_map.end())
-                    {
-                        src_map.erase(src_iter);
-                    }
-                    if (src_map.empty())
-                    {
-                        macros.erase(exe_iter);
-                    }
-                }
-            }
-        }
+        events.add_macro(exe, src, dst);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
-          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)),
-          "\n\tmacro index size: ", macros.size());
+          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
     }
     auto api_alias_get                       ()
     {
@@ -4422,7 +4474,6 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto exe = text{};
         auto src = text{};
-        auto dst = text{};
         if (packet.input.utf16)
         {
             auto data = take_buffer<wchr, feed::fwd>(packet);
@@ -4452,43 +4503,33 @@ struct impl : consrv
             }
         }
         packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
-        if (exe.size() && src.size())
+        auto dst = events.get_macro(exe, src);
+        if (dst.size())
         {
-            utf::to_low(exe);
-            utf::to_low(src);
-            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+            if (packet.input.utf16)
             {
-                auto& src_map = exe_iter->second;
-                if (auto src_iter = src_map.find(src); src_iter != src_map.end())
-                {
-                    dst = src_iter->second;
-                    if (packet.input.utf16)
-                    {
-                        toWIDE.clear();
-                        utf::to_utf(dst, toWIDE);
-                        packet.reply.dstcb = sizeof(wchr) * static_cast<ui16>(toWIDE.size() + 1 /*null terminator*/);
-                        answer.send_data(condrv, toWIDE, true);
-                    }
-                    else if (inpenc->codepage == CP_UTF8)
-                    {
-                        packet.reply.dstcb = static_cast<ui16>(dst.size() + 1 /*null terminator*/);
-                        answer.send_data(condrv, dst, true);
-                    }
-                    else
-                    {
-                        auto shadow = view{ dst };
-                        auto toANSI = inpenc->encode(shadow);
-                        packet.reply.dstcb = static_cast<ui16>(toANSI.size() + 1 /*null terminator*/);
-                        answer.send_data(condrv, toANSI, true);
-                    }
-                }
+                toWIDE.clear();
+                utf::to_utf(dst, toWIDE);
+                packet.reply.dstcb = sizeof(wchr) * static_cast<ui16>(toWIDE.size() + 1 /*null terminator*/);
+                answer.send_data(condrv, toWIDE, true);
+            }
+            else if (inpenc->codepage == CP_UTF8)
+            {
+                packet.reply.dstcb = static_cast<ui16>(dst.size() + 1 /*null terminator*/);
+                answer.send_data(condrv, dst, true);
+            }
+            else
+            {
+                auto shadow = view{ dst };
+                auto toANSI = inpenc->encode(shadow);
+                packet.reply.dstcb = static_cast<ui16>(toANSI.size() + 1 /*null terminator*/);
+                answer.send_data(condrv, toANSI, true);
             }
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\texecb: ",       packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tsrccb: ",       packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
-          "\n\treply.dstcb: ", packet.reply.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)),
-          "\n\tmacro index size: ", macros.size());
+          "\n\treply.dstcb: ", packet.reply.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
     }
     auto api_alias_exes_get_volume           ()
     {
@@ -4507,12 +4548,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto crop = text{};
-        for (auto& [exe, map] : macros)
-        {
-            crop += exe;
-            crop += '\0';
-        }
+        auto crop = events.get_exes();
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -4550,12 +4586,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto crop = text{};
-        for (auto& [exe, map] : macros)
-        {
-            crop += exe;
-            crop += '\0';
-        }
+        auto crop = events.get_exes();
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -4611,23 +4642,7 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
-        utf::to_low(exe);
-        auto exe_iter = macros.find(exe);
-        if (exe_iter == macros.end())
-        {
-            packet.reply.bytes = 0;
-            return;
-        }
-        auto& src_map = exe_iter->second;
-        auto crop = text{};
-        for (auto& [key, val] : src_map)
-        {
-            crop += key;
-            crop += '=';
-            crop += val;
-            crop += '\0';
-        }
+        auto crop = events.get_aliases(exe);
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -4645,7 +4660,7 @@ struct impl : consrv
             packet.reply.bytes = static_cast<ui16>(toANSI.size());
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(input_exe)),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
@@ -4681,23 +4696,7 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
-        utf::to_low(exe);
-        auto exe_iter = macros.find(exe);
-        if (exe_iter == macros.end())
-        {
-            packet.reply.bytes = 0;
-            return;
-        }
-        auto& src_map = exe_iter->second;
-        auto crop = text{};
-        for (auto& [key, val] : src_map)
-        {
-            crop += key;
-            crop += '=';
-            crop += val;
-            crop += '\0';
-        }
+        auto crop = events.get_aliases(exe);
         if (packet.input.utf16)
         {
             toWIDE.clear();
@@ -4718,7 +4717,7 @@ struct impl : consrv
             answer.send_data(condrv, toANSI, true);
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(input_exe)),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
@@ -4749,11 +4748,10 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
         utf::to_low(exe);
         //todo implement
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)));
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)));
     }
     auto api_input_history_limit_set         ()
     {
@@ -4783,10 +4781,9 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
         utf::to_low(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tlimit: ", packet.input.count);
     }
     auto api_input_history_get_volume        ()
@@ -4821,12 +4818,11 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
         utf::to_low(exe);
         packet.reply.count = 0; // Requires by the "doskey /history".
         //todo implement
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.count: ", packet.reply.count);
     }
     auto api_input_history_get               ()
@@ -4861,12 +4857,11 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        auto input_exe = exe;
         utf::to_low(exe);
         packet.reply.bytes = 0;
         //todo implement
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(input_exe)),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_info_get          ()
