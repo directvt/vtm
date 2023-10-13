@@ -592,21 +592,52 @@ struct impl : consrv
             }
             return crop;
         }
-        void map_aliases(text& name, text& line)
+        void map_aliases(text& exe, text& line)
         {
             if (macros.empty() || line.empty()) return;
-            utf::to_low(name);
-            auto name_iter = macros.find(name);
-            if (name_iter == macros.end()) return;
-            auto& src_map = name_iter->second;
+
+            utf::to_low(exe);
+            auto exe_iter = macros.find(exe);
+            if (exe_iter == macros.end()) return;
+
+            auto& src_map = exe_iter->second;
             if (src_map.empty()) return;
-            auto args = qiew{ line };
-            auto crop = utf::get_tail<faux>(args, " \r\n");
+
+            auto rest = qiew{ line };
+            auto crop = utf::get_tail<faux>(rest, " \r\n");
             auto iter = src_map.find(utf::to_low(crop));
             if (iter == src_map.end()) return;
+
+            auto tail = utf::trim_back(rest, "\r\n");
+            auto args = utf::divide<feed::fwd, true>(rest, ' ');
             auto data = qiew{ iter->second };
-            //todo expand $ with args in data
-            line = text{ data } + text{ args };
+            auto result = text{};
+            while (data)
+            {
+                result += utf::get_tail<faux>(data, "$");
+                if (data.size() >= 2)
+                {
+                    auto s = utf::pop_front(data, 2);
+                    auto c = utf::to_low(s.back());
+                    if (c >= '1' && c <= '9')
+                    {
+                        auto n = c - '1';
+                        if (args.size() > n) result += args[n];
+                    }
+                    else switch (c)
+                    {
+                        case '$': result += '$'; break;
+                        case 'g': result += '>'; break;
+                        case 'l': result += '<'; break;
+                        case 't': result += '&'; break;
+                        case 'b': result += '|';
+                        case '*': result += data; data.clear(); break;
+                        default:  result += s; break;
+                    }
+                }
+            }
+            result += tail;
+            line = result;
         }
         void reset()
         {
