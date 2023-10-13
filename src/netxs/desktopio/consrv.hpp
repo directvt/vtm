@@ -1142,7 +1142,12 @@ struct impl : consrv
                             case VK_CLEAR:/*NUMPAD 5*/
                             case VK_F2:  //todo menu
                             case VK_F4:  //todo menu
-                            case VK_F7:  //todo menu
+                            case VK_F7:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                            {
+                                hist = {};
+                                break;
+                            }
                             case VK_F9:  //todo menu
                             case VK_F10:
                             if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
