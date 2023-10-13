@@ -639,6 +639,15 @@ struct impl : consrv
             result += tail;
             line = result;
         }
+        auto off_aliases(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            utf::to_low(exe);
+            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+            {
+                macros.erase(exe_iter);
+            }
+        }
         void reset()
         {
             auto lock = std::lock_guard{ locker };
@@ -1135,7 +1144,12 @@ struct impl : consrv
                             case VK_F4:  //todo menu
                             case VK_F7:  //todo menu
                             case VK_F9:  //todo menu
-                            case VK_F10: //todo clear exes aliases
+                            case VK_F10:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                            {
+                                off_aliases(nameview);
+                                break;
+                            }
                             case VK_F11:
                             case VK_F12:
                                 break;
