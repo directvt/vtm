@@ -339,8 +339,6 @@ struct impl : consrv
         Arch thread; // clnt: Process thread id.
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
-        //todo store time stamps for the history items
-        memo inputs; // clnt: Input history.
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
     };
@@ -486,28 +484,30 @@ struct impl : consrv
         using irec = INPUT_RECORD;
         using work = std::thread;
         using cast = std::unordered_map<text, std::unordered_map<text, text>>;
+        using hist = std::unordered_map<text, memo>;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        impl& server; // events_t: Console server reference.
-        vect  stream; // events_t: Input event list.
-        vect  recbuf; // events_t: Temporary buffer for copying event records.
-        sync  signal; // events_t: Input event append signal.
-        lock  locker; // events_t: Input event buffer mutex.
-        cook  cooked; // events_t: Cooked input string.
-        jobs  worker; // events_t: Background task executer.
-        flag  closed; // events_t: Console server was shutdown.
-        fire  ondata; // events_t: Signal on input buffer data.
-        wide  wcpair; // events_t: Surrogate pair buffer.
-        wide  toWIDE; // events_t: UTF-16 decoder buffer.
-        text  toUTF8; // events_t: UTF-8  decoder buffer.
-        text  toANSI; // events_t: ANSI   decoder buffer.
-        irec  leader; // events_t: Hanging key event record (lead byte).
-        work  ostask; // events_t: Console task thread for the child process.
-        cast  macros; // events_t: Doskey macros storage.
+        impl& server; // evnt: Console server reference.
+        vect  stream; // evnt: Input event list.
+        vect  recbuf; // evnt: Temporary buffer for copying event records.
+        sync  signal; // evnt: Input event append signal.
+        lock  locker; // evnt: Input event buffer mutex.
+        cook  cooked; // evnt: Cooked input string.
+        jobs  worker; // evnt: Background task executer.
+        flag  closed; // evnt: Console server was shutdown.
+        fire  ondata; // evnt: Signal on input buffer data.
+        wide  wcpair; // evnt: Surrogate pair buffer.
+        wide  toWIDE; // evnt: UTF-16 decoder buffer.
+        text  toUTF8; // evnt: UTF-8  decoder buffer.
+        text  toANSI; // evnt: ANSI   decoder buffer.
+        irec  leader; // evnt: Hanging key event record (lead byte).
+        work  ostask; // evnt: Console task thread for the child process.
+        cast  macros; // evnt: Doskey macros storage.
+        hist  inputs; // evnt: Input history per process name storage.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -516,6 +516,32 @@ struct impl : consrv
                leader{      }
         { }
 
+        auto& ref_history(text& exe)
+        {
+            return inputs[utf::to_low(exe)];
+        }
+        auto get_history(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            auto iter = inputs.find(utf::to_low(exe));
+            if (iter != inputs.end())
+            {
+                auto& recs = iter->second;
+                for (auto& rec : recs.data)
+                {
+                    crop += rec.utf8();
+                    crop += '\0';
+                }
+            }
+            return crop;
+        }
+        void off_history(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto iter = inputs.find(utf::to_low(exe));
+            if (iter != inputs.end()) inputs.erase(iter);
+        }
         void add_alias(text& exe, text& src, text& dst)
         {
             auto lock = std::lock_guard{ locker };
@@ -1078,12 +1104,13 @@ struct impl : consrv
             signal.notify_one();
         }
         template<class L>
-        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, text& nameview, memo& hist)
+        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, text& nameview)
         {
             //todo bracketed paste support
             // save server.uiterm.bpmode
             // server.uiterm.bpmode = true;
             // restore at exit
+            auto& hist = ref_history(nameview);
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
             auto nums = utfx{};
@@ -1416,7 +1443,7 @@ struct impl : consrv
                     {
                         if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                         else                    cooked.ustr = initdata;
-                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, nameview, client.inputs);
+                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, nameview);
                     }
                     else
                     {
@@ -4814,8 +4841,7 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        utf::to_low(exe);
-        //todo implement
+        events.off_history(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)));
     }
@@ -4854,12 +4880,12 @@ struct impl : consrv
     }
     auto api_input_history_get_volume        ()
     {
-        log(prompt, "GetConsoleCommandHistoryLength");
+        log(prompt, "GetConsoleCommandHistoryLength"); // Requires by the "doskey /history".
         struct payload : drvpacket<payload>
         {
             struct
             {
-                ui32 count;
+                ui32 bytes;
             }
             reply;
             struct
@@ -4884,12 +4910,27 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        utf::to_low(exe);
-        packet.reply.count = 0; // Requires by the "doskey /history".
-        //todo implement
+        auto crop = events.get_history(exe);
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
-          "\n\treply.count: ", packet.reply.count);
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_get               ()
     {
@@ -4923,11 +4964,29 @@ struct impl : consrv
             if (inpenc->codepage == CP_UTF8) exe = shadow;
             else                             inpenc->decode_run(shadow, exe);
         }
-        utf::to_low(exe);
-        packet.reply.bytes = 0;
-        //todo implement
+        auto crop = events.get_history(exe);
+        if (packet.input.utf16)
+        {
+            toWIDE.clear();
+            utf::to_utf(crop, toWIDE);
+            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
+            answer.send_data(condrv, toWIDE, true);
+        }
+        else if (inpenc->codepage == CP_UTF8)
+        {
+            packet.reply.bytes = static_cast<ui16>(crop.size());
+            answer.send_data(condrv, crop, true);
+        }
+        else
+        {
+            auto shadow = view{ crop };
+            auto toANSI = inpenc->encode(shadow);
+            packet.reply.bytes = static_cast<ui16>(toANSI.size());
+            answer.send_data(condrv, toANSI, true);
+        }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_info_get          ()
