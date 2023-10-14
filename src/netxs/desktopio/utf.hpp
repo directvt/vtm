@@ -1538,6 +1538,13 @@ namespace netxs::utf
         line.remove_prefix(size);
         return crop;
     }
+    template<class View>
+    auto pop_back(View&& line, auto size)
+    {
+        auto crop = line.substr(line.size() - size);
+        line.remove_suffix(size);
+        return crop;
+    }
     template<class TextOrView>
     auto is_plain(TextOrView&& utf8)
     {

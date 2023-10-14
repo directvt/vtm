@@ -1898,6 +1898,12 @@ struct impl : consrv
                 utf::to_utf(bmp, toUTF8);
             }
         }
+        auto decode_run(auto&& toANSI)
+        {
+            auto toUTF8 = text{};
+            decode_run(std::forward<decltype(toANSI)>(toANSI), toUTF8);
+            return toUTF8;
+        }
         auto decode_log(view toANSI)
         {
             auto utf8 = text{};
@@ -2106,6 +2112,44 @@ struct impl : consrv
             }
         }
         return wrap<RecType>::cast(buffer, count);
+    }
+    template<class T, class ...Args>
+    auto take_text(T&& packet, Args&& ...args)
+    {
+        auto size = (args + ...);
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            if (data.size() * sizeof(wchr) == size)
+            {
+                auto shadow = wiew{ data.data(), data.size() };
+                // Note: The utf::pop_back is used due to the reverse order evaluation when calling std::make_tuple().
+                return std::make_tuple(utf::to_utf(utf::pop_back(shadow, args / sizeof(wchr)))...);
+            }
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            if (data.size() == size)
+            {
+                auto shadow = view{ data.data(), data.size() };
+                if (inpenc->codepage == CP_UTF8)
+                {
+                    return std::make_tuple(text{ utf::pop_back(shadow, args) }...);
+                }
+                else
+                {
+                    return std::make_tuple(inpenc->decode_run(utf::pop_back(shadow, args))...);
+                }
+            }
+        }
+        return std::make_tuple((args, text{})...);
+    }
+    template<class T>
+    auto take_text(T&& packet)
+    {
+        auto size = packet.packsz - answer.readoffset(); // Take whole input buffer.
+        return take_text(packet, size);
     }
     template<class P>
     auto direct(Arch target_ref, P proc)
@@ -4279,24 +4323,13 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto utf8_title = text{};
-        if (packet.input.utf16)
-        {
-            auto title = take_buffer<wchr, feed::fwd>(packet);
-            utf::to_utf(title, utf8_title);
-        }
-        else
-        {
-            auto title = take_buffer<char, feed::fwd>(packet);
-            if (inpenc->codepage == CP_UTF8) utf8_title = qiew{ title };
-            else                             inpenc->decode_run(title, utf8_title);
-        }
+        auto [title] = take_text(packet);
         if constexpr (isreal())
         {
-            uiterm.wtrack.set(ansi::osc_title, utf8_title);
+            uiterm.wtrack.set(ansi::osc_title, title);
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-            ": ", ansi::hi(utf::debase<faux, faux>(utf8_title)));
+            ": ", ansi::hi(utf::debase<faux, faux>(title)));
     }
     auto api_window_font_size_get            ()
     {
@@ -4499,40 +4532,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto exe = text{};
-        auto src = text{};
-        auto dst = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.dstcb + packet.input.execb)
-            {
-                auto shadow = wiew{ data.data(), data.size() };
-                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
-                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
-                utf::to_utf(utf::pop_front(shadow, packet.input.dstcb / sizeof(wchr)), dst);
-            }
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            if (data.size() == packet.input.srccb + packet.input.dstcb + packet.input.execb)
-            {
-                auto shadow = view{ data.data(), data.size() };
-                if (inpenc->codepage == CP_UTF8)
-                {
-                    exe = utf::pop_front(shadow, packet.input.execb);
-                    src = utf::pop_front(shadow, packet.input.srccb);
-                    dst = utf::pop_front(shadow, packet.input.dstcb);
-                }
-                else
-                {
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.dstcb), dst);
-                }
-            }
-        }
+        auto [exe, src, dst] = take_text(packet, packet.input.execb, packet.input.srccb, packet.input.dstcb);
         events.add_alias(exe, src, dst);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
@@ -4565,36 +4565,7 @@ struct impl : consrv
             };
         };
         auto& packet = payload::cast(upload);
-        auto exe = text{};
-        auto src = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            if (data.size() * sizeof(wchr) == packet.input.srccb + packet.input.execb)
-            {
-                auto shadow = wiew{ data.data(), data.size() };
-                utf::to_utf(utf::pop_front(shadow, packet.input.execb / sizeof(wchr)), exe);
-                utf::to_utf(utf::pop_front(shadow, packet.input.srccb / sizeof(wchr)), src);
-            }
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            if (data.size() == packet.input.srccb + packet.input.execb)
-            {
-                auto shadow = view{ data.data(), data.size() };
-                if (inpenc->codepage == CP_UTF8)
-                {
-                    exe = utf::pop_front(shadow, packet.input.execb);
-                    src = utf::pop_front(shadow, packet.input.srccb);
-                }
-                else
-                {
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.execb), exe);
-                    inpenc->decode_run(utf::pop_front(shadow, packet.input.srccb), src);
-                }
-            }
-        }
+        auto [exe, src] = take_text(packet, packet.input.execb, packet.input.srccb);
         packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
         auto dst = events.get_alias(exe, src);
         if (dst.size())
@@ -4720,21 +4691,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         auto crop = events.get_aliases(exe);
         if (packet.input.utf16)
         {
@@ -4774,21 +4731,7 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         auto crop = events.get_aliases(exe);
         if (packet.input.utf16)
         {
@@ -4826,21 +4769,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         events.off_history(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)));
@@ -4858,21 +4787,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         utf::to_low(exe);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
@@ -4895,21 +4810,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         auto crop = events.get_history(exe);
         if (packet.input.utf16)
         {
@@ -4949,21 +4850,7 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        //todo depuplicate code
-        auto exe = text{};
-        if (packet.input.utf16)
-        {
-            auto data = take_buffer<wchr, feed::fwd>(packet);
-            auto shadow = wiew{ data.data(), data.size() };
-            utf::to_utf(shadow, exe);
-        }
-        else
-        {
-            auto data = take_buffer<char, feed::fwd>(packet);
-            auto shadow = view{ data.data(), data.size() };
-            if (inpenc->codepage == CP_UTF8) exe = shadow;
-            else                             inpenc->decode_run(shadow, exe);
-        }
+        auto [exe] = take_text(packet);
         auto crop = events.get_history(exe);
         if (packet.input.utf16)
         {
