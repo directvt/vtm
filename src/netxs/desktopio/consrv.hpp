@@ -1173,6 +1173,7 @@ struct impl : consrv
                             if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
                             {
                                 hist = {};
+                                if (server.io_log) log("%%Cleared command history for process '%procname%'", prompt::cin, nameview);
                                 break;
                             }
                             case VK_F9:  //todo menu
@@ -1180,6 +1181,7 @@ struct impl : consrv
                             if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
                             {
                                 off_aliases(nameview);
+                                if (server.io_log) log("%%Removed DOSKEY aliases for process '%procname%'", prompt::cin, nameview);
                                 break;
                             }
                             case VK_F11:
