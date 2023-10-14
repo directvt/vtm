@@ -2115,6 +2115,42 @@ struct impl : consrv
         }
         return wrap<RecType>::cast(buffer, count);
     }
+    template<bool Send = true, class T, class N1 = si32, class N2 = si32>
+    auto send_text(T&& packet, view utf8, N1&& bytes, N2&& count = {})
+    {
+        if (utf8.size())
+        {
+            auto null_terminator = utf8.back() != 0;
+            if (packet.input.utf16)
+            {
+                toWIDE.clear();
+                utf::to_utf(utf8, toWIDE);
+                count = static_cast<std::decay_t<N2>>(toWIDE.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count * sizeof(wchr));
+                if (Send) answer.send_data(condrv, toWIDE, true);
+            }
+            else if (inpenc->codepage == CP_UTF8)
+            {
+                count = static_cast<std::decay_t<N2>>(utf8.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count);
+                if (Send) answer.send_data(condrv, utf8, true);
+            }
+            else
+            {
+                auto shadow = view{ utf8 };
+                toANSI.clear();
+                inpenc->encode(shadow, toANSI);
+                count = static_cast<std::decay_t<N2>>(toANSI.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count);
+                if (Send) answer.send_data(condrv, toANSI, true);
+            }
+        }
+        else
+        {
+            count = {};
+            bytes = {};
+        }
+    }
     template<class T, class ...Args>
     auto take_text(T&& packet, Args&& ...args)
     {
@@ -4293,25 +4329,8 @@ struct impl : consrv
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
             ": ", ansi::hi(utf::debase(title)));
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(title, toWIDE);
-            packet.reply.count = static_cast<ui32>(toWIDE.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, toWIDE, true);
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.count = static_cast<ui32>(title.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, title, true);
-        }
-        else
-        {
-            auto shadow = view{ title };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.count = static_cast<ui32>(toANSI.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, toANSI, true);
-        }
+        auto bytes = si32{};
+        send_text(packet, title, bytes, packet.reply.count);
     }
     auto api_window_title_set                ()
     {
@@ -4570,28 +4589,7 @@ struct impl : consrv
         auto [exe, src] = take_text(packet, packet.input.execb, packet.input.srccb);
         packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
         auto dst = events.get_alias(exe, src);
-        if (dst.size())
-        {
-            if (packet.input.utf16)
-            {
-                toWIDE.clear();
-                utf::to_utf(dst, toWIDE);
-                packet.reply.dstcb = sizeof(wchr) * static_cast<ui16>(toWIDE.size() + 1 /*null terminator*/);
-                answer.send_data(condrv, toWIDE, true);
-            }
-            else if (inpenc->codepage == CP_UTF8)
-            {
-                packet.reply.dstcb = static_cast<ui16>(dst.size() + 1 /*null terminator*/);
-                answer.send_data(condrv, dst, true);
-            }
-            else
-            {
-                auto shadow = view{ dst };
-                auto toANSI = inpenc->encode(shadow);
-                packet.reply.dstcb = static_cast<ui16>(toANSI.size() + 1 /*null terminator*/);
-                answer.send_data(condrv, toANSI, true);
-            }
-        }
+        send_text(packet, dst, packet.reply.dstcb);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\texecb: ",       packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\tsrccb: ",       packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
@@ -4615,22 +4613,7 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto crop = events.get_exes();
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-        }
+        send_text<faux>(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
@@ -4653,25 +4636,7 @@ struct impl : consrv
         };
         auto& packet = payload::cast(upload);
         auto crop = events.get_exes();
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-            answer.send_data(condrv, toWIDE, true);
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-            answer.send_data(condrv, crop, true);
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-            answer.send_data(condrv, toANSI, true);
-        }
+        send_text(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
           "\n\treply.bytes: ", packet.reply.bytes);
@@ -4695,22 +4660,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto [exe] = take_text(packet);
         auto crop = events.get_aliases(exe);
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-        }
+        send_text<faux>(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
@@ -4735,25 +4685,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto [exe] = take_text(packet);
         auto crop = events.get_aliases(exe);
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-            answer.send_data(condrv, toWIDE, true);
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-            answer.send_data(condrv, crop, true);
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-            answer.send_data(condrv, toANSI, true);
-        }
+        send_text(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
@@ -4814,22 +4746,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto [exe] = take_text(packet);
         auto crop = events.get_history(exe);
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-        }
+        send_text<faux>(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
@@ -4854,25 +4771,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto [exe] = take_text(packet);
         auto crop = events.get_history(exe);
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(crop, toWIDE);
-            packet.reply.bytes = sizeof(wchr) * static_cast<ui16>(toWIDE.size());
-            answer.send_data(condrv, toWIDE, true);
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.bytes = static_cast<ui16>(crop.size());
-            answer.send_data(condrv, crop, true);
-        }
-        else
-        {
-            auto shadow = view{ crop };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.bytes = static_cast<ui16>(toANSI.size());
-            answer.send_data(condrv, toANSI, true);
-        }
+        send_text(packet, crop, packet.reply.bytes);
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
           "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
           "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
