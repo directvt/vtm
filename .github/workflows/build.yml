@@ -1,4 +1,4 @@
-name: Windows/Linux/macOS Intel/ARM x32/x64 binaries
+name: Build binaries
 
 on:
   push:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    name: Build for ${{ matrix.platform }}/${{ matrix.cpu }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
