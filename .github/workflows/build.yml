@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build for ${{ matrix.platform }}/${{ matrix.cpu }}
+    name: ${{ matrix.platform }} / ${{ matrix.cpu }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
