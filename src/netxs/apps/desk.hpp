@@ -30,6 +30,7 @@ namespace netxs::app::desk
         text    param{};
         text    patch{};
         bool   folded{};
+        bool notfound{};
     };
 
     using menu = std::unordered_map<text, spec>;

@@ -1343,6 +1343,7 @@ namespace netxs::app::vtm
                 .hidden   = faux,
                 .slimmenu = faux,
                 .type     = defapp,
+                .notfound = true,
             };
             auto find = [&](auto const& menuid) -> auto&
             {
@@ -1358,53 +1359,81 @@ namespace netxs::app::vtm
             };
 
             auto splitter_count = 0;
+            auto auto_id = 0;
             for (auto item_ptr : host::config.list(path::item))
             {
                 auto& item = *item_ptr;
-                auto conf_rec = desk::spec{};
-                //todo autogen id if absent
-                conf_rec.splitter = item.take(attr::splitter, faux);
-                conf_rec.menuid   = item.take(attr::id,       ""s );
-                if (conf_rec.splitter)
+                auto splitter = item.take(attr::splitter, faux);
+                auto menuid = splitter ? "splitter_" + std::to_string(splitter_count++)
+                                       : item.take(attr::id, ""s);
+                if (menuid.empty()) menuid = "App" + std::to_string(auto_id++);
+                auto alias = item.take(attr::alias, ""s);
+                auto merge = [&](auto& conf_rec, auto& fallback)
                 {
-                    conf_rec.menuid = "splitter_" + std::to_string(splitter_count++);
-                }
-                else if (conf_rec.menuid.empty())
+                    conf_rec.splitter = splitter;
+                    conf_rec.alias    = alias;
+                    conf_rec.menuid   = menuid;
+                    conf_rec.label    = item.take(attr::label,    fallback.label   );
+                    if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
+                    conf_rec.hidden   = item.take(attr::hidden,   fallback.hidden  );
+                    conf_rec.notes    = item.take(attr::notes,    fallback.notes   );
+                    conf_rec.title    = item.take(attr::title,    fallback.title   );
+                    conf_rec.footer   = item.take(attr::footer,   fallback.footer  );
+                    conf_rec.bgc      = item.take(attr::bgc,      fallback.bgc     );
+                    conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
+                    conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
+                    conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
+                    conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
+                    conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
+                    conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
+                    conf_rec.param    = item.take(attr::param,    fallback.param   );
+                    conf_rec.type     = item.take(attr::type,     fallback.type    );
+                    auto patch        = item.list(attr::config);
+                    if (patch.size())
+                    {
+                        if (fallback.patch.empty() && patch.size() == 1)
+                        {
+                            conf_rec.patch = patch.front()->snapshot();
+                        }
+                        else // Merge new configurations with the previous one if it is.
+                        {
+                            auto head = patch.begin();
+                            auto tail = patch.end();
+                            auto settings = xml::settings{ fallback.patch.size() ? fallback.patch
+                                                                                 : (*head++)->snapshot() };
+                            while (head != tail)
+                            {
+                                auto& p = *head++;
+                                settings.fuse(p->snapshot());
+                            }
+                            conf_rec.patch = settings.utf8();
+                        }
+                    }
+                    if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
+
+                    utf::to_low(conf_rec.type);
+                    utf::change(conf_rec.title,  "$0", current_module_file);
+                    utf::change(conf_rec.footer, "$0", current_module_file);
+                    utf::change(conf_rec.label,  "$0", current_module_file);
+                    utf::change(conf_rec.notes,  "$0", current_module_file);
+                    utf::change(conf_rec.param,  "$0", current_module_file);
+                };
+
+                auto& proto = find(menuid);
+                if (!proto.notfound) // Update existing record.
                 {
-                    log("%%Attribute '%attrid%' is missing, skip item", prompt::hall, utf::debase(attr::id));
-                    continue;
+                    auto& conf_rec = proto;
+                    merge(conf_rec, conf_rec);
                 }
-                auto label        = item.take(attr::label, ""s);
-                conf_rec.label    = label.empty() ? conf_rec.menuid : label;
-                conf_rec.alias    = item.take(attr::alias, ""s);
-                auto& fallback = conf_rec.alias.empty() ? dflt_spec
-                                                        : find(conf_rec.alias);
-                conf_rec.hidden   = item.take(attr::hidden,   fallback.hidden  );
-                conf_rec.notes    = item.take(attr::notes,    fallback.notes   );
-                conf_rec.title    = item.take(attr::title,    fallback.title   );
-                conf_rec.footer   = item.take(attr::footer,   fallback.footer  );
-                conf_rec.bgc      = item.take(attr::bgc,      fallback.bgc     );
-                conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
-                conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
-                conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
-                conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
-                conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
-                conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
-                conf_rec.param    = item.take(attr::param,    fallback.param   );
-                conf_rec.type     = item.take(attr::type,     fallback.type    );
-                auto patch        = item.list(attr::config);
-                if (patch.size()) conf_rec.patch = patch.front()->snapshot();
-                if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
-
-                utf::to_low(conf_rec.type);
-                utf::change(conf_rec.title,  "$0", current_module_file);
-                utf::change(conf_rec.footer, "$0", current_module_file);
-                utf::change(conf_rec.label,  "$0", current_module_file);
-                utf::change(conf_rec.notes,  "$0", current_module_file);
-                utf::change(conf_rec.param,  "$0", current_module_file);
-
-                if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
-                else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
+                else // New item.
+                {
+                    auto conf_rec = desk::spec{};
+                    auto& proto = alias.size() ? find(alias) // New based on alias_id.
+                                               : dflt_spec;  // New item.
+                    merge(conf_rec, proto);
+                    if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
+                    else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
+                }
             }
             for (auto& [menuid, conf_rec] : free_list)
             {
