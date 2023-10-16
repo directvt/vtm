@@ -2984,7 +2984,7 @@ namespace netxs::os
                         ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
                         ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
                         ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
-                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::GetConsoleTitleW()", os::unexpected);
+                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
                         ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
                     #else
                         ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
@@ -3860,6 +3860,18 @@ namespace netxs::os
             #endif
             if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(utf8)));
         }
+        auto title()
+        {
+            auto utf8 = text{};
+            #if defined(_WIN32)
+                auto size = DWORD{ os::pipebuf };
+                auto wstr = wide(size, 0);
+                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW()", os::unexpected);
+                utf8 = utf::to_utf(wstr);
+            #else
+            #endif
+            return utf8;
+        }
         static auto clipboard = text{};
         struct proxy : s11n
         {
@@ -3936,7 +3948,7 @@ namespace netxs::os
             proxy()
                 : s11n{ *this }
             {
-                s11n::header.set(id_t{}, ""s);
+                s11n::header.set(id_t{}, tty::title());
                 s11n::footer.set(id_t{}, ""s);
             }
         };
