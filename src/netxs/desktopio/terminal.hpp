@@ -4415,7 +4415,7 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice(start, count, proto, fuse);
+                        batch.current().splice<Copy>(start, count, proto, fuse);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -4429,7 +4429,7 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        dnbox.splice(saved, n, proto, fuse);
+                        dnbox.splice<Copy>(saved, n, proto, fuse);
                     }
                     else
                     {
@@ -4440,7 +4440,7 @@ namespace netxs::ui
                         auto dest = dnbox.iter() + seek;
                         auto tail = dnbox.iend();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc(data, size, dest, tail, back, cell::shaders::full);
+                        rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
                     // Note: coord can be unsync due to scroll regions.
