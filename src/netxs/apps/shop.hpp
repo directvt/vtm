@@ -216,7 +216,6 @@ namespace netxs::app::shop
                     auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                     menu_object->attach(slot::_1, menu_block);
                     menu_object->attach(slot::_2, ui::post::ctor())
-                               ->limits({ 42,-1 }, { -1,-1 })
                                ->upload(appstore_head)
                                ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());

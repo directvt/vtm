@@ -3015,7 +3015,7 @@ namespace netxs::ui
                               0 };
             auto height = cover.width() ? cover.height() + 1
                                         : 0;
-            if (beyond) square.y += height;
+            if (beyond) square.y += height - 1;
             else        square.y  = height;
             new_area.size.y = square.y;
         }
