@@ -338,9 +338,7 @@ namespace netxs::ui
                     owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
-                        auto buttons_only = !(state & mode::drag);
-                        if (owner.selmod == mime::disabled
-                         || buttons_only) // Allow mouse button reporting along with scrollback selection (mouse shell integration with DECSET 1000).
+                        if (owner.selmod == mime::disabled)
                         {
                             if (gear.captured(owner.id))
                             {
@@ -356,15 +354,12 @@ namespace netxs::ui
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state);
                             }
-                            if (!buttons_only) gear.dismiss();
+                            gear.dismiss();
                         }
                     };
                     smode = owner.selmod;
                 }
-                if (state & mode::drag) // Prevent scrollback selection along with mouse drag reporting.
-                {
-                    owner.selection_selmod(mime::disabled);
-                }
+                owner.selection_selmod(mime::disabled);
             }
             void disable(mode m)
             {
