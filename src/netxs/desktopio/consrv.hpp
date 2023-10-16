@@ -647,7 +647,7 @@ struct impl : consrv
                     auto c = utf::to_low(s.back());
                     if (c >= '1' && c <= '9')
                     {
-                        auto n = c - '1';
+                        auto n = static_cast<ui32>(c - '1');
                         if (args.size() > n) result += args[n];
                     }
                     else switch (c)

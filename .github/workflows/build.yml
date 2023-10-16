@@ -29,6 +29,8 @@ jobs:
             platform: windows
             cpu: Win32
             arch: x86
+            cxx: cl
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /DNDEBUG" -A '
           - os: windows-latest
             cxx: cl
           - os: ubuntu-latest
