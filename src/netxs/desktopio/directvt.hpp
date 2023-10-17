@@ -1108,6 +1108,7 @@ namespace netxs::directvt
                         right_half(next);
                     }
                 };
+                block.basevt::inv(state.inv()); //todo Windows Server 2019 loses the reverse video SGR attribute.
                 if (image.hash() != cache.hash())
                 {
                     block.basevt::scroll_wipe();
