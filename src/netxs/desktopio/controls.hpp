@@ -4026,7 +4026,12 @@ namespace netxs::ui
         // item: .
         auto accented(bool b = true) { unln = b; return This(); }
         // item: .
-        void set(view utf8) { data = utf8; base::reflow(); }
+        void set(view utf8)
+        {
+            data.parser::style.wrp(wrap::off);
+            data = utf8;
+            base::reflow();
+        }
     };
 
     // controls: Textedit box.
