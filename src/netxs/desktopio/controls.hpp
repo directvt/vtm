@@ -871,7 +871,7 @@ namespace netxs::ui
                             }
                         };
                     }
-                    boss.LISTEN(tier::release, /*!*/e2::postrender, canvas, memo)
+                    boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                     {
                         done = live;
                         auto state = down ? (step == span::zero() ? faux : true)

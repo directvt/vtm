@@ -2370,7 +2370,7 @@ namespace netxs::ui
             flow::size(new_size);
         }
         template<class P = noop>
-        void /*!*/blur(si32 r, P shade = {}) // face: .
+        void blur(si32 r, P shade = {}) // face: .
         {
             using irgb = vrgb::value_type;
 

@@ -542,7 +542,7 @@ namespace netxs::app::vtm
                     handle_drop(gear);
                 };
 
-                boss.LISTEN(tier::release, /*!*/e2::postrender, canvas, memo)
+                boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                 {
                     //todo Highlighted area drawn twice
                     for (auto const& [key, data] : slots)
@@ -820,7 +820,7 @@ namespace netxs::app::vtm
                 this->SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                 move_viewport(newpos, viewport);
             };
-            LISTEN(tier::release, /*!*/e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
+            LISTEN(tier::release, e2::render::any, canvas, tokens, (fullscreen_banner = page{ "Fullscreen Mode\n\n" }))
             {
                 if (&canvas != &input.xmap) // Draw a shadow of user's terminal window for other users (spectators).
                 {
@@ -845,7 +845,7 @@ namespace netxs::app::vtm
                     canvas.bump(saved_context);
                 }
             };
-            LISTEN(tier::release, /*!*/e2::postrender, parent_canvas, tokens)
+            LISTEN(tier::release, e2::postrender, parent_canvas, tokens)
             {
                 if (&parent_canvas != &input.xmap)
                 {
