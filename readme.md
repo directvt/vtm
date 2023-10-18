@@ -22,11 +22,13 @@ Text-baased desktop inside your console.
 
 # Building from Source
 
+You can use [Github Actions](../../actions) to build statically linked binaries for the big three OS platforms: Linux, Windows, and macOS.
+
 ### Unix
 
 Build-time dependencies
  - 64-bit system host
- - `git`, `cmake`,  `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html), [MSVC](https://visualstudio.microsoft.com/downloads/))
+ - `git`, `cmake`,  `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html))
  - RAM requirements for compilation:
    - Compiling with GCC — 4GB of RAM
    - Compiling with Clang — 9GB of RAM
@@ -41,19 +43,7 @@ sudo cmake --install bin
 vtm
 ```
 
-Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system. In order to do so make sure you have additional cross-compilation libraries installed, e.g. on Linux `sudo apt install gcc-i686-linux-gnu g++-i686-linux-gnu` (x86) or `sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf` (ARM32).
-
-Example of cross-compilation for x86 Linux
-```
-cmake . -B bin -DCMAKE_CXX_COMPILER="/bin/i686-linux-gnu-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s"
-cmake --build bin
-```
-
-Example of cross-compilation for ARM32 Linux
-```
-cmake . -B bin -DCMAKE_CXX_COMPILER="/bin/arm-linux-gnueabihf-g++" -DCMAKE_CXX_FLAGS="-static -pthread -s -Wno-psabi"
-cmake --build bin
-```
+Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system.
 
 ### Windows
 
