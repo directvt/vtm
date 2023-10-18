@@ -30,6 +30,7 @@ namespace netxs::app::desk
         text    param{};
         text    patch{};
         bool   folded{};
+        bool notfound{};
     };
 
     using menu = std::unordered_map<text, spec>;
@@ -513,7 +514,7 @@ namespace netxs::app::desk
 
             window->invoke([menu_max_size, menu_min_size, menu_selected](auto& boss) mutable
             {
-                auto ground = background("gems;About;"); // It can't be a child - it has exclusive rendering (first of all).
+                auto ground = background("gems;Demo;"); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
                 {
                     current_default  = selected;

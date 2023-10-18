@@ -339,8 +339,6 @@ struct impl : consrv
         Arch thread; // clnt: Process thread id.
         ui32 pgroup; // clnt: Process group id.
         info detail; // clnt: Process details.
-        //todo store time stamps for the history items
-        memo inputs; // clnt: Input history.
         cell backup; // clnt: Text attributes to restore on detach.
         bufs alters; // clnt: Additional scrollback buffers.
     };
@@ -485,27 +483,31 @@ struct impl : consrv
         using vect = std::vector<INPUT_RECORD>;
         using irec = INPUT_RECORD;
         using work = std::thread;
+        using cast = std::unordered_map<text, std::unordered_map<text, text>>;
+        using hist = std::unordered_map<text, memo>;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
         static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
         static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
 
-        impl& server; // events_t: Console server reference.
-        vect  stream; // events_t: Input event list.
-        vect  recbuf; // events_t: Temporary buffer for copying event records.
-        sync  signal; // events_t: Input event append signal.
-        lock  locker; // events_t: Input event buffer mutex.
-        cook  cooked; // events_t: Cooked input string.
-        jobs  worker; // events_t: Background task executer.
-        flag  closed; // events_t: Console server was shutdown.
-        fire  ondata; // events_t: Signal on input buffer data.
-        wide  wcpair; // events_t: Surrogate pair buffer.
-        wide  toWIDE; // events_t: UTF-16 decoder buffer.
-        text  toUTF8; // events_t: UTF-8  decoder buffer.
-        text  toANSI; // events_t: ANSI   decoder buffer.
-        irec  leader; // events_t: Hanging key event record (lead byte).
-        work  ostask; // events_t: Console task thread for the child process.
+        impl& server; // evnt: Console server reference.
+        vect  stream; // evnt: Input event list.
+        vect  recbuf; // evnt: Temporary buffer for copying event records.
+        sync  signal; // evnt: Input event append signal.
+        lock  locker; // evnt: Input event buffer mutex.
+        cook  cooked; // evnt: Cooked input string.
+        jobs  worker; // evnt: Background task executer.
+        flag  closed; // evnt: Console server was shutdown.
+        fire  ondata; // evnt: Signal on input buffer data.
+        wide  wcpair; // evnt: Surrogate pair buffer.
+        wide  toWIDE; // evnt: UTF-16 decoder buffer.
+        text  toUTF8; // evnt: UTF-8  decoder buffer.
+        text  toANSI; // evnt: ANSI   decoder buffer.
+        irec  leader; // evnt: Hanging key event record (lead byte).
+        work  ostask; // evnt: Console task thread for the child process.
+        cast  macros; // evnt: Doskey macros storage.
+        hist  inputs; // evnt: Input history per process name storage.
 
         evnt(impl& serv)
             :  server{ serv },
@@ -514,6 +516,164 @@ struct impl : consrv
                leader{      }
         { }
 
+        auto& ref_history(text& exe)
+        {
+            return inputs[utf::to_low(exe)];
+        }
+        auto get_history(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            auto iter = inputs.find(utf::to_low(exe));
+            if (iter != inputs.end())
+            {
+                auto& recs = iter->second;
+                for (auto& rec : recs.data)
+                {
+                    crop += rec.utf8();
+                    crop += '\0';
+                }
+            }
+            return crop;
+        }
+        void off_history(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto iter = inputs.find(utf::to_low(exe));
+            if (iter != inputs.end()) inputs.erase(iter);
+        }
+        void add_alias(text& exe, text& src, text& dst)
+        {
+            auto lock = std::lock_guard{ locker };
+            if (exe.size() && src.size())
+            {
+                utf::to_low(exe);
+                utf::to_low(src);
+                if (dst.size())
+                {
+                    macros[exe][src] = dst;
+                }
+                else
+                {
+                    if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+                    {
+                        auto& src_map = exe_iter->second;
+                        if (auto src_iter = src_map.find(src); src_iter != src_map.end())
+                        {
+                            src_map.erase(src_iter);
+                        }
+                        if (src_map.empty())
+                        {
+                            macros.erase(exe_iter);
+                        }
+                    }
+                }
+            }
+        }
+        auto get_alias(text& exe, text& src)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            if (exe.size() && src.size())
+            {
+                utf::to_low(exe);
+                utf::to_low(src);
+                if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+                {
+                    auto& src_map = exe_iter->second;
+                    if (auto src_iter = src_map.find(src); src_iter != src_map.end())
+                    {
+                        crop = src_iter->second;
+                    }
+                }
+            }
+            return crop;
+        }
+        auto get_exes()
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            for (auto& [exe, map] : macros)
+            {
+                crop += exe;
+                crop += '\0';
+            }
+            return crop;
+        }
+        auto get_aliases(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            auto crop = text{};
+            utf::to_low(exe);
+            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+            {
+                auto& src_map = exe_iter->second;
+                for (auto& [key, val] : src_map)
+                {
+                    crop += key;
+                    crop += '=';
+                    crop += val;
+                    crop += '\0';
+                }
+            }
+            return crop;
+        }
+        void map_aliases(text& exe, text& line)
+        {
+            if (macros.empty() || line.empty()) return;
+
+            utf::to_low(exe);
+            auto exe_iter = macros.find(exe);
+            if (exe_iter == macros.end()) return;
+
+            auto& src_map = exe_iter->second;
+            if (src_map.empty()) return;
+
+            auto rest = qiew{ line };
+            auto crop = utf::get_tail<faux>(rest, " \r\n");
+            auto iter = src_map.find(utf::to_low(crop));
+            if (iter == src_map.end()) return;
+
+            auto tail = utf::trim_back(rest, "\r\n");
+            auto args = utf::divide<feed::fwd, true>(rest, ' ');
+            auto data = qiew{ iter->second };
+            auto result = text{};
+            while (data)
+            {
+                result += utf::get_tail<faux>(data, "$");
+                if (data.size() >= 2)
+                {
+                    auto s = utf::pop_front(data, 2);
+                    auto c = utf::to_low(s.back());
+                    if (c >= '1' && c <= '9')
+                    {
+                        auto n = static_cast<ui32>(c - '1');
+                        if (args.size() > n) result += args[n];
+                    }
+                    else switch (c)
+                    {
+                        case '$': result += '$'; break;
+                        case 'g': result += '>'; break;
+                        case 'l': result += '<'; break;
+                        case 't': result += '&'; break;
+                        case 'b': result += '|';
+                        case '*': result += data; data.clear(); break;
+                        default:  result += s; break;
+                    }
+                }
+            }
+            result += tail;
+            line = result;
+        }
+        auto off_aliases(text& exe)
+        {
+            auto lock = std::lock_guard{ locker };
+            utf::to_low(exe);
+            if (auto exe_iter = macros.find(exe); exe_iter != macros.end())
+            {
+                macros.erase(exe_iter);
+            }
+        }
         void reset()
         {
             auto lock = std::lock_guard{ locker };
@@ -944,12 +1104,13 @@ struct impl : consrv
             signal.notify_one();
         }
         template<class L>
-        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, memo& hist)
+        auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, text& nameview)
         {
             //todo bracketed paste support
             // save server.uiterm.bpmode
             // server.uiterm.bpmode = true;
             // restore at exit
+            auto& hist = ref_history(nameview);
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
             auto nums = utfx{};
@@ -1008,9 +1169,21 @@ struct impl : consrv
                             case VK_CLEAR:/*NUMPAD 5*/
                             case VK_F2:  //todo menu
                             case VK_F4:  //todo menu
-                            case VK_F7:  //todo menu
+                            case VK_F7:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                            {
+                                hist = {};
+                                if (server.io_log) log("%%Cleared command history for process '%procname%'", prompt::cin, nameview);
+                                break;
+                            }
                             case VK_F9:  //todo menu
-                            case VK_F10: //todo clear exes aliases
+                            case VK_F10:
+                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                            {
+                                off_aliases(nameview);
+                                if (server.io_log) log("%%Removed DOSKEY aliases for process '%procname%'", prompt::cin, nameview);
+                                break;
+                            }
                             case VK_F11:
                             case VK_F12:
                                 break;
@@ -1180,7 +1353,7 @@ struct impl : consrv
                 auto EOFpos = cooked.ustr.find(EOFkey);
                 if (EOFpos != text::npos) cooked.ustr.resize(EOFpos);
             }
-
+            map_aliases(nameview, cooked.ustr);
             cooked.save(utf16);
             if (stream.empty()) ondata.flush();
 
@@ -1272,7 +1445,7 @@ struct impl : consrv
                     {
                         if (packet.input.utf16) utf::to_utf((wchr*)initdata.data(), initdata.size() / 2, cooked.ustr);
                         else                    cooked.ustr = initdata;
-                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, client.inputs);
+                        readline(lock, cancel, packet.input.utf16, packet.input.EOFon, packet.input.stops, nameview);
                     }
                     else
                     {
@@ -1712,7 +1885,7 @@ struct impl : consrv
                 toWIDE.clear();
             }
         }
-        auto decode_run(auto& toANSI, text& toUTF8)
+        auto decode_run(auto&& toANSI, text& toUTF8)
         {
             auto head = toANSI.begin();
             auto tail = toANSI.end();
@@ -1726,6 +1899,12 @@ struct impl : consrv
                 auto bmp = OEMtoBMP[c];
                 utf::to_utf(bmp, toUTF8);
             }
+        }
+        auto decode_run(auto&& toANSI)
+        {
+            auto toUTF8 = text{};
+            decode_run(std::forward<decltype(toANSI)>(toANSI), toUTF8);
+            return toUTF8;
         }
         auto decode_log(view toANSI)
         {
@@ -1935,6 +2114,80 @@ struct impl : consrv
             }
         }
         return wrap<RecType>::cast(buffer, count);
+    }
+    template<bool Send = true, class T, class N1 = si32, class N2 = si32>
+    auto send_text(T&& packet, view utf8, N1&& bytes, N2&& count = {})
+    {
+        if (utf8.size())
+        {
+            auto null_terminator = utf8.back() != 0;
+            if (packet.input.utf16)
+            {
+                toWIDE.clear();
+                utf::to_utf(utf8, toWIDE);
+                count = static_cast<std::decay_t<N2>>(toWIDE.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count * sizeof(wchr));
+                if (Send) answer.send_data(condrv, toWIDE, true);
+            }
+            else if (inpenc->codepage == CP_UTF8)
+            {
+                count = static_cast<std::decay_t<N2>>(utf8.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count);
+                if (Send) answer.send_data(condrv, utf8, true);
+            }
+            else
+            {
+                auto shadow = view{ utf8 };
+                toANSI.clear();
+                inpenc->encode(shadow, toANSI);
+                count = static_cast<std::decay_t<N2>>(toANSI.size() + null_terminator);
+                bytes = static_cast<std::decay_t<N1>>(count);
+                if (Send) answer.send_data(condrv, toANSI, true);
+            }
+        }
+        else
+        {
+            count = {};
+            bytes = {};
+        }
+    }
+    template<class T, class ...Args>
+    auto take_text(T&& packet, Args&& ...args)
+    {
+        auto size = (args + ...);
+        if (packet.input.utf16)
+        {
+            auto data = take_buffer<wchr, feed::fwd>(packet);
+            if (data.size() * sizeof(wchr) == size)
+            {
+                auto shadow = wiew{ data.data(), data.size() };
+                // Note: The utf::pop_back is used due to the reverse order evaluation when calling std::make_tuple().
+                return std::make_tuple(utf::to_utf(utf::pop_back(shadow, args / sizeof(wchr)))...);
+            }
+        }
+        else
+        {
+            auto data = take_buffer<char, feed::fwd>(packet);
+            if (data.size() == size)
+            {
+                auto shadow = view{ data.data(), data.size() };
+                if (inpenc->codepage == CP_UTF8)
+                {
+                    return std::make_tuple(text{ utf::pop_back(shadow, args) }...);
+                }
+                else
+                {
+                    return std::make_tuple(inpenc->decode_run(utf::pop_back(shadow, args))...);
+                }
+            }
+        }
+        return std::make_tuple((args, text{})...);
+    }
+    template<class T>
+    auto take_text(T&& packet)
+    {
+        auto size = packet.packsz - answer.readoffset(); // Take whole input buffer.
+        return take_text(packet, size);
     }
     template<class P>
     auto direct(Arch target_ref, P proc)
@@ -2518,7 +2771,7 @@ struct impl : consrv
             {
                 byte utf16;
                 byte EOFon;
-                ui16 exesz;
+                ui16 execb;
                 ui32 affix;
                 ui32 stops;
             }
@@ -2537,7 +2790,7 @@ struct impl : consrv
             log("\tread mode: raw ReadFile emulation");
             packet.input = { .EOFon = 1 };
         }
-        auto namesize = static_cast<ui32>(packet.input.exesz * sizeof(wchr));
+        auto namesize = static_cast<ui32>(packet.input.execb * sizeof(wchr));
         if (!size_check(packet.echosz,  packet.input.affix)
          || !size_check(packet.echosz,  answer.sendoffset())) return;
         auto readstep = packet.echosz - answer.sendoffset();
@@ -2545,7 +2798,7 @@ struct impl : consrv
         buffer.resize(datasize);
         if (!answer.recv_data(condrv, buffer)) return;
 
-        auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.exesz);
+        auto nameview = wiew(reinterpret_cast<wchr*>(buffer.data()), packet.input.execb);
         auto initdata = view(buffer.data() + namesize, packet.input.affix);
         if (!packet.input.utf16 && inpenc->codepage != CP_UTF8)
         {
@@ -4076,25 +4329,8 @@ struct impl : consrv
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
             ": ", ansi::hi(utf::debase(title)));
-        if (packet.input.utf16)
-        {
-            toWIDE.clear();
-            utf::to_utf(title, toWIDE);
-            packet.reply.count = static_cast<ui32>(toWIDE.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, toWIDE, true);
-        }
-        else if (inpenc->codepage == CP_UTF8)
-        {
-            packet.reply.count = static_cast<ui32>(title.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, title, true);
-        }
-        else
-        {
-            auto shadow = view{ title };
-            auto toANSI = inpenc->encode(shadow);
-            packet.reply.count = static_cast<ui32>(toANSI.size() + 1 /*null terminator*/);
-            answer.send_data(condrv, toANSI, true);
-        }
+        auto bytes = si32{};
+        send_text(packet, title, bytes, packet.reply.count);
     }
     auto api_window_title_set                ()
     {
@@ -4108,24 +4344,13 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        auto utf8_title = text{};
-        if (packet.input.utf16)
-        {
-            auto title = take_buffer<wchr, feed::fwd>(packet);
-            utf::to_utf(title, utf8_title);
-        }
-        else
-        {
-            auto title = take_buffer<char, feed::fwd>(packet);
-            if (inpenc->codepage == CP_UTF8) utf8_title = qiew{ title };
-            else                             inpenc->decode_run(title, utf8_title);
-        }
+        auto [title] = take_text(packet);
         if constexpr (isreal())
         {
-            uiterm.wtrack.set(ansi::osc_title, utf8_title);
+            uiterm.wtrack.set(ansi::osc_title, title);
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
-            ": ", ansi::hi(utf::debase<faux, faux>(utf8_title)));
+            ": ", ansi::hi(utf::debase<faux, faux>(title)));
     }
     auto api_window_font_size_get            ()
     {
@@ -4313,6 +4538,28 @@ struct impl : consrv
                           packet.input.keyflag & 0x20 ? "\t\tPrtsc\n"     : "",
                           packet.input.keyflag & 0x40 ? "\t\tCtrl+Esc\n"  : "");
     }
+    auto api_alias_add                       ()
+    {
+        log(prompt, "AddConsoleAlias");
+        struct payload : drvpacket<payload>
+        {
+            struct
+            {
+                ui16 srccb;
+                ui16 dstcb;
+                ui16 execb;
+                byte utf16;
+            }
+            input;
+        };
+        auto& packet = payload::cast(upload);
+        auto [exe, src, dst] = take_text(packet, packet.input.execb, packet.input.srccb, packet.input.dstcb);
+        events.add_alias(exe, src, dst);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\texecb: ", packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrccb: ", packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\tdstcb: ", packet.input.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
+    }
     auto api_alias_get                       ()
     {
         log(prompt, "GetConsoleAlias");
@@ -4322,16 +4569,16 @@ struct impl : consrv
             {
                 struct
                 {
-                    ui16 srcsz;
+                    ui16 srccb;
                     ui16 pad_1;
-                    ui16 exesz;
+                    ui16 execb;
                     byte utf16;
                 }
                 input;
                 struct
                 {
                     ui16 pad_1;
-                    ui16 dstsz;
+                    ui16 dstcb;
                     ui16 pad_2;
                     byte pad_3;
                 }
@@ -4339,24 +4586,14 @@ struct impl : consrv
             };
         };
         auto& packet = payload::cast(upload);
-        packet.reply.dstsz = 0; // Far crashed if it is not set.
-    }
-    auto api_alias_add                       ()
-    {
-        log(prompt, "AddConsoleAlias");
-        struct payload : drvpacket<payload>
-        {
-            struct
-            {
-                ui16 srcsz;
-                ui16 dstsz;
-                ui16 exesz;
-                byte utf16;
-            }
-            input;
-        };
-        auto& packet = payload::cast(upload);
-
+        auto [exe, src] = take_text(packet, packet.input.execb, packet.input.srccb);
+        packet.reply.dstcb = 0; // Far Manager crashed if it is not set.
+        auto dst = events.get_alias(exe, src);
+        send_text(packet, dst, packet.reply.dstcb);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\texecb: ",       packet.input.execb, "\texe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tsrccb: ",       packet.input.srccb, "\tsrc: ", ansi::hi(utf::debase<faux, faux>(src)),
+          "\n\treply.dstcb: ", packet.reply.dstcb, "\tdst: ", ansi::hi(utf::debase<faux, faux>(dst)));
     }
     auto api_alias_exes_get_volume           ()
     {
@@ -4375,8 +4612,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
-
+        auto crop = events.get_exes();
+        send_text<faux>(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_alias_exes_get                  ()
     {
@@ -4395,8 +4635,11 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
-
+        auto crop = events.get_exes();
+        send_text(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get_volume              ()
     {
@@ -4415,8 +4658,13 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
-
+        auto [exe] = take_text(packet);
+        auto crop = events.get_aliases(exe);
+        send_text<faux>(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_aliases_get                     ()
     {
@@ -4435,12 +4683,17 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
-
+        auto [exe] = take_text(packet);
+        auto crop = events.get_aliases(exe);
+        send_text(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_clear             ()
     {
-        log(prompt, "ClearConsoleCommandHistory");
+        log(prompt, "ExpungeConsoleCommandHistory");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4450,11 +4703,14 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto [exe] = take_text(packet);
+        events.off_history(exe);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)));
     }
     auto api_input_history_limit_set         ()
     {
-        log(prompt, "SetConsoleNumberOfCommands");
+        log(prompt, "SetConsoleNumberOfCommands (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4465,16 +4721,20 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        auto [exe] = take_text(packet);
+        utf::to_low(exe);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe: ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\tlimit: ", packet.input.count);
     }
     auto api_input_history_get_volume        ()
     {
-        log(prompt, "GetConsoleCommandHistoryLength");
+        log(prompt, "GetConsoleCommandHistoryLength"); // Requires by the "doskey /history".
         struct payload : drvpacket<payload>
         {
             struct
             {
-                ui32 count;
+                ui32 bytes;
             }
             reply;
             struct
@@ -4484,8 +4744,13 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.count = 0; // Requires by the "doskey /history".
-
+        auto [exe] = take_text(packet);
+        auto crop = events.get_history(exe);
+        send_text<faux>(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_get               ()
     {
@@ -4504,12 +4769,17 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.bytes = 0;
-
+        auto [exe] = take_text(packet);
+        auto crop = events.get_history(exe);
+        send_text(packet, crop, packet.reply.bytes);
+        log("\t", show_page(packet.input.utf16, inpenc->codepage),
+          "\n\tinput.exe:   ", ansi::hi(utf::debase<faux, faux>(exe)),
+          "\n\treply.yield: ", ansi::hi(utf::debase<faux, faux>(crop)),
+          "\n\treply.bytes: ", packet.reply.bytes);
     }
     auto api_input_history_info_get          ()
     {
-        log(prompt, "GetConsoleHistory");
+        log(prompt, "GetConsoleHistoryInfo (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4521,14 +4791,16 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
-        packet.reply.flags = 0;
         packet.reply.limit = 0;
         packet.reply.count = 0;
-
+        packet.reply.flags = 0;
+        log("\treply.limit: ", packet.reply.limit,
+          "\n\treply.count: ", packet.reply.count,
+          "\n\treply.flags: ", packet.reply.flags);
     }
     auto api_input_history_info_set          ()
     {
-        log(prompt, "SetConsoleHistory");
+        log(prompt, "SetConsoleHistoryInfo (not used)");
         struct payload : drvpacket<payload>
         {
             struct
@@ -4540,7 +4812,9 @@ struct impl : consrv
             input;
         };
         auto& packet = payload::cast(upload);
-
+        log("\tlimit: ", packet.input.limit,
+          "\n\tcount: ", packet.input.count,
+          "\n\tflags: ", packet.input.flags);
     }
 
     using apis = std::vector<void(impl::*)()>;

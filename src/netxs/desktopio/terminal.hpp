@@ -338,9 +338,7 @@ namespace netxs::ui
                     owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                     {
                         check_focus(gear);
-                        auto buttons_only = !(state & mode::drag);
-                        if (owner.selmod == mime::disabled
-                         || buttons_only) // Allow mouse button reporting along with scrollback selection (mouse shell integration with DECSET 1000).
+                        if (owner.selmod == mime::disabled)
                         {
                             if (gear.captured(owner.id))
                             {
@@ -356,15 +354,12 @@ namespace netxs::ui
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state);
                             }
-                            if (!buttons_only) gear.dismiss();
+                            gear.dismiss();
                         }
                     };
                     smode = owner.selmod;
                 }
-                if (state & mode::drag) // Prevent scrollback selection along with mouse drag reporting.
-                {
-                    owner.selection_selmod(mime::disabled);
-                }
+                owner.selection_selmod(mime::disabled);
             }
             void disable(mode m)
             {
@@ -1107,6 +1102,11 @@ namespace netxs::ui
                     auto get_mode() const { return !selection_active() ? term_state::type::empty:
                                                     selection_selbox() ? term_state::type::block:
                                                                          term_state::type::lines; }
+            // bufferbase: Get viewport position.
+    virtual si32 get_origin(bool follow)
+            {
+                return 0;
+            }
             // bufferbase: Get viewport basis.
     virtual si32 get_basis()
             {
@@ -2599,6 +2599,7 @@ namespace netxs::ui
                 id_t ancid{}; // buff: The nearest line id to the slide.
                 si32 ancdy{}; // buff: Slide's top line offset.
                 bool round{}; // buff: Is the slide position approximate.
+                bool rolls{}; // buff: The scrollback buffer ring was scrolled.
 
                 // buff: Decrease height.
                 void dec_height(si32& vsize, type kind, si32 size)
@@ -2722,6 +2723,7 @@ namespace netxs::ui
                         ancdy = 0;
                         slide = 0;
                     }
+                    rolls = true;
                 }
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back(line& l) override { undock(l._kind, l._size); }
@@ -2953,6 +2955,14 @@ namespace netxs::ui
                 assert(result);
                 return result;
             }
+            // scroll_buf: Get viewport position.
+            si32 get_origin(bool follow) override
+            {
+                auto coor_y = follow ? batch.basis
+                                     : batch.slide;
+                scroll_buf::set_slide(coor_y); // Update slide id anchoring.
+                return -coor_y;
+            }
             // scroll_buf: Get viewport basis.
             si32 get_basis() override
             {
@@ -2977,9 +2987,11 @@ namespace netxs::ui
             // scroll_buf: Set viewport position and return whether the viewport is reset.
             bool set_slide(si32& fresh_slide) override
             {
-                if (batch.slide == -fresh_slide) return batch.slide == batch.basis;
-
-                fresh_slide = -fresh_slide;
+                if (batch.slide == fresh_slide && !batch.rolls)
+                {
+                    return batch.slide == batch.basis;
+                }
+                batch.rolls = faux;
 
                 if (batch.basis == fresh_slide)
                 {
@@ -3176,7 +3188,6 @@ namespace netxs::ui
                     }
                 }
 
-                fresh_slide = -fresh_slide;
                 return batch.slide == batch.basis;
             }
             // scroll_buf: Recalc batch.slide using anchoring by para_id + para_offset.
@@ -4404,7 +4415,7 @@ namespace netxs::ui
                                 assert(test_futures());
                             } // case 2 done.
                         }
-                        batch.current().splice(start, count, proto, fuse);
+                        batch.current().splice<Copy>(start, count, proto, fuse);
                     }
                     assert(coord.y >= 0 && coord.y < arena);
                     coord.y += y_top;
@@ -4418,7 +4429,7 @@ namespace netxs::ui
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
                         auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        dnbox.splice(saved, n, proto, fuse);
+                        dnbox.splice<Copy>(saved, n, proto, fuse);
                     }
                     else
                     {
@@ -4429,7 +4440,7 @@ namespace netxs::ui
                         auto dest = dnbox.iter() + seek;
                         auto tail = dnbox.iend();
                         auto back = panel.x;
-                        rich::unlimit_fill_proc(data, size, dest, tail, back, cell::shaders::full);
+                        rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
                     }
                     coord.y = std::min(coord.y + y_end + 1, panel.y - 1);
                     // Note: coord can be unsync due to scroll regions.
@@ -6497,12 +6508,8 @@ namespace netxs::ui
                     auto pos = console.get_coord(dot_00).x;
                     origin.x = bufferbase::reset_viewport(origin.x, pos, console.panel.x);
                 }
-                origin.y = -console.get_basis();
             }
-            else
-            {
-                origin.y = -console.get_slide();
-            }
+            origin.y = console.get_origin(follow[axis::Y]);
         }
         // term: Proceed terminal changes.
         template<class P>
@@ -7229,7 +7236,9 @@ namespace netxs::ui
                 if (new_area.coor != base::coor())
                 {
                     auto& console = *target;
-                    follow[axis::Y] = console.set_slide(new_area.coor.y);
+                    auto fresh_coor = -new_area.coor.y;
+                    follow[axis::Y] = console.set_slide(fresh_coor);
+                    new_area.coor.y = -fresh_coor;
                     origin = new_area.coor;
                 }
             };

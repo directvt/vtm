@@ -1,0 +1,122 @@
+name: Build binaries
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    name: ${{ matrix.platform }} / ${{ matrix.cpu }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest ]
+        cpu: [ x64, x86, arm64, arm ]
+        exclude:
+          - os: windows-latest
+            cpu: x86
+        include:
+          - os: macos-13
+            platform: macos
+            cpu: universal
+            arch: any
+            cxx: c++
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-DNDEBUG"'
+          - os: windows-latest
+            platform: windows
+            cpu: Win32
+            arch: x86
+            cxx: cl
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /DNDEBUG" -A '
+          - os: windows-latest
+            cxx: cl
+          - os: ubuntu-latest
+            cpu: x64
+            cxx: g++
+          - os: ubuntu-latest
+            cpu: x86
+            apt: g++-i686-linux-gnu
+            cxx: /bin/i686-linux-gnu-g++
+          - os: ubuntu-latest
+            cpu: arm
+            apt: g++-arm-linux-gnueabihf
+            cxx: /bin/arm-linux-gnueabihf-g++
+          - os: ubuntu-latest
+            cpu: arm64
+            apt: g++-aarch64-linux-gnu
+            cxx: /bin/aarch64-linux-gnu-g++
+
+          - os: ubuntu-latest
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -DNDEBUG"'
+          - os: windows-latest
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /DNDEBUG" -A '
+
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+
+          - cpu: x64
+            arch: x86_64
+          - cpu: x86
+            arch: x86
+          - cpu: arm64
+            arch: arm64
+          - cpu: arm
+            arch: arm32
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set reusable strings
+      id: strings
+      shell: bash
+      run: |
+        echo "bin=${{ github.workspace }}/bin" >> "$GITHUB_OUTPUT"
+
+    - name: Install compiler
+      if: ${{ matrix.apt }}
+      run: >
+        sudo apt -y install ${{ matrix.apt }}
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.bin }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
+        -DCMAKE_BUILD_TYPE=Release
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+
+    - name: Test (POSIX)
+      if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
+      run: ${{ steps.strings.outputs.bin }}/vtm -v
+
+    - name: Test (Windows)
+      if: matrix.os == 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
+      run: |
+        ${{ steps.strings.outputs.bin }}/Release/vtm.exe -v
+      shell: cmd
+
+    - name: Pack (POSIX)
+      if: matrix.os != 'windows-latest'
+      run: 7z a -ttar vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar ${{ steps.strings.outputs.bin }}/vtm
+
+    - name: Upload Artifact (POSIX)
+      if: matrix.os != 'windows-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
+        path: vtm_${{ matrix.platform }}_${{ matrix.arch }}.tar
+
+    - name: Upload Artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v3
+      with:
+        name: vtm_${{ matrix.platform }}_${{ matrix.arch }}
+        path: ${{ steps.strings.outputs.bin }}/Release/vtm.exe

@@ -431,6 +431,16 @@ namespace netxs::utf
                  operator text () const { return text{ data(), size() }; }
         explicit operator bool () const { return view::length(); }
 
+        // qiew: Clear.
+        constexpr auto clear()
+        {
+            view::operator=({});
+        }
+        // qiew: Return substring.
+        constexpr auto substr(size_t offset = 0, size_t count = npos) const
+        {
+            return qiew{ view::substr(offset, count) };
+        }
         // qiew: Convert to text.
         auto str() const { return operator text(); }
         // qiew: Peek front char.
@@ -773,7 +783,7 @@ namespace netxs::utf
     }
     auto substr(qiew utf8, size_t start, size_t length = text::npos)
     {
-        if (length == 0) return view{};
+        if (length == 0) return qiew{};
         auto head = utf8.data();
         auto stop = head + utf8.size();
         auto calc = [](auto& it, auto& count, auto limit)
@@ -1091,7 +1101,7 @@ namespace netxs::utf
             return crop;
         }
     }
-    template<feed Dir = feed::fwd, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
+    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto divide(V1 const& utf8, char delimiter, P proc)
     {
         if constexpr (Dir == feed::fwd)
@@ -1101,11 +1111,13 @@ namespace netxs::utf
             while ((pos = utf8.find(delimiter, cur)) != V1::npos)
             {
                 auto frag = view{ utf8.data() + cur, pos - cur };
+                if constexpr (SkipEmpty) if (frag.empty()) { cur = pos + 1; continue; }
                 if constexpr (Plain) proc(frag);
                 else            if (!proc(frag)) return;
                 cur = pos + 1;
             }
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
+            if constexpr (SkipEmpty) if (end.empty()) return;
             proc(end);
         }
         else
@@ -1116,15 +1128,17 @@ namespace netxs::utf
             {
                 auto next = pos + 1;
                 auto frag = view{ utf8.data() + next, cur - next };
+                if constexpr (SkipEmpty) if (frag.empty()) { cur = pos; continue; }
                 if constexpr (Plain) proc(frag);
                 else            if (!proc(frag)) return;
                 cur = pos;
             }
             auto end = view{ utf8.data(), cur };
+            if constexpr (SkipEmpty) if (end.empty()) return;
             proc(end);
         }
     }
-    template<class V1, class V2>
+    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter, std::vector<view>& crop)
     {
         auto mark = qiew(delimiter);
@@ -1143,19 +1157,20 @@ namespace netxs::utf
             pos = 0_sz;
             while ((pos = utf8.find(mark, cur)) != V1::npos)
             {
-                crop.push_back(view{ utf8.data() + cur, pos - cur });
+                auto frag = view{ utf8.data() + cur, pos - cur };
+                if (!SkipEmpty || !frag.empty()) crop.push_back(frag);
                 cur = pos + len;
             }
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
-            crop.push_back(end);
+            if (!SkipEmpty || !end.empty()) crop.push_back(end);
         }
         return crop;
     }
-    template<class V1, class V2>
+    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
         auto crop = std::vector<view>{};
-        divide(utf8, delimiter, crop);
+        divide<Dir, SkipEmpty>(utf8, delimiter, crop);
         return crop;
     }
     template<class Container>
@@ -1407,7 +1422,7 @@ namespace netxs::utf
     {
         auto temp = utf8;
         trim_back_if(utf8, [&](char c){ return delims.find(c) == text::npos; });
-        return temp.substr(temp.size() - utf8.size());
+        return temp.substr(utf8.size(), temp.size() - utf8.size());
     }
     auto trim(view utf8, char space = ' ')
     {
@@ -1491,7 +1506,8 @@ namespace netxs::utf
         //todo Clang 13.0.0 doesn't get it
         //auto str = view{ head, stop };
         auto str = qiew{ &(*head), (size_t)(stop - head) };
-        utf8.remove_prefix(std::distance(head, stop));
+        //utf8.remove_prefix(std::distance(head, stop));
+        utf8.remove_prefix(str.size());
         return str;
     }
     auto get_word(view& utf8, char delim = ' ')
@@ -1515,17 +1531,35 @@ namespace netxs::utf
         if (stop == tail) utf8 = view{};
         else              utf8.remove_prefix(std::distance(head, stop));
     }
+    template<class View>
+    auto pop_front(View&& line, auto size)
+    {
+        auto crop = line.substr(0, size);
+        line.remove_prefix(size);
+        return crop;
+    }
+    template<class View>
+    auto pop_back(View&& line, auto size)
+    {
+        auto crop = line.substr(line.size() - size);
+        line.remove_suffix(size);
+        return crop;
+    }
     template<class TextOrView>
     auto is_plain(TextOrView&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;
     }
+    auto to_low(unsigned char c)
+    {
+        return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+    }
     auto& to_low(text& utf8, size_t size = text::npos)
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](unsigned char c) { return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c; });
+        std::transform(head, tail, head, [](auto c) { return to_low(c); });
         return utf8;
     }
     auto to_low(text&& utf8)

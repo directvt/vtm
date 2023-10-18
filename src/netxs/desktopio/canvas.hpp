@@ -2011,7 +2011,7 @@ namespace netxs
             return c;
         }
         template<class P>
-        void /*!*/fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
             netxs::onrect(*this, block, fuse);
@@ -2166,7 +2166,7 @@ namespace netxs
             return word<Direction>(twod{ offset, 0 });
         }
         template<class P>
-        void /*!*/cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top
@@ -2183,7 +2183,7 @@ namespace netxs
             fill(temp.clip(area), fuse);
         }
         template<class P>
-        void /*!*/cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
         {
             cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fuse);
         }

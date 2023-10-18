@@ -670,9 +670,9 @@ namespace netxs::app::term
                                 });
                             }
                         }
-                        else
+                        else if (boss.base::size() != new_size)
                         {
-                            auto panel = boss.size();
+                            auto panel = boss.base::size();
                             new_size = new_size.less(dot_11, panel, std::max(dot_11, new_size));
                             auto warp = rect{ dot_00, new_size } - rect{ dot_00, panel };
                             boss.base::locked = faux; // Unlock resizing.

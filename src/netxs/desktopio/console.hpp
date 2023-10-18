@@ -787,7 +787,7 @@ namespace netxs::ui
         wptr       nexthop; // gate: .
         hook       oneoff_focus; // gate: .
 
-        void /*!*/draw_foreign_names(face& parent_canvas)
+        void draw_foreign_names(face& parent_canvas)
         {
             auto& header = *uname.lyric;
             auto  half_x = header.size().x / 2;
@@ -802,7 +802,7 @@ namespace netxs::ui
                 parent_canvas.fill(header, cell::shaders::fuse);
             }
         }
-        void /*!*/draw_mouse_pointer(face& canvas)
+        void draw_mouse_pointer(face& canvas)
         {
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
@@ -817,7 +817,7 @@ namespace netxs::ui
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
-        void /*!*/draw_clipboard_preview(face& canvas, time const& stamp)
+        void draw_clipboard_preview(face& canvas, time const& stamp)
         {
             for (auto& [id, gear_ptr] : input.gears)
             {
@@ -834,7 +834,7 @@ namespace netxs::ui
                 }
             }
         }
-        void /*!*/draw_tooltips(face& canvas, time const& stamp)
+        void draw_tooltips(face& canvas, time const& stamp)
         {
             auto full = canvas.full();
             auto area = canvas.area();

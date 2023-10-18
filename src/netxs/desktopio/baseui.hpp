@@ -998,7 +998,7 @@ namespace netxs::ui
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
             };
             //todo deprecated
-            LISTEN(tier::release, /*!*/e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 if (base::filler.wdt() && !base::hidden)
                 {

@@ -125,12 +125,28 @@ namespace netxs::ui
                 outwidth = printout.coor.x + printout.size.x - textline.coor.x;
 
                 if constexpr (!Split)
-                if (printout.size.x > 1)
+                if (printout.size.x > 1 && textline.size.x > printout.size.x)
                 {
-                    auto p = curpoint + printout.size.x - 1;
-                    if (block.at(p).wdt() == 2)
+                    auto n = printout.size.x - 1;
+                    auto p = curpoint + n;
+                    while (n)
                     {
-                        --printout.size.x;
+                        auto& c = block.at(p);
+                        if (c.isspc() || c.wdt() == 3) break;
+                        n--;
+                        p--;
+                    }
+                    if (n > 0) // Cut by whitespace.
+                    {
+                        printout.size.x = n + 1;
+                    }
+                    else // Cut on a widechar boundary (CJK/Emoji).
+                    {
+                        auto p = curpoint + printout.size.x - 1;
+                        if (block.at(p).wdt() == 2)
+                        {
+                            --printout.size.x;
+                        }
                     }
                 }
             }
@@ -2354,7 +2370,7 @@ namespace netxs::ui
             flow::size(new_size);
         }
         template<class P = noop>
-        void /*!*/blur(si32 r, P shade = {}) // face: .
+        void blur(si32 r, P shade = {}) // face: .
         {
             using irgb = vrgb::value_type;
 
