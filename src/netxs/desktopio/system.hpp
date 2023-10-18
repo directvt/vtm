@@ -198,12 +198,14 @@ namespace netxs::os
                 {
                     using NtOpenFile_ptr          = std::decay<decltype(::NtOpenFile)>::type;
                     using CsrClientCallServer_ptr = NTSTATUS(_stdcall *)(void*, void*, ui32, ui32);
+                    using RtlGetVersion_ptr       = NTSTATUS(_stdcall *)(RTL_OSVERSIONINFOW*);
                     //using ConsoleControl_ptr      = NTSTATUS(_stdcall *)(ui32, void*, ui32);
                     //HMODULE                 user32_dll{};
                     //ConsoleControl_ptr      ConsoleControl{};
 
                     HMODULE                 ntdll_dll{};
                     NtOpenFile_ptr          NtOpenFile{};
+                    RtlGetVersion_ptr       RtlGetVersion{};
                     CsrClientCallServer_ptr CsrClientCallServer{};
 
                     refs()
@@ -215,8 +217,10 @@ namespace netxs::os
                         else
                         {
                             NtOpenFile          = reinterpret_cast<NtOpenFile_ptr>(         ::GetProcAddress(ntdll_dll,  "NtOpenFile"));
+                            RtlGetVersion       = reinterpret_cast<RtlGetVersion_ptr>(      ::GetProcAddress(ntdll_dll,  "RtlGetVersion"));
                             CsrClientCallServer = reinterpret_cast<CsrClientCallServer_ptr>(::GetProcAddress(ntdll_dll,  "CsrClientCallServer"));
                             if (!NtOpenFile)          os::fail("::GetProcAddress(NtOpenFile)");
+                            if (!RtlGetVersion)       os::fail("::GetProcAddress(RtlGetVersion)");
                             if (!CsrClientCallServer) os::fail("::GetProcAddress(CsrClientCallServer)");
                             //ConsoleControl = reinterpret_cast<ConsoleControl_ptr>(::GetProcAddress(user32_dll, "ConsoleControl"));
                             //if (!ConsoleControl) os::fail("::GetProcAddress(ConsoleControl)");
@@ -228,12 +232,14 @@ namespace netxs::os
                     refs(refs&& other)
                         :           ntdll_dll{ other.ntdll_dll           },
                                    NtOpenFile{ other.NtOpenFile          },
+                                RtlGetVersion{ other.RtlGetVersion       },
                           CsrClientCallServer{ other.CsrClientCallServer }
                                //    user32_dll{ other.user32_dll          },
                                //ConsoleControl{ other.ConsoleControl      }
                     {
                         other.ntdll_dll           = {};
                         other.NtOpenFile          = {};
+                        other.RtlGetVersion       = {};
                         other.CsrClientCallServer = {};
                         //other.user32_dll          = {};
                         //other.ConsoleControl      = {};
@@ -276,6 +282,15 @@ namespace netxs::os
                 auto& inst = get_ntdll();
                 return inst ? inst.CsrClientCallServer(std::forward<Args>(args)...)
                             : nt::status::not_found;
+            }
+            auto RtlGetVersion()
+            {
+                auto& inst = get_ntdll();
+                auto info = RTL_OSVERSIONINFOW{ sizeof(RTL_OSVERSIONINFOW) };
+                auto stat = inst ? inst.RtlGetVersion(&info)
+                                 : nt::status::not_found;
+                if (stat != nt::status::success) os::fail("::RtlGetVersion()");
+                return info;
             }
             //todo: nt native api monobitness:
             //  We have to make a direct call to ntdll.dll!CsrClientCallServer
@@ -2950,7 +2965,7 @@ namespace netxs::os
                                         | nt::console::outmode::wrap_at_eol
                                         | nt::console::outmode::preprocess
                                         | nt::console::outmode::vt };
-                    if (!::SetConsoleMode(os::stdout_fd, outmode))
+                    if (!::SetConsoleMode(os::stdout_fd, outmode) || nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
                     {
                         dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
