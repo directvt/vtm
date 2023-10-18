@@ -94,35 +94,32 @@ namespace netxs::app::shop
                     "Virtual Terminal."),
 
                     item("Tile", bluedk, "3", "Free ", "Get",
-                    "Meta object. Tiling window manager."),
+                    "Tiling window manager."),
 
                     item("Text", cyandk, "102", "Free ", "Get",
-                    "A simple text editor for Desktopio environment "
-                    "and a basic editing tool which enables "
-                    "desktop users to create documents that "
-                    "contain ANSI-formatted text."),
+                    "Text editor for Desktopio environment. "
+                    "Basic editing tool which allows "
+                    "desktop users to create documents containing rich text."),
 
                     item("Calc", greendk, "30", "Free ", "Get",
-                    "A simple spreadsheet calculator application."),
+                    "Spreadsheet calculator."),
 
                     item("Task", magentadk, "311", "Free ", "Get",
-                    "A task manager program that displays "
+                    "Task manager that displays "
                     "information about CPU, memory utilization, "
                     "and current I/O usage."),
 
                     item("Draw", reddk, "64", "Free ", "Get",
-                    "A simple program which enables desktop "
-                    "users to create sophisticated ANSI-artworks."),
+                    "ANSI-artwork Studio."),
 
                     item("Char", yellowdk, "161", "Free ", "Get",
-                    "An utility that allows browsing all Unicode "
-                    "codepoints and inspecting their metadata."),
+                    "Unicode codepoints browser."),
 
                     item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
-                    "An orthodox file manager for Desktopio environment."),
+                    "File manager."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
-                    "A calendar application for Desktopio environment."),
+                    "Calendar."),
 
                     item("Goto", bluedk, "4", "Free ", "Get",
                     "Internet/SSH browser."),
@@ -140,7 +137,7 @@ namespace netxs::app::shop
                     "Workspace settings configurator."),
 
                     item("View", cyandk, "1", "Free ", "Get",
-                    "Meta object. Workspace location marker."),
+                    "Workspace location marker."),
                 };
 
                 auto qr = escx(
