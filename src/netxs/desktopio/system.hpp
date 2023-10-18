@@ -2974,7 +2974,7 @@ namespace netxs::os
                     }
                     auto size = DWORD{ os::pipebuf };
                     auto wstr = wide(size, 0);
-                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW()", os::unexpected);
+                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
                     dtvt::backup.title = wstr.data();
                     ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
 
@@ -3879,10 +3879,13 @@ namespace netxs::os
         {
             auto utf8 = text{};
             #if defined(_WIN32)
+            if (!os::dtvt::active)
+            {
                 auto size = DWORD{ os::pipebuf };
                 auto wstr = wide(size, 0);
-                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW()", os::unexpected);
+                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(tty)", os::unexpected);
                 utf8 = utf::to_utf(wstr);
+            }
             #else
             #endif
             return utf8;
