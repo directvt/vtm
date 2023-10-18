@@ -29,7 +29,7 @@ namespace netxs::events::userland
 namespace netxs::app::shop
 {
     static constexpr auto id = "gems";
-    static constexpr auto desc = "Desktopio App Manager (DEMO)";
+    static constexpr auto desc = "Application Distribution Hub (DEMO)";
 
     using events = netxs::events::userland::shop;
 
@@ -80,7 +80,7 @@ namespace netxs::app::shop
                 appstore_head =
                 ansi::nil().eol().mgl(2).mgr(2)
                 .bld(true).fgc(whitelt).jet(bias::left).wrp(wrap::on)
-                .add("Desktopio Application Distribution Hub").bld(faux).add("\n\n");
+                .add("Application Distribution Hub").bld(faux).add("\n\n");
 
                 auto textancy_text = ansi::nil().add(
                 "Hello World!😎\n"
