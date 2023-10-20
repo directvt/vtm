@@ -1,33 +1,43 @@
 # The panel
-In release [v0.9.9v](https://github.com/netxs-group/vtm/releases/tag/v0.9.9v) a slot for panels was introduced. 
 
+In release [v0.9.9v](https://github.com/netxs-group/vtm/releases/tag/v0.9.9v) a slot for the desktop info panel was introduced. 
 
-## settings
+## Settings
+
 The following lines where added to the [example `settings.xml`](https://github.com/netxs-group/vtm/blob/master/doc/settings.md#typical-config--configvtmsettingsxml):
 ```xml
+<config>
+    ...
     <panel> <!-- Desktop info panel. -->
         <cmd = ""/> <!-- Command-line to activate. -->
         <cwd = ""/> <!-- Working directory. -->
         <height = 1 /> <!-- Desktop space reserved on top. -->
     </panel>
+    ...
+</config>
 ```
 Here you can set what command provides the lines to display in the panel.
 
-## making a script for the panel
+## Panel Contents
+
+The content for the panel can be any source with console output, be it a script, a console application, or something else. All emitted control sequences will be processed at the [VT-100](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) level.
+
+### Live Script Example
+
 For this script I will be using `python3`, but I guess you can adapt this to your favorite language. A bash version will be below, to help if you don't understand python.
 
-First set the path to your script in `settings.xml` bt changing the `config/panel/cmd` tag to contain the path.
-Then make your script at that location, and we can start.
+Set the path to your script in `settings.xml` by changing the `config/panel/cmd` tag to contain the path, place your script at that location, and we can start.
 
 First, the concept.
-The panel works by running your command in a small terminal at the top. This means you will have a scrollbar. To prevent that, (and thus to save a little amount of memory,) print the following escape code to the screen: `\e[[?1049h`.
+
+The panel works by running your command in a terminal control at the top of the desktop. This means that by default you will have a scrollback buffer and scrollbars. To change that, (and thus to save a little amount of memory) print the following vt-sequence: `\e[?1049h`. This sequence will switch the terminal control to an alternate buffer mode, in which the working area is only the terminal viewport without scrollback buffer.
 
 This means our script now looks like this:
 ```python
 #!/usr/bin/env python3
 # my custom panel
 
-print("\033[?1049h") # remove scrollback
+print("\033[?1049h") # switch to altbuf mode
 
 ```
 
@@ -37,7 +47,7 @@ If you print data, that data will push the previous data off-screen. The script 
 # my custom panel
 from time import sleep # import sleep() function
 
-print("\033[?1049h") # remove scrollback
+print("\033[?1049h") # switch to altbuf mode
 while True: # loop infinitly
     data='My data' # collect data
     print(data) # print data
@@ -55,7 +65,7 @@ Now lets put that in the script:
 from time import sleep # import sleep() function
 import datetime
 
-print("\033[?1049h") # remove scrollback
+print("\033[?1049h") # switch to altbuf mode
 while True: # loop infinitly
     time=datetime.datetime.now().split(' ')[1].split('.')[0] # get current time
     print(time) # print data: the time
@@ -72,7 +82,7 @@ Here I added a date and the text `Hello world!`, and I seperated them all by ` |
 from time import sleep # import sleep() function
 import datetime
 
-print("\033[?1049h") # remove scrollback
+print("\033[?1049h") # switch to altbuf mode
 while True: # loop infinitly
     time=datetime.datetime.now().split(' ')[1].split('.')[0] # get current time
     date=datetime.datetime.now().split(' ')[0]
@@ -87,7 +97,7 @@ A bash adaptation of the script we just created in python (so people that don't 
 #!/usr/bin/env bash
 # my custom panel
 
-echo -e "\e[?1049h" # remove scrollback
+echo -e "\e[?1049h" # switch to altbuf mode
 
 while true; do
     time="$(date +%X)" # get time (in local format)
