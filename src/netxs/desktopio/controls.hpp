@@ -3078,6 +3078,7 @@ namespace netxs::ui
         twod oversc; // rail: Allow overscroll with auto correct.
         subs fasten; // rail: Subscriptions on masters to follow they state.
         rack scinfo; // rail: Scroll info.
+        bool animat; // rail: Smooth scrolling.
 
         si32 spd       = skin::globals().spd;
         si32 pls       = skin::globals().pls;
@@ -3087,6 +3088,7 @@ namespace netxs::ui
         si32 spd_max   = skin::globals().spd_max;
         si32 ccl_max   = skin::globals().ccl_max;
         si32 switching = skin::globals().switching;
+        si32 wheel_dt  = skin::globals().wheel_dt;
 
         si32 speed{ spd  }; // rail: Text auto-scroll initial speed component ΔR.
         si32 pulse{ pls  }; // rail: Text auto-scroll initial speed component ΔT.
@@ -3105,12 +3107,13 @@ namespace netxs::ui
         }
 
     protected:
-        rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all)
+        rail(axes allow_to_scroll = axes::all, axes allow_to_capture = axes::all, axes allow_overscroll = axes::all, bool smooth_scrolling = true)
             : permit{ xy(allow_to_scroll)  },
               siezed{ xy(allow_to_capture) },
               oversc{ xy(allow_overscroll) },
               strict{ xy(axes::all) },
-              manual{ xy(axes::all) }
+              manual{ xy(axes::all) },
+              animat{ smooth_scrolling }
         {
             LISTEN(tier::preview, e2::form::upon::scroll::any, info) // Receive scroll parameters from external sources.
             {
@@ -3266,6 +3269,12 @@ namespace netxs::ui
 
     public:
         // rail: .
+        auto smooth(bool smooth_scroll = true)
+        {
+            animat = smooth_scroll;
+            return This();
+        }
+        // rail: .
         template<axis Axis>
         auto follow(sptr master = {})
         {
@@ -3299,25 +3308,35 @@ namespace netxs::ui
         template<axis Axis>
         void wheels(bool dir)
         {
-            if (robot.active(Axis) && (steer == dir))
+            if (animat)
             {
-                speed += spd_accel;
-                cycle += ccl_accel;
-                speed = std::min(speed, spd_max);
-                cycle = std::min(cycle, ccl_max);
+                if (robot.active(Axis) && (steer == dir))
+                {
+                    speed += spd_accel;
+                    cycle += ccl_accel;
+                    speed = std::min(speed, spd_max);
+                    cycle = std::min(cycle, ccl_max);
+                }
+                else
+                {
+                    steer = dir;
+                    speed = spd;
+                    cycle = ccl;
+                    //todo at least one line should be
+                    //move<Axis>(dir ? 1 : -1);
+                }
+                auto start = 0;
+                auto boost = dir ? speed : -speed;
+                if constexpr (Axis == X) boost *= 2;
+                keepon<Axis>(quadratic<si32>(boost, pulse, cycle, start));
             }
             else
             {
-                steer = dir;
-                speed = spd;
-                cycle = ccl;
-                //todo at least one line should be
-                //move<Axis>(dir ? 1 : -1);
+                auto speed = dir ? wheel_dt : -wheel_dt;
+                auto delta = Axis == X ? twod{ speed * 2, 0 }
+                                       : twod{ 0, speed };
+                scroll(delta);
             }
-            auto start = 0;
-            auto boost = dir ? speed : -speed;
-            if constexpr (Axis == X) boost *= 2;
-            keepon<Axis>(quadratic<si32>(boost, pulse, cycle, start));
         }
         // rail: .
         template<axis Axis, class Fx>
