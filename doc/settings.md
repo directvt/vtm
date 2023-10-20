@@ -221,6 +221,8 @@ Note: The following configuration sections are not implemented yet
 
 #### Typical config  (`~/.config/vtm/settings.xml`)
 
+Note: The full defaut config is at [src/vtm.xml](../src/vtm.xml). 
+
 ```xml
 <config>
     <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
