@@ -647,7 +647,7 @@ namespace netxs::app::term
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                         ->limits(dot_11, { 400,200 });
-            auto scroll = layers->attach(ui::rail::ctor());
+            auto scroll = layers->attach(ui::rail::ctor()->smooth(faux));
             auto min_size = twod{ 12,1 }; // mc crashes when window is too small
             auto max_size = -dot_11;
             scroll->limits(min_size, max_size)

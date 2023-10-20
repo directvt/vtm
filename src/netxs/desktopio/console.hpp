@@ -1410,6 +1410,7 @@ namespace netxs::ui
             auto& canal = *server;
 
             auto& g = skin::globals();
+            g.wheel_dt       = config.take("wheel_dt"              , 3     );
             g.brighter       = config.take("brighter"              , cell{});//120);
             g.kb_focus       = config.take("kb_focus"              , cell{});//60
             g.shadower       = config.take("shadower"              , cell{});//180);//60);//40);// 20);
