@@ -73,6 +73,7 @@ bin\Release\vtm.exe
 - [Command line Options](doc/command-line-options.md)
 - [User Interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
+- [Desktop Widgets](doc/panel.md)
 - [Built-in Applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)
 
