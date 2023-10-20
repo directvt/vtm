@@ -4,7 +4,7 @@ In release [v0.9.9v](https://github.com/netxs-group/vtm/releases/tag/v0.9.9v) a 
 
 ## Panel contents
 
-The following [configuration](src/vtm.xml) section deals with setting up the panel:
+The following [configuration](../src/vtm.xml) section deals with setting up the panel:
 ```xml
 <config>
     ...
