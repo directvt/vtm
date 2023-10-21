@@ -656,8 +656,8 @@ struct impl : consrv
                         case 'g': result += '>'; break;
                         case 'l': result += '<'; break;
                         case 't': result += '&'; break;
-                        case 'b': result += '|';
-                        case '*': result += data; data.clear(); break;
+                        case 'b': result += '|'; break;
+                        case '*': result += rest; break;
                         default:  result += s; break;
                     }
                 }
