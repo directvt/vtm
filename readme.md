@@ -1,10 +1,54 @@
 # vtm
 
-Text-baased desktop inside your console.
+TL;DR: Text-baased desktop inside your console.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
+
+### Concept
+
+vtm is a windowed multi-user environment for unlimited number of terminals. In other words this is an infinite 2-D space of terminal windows.
+
+To render its interface, vtm needs a text console, it can be a terminal emulator, a Windows Command Prompt, or a Linux Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
+
+### Rendering on Ready
+
+vtm renders its user interface at 60 frames per second into its internal buffers. Output in the text console occurs only when the console is ready to output the current frame, dropping previous frames in case of lack of performance. This allows vtm to operate even in non-accelerated text consoles.
+
+### Multiplayer
+
+The multiplayer feature in vtm allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by the operating system named pipe, which serves as a gateway for users. To connect, you just need to run vtm in your text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
+
+### Infinite Terminal Count
+
+The number of terminal windows is unlimited. You can run as many terminals as system resources you have.
+
+### Tiling Window Manager
+
+Users can organize terminal windows by freely moving terminal windows and nesting them into the built-in tiling window manager. Grouping of terminal windows can be done either manually on the fly, or can be pre-configured using a configuration file. For details, see the [Settings](doc/settings.md) section.
+
+### Default Terminal Boost
+
+Besides windowed mode, vtm can operate as a standalone terminal emulator inside the default terminal of your operating system, extenging its functionality as follows:
+
+- Unlimited scrollback*
+- No text wrapping
+- Horizontal scrolling
+- Colorful selected-text copy
+  - RTF
+  - HTML
+  - ANSI/VT
+
+In other words, it allows users to use a huge scrollback buffer, disable text wrapping, and take advantage of horizontal scrolling.
+
+It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - a good example is Windows 8 or Windows Server Core like platforms with a Command Prompt only on board.
+
+The standalone terminal mode can be run by specifying the following option: `vtm -r term`. See [Command line Options](doc/command-line-options.md) for details.
+
+### VT Logging for Developers
+
+vtm allows developers to visualize the standard input/output stream of running console applications. Launched with the `vtm -m` switch, vtm will log the event stream of each terminal window with the `Logs` switch enabled. Important: Starting the logging process within the environment itself must be with the `vtm -m -q` switch to avoid recursive interference (event logging of event logging).
 
 # Supported Platforms
 
@@ -18,58 +62,19 @@ Text-baased desktop inside your console.
   - NetBSD
   - OpenBSD
   - [`...`](https://en.wikipedia.org/wiki/POSIX#POSIX-oriented_operating_systems)
-- [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72)
-
-# Building from Source
-
-You can use [Github Actions](../../actions) to build statically linked binaries for the big three OS platforms: Linux, Windows, and macOS.
-
-### Unix
-
-Build-time dependencies
- - 64-bit system host
- - `git`, `cmake`,  `C++20 compiler` ([GCC 11](https://gcc.gnu.org/projects/cxx-status.html), [Clang 14](https://clang.llvm.org/cxx_status.html))
- - RAM requirements for compilation:
-   - Compiling with GCC — 4GB of RAM
-   - Compiling with Clang — 9GB of RAM
-
-Use any terminal as a build environment
-```
-git clone https://github.com/netxs-group/vtm.git
-cd vtm
-cmake . -B bin
-cmake --build bin
-sudo cmake --install bin
-vtm
-```
-
-Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system.
-
-### Windows
-
-Build-time dependencies
- - [git](https://git-scm.com/download/win), [cmake](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation), [MSVC (Desktop Development with C++)](https://visualstudio.microsoft.com/downloads/)
-
-Use Developer Command Prompt as a build environment
-
-```
-git clone https://github.com/netxs-group/vtm.git
-cd vtm
-cmake . -B bin
-cmake --build bin --config Release
-bin\Release\vtm.exe
-```
 
 # Binary Downloads
 
-![macOS](.resources/status/macos.svg)     [![Universal](.resources/status/arch_any.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.zip)  
 ![Linux](.resources/status/linux.svg)     [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_x86_64.zip) [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_x86.zip) [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm64.zip) [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_linux_arm32.zip)  
 ![Windows](.resources/status/windows.svg) [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_x86_64.zip)  [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_x86.zip)  [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm64.zip)  [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_windows_arm32.zip)  
+![macOS](.resources/status/macos.svg)     [![Universal](.resources/status/arch_any.svg)](https://github.com/netxs-group/vtm/releases/latest/download/vtm_macos_any.zip)  
 
 ---
+Note: You can use [Github Actions](../../actions) to build statically linked binaries for the big three OS platforms: Linux, Windows, and macOS.
 
 # Documentation
 
+- [Building from Source](doc/build.md)
 - [Command line Options](doc/command-line-options.md)
 - [User Interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
