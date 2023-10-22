@@ -10,7 +10,7 @@ TL;DR: Text-baased desktop inside your console.
 
 vtm is a windowed multi-user environment for unlimited number of terminals. In other words this is an infinite 2-D space of terminal windows.
 
-To render its interface, vtm needs a text console, be it a terminal emulator, Windows Command Prompt, or a Linux Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
+To render its interface, vtm needs a text console, be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
 
 ## Features
 
