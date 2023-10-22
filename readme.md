@@ -34,7 +34,7 @@ Users can organize terminal windows by freely moving terminal windows and nestin
 
 ### Default Terminal Boost
 
-Besides windowed mode, vtm can operate as a standalone terminal emulator inside the default terminal of your operating system, extenging its functionality as follows:
+Besides windowed mode, vtm can operate as a standalone terminal emulator inside the default terminal of your operating system, extenging its functionality with the following features:
 
 - Unlimited scrollback*
 - Unwrapped-text option
