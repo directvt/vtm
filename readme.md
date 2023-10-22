@@ -52,7 +52,9 @@ The standalone terminal mode can be run by specifying the following option: `vtm
 
 ### VT Logging for Developers
 
-vtm allows developers to visualize the standard input/output stream of running console applications. Launched with the `vtm -m` switch, vtm will log the event stream of each terminal window with the `Logs` switch enabled. Important: Starting the logging process within the environment itself must be with the `vtm -m -q` switch to avoid recursive interference (event logging of event logging).
+vtm allows developers to visualize the standard input/output stream of running console applications. Launched with the `vtm -m` switch, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+
+Important: Avoid enabling the `Logs` switch in the terminal window with the `vtm -m` process running, this may lead to recursive event logging of event logging with unexpected results.
 
 # Supported Platforms
 
