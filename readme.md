@@ -6,11 +6,17 @@ TL;DR: Text-baased desktop inside your console.
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
-### Concept
+## Concept
 
 vtm is a windowed multi-user environment for unlimited number of terminals. In other words this is an infinite 2-D space of terminal windows.
 
 To render its interface, vtm needs a text console, it can be a terminal emulator, a Windows Command Prompt, or a Linux Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
+
+## Features
+
+### All Inclusive
+
+vtm comes with just one executable file with no third party dependencies.
 
 ### Rendering on Ready
 
@@ -33,16 +39,16 @@ Users can organize terminal windows by freely moving terminal windows and nestin
 Besides windowed mode, vtm can operate as a standalone terminal emulator inside the default terminal of your operating system, extenging its functionality as follows:
 
 - Unlimited scrollback*
-- No text wrapping
+- Unwrapped-text option
 - Horizontal scrolling
 - Selected-text copy encoding:
   - RTF file format
   - HTML code
-  - ANSI-art
+  - ANSI escape sequences 
 
-In other words, it allows users to use a huge scrollback buffer, disable text wrapping, and take advantage of horizontal scrolling.
+Basicly, it allows users to use a huge scrollback buffer with text wrapping disabled, taking advantage of horizontal scrolling within whatever text console they happen to use.
 
-It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - a good example is Windows 8 or Windows Server Core like platforms with a Command Prompt only on board.
+It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - good examples are Windows 8 or Windows Server Core like platforms with a Command Prompt only onboard.
 
 The standalone terminal mode can be run by specifying the following option: `vtm -r term`. See [Command line Options](doc/command-line-options.md) for details.
 
