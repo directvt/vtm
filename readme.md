@@ -22,11 +22,11 @@ vtm renders itself at 60 frames per second into internal buffers. Output to the 
 
 ### Multiplayer
 
-vtm's multi-user architecture allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by an operating system named pipe that serves as a gateway for users. To connect, the user just need to run vtm in their text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
+vtm's multi-user architecture allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by an operating system's named pipe that serves as a gateway for users. To connect, the user just need to run vtm in their text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
 
 ### Infinite Terminal Count
 
-The number of terminal windows is unlimited. You can run as many terminals as system resources you have.
+The number of terminal windows is unlimited*. Each terminal window runs a pair of operating system processes: terminal process + shell process. The terminal process is a fork of the main vtm environment process, running as standalone terminal. Terminating this process will automatically close the terminal window.
 
 ### Tiling Window Manager
 
