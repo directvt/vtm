@@ -10,7 +10,7 @@ TL;DR: Text-based desktop inside your console.
 
 vtm is a windowed multi-user environment for unlimited number of terminals. In other words this is an infinite 2-D space of terminal windows.
 
-To render its interface, vtm needs a text console, be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
+To render its interface, vtm needs a text console -- be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
 
 ### All Inclusive
 
@@ -54,7 +54,7 @@ The standalone terminal mode can be run by specifying the following option: `vtm
 
 vtm allows developers to visualize the standard input/output stream of running console applications. Launched with the `vtm -m` switch, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
-Important: Avoid enabling the `Logs` switch in the terminal window with the `vtm -m` process running, this may lead to recursive event logging of event logging with unexpected results.
+Important: Avoid enabling the `Logs` switch in the terminal window with the `vtm -m` process running, this may lead to recursive event logging of event logging with unpredictable results.
 
 # Supported Platforms
 
