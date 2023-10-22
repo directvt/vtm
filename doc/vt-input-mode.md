@@ -17,7 +17,7 @@ Anyone who wants to:
 - Distinguish between Left and Right physical keys.
 - Get consistent output regardless of terminal window resize.
 - Track mouse outside the terminal window (getting negative coordinates).
-- Track scrollback text selection.
+- Track scrollback text manipulation.
 - Track application closing and system shutdown.
 - Be independent of operating system and third party libraries.
 
