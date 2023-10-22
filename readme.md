@@ -12,9 +12,9 @@ vtm is a windowed multi-user environment for unlimited number of terminals. In o
 
 To render its interface, vtm needs a text console -- be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
 
-### All Inclusive
+### Portability
 
-vtm comes with just one executable file with no third party dependencies.
+vtm is just a single executable file without any third party dependencies.
 
 ### Adaptive Rendering
 
