@@ -14,7 +14,7 @@ To render its interface, vtm needs a text console, it can be a terminal emulator
 
 ### Rendering on Ready
 
-vtm renders its user interface at 60 frames per second into its internal buffers. Output in the text console occurs only when the console is ready to output the current frame, dropping previous frames in case of lack of performance. This allows vtm to operate even in non-accelerated text consoles.
+vtm renders its user interface at 60 frames per second into its internal buffers. Output to the text console occurs only when the console is ready receive the current frame, dropping previous frames in case of lack of performance. This allows vtm to operate even in non-accelerated text consoles.
 
 ### Multiplayer
 
