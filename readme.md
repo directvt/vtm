@@ -26,7 +26,7 @@ The number of terminal windows is unlimited. You can run as many terminals as sy
 
 ### Tiling Window Manager
 
-Users can organize terminal windows by freely moving terminal windows and nesting them into the built-in tiling window manager. Grouping of terminal windows can be done either manually on the fly, or can be pre-configured using a configuration file. For details, see the [Settings](doc/settings.md) section.
+Users can organize terminal windows by freely moving terminal windows and nesting them into the built-in tiling window manager. Grouping of terminal windows can be done either manually on the fly, or can be pre-configured using a configuration file. See [Settings](doc/settings.md) for details.
 
 ### Default Terminal Boost
 
