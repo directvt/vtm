@@ -16,13 +16,13 @@ To render its interface, vtm needs a text console, be it a terminal emulator, Wi
 
 vtm comes with just one executable file with no third party dependencies.
 
-### Rendering on Ready
+### Adaptive Rendering
 
-vtm renders its user interface at 60 frames per second into its internal buffers. Output to the text console occurs only when the console is ready to receive the current frame, dropping previous frames in case of lack of performance. This allows vtm to operate even in non-accelerated text consoles.
+vtm renders its user interface at 60 frames per second into internal buffers. Output to the text console occurs only when the console is ready to receive the current frame, dropping previous frames in case of lack of performance. This allows vtm to operate even in non-accelerated text consoles.
 
 ### Multiplayer
 
-The multiplayer feature in vtm allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by the operating system named pipe, which serves as a gateway for users. To connect, you just need to run vtm in your text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
+The multi-user nature of the vtm architecture allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by an operating system named pipe that serves as a gateway for users. To connect, the user just need to run vtm in their text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
 
 ### Infinite Terminal Count
 
