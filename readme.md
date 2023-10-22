@@ -46,7 +46,7 @@ Besides windowed mode, vtm can operate as a standalone terminal emulator inside 
 
 Basicly, it allows users to use a huge scrollback buffer with text wrapping disabled, taking advantage of horizontal scrolling within whatever text console they happen to use.
 
-It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - good examples are Windows 8 or Windows Server Core like platforms with a Command Prompt only onboard.
+It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - good examples are Windows 8 or Windows Server Core like platforms with only a Command Prompt onboard.
 
 The standalone terminal mode can be run by specifying the following option: `vtm -r term`. See [Command line Options](doc/command-line-options.md) for details.
 
