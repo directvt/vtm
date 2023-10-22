@@ -18,7 +18,7 @@ vtm comes with just one executable file with no third party dependencies.
 
 ### Adaptive Rendering
 
-vtm renders itself at 60 frames per second into own internal buffers. Output to the text console occurs only when the console is ready to receive the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
+vtm renders itself at 60 frames per second into its own internal buffers. Output to the text console occurs only when the console is ready to receive the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
 
 ### Multiplayer
 
