@@ -2297,7 +2297,6 @@ namespace netxs::ui
         {
             auto backup = This();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*backup, std::forward<Args>(args)...);
-            base::reflow();
             return backup;
         }
         // form: Detach feature and return itself.
@@ -2306,7 +2305,6 @@ namespace netxs::ui
         {
             auto backup = This();
             depo.erase(std::type_index(typeid(S)));
-            base::reflow();
             return backup;
         }
         // form: deprecated in favor of pro::brush. Set colors and return itself.
