@@ -1751,8 +1751,6 @@ namespace netxs::ui
                    full{ 0               },
                    drag{ 0               }
             {
-                auto brush = boss.base::color();
-                boss.base::color(brush.link(boss.bell::id));
                 // pro::mouse: Refocus all active mice on detach (to keep the mouse event tree consistent).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memo)
                 {
@@ -2123,15 +2121,18 @@ namespace netxs::ui
                   skill::memo;
 
             si32 width; // acryl: Blur radius.
+            cell color; // acryl: Base color.
             bool alive; // acryl: Is active.
 
         public:
             acryl(base&&) = delete;
-            acryl(base& boss, si32 size = 5)
+            acryl(base& boss, cell fill = {}, si32 size = 5)
                 : skill{ boss },
                   width{ size },
+                  color{ fill },
                   alive{ true }
             {
+                color.txt(whitespace);
                 boss.LISTEN(tier::preview, e2::form::prop::ui::acryl, state, memo)
                 {
                     alive = state;
@@ -2143,8 +2144,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
-                    auto brush = boss.base::color();
-                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(brush); });
+                    if (color.set()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(color); });
                     else             parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
                 };
             }
@@ -2307,6 +2307,49 @@ namespace netxs::ui
             depo.erase(std::type_index(typeid(S)));
             return backup;
         }
+        // form: Fill object region using parametrized fx.
+        template<bool Postrender = faux, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
+        auto shader(Fx&& fx, Event sync = {}, sptr source_ptr = {})
+        {
+            auto apply = [&](auto& param)
+            {
+                if constexpr (Postrender)
+                {
+                    LISTEN(tier::release, e2::postrender, parent_canvas, -, (fx))
+                    {
+                        if (fixed || param)
+                            parent_canvas.fill(fx);
+                    };
+                }
+                else
+                {
+                    LISTEN(tier::release, e2::render::prerender, parent_canvas, -, (fx))
+                    {
+                        if (fixed || param)
+                            parent_canvas.fill(fx);
+                    };
+                }
+            };
+            if constexpr (fixed)
+            {
+                auto never_checked = true;
+                apply(never_checked);
+            }
+            else
+            {
+                auto param_ptr = ptr::shared(Event::param());
+                auto& param = *param_ptr;
+                auto& source = source_ptr ? *source_ptr : *this;
+                source.SIGNAL(tier::request, sync, param);
+                source.LISTEN(Tier, sync, new_value, bell::tracker, (param_ptr))
+                {
+                    param = new_value;
+                    base::deface();
+                };
+                apply(param);
+            }
+            return This();
+        }
         // form: deprecated in favor of pro::brush. Set colors and return itself.
         template<class ...Args>
         auto colors(Args&&... args)
@@ -2322,11 +2365,10 @@ namespace netxs::ui
             return This();
         }
         // form: Set the form visible for mouse.
-        auto active(bool visible = true)
+        auto active()
         {
-            auto brush = base::color();
-            if (!brush.wdt()) base::color(brush.txt(whitespace));
-            return This();
+            auto fx = cell::shaders::fullid(bell::id);
+            return shader(fx);
         }
         // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
         template<class S, class ...Args>

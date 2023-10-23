@@ -168,6 +168,8 @@ namespace netxs::app::shared
                 text onkey{};
                 si32 value{};
                 pair brush{};
+                cell hover{};
+                cell focus{};
             };
 
             using imap = std::unordered_map<si32, si32>;
@@ -235,8 +237,20 @@ namespace netxs::app::shared
                 auto& notes = props.views.front().notes;
                 auto& brush = props.views.front().brush;
                 auto button = ui::item::ctor(label)->drawdots();
-                if (hover) button->template plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
-                else       button->colors(0,0); //todo for mouse tracking
+                //if (hover) button->template plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
+                //else       button->colors(0,0); //todo for mouse tracking
+                button->active();
+                if (hover)
+                {
+                    //if (brush.first.set())
+                    {
+                        button->shader(cell::shaders::xlight, e2::form::state::mouse);
+                    }
+                    //else
+                    {
+
+                    }
+                }
                 button->template plugin<pro::notes>(notes)
                     ->setpad({ 2,2,!slimsize,!slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.

@@ -398,7 +398,6 @@ namespace netxs::ui
             span tooltip_timeout; // conf: Timeout for tooltip.
             cell tooltip_colors; // conf: Tooltip rendering colors.
             bool tooltip_enabled; // conf: Enable tooltips.
-            bool glow_fx; // conf: Enable glow effect in main menu.
             bool debug_overlay; // conf: Enable to show debug overlay.
             text debug_toggle; // conf: Debug toggle shortcut.
             bool show_regions; // conf: Highlight region ownership.
@@ -443,13 +442,11 @@ namespace netxs::ui
                         background_image.size(block.limits());
                         background_image.output(block);
                     }
-                    glow_fx           = config.take("glowfx", true);
                     simple            = faux;
                 }
                 else
                 {
                     simple            = !(legacy_mode & ui::console::direct);
-                    glow_fx           = faux;
                     title             = "";
                 }
                 vtmode = legacy_mode & ui::console::nt16   ? svga::nt16

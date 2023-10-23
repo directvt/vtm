@@ -908,9 +908,7 @@ namespace netxs::app::vtm
                     if (applet) // Render main menu/application.
                     if (auto context = canvas.change_basis(base::area()))
                     {
-                        //todo too hacky, unify
-                        if (props.glow_fx) applet->render(canvas); // Render the taskbar menu twice to achieve the glow effect.
-                                           applet->render(canvas);
+                        applet->render(canvas);
                     }
                 }
             }

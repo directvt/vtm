@@ -305,7 +305,20 @@ namespace netxs
         // rgba: Shift color.
         void xlight()
         {
-            if (luma() > 140)
+            //todo unify
+            if (chan.a == 0)
+            {
+                chan.a = 42;
+                chan.r = 0xFF;
+                chan.g = 0xFF;
+                chan.b = 0xFF;
+            }
+            else if (chan.a != 0xFF)
+            {
+                auto k = 42;
+                chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+            }
+            else if (luma() > 140)
             {
                 auto k = 64;
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
@@ -1486,6 +1499,7 @@ namespace netxs
         auto  txt() const  { return gc.get();      } // cell: Return Grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get Grapheme cluster token.
         auto& egc() const  { return gc;            } // cell: Get Grapheme cluster token.
+        auto  set() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
         auto  bga() const  { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
         auto  fga() const  { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
         auto& bgc()        { return uv.bg;         } // cell: Return Background color.
