@@ -2121,18 +2121,15 @@ namespace netxs::ui
                   skill::memo;
 
             si32 width; // acryl: Blur radius.
-            cell color; // acryl: Base color.
             bool alive; // acryl: Is active.
 
         public:
             acryl(base&&) = delete;
-            acryl(base& boss, cell fill = {}, si32 size = 5)
+            acryl(base& boss, si32 size = 5)
                 : skill{ boss },
                   width{ size },
-                  color{ fill },
                   alive{ true }
             {
-                color.txt(whitespace);
                 boss.LISTEN(tier::preview, e2::form::prop::ui::acryl, state, memo)
                 {
                     alive = state;
@@ -2143,9 +2140,8 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
-                    if (!alive) return;
-                    if (color.set()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(color); });
-                    else             parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
+                    if (!alive || boss.base::filler.bga() == 0xFF) return;
+                    parent_canvas.blur(width);
                 };
             }
         };
@@ -2308,32 +2304,15 @@ namespace netxs::ui
             return backup;
         }
         // form: Fill object region using parametrized fx.
-        template<bool Postrender = faux, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
+        template<auto RenderOrder = e2::render::prerender, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
         auto shader(Fx&& fx, Event sync = {}, sptr source_ptr = {})
         {
-            auto apply = [&](auto& param)
-            {
-                if constexpr (Postrender)
-                {
-                    LISTEN(tier::release, e2::postrender, parent_canvas, -, (fx))
-                    {
-                        if (fixed || param)
-                            parent_canvas.fill(fx);
-                    };
-                }
-                else
-                {
-                    LISTEN(tier::release, e2::render::prerender, parent_canvas, -, (fx))
-                    {
-                        if (fixed || param)
-                            parent_canvas.fill(fx);
-                    };
-                }
-            };
             if constexpr (fixed)
             {
-                auto never_checked = true;
-                apply(never_checked);
+                LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
+                {
+                    parent_canvas.fill(fx);
+                };
             }
             else
             {
@@ -2346,7 +2325,10 @@ namespace netxs::ui
                     param = new_value;
                     base::deface();
                 };
-                apply(param);
+                LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
+                {
+                    if (param) parent_canvas.fill(fx);
+                };
             }
             return This();
         }
@@ -2365,10 +2347,14 @@ namespace netxs::ui
             return This();
         }
         // form: Set the form visible for mouse.
+        auto active(cell brush)
+        {
+            base::color(brush.txt(whitespace).link(bell::id));
+            return This();
+        }
         auto active()
         {
-            auto fx = cell::shaders::fullid(bell::id);
-            return shader(fx);
+            return active(base::color());
         }
         // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
         template<class S, class ...Args>

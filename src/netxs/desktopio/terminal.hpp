@@ -7841,7 +7841,7 @@ namespace netxs::ui
                 if (auto parent = base::parent()) parent_id = parent->id;
                 if (canvas.size())
                 {
-                    splash.zoom(canvas, cell::shaders::fullid(parent_id));
+                    splash.zoom(canvas, cell::shaders::onlyid(parent_id));
                     splash.output(errmsg);
                     splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                     splash.output(errmsg);

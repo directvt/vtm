@@ -68,7 +68,7 @@ namespace netxs::app::desk
             auto tall = si32{ skin::globals().menuwide };
             auto danger_color    = skin::globals().danger;
             auto highlight_color = skin::globals().highlight;
-            auto c5 = danger_color;
+            auto c1 = danger_color;
             auto fastfader = skin::globals().fader_fast;
             auto fader = skin::globals().fader_time;
             auto item_area = ui::fork::ctor()
@@ -144,9 +144,9 @@ namespace netxs::app::desk
                 ->drawdots();
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
-                ->shader(cell::shaders::color(c5), e2::form::state::mouse)
-                ->template plugin<pro::notes>(" Close application window ")
+                ->shader(cell::shaders::color(c1), e2::form::state::mouse)
                 ->setpad({ 2, 2, tall, tall })
+                ->template plugin<pro::notes>(" Close application window ")
                 ->invoke([&](auto& boss)
                 {
                     auto data_src_shadow = ptr::shadow(data_src);
@@ -177,12 +177,10 @@ namespace netxs::app::desk
             auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
-            auto action_color    = skin::globals().action;
             auto danger_color    = skin::globals().danger;
             auto c3 = highlight_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
-            auto c6 = action_color;
             auto c1 = danger_color;
 
             auto apps = ui::list::ctor()
@@ -215,14 +213,13 @@ namespace netxs::app::desk
                     auto item_area = apps->attach(ui::item::ctor(obj_desc))
                         ->flexible()
                         ->accented()
-                        ->shader(cell::shaders::color(cA))
+                        ->colors(cA.fgc(), cA.bgc())
                         ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
                         ->template plugin<pro::notes>(obj_note);
                     continue;
                 }
                 auto head_fork = ui::fork::ctor(axis::X, 0, 1, 0);
                 auto block = apps->attach(ui::list::ctor())
-                    ->active()
                     ->shader(cell::shaders::xlight, e2::form::state::mouse, head_fork)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
                 if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
@@ -294,9 +291,9 @@ namespace netxs::app::desk
                     auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
-                        ->shader(cell::shaders::color(c6), e2::form::state::mouse)
+                        ->shader(cell::shaders::xlight, e2::form::state::mouse)
                         ->template plugin<pro::notes>(" Hide active window list.               \n"
-                                                    " Use mouse wheel to switch it to close. ")
+                                                      " Use mouse wheel to switch it to close. ")
                         ->invoke([&](auto& boss)
                         {
                             insts->base::hidden = isfolded;
@@ -429,13 +426,11 @@ namespace netxs::app::desk
         {
             auto tall = si32{ skin::globals().menuwide };
             auto highlight_color = skin::globals().highlight;
-            auto action_color    = skin::globals().action;
             auto inactive_color  = skin::globals().inactive;
             auto warning_color   = skin::globals().warning;
             auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
             auto c3 = highlight_color;
-            auto c6 = action_color;
             auto c2 = warning_color;
             auto c1 = danger_color;
 
@@ -488,7 +483,6 @@ namespace netxs::app::desk
                 auto tall = si32{ skin::globals().menuwide };
                 auto highlight_color = skin::color(tone::highlight);
                 auto c3 = highlight_color;
-                auto x3 = cell{ c3 }.alpha(0x00);
                 auto user = ui::item::ctor(escx(" &").nil().add(" ")
                         //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
                         .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())
@@ -563,14 +557,14 @@ namespace netxs::app::desk
                     };
                 });
             auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::cake::ctor())
-                ->active()
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 ->plugin<pro::notes>(" LeftDrag to adjust the taskbar width                        \n"
                                      " Ctrl+LeftDrag to adjust the folded taskbar width            \n"
                                      " RightDrag or scroll wheel to slide the taskbar menu up/down ")
                 ->plugin<pro::timer>()
-                ->plugin<pro::acryl>(menu_bg_color)
+                ->plugin<pro::acryl>(10)
                 ->plugin<pro::cache>()
+                ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
                     boss.mouse.template draggable<hids::buttons::left>(true);
@@ -664,13 +658,13 @@ namespace netxs::app::desk
             auto label = label_bttn->attach(slot::_1, ui::item::ctor("users"))
                 ->flexible()
                 ->accented()
-                ->shader(cell::shaders::color(cA))
+                ->colors(cA.fgc(), cA.bgc())
                 ->setpad({ 0, 0, tall, tall })
                 ->limits({ 5, -1 });
             auto userlist_hidden = true;
             auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
-                ->shader(cell::shaders::color(c6), e2::form::state::mouse)
+                ->shader(cell::shaders::xlight, e2::form::state::mouse)
                 ->plugin<pro::notes>(" Show/hide user list ")
                 ->setpad({ 2, 2, tall, tall });
             auto userlist_area = users_area->attach(ui::cake::ctor())

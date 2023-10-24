@@ -146,7 +146,7 @@ R"==(
             <folded=4/>
             <expanded=31/>
         </width>
-        <color fgc=whitedk bgc=0x60202020 />
+        <color fgc=whitedk bgc=0xC0202020 /> <!-- Set the bgc alpha to FF to disable acrylics in taskbar. -->
     </menu>
     <panel> <!-- Desktop info panel. -->
         <cmd = ""/> <!-- Command-line to activate. -->

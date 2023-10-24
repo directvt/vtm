@@ -305,20 +305,7 @@ namespace netxs
         // rgba: Shift color.
         void xlight()
         {
-            //todo unify
-            if (chan.a == 0)
-            {
-                chan.a = 42;
-                chan.r = 0xFF;
-                chan.g = 0xFF;
-                chan.b = 0xFF;
-            }
-            else if (chan.a != 0xFF)
-            {
-                auto k = 42;
-                chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
-            }
-            else if (luma() > 140)
+            if (luma() > 140)
             {
                 auto k = 64;
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
@@ -1280,21 +1267,23 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge two cells and update id.
+        // cell: Merge two cells and set specified id.
         void fuse(cell const& c, id_t oid)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge two cells and update ID with COOR.
+        // cell: Merge two cells and set id if it is.
         void fusefull(cell const& c)
         {
             fuse(c);
             if (c.id) id = c.id;
-            //pg = c.pg;
-
-            //mark paragraphs
-            //if (c.pg) uv.param.bg.channel.blue = 0xff;
+        }
+        // cell: Merge two cells and set id.
+        void fuseid(cell const& c)
+        {
+            fuse(c);
+            id = c.id;
         }
         void meta(cell const& c)
         {
@@ -1640,6 +1629,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); }
             };
+            struct fuseid_t : public brush_t<fuseid_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuseid(src); }
+            };
             struct fusefull_t : public brush_t<fusefull_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1717,21 +1711,21 @@ namespace netxs
                     operator()(dst);
                 }
             };
-            struct fullid_t
+            struct onlyid_t
             {
-                id_t newid;
-                constexpr fullid_t(id_t newid)
-                    : newid{ newid }
+                id_t id;
+                constexpr onlyid_t(id_t id)
+                    : id{ id }
                 { }
                 template<class D>
                 inline void operator () (D& dst) const
                 {
-                    dst.link(newid);
+                    dst.link(id);
                 }
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
-                    dst.fuse(src, newid);
+                    dst.fuse(src, id);
                 }
             };
 
@@ -1740,9 +1734,10 @@ namespace netxs
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
-            static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
+            static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
