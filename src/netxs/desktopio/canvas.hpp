@@ -1721,7 +1721,8 @@ namespace netxs
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
-                    dst.fuse(src);
+                    auto i = factor;
+                    while(i-- > 0) dst.fuse(src);
                     operator()(dst);
                 }
             };
