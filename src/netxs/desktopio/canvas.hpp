@@ -1702,8 +1702,9 @@ namespace netxs
                     : colors{ colors },
                       factor{ factor }
                 { }
-                constexpr color_t(cell const& brush)
-                    : colors{ brush.uv }
+                constexpr color_t(cell const& brush, si32 factor = 1)
+                    : colors{ brush.uv },
+                      factor{ factor }
                 { }
                 template<class T>
                 inline auto operator [] (T param) const

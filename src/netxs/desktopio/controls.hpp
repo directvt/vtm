@@ -1832,6 +1832,10 @@ namespace netxs::ui
                 {
                     state = rent;
                 };
+                boss.LISTEN(tier::request, e2::form::state::hover, state, memo)
+                {
+                    state = rent;
+                };
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
                     switch (auto deed = boss.bell::protos<tier::release>())
