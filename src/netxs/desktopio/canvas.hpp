@@ -303,18 +303,18 @@ namespace netxs
         //	return	(token & threshold) == (c.token & threshold);
         //}
         // rgba: Shift color.
-        void xlight()
+        void xlight(si32 factor = 1)
         {
             if (luma() > 140)
             {
-                auto k = 64;
+                auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
                 chan.g = chan.g < k ? 0x00 : chan.g - k;
                 chan.b = chan.b < k ? 0x00 : chan.b - k;
             }
             else
             {
-                auto k = 48;
+                auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
                 chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
                 chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
                 chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
@@ -328,8 +328,9 @@ namespace netxs
             chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
         // rgba: Lighten the color.
-        void bright(byte k = 39)
+        void bright(si32 factor = 1)
         {
+            auto k = (byte)std::clamp(39 * factor, 0, 0xFF);
             chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
             chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
             chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
@@ -1388,10 +1389,10 @@ namespace netxs
             return *this;
         }
         // cell: Delight both foreground and background.
-        void xlight()
+        void xlight(si32 factor = 1)
         {
-            uv.fg.bright();
-            uv.bg.xlight();
+            uv.fg.bright(factor);
+            uv.bg.xlight(factor);
         }
         // cell: Invert both foreground and background.
         void invert()
@@ -1651,7 +1652,13 @@ namespace netxs
             };
             struct xlight_t
             {
-                template<class D> inline void operator () (D& dst) const { dst.xlight(); }
+                si32 factor = 1;
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return xlight_t{ param };
+                }
+                template<class D> inline void operator () (D& dst) const { dst.xlight(factor); }
                 template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
             struct invert_t
@@ -1689,13 +1696,20 @@ namespace netxs
             struct color_t
             {
                 clrs colors;
+                si32 factor;
                 template<class T>
-                constexpr color_t(T colors)
-                    : colors{ colors }
+                constexpr color_t(T colors, si32 factor = 1)
+                    : colors{ colors },
+                      factor{ factor }
                 { }
                 constexpr color_t(cell const& brush)
                     : colors{ brush.uv }
                 { }
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return color_t{ colors, param };
+                }
                 template<class D>
                 inline void operator () (D& dst) const
                 {

@@ -451,7 +451,8 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
+                    EVENT_XS( hover    , si32     ), // notify the object how many mouse cursors are hovering, si32 - number of cursors.
                     //EVENT_XS( params   , ui::para ), // notify the object has changed title params.
                     EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),

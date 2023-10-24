@@ -73,7 +73,7 @@ namespace netxs::app::desk
             auto fader = skin::globals().fader_time;
             auto item_area = ui::fork::ctor()
                 ->active()
-                ->shader(cell::shaders::xlight, e2::form::state::mouse)
+                ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(" Application window:              \n"
                                      "   Left click to go to the window \n"
                                      "   Right click to pull the window ")
@@ -108,7 +108,7 @@ namespace netxs::app::desk
                                 else pro::focus::set(data_src, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                                  : pro::focus::solo::on, pro::focus::flip::off);
                             }
-                            gear.dismiss();
+                            gear.dismiss(true);
                         }
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (data_src_shadow))
@@ -127,11 +127,11 @@ namespace netxs::app::desk
                             gear.dismiss();
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::state::mouse, hits, -, (data_src_shadow))
+                    boss.LISTEN(tier::release, e2::form::state::mouse, active, -, (data_src_shadow))
                     {
                         if (auto data_src = data_src_shadow.lock())
                         {
-                            data_src->SIGNAL(tier::release, e2::form::state::highlight, !!hits);
+                            data_src->SIGNAL(tier::release, e2::form::state::highlight, !!active);
                         }
                     };
                 });
@@ -144,7 +144,7 @@ namespace netxs::app::desk
                 ->drawdots();
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
-                ->shader(cell::shaders::color(c1), e2::form::state::mouse)
+                ->shader(cell::shaders::color(c1), e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(" Close application window ")
                 ->invoke([&](auto& boss)
@@ -165,7 +165,7 @@ namespace netxs::app::desk
                         if (auto data_src = data_src_shadow.lock())
                         {
                             data_src->SIGNAL(tier::anycast, e2::form::proceed::quit::one, faux); // Show closing process.
-                            gear.dismiss();
+                            gear.dismiss(true);
                         }
                     };
                 });
@@ -220,7 +220,7 @@ namespace netxs::app::desk
                 }
                 auto head_fork = ui::fork::ctor(axis::X, 0, 1, 0);
                 auto block = apps->attach(ui::list::ctor())
-                    ->shader(cell::shaders::xlight, e2::form::state::mouse, head_fork)
+                    ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
                 if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
                 block->attach(head_fork)
@@ -243,7 +243,7 @@ namespace netxs::app::desk
                                     if (group_focus) boss.SIGNAL(tier::release, events::ui::focus::set, gear);
                                     else             boss.SIGNAL(tier::release, events::ui::focus::off, gear);
                                 }
-                                gear.dismiss();
+                                gear.dismiss(true);
                                 return;
                             }
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
@@ -254,7 +254,7 @@ namespace netxs::app::desk
                             gear.slot.size = viewport.size * 3 / 4;
                             gear.slot_forced = faux;
                             boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                            gear.dismiss();
+                            gear.dismiss(true);
                         };
                     });
                 auto head = head_fork->attach(slot::_1, ui::item::ctor(obj_desc)
@@ -291,7 +291,7 @@ namespace netxs::app::desk
                     auto fold_bttn = bttn_fork->attach(slot::_1, ui::item::ctor(isfolded ? "…" : "<"))
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
-                        ->shader(cell::shaders::xlight, e2::form::state::mouse)
+                        ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->template plugin<pro::notes>(" Hide active window list.               \n"
                                                       " Use mouse wheel to switch it to close. ")
                         ->invoke([&](auto& boss)
@@ -307,13 +307,13 @@ namespace netxs::app::desk
                                     insts->base::hidden = isfolded;
                                     insts->base::reflow();
                                 }
-                                gear.dismiss();
+                                gear.dismiss(true);
                             };
                         });
                     auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
-                        ->shader(cell::shaders::color(c1), e2::form::state::mouse)
+                        ->shader(cell::shaders::color(c1), e2::form::state::hover)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
                         {
@@ -324,39 +324,18 @@ namespace netxs::app::desk
                                 {
                                     insts->SIGNAL(tier::release, desk::events::quit, faux); // Show closing process.
                                 }
-                                gear.dismiss();
+                                gear.dismiss(true);
                             };
                         });
-                    insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template,
-                            [&](auto inst_ptr)
-                            {
-                                auto& window = *inst_ptr;
-                                auto& boss = *block;
-                                boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
-                                {
-                                    auto deed = boss.bell::template protos<tier::release>();
-                                         if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                                    else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
-                                };
-                            });
-                    insts->invoke([&](auto& boss)
+                    insts->attach_collection(e2::form::prop::ui::title, inst_ptr_list, app_template, [&](auto inst_ptr)
                     {
-                        auto& group_area = *block;
-                        boss.LISTEN(tier::release, hids::events::notify::mouse::any, gear, -, (count = 0)) // Turn off group highlighning.
+                        auto& window = *inst_ptr;
+                        auto& boss = *block;
+                        boss.LISTEN(tier::release, events::ui::focus::any, gear, window.tracker)
                         {
                             auto deed = boss.bell::template protos<tier::release>();
-                            if (deed == hids::events::notify::mouse::leave.id)
-                            {
-                                if (--count == 0)
-                                group_area.SIGNAL(tier::release, e2::form::state::mouse, 1);
-                            }
-                            else
-                            {
-                                if (count++ == 0)
-                                group_area.SIGNAL(tier::release, e2::form::state::mouse, 0);
-                            }
-                            //group_area.mouse.take_all_events(true);
-                            //group_area.deface();
+                                 if (deed == events::ui::focus::set.id) pro::focus::set(window.This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                            else if (deed == events::ui::focus::off.id) pro::focus::off(window.This(), gear.id);
                         };
                     });
                 }
@@ -369,7 +348,7 @@ namespace netxs::app::desk
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
                 ->active()
-                ->shader(cell::shaders::color(c8), e2::form::state::mouse)
+                ->shader(cell::shaders::color(c8), e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
@@ -417,7 +396,7 @@ namespace netxs::app::desk
                         gate.SIGNAL(tier::release, e2::data::changed, menuid);
                         gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
                         gate.SIGNAL(tier::release, e2::data::changed, lastid);
-                        gear.dismiss();
+                        gear.dismiss(true);
                     };
                 });
         };
@@ -489,7 +468,7 @@ namespace netxs::app::desk
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
-                    ->shader(cell::shaders::xlight, e2::form::state::mouse)
+                    ->shader(cell::shaders::xlight, e2::form::state::hover)
                     ->template plugin<pro::notes>(" Connected user ");
                 return user;
             };
@@ -607,7 +586,6 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (size_config))
                     {
                         auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        //todo too hacky
                         if (state && skip + 500ms > datetime::now())
                         {
                             return;
@@ -664,7 +642,7 @@ namespace netxs::app::desk
             auto userlist_hidden = true;
             auto bttn = label_bttn->attach(slot::_2, ui::item::ctor(userlist_hidden ? "…" : "<"))
                 ->active()
-                ->shader(cell::shaders::xlight, e2::form::state::mouse)
+                ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(" Show/hide user list ")
                 ->setpad({ 2, 2, tall, tall });
             auto userlist_area = users_area->attach(ui::cake::ctor())
@@ -694,6 +672,7 @@ namespace netxs::app::desk
                         bttn->set(hidden ? "…" : "<");
                         userlist_area->base::reflow();
                     }
+                    gear.dismiss(true);
                 };
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
@@ -704,7 +683,7 @@ namespace netxs::app::desk
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
-                ->shader(cell::shaders::color(c2), e2::form::state::mouse)
+                ->shader(cell::shaders::color(c2), e2::form::state::hover)
                 ->plugin<pro::notes>(" Leave current session ")
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
@@ -712,20 +691,21 @@ namespace netxs::app::desk
                     {
                         log("%%User %name% disconnected", prompt::desk, name);
                         gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
-                        gear.dismiss();
+                        gear.dismiss(true);
                     };
                 });
             auto disconnect_area = disconnect_park->attach(ui::pads::ctor(dent{ 2, 3, tall, tall })->alignment({ snap::head, snap::center }));
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
-                ->shader(cell::shaders::color(c1), e2::form::state::mouse)
+                ->shader(cell::shaders::color(c1), e2::form::state::hover)
                 ->plugin<pro::notes>(" Disconnect all users and shutdown ")
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::desk, "Server shutdown")));
+                        gear.dismiss(true);
                     };
                 });
             auto shutdown_area = shutdown_park->attach(ui::pads::ctor(dent{ 2, 3, tall, tall })->alignment({ snap::tail, snap::center }));

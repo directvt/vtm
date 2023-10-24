@@ -1806,6 +1806,7 @@ namespace netxs::ui
                         {
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
+                        boss.SIGNAL(tier::release, e2::form::state::hover, rent);
                     }
                     //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
                 };
@@ -1818,6 +1819,7 @@ namespace netxs::ui
                         {
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
+                        boss.SIGNAL(tier::release, e2::form::state::hover, rent);
                     }
                     //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
                     if (!--full)
@@ -2327,7 +2329,7 @@ namespace netxs::ui
                 };
                 LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
                 {
-                    if (param) parent_canvas.fill(fx);
+                    if (param) parent_canvas.fill(fx[param]);
                 };
             }
             return This();
