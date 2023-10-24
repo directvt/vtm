@@ -69,8 +69,6 @@ namespace netxs::app::desk
             auto danger_color    = skin::globals().danger;
             auto highlight_color = skin::globals().highlight;
             auto c1 = danger_color;
-            auto fastfader = skin::globals().fader_fast;
-            auto fader = skin::globals().fader_time;
             auto item_area = ui::fork::ctor()
                 ->active()
                 ->shader(cell::shaders::xlight, e2::form::state::hover)

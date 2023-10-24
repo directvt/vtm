@@ -208,11 +208,9 @@ namespace netxs::app::shared
             auto warning_color   = skin::color(tone::warning);
             auto c6 = action_color;
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
             auto c2 = warning_color;
             auto c1 = danger_color;
             auto macstyle = skin::globals().macstyle;
-
             auto menuveer = ui::veer::ctor();
             auto menufork = ui::fork::ctor()
                 //todo
@@ -234,7 +232,7 @@ namespace netxs::app::shared
                     else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(notes)
-                    ->setpad({ 2,2,!slimsize,!slimsize })
+                    ->setpad({ 2, 2, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
                         auto props_shadow = ptr::shared(std::move(props));
@@ -262,7 +260,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize ", .hover = c2 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -271,7 +269,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize ", .hover = c6 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

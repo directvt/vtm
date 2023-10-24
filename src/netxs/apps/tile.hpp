@@ -85,10 +85,10 @@ namespace netxs::app::tile
                 {
                     auto highlight_color = skin::color(tone::highlight);
                     auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
-                        ->template plugin<pro::fader>(x3, c3, skin::globals().fader_time)
+                        ->active()
+                        ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
                             auto update_focus = [](auto& boss, auto state)
@@ -96,7 +96,7 @@ namespace netxs::app::tile
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
-                                boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                boss.base::color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
                             auto data_shadow = ptr::shadow(data_src_sptr);
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
@@ -440,6 +440,7 @@ namespace netxs::app::tile
 
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
+                ->active()
                 ->colors(cC.fgc(), cC.bgc())
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
@@ -469,6 +470,7 @@ namespace netxs::app::tile
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
+                ->active()
                 ->invoke([&](auto& boss)
                 {
                     auto highlight = [](auto& boss, auto state)
@@ -887,7 +889,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┌┘ ", .notes = " Change split orientation " }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "┌┘", .notes = " Change split orientation " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -922,7 +924,7 @@ namespace netxs::app::tile
                                 app::shared::set_title(boss, gear);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " × ", .notes = " Close active app or remove pane if there is no running app ", .hover = c1 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close active app ", .hover = c1 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

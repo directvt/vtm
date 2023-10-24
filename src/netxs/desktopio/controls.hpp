@@ -2147,7 +2147,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
                     if (!alive || boss.base::filler.bga() == 0xFF) return;
-                    parent_canvas.blur(width);
+                    parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
                 };
             }
         };
