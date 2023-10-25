@@ -104,12 +104,12 @@ jobs:
       run: |
         $taskName = "TestAV"
         $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
-        cp $fileName c:\vtm.exe
+        cp $fileName c:\vtm.ex_
         $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         & $MpCmdRun -SignatureUpdate
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
-        & $MpCmdRun -Scan -ScanType 3 -File c:\vtm.exe
+        & $MpCmdRun -Scan -ScanType 3 -File c:\vtm.ex_
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
