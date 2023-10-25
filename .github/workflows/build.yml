@@ -103,7 +103,7 @@ jobs:
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -SignatureUpdate
-        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -Scan -ScanType 3 -File ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -Scan -ScanType 3 -DisableRemediation -File ${{ steps.strings.outputs.bin }}/Release/vtm.exe
       shell: powershell
 
     - name: Pack (POSIX)
