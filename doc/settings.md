@@ -385,7 +385,6 @@ Note: The full defaut config is at [src/vtm.xml](../src/vtm.xml).
         <viewport coor=0,0 />
         <mouse dblclick=500ms />
         <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite />
-        <glowfx=true />                      <!-- Show glow effect around selected item. -->
         <debug overlay=off toggle="🐞" />  <!-- Display console debug info. -->
         <regions enabled=0 />             <!-- Highlight UI objects boundaries. -->
     </client>

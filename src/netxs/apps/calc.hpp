@@ -360,10 +360,12 @@ namespace netxs::app::calc
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
+                                                    ->active()
                                                     ->plugin<pro::fader>(c7, c3, fader)
                                                     ->limits({ 3,-1 }, { 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
+                                                         ->active()
                                                          ->plugin<pro::fader>(c7, c3, fader)
                                                          ->limits({ -1,1 }, { 3,-1 })
                                                          ->upload(ansi::wrp(wrap::off).add(" … "));
@@ -375,8 +377,10 @@ namespace netxs::app::calc
                                 auto rows_body = body_area->attach(slot::_2, ui::fork::ctor());
                                     auto layers = rows_body->attach(slot::_2, ui::cake::ctor());
                                     auto scroll = layers->attach(ui::rail::ctor())
+                                                        ->active()
                                                         ->limits({ -1,1 }, { -1,-1 });
                                         auto grid = scroll->attach(ui::post::ctor())
+                                                          ->active()
                                                           ->colors(0xFF000000, 0xFFffffff)
                                                           ->plugin<pro::cell_highlight>()
                                                           ->upload(cellatix_text);
@@ -411,6 +415,7 @@ namespace netxs::app::calc
                                                        .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
+                                                    ->active()
                                                     ->plugin<pro::fader>(c7, c3, fader)
                                                     ->limits({ 3,-1 }, { 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));

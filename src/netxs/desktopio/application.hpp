@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.9w";
+    static const auto version = "v0.9.10";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -161,13 +161,13 @@ namespace netxs::app::shared
 
             struct look
             {
-                using pair = std::pair<cell, cell>; // Accented/idle.
                 text label{};
                 text notes{};
                 text param{};
                 text onkey{};
                 si32 value{};
-                pair brush{};
+                cell hover{};
+                cell focus{};
             };
 
             using imap = std::unordered_map<si32, si32>;
@@ -207,20 +207,10 @@ namespace netxs::app::shared
             auto action_color    = skin::color(tone::action);
             auto warning_color   = skin::color(tone::warning);
             auto c6 = action_color;
-            auto x6 = cell{ c6 }.alpha(0x00);
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
             auto c2 = warning_color;
-            auto x2 = cell{ c2 }.bga(0x00);
             auto c1 = danger_color;
-            auto x1 = cell{ c1 }.alpha(0x00);
-            auto p1 = std::pair{ x1, c1 };
-            auto p2 = std::pair{ x2, c2 };
-            auto p3 = std::pair{ x3, c3 };
-            auto p6 = std::pair{ x6, c6 };
-            auto turntime = skin::globals().fader_time;
             auto macstyle = skin::globals().macstyle;
-
             auto menuveer = ui::veer::ctor();
             auto menufork = ui::fork::ctor()
                 //todo
@@ -230,15 +220,19 @@ namespace netxs::app::shared
             {
                 auto& props = std::get<0>(config);
                 auto& setup = std::get<1>(config);
-                auto& hover = props.alive;
+                auto& alive = props.alive;
                 auto& label = props.views.front().label;
                 auto& notes = props.views.front().notes;
-                auto& brush = props.views.front().brush;
+                auto& hover = props.views.front().hover;
                 auto button = ui::item::ctor(label)->drawdots();
-                if (hover) button->template plugin<pro::fader>(brush.first, brush.second, turntime); //todo template: GCC complains
-                else       button->colors(0,0); //todo for mouse tracking
+                button->active(); // Always active for tooltips.
+                if (alive)
+                {
+                    if (hover.set()) button->shader(cell::shaders::color(hover), e2::form::state::hover);
+                    else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
+                }
                 button->template plugin<pro::notes>(notes)
-                    ->setpad({ 2,2,!slimsize,!slimsize })
+                    ->setpad({ 2, 2, !slimsize, !slimsize })
                     ->invoke([&](auto& boss) // Store shared ptr to the menu item config.
                     {
                         auto props_shadow = ptr::shared(std::move(props));
@@ -266,7 +260,7 @@ namespace netxs::app::shared
             {
                 auto control = std::vector<link>
                 {
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize ", .brush = p2 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -275,7 +269,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize ", .brush = p6 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize " }}},//, .hover = c6 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -284,7 +278,7 @@ namespace netxs::app::shared
                             gear.dismiss();
                         };
                     }},
-                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .brush = p1 }}},
+                    { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
                     [](auto& boss, auto& item)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -392,15 +386,13 @@ namespace netxs::app::shared
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
-            auto p3 = std::pair{ x3, c3 };
             auto items = list
             {
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item ", .brush = p3 }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& boss, auto& item){ }},
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);

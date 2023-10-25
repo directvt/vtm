@@ -217,13 +217,17 @@ namespace netxs::app::shop
                                ->active();
                 auto layers = object->attach(slot::_2, ui::cake::ctor());
                     auto scroll = layers->attach(ui::rail::ctor())
+                                        ->active()
                                         ->colors(whitedk, 0xFF0f0f0f)
                                         ->limits({ -1,-1 }, { -1,-1 });
                         auto items = scroll->attach(ui::list::ctor());
                         for (auto& body : appstore_body) items->attach(ui::post::ctor())
                                                               ->upload(body)
+                                                              ->active()
+                                                              ->plugin<pro::focus>()
                                                               ->plugin<pro::grade>()
-                                                              ->plugin<pro::fader>(x3, c3, 250ms);
+                                                              ->shader(cell::shaders::xlight, e2::form::state::hover)
+                                                              ->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
                         items->attach(ui::post::ctor())
                              ->upload(desktopio_body)
                              ->plugin<pro::grade>();

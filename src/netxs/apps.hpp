@@ -69,6 +69,7 @@ namespace netxs::app::shared
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
                                ->plugin<pro::notes>(" Left+Right click to close ")
+                               ->active()
                                ->invoke([](auto& boss)
                                 {
                                     //boss.keybd.accept(true);
@@ -96,6 +97,7 @@ namespace netxs::app::shared
                   ->plugin<pro::cache>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
+                  ->active()
                   ->colors(0xFFFFFFFF, bluedk)
                   ->invoke([&](auto& boss)
                   {
@@ -130,7 +132,7 @@ namespace netxs::app::shared
                       };
                   });
             auto object = window->attach(ui::mock::ctor())
-                                ->colors(0,0); //todo mouse tracking
+                                ->active();
             return window;
         };
         auto build_Region        = [](text cwd, text v,     xmls& config, text patch)
@@ -312,6 +314,7 @@ namespace netxs::app::shared
                 auto test_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto layers = test_stat_area->attach(slot::_1, ui::cake::ctor());
                         auto scroll = layers->attach(ui::rail::ctor())
+                                            ->active()
                                             ->colors(whitelt, reddk);
                                     scroll->attach(ui::post::ctor())
                                           ->upload(truecolor);

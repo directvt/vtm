@@ -17,6 +17,7 @@ Anyone who wants to:
 - Distinguish between Left and Right physical keys.
 - Get consistent output regardless of terminal window resize.
 - Track mouse outside the terminal window (getting negative coordinates).
+- Take advantage of high-resolution wheel scrolling.
 - Track scrollback text manipulation.
 - Track application closing and system shutdown.
 - Be independent of operating system and third party libraries.
@@ -24,7 +25,7 @@ Anyone who wants to:
 Existing approaches have the following drawbacks:
 - There is no uniform way to receive keyboard events.
 - Window size tracking requires platform-specific calls with no way to synchronize the output.
-- Mouse tracking modes lack support for negative coordinates and have a limited set of buttons.
+- Mouse tracking modes lack support for negative coordinates, high-resolution wheel scrolling, and have a limited set of buttons.
 - Bracketed paste mode does not support the transfer of binary data and data containing sequences of bracketed paste mode itself.
 
 ## Conventions
@@ -351,7 +352,7 @@ Attribute                 | Description
 `kbmods=<KeyMods>`        | Keyboard modifiers (see Keyboard event).
 `coord=<X>,<Y>`           | Mouse pointer coorinates.
 `buttons=<ButtonState>`   | Mouse button state.
-`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel delta.
+`wheel=<DeltaY>,<DeltaX>` | Vertical and horizontal wheel high-resolution delta.
 
 In response to the activation of `mouse` tracking, the application receives a vt-sequence containing current mouse state:
 ```

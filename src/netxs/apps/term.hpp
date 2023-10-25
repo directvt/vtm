@@ -177,8 +177,6 @@ namespace netxs::app::term
     {
         auto highlight_color = skin::color(tone::highlight);
         auto c3 = highlight_color;
-        auto x3 = cell{ c3 }.alpha(0x00);
-        auto p3 = std::pair{ x3, c3 };
 
         config.cd("/config/term/", "/config/defapp/");
         auto menudata = config.list("menu/item");
@@ -600,7 +598,6 @@ namespace netxs::app::term
                     .notes = label->take(menu::attr::notes, defs.notes),
                     .param = label->take(menu::attr::param, defs.param),
                     .onkey = label->take(menu::attr::onkey, defs.onkey),
-                    .brush = p3,
                 });
             }
             if (item.views.empty()) continue; // Menu item without label.

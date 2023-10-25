@@ -303,18 +303,18 @@ namespace netxs
         //	return	(token & threshold) == (c.token & threshold);
         //}
         // rgba: Shift color.
-        void xlight()
+        void xlight(si32 factor = 1)
         {
             if (luma() > 140)
             {
-                auto k = 64;
+                auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
                 chan.r = chan.r < k ? 0x00 : chan.r - k;
                 chan.g = chan.g < k ? 0x00 : chan.g - k;
                 chan.b = chan.b < k ? 0x00 : chan.b - k;
             }
             else
             {
-                auto k = 48;
+                auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
                 chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
                 chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
                 chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
@@ -328,8 +328,9 @@ namespace netxs
             chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
         // rgba: Lighten the color.
-        void bright(byte k = 39)
+        void bright(si32 factor = 1)
         {
+            auto k = (byte)std::clamp(39 * factor, 0, 0xFF);
             chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
             chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
             chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
@@ -1267,21 +1268,23 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge two cells and update id.
+        // cell: Merge two cells and set specified id.
         void fuse(cell const& c, id_t oid)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge two cells and update ID with COOR.
+        // cell: Merge two cells and set id if it is.
         void fusefull(cell const& c)
         {
             fuse(c);
             if (c.id) id = c.id;
-            //pg = c.pg;
-
-            //mark paragraphs
-            //if (c.pg) uv.param.bg.channel.blue = 0xff;
+        }
+        // cell: Merge two cells and set id.
+        void fuseid(cell const& c)
+        {
+            fuse(c);
+            id = c.id;
         }
         void meta(cell const& c)
         {
@@ -1386,10 +1389,10 @@ namespace netxs
             return *this;
         }
         // cell: Delight both foreground and background.
-        void xlight()
+        void xlight(si32 factor = 1)
         {
-            uv.fg.bright();
-            uv.bg.xlight();
+            uv.fg.bright(factor);
+            uv.bg.xlight(factor);
         }
         // cell: Invert both foreground and background.
         void invert()
@@ -1486,6 +1489,7 @@ namespace netxs
         auto  txt() const  { return gc.get();      } // cell: Return Grapheme cluster.
         auto& egc()        { return gc;            } // cell: Get Grapheme cluster token.
         auto& egc() const  { return gc;            } // cell: Get Grapheme cluster token.
+        auto  set() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
         auto  bga() const  { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
         auto  fga() const  { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
         auto& bgc()        { return uv.bg;         } // cell: Return Background color.
@@ -1626,6 +1630,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); }
             };
+            struct fuseid_t : public brush_t<fuseid_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuseid(src); }
+            };
             struct fusefull_t : public brush_t<fusefull_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1643,7 +1652,13 @@ namespace netxs
             };
             struct xlight_t
             {
-                template<class D> inline void operator () (D& dst) const { dst.xlight(); }
+                si32 factor; // Uninitialized.
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return xlight_t{ param };
+                }
+                template<class D> inline void operator () (D& dst) const { dst.xlight(factor); }
                 template<class D, class S> inline void operator () (D& dst, S& src) const { dst.fuse(src); operator()(dst); }
             };
             struct invert_t
@@ -1681,13 +1696,21 @@ namespace netxs
             struct color_t
             {
                 clrs colors;
+                si32 factor;
                 template<class T>
-                constexpr color_t(T colors)
-                    : colors{ colors }
+                constexpr color_t(T colors, si32 factor = 1)
+                    : colors{ colors },
+                      factor{ factor }
                 { }
-                constexpr color_t(cell const& brush)
-                    : colors{ brush.uv }
+                constexpr color_t(cell const& brush, si32 factor = 1)
+                    : colors{ brush.uv },
+                      factor{ factor }
                 { }
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return color_t{ colors, param };
+                }
                 template<class D>
                 inline void operator () (D& dst) const
                 {
@@ -1699,25 +1722,26 @@ namespace netxs
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
-                    dst.fuse(src);
+                    auto i = factor;
+                    while(i-- > 0) dst.fuse(src);
                     operator()(dst);
                 }
             };
-            struct fullid_t
+            struct onlyid_t
             {
-                id_t newid;
-                constexpr fullid_t(id_t newid)
-                    : newid{ newid }
+                id_t id;
+                constexpr onlyid_t(id_t id)
+                    : id{ id }
                 { }
                 template<class D>
                 inline void operator () (D& dst) const
                 {
-                    dst.link(newid);
+                    dst.link(id);
                 }
                 template<class D, class S>
                 inline void operator () (D& dst, S& src) const
                 {
-                    dst.fuse(src, newid);
+                    dst.fuse(src, id);
                 }
             };
 
@@ -1726,9 +1750,10 @@ namespace netxs
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
             static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
             static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
-            static constexpr auto      fullid(id_t newid) { return      fullid_t{ newid }; }
+            static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
@@ -1737,7 +1762,7 @@ namespace netxs
             static constexpr auto skipnuls = skipnuls_t{};
             static constexpr auto     text =     text_t{};
             static constexpr auto     meta =     meta_t{};
-            static constexpr auto   xlight =   xlight_t{};
+            static constexpr auto   xlight =   xlight_t{ 1 };
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
             static constexpr auto   invbit =   invbit_t{};

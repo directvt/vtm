@@ -731,9 +731,9 @@ namespace netxs::ui
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
             {
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::state, state, conf)
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, conf)
                 {
-                    down = !state;
+                    down = !count;
                 };
                 boss.LISTEN(tier::request, e2::config::caret::blink, req_step, conf)
                 {
@@ -1236,17 +1236,14 @@ namespace netxs::ui
             //todo std::list<config>??? std::unordered_map is too expensive
             std::unordered_map<id_t, config> gears;
 
-            template<bool On = true>
             void signal_state()
             {
-                if constexpr (On == faux)
+                auto count = 0;
+                for (auto& [gear_id, route] : gears)
                 {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        if (gear_id != id_t{} && route.active) return;
-                    }
+                    if (gear_id != id_t{} && route.active) ++count;
                 }
-                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::state, On);
+                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::count, count);
             }
             auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
@@ -1267,7 +1264,7 @@ namespace netxs::ui
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
                                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, gear.id);
-                                signal_state<faux>();
+                                signal_state();
                             }
                             boss.SIGNAL(tier::release, hids::events::die, gear);
                             gears.erase(iter);
@@ -1425,7 +1422,7 @@ namespace netxs::ui
                     {
                         route.active = faux;
                         boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
-                        signal_state<faux>();
+                        signal_state();
                     }
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
@@ -1562,14 +1559,13 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
                     }
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::focus::state, state, memo)
+                boss.LISTEN(tier::request, e2::form::state::keybd::focus::count, count, memo)
                 {
                     //todo revise: same as e2::form::state::keybd::check
-                    state = faux;
+                    count = 0;
                     for (auto& [gear_id, route] : gears)
                     {
-                        state |= gear_id != id_t{} && route.active;
-                        if (state) return;
+                        if (gear_id != id_t{} && route.active) ++count;
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)
@@ -1751,8 +1747,6 @@ namespace netxs::ui
                    full{ 0               },
                    drag{ 0               }
             {
-                auto brush = boss.base::color();
-                boss.base::color(brush.link(boss.bell::id));
                 // pro::mouse: Refocus all active mice on detach (to keep the mouse event tree consistent).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent_ptr, memo)
                 {
@@ -1808,6 +1802,7 @@ namespace netxs::ui
                         {
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
+                        boss.SIGNAL(tier::release, e2::form::state::hover, rent);
                     }
                     //if constexpr (debugmode) log("Enter boss:", boss.id, " full:", full);
                 };
@@ -1820,6 +1815,7 @@ namespace netxs::ui
                         {
                             boss.SIGNAL(tier::release, e2::form::state::mouse, rent);
                         }
+                        boss.SIGNAL(tier::release, e2::form::state::hover, rent);
                     }
                     //if constexpr (debugmode) log("Leave boss:", boss.id, " full:", full - 1);
                     if (!--full)
@@ -1829,6 +1825,10 @@ namespace netxs::ui
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::mouse, state, memo)
+                {
+                    state = rent;
+                };
+                boss.LISTEN(tier::request, e2::form::state::hover, state, memo)
                 {
                     state = rent;
                 };
@@ -2142,10 +2142,8 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
                 {
-                    if (!alive) return;
-                    auto brush = boss.base::color();
-                    if (brush.wdt()) parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF).fuse(brush); });
-                    else             parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
+                    if (!alive || boss.base::filler.bga() == 0xFF) return;
+                    parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
                 };
             }
         };
@@ -2297,7 +2295,6 @@ namespace netxs::ui
         {
             auto backup = This();
             depo[std::type_index(typeid(S))] = std::make_unique<S>(*backup, std::forward<Args>(args)...);
-            base::reflow();
             return backup;
         }
         // form: Detach feature and return itself.
@@ -2306,8 +2303,36 @@ namespace netxs::ui
         {
             auto backup = This();
             depo.erase(std::type_index(typeid(S)));
-            base::reflow();
             return backup;
+        }
+        // form: Fill object region using parametrized fx.
+        template<auto RenderOrder = e2::render::prerender, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
+        auto shader(Fx&& fx, Event sync = {}, sptr source_ptr = {})
+        {
+            if constexpr (fixed)
+            {
+                LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
+                {
+                    parent_canvas.fill(fx);
+                };
+            }
+            else
+            {
+                auto param_ptr = ptr::shared(Event::param());
+                auto& param = *param_ptr;
+                auto& source = source_ptr ? *source_ptr : *this;
+                source.SIGNAL(tier::request, sync, param);
+                source.LISTEN(Tier, sync, new_value, bell::tracker, (param_ptr))
+                {
+                    param = new_value;
+                    base::deface();
+                };
+                LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
+                {
+                    if (param) parent_canvas.fill(fx[param]);
+                };
+            }
+            return This();
         }
         // form: deprecated in favor of pro::brush. Set colors and return itself.
         template<class ...Args>
@@ -2324,11 +2349,14 @@ namespace netxs::ui
             return This();
         }
         // form: Set the form visible for mouse.
-        auto active(bool visible = true)
+        auto active(cell brush)
         {
-            auto brush = base::color();
-            if (!brush.wdt()) base::color(brush.txt(whitespace));
+            base::color(brush.txt(whitespace).link(bell::id));
             return This();
+        }
+        auto active()
+        {
+            return active(base::color());
         }
         // form: Return plugin reference of specified type. Add the specified plugin (using specified args) if it is missing.
         template<class S, class ...Args>

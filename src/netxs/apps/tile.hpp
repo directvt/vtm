@@ -85,26 +85,26 @@ namespace netxs::app::tile
                 {
                     auto highlight_color = skin::color(tone::highlight);
                     auto c3 = highlight_color;
-                    auto x3 = cell{ c3 }.alpha(0x00);
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
-                        ->template plugin<pro::fader>(x3, c3, skin::globals().fader_time)
+                        ->active()
+                        ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
-                            auto update_focus = [](auto& boss, auto state)
+                            auto update_focus = [](auto& boss, auto count)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
-                                boss.color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                boss.base::color(count ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
                             auto data_shadow = ptr::shadow(data_src_sptr);
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::state, state, ());
-                                    update_focus(boss, state);
+                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::count, count, ());
+                                    update_focus(boss, count);
                                     parent->resize();
                                 }
                             };
@@ -112,9 +112,9 @@ namespace netxs::app::tile
                             {
                                 if (parent) parent->resize(); // Rebuild list.
                             };
-                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::state, state, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::count, count, boss.tracker)
                             {
-                                update_focus(boss, state);
+                                update_focus(boss, count);
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {
@@ -383,17 +383,13 @@ namespace netxs::app::tile
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
             auto c1 = danger_color;
-            auto x1 = cell{ c1 }.alpha(0x00);
-            auto p1 = std::pair{ x1, c1 };
-            auto p3 = std::pair{ x3, c3 };
 
             using namespace app::shared;
             auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
             menu::list
             {
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " New app ", .brush = p3 }}},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " New app " }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -402,7 +398,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .notes = " Split horizontally ", .brush = p3 }}},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .notes = " Split horizontally " }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -411,7 +407,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split vertically ", .brush = p3 }}},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split vertically " }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -420,7 +416,7 @@ namespace netxs::app::tile
                         gear.dismiss(true);
                     };
                 }},
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Delete pane ", .brush = p1 }}},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Delete pane ", .hover = c1 }}},
                 [](auto& boss, auto& item)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -444,6 +440,7 @@ namespace netxs::app::tile
 
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
+                ->active()
                 ->colors(cC.fgc(), cC.bgc())
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
@@ -473,6 +470,7 @@ namespace netxs::app::tile
         {
             return ui::veer::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
+                ->active()
                 ->invoke([&](auto& boss)
                 {
                     auto highlight = [](auto& boss, auto state)
@@ -809,20 +807,10 @@ namespace netxs::app::tile
             auto cB = menu_white;
             auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto action_color    = skin::color(tone::action);
             auto warning_color   = skin::color(tone::warning);
-            auto c6 = action_color;
-            auto x6 = cell{ c6 }.alpha(0x00);
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
             auto c2 = warning_color;
-            auto x2 = cell{ c2 }.bga(0x00);
             auto c1 = danger_color;
-            auto x1 = cell{ c1 }.alpha(0x00);
-            auto p1 = std::pair{ x1, c1 };
-            auto p2 = std::pair{ x2, c2 };
-            auto p3 = std::pair{ x3, c3 };
-            auto p6 = std::pair{ x6, c6 };
 
             auto object = ui::fork::ctor(axis::Y)
                 ->plugin<items>()
@@ -855,7 +843,7 @@ namespace netxs::app::tile
                         // ┌────┐  ┌────┐  ┌─┬──┐  ┌────┐  ┌─┬──┐  ┌─┬──┐  ┌────┐  // ┌─┐  ┌─┬─┐  ┌─┬─┐  ┌─┬─┐  
                         // │Exec│  ├─┐  │  │ H  │  ├ V ─┤  │Swap│  │Fair│  │Shut│  // ├─┤  └─┴─┘  └<┴>┘  └>┴<┘  
                         // └────┘  └─┴──┘  └─┴──┘  └────┘  └─┴──┘  └─┴──┘  └────┘  // └─┘                       
-                        //{ menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┐└ ", .notes = " Maximize/restore active pane ", .brush = p3 }}},
+                        //{ menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┐└ ", .notes = " Maximize/restore active pane " }}},
                         //[](auto& boss, auto& item)
                         //{
                         //    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -865,7 +853,7 @@ namespace netxs::app::tile
                         //        gear.dismiss(true);
                         //    };
                         //}},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -874,7 +862,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .notes = " Select all panes ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .notes = " Select all panes " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -883,7 +871,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .notes = " Split active panes horizontally ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .notes = " Split active panes horizontally " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -892,7 +880,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split active panes vertically ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split active panes vertically " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -901,7 +889,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " ┌┘ ", .notes = " Change split orientation ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "┌┘", .notes = " Change split orientation " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -910,7 +898,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .notes = " Swap two or more panes ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .notes = " Swap two or more panes " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -919,7 +907,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .notes = " Equalize split ratio ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .notes = " Equalize split ratio " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -928,7 +916,7 @@ namespace netxs::app::tile
                                 gear.dismiss(true);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .notes = " Set tiling manager window title using clipboard data ", .brush = p3 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .notes = " Set tiling manager window title using clipboard data " }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -936,7 +924,7 @@ namespace netxs::app::tile
                                 app::shared::set_title(boss, gear);
                             };
                         }},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " × ", .notes = " Close active app or remove pane if there is no running app ", .brush = p1 }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close active app ", .hover = c1 }}},
                         [](auto& boss, auto& item)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)

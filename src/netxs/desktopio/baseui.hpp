@@ -451,7 +451,8 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( state )
                 {
-                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release, si32 - number of clients.
+                    EVENT_XS( mouse    , si32     ), // notify the object if mouse is active or not. The form is active when the number of clients (form::eventa::mouse::enter - mouse::leave) is not zero, only release.
+                    EVENT_XS( hover    , si32     ), // notify the object how many mouse cursors are hovering, si32 - number of cursors.
                     //EVENT_XS( params   , ui::para ), // notify the object has changed title params.
                     EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
@@ -470,7 +471,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( on    , const id_t ),
                             EVENT_XS( off   , const id_t ),
-                            EVENT_XS( state , bool       ),
+                            EVENT_XS( count , si32       ),
                         };
                     };
                 };
@@ -590,10 +591,7 @@ namespace netxs::ui
         subs relyon; // base: Subscription on parent events.
         rect region; // base: The region occupied by the object.
         rect socket; // base: The region provided for the object.
-
-        //todo deprecated
         cell filler; // base: Object color.
-
         twod min_sz; // base: Minimal size.
         twod max_sz; // base: Maximal size.
         twod anchor; // base: Object balance point. Center point for any transform (on preview).
@@ -628,23 +626,19 @@ namespace netxs::ui
             if constexpr (Absolute) area.coor += region.coor;
             return area;
         }
-        auto color() const { return filler; }
+        auto color() const { return base::filler; }
         void color(rgba fg_color, rgba bg_color)
         {
-            // To make an object transparent to mouse events,
-            // no id (cell::id = 0) is used by default in the filler.
-            // The bell::id is configurable only with pro::mouse.
             base::filler.bgc(bg_color)
                         .fgc(fg_color)
                         .txt(whitespace);
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-        void color(cell const& new_filler)
+        void color(cell const& new_filler) // Set id=0 to make the object transparent to mouse events.
         {
             base::filler = new_filler;
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
-
         // base: Align object.
         void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
         {
@@ -998,12 +992,15 @@ namespace netxs::ui
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
             };
-            //todo deprecated
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                if (base::filler.wdt() && !base::hidden)
+                if (base::filler.wdt())
                 {
                     parent_canvas.fill([&](cell& c) { c.fusefull(base::filler); });
+                }
+                else if (base::filler.link())
+                {
+                    parent_canvas.fill([&](cell& c) { c.link(bell::id); });
                 }
             };
         }

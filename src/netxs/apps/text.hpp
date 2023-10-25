@@ -105,6 +105,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));
                         auto layers = fields->attach(ui::cake::ctor());
                             auto scroll = layers->attach(ui::rail::ctor())
+                                                ->active()
                                                 ->limits({ 4,3 }, { -1,-1 });
                                 auto edit_box = scroll->attach(ui::post::ctor(true))
                                                       ->plugin<pro::caret>(true, faux, twod{ 25,1 })
