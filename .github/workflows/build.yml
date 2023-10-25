@@ -107,8 +107,6 @@ jobs:
         & '7z' a c:\v.zip $fileName
         $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
-        Set-MpPreference -DisableArchiveScanning 0 -DisableAutoExclusions 0 -DisableBlockAtFirstSeen 0 -DisableIOAVProtection 0 -DisablePrivacyMode 0 -DisableRemovableDriveScanning 0 -DisableScanningMappedNetworkDrivesForFullScan 0 -DisableScanningNetworkFiles 0 -DisableScriptScanning 0 -ScanAvgCPULoadFactor 50 
-        Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
         & $MpCmdRun -SignatureUpdate
         & $MpCmdRun -Scan -ScanType 3 -File c:\v.zip
 
