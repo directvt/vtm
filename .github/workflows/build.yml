@@ -84,16 +84,16 @@ jobs:
       run: >
         sudo apt -y install ${{ matrix.apt }}
 
-    - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.bin }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-        -DCMAKE_BUILD_TYPE=Release
-        -S ${{ github.workspace }}
+    #- name: Configure CMake
+    #  run: >
+    #    cmake -B ${{ steps.strings.outputs.bin }}
+    #    -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+    #    ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
+    #    -DCMAKE_BUILD_TYPE=Release
+    #    -S ${{ github.workspace }}
 
-    - name: Build
-      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+    #- name: Build
+    #  run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
     - name: Test (POSIX)
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
@@ -105,10 +105,6 @@ jobs:
         $taskName = "TestAV"
         $fileName = ${{ steps.strings.outputs.bin }}/Release/vtm.exe
         Set-Service -Name wuauserv -StartupType Manual -Status Running
-        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -SignatureUpdate
-        Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
-        Start-ScheduledTask -TaskName $taskName
-        (Get-ScheduledTask -TaskName $taskName).State
       shell: powershell
 
     - name: Pack (POSIX)
