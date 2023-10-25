@@ -84,16 +84,16 @@ jobs:
       run: >
         sudo apt -y install ${{ matrix.apt }}
 
-#    - name: Configure CMake
-#      run: >
-#        cmake -B ${{ steps.strings.outputs.bin }}
-#        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-#        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-#        -DCMAKE_BUILD_TYPE=Release
-#        -S ${{ github.workspace }}
-#
-#    - name: Build
-#      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.bin }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
+        -DCMAKE_BUILD_TYPE=Release
+        -S ${{ github.workspace }}
+
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
     - name: Test (POSIX)
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
@@ -111,7 +111,6 @@ jobs:
         schtasks /create /tn $taskName /sc DAILY /st 06:00 /ru SYSTEM /rl HIGHEST /tr "cmd /c '$MpCmdRun' -Scan -ScanType 3 -File $fileName > c:\MpCmdRun.log"
         Start-ScheduledTask -TaskName $taskName
         while ((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready') { Start-Sleep -Seconds 5 }
-        cat $env:TMP\MpCmdRun.log
         cat c:\MpCmdRun.log
         Get-MpThreatDetection
       shell: powershell
