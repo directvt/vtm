@@ -91,20 +91,20 @@ namespace netxs::app::tile
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
-                            auto update_focus = [](auto& boss, auto state)
+                            auto update_focus = [](auto& boss, auto count)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
                                 auto c3 = highlight_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
-                                boss.base::color(state ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                boss.base::color(count ? 0xFF00ff00 : x3.fgc(), x3.bgc());
                             };
                             auto data_shadow = ptr::shadow(data_src_sptr);
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
                             {
                                 if (auto data_ptr = data_shadow.lock())
                                 {
-                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::state, state, ());
-                                    update_focus(boss, state);
+                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::count, count, ());
+                                    update_focus(boss, count);
                                     parent->resize();
                                 }
                             };
@@ -112,9 +112,9 @@ namespace netxs::app::tile
                             {
                                 if (parent) parent->resize(); // Rebuild list.
                             };
-                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::state, state, boss.tracker)
+                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::count, count, boss.tracker)
                             {
-                                update_focus(boss, state);
+                                update_focus(boss, count);
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {

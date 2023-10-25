@@ -731,9 +731,9 @@ namespace netxs::ui
                    body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
                    step{ freq }
             {
-                boss.LISTEN(tier::release, e2::form::state::keybd::focus::state, state, conf)
+                boss.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, conf)
                 {
-                    down = !state;
+                    down = !count;
                 };
                 boss.LISTEN(tier::request, e2::config::caret::blink, req_step, conf)
                 {
@@ -1236,17 +1236,14 @@ namespace netxs::ui
             //todo std::list<config>??? std::unordered_map is too expensive
             std::unordered_map<id_t, config> gears;
 
-            template<bool On = true>
             void signal_state()
             {
-                if constexpr (On == faux)
+                auto count = 0;
+                for (auto& [gear_id, route] : gears)
                 {
-                    for (auto& [gear_id, route] : gears)
-                    {
-                        if (gear_id != id_t{} && route.active) return;
-                    }
+                    if (gear_id != id_t{} && route.active) ++count;
                 }
-                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::state, On);
+                boss.SIGNAL(tier::release, e2::form::state::keybd::focus::count, count);
             }
             auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
@@ -1267,7 +1264,7 @@ namespace netxs::ui
                                 route.active = faux;
                                 gears[id_t{}] = std::move(route);
                                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, gear.id);
-                                signal_state<faux>();
+                                signal_state();
                             }
                             boss.SIGNAL(tier::release, hids::events::die, gear);
                             gears.erase(iter);
@@ -1425,7 +1422,7 @@ namespace netxs::ui
                     {
                         route.active = faux;
                         boss.SIGNAL(tier::release, e2::form::state::keybd::focus::off, seed.id);
-                        signal_state<faux>();
+                        signal_state();
                     }
                     //if constexpr (debugmode) log(prompt::foci, text(seed.deep * 4, ' '), "bus::off gear:", seed.id, " hub:", boss.id);
                 };
@@ -1562,14 +1559,13 @@ namespace netxs::ui
                         if (gear_id != id_t{} && route.active) gear_id_list.push_back(gear_id);
                     }
                 };
-                boss.LISTEN(tier::request, e2::form::state::keybd::focus::state, state, memo)
+                boss.LISTEN(tier::request, e2::form::state::keybd::focus::count, count, memo)
                 {
                     //todo revise: same as e2::form::state::keybd::check
-                    state = faux;
+                    count = 0;
                     for (auto& [gear_id, route] : gears)
                     {
-                        state |= gear_id != id_t{} && route.active;
-                        if (state) return;
+                        if (gear_id != id_t{} && route.active) ++count;
                     }
                 };
                 boss.LISTEN(tier::request, e2::form::state::keybd::find, gear_test, memo)

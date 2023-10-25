@@ -471,7 +471,7 @@ namespace netxs::events::userland
                         {
                             EVENT_XS( on    , const id_t ),
                             EVENT_XS( off   , const id_t ),
-                            EVENT_XS( state , bool       ),
+                            EVENT_XS( count , si32       ),
                         };
                     };
                 };

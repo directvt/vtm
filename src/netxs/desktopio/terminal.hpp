@@ -384,11 +384,12 @@ namespace netxs::ui
                 : owner{ owner },
                   encod{ prot::w32 }
             {
-                owner.LISTEN(tier::release, e2::form::state::keybd::focus::state, s, token)
+                owner.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, token)
                 {
-                    if (state(s))
+                    auto focused = !!count;
+                    if (state(focused))
                     {
-                        owner.ipccon.focus(s, encod);
+                        owner.ipccon.focus(focused, encod);
                     }
                 };
                 owner.SIGNAL(tier::request, e2::form::state::keybd::check, state.last);
