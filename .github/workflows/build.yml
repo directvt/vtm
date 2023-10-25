@@ -84,16 +84,16 @@ jobs:
       run: >
         sudo apt -y install ${{ matrix.apt }}
 
-    #- name: Configure CMake
-    #  run: >
-    #    cmake -B ${{ steps.strings.outputs.bin }}
-    #    -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-    #    ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-    #    -DCMAKE_BUILD_TYPE=Release
-    #    -S ${{ github.workspace }}
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.bin }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
+        -DCMAKE_BUILD_TYPE=Release
+        -S ${{ github.workspace }}
 
-    #- name: Build
-    #  run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
     - name: Test (POSIX)
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
