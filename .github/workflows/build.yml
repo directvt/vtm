@@ -103,7 +103,7 @@ jobs:
       if: matrix.os == 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: |
         $taskName = "TestAV"
-        $fileName = ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+        $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
       shell: powershell
 
