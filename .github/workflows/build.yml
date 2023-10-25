@@ -84,16 +84,16 @@ jobs:
       run: >
         sudo apt -y install ${{ matrix.apt }}
 
-    - name: Configure CMake
-      run: >
-        cmake -B ${{ steps.strings.outputs.bin }}
-        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
-        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
-        -DCMAKE_BUILD_TYPE=Release
-        -S ${{ github.workspace }}
-
-    - name: Build
-      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
+#    - name: Configure CMake
+#      run: >
+#        cmake -B ${{ steps.strings.outputs.bin }}
+#        -DCMAKE_CXX_COMPILER=${{ matrix.cxx }}
+#        ${{ matrix.flags }} ${{ matrix.os == 'windows-latest' && matrix.cpu || '' }}
+#        -DCMAKE_BUILD_TYPE=Release
+#        -S ${{ github.workspace }}
+#
+#    - name: Build
+#      run: cmake --build ${{ steps.strings.outputs.bin }} --config Release
 
     - name: Test (POSIX)
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
@@ -107,6 +107,7 @@ jobs:
         $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         Set-MpPreference -DisableArchiveScanning 0 -DisableAutoExclusions 0 -DisableBlockAtFirstSeen 0 -DisableIOAVProtection 0 -DisablePrivacyMode 0 -DisableRemovableDriveScanning 0 -DisableScanningMappedNetworkDrivesForFullScan 0 -DisableScanningNetworkFiles 0 -DisableScriptScanning 0 -ScanAvgCPULoadFactor 50 
+        (Get-MpPreference).CimInstanceProperties | fl *
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
         & $MpCmdRun -SignatureUpdate
         & $MpCmdRun -Scan -ScanType 3 -File $fileName
