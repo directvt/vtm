@@ -104,9 +104,10 @@ jobs:
       run: |
         $taskName = "TestAV"
         $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
-        & '7z' a c:\v.zip $fileName
         $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
+        Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
+        & '7z' a -tzip c:\v.zip $fileName
         & $MpCmdRun -SignatureUpdate
         & $MpCmdRun -Scan -ScanType 3 -File c:\v.zip
 
