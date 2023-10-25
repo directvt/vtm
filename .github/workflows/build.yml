@@ -100,7 +100,7 @@ jobs:
       run: ${{ steps.strings.outputs.bin }}/vtm -v
 
     - name: Test AV (Windows)
-      if: matrix.os == 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
+      if: matrix.os == 'windows-latest'
       run: |
         $taskName = "TestAV"
         $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
@@ -112,6 +112,7 @@ jobs:
         Start-ScheduledTask -TaskName $taskName
         while ((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready') { Start-Sleep -Seconds 5 }
         Get-MpThreatDetection
+      shell: powershell
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
