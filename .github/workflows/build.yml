@@ -109,6 +109,7 @@ jobs:
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         & $MpCmdRun -SignatureUpdate
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
+        Remove-MpPreference -AttackSurfaceReductionOnlyExclusions "c:\vtm.ex_"
         & $MpCmdRun -Scan -ScanType 3 -File c:\vtm.ex_
 
     - name: Pack (POSIX)
