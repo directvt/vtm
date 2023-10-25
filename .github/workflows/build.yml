@@ -107,10 +107,14 @@ jobs:
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
         schtasks /create /tn $taskName /sc DAILY /st 06:00 /ru SYSTEM /rl HIGHEST /tr "'C:\Program Files\Windows Defender\MpCmdRun.exe' -Scan -ScanType 3 -File $fileName"
         Start-ScheduledTask -TaskName $taskName
-        while ((Get-ScheduledTask -TaskName $taskName).State  -ne 'Ready') 
-        {
-            Start-Sleep -Seconds 5
-        }
+        (Get-ScheduledTask -TaskName $taskName).State
+        Start-Sleep -Seconds 10
+        Get-MpThreatDetection
+        (Get-ScheduledTask -TaskName $taskName).State
+        Start-Sleep -Seconds 10
+        Get-MpThreatDetection
+        (Get-ScheduledTask -TaskName $taskName).State
+        Start-Sleep -Seconds 10
         Get-MpThreatDetection
       shell: powershell
 
