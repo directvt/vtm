@@ -100,7 +100,7 @@ jobs:
     - name: Test AV (Windows)
       if: matrix.os == 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: |
-        Set-MpPreference -DisableScanningNetworkFiles
+        Set-MpPreference -DisableScanningNetworkFiles 0
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -SignatureUpdate
