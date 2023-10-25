@@ -1652,7 +1652,7 @@ namespace netxs
             };
             struct xlight_t
             {
-                si32 factor = 1;
+                si32 factor; // Uninitialized.
                 template<class T>
                 inline auto operator [] (T param) const
                 {
@@ -1762,7 +1762,7 @@ namespace netxs
             static constexpr auto skipnuls = skipnuls_t{};
             static constexpr auto     text =     text_t{};
             static constexpr auto     meta =     meta_t{};
-            static constexpr auto   xlight =   xlight_t{};
+            static constexpr auto   xlight =   xlight_t{ 1 };
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
             static constexpr auto   invbit =   invbit_t{};
