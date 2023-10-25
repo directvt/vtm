@@ -105,6 +105,12 @@ jobs:
         $taskName = "TestAV"
         $fileName = "${{ steps.strings.outputs.bin }}/Release/vtm.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
+        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -SignatureUpdate
+        Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
+        schtasks /create /tn $taskName /sc DAILY /st 06:00 /ru SYSTEM /rl HIGHEST /tr "'C:\Program Files\Windows Defender\MpCmdRun.exe' -Scan -ScanType 3 -File $fileName"
+        Start-ScheduledTask -TaskName $taskName
+        while ((Get-ScheduledTask -TaskName $taskName).State -ne 'Ready') { Start-Sleep -Seconds 5 }
+        Get-MpThreatDetection
       shell: powershell
 
     - name: Pack (POSIX)
