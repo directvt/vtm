@@ -97,11 +97,13 @@ jobs:
       if: matrix.os != 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: ${{ steps.strings.outputs.bin }}/vtm -v
 
-    - name: Test (Windows)
+    - name: Test AV (Windows)
       if: matrix.os == 'windows-latest' && matrix.cpu != 'arm' && matrix.cpu != 'arm64'
       run: |
-        ${{ steps.strings.outputs.bin }}/Release/vtm.exe -v
-      shell: cmd
+        Set-Service -Name wuauserv -StartupType Manual -Status Running
+        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -SignatureUpdate
+        & 'C:\Program Files\Windows Defender\MpCmdRun.exe' -Scan -ScanType 3 -File ${{ steps.strings.outputs.bin }}/Release/vtm.exe
+      shell: powershell
 
     - name: Pack (POSIX)
       if: matrix.os != 'windows-latest'
