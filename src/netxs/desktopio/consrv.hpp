@@ -3859,13 +3859,30 @@ struct impl : consrv
         struct payload : drvpacket<payload>
         { };
         auto& packet = payload::cast(upload);
-        auto window_ptr = select_buffer(packet.target);
-        if (!window_ptr) return;
         log("\tset active buffer: ", utf::to_hex_0x(packet.target));
         if constexpr (isreal())
         {
-            auto& console = *window_ptr;
-            uiterm.reset_to_altbuf(console);
+            if (packet.target)
+            {
+                auto handle_ptr = (hndl*)packet.target;
+                if (handle_ptr->link == &uiterm.target) // Restore original buffer mode.
+                {
+                    auto& console = *uiterm.target;
+                    if (altmod) uiterm.reset_to_altbuf(console);
+                    else        uiterm.reset_to_normal(console);
+                }
+                else // Switch to additional buffer.
+                {
+                    auto window_ptr = select_buffer(packet.target);
+                    if (!window_ptr) return;
+                    if (uiterm.target == &uiterm.normal || uiterm.target == &uiterm.altbuf) // Save/update original buffer mode.
+                    {
+                        altmod = uiterm.target == &uiterm.altbuf;
+                    }
+                    auto& console = *window_ptr;
+                    uiterm.reset_to_altbuf(console);
+                }
+            }
         }
     }
     auto api_scrollback_cursor_coor_set      ()
@@ -4840,8 +4857,9 @@ struct impl : consrv
     wide        toWIDE; // consrv: Buffer for UTF-8-UTF-16 conversion.
     rich        filler; // consrv: Buffer for filling operations.
     apis        apimap; // consrv: Fx reference.
-    ui32        inpmod; // consrv: Events mode flag set.
-    ui32        outmod; // consrv: Scrollbuffer mode flag set.
+    ui32        inpmod; // consrv: Events buffer flags.
+    ui32        outmod; // consrv: Scroll buffer flags.
+    bool        altmod; // consrv: Saved buffer selector (altbuf/normal).
     face        mirror; // consrv: Viewport bitmap buffer.
     flag        allout; // consrv: All clients detached.
     para        celler; // consrv: Buffer for converting raw text to cells.
@@ -5017,6 +5035,7 @@ struct impl : consrv
           winhnd{                                                },
           inpmod{ nt::console::inmode::preprocess                },
           outmod{                                                },
+          altmod{ faux                                           },
           prompt{ utf::concat(win32prompt)                       },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
           outenc{ inpenc                                         }
