@@ -104,6 +104,7 @@ jobs:
         $MpCmdRun = "C:\Program Files\Windows Defender\MpCmdRun.exe"
         Set-Service -Name wuauserv -StartupType Manual -Status Running
         Remove-MpPreference -ExclusionPath (Get-MpPreference).ExclusionPath
+        Set-MpPreference -MAPSReporting Advanced
         & '7z' a -tzip c:\vtm.zip $fileName
         & $MpCmdRun -SignatureUpdate
         & $MpCmdRun -Scan -ScanType 3 -File c:\vtm.zip
