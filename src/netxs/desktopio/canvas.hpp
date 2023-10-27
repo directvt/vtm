@@ -563,7 +563,7 @@ namespace netxs
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            auto c = lookup(cache, std::span{ rgba::vt256.data(), 16});
+            auto c = lookup(cache, std::span{ rgba::vt256.data(), 16 });
             return netxs::swap_bits<0, 2>(c); // ANSI<->DOS color scheme reindex.
         }
         auto to_vtm16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color palette).

@@ -4060,7 +4060,7 @@ namespace netxs::os
                     }
                 };
                 auto waits = std::to_array({ os::stdin_fd, (fd_t)alarm });
-                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits.data(), FALSE, INFINITE))
+                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count))
                     {
