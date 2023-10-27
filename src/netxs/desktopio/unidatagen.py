@@ -396,21 +396,21 @@ namespace netxs::{module}
     struct base
     {{
         static constexpr auto blocks_size = sz_t{{ {blocks_size} }};
-        static constexpr si32 blocks_pack[] =
+        static constexpr auto blocks_pack = std::to_array<si32>(
         {{
             {blocks}
-        }};
+        }});
 
         static constexpr auto offset_size = sz_t{{ {offset_size} }};
-        static constexpr si32 offset_pack[] =
+        static constexpr auto offset_pack = std::to_array<si32>(
         {{
             {offset}
-        }};
+        }});
 
-        static constexpr {module} ucspec[] =
+        static constexpr auto ucspec = std::to_array<{module}>(
         {{
             {ucspec}
-        }};
+        }});
     }};
 
     template<class T, class D>
@@ -418,9 +418,9 @@ namespace netxs::{module}
     {{
         auto data = std::vector<T>{{}};
         data.reserve(size);
-        auto iter = pack;
-        auto tail = pack + std::size(pack);
-        while (iter < tail)
+        auto iter = pack.begin();
+        auto tail = pack.end();
+        while (iter != tail)
         {{
             auto n = *iter++;
             if (n < 0) data.insert(data.end(), -n, *iter++);

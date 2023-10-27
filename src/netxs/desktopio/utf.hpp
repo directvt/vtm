@@ -94,7 +94,7 @@ namespace netxs::utf
     };
 
     // utf: First byte based UTF-8 codepoint lengths.
-    static constexpr int utf8lengths[] =
+    static constexpr auto utf8lengths = std::to_array(
     {	//      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
         /* 0 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         /* 1 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -112,7 +112,7 @@ namespace netxs::utf
         /* D */ 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
         /* E */ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
         /* F */ 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    } ;
+    });
 
     // utf: Codepoint iterator.
     struct cpit

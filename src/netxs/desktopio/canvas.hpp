@@ -389,17 +389,17 @@ namespace netxs
             i == tint16::greenlt   ? _vt16<greenlt>   :
             i == tint16::yellowlt  ? _vt16<yellowlt>  : 0;
 
-        static constexpr ui32 vtm16[] =
+        static constexpr auto vtm16 = std::to_array(
         {
             _vtm16<0>, _vtm16<1>, _vtm16<2>,  _vtm16<3>,  _vtm16<4>,  _vtm16<5>,  _vtm16<6>,  _vtm16<7>,
             _vtm16<8>, _vtm16<9>, _vtm16<10>, _vtm16<11>, _vtm16<12>, _vtm16<13>, _vtm16<14>, _vtm16<15>,
-        };
-        static constexpr ui32 vga16[] =
+        });
+        static constexpr auto vga16 = std::to_array(
         {
             _vt16<blackdk>, _vt16<bluedk>, _vt16<greendk>, _vt16<cyandk>, _vt16<reddk>, _vt16<magentadk>, _vt16<yellowdk>, _vt16<whitedk>,
             _vt16<blacklt>, _vt16<bluelt>, _vt16<greenlt>, _vt16<cyanlt>, _vt16<redlt>, _vt16<magentalt>, _vt16<yellowlt>, _vt16<whitelt>,
-        };
-        static constexpr ui32 vt256[] =
+        });
+        static constexpr auto vt256 = std::to_array(
         {
             _vt16<0>, _vt16<1>, _vt16<2>,  _vt16<3>,  _vt16<4>,  _vt16<5>,  _vt16<6>,  _vt16<7>,
             _vt16<8>, _vt16<9>, _vt16<10>, _vt16<11>, _vt16<12>, _vt16<13>, _vt16<14>, _vt16<15>,
@@ -451,7 +451,7 @@ namespace netxs
             0xFF444444, 0xFF4E4E4E, 0xFF585858, 0xFF626262, 0xFF6C6C6C, 0xFF767676,
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
-        };
+        });
         friend auto& operator << (std::ostream& s, rgba c)
         {
             return s << "{" << (int)c.chan.r
@@ -563,7 +563,7 @@ namespace netxs
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            auto c = lookup(cache, std::span{ rgba::vt256, 16 });
+            auto c = lookup(cache, std::span{ rgba::vt256.data(), 16 });
             return netxs::swap_bits<0, 2>(c); // ANSI<->DOS color scheme reindex.
         }
         auto to_vtm16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color palette).
@@ -645,7 +645,7 @@ namespace netxs
                 });
                 return table;
             }();
-            return lookup(cache, std::span{ rgba::vtm16, 8 });
+            return lookup(cache, std::span{ rgba::vtm16.data(), 8 });
         }
     };
 
