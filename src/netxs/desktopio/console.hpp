@@ -591,13 +591,19 @@ namespace netxs::ui
             X(mouse_btn_6  , "left+right combo" ) \
             X(last_event   , "event"            )
 
-            #define X(a, b) a,
-            enum prop { prop_list count };
-            #undef X
+            enum prop
+            {
+                #define X(a, b) a,
+                prop_list
+                #undef X
+            };
 
-            #define X(a, b) b,
-            text description[prop::count] = { prop_list };
-            #undef X
+            static constexpr auto description = std::to_array(
+            {
+                #define X(a, b) b##sv,
+                prop_list
+                #undef X
+            });
             #undef prop_list
 
             base& boss;
@@ -621,7 +627,7 @@ namespace netxs::ui
 
             void shadow()
             {
-                for (auto i = 0; i < prop::count; i++)
+                for (auto i = 0; i < description.size(); i++)
                 {
                     status[i].ease();
                 }
@@ -643,7 +649,6 @@ namespace netxs::ui
             {
                 shadow();
                 status[prop::last_event].set(stress) = "size";
-
                 status[prop::win_size].set(stress) =
                     std::to_string(new_size.x) + " x " +
                     std::to_string(new_size.y);
@@ -673,6 +678,7 @@ namespace netxs::ui
                     utf::format(track.totals) + " bytes";
 
                 track.number++;
+                status.reindex();
                 canvas.output(status);
             }
             void stop()

@@ -2444,13 +2444,12 @@ namespace netxs::ui
         X(menu_white, "Light menu color")              \
         X(menu_black, "Dark menu color")
 
-        #define X(a, b) a,
-        enum prop { prop_list count };
-        #undef X
-
-        //#define X(a, b) b,
-        //text description[prop::count] = { prop_list };
-        //#undef X
+        enum prop
+        {
+            #define X(a, b) a,
+            prop_list
+            #undef X
+        };
         #undef prop_list
 
         prop active  = prop::brighter;
