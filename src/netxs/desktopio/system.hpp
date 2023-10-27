@@ -4256,17 +4256,14 @@ namespace netxs::os
                 }
                 else // Trying to get direct access to a PS/2 mouse.
                 {
-                    log(prompt::tty, "Linux console ", tty_name);
-                    auto imps2_init_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
+                    log("%%Linux console %tty%", prompt::tty, tty_name);
+                    auto imps2_string = "\xf3\xc8\xf3\x64\xf3\x50"sv;
                     auto mouse_device = "/dev/input/mice";
-                    auto mouse_fallback1 = "/dev/input/mice.vtm";
-                    auto mouse_fallback2 = "/dev/input/mice_vtm"; //todo deprecated
+                    auto mouse_shadow = "/dev/input/mice.vtm";
                     auto fd = ::open(mouse_device, O_RDWR);
-                    if (fd == -1) fd = ::open(mouse_fallback1, O_RDWR);
-                    if (fd == -1) log("%%Error opening %mouse_device% and % mouse_fallback%, error %code%%desc%", prompt::tty, mouse_device, mouse_fallback1, errno, errno == 13 ? " - permission denied" : "");
-                    if (fd == -1) fd = ::open(mouse_fallback2, O_RDWR);
-                    if (fd == -1) log("%%Error opening %mouse_device% and % mouse_fallback%, error %code%%desc%", prompt::tty, mouse_device, mouse_fallback2, errno, errno == 13 ? " - permission denied" : "");
-                    else if (io::send(fd, imps2_init_string))
+                    if (fd == -1) fd = ::open(mouse_shadow, O_RDWR);
+                    if (fd == -1) log("%%Error opening %mouse_device% and %mouse_shadow%, error %code%%desc%", prompt::tty, mouse_device, mouse_shadow, errno, errno == 13 ? " - permission denied" : "");
+                    else if (io::send(fd, imps2_string))
                     {
                         auto ack = char{};
                         io::recv(fd, &ack, sizeof(ack));
@@ -4318,48 +4315,14 @@ namespace netxs::os
                     }
                     else total += accum;
                     auto strv = view{ total };
-
-                    //#ifndef PROD
-                    //if (close)
-                    //{
-                    //    close = faux;
-                    //    notify(e2::conio::preclose, close);
-                    //    if (total.front() == '\033') // two consecutive escapes
-                    //    {
-                    //        log("\t - two consecutive escapes: \n\tstrv:        ", strv);
-                    //        notify(e2::conio::quit, 0);
-                    //        return;
-                    //    }
-                    //}
-                    //#endif
-
                     //todo unify (it is just a proof of concept)
                     while (auto len = strv.size())
                     {
                         auto pos = 0_sz;
                         auto unk = true;
-
                         if (strv.at(0) == '\033')
                         {
                             ++pos;
-
-                            //#ifndef PROD
-                            //if (pos == len) // the only one esc
-                            //{
-                            //    close = true;
-                            //    total = strv;
-                            //    log("\t - preclose: ", canal);
-                            //    notify(e2::conio::preclose, close);
-                            //    break;
-                            //}
-                            //else if (strv.at(pos) == '\033') // two consecutive escapes
-                            //{
-                            //    total.clear();
-                            //    log("\t - two consecutive escapes: ", canal);
-                            //    notify(e2::conio::quit,0);
-                            //    break;
-                            //}
-                            //#else
                             if (pos == len) // the only one esc
                             {
                                 // Pass Esc.
@@ -4378,7 +4341,6 @@ namespace netxs::os
                                 total = strv.substr(1);
                                 break;
                             }
-                            //#endif
                             else if (strv.at(pos) == '[')
                             {
                                 if (++pos == len) { total = strv; break; } // incomlpete
