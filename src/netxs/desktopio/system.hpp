@@ -4071,143 +4071,139 @@ namespace netxs::os
                     while (alive && head != tail)
                     {
                         auto& r = *head++;
-                        switch (r.EventType)
+                        if (r.EventType == KEY_EVENT)
                         {
-                            case KEY_EVENT:
+                            auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
+                                 if (modstat.repeats) continue; // We don't repeat modifiers.
+                            else if (modstat.changed)
                             {
-                                auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
-                                     if (modstat.repeats) break; // We don't repeat modifiers.
-                                else if (modstat.changed)
+                                k.ctlstat = kbmod;
+                                m.ctlstat = kbmod;
+                                m.doubled = faux;
+                                m.doubled = faux;
+                                m.wheeled = faux;
+                                m.hzwheel = faux;
+                                m.wheeldt = 0;
+                                m.changed++;
+                                mouse(m); // Fire mouse event to update kb modifiers.
+                            }
+                            if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
+                            {
+                                if (point) utf::to_utf_from_code(point, toutf);
+                                k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
+                                k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
+                                k.scancod = r.Event.KeyEvent.wVirtualScanCode;
+                                k.pressed = r.Event.KeyEvent.bKeyDown;
+                                k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
+                                k.cluster = toutf;
+                                do
                                 {
-                                    k.ctlstat = kbmod;
-                                    m.ctlstat = kbmod;
-                                    m.doubled = faux;
-                                    m.doubled = faux;
-                                    m.wheeled = faux;
-                                    m.hzwheel = faux;
-                                    m.wheeldt = 0;
-                                    m.changed++;
-                                    mouse(m); // Fire mouse event to update kb modifiers.
+                                    keybd(k);
                                 }
-                                if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
+                                while (r.Event.KeyEvent.wRepeatCount-- > 1);
+                            }
+                            else if (std::distance(head, tail) > 2) // Surrogate pairs special case.
+                            {
+                                auto& dn_1 = r;
+                                auto& up_1 = *head;
+                                auto& dn_2 = *(head + 1);
+                                auto& up_2 = *(head + 2);
+                                if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
+                                 && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
+                                 && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
                                 {
-                                    if (point) utf::to_utf_from_code(point, toutf);
+                                    head += 3;
+                                    utf::to_utf_from_code(point, toutf);
                                     k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                    k.pressed = r.Event.KeyEvent.bKeyDown;
-                                    k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
                                     k.cluster = toutf;
+                                    k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
                                     do
                                     {
+                                        k.pressed = true;
+                                        keybd(k);
+                                        k.pressed = faux;
                                         keybd(k);
                                     }
                                     while (r.Event.KeyEvent.wRepeatCount-- > 1);
                                 }
-                                else if (std::distance(head, tail) > 2) // Surrogate pairs special case.
-                                {
-                                    auto& dn_1 = r;
-                                    auto& up_1 = *head;
-                                    auto& dn_2 = *(head + 1);
-                                    auto& up_2 = *(head + 2);
-                                    if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
-                                     && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
-                                     && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
+                            }
+                            point = {};
+                            toutf.clear();
+                        }
+                        else if (r.EventType == MENU_EVENT) // Forward console control events.
+                        {
+                            if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
+                            switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
+                            {
+                                case nt::console::event::ctrl_c:
+                                    k.extflag = faux;
+                                    k.virtcod = 'C';
+                                    k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
+                                    k.pressed = true;
+                                    k.keycode = input::key::KeyC;
+                                    k.cluster = "\x03";
+                                    keybd(k);
+                                    break;
+                                case nt::console::event::ctrl_break:
+                                    k.extflag = faux;
+                                    k.virtcod = ansi::c0_etx;
+                                    k.scancod = ansi::ctrl_break;
+                                    k.pressed = true;
+                                    k.keycode = input::key::Break;
+                                    k.cluster = "\x03";
+                                    keybd(k);
+                                    break;
+                                case nt::console::event::close:
+                                case nt::console::event::logoff:
+                                case nt::console::event::shutdown:
+                                    alive = faux;;
+                                    break;
+                                case nt::console::event::style:
+                                    if (head != tail && head->EventType == MENU_EVENT)
                                     {
-                                        head += 3;
-                                        utf::to_utf_from_code(point, toutf);
-                                        k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
-                                        k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
-                                        k.scancod = r.Event.KeyEvent.wVirtualScanCode;
-                                        k.cluster = toutf;
-                                        k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
-                                        do
-                                        {
-                                            k.pressed = true;
-                                            keybd(k);
-                                            k.pressed = faux;
-                                            keybd(k);
-                                        }
-                                        while (r.Event.KeyEvent.wRepeatCount-- > 1);
+                                        auto r = *head++;
+                                        style(deco{ r.Event.MenuEvent.dwCommandId });
                                     }
-                                }
-                                point = {};
-                                toutf.clear();
-                                break;
+                                    break;
+                                //todo
+                                //case PASTE_BEGIN:
+                                //    break;
+                                //case PASTE_END:
+                                //    break;
                             }
-                            case MENU_EVENT: // Forward console control events.
-                                if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
-                                switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
-                                {
-                                    case nt::console::event::ctrl_c:
-                                        k.extflag = faux;
-                                        k.virtcod = 'C';
-                                        k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
-                                        k.pressed = true;
-                                        k.keycode = input::key::KeyC;
-                                        k.cluster = "\x03";
-                                        keybd(k);
-                                        break;
-                                    case nt::console::event::ctrl_break:
-                                        k.extflag = faux;
-                                        k.virtcod = ansi::c0_etx;
-                                        k.scancod = ansi::ctrl_break;
-                                        k.pressed = true;
-                                        k.keycode = input::key::Break;
-                                        k.cluster = "\x03";
-                                        keybd(k);
-                                        break;
-                                    case nt::console::event::close:
-                                    case nt::console::event::logoff:
-                                    case nt::console::event::shutdown:
-                                        alive = faux;;
-                                        break;
-                                    case nt::console::event::style:
-                                        if (head != tail && head->EventType == MENU_EVENT)
-                                        {
-                                            auto r = *head++;
-                                            style(deco{ r.Event.MenuEvent.dwCommandId });
-                                        }
-                                        break;
-                                    //todo
-                                    //case PASTE_BEGIN:
-                                    //    break;
-                                    //case PASTE_END:
-                                    //    break;
-                                }
-                                break;
-                            case MOUSE_EVENT:
+                        }
+                        else if (r.EventType == MOUSE_EVENT)
+                        {
+                            auto changed = 0;
+                            check(changed, m.ctlstat, kbmod);
+                            check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
+                            check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
+                            check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
+                            check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
+                            check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
+                            if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
-                                auto changed = 0;
-                                check(changed, m.ctlstat, kbmod);
-                                check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
-                                check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
-                                check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
-                                check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                                check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
-                                if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
-                                {
-                                    check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
-                                }
-                                if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
-                                {
-                                    m.changed++;
-                                    mouse(m); // Fire mouse event to update kb modifiers.
-                                }
-                                break;
+                                check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
                             }
-                            case WINDOW_BUFFER_SIZE_EVENT:
+                            if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
                             {
-                                auto changed = 0;
-                                check(changed, w.winsize, dtvt::consize());
-                                if (changed) winsz(w);
-                                break;
+                                m.changed++;
+                                mouse(m); // Fire mouse event to update kb modifiers.
                             }
-                            case FOCUS_EVENT:
-                                f.state = r.Event.FocusEvent.bSetFocus;
-                                focus(f);
-                                if (!f.state) kbmod = {}; // To keep the modifiers from sticking.
-                                break;
+                        }
+                        else if (r.EventType == WINDOW_BUFFER_SIZE_EVENT)
+                        {
+                            auto changed = 0;
+                            check(changed, w.winsize, dtvt::consize());
+                            if (changed) winsz(w);
+                        }
+                        else if (r.EventType == FOCUS_EVENT)
+                        {
+                            f.state = r.Event.FocusEvent.bSetFocus;
+                            focus(f);
+                            if (!f.state) kbmod = {}; // To keep the modifiers from sticking.
                         }
                     }
                 }
