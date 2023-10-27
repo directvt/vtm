@@ -1008,7 +1008,7 @@ namespace netxs::os
                     fdata.op = KD_FONT_OP_SET;
                     if (!ok(::ioctl(os::stdout_fd, KDFONTOP, &fdata), "::ioctl(KDFONTOP, KD_FONT_OP_SET)", os::unexpected)) return;
 
-                    auto max_sz = std::numeric_limits<unsigned short>::max();
+                    auto max_sz = ui16max;
                     auto spairs = std::vector<unipair>(max_sz);
                     auto dpairs = std::vector<unipair>(max_sz);
                     auto srcmap = unimapdesc{ max_sz, spairs.data() };
@@ -1027,17 +1027,20 @@ namespace netxs::os
                          && smap.unicode != 0x2584) *dstptr++ = smap;
                     }
                     dstmap.entry_ct = dstptr - dstmap.entries;
-                    unipair new_recs[] = {{ 0x2580,  10 },
-                                          { 0x2219, 211 },
-                                          { 0x2022, 211 },
-                                          { 0x25CF, 211 },
-                                          { 0x25A0, 254 },
-                                          { 0x25AE, 254 },
-                                          { 0x2584, 254 }};
-                    if (dstmap.entry_ct < max_sz - std::size(new_recs)) // Add new records.
+                    auto new_recs = std::to_array<unipair>(
+                    {
+                        { 0x2580,  10 },
+                        { 0x2219, 211 },
+                        { 0x2022, 211 },
+                        { 0x25CF, 211 },
+                        { 0x25A0, 254 },
+                        { 0x25AE, 254 },
+                        { 0x2584, 254 },
+                    });
+                    if (dstmap.entry_ct < max_sz - new_recs.size()) // Add new records.
                     {
                         for (auto& p : new_recs) *dstptr++ = p;
-                        dstmap.entry_ct += std::size(new_recs);
+                        dstmap.entry_ct += new_recs.size();
                         if (!ok(::ioctl(os::stdout_fd, PIO_UNIMAP, &dstmap), "::ioctl(os::stdout_fd, PIO_UNIMAP)", os::unexpected)) return;
                     }
                     else log(prompt::os, "VGA font loading failed - 'UNIMAP' is full");
@@ -2581,11 +2584,11 @@ namespace netxs::os
             #elif defined(__FreeBSD__)
 
                 auto size = 0_sz;
-                int  name[] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
-                if (::sysctl(name, std::size(name), nullptr, &size, nullptr, 0) == 0)
+                auto name = std::to_array({ CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 });
+                if (::sysctl(name.data(), name.size(), nullptr, &size, nullptr, 0) == 0)
                 {
                     auto buff = std::vector<char>(size);
-                    if (::sysctl(name, std::size(name), buff.data(), &size, nullptr, 0) == 0)
+                    if (::sysctl(name.data(), name.size(), buff.data(), &size, nullptr, 0) == 0)
                     {
                         result = text(buff.data(), size);
                     }
@@ -4056,8 +4059,8 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
-                fd_t waits[] = { os::stdin_fd, alarm };
-                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits, FALSE, INFINITE))
+                auto waits = std::to_array({ os::stdin_fd, (fd_t)alarm });
+                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects(2, waits.data(), FALSE, INFINITE))
                 {
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count))
                     {

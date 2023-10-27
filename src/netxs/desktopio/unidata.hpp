@@ -345,7 +345,7 @@ namespace netxs::unidata
     struct base
     {
         static constexpr auto blocks_size = sz_t{ 4352 };
-        static constexpr si32 blocks_pack[] =
+        static constexpr auto blocks_pack = std::to_array<si32>(
         {
               0,  -2, 256, 512, 768, 1024, 1280, 1536, 1792, 2048,
             2304, 2560, 2816, 3072, 3328, 3584, 3840, 4096, 4352, 4608,
@@ -375,10 +375,10 @@ namespace netxs::unidata
             11264, 38912, -12, 15616,  -2, 11264, 39168,  -5, 15616, -19,
             11264, 39424, -2796, 15616, 39680, 39936, -14, 40192, -240, 15616,
             -255, 256, 40448, -255, 256, 40448
-        };
+        });
 
         static constexpr auto offset_size = sz_t{ 40704 };
-        static constexpr si32 offset_pack[] =
+        static constexpr auto offset_pack = std::to_array<si32>(
         {
               1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16,
              17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
@@ -654,9 +654,9 @@ namespace netxs::unidata
 
             -386,107,-14, 69,-305,107,-31, 69,-30,107,-226, 69,-75,107,-181, 69,
             -32, 95,-96, 68,-128, 95,-240, 68,-272, 95,-254,  0, -2, 69
-        };
+        });
 
-        static constexpr unidata ucspec[] =
+        static constexpr auto ucspec = std::to_array<unidata>(
         {
             { widths::slim, gbreak::any , cntrls::non_control            },  //   0
             { widths::zero, gbreak::ctrl, cntrls::non_control            },  //   1
@@ -797,7 +797,7 @@ namespace netxs::unidata
             { widths::zero, gbreak::ep  , cntrls::non_control            },  // 136
             { widths::slim, gbreak::ri  , cntrls::non_control            },  // 137
             { widths::wide, gbreak::ext , cntrls::non_control            },  // 138
-        };
+        });
     };
 
     template<class T, class D>
@@ -805,9 +805,9 @@ namespace netxs::unidata
     {
         auto data = std::vector<T>{};
         data.reserve(size);
-        auto iter = pack;
-        auto tail = pack + std::size(pack);
-        while (iter < tail)
+        auto iter = pack.begin();
+        auto tail = pack.end();
+        while (iter != tail)
         {
             auto n = *iter++;
             if (n < 0) data.insert(data.end(), -n, *iter++);
