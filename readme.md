@@ -39,10 +39,7 @@ Besides windowed mode, vtm can operate as a standalone terminal emulator inside 
 - Unlimited scrollback*
 - Unwrapped-text option
 - Horizontal scrolling
-- Selected-text copy encoding:
-  - RTF file format
-  - HTML code
-  - ANSI escape sequences 
+- Rich text copy
 
 Basicly, it allows users to use a huge scrollback buffer with text wrapping disabled, taking advantage of horizontal scrolling within whatever text console they happen to use.
 
