@@ -1116,7 +1116,7 @@ struct impl : consrv
                     server.uiterm.update([&]
                     {
                         auto& term = server.uiterm;
-                        term.ondata("(Ctrl+C to Yes) ");
+                        term.ondata("(Ctrl+C = Y) ");
                     });
                 }
                 lock.lock();
