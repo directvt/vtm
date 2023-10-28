@@ -4182,7 +4182,7 @@ namespace netxs::os
                             check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
                             check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                            check(changed, m.wheeldt, static_cast<int16_t>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
+                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
                             if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });
@@ -4190,7 +4190,7 @@ namespace netxs::os
                             if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
-                                mouse(m); // Fire mouse event to update kb modifiers.
+                                mouse(m);
                             }
                         }
                         else if (r.EventType == WINDOW_BUFFER_SIZE_EVENT)

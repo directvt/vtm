@@ -1106,6 +1106,22 @@ struct impl : consrv
         template<class L>
         auto readline(L& lock, bool& cancel, bool utf16, bool EOFon, ui32 stops, text& nameview)
         {
+            static constexpr auto noalias = "<noalias>"sv;
+
+            if (nameview == noalias && server.inpmod & nt::console::inmode::echo)
+            {
+                lock.unlock();
+                if constexpr (isreal())
+                {
+                    server.uiterm.update([&]
+                    {
+                        auto& term = server.uiterm;
+                        term.ondata("(Ctrl+C to Yes) ");
+                    });
+                }
+                lock.lock();
+            }
+
             //todo bracketed paste support
             // save server.uiterm.bpmode
             // server.uiterm.bpmode = true;
@@ -1255,12 +1271,20 @@ struct impl : consrv
                                     else if (c == '\t')                                                 { burn();     hist.save(line); line.insert("    ", mode); }
                                     else if (c == 'C' - '@')
                                     {
-                                        hist.save(line);
-                                        cooked.ustr = "\n";
-                                        done = true;
-                                        crlf = 2;
-                                        line.insert(cell{}.c0_to_txt(c), mode);
-                                        if (n == 0) pops++;
+                                        if (nameview == noalias)
+                                        {
+                                            line = "y";
+                                            cook(c, 1);
+                                        }
+                                        else
+                                        {
+                                            hist.save(line);
+                                            cooked.ustr = "\n";
+                                            done = true;
+                                            crlf = 2;
+                                            line.insert(cell{}.c0_to_txt(c), mode);
+                                            if (n == 0) pops++;
+                                        }
                                     }
                                     else
                                     {
