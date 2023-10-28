@@ -506,6 +506,7 @@ struct impl : consrv
         text  toANSI; // evnt: ANSI   decoder buffer.
         irec  leader; // evnt: Hanging key event record (lead byte).
         work  ostask; // evnt: Console task thread for the child process.
+        bool  ctrl_c; // evnt: Ctrl+C was pressed.
         cast  macros; // evnt: Doskey macros storage.
         hist  inputs; // evnt: Input history per process name storage.
 
@@ -513,7 +514,8 @@ struct impl : consrv
             :  server{ serv },
                closed{ faux },
                ondata{ true },
-               leader{      }
+               leader{      },
+               ctrl_c{ faux }
         { }
 
         auto& ref_history(text& exe)
@@ -1081,11 +1083,13 @@ struct impl : consrv
                 }
                 else
                 {
-                    if (server.inpmod & nt::console::inmode::preprocess)
+                    if (gear.pressed)
                     {
-                        if (gear.pressed) alert(nt::console::event::ctrl_c);
-                        //todo revise
-                        //stream.pop_back();
+                        ctrl_c = true;
+                        if (server.inpmod & nt::console::inmode::preprocess)
+                        {
+                            alert(nt::console::event::ctrl_c);
+                        }
                     }
                 }
             }
@@ -1108,7 +1112,9 @@ struct impl : consrv
         {
             static constexpr auto noalias = "<noalias>"sv;
 
-            if (nameview == noalias && server.inpmod & nt::console::inmode::echo)
+            auto terminate = ctrl_c && nameview == noalias && server.inpmod & nt::console::inmode::echo;
+            ctrl_c = faux; // Clear to avoid interference with copy/move/del commands.
+            if (terminate)
             {
                 lock.unlock();
                 if constexpr (isreal())
@@ -1271,7 +1277,7 @@ struct impl : consrv
                                     else if (c == '\t')                                                 { burn();     hist.save(line); line.insert("    ", mode); }
                                     else if (c == 'C' - '@')
                                     {
-                                        if (nameview == noalias)
+                                        if (terminate)
                                         {
                                             line = "y";
                                             cook(c, 1);
@@ -1279,9 +1285,9 @@ struct impl : consrv
                                         else
                                         {
                                             hist.save(line);
-                                            cooked.ustr = "\n";
+                                            cooked.ustr = {};
                                             done = true;
-                                            crlf = 2;
+                                            crlf = 1;
                                             line.insert(cell{}.c0_to_txt(c), mode);
                                             if (n == 0) pops++;
                                         }
