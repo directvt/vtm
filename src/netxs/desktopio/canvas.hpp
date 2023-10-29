@@ -1801,11 +1801,11 @@ namespace netxs
 
         auto meta(twod size, si32 form) // mime: Return clipdata's meta data.
         {
-            return form == htmltext ? utf::concat(tag::html)
-                 : form == richtext ? utf::concat(tag::rich)
-                 : form == ansitext ? utf::concat(tag::ansi)
-                 : form == safetext ? utf::concat(tag::safe)
-                                    : utf::concat(tag::text, "/", size.x, "/", size.y);
+            return utf::concat(form == htmltext ? tag::html
+                             : form == richtext ? tag::rich
+                             : form == ansitext ? tag::ansi
+                             : form == safetext ? tag::safe
+                                                : tag::text, "/", size.x, "/", size.y);
         }
     }
 

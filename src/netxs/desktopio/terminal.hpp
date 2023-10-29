@@ -6231,7 +6231,8 @@ namespace netxs::ui
             auto delimpos = data.find(';');
             if (delimpos != text::npos)
             {
-                clipdata.utf8 = data.substr(0, ++delimpos);
+                clipdata.meta = data.substr(0, ++delimpos);
+                clipdata.utf8.clear();
                 utf::unbase64(data.substr(delimpos), clipdata.utf8);
                 clipdata.form = mime::disabled;
                 clipdata.size = target->panel;
@@ -6756,8 +6757,7 @@ namespace netxs::ui
             }
             else if (selection_passed()) // Paste from clipboard.
             {
-                gear.owner.RISEUP(tier::request, hids::events::clipbrd, gear);
-                utf8 = gear.board::cargo.utf8;
+                utf8 = get_clipboard_text(gear);
             }
             if (utf8.size())
             {
@@ -7515,12 +7515,12 @@ namespace netxs::ui
                         auto& data = gear.board::cargo;
                         if (data.hash != c.hash)
                         {
-                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form);
+                            s11n::clipdata.send(master, c.gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
                             return;
                         }
                     }
                     else log(prompt::dtvt, ansi::err("Unregistered input device id: ", c.gear_id));
-                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext);
+                    s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext, text{});
                 });
             }
             //void handle(s11n::xs::focus               lock)

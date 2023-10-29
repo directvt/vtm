@@ -317,7 +317,7 @@ namespace netxs::ui
                                       canvas.text(coord, subblock, isr_to_l, printfx);
                                   });
         }
-        template<bool UseLocus = true, class T, class P = noop>
+        template<bool UseLocus = true, bool Split = faux, class T, class P = noop>
         auto print(T const& block, core& canvas, P printfx = {})
         {
             sync(block);
@@ -326,10 +326,10 @@ namespace netxs::ui
             if constexpr (UseLocus) coor = forward(block);
             else                    coor = flow::cp();
 
-            go<faux>(block, canvas, printfx);
+            go<Split>(block, canvas, printfx);
             return coor;
         }
-        template<bool UseLocus = true, class T>
+        template<bool UseLocus = true, bool Split = faux, class T>
         auto print(T const& block)
         {
             sync(block);
@@ -338,7 +338,7 @@ namespace netxs::ui
             if constexpr (UseLocus) coor = forward(block);
             else                    coor = flow::cp();
 
-            go<faux>(block);
+            go<Split>(block);
             return coor;
         }
 
@@ -2121,11 +2121,11 @@ namespace netxs::ui
             flow::go(block, *this, printfx);
         }
         // face: Print something else.
-        template<bool UseFWD = faux, class T, class P = noop>
+        template<bool UseFWD = faux, bool Split = faux, class T, class P = noop>
         void output(T const& block, P printfx = {})
         {
             //todo unify
-            flow::print<UseFWD>(block, *this, printfx);
+            flow::print<UseFWD, Split>(block, *this, printfx);
         }
         // face: Print paragraph.
         void output(para const& block)
@@ -2133,12 +2133,12 @@ namespace netxs::ui
             flow::print(block, *this);
         }
         // face: Print page.
-        template<class P = noop>
+        template<bool Split = faux, class P = noop>
         void output(page& textpage, P printfx = {})
         {
             auto publish = [&](auto& combo)
             {
-                combo.coord = flow::print(combo, *this, printfx);
+                combo.coord = flow::print<true, Split>(combo, *this, printfx);
             };
             textpage.stream(publish);
         }

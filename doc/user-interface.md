@@ -56,7 +56,7 @@
   <tr>
     <th>MiddleClick</th>
     <td colspan="5"></td>
-    <td colspan="1">Selection paste</td>
+    <td colspan="1">Selection/clipboard paste</td>
     <td colspan="3"></td>
   </tr>
   <tr>
