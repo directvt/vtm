@@ -6231,7 +6231,7 @@ namespace netxs::ui
             auto delimpos = data.find(';');
             if (delimpos != text::npos)
             {
-                clipdata.meta = data.substr(0, ++delimpos);
+                clipdata.meta = data.substr(0, delimpos++);
                 clipdata.utf8.clear();
                 utf::unbase64(data.substr(delimpos), clipdata.utf8);
                 clipdata.form = mime::disabled;
