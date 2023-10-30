@@ -1585,7 +1585,7 @@ namespace netxs::os
             static auto cf_sec3 = ::RegisterClipboardFormatA("CanUploadToCloudClipboard");
         #endif
 
-        auto set(view type, view utf8)
+        auto set(input::clipdata& clipdata)
         {
             // Generate the following formats:
             //   mime::textonly | mime::disabled
@@ -1613,15 +1613,11 @@ namespace netxs::os
             //  cf_ansi format: payload=mime_type/size_x/size_y;utf8_data
 
             auto success = faux;
-            auto size = twod{ 80,25 };
-            {
-                auto i = 1;
-                utf::divide<feed::rev>(type, '/', [&](auto frag)
-                {
-                    if (auto v = utf::to_int(frag)) size[i] = v.value();
-                    return i--;
-                });
-            }
+
+            auto& utf8 = clipdata.utf8;
+            auto& meta = clipdata.meta;
+            auto& form = clipdata.form;
+            auto& size = clipdata.size;
 
             #if defined(_WIN32)
 
@@ -1652,7 +1648,7 @@ namespace netxs::os
                 ok(::EmptyClipboard(), "::EmptyClipboard()", os::unexpected);
                 if (utf8.size())
                 {
-                    if (type.size() < 5 || type.starts_with(mime::tag::text))
+                    if (form == mime::textonly || form == mime::disabled)
                     {
                         send(cf_text, utf8);
                     }
@@ -1662,38 +1658,37 @@ namespace netxs::os
                         auto info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
                         ::GetCurrentConsoleFontEx(os::stdout_fd, faux, &info);
                         auto font = utf::to_utf(info.FaceName);
-                        if (type.starts_with(mime::tag::rich))
+                        if (form == mime::richtext)
                         {
                             auto rich = post.to_rich(font);
                             auto utf8 = post.to_utf8();
                             send(cf_rich, rich);
                             send(cf_text, utf8);
                         }
-                        else if (type.starts_with(mime::tag::html))
+                        else if (form == mime::htmltext)
                         {
                             auto [html, code] = post.to_html(font);
                             send(cf_html, html);
                             send(cf_text, code);
                         }
-                        else if (type.starts_with(mime::tag::ansi))
+                        else if (form == mime::ansitext)
                         {
                             auto rich = post.to_rich(font);
                             send(cf_rich, rich);
                             send(cf_text, utf8);
                         }
-                        else if (type.starts_with(mime::tag::safe))
+                        else if (form == mime::safetext)
                         {
                             send(cf_sec1, "1");
                             send(cf_sec2, "0");
                             send(cf_sec3, "0");
                             send(cf_text, utf8);
                         }
-                        else
-                        {
-                            send(cf_utf8, utf8);
-                        }
                     }
-                    auto crop = ansi::add(type, ";", utf8);
+                    auto crop = escx{};
+                    if (form == mime::disabled && meta.size()) crop.add(meta);
+                    else                                       crop.add(mime::meta(size, form));
+                    crop.add(";", utf8);
                     send(cf_ansi, crop);
                 }
                 else
@@ -1714,13 +1709,13 @@ namespace netxs::os
                         success = true;
                     }
                 };
-                if (type.starts_with(mime::tag::rich))
+                if (form == mime::richtext)
                 {
                     auto post = page{ utf8 };
                     auto rich = post.to_rich();
                     send(rich);
                 }
-                else if (type.starts_with(mime::tag::html))
+                else if (form == mime::htmltext)
                 {
                     auto post = page{ utf8 };
                     auto [html, code] = post.to_html();
@@ -1734,25 +1729,25 @@ namespace netxs::os
             #else
 
                 auto yield = escx{};
-                if (type.starts_with(mime::tag::rich))
+                if (form == mime::richtext)
                 {
                     auto post = page{ utf8 };
                     auto rich = post.to_rich();
                     yield.clipbuf(size, rich, mime::richtext);
                 }
-                else if (type.starts_with(mime::tag::html))
+                else if (form == mime::htmltext)
                 {
                     auto post = page{ utf8 };
                     auto [html, code] = post.to_html();
                     yield.clipbuf(size, code, mime::htmltext);
                 }
-                else if (type.starts_with(mime::tag::ansi)) //todo GH#216
+                else if (form == mime::disabled && meta.size())
                 {
-                    yield.clipbuf(size, utf8, mime::ansitext);
+                    yield.clipbuf(meta, utf8);
                 }
-                else
+                else // mime::textonly
                 {
-                    yield.clipbuf(size, utf8, mime::textonly);
+                    yield.clipbuf(size, utf8, form);
                 }
                 io::send(os::stdout_fd, yield);
                 success = true;
@@ -3942,11 +3937,11 @@ namespace netxs::os
             void handle(s11n::xs::clipdata         lock)
             {
                 auto& clipdata = lock.thing;
-                if (!clipdata.size && clipdata.utf8.size()) clipdata.size = dtvt::win_sz / 2; // Set the default size if no size is specified.
-                auto metadata = mime::meta(clipdata.size, clipdata.form);
-                os::clipboard::set(metadata, clipdata.utf8);
-                s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, clipdata.utf8, clipdata.form);
-                clipdata.set();
+                if (clipdata.form == mime::disabled) input::board::normalize(clipdata);
+                else                                 clipdata.set();
+                os::clipboard::set(clipdata);
+                auto crop = utf::trunc(clipdata.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, crop.str(), clipdata.form);
             }
             void handle(s11n::xs::clipdata_request lock)
             {
@@ -4589,11 +4584,20 @@ namespace netxs::os
                 auto wndname = utf::to_utf("vtmWindowClass");
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
-                    auto sync = [](auto&& utf8, auto form)
+                    auto sync = [](qiew utf8, auto form)
                     {
+                        auto meta = qiew{};
+                        if (form == mime::disabled)
+                        {
+                            auto step = utf8.find(';');
+                            if (step != view::npos)
+                            {
+                                meta = utf8.substr(0, step++);
+                                utf8.remove_prefix(step);
+                            }
+                        }
                         auto clipdata = tty::stream.clipdata.freeze();
-                        input::board::set(clipdata.thing, id_t{}, dtvt::win_sz / 2, std::forward<decltype(utf8)>(utf8), form);
-                        clipdata.thing.set();
+                        input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::win_sz / 2, utf8, form, meta);
                         auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
                         tty::stream.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
                     };
@@ -4627,7 +4631,7 @@ namespace netxs::os
                                         if (auto lptr = ::GlobalLock(hglb))
                                         {
                                             auto size = ::GlobalSize(hglb);
-                                            auto data = text((char*)lptr, size - 1/*trailing null*/);
+                                            auto data = view((char*)lptr, size - 1/*trailing null*/);
                                             sync(data, mime::disabled);
                                             ::GlobalUnlock(hglb);
                                         }
@@ -4660,7 +4664,7 @@ namespace netxs::os
                                     }
                                     while (format = ::EnumClipboardFormats(format));
                                 }
-                                else sync(text{}, mime::textonly);
+                                else sync(view{}, mime::textonly);
                             }
                             ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
                             break;

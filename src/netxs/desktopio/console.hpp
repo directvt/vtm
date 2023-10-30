@@ -1262,7 +1262,7 @@ namespace netxs::ui
                 if (!gear_ptr) return;
                 auto& gear =*gear_ptr;
                 auto& data = gear.board::cargo;
-                conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form);
+                conio.clipdata.send(canal, ext_gear_id, data.hash, data.size, data.utf8, data.form, data.meta);
             };
             LISTEN(tier::request, hids::events::clipbrd, from_gear, tokens)
             {

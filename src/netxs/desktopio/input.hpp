@@ -946,54 +946,52 @@ namespace netxs::input
 
         virtual void fire_board() = 0;
 
-        static void set(clipdata& c, id_t gear_id, twod winsz, qiew utf8, si32 form)
+        static void normalize(clipdata& c, id_t gear_id, time hash, twod winsz, qiew utf8, si32 form, qiew meta = {})
         {
             auto size = dot_00;
-            if (form == mime::disabled) // Try to parse utf8: mime/size_x/size_y;data
+            if (form == mime::disabled && meta) // Try to parse meta: mime/size_x/size_y;data
             {
-                     if (utf8.starts_with(mime::tag::ansi)) { utf8.remove_prefix(mime::tag::ansi.length()); form = mime::ansitext; }
-                else if (utf8.starts_with(mime::tag::text)) { utf8.remove_prefix(mime::tag::text.length()); form = mime::textonly; }
-                else if (utf8.starts_with(mime::tag::rich)) { utf8.remove_prefix(mime::tag::rich.length()); form = mime::richtext; }
-                else if (utf8.starts_with(mime::tag::html)) { utf8.remove_prefix(mime::tag::html.length()); form = mime::htmltext; }
-                else if (utf8.starts_with(mime::tag::safe)) { utf8.remove_prefix(mime::tag::safe.length()); form = mime::safetext; }
-                else
+                     if (meta.starts_with(mime::tag::ansi)) { meta.remove_prefix(mime::tag::ansi.length()); form = mime::ansitext; }
+                else if (meta.starts_with(mime::tag::text)) { meta.remove_prefix(mime::tag::text.length()); form = mime::textonly; }
+                else if (meta.starts_with(mime::tag::rich)) { meta.remove_prefix(mime::tag::rich.length()); form = mime::richtext; }
+                else if (meta.starts_with(mime::tag::html)) { meta.remove_prefix(mime::tag::html.length()); form = mime::htmltext; }
+                else if (meta.starts_with(mime::tag::safe)) { meta.remove_prefix(mime::tag::safe.length()); form = mime::safetext; }
+
+                if (form != mime::disabled)
                 {
-                    if (auto pos = utf8.find(';'); pos != text::npos) utf8 = utf8.substr(pos + 1);
-                    else                                              utf8 = {};
-                }
-                if (form == mime::disabled) form = mime::textonly;
-                else
-                {
-                    if (utf8 && utf8.front() == '/') // Proceed preview size if present.
+                    if (meta && meta.front() == '/') // Proceed preview size if present.
                     {
-                        utf8.remove_prefix(1);
-                        if (auto v = utf::to_int(utf8))
+                        meta.remove_prefix(1);
+                        if (auto v = utf::to_int(meta))
                         {
                             static constexpr auto max_value = twod{ 2000, 1000 }; //todo unify
                             size.x = v.value();
-                            if (utf8)
+                            if (meta)
                             {
-                                utf8.remove_prefix(1);
-                                if (auto v = utf::to_int(utf8)) size.y = v.value();
+                                meta.remove_prefix(1);
+                                if (auto v = utf::to_int(meta)) size.y = v.value();
                             }
                             if (!size.x || !size.y) size = dot_00;
                             else                    size = std::clamp(size, dot_00, max_value);
                         }
                     }
-                    if (utf8 && utf8.front() == ';') utf8.remove_prefix(1);
-                    else                             utf8 = {}; // Unknown format.
+                    meta = {};
                 }
             }
             size = utf8.empty() ? dot_00
                  : size         ? size
                  : winsz        ? winsz
                                 : twod{ 80,25 }; //todo make it configurable
-            c.set(gear_id, datetime::now(), size, utf8.str(), form);
+            c.set(gear_id, hash, size, utf8.str(), form, meta.str());
+        }
+        static void normalize(clipdata& c)
+        {
+            normalize(c, id_t{}, c.hash, c.size, c.utf8, c.form, c.meta);
         }
         auto clear_clipboard()
         {
             auto not_empty = !!board::cargo.utf8.size();
-            board::cargo.set(id_t{}, datetime::now(), dot_00, text{}, mime::ansitext);
+            board::cargo.set(id_t{}, datetime::now(), dot_00, text{}, mime::ansitext, text{});
             fire_board();
             return not_empty;
         }
@@ -1005,7 +1003,7 @@ namespace netxs::input
         void set_clipboard(twod size, qiew utf8, si32 form)
         {
             auto c = clip{};
-            c.set(id_t{}, datetime::now(), size, utf8.str(), form);
+            c.set(id_t{}, datetime::now(), size, utf8.str(), form, text{});
             set_clipboard(c);
         }
         void update(sysboard& b) // Update clipboard preview.
@@ -1021,7 +1019,7 @@ namespace netxs::input
                 {
                     board::image.reset();
                     board::image.full(full);
-                    board::image.output(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    board::image.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
                     board::image.blur(1, [&](cell& c) { c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
@@ -1050,8 +1048,9 @@ namespace netxs::input
                     board::image.wipe();
                 }
                 board::image.mark(cell{});
-                if (b.form == mime::textonly) board::image.output(block, cell::shaders::color(  brush));
-                else                          board::image.output(block, cell::shaders::xlucent(alpha));
+                auto plain = b.form == mime::textonly || b.form == mime::disabled;
+                if (plain) board::image.output<true>(block, cell::shaders::color(  brush));
+                else       board::image.output<true>(block, cell::shaders::xlucent(alpha));
             }
         }
     };

@@ -555,9 +555,13 @@ namespace netxs::ansi
         auto& save_palette()        { return add("\033[#P"                           ); } // escx: Push palette onto stack XTPUSHCOLORS.
         auto& load_palette()        { return add("\033[#Q"                           ); } // escx: Pop  palette from stack XTPOPCOLORS.
         auto& old_palette_reset()   { return add("\033]R"                            ); } // escx: Reset color palette (Linux console).
+        auto& clipbuf(view type, view utf8) // escx: Set clipboard buffer.
+        {
+            return add("\033]52;", type, ";", utf::base64(utf8), c0_bel);
+        }
         auto& clipbuf(twod size, view utf8, si32 form) // escx: Set clipboard buffer.
         {
-            return add("\033]52;", mime::meta(size, form), ";", utf::base64(utf8), c0_bel);
+            return clipbuf(mime::meta(size, form), utf8);
         }
         auto& old_palette(si32 i, rgba c) // escx: Set color palette (Linux console).
         {

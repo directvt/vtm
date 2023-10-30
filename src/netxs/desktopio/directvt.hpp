@@ -792,7 +792,7 @@ namespace netxs::directvt
         //STRUCT_macro(quit,              (bool, fast))
         STRUCT_macro_lite(expose)
         STRUCT_macro(focusbus,          (id_t, gear_id) (time, guid) (hint, cause))
-        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form))
+        STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro(sysclose,          (bool, fast))
