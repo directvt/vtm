@@ -627,7 +627,7 @@ namespace netxs::ui
 
             void shadow()
             {
-                for (auto i = 0; i < description.size(); i++)
+                for (auto i = 0; i < (si32)description.size(); i++)
                 {
                     status[i].ease();
                 }

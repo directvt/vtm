@@ -89,7 +89,7 @@
     {
       "name": "PROD-Win-ARM32",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeCommandArgs": "",
@@ -98,8 +98,8 @@
       "inheritEnvironments": [ "msvc_arm_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /EHsc /bigobj /utf-8",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
           "type": "STRING"
         }
       ],
@@ -108,7 +108,7 @@
     {
       "name": "PROD-Win-ARM64",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeCommandArgs": "",
@@ -117,8 +117,8 @@
       "inheritEnvironments": [ "msvc_arm64_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /EHsc /bigobj /utf-8",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
           "type": "STRING"
         }
       ],
@@ -127,7 +127,7 @@
     {
       "name": "PROD-Win-x32",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeCommandArgs": "",
@@ -136,8 +136,8 @@
       "inheritEnvironments": [ "msvc_x86_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /EHsc /bigobj /utf-8",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
           "type": "STRING"
         }
       ]
@@ -145,7 +145,7 @@
     {
       "name": "PROD-Win-x64",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeCommandArgs": "",
@@ -154,8 +154,8 @@
       "inheritEnvironments": [ "msvc_x64_x64" ],
       "variables": [
         {
-          "name": "CMAKE_CXX_FLAGS_MINSIZEREL",
-          "value": "/MT /EHsc /bigobj /utf-8",
+          "name": "CMAKE_CXX_FLAGS_RELEASE",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
           "type": "STRING"
         }
       ]
@@ -163,7 +163,7 @@
     {
       "name": "PROD-WSL-ARM32",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -174,7 +174,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s -Wno-psabi",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi",
           "type": "STRING"
         },
         {
@@ -191,7 +191,7 @@
     {
       "name": "PROD-WSL-ARM64",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -202,7 +202,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s",
           "type": "STRING"
         },
         {
@@ -219,7 +219,7 @@
     {
       "name": "PROD-WSL-x32",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -230,7 +230,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s",
           "type": "STRING"
         },
         {
@@ -246,7 +246,7 @@
     {
       "name": "PROD-WSL-x64",
       "generator": "Ninja",
-      "configurationType": "MinSizeRel",
+      "configurationType": "Release",
       "buildRoot": "${workspaceRoot}\\.vs\\build\\${name}",
       "installRoot": "${workspaceRoot}\\.vs\\build\\install\\${name}",
       "cmakeExecutable": "/usr/bin/cmake",
@@ -257,7 +257,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s",
           "type": "STRING"
         }
       ],
