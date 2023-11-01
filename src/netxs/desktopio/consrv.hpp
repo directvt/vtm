@@ -712,12 +712,12 @@ struct impl : consrv
             if (ostask.joinable()) ostask.join();
             ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
-                if (io_log) prompt.add(what == nt::console::event::ctrl_c     ? "Ctrl+C"
-                                     : what == nt::console::event::ctrl_break ? "Ctrl+Break"
-                                     : what == nt::console::event::close      ? "Ctrl Close"
-                                     : what == nt::console::event::logoff     ? "Ctrl Logoff"
-                                     : what == nt::console::event::shutdown   ? "Ctrl Shutdown"
-                                                                              : "Unknown", " event index ", index);
+                if (io_log) prompt.add(what == os::signals::ctrl_c     ? "Ctrl+C"
+                                     : what == os::signals::ctrl_break ? "Ctrl+Break"
+                                     : what == os::signals::close      ? "Ctrl Close"
+                                     : what == os::signals::logoff     ? "Ctrl Logoff"
+                                     : what == os::signals::shutdown   ? "Ctrl Shutdown"
+                                                                       : "Unknown", " event index ", index);
                 for (auto& client : joined)
                 {
                     if (!pgroup || pgroup == client.pgroup)
@@ -777,6 +777,7 @@ struct impl : consrv
         }
         auto generate(wiew wstr, ui32 s = 0)
         {
+            //todo implement bracketed-paste using menu events (vt or menu bounds)
             stream.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
@@ -1079,7 +1080,7 @@ struct impl : consrv
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
                     stream.pop_back();
-                    if (gear.pressed) alert(nt::console::event::ctrl_break);
+                    if (gear.pressed) alert(os::signals::ctrl_break);
                 }
                 else
                 {
@@ -1088,7 +1089,7 @@ struct impl : consrv
                         ctrl_c = true;
                         if (server.inpmod & nt::console::inmode::preprocess)
                         {
-                            alert(nt::console::event::ctrl_c);
+                            alert(os::signals::ctrl_c);
                         }
                     }
                 }
@@ -4906,11 +4907,23 @@ struct impl : consrv
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
+                static auto alive = true;
                 ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
+                    case WM_ENDSESSION:
+                    {
+                        if (wParam && alive)
+                        {
+                            alive = faux;
+                                 if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                            else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                            else                                   os::signals::place(os::signals::shutdown);
+                        }
+                        break;
+                    }
                     case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
                     default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }

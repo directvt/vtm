@@ -796,7 +796,7 @@ namespace netxs::directvt
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
         STRUCT_macro(sysclose,          (bool, fast))
-        STRUCT_macro(syspaste,          (id_t, gear_id) (ui32, secbits) (ui32, format) (text, data))
+        STRUCT_macro(syspaste,          (id_t, gear_id) (text, txtdata))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.

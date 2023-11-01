@@ -17,6 +17,7 @@ namespace netxs::events::userland
             EVENT_XS( halt   , input::hids ), // release::global: Notify about the mouse controller is outside.
             EVENT_XS( spawn  , input::hids ), // release::global: Notify about the mouse controller is appear.
             EVENT_XS( clipbrd, input::hids ), // release/request: Set/get clipboard data.
+            EVENT_XS( paste  , input::hids ),
             GROUP_XS( keybd  , input::hids ),
             GROUP_XS( mouse  , input::hids ),
             GROUP_XS( focus  , input::hids ), // release::global: Notify about the focus got/lost.
@@ -920,6 +921,20 @@ namespace netxs::input
         virtual void fire_keybd() = 0;
     };
 
+    // console: Clipboard paste.
+    struct paste
+    {
+        text txtdata;
+
+        void update(syspaste& p)
+        {
+            std::swap(txtdata, p.txtdata);
+            fire_paste();
+        }
+
+        virtual void fire_paste() = 0;
+    };
+
     // console: Focus tracker.
     struct focus
     {
@@ -1073,6 +1088,7 @@ namespace netxs::input
     struct hids
         : public mouse,
           public keybd,
+          public paste,
           public focus,
           public board,
           public bell
@@ -1302,6 +1318,10 @@ namespace netxs::input
             tooltip_stop = true;
             focus::update(f);
         }
+        auto take(syspaste& p)
+        {
+            paste::update(p);
+        }
         auto take(sysboard& b)
         {
             board::update(b);
@@ -1460,6 +1480,11 @@ namespace netxs::input
             alive = true;
             keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
+        }
+        void fire_paste()
+        {
+            alive = true;
+            owner.SIGNAL(tier::release, hids::events::paste, *this);
         }
         void fire_focus()
         {

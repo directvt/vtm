@@ -194,11 +194,11 @@ namespace netxs::ui
                 auto& keybd = lock.thing;
                 notify(e2::conio::keybd, keybd);
             }
-            //void handle(s11n::xs::syspaste    lock)
-            //{
-            //    auto& paste = lock.thing;
-            //    notify(e2::conio::paste, paste);
-            //}
+            void handle(s11n::xs::syspaste    lock)
+            {
+                auto& paste = lock.thing;
+                notify(e2::conio::paste, paste);
+            }
             void handle(s11n::xs::sysmouse    lock)
             {
                 auto& mouse = lock.thing;
@@ -244,7 +244,7 @@ namespace netxs::ui
             {
                 auto& item = lock.thing;
                 auto backup = owner.This();
-                notify<tier::anycast>(e2::form::proceed::quit::one, item.fast);
+                notify<tier::release>(e2::form::proceed::quit::one, item.fast);
             }
         };
 
@@ -534,6 +534,10 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::conio::keybd, k, memo)
                 {
                     forward(k);
+                };
+                boss.LISTEN(tier::release, e2::conio::paste, p, memo)
+                {
+                    forward(p);
                 };
                 boss.LISTEN(tier::release, e2::conio::focus, f, memo)
                 {

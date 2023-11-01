@@ -98,6 +98,11 @@ namespace netxs::os
         os::finalized.exchange(true);
         os::finalized.notify_all();
     }
+    auto finalizer()
+    {
+        auto deleter = [](auto*){ os::release(); };
+        return std::unique_ptr<decltype(finalized), decltype(deleter)>(&finalized);
+    }
 
     #if defined(_WIN32)
 
@@ -413,13 +418,10 @@ namespace netxs::os
                 };
                 namespace event
                 {
-                    static constexpr auto custom     = 0b1000'0000'0000'0000;
-                    static constexpr auto ctrl_c     = CTRL_C_EVENT;
-                    static constexpr auto ctrl_break = CTRL_BREAK_EVENT;
-                    static constexpr auto close      = CTRL_CLOSE_EVENT;
-                    static constexpr auto logoff     = CTRL_LOGOFF_EVENT;
-                    static constexpr auto shutdown   = CTRL_SHUTDOWN_EVENT;
-                    static constexpr auto style      = CTRL_SHUTDOWN_EVENT + 1;
+                    static constexpr auto custom      = 0b1000'0000'0000'0000;
+                    static constexpr auto style       = 0;
+                    static constexpr auto paste_begin = 1;
+                    static constexpr auto paste_end   = 2;
                 }
                 namespace op
                 {
@@ -1175,17 +1177,35 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
+            static constexpr auto ctrl_c     = CTRL_C_EVENT;
+            static constexpr auto ctrl_break = CTRL_BREAK_EVENT;
+            static constexpr auto close      = CTRL_CLOSE_EVENT;
+            static constexpr auto logoff     = CTRL_LOGOFF_EVENT;
+            static constexpr auto shutdown   = CTRL_SHUTDOWN_EVENT;
+
+            static auto mutex = std::mutex{};
+            static auto queue = std::vector<sigt>{}; // Control event queue.
+            static auto cache = std::vector<sigt>{};
+            static auto alarm = fire{};
+            static auto fetch = []() -> auto&
+            {
+                auto guard = std::lock_guard{ mutex };
+                std::swap(queue, cache);
+                alarm.flush();
+                return cache;
+            };
+            static auto place = [](sigt what)
+            {
+                auto guard = std::lock_guard{ mutex };
+                queue.push_back(what);
+                alarm.reset();
+            };
             static auto state = []
             {
                 static auto handler = [](sigt what) // Put the console control events at the head of the input event queue.
                 {
-                    auto count = DWORD{};
-                    ::GetNumberOfConsoleInputEvents(stdin_fd, &count);
-                    auto events = std::vector<INPUT_RECORD>(count + 1);
-                    if (count) ::ReadConsoleInputW(stdin_fd, events.data() + 1, count, &count);
-                    events[0] = { .EventType = MENU_EVENT, .Event = { .MenuEvent = what | nt::console::event::custom, }}; // Too hacky (MENU_EVENT).
-                    ::WriteConsoleInputW(stdin_fd, events.data(), count + 1, &count);
-                    if (what > nt::console::event::ctrl_break) // Waiting for the process to complete.
+                    place(what);
+                    if (what > os::signals::ctrl_break) // Waiting for the process to complete.
                     {
                         os::finalized.wait(faux);
                     }
@@ -4048,7 +4068,9 @@ namespace netxs::os
                 auto count = DWORD{};
                 auto point = utfx{};
                 auto toutf = text{};
+                auto wcopy = wide{};
                 auto kbmod = si32{};
+                auto ctrlv = bool{};
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 auto check = [](auto& changed, auto& oldval, auto newval)
                 {
@@ -4058,9 +4080,46 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
-                auto waits = std::to_array({ os::stdin_fd, (fd_t)alarm });
-                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE))
+                auto waits = std::to_array({ os::stdin_fd, (fd_t)os::signals::alarm, (fd_t)alarm });
+                while (alive)
                 {
+                    auto cause = ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE);
+                    if (cause == WAIT_OBJECT_0 + 1)
+                    {
+                        auto& queue = os::signals::fetch();
+                        for (auto signal : queue)
+                        {
+                            if (signal == os::signals::ctrl_c)
+                            {
+                                k.extflag = faux;
+                                k.virtcod = 'C';
+                                k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
+                                k.pressed = true;
+                                k.keycode = input::key::KeyC;
+                                k.cluster = "\x03";
+                                keybd(k);
+                            }
+                            else if (signal == os::signals::ctrl_break)
+                            {
+                                k.extflag = faux;
+                                k.virtcod = ansi::c0_etx;
+                                k.scancod = ansi::ctrl_break;
+                                k.pressed = true;
+                                k.keycode = input::key::Break;
+                                k.cluster = "\x03";
+                                keybd(k);
+                            }
+                            else if (signal == os::signals::close
+                                  || signal == os::signals::logoff
+                                  || signal == os::signals::shutdown)
+                            {
+                                alive = faux;
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    if (cause != WAIT_OBJECT_0) break;
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count)) break;
                     if (count == 0) continue;
                     items.resize(count);
@@ -4070,6 +4129,15 @@ namespace netxs::os
                     while (alive && head != tail)
                     {
                         auto& r = *head++;
+                        if (ctrlv) // Pull clipboard data.
+                        {
+                            if (r.EventType == KEY_EVENT)
+                            {
+                                wcopy += r.Event.KeyEvent.uChar.UnicodeChar;
+                                continue;
+                            }
+                            else ctrlv = faux;
+                        }
                         if (r.EventType == KEY_EVENT)
                         {
                             auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
@@ -4136,29 +4204,6 @@ namespace netxs::os
                             if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                             switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
                             {
-                                case nt::console::event::ctrl_c:
-                                    k.extflag = faux;
-                                    k.virtcod = 'C';
-                                    k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
-                                    k.pressed = true;
-                                    k.keycode = input::key::KeyC;
-                                    k.cluster = "\x03";
-                                    keybd(k);
-                                    break;
-                                case nt::console::event::ctrl_break:
-                                    k.extflag = faux;
-                                    k.virtcod = ansi::c0_etx;
-                                    k.scancod = ansi::ctrl_break;
-                                    k.pressed = true;
-                                    k.keycode = input::key::Break;
-                                    k.cluster = "\x03";
-                                    keybd(k);
-                                    break;
-                                case nt::console::event::close:
-                                case nt::console::event::logoff:
-                                case nt::console::event::shutdown:
-                                    alive = faux;;
-                                    break;
                                 case nt::console::event::style:
                                     if (head != tail && head->EventType == MENU_EVENT)
                                     {
@@ -4166,11 +4211,16 @@ namespace netxs::os
                                         style(deco{ r.Event.MenuEvent.dwCommandId });
                                     }
                                     break;
-                                //todo
-                                //case PASTE_BEGIN:
-                                //    break;
-                                //case PASTE_END:
-                                //    break;
+                                case nt::console::event::paste_begin:
+                                    ctrlv = true;
+                                    break;
+                                case nt::console::event::paste_end:
+                                    ctrlv = faux;
+                                    utf::to_utf(wcopy, p.txtdata);
+                                    paste(p);
+                                    wcopy.clear();
+                                    p.txtdata.clear();
+                                    break;
                             }
                         }
                         else if (r.EventType == MOUSE_EVENT)
@@ -4927,7 +4977,13 @@ namespace netxs::os
                         panel = data.winsize;
                     };
                     auto focus = [&](auto& data) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
-                    auto paste = [&](auto& data) { if (!alive) return; };
+                    auto paste = [&](auto& data)
+                    {
+                        auto guard = std::lock_guard{ mutex };
+                        if (!alive || data.txtdata.empty()) return;
+                        block += data.txtdata;
+                        print(true);
+                    };
                     auto close = [&](auto& data) 
                     {
                         if (alive.exchange(faux))
