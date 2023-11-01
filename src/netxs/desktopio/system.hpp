@@ -4008,7 +4008,11 @@ namespace netxs::os
                 while (extio && extio.send(intio.recv())) { }
                 extio.shut();
             }};
-            //todo forward signals to intio
+            //auto  sigio = std::thread{ [&] // Forward signals to intio.
+            //{
+            //    while (extio && extio.send(intio.recv())) { }
+            //    extio.shut();
+            //}};
             while (intio && intio.send(extio.recv())) { }
 
             //todo wait extio reconnection
@@ -4787,6 +4791,7 @@ namespace netxs::os
                     os::close(os::stdout_fd);
                     os::stdout_fd = saved_fd;
                     ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected);
+                    //todo sync current active buffer size (wt issue)
                 }
             #else 
                 io::send(os::stdout_fd, vtend);

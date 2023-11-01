@@ -7247,14 +7247,9 @@ namespace netxs::ui
             {
                 //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                if (gear.cluster.size())
+                if (config.resetonkey && gear.doinput())
                 {
                     this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
-                }
-
-                if (gear.pressed && config.resetonkey
-                && (gear.cluster.size() || !gear.kbmod()))
-                {
                     unsync = true;
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
