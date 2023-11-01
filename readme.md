@@ -87,7 +87,9 @@ Note: You can use [Github Actions](../../actions) to build statically linked bin
 
 # Feedback
 
-If you encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, please consider filing an [issue](https://github.com/netxs-group/vtm/issues/new/choose). Any feedback in any language is welcome.
+If you encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, please consider [filing an issue](https://github.com/netxs-group/vtm/issues/new/choose).
+
+Any feedback in any language is welcome.
 
 # Related Repositories
 
