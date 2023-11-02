@@ -98,11 +98,6 @@ namespace netxs::os
         os::finalized.exchange(true);
         os::finalized.notify_all();
     }
-    auto finalizer()
-    {
-        auto deleter = [](auto*){ os::release(); };
-        return std::unique_ptr<decltype(finalized), decltype(deleter)>(&finalized);
-    }
 
     #if defined(_WIN32)
 
@@ -191,6 +186,10 @@ namespace netxs::os
             os::close((fd_t const)h);
             h = os::invalid_fd;
         }
+    }
+    void sleep(auto t)
+    {
+        std::this_thread::sleep_for(t);
     }
 
     #if defined(_WIN32)
@@ -1189,18 +1188,18 @@ namespace netxs::os
             static auto alarm = fire{};
             static auto fetch = []() -> auto&
             {
-                auto guard = std::lock_guard{ mutex };
+                auto sync = std::lock_guard{ mutex };
                 std::swap(queue, cache);
                 alarm.flush();
                 return cache;
             };
             static auto place = [](sigt what)
             {
-                auto guard = std::lock_guard{ mutex };
+                auto sync = std::lock_guard{ mutex };
                 queue.push_back(what);
                 alarm.reset();
             };
-            static auto state = []
+            static auto listener = []
             {
                 static auto handler = [](sigt what) // Put the console control events at the head of the input event queue.
                 {
@@ -1212,7 +1211,11 @@ namespace netxs::os
                     return TRUE;
                 };
                 ::SetConsoleCtrlHandler(handler, TRUE);
-                auto deleter = [](auto*){ ::SetConsoleCtrlHandler(handler, FALSE); };
+                auto deleter = [](auto*)
+                {
+                    os::release();
+                    ::SetConsoleCtrlHandler(handler, FALSE);
+                };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
             }();
 
@@ -1220,7 +1223,7 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
-            static auto state = []
+            static auto listener = []
             {
                 auto action = [](auto){ };
                 auto forced_EINTR = (struct sigaction){};
@@ -1244,6 +1247,11 @@ namespace netxs::os
                     ::signal(SIGUSR2,  SIG_DFL);
                     ::signal(SIGWINCH, SIG_DFL);
                 };
+                return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
+            }();
+            static auto atexit = []
+            {
+                auto deleter = [](auto*) { os::release(); };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
 
@@ -1593,6 +1601,7 @@ namespace netxs::os
     {
         static constexpr auto ocs52head = "\033]52;"sv;
         #if defined(_WIN32)
+            static auto winhndl = HWND{};
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
             static auto cf_text = CF_UNICODETEXT;
@@ -1881,7 +1890,7 @@ namespace netxs::os
                 inread.exchange(faux);
                 return result;
             }
-            virtual qiew recv()  override // It's not thread safe!
+            virtual qiew recv() override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
             }
@@ -2851,6 +2860,7 @@ namespace netxs::os
 
     namespace dtvt
     {
+        static auto isolated = faux; // Standalone app in legacy console.
         static auto mode = ui::console::vtrgb;
         static auto scroll = faux; // Viewport/scrollback selector for windows console.
         auto consize()
@@ -3249,7 +3259,7 @@ namespace netxs::os
                                 else     log("%%Change current working directory to '%cwd%'", prompt::dtvt, cwd);
                             }
                             os::fdscleanup();
-                            os::signals::state.reset();
+                            os::signals::listener.reset();
                             os::process::execvp(cmdline);
                             onerror();
                             os::process::exit<true>(0);
@@ -3773,7 +3783,7 @@ namespace netxs::os
                         ::dup2(to_server[1], STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                         ::dup2(to_server[1], STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         os::fdscleanup();
-                        os::signals::state.reset();
+                        os::signals::listener.reset();
                         os::process::spawn(cwd, cmdline);
                     }
                     // Parent branch.
@@ -4028,11 +4038,7 @@ namespace netxs::os
                 while (extio && extio.send(intio.recv())) { }
                 extio.shut();
             }};
-            //auto  sigio = std::thread{ [&] // Forward signals to intio.
-            //{
-            //    while (extio && extio.send(intio.recv())) { }
-            //    extio.shut();
-            //}};
+            //todo // Forward signals to intio.
             while (intio && intio.send(extio.recv())) { }
 
             //todo wait extio reconnection
@@ -4638,6 +4644,7 @@ namespace netxs::os
                 auto wndname = utf::to_utf("vtmWindowClass");
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
+                    static auto alive = flag{ true };
                     auto sync = [](qiew utf8, auto form)
                     {
                         auto meta = qiew{};
@@ -4726,6 +4733,18 @@ namespace netxs::os
                         case WM_DESTROY:
                             ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
                             ::PostQuitMessage(0);
+                            if (alive.exchange(faux))
+                            {
+                                os::signals::place(os::signals::close); // taskkill /pid nnn
+                            }
+                            break;
+                        case WM_ENDSESSION:
+                            if (wParam && alive.exchange(faux))
+                            {
+                                     if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                                else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                                else                                   os::signals::place(os::signals::shutdown);
+                            }
                             break;
                         default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
                     }
@@ -4739,15 +4758,15 @@ namespace netxs::os
                 };
                 if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
                 {
+                    os::clipboard::winhndl = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto stop = fd_t{ alarm };
-                    auto hwnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
                         if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT);
                                  yield == WAIT_OBJECT_0)
                         {
-                            ::DestroyWindow(hwnd);
+                            ::DestroyWindow(os::clipboard::winhndl);
                             break;
                         }
                         while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
@@ -4826,7 +4845,7 @@ namespace netxs::os
             clips.join();
             input.join(); // Wait close() to complete.
             intio.shut(); // Close link to server.
-            //test: std::this_thread::sleep_for(2000ms); // Uncomment to test for delayed input events.
+            //test: os::sleep(2000ms); // Uncomment to test for delayed input events.
 
             #if defined(_WIN32)
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
@@ -4847,7 +4866,7 @@ namespace netxs::os
                 io::send(os::stdout_fd, vtend);
             #endif
 
-            std::this_thread::sleep_for(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
+            os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
         auto splice(xipc client)

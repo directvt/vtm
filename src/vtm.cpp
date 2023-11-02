@@ -23,7 +23,6 @@ int main(int argc, char* argv[])
     auto defaults = 
     #include "vtm.xml"
 
-    auto atexit = os::finalizer();
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};

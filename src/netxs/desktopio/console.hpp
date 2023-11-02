@@ -242,9 +242,11 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysclose    lock)
             {
-                auto& item = lock.thing;
-                auto backup = owner.This();
-                notify<tier::release>(e2::form::proceed::quit::one, item.fast);
+                // Immediately reply (w/o queueing) on sysclose request to avoid deadlock.
+                // In case of recursive connection via terminal, ui::term schedules self-closing and waiting for the vtty to be released inside the task broker.
+                // vtm client waits for disconnect acknowledge which is scheduled (if scheduled) right after the vtty cleanup task.
+                lock.unlock();
+                disconnect();
             }
         };
 
@@ -683,6 +685,7 @@ namespace netxs::ui
 
                 track.number++;
                 status.reindex();
+                auto ctx = canvas.change_basis(canvas.area());
                 canvas.output(status);
             }
             void stop()

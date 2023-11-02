@@ -4897,34 +4897,23 @@ struct impl : consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start()
+    auto& create_window()
     {
-        reset();
-        events.reset();
-        signal.flush();
+        if (os::dtvt::isolated)
+        {
+            return os::clipboard::winhndl;
+        }
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
             auto wndproc = [](HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             {
-                static auto alive = true;
                 ok<faux>(debugmode ? 0 : 1, win32prompt, "GUI message: hwnd=", utf::to_hex_0x(hwnd), " uMsg=", utf::to_hex_0x(uMsg), " wParam=", utf::to_hex_0x(wParam), " lParam=", utf::to_hex_0x(lParam));
                 switch (uMsg)
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
-                    case WM_ENDSESSION:
-                    {
-                        if (wParam && alive)
-                        {
-                            alive = faux;
-                                 if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
-                            else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
-                            else                                   os::signals::place(os::signals::shutdown);
-                        }
-                        break;
-                    }
-                    case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
+                    case WM_CLOSE:
                     default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }
                 return LRESULT{};
@@ -4961,10 +4950,19 @@ struct impl : consrv
                 return;
             }
         }};
-        while (!winhnd) // Waiting for a win32 window to be created.
+        return winhnd;
+    }
+    void start()
+    {
+        reset();
+        events.reset();
+        signal.flush();
+        auto& nominal_window = create_window();
+        while (!nominal_window) // Waiting for a win32 window to be created.
         {
             std::this_thread::yield();
         }
+        winhnd = nominal_window;
         server = std::thread{ [&]
         {
             while (condrv != os::invalid_fd)
@@ -5228,7 +5226,7 @@ struct consrv : ipc::stdcon
             ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
             ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
             os::fdscleanup();
-            os::signals::state.reset();
+            os::signals::listener.reset();
             if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
             {
                 log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"
