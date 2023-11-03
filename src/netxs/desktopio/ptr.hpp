@@ -16,6 +16,11 @@ namespace netxs
     namespace ptr
     {
         template<class T>
+        auto test(T a, T b)
+        {
+            return a ? a : b;
+        }
+        template<class T>
         auto shadow(sptr<T> p)
         {
             return wptr<T>{ p };

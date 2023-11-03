@@ -105,11 +105,11 @@ namespace netxs::os
         using pidt = DWORD;
         using fd_t = HANDLE;
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
-        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE              };
-        static       auto stdin_fd     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
-        static       auto stdout_fd    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
-        static       auto stderr_fd    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto codepage     = ui32{ ::GetOEMCP()                      };
+        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE };
+        static       auto stdin_fd     = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+        static       auto stdout_fd    = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+        static       auto stderr_fd    = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+        static const auto codepage     = ui32{ ::GetOEMCP() };
         static const auto wr_pipe_path = "\\\\.\\pipe\\w_";
         static const auto rd_pipe_path = "\\\\.\\pipe\\r_";
 
@@ -1199,12 +1199,14 @@ namespace netxs::os
                 queue.push_back(what);
                 alarm.reset();
             };
+            // It is not possible to implement a listener as a local object because
+            // the shutdown handler must block the calling thread until the process is cleaned up.
             static auto listener = []
             {
-                static auto handler = [](sigt what) // Put the console control events at the head of the input event queue.
+                static auto handler = [](sigt what) // Queue console control events.
                 {
                     place(what);
-                    if (what > os::signals::ctrl_break) // Waiting for the process to complete.
+                    if (what > os::signals::ctrl_break) // Waiting for process cleanup.
                     {
                         os::finalized.wait(faux);
                     }
@@ -1255,6 +1257,8 @@ namespace netxs::os
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
 
+            // It is not possible to make fd global because process forking
+            //    is not compatible with std::thread.
             struct fd // Signal s11n.
             {
                 flag        active = { true };
@@ -2777,15 +2781,15 @@ namespace netxs::os
                 auto handle = os::ipc::memory::set(config);
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", handle, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
-                auto srtinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                 auto buffer = std::vector<byte>{};
                 auto buflen = SIZE_T{ 0 };
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
                 result = buflen;
                 buffer.resize(buflen);
-                srtinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
-                result = result && ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
-                result = result && ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
+                upinfo.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
+                result = result && ::InitializeProcThreadAttributeList(upinfo.lpAttributeList, 1, 0, &buflen);
+                result = result && ::UpdateProcThreadAttribute(upinfo.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
                 result = result && ::CreateProcessW(nullptr,                      // lpApplicationName
                                                     cmdarg.data(),                // lpCommandLine
                                                     nullptr,                      // lpProcessAttributes
@@ -2795,7 +2799,7 @@ namespace netxs::os
                                                     EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
                                                     nullptr,                      // lpEnvironment
                                                     nullptr,                      // lpCurrentDirectory
-                                                    &srtinf.StartupInfo,          // lpStartupInfo
+                                                    &upinfo.StartupInfo,          // lpStartupInfo
                                                     &proinf);                     // lpProcessInformation
                 os::close(handle);
                 if (result) // Success. The fork concept is not supported on Windows.
@@ -4086,11 +4090,12 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
-                auto waits = std::to_array({ os::stdin_fd, (fd_t)os::signals::alarm, (fd_t)alarm });
+                auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
+                                                            : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
                 while (alive)
                 {
                     auto cause = ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE);
-                    if (cause == WAIT_OBJECT_0 + 1)
+                    if (cause == WAIT_OBJECT_0)
                     {
                         auto& queue = os::signals::fetch();
                         for (auto signal : queue)
@@ -4125,7 +4130,7 @@ namespace netxs::os
                         }
                         continue;
                     }
-                    if (cause != WAIT_OBJECT_0) break;
+                    if (cause != WAIT_OBJECT_0 + 2) break;
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count)) break;
                     if (count == 0) continue;
                     items.resize(count);
@@ -4885,10 +4890,10 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                if (os::dtvt::vtmode & ui::console::onlylog) return;
                 thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;
+                    auto quiet = os::dtvt::vtmode & ui::console::onlylog;
                     auto osout = tty::cout;
                     auto width = si32{};
                     auto block = escx{};
@@ -4958,7 +4963,7 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!alive || !data.pressed || data.cluster.empty()) return;
+                        if (!alive || quiet || !data.pressed || data.cluster.empty()) return;
                         switch (data.cluster.front()) 
                         {
                             case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
@@ -4999,7 +5004,7 @@ namespace netxs::os
                     auto paste = [&](auto& data)
                     {
                         auto guard = std::lock_guard{ mutex };
-                        if (!alive || data.txtdata.empty()) return;
+                        if (!alive || quiet || data.txtdata.empty()) return;
                         block += data.txtdata;
                         print(true);
                     };
