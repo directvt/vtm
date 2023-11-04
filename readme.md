@@ -8,21 +8,21 @@ TL;DR: Text-based desktop inside your console.
 
 ## Concept
 
-vtm is a windowed multi-user environment for unlimited number of terminals. In other words this is an infinite 2-D space of terminal windows.
+vtm is a windowed multi-user environment for unlimited number of terminals. This is an infinite 2-D space of terminal windows.
 
-To render its interface, vtm needs a text console -- be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
+To render its UI, vtm needs a text console -- be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/netxs-group/vtm/discussions/72) for details.
 
 ### Portability
 
-vtm is just a single executable file without any third party dependencies.
+vtm is just a single executable without any third party dependencies.
 
 ### Adaptive Rendering
 
-vtm renders itself at 60 frames per second into its own internal buffers. Output to the text console occurs only when the console is ready to receive the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
+vtm renders itself at 60 frames per second into own internal buffers. Output occurs only when the console is ready to receive the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
 
 ### Multiplayer
 
-vtm's multi-user architecture allows any number of participants to directly connect to the environment for collaboration. Each environment session is identified by an operating system's named pipe that serves as a gateway for users. To connect, the user just need to run vtm in their text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
+The vtm multi-user architecture allows any number of participants to simultaneously interact in a session. Each environment session is identified by an operating system's named pipe that serves as a gateway for users. To connect, the user just need to run vtm in their text console, either locally or remotely via SSH. See [Command line Options](doc/command-line-options.md) for details.
 
 ### Infinite Terminal Count
 
@@ -41,15 +41,13 @@ Besides windowed mode, vtm can operate as a standalone terminal emulator inside 
 - Horizontal scrolling
 - Rich text copy
 
-Basicly, it allows users to use a huge scrollback buffer with text wrapping disabled, taking advantage of horizontal scrolling within whatever text console they happen to use.
+Thus, vtm allows users to get a full-fledged terminal on platforms that have at least a text console. Good examples are Windows 8 and Windows Server Core like platforms with only a Command Prompt onboard.
 
-It is noteworthy that vtm allows users to get a full-fledged terminal on those platforms where there are no terminals a priori, but there is a text console - good examples are Windows 8 or Windows Server Core like platforms with only a Command Prompt onboard.
-
-The standalone terminal mode can be run by specifying the following option: `vtm -r term`. See [Command line Options](doc/command-line-options.md) for details.
+The standalone terminal mode can be run by specifying the `-r` option: `vtm -r term`. See [Command line Options](doc/command-line-options.md) for details.
 
 ### VT Logging for Developers
 
-vtm allows developers to visualize the standard input/output stream of running console applications. Launched with the `vtm -m` switch, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+vtm allows developers to visualize standard input/output streams. Launched with the `vtm -m` option, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
 Important: Avoid enabling the `Logs` switch in the terminal window with the `vtm -m` process running, this may lead to recursive event logging of event logging with unpredictable results.
 
