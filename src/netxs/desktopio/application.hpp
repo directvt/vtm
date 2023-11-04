@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.16";
+    static const auto version = "v0.9.17";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml";
@@ -553,6 +553,7 @@ namespace netxs::app::shared
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
+        os::dtvt::isolated = !direct;
         auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();

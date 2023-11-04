@@ -105,11 +105,11 @@ namespace netxs::os
         using pidt = DWORD;
         using fd_t = HANDLE;
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
-        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE              };
-        static       auto stdin_fd     = fd_t{ ::GetStdHandle(STD_INPUT_HANDLE)  };
-        static       auto stdout_fd    = fd_t{ ::GetStdHandle(STD_OUTPUT_HANDLE) };
-        static       auto stderr_fd    = fd_t{ ::GetStdHandle(STD_ERROR_HANDLE)  };
-        static const auto codepage     = ui32{ ::GetOEMCP()                      };
+        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE };
+        static       auto stdin_fd     = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+        static       auto stdout_fd    = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+        static       auto stderr_fd    = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+        static const auto codepage     = ui32{ ::GetOEMCP() };
         static const auto wr_pipe_path = "\\\\.\\pipe\\w_";
         static const auto rd_pipe_path = "\\\\.\\pipe\\r_";
 
@@ -186,6 +186,10 @@ namespace netxs::os
             os::close((fd_t const)h);
             h = os::invalid_fd;
         }
+    }
+    void sleep(auto t)
+    {
+        std::this_thread::sleep_for(t);
     }
 
     #if defined(_WIN32)
@@ -413,13 +417,10 @@ namespace netxs::os
                 };
                 namespace event
                 {
-                    static constexpr auto custom     = 0b1000'0000'0000'0000;
-                    static constexpr auto ctrl_c     = CTRL_C_EVENT;
-                    static constexpr auto ctrl_break = CTRL_BREAK_EVENT;
-                    static constexpr auto close      = CTRL_CLOSE_EVENT;
-                    static constexpr auto logoff     = CTRL_LOGOFF_EVENT;
-                    static constexpr auto shutdown   = CTRL_SHUTDOWN_EVENT;
-                    static constexpr auto style      = CTRL_SHUTDOWN_EVENT + 1;
+                    static constexpr auto custom      = 0b1000'0000'0000'0000;
+                    static constexpr auto style       = 0;
+                    static constexpr auto paste_begin = 1;
+                    static constexpr auto paste_end   = 2;
                 }
                 namespace op
                 {
@@ -1175,24 +1176,48 @@ namespace netxs::os
     {
         #if defined(_WIN32)
 
-            static auto state = []
+            static constexpr auto ctrl_c     = CTRL_C_EVENT;
+            static constexpr auto ctrl_break = CTRL_BREAK_EVENT;
+            static constexpr auto close      = CTRL_CLOSE_EVENT;
+            static constexpr auto logoff     = CTRL_LOGOFF_EVENT;
+            static constexpr auto shutdown   = CTRL_SHUTDOWN_EVENT;
+
+            static auto mutex = std::mutex{};
+            static auto queue = std::vector<sigt>{}; // Control event queue.
+            static auto cache = std::vector<sigt>{};
+            static auto alarm = fire{};
+            static auto fetch = []() -> auto&
             {
-                static auto handler = [](sigt what) // Put the console control events at the head of the input event queue.
+                auto sync = std::lock_guard{ mutex };
+                std::swap(queue, cache);
+                alarm.flush();
+                return cache;
+            };
+            static auto place = [](sigt what)
+            {
+                auto sync = std::lock_guard{ mutex };
+                queue.push_back(what);
+                alarm.reset();
+            };
+            // It is not possible to implement a listener as a local object because
+            // the shutdown handler must block the calling thread until the process is cleaned up.
+            static auto listener = []
+            {
+                static auto handler = [](sigt what) // Queue console control events.
                 {
-                    auto count = DWORD{};
-                    ::GetNumberOfConsoleInputEvents(stdin_fd, &count);
-                    auto events = std::vector<INPUT_RECORD>(count + 1);
-                    if (count) ::ReadConsoleInputW(stdin_fd, events.data() + 1, count, &count);
-                    events[0] = { .EventType = MENU_EVENT, .Event = { .MenuEvent = what | nt::console::event::custom, }}; // Too hacky (MENU_EVENT).
-                    ::WriteConsoleInputW(stdin_fd, events.data(), count + 1, &count);
-                    if (what > nt::console::event::ctrl_break) // Waiting for the process to complete.
+                    place(what);
+                    if (what > os::signals::ctrl_break) // Waiting for process cleanup.
                     {
                         os::finalized.wait(faux);
                     }
                     return TRUE;
                 };
                 ::SetConsoleCtrlHandler(handler, TRUE);
-                auto deleter = [](auto*){ ::SetConsoleCtrlHandler(handler, FALSE); };
+                auto deleter = [](auto*)
+                {
+                    os::release();
+                    ::SetConsoleCtrlHandler(handler, FALSE);
+                };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
             }();
 
@@ -1200,7 +1225,7 @@ namespace netxs::os
 
             static auto sigset = ::sigset_t{};
             static auto backup = ::sigset_t{};
-            static auto state = []
+            static auto listener = []
             {
                 auto action = [](auto){ };
                 auto forced_EINTR = (struct sigaction){};
@@ -1226,7 +1251,14 @@ namespace netxs::os
                 };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
+            static auto atexit = []
+            {
+                auto deleter = [](auto*) { os::release(); };
+                return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
+            }();
 
+            // It is not possible to make fd global because process forking
+            //    is not compatible with std::thread.
             struct fd // Signal s11n.
             {
                 flag        active = { true };
@@ -1573,6 +1605,7 @@ namespace netxs::os
     {
         static constexpr auto ocs52head = "\033]52;"sv;
         #if defined(_WIN32)
+            static auto winhndl = HWND{};
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
             static auto cf_text = CF_UNICODETEXT;
@@ -1861,7 +1894,7 @@ namespace netxs::os
                 inread.exchange(faux);
                 return result;
             }
-            virtual qiew recv()  override // It's not thread safe!
+            virtual qiew recv() override // It's not thread safe!
             {
                 return recv(buffer.data(), buffer.size());
             }
@@ -2748,15 +2781,15 @@ namespace netxs::os
                 auto handle = os::ipc::memory::set(config);
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", handle, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
-                auto srtinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                 auto buffer = std::vector<byte>{};
                 auto buflen = SIZE_T{ 0 };
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
                 result = buflen;
                 buffer.resize(buflen);
-                srtinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
-                result = result && ::InitializeProcThreadAttributeList(srtinf.lpAttributeList, 1, 0, &buflen);
-                result = result && ::UpdateProcThreadAttribute(srtinf.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
+                upinfo.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
+                result = result && ::InitializeProcThreadAttributeList(upinfo.lpAttributeList, 1, 0, &buflen);
+                result = result && ::UpdateProcThreadAttribute(upinfo.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
                 result = result && ::CreateProcessW(nullptr,                      // lpApplicationName
                                                     cmdarg.data(),                // lpCommandLine
                                                     nullptr,                      // lpProcessAttributes
@@ -2766,7 +2799,7 @@ namespace netxs::os
                                                     EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
                                                     nullptr,                      // lpEnvironment
                                                     nullptr,                      // lpCurrentDirectory
-                                                    &srtinf.StartupInfo,          // lpStartupInfo
+                                                    &upinfo.StartupInfo,          // lpStartupInfo
                                                     &proinf);                     // lpProcessInformation
                 os::close(handle);
                 if (result) // Success. The fork concept is not supported on Windows.
@@ -2831,6 +2864,7 @@ namespace netxs::os
 
     namespace dtvt
     {
+        static auto isolated = faux; // Standalone app in legacy console.
         static auto mode = ui::console::vtrgb;
         static auto scroll = faux; // Viewport/scrollback selector for windows console.
         auto consize()
@@ -3229,7 +3263,7 @@ namespace netxs::os
                                 else     log("%%Change current working directory to '%cwd%'", prompt::dtvt, cwd);
                             }
                             os::fdscleanup();
-                            os::signals::state.reset();
+                            os::signals::listener.reset();
                             os::process::execvp(cmdline);
                             onerror();
                             os::process::exit<true>(0);
@@ -3753,7 +3787,7 @@ namespace netxs::os
                         ::dup2(to_server[1], STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                         ::dup2(to_server[1], STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         os::fdscleanup();
-                        os::signals::state.reset();
+                        os::signals::listener.reset();
                         os::process::spawn(cwd, cmdline);
                     }
                     // Parent branch.
@@ -4008,7 +4042,7 @@ namespace netxs::os
                 while (extio && extio.send(intio.recv())) { }
                 extio.shut();
             }};
-            //todo forward signals to intio
+            //todo // Forward signals to intio.
             while (intio && intio.send(extio.recv())) { }
 
             //todo wait extio reconnection
@@ -4044,7 +4078,9 @@ namespace netxs::os
                 auto count = DWORD{};
                 auto point = utfx{};
                 auto toutf = text{};
+                auto wcopy = wide{};
                 auto kbmod = si32{};
+                auto ctrlv = bool{};
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 auto check = [](auto& changed, auto& oldval, auto newval)
                 {
@@ -4054,9 +4090,47 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
-                auto waits = std::to_array({ os::stdin_fd, (fd_t)alarm });
-                while (alive && WAIT_OBJECT_0 == ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE))
+                auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
+                                                            : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
+                while (alive)
                 {
+                    auto cause = ::WaitForMultipleObjects((DWORD)waits.size(), waits.data(), FALSE, INFINITE);
+                    if (cause == WAIT_OBJECT_0)
+                    {
+                        auto& queue = os::signals::fetch();
+                        for (auto signal : queue)
+                        {
+                            if (signal == os::signals::ctrl_c)
+                            {
+                                k.extflag = faux;
+                                k.virtcod = 'C';
+                                k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
+                                k.pressed = true;
+                                k.keycode = input::key::KeyC;
+                                k.cluster = "\x03";
+                                keybd(k);
+                            }
+                            else if (signal == os::signals::ctrl_break)
+                            {
+                                k.extflag = faux;
+                                k.virtcod = ansi::c0_etx;
+                                k.scancod = ansi::ctrl_break;
+                                k.pressed = true;
+                                k.keycode = input::key::Break;
+                                k.cluster = "\x03";
+                                keybd(k);
+                            }
+                            else if (signal == os::signals::close
+                                  || signal == os::signals::logoff
+                                  || signal == os::signals::shutdown)
+                            {
+                                alive = faux;
+                                break;
+                            }
+                        }
+                        continue;
+                    }
+                    if (cause != WAIT_OBJECT_0 + 2) break;
                     if (!::GetNumberOfConsoleInputEvents(os::stdin_fd, &count)) break;
                     if (count == 0) continue;
                     items.resize(count);
@@ -4066,6 +4140,15 @@ namespace netxs::os
                     while (alive && head != tail)
                     {
                         auto& r = *head++;
+                        if (ctrlv) // Pull clipboard data.
+                        {
+                            if (r.EventType == KEY_EVENT)
+                            {
+                                wcopy += r.Event.KeyEvent.uChar.UnicodeChar;
+                                continue;
+                            }
+                            else ctrlv = faux;
+                        }
                         if (r.EventType == KEY_EVENT)
                         {
                             auto modstat = os::nt::modstat(kbmod, r.Event.KeyEvent.dwControlKeyState, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.bKeyDown);
@@ -4132,29 +4215,6 @@ namespace netxs::os
                             if (r.Event.MenuEvent.dwCommandId & nt::console::event::custom)
                             switch (r.Event.MenuEvent.dwCommandId ^ nt::console::event::custom)
                             {
-                                case nt::console::event::ctrl_c:
-                                    k.extflag = faux;
-                                    k.virtcod = 'C';
-                                    k.scancod = ::MapVirtualKeyW('C', MAPVK_VK_TO_VSC);
-                                    k.pressed = true;
-                                    k.keycode = input::key::KeyC;
-                                    k.cluster = "\x03";
-                                    keybd(k);
-                                    break;
-                                case nt::console::event::ctrl_break:
-                                    k.extflag = faux;
-                                    k.virtcod = ansi::c0_etx;
-                                    k.scancod = ansi::ctrl_break;
-                                    k.pressed = true;
-                                    k.keycode = input::key::Break;
-                                    k.cluster = "\x03";
-                                    keybd(k);
-                                    break;
-                                case nt::console::event::close:
-                                case nt::console::event::logoff:
-                                case nt::console::event::shutdown:
-                                    alive = faux;;
-                                    break;
                                 case nt::console::event::style:
                                     if (head != tail && head->EventType == MENU_EVENT)
                                     {
@@ -4162,11 +4222,16 @@ namespace netxs::os
                                         style(deco{ r.Event.MenuEvent.dwCommandId });
                                     }
                                     break;
-                                //todo
-                                //case PASTE_BEGIN:
-                                //    break;
-                                //case PASTE_END:
-                                //    break;
+                                case nt::console::event::paste_begin:
+                                    ctrlv = true;
+                                    break;
+                                case nt::console::event::paste_end:
+                                    ctrlv = faux;
+                                    utf::to_utf(wcopy, p.txtdata);
+                                    paste(p);
+                                    wcopy.clear();
+                                    p.txtdata.clear();
+                                    break;
                             }
                         }
                         else if (r.EventType == MOUSE_EVENT)
@@ -4584,6 +4649,7 @@ namespace netxs::os
                 auto wndname = utf::to_utf("vtmWindowClass");
                 auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
                 {
+                    static auto alive = flag{ true };
                     auto sync = [](qiew utf8, auto form)
                     {
                         auto meta = qiew{};
@@ -4672,6 +4738,18 @@ namespace netxs::os
                         case WM_DESTROY:
                             ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
                             ::PostQuitMessage(0);
+                            if (alive.exchange(faux))
+                            {
+                                os::signals::place(os::signals::close); // taskkill /pid nnn
+                            }
+                            break;
+                        case WM_ENDSESSION:
+                            if (wParam && alive.exchange(faux))
+                            {
+                                     if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                                else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                                else                                   os::signals::place(os::signals::shutdown);
+                            }
                             break;
                         default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
                     }
@@ -4685,15 +4763,15 @@ namespace netxs::os
                 };
                 if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
                 {
+                    os::clipboard::winhndl = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto stop = fd_t{ alarm };
-                    auto hwnd = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                     auto next = MSG{};
                     while (next.message != WM_QUIT)
                     {
                         if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT);
                                  yield == WAIT_OBJECT_0)
                         {
-                            ::DestroyWindow(hwnd);
+                            ::DestroyWindow(os::clipboard::winhndl);
                             break;
                         }
                         while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
@@ -4772,7 +4850,7 @@ namespace netxs::os
             clips.join();
             input.join(); // Wait close() to complete.
             intio.shut(); // Close link to server.
-            //test: std::this_thread::sleep_for(2000ms); // Uncomment to test for delayed input events.
+            //test: os::sleep(2000ms); // Uncomment to test for delayed input events.
 
             #if defined(_WIN32)
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
@@ -4787,12 +4865,13 @@ namespace netxs::os
                     os::close(os::stdout_fd);
                     os::stdout_fd = saved_fd;
                     ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected);
+                    //todo sync current active buffer size (wt issue)
                 }
             #else 
                 io::send(os::stdout_fd, vtend);
             #endif
 
-            std::this_thread::sleep_for(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
+            os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
         auto splice(xipc client)
@@ -4811,10 +4890,10 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                if (os::dtvt::vtmode & ui::console::onlylog) return;
                 thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;
+                    auto quiet = os::dtvt::vtmode & ui::console::onlylog;
                     auto osout = tty::cout;
                     auto width = si32{};
                     auto block = escx{};
@@ -4884,7 +4963,7 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!alive || !data.pressed || data.cluster.empty()) return;
+                        if (!alive || quiet || !data.pressed || data.cluster.empty()) return;
                         switch (data.cluster.front()) 
                         {
                             case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
@@ -4922,7 +5001,13 @@ namespace netxs::os
                         panel = data.winsize;
                     };
                     auto focus = [&](auto& data) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
-                    auto paste = [&](auto& data) { if (!alive) return; };
+                    auto paste = [&](auto& data)
+                    {
+                        auto guard = std::lock_guard{ mutex };
+                        if (!alive || quiet || data.txtdata.empty()) return;
+                        block += data.txtdata;
+                        print(true);
+                    };
                     auto close = [&](auto& data) 
                     {
                         if (alive.exchange(faux))

@@ -712,12 +712,12 @@ struct impl : consrv
             if (ostask.joinable()) ostask.join();
             ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
-                if (io_log) prompt.add(what == nt::console::event::ctrl_c     ? "Ctrl+C"
-                                     : what == nt::console::event::ctrl_break ? "Ctrl+Break"
-                                     : what == nt::console::event::close      ? "Ctrl Close"
-                                     : what == nt::console::event::logoff     ? "Ctrl Logoff"
-                                     : what == nt::console::event::shutdown   ? "Ctrl Shutdown"
-                                                                              : "Unknown", " event index ", index);
+                if (io_log) prompt.add(what == os::signals::ctrl_c     ? "Ctrl+C"
+                                     : what == os::signals::ctrl_break ? "Ctrl+Break"
+                                     : what == os::signals::close      ? "Ctrl Close"
+                                     : what == os::signals::logoff     ? "Ctrl Logoff"
+                                     : what == os::signals::shutdown   ? "Ctrl Shutdown"
+                                                                       : "Unknown", " event index ", index);
                 for (auto& client : joined)
                 {
                     if (!pgroup || pgroup == client.pgroup)
@@ -777,6 +777,7 @@ struct impl : consrv
         }
         auto generate(wiew wstr, ui32 s = 0)
         {
+            //todo implement bracketed-paste using menu events (vt or menu bounds)
             stream.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
@@ -1079,7 +1080,7 @@ struct impl : consrv
                 if (gear.keybd::scancod == ansi::ctrl_break)
                 {
                     stream.pop_back();
-                    if (gear.pressed) alert(nt::console::event::ctrl_break);
+                    if (gear.pressed) alert(os::signals::ctrl_break);
                 }
                 else
                 {
@@ -1088,7 +1089,7 @@ struct impl : consrv
                         ctrl_c = true;
                         if (server.inpmod & nt::console::inmode::preprocess)
                         {
-                            alert(nt::console::event::ctrl_c);
+                            alert(os::signals::ctrl_c);
                         }
                     }
                 }
@@ -4896,11 +4897,12 @@ struct impl : consrv
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
 
-    void start()
+    auto& create_window()
     {
-        reset();
-        events.reset();
-        signal.flush();
+        if (os::dtvt::isolated)
+        {
+            return os::clipboard::winhndl;
+        }
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
@@ -4911,7 +4913,7 @@ struct impl : consrv
                 {
                     case WM_CREATE: break;
                     case WM_DESTROY: ::PostQuitMessage(0); break;
-                    case WM_CLOSE: //todo revise (see taskkill /pid <processID>)
+                    case WM_CLOSE:
                     default: return DefWindowProcA(hwnd, uMsg, wParam, lParam);
                 }
                 return LRESULT{};
@@ -4948,10 +4950,19 @@ struct impl : consrv
                 return;
             }
         }};
-        while (!winhnd) // Waiting for a win32 window to be created.
+        return winhnd;
+    }
+    void start()
+    {
+        reset();
+        events.reset();
+        signal.flush();
+        auto& nominal_window = create_window();
+        while (!nominal_window) // Waiting for a win32 window to be created.
         {
             std::this_thread::yield();
         }
+        winhnd = nominal_window;
         server = std::thread{ [&]
         {
             while (condrv != os::invalid_fd)
@@ -5215,7 +5226,7 @@ struct consrv : ipc::stdcon
             ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
             ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
             os::fdscleanup();
-            os::signals::state.reset();
+            os::signals::listener.reset();
             if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
             {
                 log("fdm: ", fdm.value, " errcode: ", fdm.error, "\n"

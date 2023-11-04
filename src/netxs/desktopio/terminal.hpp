@@ -6675,6 +6675,17 @@ namespace netxs::ui
             }
             return data.utf8;
         }
+        auto _paste(auto& data)
+        {
+            follow[axis::X] = true;
+            if (bpmode)
+            {
+                data = "\033[200~" + data + "\033[201~";
+            }
+            //todo paste is a special type operation like a mouse reporting.
+            //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
+            data_out(data);
+        }
         auto paste(hids& gear)
         {
             auto& console = *target;
@@ -6682,14 +6693,7 @@ namespace netxs::ui
             if (data.size())
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
-                follow[axis::X] = true;
-                if (bpmode)
-                {
-                    data = "\033[200~" + data + "\033[201~";
-                }
-                //todo paste is a special type operation like a mouse reporting.
-                //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
-                data_out(data);
+                _paste(data);
                 return true;
             }
             return faux;
@@ -7243,18 +7247,17 @@ namespace netxs::ui
                     origin = new_area.coor;
                 }
             };
+            LISTEN(tier::release, hids::events::paste, gear)
+            {
+                _paste(gear.paste::txtdata);
+            };
             LISTEN(tier::release, hids::events::keybd::data::post, gear)
             {
                 //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
-                if (gear.cluster.size())
+                if (config.resetonkey && gear.doinput())
                 {
                     this->RISEUP(tier::release, e2::form::animate::reset, 0); // Reset scroll animation.
-                }
-
-                if (gear.pressed && config.resetonkey
-                && (gear.cluster.size() || !gear.kbmod()))
-                {
                     unsync = true;
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
