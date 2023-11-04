@@ -83,9 +83,9 @@ Note: You can use [Github Actions](../../actions) to build statically linked bin
 - [Built-in Applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)
 
-# Feedback
+# Feedback and Questions
 
-If you encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, please consider [filing an issue](https://github.com/netxs-group/vtm/issues/new/choose).
+If you have questions, encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, consider [filing an issue](https://github.com/netxs-group/vtm/issues/new/choose).
 
 Any feedback in any language is welcome.
 
