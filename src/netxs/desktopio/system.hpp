@@ -2514,6 +2514,26 @@ namespace netxs::os
 
     namespace process
     {
+        static const auto elevated = []
+        {
+            #if defined(_WIN32)
+
+                auto issuer = SID_IDENTIFIER_AUTHORITY{ SECURITY_NT_AUTHORITY };
+                auto admins = PSID{};
+                auto member = BOOL{};
+                auto result = ::AllocateAndInitializeSid(&issuer, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &admins)
+                           && ::CheckTokenMembership(nullptr, admins, &member)
+                           && member;
+                ::FreeSid(admins);
+
+            #else
+
+                //todo implement
+                auto result = faux;
+
+            #endif
+            return result;
+        }();
         auto getid()
         {
             #if defined(_WIN32)
@@ -2526,7 +2546,6 @@ namespace netxs::os
         }
         static auto id = process::getid();
         static auto arg0 = text{};
-
         struct args
         {
         private:
