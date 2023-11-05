@@ -2517,7 +2517,6 @@ namespace netxs::os
         static const auto elevated = []
         {
             #if defined(_WIN32)
-
                 auto issuer = SID_IDENTIFIER_AUTHORITY{ SECURITY_NT_AUTHORITY };
                 auto admins = PSID{};
                 auto member = BOOL{};
@@ -2525,12 +2524,8 @@ namespace netxs::os
                            && ::CheckTokenMembership(nullptr, admins, &member)
                            && member;
                 ::FreeSid(admins);
-
             #else
-
-                //todo implement
-                auto result = faux;
-
+                auto result = !::getuid(); // If getuid() == 0 - we are running under sudo/root.
             #endif
             return result;
         }();
@@ -3122,6 +3117,10 @@ namespace netxs::os
         }();
         static auto vtmode = []       // tty: VT mode bit set.
         {
+            if (os::process::elevated)
+            {
+                log(prompt::os, ansi::clr(yellowlt, "Running with elevated privileges"));
+            }
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
