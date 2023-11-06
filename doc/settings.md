@@ -139,56 +139,48 @@ Note. Placing an asterisk without any other nested elements (such as `<listitem*
 The following declarations have the same meaning
 
 ```xml
-<document>
-    <thing name="text">another_text</thing>
-    <thing name="text">another_text</thing>
-</document>
+<list>
+    <listitem id=first  name="text">another_text</listitem>
+    <listitem id=second name="text">another_text</listitem>
+</list>
 ```
 
 ```xml
-<document>
-    <thing* name="text"/> <!-- skip this element and set name="text" as default for the following things -->
-    <thing>another_text</thing>
-    <thing>another_text</thing>
-</document>
+<list>
+    <listitem* name="text"/> <!-- skip this element and set name="text" as default for the following listitems -->
+    <listitem id=first >another_text</listitem>
+    <listitem id=second>another_text</listitem>
+</list>
 ```
 
 ```xml
-<document>
-    <thing* name="text"/>
-    <thing="another_text"/>
-    <thing="another_text"/>
-</document>
+<list>
+    <listitem* name="text"/>
+    <listitem="another_text" id=first />
+    <listitem="another_text" id=second/>
+</list>
 ```
 
 ```xml
-<document>
-    <thing*="another_text" name="text"/>  <!-- skip this element and set thing="another_text" and name="text" as default for the following things -->
-    <thing/>
-    <thing/>
-</document>
+<list>
+    <listitem*="another_text" name="text"/>  <!-- skip this element and set listitem="another_text" and name="text" as default for the following listitems -->
+    <listitem id=first />
+    <listitem id=second/>
+</list>
 ```
 
 ### Configuration Structure
 
-Top-level element `<config>` contains the following base objects
-  - Single `<menu>` block - taskbar menu configuration.
-    - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
-    - Set of `<item>` objects - a list of menu item definitions.
-    - Single `<autorun>` block - a list of menu item to run at the environment startup.
-  - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
+Top-level element `<config>` contains the following base elements:
+  - Single `<menu>` block - taskbar menu configuration contains:
+    - Set of `<item>` elements - a list of menu items.
+    - Single `<autorun>` block - a list of items to run at the environment startup.
 
 #### Application Configuration
 
-The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal.
+The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal for now.
 
-The content of the `<config>` subelement is passed to the application upon startup. This config has the highest priority and is merged with the root of the configuration loaded by this application from a file.
-
-In general, when a DirectVT application starts up, the three configurations are subsequently merged. They are listed below in merged order
-
-- Hardcoded defaults
-- Configuration loaded from file
-- The configuration received at startup from the launching application (see the `<config>` subelement example)
+The content of the `<config>` subelement is passed to the application upon startup.
 
 #### Taskbar menu item attributes
 
@@ -226,7 +218,7 @@ Type              | Parameter        | Description
 `DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
 `ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
 `SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL param="_command line_"`. Same as `type=DirectVT param="$0 -r term _shell_ -c _command line_"`.
-`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
+`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
 `Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
 
 The following configuration items have the same meaning
@@ -247,15 +239,15 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term item*>  <!-- Use asterisk to zeroize existing item records. -->
-        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
+    <menu selected=Term item*>  <!-- Use asterisk to drop existing (hardcoded) menu items. -->
+        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell -->
     </menu>
 </config>
 ```
 
 #### Typical config  (`~/.config/vtm/settings.xml`)
 
-Note: The full defaut config is at [src/vtm.xml](../src/vtm.xml). 
+Note: Hardcoded settings are intialized from [/src/vtm.xml](../src/vtm.xml). 
 
 ```xml
 <config>
