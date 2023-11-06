@@ -630,8 +630,8 @@ namespace netxs::app::desk
                 });
             auto users_area = apps_users->attach(slot::_2, ui::list::ctor());
             auto label_bttn = users_area->attach(ui::fork::ctor(axis::X))
-                                        ->plugin<pro::notes>(" List of connected users ");
-            auto label = label_bttn->attach(slot::_1, ui::item::ctor("users"))
+                                        ->plugin<pro::notes>(" List of active connections ");
+            auto label = label_bttn->attach(slot::_1, ui::item::ctor(os::process::elevated ? "admins" : "users"))
                 ->flexible()
                 ->accented()
                 ->colors(cA.fgc(), cA.bgc())
