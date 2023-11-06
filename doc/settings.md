@@ -9,7 +9,7 @@ graph LR
         C -->|Yes| D[Merge from file]
         C --->|No| F[Merge global]
         F --> G[Merge user wise]
-        D ---> H[Merge DirectVT packet received from parent]
+        D ---> H[Merge DirectVT packet received from parent process]
         G --> H
     end
 ```
