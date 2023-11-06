@@ -1,12 +1,25 @@
 # Settings
 
-vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using command line option ` -c <config_file> ` or using environment variable VTM_CONFIG.
+Configuration loading order:
 
-Configuration precedence (descending priority):<br>
-1. Command line options `vtm -c path/to/settings.xml`<br>
-2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
-3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Predefined configuration, see `./src/vtm.xml`
+```mermaid
+flowchart TD
+    B(Init hardcoded settings)
+    B --> C{Check --config option specified}
+    C -->|Yes| D[Merge settings from config_file]
+    C -->|No| F[Merge global settings]
+    F --> G[Merge user wise settings]
+    D --> H[Merge DirectVT settings received from parent process]
+    G --> H
+```
+
+Platform specific locations:
+- Global settings:
+  - on posix: /etc/vtm/settings.xml
+  - on win32: %programdata%/vtm/settings.xml
+- User wise settings:
+  - on posix: ~/.config/vtm/settings.xml
+  - on win32: %userprofile%/.config/vtm/settings.xml
 
 ## Configuration file Format (settings.xml)
 
