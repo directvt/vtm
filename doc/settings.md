@@ -7,7 +7,7 @@ graph LR
         B(Init hardcoded settings)
         B --> C["--config #lt;file#gt;
         specified"]
-        C -->|Yes| D[Merge #lt;file#gt;]
+        C -->|Yes| D["Merge #lt;file#gt;"]
         C --->|No| F[Merge global]
         F --> G[Merge user wise]
         D ---> H[Merge DirectVT packet received from parent process]
