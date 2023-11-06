@@ -18,13 +18,13 @@ Platform specific locations:
 
 - Hardcoded settings
   - See [/src/vtm.xml](../src/vtm.xml) as reference
-- Global settings:
+- Global settings
   - on posix: `/etc/vtm/settings.xml`
   - on win32: `%programdata%/vtm/settings.xml`
-- User wise settings:
+- User wise settings
   - on posix: `~/.config/vtm/settings.xml`
   - on win32: `%userprofile%/.config/vtm/settings.xml`
-- DirectVT packet (built-in terminal only for now):
+- DirectVT packet (built-in terminal only for now)
   - The `<config>` menu item subsection passed to the dtvt application upon startup:
     ```xml
     <config>
