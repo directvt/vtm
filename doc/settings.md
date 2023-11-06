@@ -14,8 +14,6 @@ graph LR
     end
 ```
 
-Platform specific locations:
-
 - Hardcoded settings
   - See [/src/vtm.xml](../src/vtm.xml) as reference
 - Global settings
