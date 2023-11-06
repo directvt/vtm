@@ -18,7 +18,7 @@ graph LR
 ```
 
 - Hardcoded settings
-  - See [/src/vtm.xml](../src/vtm.xml) as reference
+  - See [/src/vtm.xml](../src/vtm.xml) for reference.
 - Global settings
   - on posix: `/etc/vtm/settings.xml`
   - on win32: `%programdata%/vtm/settings.xml`
@@ -57,7 +57,7 @@ Configuration file format is a slightly modified XML-format which allows to stor
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
- - Character escapes
+ - Escaped characters:
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
    - `\a`  ASCII 0x07 BEL
@@ -67,13 +67,13 @@ Configuration file format is a slightly modified XML-format which allows to stor
    - `\'`  ASCII 0x27 Single quote
    - `$0`  Current module full path
 
-Consider the following object hierarchy
+Let's take the following object hierarchy as an example:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
     - \<name\> - Third level element
 
-The following forms of element declaration are equivalent
+The following forms of element declaration are equivalent:
 
 ```xml
 <document>
@@ -138,7 +138,7 @@ The following forms of element declaration are equivalent
 
 Note. Placing an asterisk without any other nested elements (such as `<listitem*/>`) indicates the start of a new list of elements. This list will replace the existing one when merging the configuration.
 
-The following declarations have the same meaning
+The following declarations have the same meaning:
 
 ```xml
 <list>
@@ -174,7 +174,7 @@ The following declarations have the same meaning
 ### Configuration Structure
 
 Top-level element `<config>` contains the following base elements:
-  - Single `<menu>` block - taskbar menu configuration contains:
+  - Single `<menu>` block - taskbar menu configuration which contains:
     - Set of `<item>` elements - a list of menu items.
     - Single `<autorun>` block - a list of items to run at the environment startup.
 
@@ -223,7 +223,7 @@ Type              | Parameter        | Description
 `Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
 `Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
 
-The following configuration items have the same meaning
+The following configuration items have the same meaning:
 ```
 <item …. param=‘mc’/>
 <item …. type=SHELL param=‘mc’/>
@@ -233,7 +233,7 @@ The following configuration items have the same meaning
 
 ### Configuration Example
 
-Note: The following configuration sections are not implemented yet
+Note: The following configuration sections are not implemented yet:
 - config/menu/item/hotkeys
 - config/hotkeys
 
@@ -249,7 +249,7 @@ Note: The following configuration sections are not implemented yet
 
 #### Typical config  (`~/.config/vtm/settings.xml`)
 
-Note: Hardcoded settings are intialized from [/src/vtm.xml](../src/vtm.xml). 
+Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) source file.
 
 ```xml
 <config>
@@ -555,4 +555,4 @@ Note: Hardcoded settings are intialized from [/src/vtm.xml](../src/vtm.xml).
 </config>
 ```
 
-Note: `$0` will be expanded to the fully qualified current module filename when the configuration is loaded.
+Note: The `$0` tag will be expanded to the fully qualified current module filename when the configuration is loaded.
