@@ -16,6 +16,8 @@ graph LR
 
 Platform specific locations:
 
+- Hardcoded settings
+  - See [/src/vtm.xml](../src/vtm.xml) as reference
 - Global settings:
   - on posix: `/etc/vtm/settings.xml`
   - on win32: `%programdata%/vtm/settings.xml`
