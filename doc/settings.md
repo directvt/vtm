@@ -5,7 +5,7 @@ Configuration loading order:
 ```mermaid
 flowchart TD
     B(Init hardcoded settings)
-    B --> C{Check --config option specified}
+    B --> C{--config config_file}
     C -->|Yes| D[Merge settings from config_file]
     C -->|No| F[Merge global settings]
     F --> G[Merge user wise settings]
