@@ -17,11 +17,11 @@ graph LR
 Platform specific locations:
 
 - Global settings:
-  - on posix: `/etc/vtm/settings.xml``
-  - on win32: `%programdata%/vtm/settings.xml``
+  - on posix: `/etc/vtm/settings.xml`
+  - on win32: `%programdata%/vtm/settings.xml`
 - User wise settings:
-  - on posix: `~/.config/vtm/settings.xml``
-  - on win32: `%userprofile%/.config/vtm/settings.xml``
+  - on posix: `~/.config/vtm/settings.xml`
+  - on win32: `%userprofile%/.config/vtm/settings.xml`
 - DirectVT packet (built-in terminal only for now):
   - The `<config>` menu item subsection passed to the dtvt application upon startup:
     ```xml
