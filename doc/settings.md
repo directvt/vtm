@@ -5,8 +5,7 @@ graph LR
     subgraph Settings loading order
     direction LR
         B(Init hardcoded settings)
-        B --> C["Does
-        --config #lt;file#gt;
+        B --> C["--config #lt;file#gt;
         specified?"]
         C -->|Yes| D["Merge #lt;file#gt;"]
         C --->|No| F[Merge global]
