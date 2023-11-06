@@ -1,7 +1,5 @@
 # Settings
 
-Settings loading order
-
 ```mermaid
 graph LR
     subgraph Settings loading order
