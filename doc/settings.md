@@ -4,13 +4,15 @@
 graph LR
     subgraph Settings loading order
     direction LR
-        B(Init hardcoded settings)
+        B("Init hardcoded
+        settings")
         B --> C["--config #lt;file#gt;
         specified?"]
         C -->|Yes| D["Merge #lt;file#gt;"]
-        C --->|No| F[Merge global]
-        F --> G[Merge user wise]
-        D ---> H[Merge DirectVT packet received from parent process]
+        C --->|No| F["Merge global"]
+        F --> G["Merge user wise"]
+        D ---> H["Merge DirectVT packet
+        received from parent"]
         G --> H
     end
 ```
