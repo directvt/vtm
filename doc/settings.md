@@ -132,9 +132,11 @@ The following forms of element declaration are equivalent
 
 #### Templates
 
-Use asterisk at the end of the element name to set defaults. Using an asterisk with the parameter name of the first element in the list without any other nested arguments indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged.
+- Using asterisk `*` at the end of the element name sets defaults for subsequent elements with the same name.
 
-The following declarations are the same
+Note. Placing an asterisk without any other nested elements (such as `<listitem*/>`) indicates the start of a new list of elements. This list will replace the existing one when merging the configuration.
+
+The following declarations have the same meaning
 
 ```xml
 <document>
