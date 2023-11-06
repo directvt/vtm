@@ -1,25 +1,45 @@
 # Settings
 
-Configuration loading order:
+Settings loading order
 
 ```mermaid
-flowchart TD
-    B(Init hardcoded settings)
-    B --> C{--config config_file}
-    C -->|Yes| D[Merge settings from config_file]
-    C -->|No| F[Merge global settings]
-    F --> G[Merge user wise settings]
-    D --> H[Merge DirectVT settings received from parent process]
-    G --> H
+graph LR
+    subgraph Settings loading order
+    direction LR
+        B(Init hardcoded settings)
+        B --> C["--config #lt;file#gt;"]
+        C -->|Yes| D[Merge from file]
+        C --->|No| F[Merge global]
+        F --> G[Merge user wise]
+        D ---> H[Merge DirectVT packet received from parent]
+        G --> H
+    end
 ```
 
 Platform specific locations:
+
 - Global settings:
-  - on posix: /etc/vtm/settings.xml
-  - on win32: %programdata%/vtm/settings.xml
+  - on posix: `/etc/vtm/settings.xml``
+  - on win32: `%programdata%/vtm/settings.xml``
 - User wise settings:
-  - on posix: ~/.config/vtm/settings.xml
-  - on win32: %userprofile%/.config/vtm/settings.xml
+  - on posix: `~/.config/vtm/settings.xml``
+  - on win32: `%userprofile%/.config/vtm/settings.xml``
+- DirectVT packet (built-in terminal only for now):
+  - The `<config>` menu item subsection passed to the dtvt application upon startup:
+    ```xml
+    <config>
+        <menu>
+            ...
+            <item ... type=DirectVT ... param="$0 ...">
+                <config> <!-- item's `<config>` subsection -->
+                    ...
+                </config>
+            </item>
+            ...
+        </menu>
+        ...
+    </config>
+    ```
 
 ## Configuration file Format (settings.xml)
 
