@@ -101,8 +101,12 @@ int main(int argc, char* argv[])
         }
     }
 
-    auto syslog = os::tty::logger();
     auto direct = os::dtvt::active;
+    auto syslog = os::tty::logger();
+    auto userid = os::env::user();
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::desktopio, os::process::elevated ? "!_" : "_", userid);;
+    auto prefix_log = prefix + app::shared::logsuffix;
+
     log(prompt::vtm, app::shared::version);
     if (errmsg.size())
     {
@@ -145,8 +149,6 @@ int main(int argc, char* argv[])
     }
     else if (whoami == type::logger)
     {
-        auto userid = os::env::user();
-        auto prefix = (vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe) + app::shared::logsuffix;
         log("%%Waiting for server...", prompt::main);
         auto online = flag{ true };
         auto active = flag{ faux };
@@ -162,7 +164,7 @@ int main(int argc, char* argv[])
         });
         while (online)
         {
-            stream = os::ipc::socket::open<os::role::client, faux>(prefix);
+            stream = os::ipc::socket::open<os::role::client, faux>(prefix_log);
             if (stream)
             {
                 log("%%Connected", prompt::main);
@@ -174,7 +176,7 @@ int main(int argc, char* argv[])
                     else online.exchange(faux);
                 }
             }
-            else std::this_thread::sleep_for(500ms);
+            else os::sleep(500ms);
         }
     }
     else if (whoami == type::runapp)
@@ -206,10 +208,7 @@ int main(int argc, char* argv[])
     }
     else
     {
-        auto userid = os::env::user();
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
-        auto prefix = vtpipe.empty() ? utf::concat(app::shared::desktopio, '_', userid) : vtpipe;
-
         if (whoami == type::client)
         {
             auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
@@ -257,7 +256,7 @@ int main(int argc, char* argv[])
             os::fail("Can't start vtm server");
             return 1;
         }
-        auto logger = os::ipc::socket::open<os::role::server>(prefix + app::shared::logsuffix);
+        auto logger = os::ipc::socket::open<os::role::server>(prefix_log);
         if (!logger)
         {
             os::fail("Can't start vtm logger");

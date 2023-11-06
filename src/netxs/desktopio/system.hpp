@@ -1294,6 +1294,65 @@ namespace netxs::os
         #endif
     }
 
+    namespace service
+    {
+        static auto name = "vtm"sv;
+
+        #if defined(_WIN32)
+
+            static auto state = []
+            {
+                static auto status = SERVICE_STATUS{};
+                status.dwServiceType      = SERVICE_WIN32_OWN_PROCESS;
+                status.dwCurrentState     = SERVICE_START_PENDING;
+                status.dwControlsAccepted = SERVICE_ACCEPT_STOP
+                                          | SERVICE_ACCEPT_POWEREVENT
+                                          | SERVICE_ACCEPT_PRESHUTDOWN;
+                auto handler = [](auto dwControl, auto what, auto lpEventData, auto lpContext) // Queue NT service events.
+                {
+                    //os::signals::place(what);
+                    //if (what > os::signals::ctrl_break) // Waiting for process cleanup.
+                    //{
+                    //    os::finalized.wait(faux);
+                    //}
+                    return DWORD{ 1 };
+                };
+                static auto handle = ::RegisterServiceCtrlHandlerExW(utf::to_utf(name).c_str(), handler, nullptr);
+                static auto set_status = [](auto newstatus)
+                {
+                    if (!handle) return;
+                    status.dwWin32ExitCode = 0;
+                    status.dwCurrentState = newstatus;
+                    if (!::SetServiceStatus(handle, &status))
+                    {
+                        auto msg = ansi::add("Error setting service status ");
+                        switch (newstatus)
+                        {
+                            case SERVICE_RUNNING:      msg.add("SERVICE_RUNNING");      break;
+                            case SERVICE_STOPPED:      msg.add("SERVICE_STOPPED");      break;
+                            case SERVICE_STOP_PENDING: msg.add("SERVICE_STOP_PENDING"); break;
+                            default:                   msg.add(newstatus);
+                        }
+                        msg.add(": ", os::error());
+                        //event_report(msg);
+                    }
+                };
+
+        		set_status(SERVICE_RUNNING);
+                auto deleter = [](auto*)
+                {
+                    set_status(SERVICE_STOPPED);
+                };
+                return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
+            }();
+
+        #else
+
+            //todo implement
+
+        #endif
+    }
+
     namespace io
     {
         template<class Size_t>
@@ -2250,7 +2309,7 @@ namespace netxs::os
                             auto stop = datetime::now() + retry_timeout;
                             do
                             {
-                                std::this_thread::sleep_for(100ms);
+                                os::sleep(100ms);
                                 done = play();
                             }
                             while (!done && stop > datetime::now());
@@ -2455,6 +2514,21 @@ namespace netxs::os
 
     namespace process
     {
+        static const auto elevated = []
+        {
+            #if defined(_WIN32)
+                auto issuer = SID_IDENTIFIER_AUTHORITY{ SECURITY_NT_AUTHORITY };
+                auto admins = PSID{};
+                auto member = BOOL{};
+                auto result = ::AllocateAndInitializeSid(&issuer, 2, SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &admins)
+                           && ::CheckTokenMembership(nullptr, admins, &member)
+                           && member;
+                ::FreeSid(admins);
+            #else
+                auto result = !::getuid(); // If getuid() == 0 - we are running under sudo/root.
+            #endif
+            return result;
+        }();
         auto getid()
         {
             #if defined(_WIN32)
@@ -2467,7 +2541,6 @@ namespace netxs::os
         }
         static auto id = process::getid();
         static auto arg0 = text{};
-
         struct args
         {
         private:
@@ -3044,6 +3117,10 @@ namespace netxs::os
         }();
         static auto vtmode = []       // tty: VT mode bit set.
         {
+            if (os::process::elevated)
+            {
+                log(prompt::os, ansi::clr(yellowlt, "Running with elevated privileges"));
+            }
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
@@ -4049,7 +4126,7 @@ namespace netxs::os
             //extio.shut();
             //while (true)
             //{
-            //    std::this_thread::sleep_for(1s);
+            //    os::sleep(1s);
             //}
 
             intio.shut();
