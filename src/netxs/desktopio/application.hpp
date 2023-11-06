@@ -26,8 +26,8 @@ namespace netxs::app::shared
     static const auto version = "v0.9.18";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
-    static const auto usr_config = "~/.config/vtm/settings.xml";
-    static const auto env_config = "$VTM_CONFIG"s;
+    static const auto usr_config = "~/.config/vtm/settings.xml"s;
+    static const auto sys_config = "/etc/vtm/settings.xml"s;
 
     enum class app_type
     {
@@ -477,36 +477,26 @@ namespace netxs::app::shared
                     }
                     else
                     {
-                        log(prompt::apps, "Failed to get configuration from :", shadow);
+                        log(prompt::apps, "Failed to get settings from :", shadow);
                         return faux;
                     }
                 }
-                auto path = shadow.str();
-                log("%%Loading configuration from %path%...", prompt::apps, path);
-                if (path.starts_with("$"))
-                {
-                    auto temp = path.substr(1);
-                    path = os::env::get(temp);
-                    if (path.empty()) return faux;
-                    log(prompt::pads, temp, " = ", path);
-                }
-                auto config_path = path.starts_with("~") ? os::env::homepath() / path.substr(2 /* trim `~/` */)
-                                                         : fs::path{ path };
+                auto [config_path, config_path_str] = os::path::expand(shadow);
+                if (config_path.empty()) return faux;
+                log("%%Loading settings from %path%...", prompt::apps, config_path_str);
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
                 if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
                 {
-                    auto config_path_str = "'" + config_path.string() + "'";
-                    utf::change(config_path_str, "\\", "/");
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
                     {
-                        log(prompt::pads, "Failed\n\tUnable to get configuration file size, skip it: ", config_path_str);
+                        log(prompt::pads, "Failed\n\tUnable to get settings file size, skip ", config_path_str);
                         return faux;
                     }
                     else
                     {
-                        log(prompt::pads, "Reading configuration: ", config_path_str);
+                        log(prompt::pads, "Merging settings from ", config_path_str);
                         auto size = file.tellg();
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
@@ -515,19 +505,15 @@ namespace netxs::app::shared
                         return true;
                     }
                 }
-                log(prompt::pads, "No configuration found, try another source");
+                log(prompt::pads, "No settings found");
                 return faux;
             };
-            if (!load(cli_config_path)
-             && !load(app::shared::env_config)
-             && !load(app::shared::usr_config))
+            if (!load(cli_config_path)) // Merge explicitly specified settings.
             {
-                log(prompt::pads, "Fallback to hardcoded configuration");
+                load(app::shared::sys_config); // Merge system-wide settings.
+                load(app::shared::usr_config); // Merge user-wise settings.
             }
-
-            os::env::set(app::shared::env_config.substr(1)/*remove $*/, conf.document->page.file);
-
-            conf.fuse<Print>(patch);
+            conf.fuse<Print>(patch); // Apply dtvt patch.
             return conf;
         }
     }

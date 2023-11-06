@@ -111,36 +111,44 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         os::fail(errmsg);
-        auto myname = os::process::binary<true>();
-        log("\nVirtual terminal multiplexer with window manager and session sharing.\n\n"s
-            + "  Syntax:\n\n    " + myname + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"s
-            + "\n"s
-            + "  Options:\n\n"s
-            + "    No arguments       Run client, auto start server if it is not running.\n"s
-            + "    -c, --config <..>  Use specified configuration file.\n"s
-            + "    -p, --pipe   <..>  Set the pipe to connect to.\n"s
-            + "    -q, --quiet        Disable logging.\n"s
-            + "    -l, --listconfig   Show configuration and exit.\n"s
-            + "    -m, --monitor      Monitor server log.\n"s
-            + "    -d, --daemon       Run server in background.\n"s
-            + "    -s, --server       Run server in interactive mode.\n"s
-            + "    -r, --runapp <..>  Run standalone application.\n"s
-            + "    -v, --version      Show version and exit.\n"s
-            + "    -?, -h, --help     Show usage message.\n"s
-            + "    --onlylog          Disable interactive user input.\n"s
-            + "\n"s
-            + "  Configuration precedence (descending priority):\n\n"s
-            + "    1. Command line options: " + myname + " -c path/to/settings.xml\n"s
-            + "    2. Environment variable: "s + app::shared::env_config.substr(1) + "=path/to/settings.xml\n"s
-            + "    3. Hardcoded location \""s  + app::shared::usr_config + "\"\n"s
-            + "    4. Hardcoded configuration\n"s
-            + "\n"s
-            + "  Registered applications:\n\n"s
-            + "    Term  Terminal emulator (default)\n"s
-            + "    DTVT  DirectVT Proxy Console\n"s
-            + "    Text  (Demo) Text editor\n"s
-            + "    Calc  (Demo) Spreadsheet calculator\n"s
-            + "    Gems  (Demo) Desktopio application manager\n"s
+        log("\n"
+            "Virtual terminal multiplexer with window manager and session sharing.\n"
+            "\n"
+            "  Syntax:\n"
+            "\n"
+            "    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"
+            "\n"
+            "  Options:\n"
+            "\n"
+            "    No arguments       Run client, auto start server if it is not running.\n"
+            "    -c, --config <..>  Load specified settings file.\n"
+            "    -p, --pipe   <..>  Set the pipe to connect to.\n"
+            "    -q, --quiet        Disable logging.\n"
+            "    -l, --listconfig   Show configuration and exit.\n"
+            "    -m, --monitor      Monitor server log.\n"
+            "    -d, --daemon       Run server in background.\n"
+            "    -s, --server       Run server in interactive mode.\n"
+            "    -r, --runapp <..>  Run standalone application.\n"
+            "    -v, --version      Show version and exit.\n"
+            "    -?, -h, --help     Show usage message.\n"
+            "    --onlylog          Disable interactive user input.\n"
+            "\n"
+            "  Settings loading and merging order:\n"
+            "\n"
+            "    - Initialize hardcoded settings\n"
+            "    - Merge with explicitly specified settings (--config option)\n"
+            "    - If no settings file is specified (default):\n"
+            "        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "\n"
+            "        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "\n"
+            "        - Merge with DirectVT packet received from the parent process (dtvt-mode only)\n"
+            "\n"
+            "  Registered applications:\n"
+            "\n"
+            "    Term  Terminal emulator (default)\n"
+            "    DTVT  DirectVT Proxy Console\n"
+            "    Text  (Demo) Text editor\n"
+            "    Calc  (Demo) Spreadsheet calculator\n"
+            "    Gems  (Demo) Application distribution hub\n"
             );
     }
     else if (whoami == type::config)
