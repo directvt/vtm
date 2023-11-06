@@ -2309,7 +2309,7 @@ namespace netxs::os
                             auto stop = datetime::now() + retry_timeout;
                             do
                             {
-                                std::this_thread::sleep_for(100ms);
+                                os::sleep(100ms);
                                 done = play();
                             }
                             while (!done && stop > datetime::now());
@@ -4126,7 +4126,7 @@ namespace netxs::os
             //extio.shut();
             //while (true)
             //{
-            //    std::this_thread::sleep_for(1s);
+            //    os::sleep(1s);
             //}
 
             intio.shut();
