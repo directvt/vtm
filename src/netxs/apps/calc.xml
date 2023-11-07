@@ -1,17 +1,21 @@
 R"==(
 <config>
+    <scripting=off/>
     <appearance>
         <defaults>
             <fps      = 60   />
+            <wheel_dt = 3    /> <!-- Mouse scrolling wheel step (non-smooth scrolling).   -->
             <bordersz = 1,1  />
-            <brighter = 60   />
-            <kb_focus = 60   />
-            <shadower = 180  />
-            <shadow   = 180  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
-            <selector = 48   />
+            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
+            <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
+            <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
+            <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
+            <selected   fgc=puregreen                 />
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
             <action     fgc=whitelt   bgc=greenlt     />
@@ -36,6 +40,9 @@ R"==(
                 <repeat_delay   = 500ms /> <!-- Repeat delay.                                        -->
                 <repeat_rate    = 30ms  /> <!-- Repeat rate.                                         -->
             </timings>
+            <limits>
+                <window size=2000x1000 />  <!-- Max window size -->
+            </limits>
         </defaults>
         <runapp>    <!-- Override defaults. -->
             <brighter=0/>
@@ -60,6 +67,9 @@ R"==(
         <whitelt   = 0xFFf3f3f3 />
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />
+        <purered   = 0xFF0000ff />
+        <puregreen = 0xFF00ff00 />
+        <pureblue  = 0xFFff0000 />
         <nocolor   = 0x00000000 />
         <transparent = nocolor  />
     </set>
@@ -68,17 +78,19 @@ R"==(
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
-            <preview enabled=true size=80x25 bgc=bluedk fgc=whitelt>
+            <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7  />  <!-- Preview shadow strength (0-10). -->
             </preview>
         </clipboard>
-        <viewport coor=0,0/>
         <mouse dblclick=500ms/>
         <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
-        <debug overlay=0 toggle="🐞"/>  <!-- Display console debug info. -->
+        <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
         <regions enabled=0/>             <!-- Highlight UI objects boundaries. -->
+        <keyboard>
+            <layout = QWERTY/>  <!-- QWERTY, AZERTY, Dvorak, etc. -->
+        </keyboard>
     </client>
     <defapp>
         <menu>

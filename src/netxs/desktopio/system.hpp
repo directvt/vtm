@@ -1343,7 +1343,7 @@ namespace netxs::os
                     set_status(SERVICE_STOPPED);
                 };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
-            }();
+            };
 
         #else
 
