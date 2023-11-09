@@ -247,7 +247,6 @@ namespace netxs::xml
 
             wptr prev; // literal: Pointer to the prev.
             frag next; // literal: Pointer to the next.
-            wptr upto; // literal: Pointer to the end of the semantic block.
             type kind; // literal: Content type.
             text utf8; // literal: Content data.
 
@@ -415,27 +414,25 @@ namespace netxs::xml
             frag name; // elem: Tag name.
             frag insA; // elem: Insertion point for inline subelements.
             frag insB; // elem: Insertion point for nested subelements.
+            frag upto; // elem: Pointer to the end of the semantic block.
             heap body; // elem: Value fragments.
             subs hive; // elem: Subelements.
-            wptr prev; // elem: Prev element.
             wptr defs; // elem: Template.
             bool fake; // elem: Is it template.
             bool base; // elem: Merge overwrite priority.
             form mode; // elem: Element storage form.
 
-            elem(wptr prev = {})
-                : prev{ prev },
-                  fake{ faux },
+            elem()
+                : fake{ faux },
                   base{ faux },
                   mode{ node }
             { }
            ~elem()
             {
                 hive.clear();
-                if (auto tail = from->upto.lock())
                 if (auto prev = from->prev.lock())
                 {
-                    auto next = tail->next;
+                    auto next = upto->next;
                               prev->next = next;
                     if (next) next->prev = prev;
                 }
@@ -596,11 +593,10 @@ namespace netxs::xml
             {
                 auto crop = text{};
                 auto head = from;
-                auto tail = from->upto.lock();
-                while (true)
+                while (head)
                 {
                     crop += head->utf8;
-                    if (head == tail) break;
+                    if (head == upto) break;
                     head = head->next;
                 }
                 if (crop.starts_with('\n')
@@ -682,12 +678,13 @@ namespace netxs::xml
                 {
                     auto mode = item->mode;
                     auto from = item->from;
+                    auto upto = item->upto;
+                    auto next = upto->next;
                     if (auto gate = mode == elem::form::attr ? parent->insA : parent->insB)
                     if (auto prev = gate->prev.lock())
-                    if (auto upto = from->upto.lock())
                     if (auto past = from->prev.lock())
                     {
-                        auto next = upto->next;
+                        from->prev = prev;
                         upto->next = gate;
                         gate->prev = upto;
                         prev->next = from;
@@ -896,8 +893,7 @@ namespace netxs::xml
         }
         auto seal(sptr& item)
         {
-            item->from->upto = page.back;
-            page.back->upto = item->from;
+            item->upto = page.back;
         }
         void read(sptr& item, view& data, si32 deep = {})
         {
@@ -936,7 +932,7 @@ namespace netxs::xml
                     {
                         do // Proceed inlined subs.
                         {
-                            auto next = ptr::shared<elem>(item);
+                            auto next = ptr::shared<elem>();
                             next->mode = elem::form::attr;
                             open(next);
                             pair(next, data, what, last, type::token);
@@ -994,7 +990,7 @@ namespace netxs::xml
                                 {
                                     trim(data);
                                     data = temp;
-                                    auto next = ptr::shared<elem>(item);
+                                    auto next = ptr::shared<elem>();
                                     read(next, data, deep + 1);
                                     push(next);
                                     temp = data;
@@ -1145,7 +1141,10 @@ namespace netxs::xml
         settings(settings const&) = default;
         settings(view utf8_xml)
             : document{ ptr::shared<xml::document>(utf8_xml, "") }
-        { }
+        {
+            homepath = "/";
+            homelist = document->take(homepath);
+        }
 
         auto cd(text gotopath, view fallback = {})
         {
@@ -1214,7 +1213,11 @@ namespace netxs::xml
                 else frompath = homepath + "/" + frompath;
             }
             if (tempbuff.size()) crop = tempbuff.back()->value();
-            else if constexpr (!Quiet) log("%prompt%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+            else
+            {
+                if constexpr (!Quiet) log("%prompt%%red% xml path not found: %nil%%path%", prompt::xml, ansi::fgc(redlt), ansi::nil(), frompath);
+                return defval;
+            }
             tempbuff.clear();
             if (auto result = xml::take<T>(crop)) return result.value();
             if (crop.size())                      return take<Quiet>("/config/set/" + crop, defval);
@@ -1275,10 +1278,12 @@ namespace netxs::xml
         {
             if (filepath.size()) document->page.file = filepath;
             if (utf8_xml.empty()) return;
+            homepath.clear();
+            homelist.clear();
             auto run_config = xml::document{ utf8_xml, filepath };
             if constexpr (Print)
             {
-                log(prompt::xml, "Configuration from ", filepath.empty() ? "memory"sv : filepath, "\n", run_config.page.show());
+                log(prompt::xml, "Settings from ", filepath.empty() ? "memory"sv : filepath, ":\n", run_config.page.show());
             }
             auto proc = [&](auto node_ptr, auto path, auto proc) -> void
             {
@@ -1329,6 +1334,8 @@ namespace netxs::xml
             };
             auto path = text{};
             proc(run_config.root, path, proc);
+            homepath = "/";
+            homelist = document->take(homepath);
         }
         friend auto& operator << (std::ostream& s, settings const& p)
         {

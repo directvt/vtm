@@ -501,11 +501,11 @@ namespace netxs::app::shared
                         auto buff = text((size_t)size, '\0');
                         file.seekg(0, std::ios::beg);
                         file.read(buff.data(), size);
-                        conf.fuse<Print>(buff, config_path.string());
+                        conf.fuse<Print>(buff, config_path_str);
                         return true;
                     }
                 }
-                log(prompt::pads, "No settings found");
+                log(prompt::pads, "Not found");
                 return faux;
             };
             if (!load(cli_config_path)) // Merge explicitly specified settings.

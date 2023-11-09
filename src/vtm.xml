@@ -1,5 +1,4 @@
-R"==(
-<config>
+R"==(<config>
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"                  run="print(\"Hello World!\")"/>
         <powershell cwd="" usetty=yes cmd="powershell -NonInteractive" run="\"Hello World!\""/>
@@ -390,5 +389,4 @@ R"==(
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
-</config>
-)==";
+</config>)==";

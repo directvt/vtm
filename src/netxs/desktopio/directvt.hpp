@@ -17,6 +17,7 @@ namespace netxs::prompt
     static constexpr auto   xml = " xml: "sv;
     static constexpr auto   cin = "stdin: "sv;
     static constexpr auto  cout = "stdout: "sv;
+    static constexpr auto resultant_settings = "Resultant settings:"sv;
 
     #define prompt_list \
         X(apps) /* */ \
