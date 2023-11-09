@@ -214,6 +214,7 @@ namespace netxs::xml
         {
             na,            // start of file
             eof,           // end of file
+            eol,           // end of line
             top_token,     // open tag name
             end_token,     // close tag name
             token,         // name
@@ -714,6 +715,7 @@ namespace netxs::xml
                 {
                     case type::na:            return view{ "{START}" }   ;
                     case type::eof:           return view{ "{EOF}" }     ;
+                    case type::eol:           return view{ "{EOL}" }     ;
                     case type::token:         return view{ "{token}" }   ;
                     case type::raw_text:      return view{ "{raw text}" };
                     //case type::compact:       return view{ "{compact}" } ;
@@ -895,6 +897,22 @@ namespace netxs::xml
         {
             item->upto = page.back;
         }
+        auto note(view& data, type& what, type& last)
+        {
+            auto size = data.find(view_comment_close);
+            if (size == view::npos)
+            {
+                page.append(type::unknown, data);
+                data = {};
+                last = what;
+                what = type::eof;
+                return faux;
+            }
+            size += view_comment_close.size();
+            page.append(type::comment_begin, data.substr(0, size));
+            data.remove_prefix(size);
+            return true;
+        }
         void read(sptr& item, view& data, si32 deep = {})
         {
             auto what = type::na;
@@ -949,7 +967,25 @@ namespace netxs::xml
                         item->mode = elem::form::flat;
                         item->insA = last == type::spaces ? page.back
                                                           : page.append(type::spaces);
+                        last = type::spaces;
                         page.append(type::empty_tag, skip(data, what));
+                        while (true) // Pull inline comments: .../>  <!-- comments --> ... <!-- comments -->
+                        {
+                            auto temp = data;
+                            auto idle = utf::trim_front(temp, whitespaces);
+                            auto w = what;
+                            auto l = last;
+                            peek(temp, w, l);
+                            if (idle.find('\n') == text::npos && w == type::comment_begin)
+                            {
+                                data = temp;
+                                what = w;
+                                last = l;
+                                page.append(type::spaces, idle);
+                                if (!note(data, what, last)) break;
+                            }
+                            else break;
+                        }
                     }
                     else if (what == type::close_inline) // Proceed nested subs.
                     {
@@ -1010,6 +1046,7 @@ namespace netxs::xml
                                     size += view_comment_close.size();
                                     page.append(type::comment_begin, data.substr(0, size));
                                     data.remove_prefix(size);
+
                                     temp = data;
                                     utf::trim_front(temp, whitespaces);
                                 }
