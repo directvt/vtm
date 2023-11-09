@@ -1,12 +1,46 @@
 # Settings
 
-vtm can be configured in the `~/.config/vtm/settings.xml` file in xml format. Alternative configuration file location can be specified using command line option ` -c <config_file> ` or using environment variable VTM_CONFIG.
+```mermaid
+graph LR
+    subgraph Settings loading order
+    direction LR
+        B("Init hardcoded
+        settings")
+        B --> C["--config #lt;file#gt;
+        specified?"]
+        C -->|Yes| D["Merge #lt;file#gt;"]
+        C --->|No| F["Merge global"]
+        F --> G["Merge user wise"]
+        D ---> H["Merge DirectVT packet
+        received from parent"]
+        G --> H
+    end
+```
 
-Configuration precedence (descending priority):<br>
-1. Command line options `vtm -c path/to/settings.xml`<br>
-2. Environment variable `VTM_CONFIG=path/to/settings.xml`<br>
-3. Hardcoded location `~/.config/vtm/settings.xml`<br>
-4. Predefined configuration, see `./src/vtm.xml`
+- Hardcoded settings
+  - See [/src/vtm.xml](../src/vtm.xml) for reference.
+- Global settings
+  - on posix: `/etc/vtm/settings.xml`
+  - on win32: `%programdata%/vtm/settings.xml`
+- User wise settings
+  - on posix: `~/.config/vtm/settings.xml`
+  - on win32: `%userprofile%/.config/vtm/settings.xml`
+- DirectVT packet (built-in terminal only for now)
+  - The `<config>` menu item subsection passed to the dtvt application upon startup:
+    ```xml
+    <config>
+        <menu>
+            ...
+            <item ... type=DirectVT ... param="$0 ...">
+                <config> <!-- item's `<config>` subsection -->
+                    ...
+                </config>
+            </item>
+            ...
+        </menu>
+        ...
+    </config>
+    ```
 
 ## Configuration file Format (settings.xml)
 
@@ -23,7 +57,7 @@ Configuration file format is a slightly modified XML-format which allows to stor
  - Each object can be defined in any way, either using an XML-attribute or an XML-subobject syntax:
    - `<... name=value />`, `<...> <name> "value" </name> </...>`, and `<...> <name=value /> </...>` has the same meaning.
  - The object name that ending in an asterisk indicates that this object is not an object, but it is a template for all subsequent objects with the same name in the same scope. See `Template Example` below.
- - Character escapes
+ - Escaped characters:
    - `\e`  ASCII 0x1B ESC
    - `\t`  ASCII 0x09 TAB
    - `\a`  ASCII 0x07 BEL
@@ -33,13 +67,13 @@ Configuration file format is a slightly modified XML-format which allows to stor
    - `\'`  ASCII 0x27 Single quote
    - `$0`  Current module full path
 
-Consider the following object hierarchy
+Let's take the following object hierarchy as an example:
 
 - \<document\> - Top-level element
   - \<thing\> - Second level element
     - \<name\> - Third level element
 
-The following forms of element declaration are equivalent
+The following forms of element declaration are equivalent:
 
 ```xml
 <document>
@@ -100,61 +134,55 @@ The following forms of element declaration are equivalent
 
 #### Templates
 
-Use asterisk at the end of the element name to set defaults. Using an asterisk with the parameter name of the first element in the list without any other nested arguments indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged.
+- Using asterisk `*` at the end of the element name sets defaults for subsequent elements with the same name.
 
-The following declarations are the same
+Note. Placing an asterisk without any other nested elements (such as `<listitem*/>`) indicates the start of a new list of elements. This list will replace the existing one when merging the configuration.
+
+The following declarations have the same meaning:
 
 ```xml
-<document>
-    <thing name="text">another_text</thing>
-    <thing name="text">another_text</thing>
-</document>
+<list>
+    <listitem id=first  name="text">another_text</listitem>
+    <listitem id=second name="text">another_text</listitem>
+</list>
 ```
 
 ```xml
-<document>
-    <thing* name="text"/> <!-- skip this element and set name="text" as default for the following things -->
-    <thing>another_text</thing>
-    <thing>another_text</thing>
-</document>
+<list>
+    <listitem* name="text"/> <!-- skip this element and set name="text" as default for the following listitems -->
+    <listitem id=first >another_text</listitem>
+    <listitem id=second>another_text</listitem>
+</list>
 ```
 
 ```xml
-<document>
-    <thing* name="text"/>
-    <thing="another_text"/>
-    <thing="another_text"/>
-</document>
+<list>
+    <listitem* name="text"/>
+    <listitem="another_text" id=first />
+    <listitem="another_text" id=second/>
+</list>
 ```
 
 ```xml
-<document>
-    <thing*="another_text" name="text"/>  <!-- skip this element and set thing="another_text" and name="text" as default for the following things -->
-    <thing/>
-    <thing/>
-</document>
+<list>
+    <listitem*="another_text" name="text"/>  <!-- skip this element and set listitem="another_text" and name="text" as default for the following listitems -->
+    <listitem id=first />
+    <listitem id=second/>
+</list>
 ```
 
 ### Configuration Structure
 
-Top-level element `<config>` contains the following base objects
-  - Single `<menu>` block - taskbar menu configuration.
-    - Single `<selected>` object - the value of this attribute specifies which menu item id will be selected by default at the environment startup.
-    - Set of `<item>` objects - a list of menu item definitions.
-    - Single `<autorun>` block - a list of menu item to run at the environment startup.
-  - Not implemented: Single `<hotkeys>` block - a global hotkeys/shortcuts configuration.
+Top-level element `<config>` contains the following base elements:
+  - Single `<menu>` block - taskbar menu configuration which contains:
+    - Set of `<item>` elements - a list of menu items.
+    - Single `<autorun>` block - a list of items to run at the environment startup.
 
 #### Application Configuration
 
-The menu item of DirectVT type `type=DirectVT` can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal.
+The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal for now.
 
-The content of the `<config>` subelement is passed to the application upon startup. This config has the highest priority and is merged with the root of the configuration loaded by this application from a file.
-
-In general, when a DirectVT application starts up, the three configurations are subsequently merged. They are listed below in merged order
-
-- Hardcoded defaults
-- Configuration loaded from file
-- The configuration received at startup from the launching application (see the `<config>` subelement example)
+The content of the `<config>` subelement is passed to the application upon startup.
 
 #### Taskbar menu item attributes
 
@@ -192,10 +220,10 @@ Type              | Parameter        | Description
 `DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
 `ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
 `SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL param="_command line_"`. Same as `type=DirectVT param="$0 -r term _shell_ -c _command line_"`.
-`Group`           | [ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
+`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
 `Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
 
-The following configuration items have the same meaning
+The following configuration items have the same meaning:
 ```
 <item …. param=‘mc’/>
 <item …. type=SHELL param=‘mc’/>
@@ -205,7 +233,7 @@ The following configuration items have the same meaning
 
 ### Configuration Example
 
-Note: The following configuration sections are not implemented yet
+Note: The following configuration sections are not implemented yet:
 - config/menu/item/hotkeys
 - config/hotkeys
 
@@ -213,15 +241,15 @@ Note: The following configuration sections are not implemented yet
 
 ```xml
 <config>
-    <menu selected=Term item*>  <!-- Use asterisk to zeroize existing item records. -->
-        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell by default -->
+    <menu selected=Term item*>  <!-- Use asterisk to drop existing (hardcoded) menu items. -->
+        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell -->
     </menu>
 </config>
 ```
 
 #### Typical config  (`~/.config/vtm/settings.xml`)
 
-Note: The full defaut config is at [src/vtm.xml](../src/vtm.xml). 
+Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) source file.
 
 ```xml
 <config>
@@ -527,4 +555,4 @@ Note: The full defaut config is at [src/vtm.xml](../src/vtm.xml).
 </config>
 ```
 
-Note: `$0` will be expanded to the fully qualified current module filename when the configuration is loaded.
+Note: The `$0` tag will be expanded to the fully qualified current module filename when the configuration is loaded.

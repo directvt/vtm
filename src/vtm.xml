@@ -1,5 +1,4 @@
-R"==(
-<config>
+R"==(<config>
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"                  run="print(\"Hello World!\")"/>
         <powershell cwd="" usetty=yes cmd="powershell -NonInteractive" run="\"Hello World!\""/>
@@ -12,9 +11,9 @@ R"==(
         </javascript>
     </scripting>
     <isolated=0/>  <!-- For internal use only. -->
-    <menu wide=off selected=Term>  <!-- Set selected using menu item id. -->
+    <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
-                       Using an asterisk with the parameter name of the first element in the list without any other nested attributes
+                       Using an asterisk with the parameter name of the first element in the list without any other nested elements
                        indicates the beginning of the list, i.e. the list will replace the existing one when the configuration is merged. -->
         <item splitter label="apps">
             <notes>
@@ -390,5 +389,4 @@ R"==(
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
-</config>
-)==";
+</config>)==";

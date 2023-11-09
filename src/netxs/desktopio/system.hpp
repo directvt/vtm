@@ -110,8 +110,7 @@ namespace netxs::os
         static       auto stdout_fd    = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
         static       auto stderr_fd    = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
         static const auto codepage     = ui32{ ::GetOEMCP() };
-        static const auto wr_pipe_path = "\\\\.\\pipe\\w_";
-        static const auto rd_pipe_path = "\\\\.\\pipe\\r_";
+
 
     #else
 
@@ -1344,7 +1343,7 @@ namespace netxs::os
                     set_status(SERVICE_STOPPED);
                 };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
-            }();
+            };
 
         #else
 
@@ -1589,26 +1588,6 @@ namespace netxs::os
             std::sort(crop.begin(), crop.end());
             return crop;
         }
-        // os::env: Get user home path.
-        auto homepath()
-        {
-            #if defined(_WIN32)
-                auto handle = ::GetCurrentProcessToken();
-                auto length = DWORD{};
-                auto buffer = wide{};
-                ::GetUserProfileDirectoryW(handle, nullptr, &length);
-                if (length)
-                {
-                    buffer.resize(length);
-                    ::GetUserProfileDirectoryW(handle, buffer.data(), &length);
-                    if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
-                }
-                else os::fail("Can't detect user profile path");
-                return fs::path{ utf::to_utf(buffer) };
-            #else
-                return fs::path{ os::env::get("HOME") };
-            #endif
-        }
         // os::env: Get user shell.
         auto shell(qiew param = {})
         {
@@ -1657,6 +1636,59 @@ namespace netxs::os
                 return utf::concat(id);
 
             #endif
+        }
+    }
+
+    namespace path
+    {
+        #if defined(_WIN32)
+            static const auto pipe_ns = "\\\\.\\pipe\\";
+            static const auto wr_pipe = "\\\\.\\pipe\\w_";
+            static const auto rd_pipe = "\\\\.\\pipe\\r_";
+        #endif
+        // os::path: OS settings path.
+        static const auto etc = []
+        {
+            #if defined(_WIN32)
+                return fs::path{ os::env::get("PROGRAMDATA") };
+            #else
+                return fs::path{ "/etc/" };
+            #endif
+        }();
+        // os::path: User home path.
+        static const auto home = []
+        {
+            #if defined(_WIN32)
+                auto handle = ::GetCurrentProcessToken();
+                auto length = DWORD{};
+                auto buffer = wide{};
+                ::GetUserProfileDirectoryW(handle, nullptr, &length);
+                if (length)
+                {
+                    buffer.resize(length);
+                    ::GetUserProfileDirectoryW(handle, buffer.data(), &length);
+                    if (buffer.back() == '\0') buffer.pop_back(); // Pop terminating null.
+                }
+                else os::fail("Can't detect user profile path");
+                return fs::path{ utf::to_utf(buffer) };
+            #else
+                return fs::path{ os::env::get("HOME") };
+            #endif
+        }();
+        auto expand(text path)
+        {
+            if (path.starts_with("$"))
+            {
+                auto temp = path.substr(1);
+                path = os::env::get(temp);
+                log(prompt::pads, temp, " = ", path);
+            }
+            auto crop = path.starts_with("~/")    ? os::path::home / path.substr(2 /* trim `~` */)
+                      : path.starts_with("/etc/") ? os::path::etc  / path.substr(5 /* trim "/etc" */)
+                                                  : fs::path{ path };
+            auto crop_str = "'" + utf::to_utf(crop.wstring()) + "'";
+            utf::change(crop_str, "\\", "/");
+            return std::pair{ crop, crop_str };
         }
     }
 
@@ -2179,8 +2211,8 @@ namespace netxs::os
                 auto client = sptr<ipc::socket>{};
                 #if defined(_WIN32)
 
-                    auto to_server = os::rd_pipe_path + scpath;
-                    auto to_client = os::wr_pipe_path + scpath;
+                    auto to_server = os::path::rd_pipe + scpath;
+                    auto to_client = os::path::wr_pipe + scpath;
                     auto next_link = [&](auto h, auto const& path, auto type)
                     {
                         auto next_waiting_point = os::invalid_fd;
@@ -2257,8 +2289,8 @@ namespace netxs::os
                 {
                     if constexpr (debugmode) log(prompt::xipc, "Closing server side link ", handle);
                     #if defined(_WIN32)
-                        auto to_client = os::wr_pipe_path + scpath;
-                        auto to_server = os::rd_pipe_path + scpath;
+                        auto to_client = os::path::wr_pipe + scpath;
+                        auto to_server = os::path::rd_pipe + scpath;
                         if (handle.w != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_client).c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
                         if (handle.r != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_server).c_str()); // This may fail, but this is ok - it means the client is already disconnected.
                     #else
@@ -2320,12 +2352,12 @@ namespace netxs::os
 
                 #if defined(_WIN32)
 
-                    auto to_server = os::rd_pipe_path + path;
-                    auto to_client = os::wr_pipe_path + path;
+                    auto to_server = os::path::rd_pipe + path;
+                    auto to_client = os::path::wr_pipe + path;
 
                     if constexpr (Role == role::server)
                     {
-                        auto test = [](text const& path, text prefix = "\\\\.\\pipe\\")
+                        auto test = [](text const& path, text prefix = os::path::pipe_ns)
                         {
                             auto hits = faux;
                             auto next = WIN32_FIND_DATAW{};
@@ -2418,7 +2450,7 @@ namespace netxs::os
 
                     #if defined(__BSD__)
                         //todo unify "/.config/vtm"
-                        auto home = os::env::homepath() / ".config/vtm";
+                        auto home = os::path::home / ".config/vtm";
                         if (!fs::exists(home))
                         {
                             if constexpr (Log) log("%%Create home directory '%path%'", prompt::path, home.string());
