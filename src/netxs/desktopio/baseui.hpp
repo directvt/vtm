@@ -180,18 +180,26 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<core> ), // request global canvas.
-                GROUP_XS( layout   , const twod ),
-                GROUP_XS( draggable, bool       ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( upon     , bool       ),
-                GROUP_XS( proceed  , bool       ),
-                GROUP_XS( cursor   , bool       ),
-                GROUP_XS( drag     , input::hids),
-                GROUP_XS( prop     , text       ),
-                GROUP_XS( global   , twod       ),
-                GROUP_XS( state    , const twod ),
-                GROUP_XS( animate  , id_t       ),
+                EVENT_XS( canvas   , sptr<core>  ), // request global canvas.
+                GROUP_XS( size     , input::hids ), // window size manipulation.
+                GROUP_XS( layout   , const twod  ),
+                GROUP_XS( draggable, bool        ), // signal to the form to enable draggablity for specified mouse button.
+                GROUP_XS( upon     , bool        ),
+                GROUP_XS( proceed  , bool        ),
+                GROUP_XS( cursor   , bool        ),
+                GROUP_XS( drag     , input::hids ),
+                GROUP_XS( prop     , text        ),
+                GROUP_XS( global   , twod        ),
+                GROUP_XS( state    , const twod  ),
+                GROUP_XS( animate  , id_t        ),
 
+                SUBSET_XS( size )
+                {
+                    EVENT_XS( fullscreen , input::hids ),
+                    EVENT_XS( maximize   , input::hids ),
+                    EVENT_XS( minimize   , input::hids ),
+                    EVENT_XS( restore    , ui::sptr    ),
+                };
                 SUBSET_XS( draggable )
                 {
                     EVENT_XS( left     , bool ),
@@ -205,27 +213,17 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( fullscreen, input::hids ), // request to fullscreen.
-                    EVENT_XS( minimize  , input::hids ), // request to minimize.
-                    EVENT_XS( unselect  , input::hids ), // inform if unselected.
-                    EVENT_XS( selected  , input::hids ), // inform if selected.
-                    EVENT_XS( restore   , ui::sptr    ), // request to restore.
-                    EVENT_XS( shift     , const twod  ), // request a global shifting with delta.
-                    EVENT_XS( jumpto    , ui::base    ), // fly to the specified object.
-                    EVENT_XS( convey    , cube        ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble    , rect        ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose    , rect        ), // order to bring the requested item on top of the visual tree.
-                    EVENT_XS( appear    , twod        ), // fly to the specified coords.
-                    EVENT_XS( swarp     , const dent  ), // preview: form swarping
-                    GROUP_XS( go        , ui::sptr    ), // preview: form swarping
-                    //EVENT_XS( order     , si32       ), // return
-                    //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
-                    //EVENT_XS( coor      , twod       ), // return object rect coor, only preview.
-                    //EVENT_XS( size      , twod       ), // return object rect size, only preview.
-                    //EVENT_XS( rect      , rect       ), // return object rect.
-                    //EVENT_XS( show      , bool       ), // order to make it visible.
-                    //EVENT_XS( hide      , bool       ), // order to make it hidden.
-                    
+                    EVENT_XS( unselect, input::hids ), // inform if unselected.
+                    EVENT_XS( selected, input::hids ), // inform if selected.
+                    EVENT_XS( shift   , const twod  ), // request a global shifting with delta.
+                    EVENT_XS( jumpto  , ui::base    ), // fly to the specified object.
+                    EVENT_XS( convey  , cube        ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble  , rect        ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose  , rect        ), // order to bring the requested item on top of the visual tree.
+                    EVENT_XS( appear  , twod        ), // fly to the specified coords.
+                    EVENT_XS( swarp   , const dent  ), // preview: form swarping
+                    GROUP_XS( go      , ui::sptr    ), // preview: form swarping
+
                     SUBSET_XS( go )
                     {
                         EVENT_XS( next , ui::sptr ), // request: proceed request for available objects (next)

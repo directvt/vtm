@@ -7404,7 +7404,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(master.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                        parent_ptr->RISEUP(tier::release, e2::form::size::fullscreen, gear);
                     }
                 });
             }
@@ -7484,7 +7484,7 @@ namespace netxs::ui
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        master.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                        master.RISEUP(tier::release, e2::form::size::minimize, gear);
                     }
                 });
             }

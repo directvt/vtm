@@ -265,7 +265,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                            boss.RISEUP(tier::release, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -274,7 +274,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                            boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
                             gear.dismiss();
                         };
                     }},

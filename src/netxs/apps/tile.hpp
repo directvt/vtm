@@ -186,7 +186,7 @@ namespace netxs::app::tile
                                     if (gear.countdown > 0)
                                     {
                                         gear.countdown--; // The only one can be maximized if several are selected.
-                                        boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                                        boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
@@ -217,7 +217,7 @@ namespace netxs::app::tile
         {
             boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
-                boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
                 gear.dismiss();
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
@@ -265,7 +265,7 @@ namespace netxs::app::tile
                                  && deed != hids::events::mouse::button::drag::start::leftright.id) return;
 
                                 // Restore if maximized. Parent can be changed.
-                                master.SIGNAL(tier::release, e2::form::layout::restore, e2::form::layout::restore.param());
+                                master.SIGNAL(tier::release, e2::form::size::restore, e2::form::size::restore.param());
 
                                 // Take current title.
                                 auto what = vtm::events::handoff.param({ .menuid = menuid });
@@ -369,7 +369,7 @@ namespace netxs::app::tile
                                     //todo implement keydb support
                                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                                     {
-                                        boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                                        boss.RISEUP(tier::release, e2::form::size::minimize, gear);
                                         gear.dismiss();
                                     };
                                 })
@@ -480,7 +480,7 @@ namespace netxs::app::tile
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
+                    boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
                     {
                         if (auto node = std::dynamic_pointer_cast<ui::fork>(boss.base::parent()))
                         {
@@ -599,7 +599,7 @@ namespace netxs::app::tile
                         if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::fullscreen, gear, -, (oneoff = subs{}))
+                    boss.LISTEN(tier::release, e2::form::size::fullscreen, gear, -, (oneoff = subs{}))
                     {
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
@@ -612,7 +612,7 @@ namespace netxs::app::tile
                             if (auto fullscreen_item = boss.pop_back())
                             {
                                 auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
-                                fullscreen_item->LISTEN(tier::release, e2::form::layout::restore, item_ptr, oneoff)
+                                fullscreen_item->LISTEN(tier::release, e2::form::size::restore, item_ptr, oneoff)
                                 {
                                     if (item_ptr)
                                     {
@@ -973,7 +973,7 @@ namespace netxs::app::tile
                         {
                             auto gear_id_list = pro::focus::get(boss.This()); // Seize all foci.
                             auto item_ptr = boss.pop_back();
-                            item_ptr->SIGNAL(tier::release, e2::form::layout::restore, item_ptr);
+                            item_ptr->SIGNAL(tier::release, e2::form::size::restore, item_ptr);
                             pro::focus::set(boss.back(), foci_list, pro::focus::solo::off, pro::focus::flip::off, true); // Restore saved foci.
                             pro::focus::set(item_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off); // Apply item's foci.
                             foci_list.clear();

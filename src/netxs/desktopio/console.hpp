@@ -1309,7 +1309,7 @@ namespace netxs::ui
             }
             if (direct && !isolated) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, e2::form::layout::minimize, gear, tokens)
+                LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.minimize.send(canal, ext_gear_id);
@@ -1373,7 +1373,7 @@ namespace netxs::ui
                 {
                     conio.warping.send(canal, 0, warp);
                 };
-                LISTEN(tier::release, e2::form::layout::fullscreen, gear, tokens)
+                LISTEN(tier::release, e2::form::size::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.fullscreen.send(canal, ext_gear_id);

@@ -75,7 +75,7 @@
     <th>double LeftClick</th>
     <td colspan="3"></td>
     <td></td>
-    <td colspan="2">Toggle fullscreen</td>
+    <td colspan="2">Maximize<br>Restore</td>
     <td colspan="3"></td>
   </tr>
   <tr>

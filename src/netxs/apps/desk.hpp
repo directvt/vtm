@@ -93,7 +93,7 @@ namespace netxs::app::desk
                              && pro::focus::test(window, gear)) // and focused.
                             {
                                 if (gear.meta(hids::anyCtrl)) pro::focus::off(data_src, gear.id); // Remove focus if Ctrl pressed.
-                                else                          window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                                else                          window.SIGNAL(tier::release, e2::form::size::minimize, gear);
                             }
                             else
                             {
@@ -101,7 +101,7 @@ namespace netxs::app::desk
                                 gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, window);
                                 if (window.hidden) // Restore if hidden.
                                 {
-                                    window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                                    window.SIGNAL(tier::release, e2::form::size::minimize, gear);
                                 }
                                 else pro::focus::set(data_src, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
                                                                                                  : pro::focus::solo::on, pro::focus::flip::off);
@@ -119,7 +119,7 @@ namespace netxs::app::desk
                             window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
                             if (window.hidden) // Restore if minimized.
                             {
-                                window.SIGNAL(tier::release, e2::form::layout::minimize, gear);
+                                window.SIGNAL(tier::release, e2::form::size::minimize, gear);
                             }
                             else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                             gear.dismiss();
@@ -576,7 +576,7 @@ namespace netxs::app::desk
                     //    auto& [menu_max_size, menu_min_size, active] = *size_config;
                     //    toggle(!active);
                     //};
-                    boss.LISTEN(tier::anycast, e2::form::layout::restore, item_ptr, -, (size_config))
+                    boss.LISTEN(tier::anycast, e2::form::size::restore, item_ptr, -, (size_config))
                     {
                         auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
                         skip = datetime::now();

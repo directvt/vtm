@@ -146,7 +146,7 @@ namespace netxs::app::vtm
                     if (new_area.coor != boss.base::coor()) unbind();
                     else what.applet->base::resize(new_area.size + pads);
                 };
-                window_ptr->LISTEN(tier::release, e2::form::layout::minimize, gear, memo)
+                window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
                 {
                     what.applet->bell::expire<tier::release>(); // Suppress hide/minimization.
                     unbind();
@@ -177,7 +177,7 @@ namespace netxs::app::vtm
                 boss.RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                 boss.RISEUP(tier::preview, e2::form::prop::ui::header, prev_header);
                 boss.RISEUP(tier::preview, e2::form::prop::ui::footer, prev_footer);
-                boss.SIGNAL(tier::anycast, e2::form::layout::restore, empty, ()); // Notify app::desk to suppress triggering.
+                boss.SIGNAL(tier::anycast, e2::form::size::restore, empty, ()); // Notify app::desk to suppress triggering.
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 window_ptr->base::detach();
@@ -1207,7 +1207,7 @@ namespace netxs::app::vtm
                             boss.hidden = true;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::layout::minimize, gear)
+                    boss.LISTEN(tier::release, e2::form::size::minimize, gear)
                     {
                         auto This = boss.This();
                         if (boss.hidden) // Restore if it is hidden.
@@ -1256,7 +1256,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                        boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -1300,7 +1300,7 @@ namespace netxs::app::vtm
 
                     auto what_copy = what;
                     what_copy.applet = {};
-                    boss.LISTEN(tier::release, e2::form::layout::fullscreen, gear, -, (what_copy))
+                    boss.LISTEN(tier::release, e2::form::size::fullscreen, gear, -, (what_copy))
                     {
                         auto window_ptr = boss.This();
                         auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
