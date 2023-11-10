@@ -23,6 +23,28 @@ namespace netxs::app::vtm
         sptr applet{};
     };
 
+    namespace winform
+    {
+        namespace type
+        {
+            static const auto undefined = "undefined"s;
+            static const auto minimized = "minimized"s;
+            static const auto maximized = "maximized"s;
+        }
+
+        enum form
+        {
+            undefined,
+            minimized,
+            maximized,
+        };
+
+        static auto options = std::unordered_map<text, form>
+           {{ type::undefined, form::undefined },
+            { type::minimized, form::minimized },
+            { type::maximized, form::maximized }};
+    }
+
     namespace attr
     {
         static constexpr auto id       = "id";
@@ -36,6 +58,7 @@ namespace netxs::app::vtm
         static constexpr auto fgc      = "fgc";
         static constexpr auto winsize  = "winsize";
         static constexpr auto wincoor  = "wincoor";
+        static constexpr auto winform  = "winform";
         static constexpr auto focused  = "focused";
         static constexpr auto slimmenu = "slimmenu";
         static constexpr auto hotkey   = "hotkey";
@@ -1256,7 +1279,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
+                        boss.RISEUP(tier::release, e2::form::size::maximize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -1311,6 +1334,44 @@ namespace netxs::app::vtm
                         window_ptr->RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
+                    auto maximize_token_ptr = ptr::shared<subs>();
+                    auto saved_area_ptr = ptr::shared<rect>();
+                    boss.LISTEN(tier::release, e2::form::size::restore, item_ptr, -, (maximize_token_ptr, saved_area_ptr))
+                    {
+                        if (auto& maximize_token = *maximize_token_ptr)
+                        {
+                            auto& saved_area = *saved_area_ptr;
+                            saved_area.coor += boss.base::coor();
+                            boss.base::extend(saved_area); // Restore window size and relative coor.
+                            maximize_token.reset();
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::size::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
+                    {
+                        auto window_ptr = boss.This();
+                        auto& maximize_token = *maximize_token_ptr;
+                        if (maximize_token) // Restore maximized window.
+                        {
+                            boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
+                        }
+                        else
+                        {
+                            pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true);
+                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                            auto& saved_area = *saved_area_ptr;
+                            saved_area = boss.base::area();
+                            saved_area.coor -= viewport.coor;
+                            boss.base::extend(viewport);
+                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
+                            {
+                                if (boss.area() != viewport)
+                                {
+                                    boss.base::extend(viewport);
+                                }
+                            };
+                        }
+                    };
+                    //todo restore on move/resize
                 });
         }
         auto create(link& what)
@@ -1627,12 +1688,14 @@ namespace netxs::app::vtm
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
                                     app.take(attr::winsize, twod{ 80,25 }) };
+                    auto winform =  app.take(attr::winform, vtm::winform::undefined, vtm::winform::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (focused) foci.push_back(window_ptr);
+                        if (winform == vtm::winform::minimized) window_ptr->base::hidden = true;
+                        else if (focused) foci.push_back(window_ptr);
                     }
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");
                 }

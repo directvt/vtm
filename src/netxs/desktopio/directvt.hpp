@@ -781,6 +781,7 @@ namespace netxs::directvt
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
         STRUCT_macro(fullscreen,        (id_t, gear_id))
+        STRUCT_macro(maximize,          (id_t, gear_id))
         STRUCT_macro(header,            (id_t, window_id) (text, utf8))
         STRUCT_macro(footer,            (id_t, window_id) (text, utf8))
         STRUCT_macro(header_request,    (id_t, window_id))
@@ -1303,7 +1304,8 @@ namespace netxs::directvt
             X(jgc_list         ) /* List of jumbo GC.                             */\
             X(focus_cut        ) /* Request to focus cut.                         */\
             X(focus_set        ) /* Request to focus set.                         */\
-            X(fullscreen       ) /* Request to fullscreen                         */\
+            X(fullscreen       ) /* Request to fullscreen.                        */\
+            X(maximize         ) /* Request to maximize window.                   */\
             X(header           ) /* Set window title.                             */\
             X(footer           ) /* Set window footer.                            */\
             X(header_request   ) /* Request window title.                         */\

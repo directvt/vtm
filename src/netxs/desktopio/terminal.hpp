@@ -7408,6 +7408,20 @@ namespace netxs::ui
                     }
                 });
             }
+            void handle(s11n::xs::maximize            lock)
+            {
+                auto& m = lock.thing;
+                master.trysync(master.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = master.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        if (gear.captured(master.id)) gear.setfree(true);
+                        parent_ptr->RISEUP(tier::release, e2::form::size::maximize, gear);
+                    }
+                });
+            }
             void handle(s11n::xs::focus_cut           lock)
             {
                 auto& k = lock.thing;

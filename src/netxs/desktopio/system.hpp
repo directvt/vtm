@@ -4971,10 +4971,16 @@ namespace netxs::os
                 }
                 if (saved_fd != os::invalid_fd)
                 {
+                    auto s = dtvt::consize();
                     os::close(os::stdout_fd);
                     os::stdout_fd = saved_fd;
-                    ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected);
-                    //todo sync current active buffer size (wt issue)
+                    if (ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected))
+                    {
+                        if (s != dtvt::consize()) // wt issue GH #16231
+                        {
+                            std::cout << prompt::os << ansi::err("Terminal is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
+                        }
+                    }
                 }
             #else 
                 io::send(os::stdout_fd, vtend);

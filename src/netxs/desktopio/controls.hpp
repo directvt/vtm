@@ -2677,7 +2677,7 @@ namespace netxs::ui
                 if (object_2) remove(object_2);
                 object_2 = item_ptr;
             }
-            else
+            else if (Slot == slot::_I)
             {
                 if (splitter) remove(splitter);
                 splitter = item_ptr;

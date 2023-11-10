@@ -1157,8 +1157,7 @@ namespace netxs::ui
             };
             LISTEN(tier::request, e2::form::prop::viewport, viewport, tokens)
             {
-                this->SIGNAL(tier::anycast, e2::form::prop::viewport, viewport);
-                viewport.coor += base::coor();
+                viewport = base::area();
             };
             //todo unify creation (delete simple create wo gear)
             LISTEN(tier::preview, e2::form::proceed::create, region, tokens)
@@ -1377,6 +1376,11 @@ namespace netxs::ui
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.fullscreen.send(canal, ext_gear_id);
+                };
+                LISTEN(tier::release, e2::form::size::maximize, gear, tokens)
+                {
+                    auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
+                    if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
         }

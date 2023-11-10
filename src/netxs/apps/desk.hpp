@@ -49,6 +49,8 @@ namespace netxs::app::desk
 
             SUBSET_XS( ui )
             {
+                EVENT_XS( toggle  , bool        ),
+                EVENT_XS( sync    , bool        ),
                 EVENT_XS( selected, text        ),
                 GROUP_XS( focus   , input::hids ),
 
@@ -115,8 +117,8 @@ namespace netxs::app::desk
                         {
                             auto& window = *data_src;
                             window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            window.SIGNAL(tier::preview, e2::form::layout::appear, center, (gear.area().coor + viewport.center())); // Pull window.
+                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                            window.SIGNAL(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
                             if (window.hidden) // Restore if minimized.
                             {
                                 window.SIGNAL(tier::release, e2::form::size::minimize, gear);
@@ -245,8 +247,7 @@ namespace netxs::app::desk
                                 return;
                             }
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
-                            boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                            viewport.coor += gear.area().coor;
+                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                             offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                             gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32 + dot_11;
                             gear.slot.size = viewport.size * 3 / 4;
@@ -362,8 +363,7 @@ namespace netxs::app::desk
                     {
                         static auto offset = dot_00;
                         auto& gate = gear.owner;
-                        boss.SIGNAL(tier::anycast, e2::form::prop::viewport, viewport, ());
-                        viewport.coor += gear.area().coor;
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                         offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                         gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
                         gear.slot.size = viewport.size * 3 / 4;
@@ -412,8 +412,8 @@ namespace netxs::app::desk
             auto c1 = danger_color;
 
             auto menu_bg_color = config.take("/config/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
-            auto menu_min_size = config.take("/config/menu/width/folded",   si32{ 4  });
-            auto menu_max_size = config.take("/config/menu/width/expanded", si32{ 31 });
+            auto menu_min_conf = config.take("/config/menu/width/folded",   si32{ 5  });
+            auto menu_max_conf = config.take("/config/menu/width/expanded", si32{ 32 });
             auto bttn_min_size = twod{ 31, 1 + tall * 2 };
             auto bttn_max_size = twod{ -1, 1 + tall * 2 };
 
@@ -479,28 +479,34 @@ namespace netxs::app::desk
                 return users;
             };
 
-            window->invoke([menu_max_size, menu_min_size, menu_selected](auto& boss) mutable
+            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux, datetime::now() - 500ms });
+            auto& size_config = *size_config_ptr;
+            auto& [menu_max_size, menu_min_size, active, skip] = size_config;
+
+            window->invoke([&, menu_selected](auto& boss) mutable
             {
                 auto ground = background("gems;Demo;"); // It can't be a child - it has exclusive rendering (first of all).
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
                 {
+                    if (!parent_ptr) return;
+                    auto& parent = *parent_ptr;
                     current_default  = selected;
                     previous_default = selected;
-                    ground->SIGNAL(tier::release, e2::form::upon::vtree::attached, parent);
-                    parent->SIGNAL(tier::anycast, events::ui::selected, current_default);
-                    parent->LISTEN(tier::request, e2::data::changed, data, boss.relyon)
+                    ground->SIGNAL(tier::release, e2::form::upon::vtree::attached, parent_ptr);
+                    parent.SIGNAL(tier::anycast, events::ui::selected, current_default);
+                    parent.LISTEN(tier::request, e2::data::changed, data, boss.relyon)
                     {
                         data = current_default;
                     };
-                    parent->LISTEN(tier::preview, e2::data::changed, data, boss.relyon)
+                    parent.LISTEN(tier::preview, e2::data::changed, data, boss.relyon)
                     {
                         data = previous_default;
                     };
-                    parent->LISTEN(tier::release, e2::data::changed, data, boss.relyon)
+                    parent.LISTEN(tier::release, e2::data::changed, data, boss.relyon)
                     {
                         boss.SIGNAL(tier::anycast, events::ui::selected, data);
                     };
-                    parent->LISTEN(tier::anycast, events::ui::selected, data, boss.relyon)
+                    parent.LISTEN(tier::anycast, events::ui::selected, data, boss.relyon)
                     {
                         auto new_default = data;
                         if (current_default != new_default)
@@ -509,113 +515,130 @@ namespace netxs::app::desk
                             current_default = new_default;
                         }
                     };
-                    parent->LISTEN(tier::release, e2::area, new_area, boss.relyon)
+                    parent.LISTEN(tier::release, e2::area, new_area, boss.relyon)
                     {
                         if (ground->size() != new_area.size)
                         {
                             ground->base::resize(new_area.size);
                         }
                     };
-                    parent->LISTEN(tier::release, e2::render::prerender, parent_canvas, boss.relyon, (parent_id = parent->id))
+                    parent.LISTEN(tier::release, e2::render::prerender, parent_canvas, boss.relyon)
                     {
-                        if (parent_id == parent_canvas.mark().link())
+                        if (parent.id == parent_canvas.mark().link())
                         {
                             ground->render(parent_canvas);
                         }
                     };
+                    parent.LISTEN(tier::request, e2::form::prop::viewport, viewport, boss.relyon)
+                    {
+                        viewport -= dent{ menu_min_size };
+                    };
+                    parent.LISTEN(tier::preview, e2::form::prop::viewport, viewport, boss.relyon)
+                    {
+                        viewport = parent.base::area() - dent{ menu_min_size };
+                        parent.SIGNAL(tier::release, e2::form::prop::viewport, viewport);
+                    };
                 };
             });
-            auto taskbar_viewport = window->attach(slot::_2, ui::fork::ctor(axis::X))
-                ->invoke([](auto& boss)
-                {
-                    boss.LISTEN(tier::anycast, e2::form::prop::viewport, viewport)
-                    {
-                        viewport = boss.base::area();
-                    };
-                });
-            auto taskbar_park = taskbar_viewport->attach(slot::_1, ui::cake::ctor())
+            auto taskbar_viewport = window->attach(slot::_2, ui::fork::ctor(axis::X));
+            auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
-                ->plugin<pro::notes>(" LeftDrag to adjust the taskbar width                        \n"
-                                     " Ctrl+LeftDrag to adjust the folded taskbar width            \n"
-                                     " RightDrag or scroll wheel to slide the taskbar menu up/down ")
                 ->plugin<pro::timer>()
                 ->plugin<pro::acryl>(10)
                 ->plugin<pro::cache>()
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)
                 {
-                    boss.mouse.template draggable<hids::buttons::left>(true);
-                    auto size_config = ptr::shared(std::tuple{ menu_max_size, menu_min_size, faux, datetime::now() });
-                    auto toggle = [&, size_config](bool state)
+                    boss.LISTEN(tier::release, e2::area, new_area)
                     {
-                        auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
+                        boss.RISEUP(tier::preview, e2::form::prop::viewport, viewport, ());
+                    };
+                    boss.LISTEN(tier::release, events::ui::toggle, state)
+                    {
                         active = state;
-                        auto size = active ? std::max(menu_max_size, menu_min_size)
+                        auto size = active ? menu_max_size
                                            : menu_min_size;
                         auto lims = twod{ size, -1 };
                         boss.base::limits(lims, lims);
                         boss.base::reflow();
+                        boss.base::deface();
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear, -, (size_config))
+                    boss.LISTEN(tier::anycast, e2::form::size::restore, item_ptr)
                     {
-                        auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        boss.base::min_sz.x += gear.delta.get().x;
-                        boss.base::max_sz.x = boss.base::min_sz.x;
-                        gear.meta(hids::anyCtrl) ? menu_min_size = boss.base::min_sz.x
-                                                 : menu_max_size = boss.base::min_sz.x;
-                        boss.base::reflow();
-                    };
-                    //todo rewrite taskbar
-                    //boss.LISTEN(tier::preview, hids::events::keybd::data::any, gear, -, (toggle))
-                    //{
-                    //    auto& [menu_max_size, menu_min_size, active] = *size_config;
-                    //    toggle(!active);
-                    //};
-                    //boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (toggle))
-                    //{
-                    //    auto& [menu_max_size, menu_min_size, active] = *size_config;
-                    //    toggle(!active);
-                    //};
-                    boss.LISTEN(tier::anycast, e2::form::size::restore, item_ptr, -, (size_config))
-                    {
-                        auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
                         skip = datetime::now();
                     };
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (size_config))
+                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
-                        auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        if (state && skip + 500ms > datetime::now())
+                        auto& timer = boss.template plugins<pro::timer>();
+                        if (state || skip + 500ms > datetime::now())
                         {
+                            timer.pacify(faux);
                             return;
                         }
-                        auto apply = [&, size_config](auto state)
+                        // Only when mouse leaving.
+                        auto toggle = [&](auto state)
                         {
-                            auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                            active = state;
-                            auto size = active ? std::max(menu_max_size, menu_min_size)
-                                               : menu_min_size;
-                            auto lims = twod{ size, -1 };
-                            boss.base::limits(lims, lims);
-                            boss.base::reflow();
-                            boss.base::deface();
+                            boss.SIGNAL(tier::release, events::ui::toggle, state);
                             return faux; // One shot call.
                         };
-                        auto& timer = boss.template plugins<pro::timer>();
-                        timer.pacify(faux);
-                        if (state) apply(true);
-                        else       timer.actify(faux, skin::globals().menu_timeout, apply);
+                        timer.actify(faux, skin::globals().menu_timeout, toggle);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::prop::viewport, viewport, -, (size_config))
+                });
+            auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
+                ->limits({ 1, -1 }, { 1, -1 })
+                ->template plugin<pro::notes>(" Use LeftDrag to adjust taskbar width ")
+                //->template plugin<pro::focus>(pro::focus::mode::focusable)
+                //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count)
+                ->shader(cell::shaders::xlight, e2::form::state::hover)
+                ->active()
+                ->invoke([&](auto& boss)
+                {
+                    boss.mouse.template draggable<hids::buttons::left>(true);
+                    boss.LISTEN(tier::release, e2::form::drag::pull::_<hids::buttons::left>, gear)
                     {
-                        auto& [menu_max_size, menu_min_size, active, skip] = *size_config;
-                        viewport.coor.x += menu_min_size;
-                        viewport.size.x -= menu_min_size;
+                        if (auto taskbar_grips = boss.base::parent())
+                        {
+                            taskbar_grips->base::min_sz.x = std::max(1, taskbar_grips->base::min_sz.x + gear.delta.get().x);
+                            taskbar_grips->base::max_sz.x = taskbar_grips->base::min_sz.x;
+                            active ? menu_max_size = taskbar_grips->base::min_sz.x
+                                   : menu_min_size = taskbar_grips->base::min_sz.x;
+                            taskbar_grips->base::reflow();
+                        }
+                    };
+                    boss.LISTEN(tier::release, events::ui::sync, state)
+                    {
+                        if (menu_min_size > menu_max_size)
+                        {
+                            active ? menu_min_size = menu_max_size
+                                   : menu_max_size = menu_min_size;
+                        }
+                    };
+                    boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear, -, (size_config))
+                    {
+                        boss.SIGNAL(tier::release, events::ui::sync, true);
+                    };
+                    boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear, -, (size_config))
+                    {
+                        boss.SIGNAL(tier::release, events::ui::sync, true);
+                    };
+                });
+            auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor())
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    {
+                        if (state)
+                        if (auto taskbar_grips = boss.base::parent())
+                        {
+                            taskbar_grips->SIGNAL(tier::release, events::ui::toggle, state);
+                        }
                     };
                 });
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
+                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down ")
                 ->active()
                 ->invoke([&](auto& boss)
                 {
