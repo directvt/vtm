@@ -231,6 +231,7 @@ namespace netxs::app::desk
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (inst_id))
                         {
                             boss.SIGNAL(tier::anycast, events::ui::selected, inst_id);
+                            gear.dismiss(true);
                         };
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (inst_id, group_focus = faux))
                         {
@@ -479,7 +480,7 @@ namespace netxs::app::desk
                 return users;
             };
 
-            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux, datetime::now() - 500ms });
+            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux, datetime::now() - 501ms });
             auto& size_config = *size_config_ptr;
             auto& [menu_max_size, menu_min_size, active, skip] = size_config;
 
@@ -563,6 +564,10 @@ namespace netxs::app::desk
                         boss.base::reflow();
                         boss.base::deface();
                     };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::any, gear)
+                    {
+                        boss.SIGNAL(tier::release, events::ui::toggle, !active);
+                    };
                     boss.LISTEN(tier::anycast, e2::form::size::restore, item_ptr)
                     {
                         skip = datetime::now();
@@ -570,7 +575,7 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
                         auto& timer = boss.template plugins<pro::timer>();
-                        if (state || skip + 500ms > datetime::now())
+                        if (state)
                         {
                             timer.pacify(faux);
                             return;
@@ -627,7 +632,7 @@ namespace netxs::app::desk
                 {
                     boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
-                        if (state)
+                        if (state && skip + 500ms < datetime::now())
                         if (auto taskbar_grips = boss.base::parent())
                         {
                             taskbar_grips->SIGNAL(tier::release, events::ui::toggle, state);
