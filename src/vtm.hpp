@@ -1415,18 +1415,24 @@ namespace netxs::app::vtm
                             auto& saved_area = *saved_area_ptr;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
-
-                            auto new_area = viewport - dent{ 0, 0, 1, 1 }; //todo Title and footer.
-                            boss.base::extend(new_area);
-                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token, (guard_ptr/*owns ptr*/))
+                            auto recalc = [](auto& boss, auto& guard, auto viewport)
                             {
-                                auto new_area = viewport - dent{ 0, 0, 1, 1 }; //todo Title and footer.
+                                auto& title = boss.template plugins<pro::title>();
+                                title.recalc(viewport.size);
+                                auto t = title.head_size.y;
+                                auto b = title.foot_size.y;
+                                auto new_area = viewport - dent{ 0, 0, t, b };
                                 if (boss.base::area() != new_area)
                                 {
                                     guard = faux;
                                     boss.base::extend(new_area);
                                     guard = true;
                                 }
+                            };
+                            recalc(boss, guard, viewport);
+                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token, (guard_ptr/*owns ptr*/))
+                            {
+                                recalc(boss, guard, viewport);
                             };
                             gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
                             {
