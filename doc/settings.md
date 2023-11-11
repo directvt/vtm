@@ -241,7 +241,7 @@ Note: The following configuration sections are not implemented yet:
 
 ```xml
 <config>
-    <menu selected=Term item*>  <!-- Use asterisk to drop existing (hardcoded) menu items. -->
+    <menu selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
         <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell -->
     </menu>
 </config>
@@ -283,8 +283,8 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                         <mode = text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <menu>
-                        <autohide=on/>  <!--  If true/on, show menu only on hover. -->
-                        <enabled="on"/>
+                        <autohide=off/>  <!--  If true/on, show window menu only on hover. -->
+                        <enabled=true/>
                         <slim=1/>
                     </menu>
                 </term>
@@ -463,9 +463,9 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <show=true/>
         </cursor>
         <menu item*>
-            <autohide=true />  <!-- If true, show menu only on hover. -->
-            <enabled=1 />
-            <slim=1 />
+            <autohide=off/>
+            <enabled=1/>
+            <slim=1/>
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
@@ -531,16 +531,16 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
     </term>
     <defapp>
         <menu>
-            <autohide=off />  <!--  If true, show menu only on hover. -->
-            <enabled="on"/>
-            <slim=true />
+            <autohide=off/>
+            <enabled=true/>
+            <slim=true/>
         </menu>
     </defapp>
     <tile>
         <menu>
-            <autohide=true />  <!--  If true, show menu only on hover. -->
-            <enabled="on"/>
-            <slim=1 />
+            <autohide=off/>
+            <enabled=true/>
+            <slim=true/>
         </menu>
     </tile>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->

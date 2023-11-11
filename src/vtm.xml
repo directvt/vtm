@@ -46,11 +46,11 @@ R"==(
                         <style="underline"/> <!-- block | underline  -->
                     </cursor>
                     <menu>
-                        <autohide = on/>  <!--  If true, show menu only on hover. -->
-                        <slim = true/>
+                        <autohide=off/>  <!--  If true, show window menu only on hover. -->
+                        <slim=true/>
                     </menu>
                     <selection>
-                        <mode = text/> <!-- text | ansi | rich | html | protected | none -->
+                        <mode=text/> <!-- text | ansi | rich | html | protected | none -->
                     </selection>
                     <hotkeys key*>    <!-- not implemented -->
                         <key="Alt+RightArrow" action=TerminalFindNext/>
@@ -82,7 +82,7 @@ R"==(
 )=="
 R"==(
                     <menu item*>
-                        <autohide = on/>
+                        <autohide = off/>
                         <slim = true/>
                         <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                             <label="\e[38:2:0:255:0m<\e[m"/>
@@ -296,8 +296,8 @@ R"==(
             <blink=400ms/>       <!-- blink period -->
             <show=true/>
         </cursor>
-        <menu item*>  <!-- Use asterisk to drop previous/existing item list. -->
-            <autohide=true/>  <!-- If true, show menu only on hover. -->
+        <menu item*>
+            <autohide=off/>
             <enabled=1/>
             <slim=1/>
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
@@ -366,15 +366,15 @@ R"==(
     <defapp>
         <menu>
             <autohide=off/>
-            <enabled="on"/>
+            <enabled=true/>
             <slim=true/>
         </menu>
     </defapp>
     <tile>
         <menu>
-            <autohide=true/>
-            <enabled="on"/>
-            <slim=1/>
+            <autohide=off/>
+            <enabled=true/>
+            <slim=true/>
         </menu>
     </tile>
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
