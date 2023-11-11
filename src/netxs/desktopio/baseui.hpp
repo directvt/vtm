@@ -455,6 +455,8 @@ namespace netxs::events::userland
                     EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
                     EVENT_XS( visible  , bool     ),
+                    EVENT_XS( maximized, id_t     ),
+                    EVENT_XS( disabled , bool     ),
                     GROUP_XS( keybd    , bool     ),
 
                     SUBSET_XS( keybd )

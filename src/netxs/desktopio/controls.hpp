@@ -2240,7 +2240,7 @@ namespace netxs::ui
 
         public:
             notes(base&&) = delete;
-            notes(base& boss, view data, dent wrap = { si32max })
+            notes(base& boss, view data = {}, dent wrap = { si32max })
                 : skill{ boss },
                   note { data }
             {

@@ -169,6 +169,13 @@ namespace netxs
                                    + 0.6780 * ((t & 0x00FF00) >> 8)
                                    + 0.0593 * ((t & 0xFF0000) >> 16));
         }
+        void grayscale()
+        {
+            auto l = luma();
+            chan.r = l;
+            chan.g = l;
+            chan.b = l;
+        }
         // rgba: Return 256-color 6x6x6 cube.
         auto to_256cube() const
         {
@@ -1410,6 +1417,13 @@ namespace netxs
         {
             st.rev();
         }
+        // cell: Desaturate and dim fg color.
+        void dim()
+        {
+            uv.fg.grayscale();
+            uv.fg.shadow(80);
+            uv.fg.chan.a = 0xff;
+        }
         // cell: Is the cell not transparent?
         bool is_alpha_blendable() const
         {
@@ -1675,6 +1689,15 @@ namespace netxs
             {
                 template<class D> inline void operator () (D& dst) const { dst.invbit(); }
             };
+            struct disabled_t
+            {
+                template<class T>
+                inline auto operator [] (T param) const
+                {
+                    return disabled_t{};
+                }
+                template<class D> inline void operator () (D& dst) const { dst.dim(); }
+            };
             struct transparent_t : public brush_t<transparent_t>
             {
                 byte alpha;
@@ -1766,6 +1789,7 @@ namespace netxs
             static constexpr auto   invert =   invert_t{};
             static constexpr auto  reverse =  reverse_t{};
             static constexpr auto   invbit =   invbit_t{};
+            static constexpr auto disabled = disabled_t{};
         };
     };
 
@@ -1893,6 +1917,7 @@ namespace netxs
         void  move(twod new_coor)              { region.coor = new_coor;                                                    } // core: Change the location of the face.
         void  step(twod delta)                 { region.coor += delta;                                                      } // core: Shift location of the face by delta.
         auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
+        auto  link()                           { return marker.link();                                                      } // core: Return default object ID.
         void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
         auto  link(twod coord) const           { return region.size.inside(coord) ? (*(data(coord))).link() : 0;            } // core: Return ID of the object in cell at the specified coordinates.
         auto  view() const                     { return client;                                                             }

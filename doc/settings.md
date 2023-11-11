@@ -312,7 +312,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
         </autorun>
         <viewport coor=0,0/>  <!-- Viewport position for the first connected user. At runtime, this value is temporarily replaced with the next disconnecting user's viewport coordinates to restore the viewport position on reconnection. -->
         <width>    <!-- Taskbar menu width -->
-            <folded=5/>
+            <folded=11/>
             <expanded=32/>
         </width>
         <color fgc=whitedk bgc=0x60202020 />

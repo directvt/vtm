@@ -788,15 +788,26 @@ namespace netxs::app::vtm
                     this->RISEUP(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
                     if (window_ptr) window_ptr->SIGNAL(tier::release, e2::form::layout::unselect, gear);
 
-                    window_ptr.reset();
-                    if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                    else      this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                    auto current = window_ptr; 
+                    auto maximized = faux;
+                    auto owner_id = id_t{};
+                    do
+                    {
+                        window_ptr.reset();
+                        owner_id = id_t{};
+                        if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                        else      this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                        if (window_ptr) window_ptr->SIGNAL(tier::request, e2::form::state::maximized, owner_id);
+                        maximized = owner_id == gear.owner.id;
+                        if (!owner_id || maximized) break;
+                    }
+                    while (window_ptr != current); // Skip all foreign maximized windows.
 
-                    if (window_ptr)
+                    if (window_ptr && (!owner_id || maximized))
                     {
                         auto& window = *window_ptr;
                         window.SIGNAL(tier::release, e2::form::layout::selected, gear);
-                        jump_to(window);
+                        if (!maximized) jump_to(window);
                         pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                     }
                     //gear.dismiss();
@@ -951,12 +962,21 @@ namespace netxs::app::vtm
             tone color = { tone::brighter, tone::shadower };
             sptr object;
             zpos z_order = zpos::plain;
+            id_t monoid = {};
             subs tokens;
 
             node(sptr item)
                 : object{ item }
             {
                 auto& inst = *item;
+                inst.LISTEN(tier::release, e2::form::state::maximized, gear_id, tokens)
+                {
+                    monoid = gear_id;
+                };
+                inst.LISTEN(tier::request, e2::form::state::maximized, gear_id, tokens)
+                {
+                    gear_id = monoid;
+                };
                 inst.LISTEN(tier::release, e2::form::prop::zorder, order, tokens)
                 {
                     z_order = order;
@@ -1040,18 +1060,46 @@ namespace netxs::app::vtm
                 for (auto& item : items) item->fasten(canvas); // Draw strings.
                 for (auto& item : items) item->object->render(canvas, true, true, faux); // Draw shadows without postrendering.
             }
+            //hall::list: .
+            auto visible(auto& item, face& canvas)
+            {
+                return !item->monoid || item->monoid == canvas.link();
+            }
+            //hall::list: .
+            auto maximized(auto& item, face& canvas)
+            {
+                return item->monoid == canvas.link();
+            }
             //hall::list: Draw windows.
             void render(face& canvas)
             {
-                for (auto& item : items) item->fasten(canvas);
-                for (auto& item : items) if (item->z_order == zpos::backmost) item->object->render(canvas);
-                for (auto& item : items) if (item->z_order == zpos::plain   ) item->object->render(canvas);
-                for (auto& item : items) if (item->z_order == zpos::topmost ) item->object->render(canvas);
+                if (items.empty()) return;
+                auto head = items.begin();
+                auto tail = items.end();
+                auto iter = items.end();
+                while (iter != head)
+                {
+                    auto& item = *--iter;
+                    if (maximized(item, canvas)) break;
+                }
+                // Hide all windows behind maximized window.
+                auto has_maximized = head != iter || maximized(*iter, canvas);
+                if (!has_maximized)
+                {
+                    head = iter;
+                    while (head != tail) { auto& item = *head++; if (visible(item, canvas)) item->fasten(canvas); }
+                }
+                head = iter;
+                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render(canvas); }
+                head = iter;
+                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render(canvas); }
+                head = iter;
+                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render(canvas); }
             }
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)
             {
-                for (auto& item : items) item->object->render(canvas, true, faux, true);
+                for (auto& item : items) if (visible(item, canvas)) item->object->render(canvas, true, faux, true);
             }
             //hall::list: Delete all items.
             void reset()
@@ -1252,16 +1300,18 @@ namespace netxs::app::vtm
                                     auto viewport = gear.owner.base::area();
                                     auto window = e2::form::layout::go::prev.param();
                                     auto hidden = true;
+                                    auto gearid = id_t{};
                                     do
                                     {
                                         parent->SIGNAL(tier::request, e2::form::layout::go::prev, window);
                                         if (window)
                                         {
+                                            window->SIGNAL(tier::request, e2::form::state::maximized, gearid);
                                             hidden = window->hidden;
                                         }
                                         else hidden = true;
                                     }
-                                    while (window != This && (hidden == true || !viewport.hittest(window->center())));
+                                    while (window != This && ((gearid && gearid != gear.owner.id) || (hidden == true || !viewport.hittest(window->center()))));
                                     if (window != This)
                                     {
                                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
@@ -1344,14 +1394,18 @@ namespace netxs::app::vtm
                             saved_area.coor += boss.base::coor();
                             boss.base::extend(saved_area); // Restore window size and relative coor.
                             maximize_token.reset();
+                            boss.SIGNAL(tier::release, e2::form::state::maximized, id_t{});
                         }
                     };
                     boss.LISTEN(tier::release, e2::form::size::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
                     {
                         auto window_ptr = boss.This();
                         auto& maximize_token = *maximize_token_ptr;
+                        auto guard_ptr = ptr::shared(true);
+                        auto& guard = *guard_ptr;
                         if (maximize_token) // Restore maximized window.
                         {
+                            guard = faux;
                             boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                         }
                         else
@@ -1361,17 +1415,34 @@ namespace netxs::app::vtm
                             auto& saved_area = *saved_area_ptr;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
-                            boss.base::extend(viewport);
-                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
+
+                            auto new_area = viewport - dent{ 0, 0, 1, 1 }; //todo Title and footer.
+                            boss.base::extend(new_area);
+                            gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token, (guard_ptr/*owns ptr*/))
                             {
-                                if (boss.area() != viewport)
+                                auto new_area = viewport - dent{ 0, 0, 1, 1 }; //todo Title and footer.
+                                if (boss.base::area() != new_area)
                                 {
-                                    boss.base::extend(viewport);
+                                    guard = faux;
+                                    boss.base::extend(new_area);
+                                    guard = true;
                                 }
                             };
+                            gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
+                            {
+                                boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
+                            };
+                            boss.LISTEN(tier::release, e2::area, new_area, maximize_token)
+                            {
+                                if (guard && new_area != boss.base::area())
+                                {
+                                    guard = faux;
+                                    boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
+                                }
+                            };
+                            boss.SIGNAL(tier::release, e2::form::state::maximized, gear_id, (gear.owner.id));
                         }
                     };
-                    //todo restore on move/resize
                 });
         }
         auto create(link& what)
@@ -1786,6 +1857,8 @@ namespace netxs::app::vtm
                         SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear_id, 0));
                         if (gear_test.second == 1) // If it is the last focused item.
                         {
+                            last_ptr->SIGNAL(tier::request, e2::form::state::maximized, owner_id, ());
+                            if (owner_id && owner_id != gear_ptr->owner.id) continue;
                             pro::focus::set(last_ptr, gear_id, pro::focus::solo::off, pro::focus::flip::off);
                         }
                     }
