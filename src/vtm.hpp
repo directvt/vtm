@@ -1329,7 +1329,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::size::maximize, gear);
+                        boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -1373,7 +1373,7 @@ namespace netxs::app::vtm
 
                     auto what_copy = what;
                     what_copy.applet = {};
-                    boss.LISTEN(tier::release, e2::form::size::fullscreen, gear, -, (what_copy))
+                    boss.LISTEN(tier::release, e2::form::size::enlarge::fullscreen, gear, -, (what_copy))
                     {
                         auto window_ptr = boss.This();
                         auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
@@ -1397,7 +1397,7 @@ namespace netxs::app::vtm
                             boss.SIGNAL(tier::release, e2::form::state::maximized, id_t{});
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::size::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
+                    boss.LISTEN(tier::release, e2::form::size::enlarge::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
                     {
                         auto window_ptr = boss.This();
                         auto& maximize_token = *maximize_token_ptr;

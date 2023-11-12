@@ -331,7 +331,7 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
+                    boss.RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
                 });
             }
             static void TerminalRestart(ui::item& boss, menu::item& item)
@@ -663,7 +663,7 @@ namespace netxs::app::term
                             {
                                 gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                                 {
-                                    boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
+                                    boss.RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
                                 });
                             }
                         }

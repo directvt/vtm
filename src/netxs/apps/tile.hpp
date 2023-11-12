@@ -83,40 +83,25 @@ namespace netxs::app::tile
                 if (!client) return;
                 auto label = [](auto data_src_sptr, auto header)
                 {
-                    auto highlight_color = skin::color(tone::highlight);
-                    auto c3 = highlight_color;
+                    auto active_color = skin::color(tone::active);
+                    auto focused_color = skin::color(tone::focused);
+                    auto cF = focused_color;
+                    auto cE = active_color;
                     return ui::item::ctor(header.empty() ? "- no title -" : header)
                         ->setpad({ 1, 1 })
-                        ->active()
+                        ->active(cE)
+                        ->shader(cF, e2::form::state::keybd::focus::count, data_src_sptr)
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
                         ->invoke([&](auto& boss)
                         {
-                            auto update_focus = [](auto& boss, auto count)
-                            {
-                                auto highlight_color = skin::color(tone::highlight);
-                                auto focused_color = skin::color(tone::focused);
-                                auto c3 = highlight_color;
-                                auto cF = focused_color;
-                                auto x3 = cell{ c3 }.alpha(0x00);
-                                boss.base::color(count ? cF : x3);
-                            };
                             auto data_shadow = ptr::shadow(data_src_sptr);
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
                             {
-                                if (auto data_ptr = data_shadow.lock())
-                                {
-                                    data_ptr->RISEUP(tier::request, e2::form::state::keybd::focus::count, count, ());
-                                    update_focus(boss, count);
-                                    parent->resize();
-                                }
+                                parent->resize();
                             };
-                            boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent, boss.tracker)
+                            boss.LISTEN(tier::release, e2::form::upon::vtree::detached, parent)
                             {
                                 if (parent) parent->resize(); // Rebuild list.
-                            };
-                            data_src_sptr->LISTEN(tier::release, e2::form::state::keybd::focus::count, count, boss.tracker)
-                            {
-                                update_focus(boss, count);
                             };
                             data_src_sptr->LISTEN(tier::release, events::delist, object, boss.tracker)
                             {
@@ -188,7 +173,7 @@ namespace netxs::app::tile
                                     if (gear.countdown > 0)
                                     {
                                         gear.countdown--; // The only one can be maximized if several are selected.
-                                        boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
+                                        boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
@@ -219,7 +204,7 @@ namespace netxs::app::tile
         {
             boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
-                boss.RISEUP(tier::release, e2::form::size::fullscreen, gear);
+                boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
                 gear.dismiss();
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
@@ -429,7 +414,7 @@ namespace netxs::app::tile
                     };
                 }},
             });
-            menu_data->colors(cC);
+            menu_data->active(cC);
             auto menu_id = menu_block->id;
             cover->setpad({ 0,0,3,0 });
             cover->invoke([&](auto& boss)
@@ -442,8 +427,7 @@ namespace netxs::app::tile
 
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
-                ->active()
-                ->colors(cC)
+                ->active(cC)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->plugin<pro::track>(true)
@@ -479,7 +463,7 @@ namespace netxs::app::tile
                     {
                         auto c = state ? cell{ skin::color(tone::highlight) }.alpha(0x70)
                                        : cell{ skin::color(tone::menu_black) };
-                        boss.front()->color(c);
+                        boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
                     };
                     boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
@@ -601,7 +585,7 @@ namespace netxs::app::tile
                         if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
-                    boss.LISTEN(tier::release, e2::form::size::fullscreen, gear, -, (oneoff = subs{}))
+                    boss.LISTEN(tier::release, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
@@ -944,7 +928,7 @@ namespace netxs::app::tile
                           boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                       };
                   });
-            menu_data->colors(cB)
+            menu_data->active(cB)
                      ->plugin<pro::track>()
                      ->plugin<pro::acryl>();
             auto menu_id = menu_block->id;

@@ -200,10 +200,15 @@ namespace netxs::events::userland
 
                 SUBSET_XS( size )
                 {
-                    EVENT_XS( fullscreen , input::hids ),
-                    EVENT_XS( maximize   , input::hids ),
-                    EVENT_XS( minimize   , input::hids ),
                     EVENT_XS( restore    , ui::sptr    ),
+                    EVENT_XS( minimize   , input::hids ),
+                    GROUP_XS( enlarge    , input::hids ),
+
+                    SUBSET_XS( enlarge )
+                    {
+                        EVENT_XS( fullscreen , input::hids ),
+                        EVENT_XS( maximize   , input::hids ),
+                    };
                 };
                 SUBSET_XS( draggable )
                 {
