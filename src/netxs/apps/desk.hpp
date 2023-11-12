@@ -537,7 +537,12 @@ namespace netxs::app::desk
 
             auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux, datetime::now() - 501ms });
             auto& size_config = *size_config_ptr;
-            auto& [menu_max_size, menu_min_size, active, skip] = size_config;
+            //todo Apple Clang don't get it.
+            //auto& [menu_max_size, menu_min_size, active, skip] = size_config;
+            auto& menu_max_size = std::get<0>(size_config);
+            auto& menu_min_size = std::get<1>(size_config);
+            auto& active        = std::get<2>(size_config);
+            auto& skip          = std::get<3>(size_config);
 
             window->invoke([&, menu_selected](auto& boss) mutable
             {
