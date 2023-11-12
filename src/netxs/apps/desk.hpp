@@ -72,11 +72,15 @@ namespace netxs::app::desk
             auto tall = si32{ skin::globals().menuwide };
             auto danger_color    = skin::globals().danger;
             auto highlight_color = skin::globals().highlight;
+            auto focused_color   = skin::globals().focused;
+            auto active_color    = skin::globals().active;
+            auto cE = active_color;
             auto c1 = danger_color;
+            auto cF = focused_color;
             auto disabled_ptr = ptr::shared(faux);
             auto& disabled = *disabled_ptr;
             auto item_area = ui::fork::ctor(axis::X, 0, 1, 0)
-                ->active()
+                ->active(cE)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->shader<e2::postrender>(cell::shaders::disabled, e2::form::state::disabled)
                 ->plugin<pro::notes>()
@@ -167,17 +171,14 @@ namespace netxs::app::desk
                         }
                     };
                 });
-            auto mark_app = item_area->attach(slot::_1, ui::fork::ctor());
-            //auto mark = mark_app->attach(slot::_1, ui::item::ctor(ansi::fgx(0xFF00ff00).add("‣")))
-            auto mark = mark_app->attach(slot::_1, ui::item::ctor(ansi::fgx(0xFF00ff00).add(" ")))
-                ->setpad({ tall, tall, tall, tall });
-            auto app_label = mark_app->attach(slot::_2, ui::item::ctor(ansi::fgc(whitelt).add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
-                ->setpad({ 0, 0, tall, tall })
+            auto app_label = item_area->attach(slot::_1, ui::item::ctor(ansi::add(utf8).mgl(0).wrp(wrap::off).jet(bias::left)))
+                ->setpad({ tall + 1, 0, tall, tall })
                 ->flexible()
-                ->drawdots();
+                ->drawdots()
+                ->shader(cF, e2::form::state::keybd::focus::count, data_src);
             auto app_close = item_area->attach(slot::_2, ui::item::ctor("×"))
                 ->active()
-                ->shader(cell::shaders::color(c1), e2::form::state::hover)
+                ->shader(c1, e2::form::state::hover)
                 ->setpad({ 2, 2, tall, tall })
                 ->template plugin<pro::notes>(" Close application window ")
                 ->invoke([&](auto& boss)
@@ -223,10 +224,10 @@ namespace netxs::app::desk
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
+            auto c1 = danger_color;
             auto c3 = highlight_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
-            auto c1 = danger_color;
 
             auto apps = ui::list::ctor()
                 ->invoke([&](auto& boss)
@@ -261,7 +262,7 @@ namespace netxs::app::desk
                     auto item_area = apps->attach(ui::item::ctor(obj_desc))
                         ->flexible()
                         ->accented()
-                        ->colors(cA.fgc(), cA.bgc())
+                        ->colors(cA)
                         ->setpad({ 0, 0, tall, tall }, { 0, 0, -tall, 0 })
                         ->template plugin<pro::notes>(obj_note);
                     continue;
@@ -314,7 +315,8 @@ namespace netxs::app::desk
                         boss.LISTEN(tier::anycast, events::ui::selected, data, -, (inst_id, obj_desc, c9))
                         {
                             auto selected = inst_id == data;
-                            boss.set(ansi::fgx(selected ? c9.fgc() : 0x00000000).add(obj_desc));
+                            boss.brush(selected ? c9 : cell{});
+                            boss.set(obj_desc);
                             boss.deface();
                         };
                     });
@@ -365,7 +367,7 @@ namespace netxs::app::desk
                     auto drop_bttn = bttn_fork->attach(slot::_2, ui::item::ctor("×"))
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
-                        ->shader(cell::shaders::color(c1), e2::form::state::hover)
+                        ->shader(c1, e2::form::state::hover)
                         ->template plugin<pro::notes>(" Close all open windows in the group ")
                         ->invoke([&](auto& boss)
                         {
@@ -400,7 +402,7 @@ namespace netxs::app::desk
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
                 ->active()
-                ->shader(cell::shaders::color(c8), e2::form::state::hover)
+                ->shader(c8, e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
@@ -512,10 +514,11 @@ namespace netxs::app::desk
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto highlight_color = skin::color(tone::highlight);
+                auto active_color    = skin::globals().active;
+                auto cE = active_color;
                 auto c3 = highlight_color;
                 auto user = ui::item::ctor(escx(" &").nil().add(" ")
-                        //.link(data_src->id).fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil(), true));
-                        .fgx(data_src->id == my_id ? rgba::vt256[whitelt] : 0x00).add(utf8).nil())
+                        .fgx(data_src->id == my_id ? cE.fgc() : rgba{}).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
                     ->active()
@@ -577,7 +580,7 @@ namespace netxs::app::desk
                         auto viewport = new_area - dent{ menu_min_size };
                         parent.SIGNAL(tier::release, e2::form::prop::viewport, viewport);
                     };
-                    parent.LISTEN(tier::release, e2::render::prerender, parent_canvas, boss.relyon)
+                    parent.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, boss.relyon)
                     {
                         if (parent.id == parent_canvas.mark().link())
                         {
@@ -647,7 +650,7 @@ namespace netxs::app::desk
                 ->limits({ 1, -1 }, { 1, -1 })
                 ->template plugin<pro::notes>(" Use LeftDrag to adjust taskbar width ")
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
-                //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count)
+                //->shader(c3, e2::form::state::keybd::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->active()
                 ->invoke([&](auto& boss)
@@ -715,7 +718,7 @@ namespace netxs::app::desk
             auto label = label_bttn->attach(slot::_1, ui::item::ctor(os::process::elevated ? "admins" : "users"))
                 ->flexible()
                 ->accented()
-                ->colors(cA.fgc(), cA.bgc())
+                ->colors(cA)
                 ->setpad({ 0, 0, tall, tall })
                 ->limits({ 5, -1 });
             auto userlist_hidden = true;
@@ -762,7 +765,7 @@ namespace netxs::app::desk
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
-                ->shader(cell::shaders::color(c2), e2::form::state::hover)
+                ->shader(c2, e2::form::state::hover)
                 ->plugin<pro::notes>(" Leave current session ")
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
@@ -777,7 +780,7 @@ namespace netxs::app::desk
             auto disconnect = disconnect_area->attach(ui::item::ctor("× Disconnect"));
             auto shutdown_park = bttns->attach(slot::_2, ui::cake::ctor())
                 ->active()
-                ->shader(cell::shaders::color(c1), e2::form::state::hover)
+                ->shader(c1, e2::form::state::hover)
                 ->plugin<pro::notes>(" Disconnect all users and shutdown ")
                 ->invoke([&](auto& boss)
                 {

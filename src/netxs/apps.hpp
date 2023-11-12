@@ -155,7 +155,7 @@ namespace netxs::app::shared
                         //    }
                         //};
                         closing_on_quit(boss);
-                        boss.LISTEN(tier::release, e2::render::prerender, parent_canvas)
+                        boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
                         {
                             auto title_fg_color = rgba{ 0xFFffffff };
                             auto area = parent_canvas.full();
@@ -342,7 +342,7 @@ namespace netxs::app::shared
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
             //                        ->limits(dot_11, { 400,200 });
             auto layers = window->attach(ui::cake::ctor())
-                                ->colors(cB.fgc(), cB.bgc())
+                                ->colors(cB)
                                 ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->limits({ 10,1 }); // mc crashes when window is too small

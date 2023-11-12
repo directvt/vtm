@@ -119,7 +119,12 @@ namespace netxs::events::userland
             };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
-                EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                GROUP_XS( background, ui::face ), // release: UI-tree background rendering. Used by form::shader.
+
+                SUBSET_XS( background )
+                {
+                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                };
             };
             SUBSET_XS( config )
             {
@@ -497,9 +502,11 @@ namespace netxs::ui
         cell warning;
         cell danger;
         cell action;
+        cell active;
         cell label;
         cell inactive;
         cell selected;
+        cell focused;
         cell menu_white;
         cell menu_black;
 
@@ -548,6 +555,8 @@ namespace netxs::ui
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
+                case tone::prop::active:     return g.active;
+                case tone::prop::focused:    return g.focused;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;
@@ -916,8 +925,8 @@ namespace netxs::ui
             if (hidden) return;
             if (auto context = canvas.change_basis(base::region, trim)) // Basis = base::region.coor.
             {
-                if (pred) SIGNAL(tier::release, e2::render::prerender, canvas);
-                if (post) SIGNAL(tier::release, e2::postrender,        canvas);
+                if (pred) SIGNAL(tier::release, e2::render::background::prerender, canvas);
+                if (post) SIGNAL(tier::release, e2::postrender, canvas);
             }
         }
 
@@ -992,7 +1001,7 @@ namespace netxs::ui
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
             };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
                 if (base::filler.wdt())
                 {

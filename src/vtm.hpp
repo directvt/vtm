@@ -682,7 +682,7 @@ namespace netxs::app::vtm
                     else              proceed(true);
                     gear.setfree();
                 };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!drags) return;
                     auto area = parent_canvas.core::area();

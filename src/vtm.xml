@@ -170,7 +170,9 @@ R"==(
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
-            <selected   fgc=puregreen                 />
+            <focused    fgc=puregreen                 />
+            <active     fgc=whitelt                   />
+            <selected   fgc=whitelt                   /> <!-- SGR attributes (boolean): itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink -->
             <warning    fgc=whitelt   bgc=yellowdk    />
             <danger     fgc=whitelt   bgc=redlt       />
             <action     fgc=whitelt   bgc=greenlt     />

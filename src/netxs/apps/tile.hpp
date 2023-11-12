@@ -94,9 +94,11 @@ namespace netxs::app::tile
                             auto update_focus = [](auto& boss, auto count)
                             {
                                 auto highlight_color = skin::color(tone::highlight);
+                                auto focused_color = skin::color(tone::focused);
                                 auto c3 = highlight_color;
+                                auto cF = focused_color;
                                 auto x3 = cell{ c3 }.alpha(0x00);
-                                boss.base::color(count ? 0xFF00ff00 : x3.fgc(), x3.bgc());
+                                boss.base::color(count ? cF : x3);
                             };
                             auto data_shadow = ptr::shadow(data_src_sptr);
                             boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, boss.tracker, (data_shadow))
@@ -427,7 +429,7 @@ namespace netxs::app::tile
                     };
                 }},
             });
-            menu_data->colors(cC.fgc(), cC.bgc());
+            menu_data->colors(cC);
             auto menu_id = menu_block->id;
             cover->setpad({ 0,0,3,0 });
             cover->invoke([&](auto& boss)
@@ -441,7 +443,7 @@ namespace netxs::app::tile
             return ui::cake::ctor()
                 ->isroot(true, base::placeholder)
                 ->active()
-                ->colors(cC.fgc(), cC.bgc())
+                ->colors(cC)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->plugin<pro::track>(true)
@@ -477,7 +479,7 @@ namespace netxs::app::tile
                     {
                         auto c = state ? cell{ skin::color(tone::highlight) }.alpha(0x70)
                                        : cell{ skin::color(tone::menu_black) };
-                        boss.front()->color(c.fgc(), c.bgc());
+                        boss.front()->color(c);
                         boss.deface();
                     };
                     boss.LISTEN(tier::release, e2::form::size::minimize, gear, -, (saved_ratio = 1, min_ratio = 1, min_state))
@@ -942,7 +944,7 @@ namespace netxs::app::tile
                           boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                       };
                   });
-            menu_data->colors(cB.fgc(), cB.bgc())
+            menu_data->colors(cB)
                      ->plugin<pro::track>()
                      ->plugin<pro::acryl>();
             auto menu_id = menu_block->id;

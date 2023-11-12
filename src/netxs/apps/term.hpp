@@ -640,7 +640,7 @@ namespace netxs::app::term
             else window->plugin<pro::focus>(pro::focus::mode::focusable, faux);
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(cB.fgc(), cB.bgc());
+                                ->colors(cB);
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                         ->limits(dot_11, { 400,200 });

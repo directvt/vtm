@@ -273,7 +273,7 @@ namespace netxs::ui
             work  paint; // diff: Rendering thread.
             stat  debug; // diff: Debug info.
 
-            // diff: Render current buffer to the screen.
+            // diff: Render current buffer.
             template<class Bitmap>
             void render()
             {
@@ -1425,20 +1425,22 @@ namespace netxs::ui
 
             auto& g = skin::globals();
             g.wheel_dt       = config.take("wheel_dt"              , 3     );
-            g.brighter       = config.take("brighter"              , cell{});//120);
-            g.kb_focus       = config.take("kb_focus"              , cell{});//60
-            g.shadower       = config.take("shadower"              , cell{});//180);//60);//40);// 20);
-            g.shadow         = config.take("shadow"                , cell{});//180);//5);
-            g.selector       = config.take("selector"              , cell{});//48);
-            g.highlight      = config.take("highlight"             , cell{});
-            g.selected       = config.take("selected"              , cell{});
-            g.warning        = config.take("warning"               , cell{});
-            g.danger         = config.take("danger"                , cell{});
-            g.action         = config.take("action"                , cell{});
-            g.label          = config.take("label"                 , cell{});
-            g.inactive       = config.take("inactive"              , cell{});
-            g.menu_white     = config.take("menu_white"            , cell{});
-            g.menu_black     = config.take("menu_black"            , cell{});
+            g.brighter       = config.take("brighter"              , cell{ whitespace });//120);
+            g.kb_focus       = config.take("kb_focus"              , cell{ whitespace });//60
+            g.shadower       = config.take("shadower"              , cell{ whitespace });//180);//60);//40);// 20);
+            g.shadow         = config.take("shadow"                , cell{ whitespace });//180);//5);
+            g.selector       = config.take("selector"              , cell{ whitespace });//48);
+            g.highlight      = config.take("highlight"             , cell{ whitespace });
+            g.selected       = config.take("selected"              , cell{ whitespace });
+            g.active         = config.take("active"                , cell{ whitespace });
+            g.focused        = config.take("focused"               , cell{ whitespace });
+            g.warning        = config.take("warning"               , cell{ whitespace });
+            g.danger         = config.take("danger"                , cell{ whitespace });
+            g.action         = config.take("action"                , cell{ whitespace });
+            g.label          = config.take("label"                 , cell{ whitespace });
+            g.inactive       = config.take("inactive"              , cell{ whitespace });
+            g.menu_white     = config.take("menu_white"            , cell{ whitespace });
+            g.menu_black     = config.take("menu_black"            , cell{ whitespace });
             g.lucidity       = config.take("lucidity");
             g.tracking       = config.take("tracking"              , faux);
             g.bordersz       = config.take("bordersz"              , dot_11);

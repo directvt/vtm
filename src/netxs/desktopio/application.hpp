@@ -228,8 +228,8 @@ namespace netxs::app::shared
                 button->active(); // Always active for tooltips.
                 if (alive)
                 {
-                    if (hover.set()) button->shader(cell::shaders::color(hover), e2::form::state::hover);
-                    else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
+                    if (hover.set()) button->shader(hover                , e2::form::state::hover);
+                    else             button->shader(cell::shaders::xlight, e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(notes)
                     ->setpad({ 2, 2, !slimsize, !slimsize })

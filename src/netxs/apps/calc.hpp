@@ -348,7 +348,6 @@ namespace netxs::app::calc
                           boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
                       };
                   });
-            auto fader = skin::globals().fader_time;
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
@@ -360,13 +359,13 @@ namespace netxs::app::calc
                             auto func_line = func_body->attach(slot::_1, ui::fork::ctor());
                                 auto fx_sum = func_line->attach(slot::_1, ui::fork::ctor());
                                     auto fx = fx_sum->attach(slot::_1, ui::post::ctor())
-                                                    ->active()
-                                                    ->plugin<pro::fader>(c7, c3, fader)
+                                                    ->active(c7)
+                                                    ->shader(c3, e2::form::state::hover)
                                                     ->limits({ 3,-1 }, { 4,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" Fx "));
                                 auto ellipsis = func_line->attach(slot::_2, ui::post::ctor())
-                                                         ->active()
-                                                         ->plugin<pro::fader>(c7, c3, fader)
+                                                         ->active(c7)
+                                                         ->shader(c3, e2::form::state::hover)
                                                          ->limits({ -1,1 }, { 3,-1 })
                                                          ->upload(ansi::wrp(wrap::off).add(" … "));
                             auto body_area = func_body->attach(slot::_2, ui::fork::ctor(axis::Y));
@@ -415,8 +414,8 @@ namespace netxs::app::calc
                                                        .bgc(whitelt).fgc(blackdk).add(" Sheet1 "));
                             auto plus_pad = sheet_plus->attach(slot::_2, ui::fork::ctor());
                                 auto plus = plus_pad->attach(slot::_1, ui::post::ctor())
-                                                    ->active()
-                                                    ->plugin<pro::fader>(c7, c3, fader)
+                                                    ->active(c7)
+                                                    ->shader(c3, e2::form::state::hover)
                                                     ->limits({ 3,-1 }, { 3,-1 })
                                                     ->upload(ansi::wrp(wrap::off).add(" + "));
                                 auto pad = plus_pad->attach(slot::_2, ui::mock::ctor())

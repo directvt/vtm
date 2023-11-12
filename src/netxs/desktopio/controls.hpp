@@ -513,7 +513,7 @@ namespace netxs::ui
                 {
                     del_keybd(gear.id);
                 };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (focus.empty() || !alive) return;
                     static constexpr auto title_fg_color = rgba{ 0xFFffffff };
@@ -558,7 +558,7 @@ namespace netxs::ui
                 {
                     items.take(gear).calc(boss, gear.coord);
                 };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
                     auto full = parent_canvas.full();
@@ -2001,7 +2001,7 @@ namespace netxs::ui
                 c2_orig { highlighted_state },
                 transit{ 0 }
             {
-                boss.base::color(c1.fgc(), c1.bgc());
+                boss.base::color(c1);
                 boss.LISTEN(tier::release, e2::form::prop::filler, filler)
                 {
                     if (!fake)
@@ -2095,14 +2095,14 @@ namespace netxs::ui
                 };
                 if (rendered)
                 {
-                    boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                    boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                     {
                         if (!usecache) return;
                         if (boss.base::ruined())
                         {
                             bosscopy.wipe();
                             boss.base::ruined(faux);
-                            boss.SIGNAL(tier::release, e2::render::any, bosscopy);
+                            boss.SIGNAL(tier::release, e2::render::background::any, bosscopy);
                         }
                         auto full = parent_canvas.full();
                         bosscopy.move(full.coor);
@@ -2140,7 +2140,7 @@ namespace netxs::ui
                 {
                     if (lucidity != -1) alive = lucidity == 0xFF;
                 };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive || boss.base::filler.bga() == 0xFF) return;
                     parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
@@ -2148,6 +2148,7 @@ namespace netxs::ui
             }
         };
 
+        //todo deprecated: use form::shader instead
         // pro: Background highlighter.
         class light
             : public skill
@@ -2168,7 +2169,7 @@ namespace netxs::ui
                     highlighted = state;
                     boss.base::deface();
                 };
-                boss.LISTEN(tier::release, e2::render::prerender, parent_canvas, memo)
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (highlighted)
                     {
@@ -2306,9 +2307,10 @@ namespace netxs::ui
             return backup;
         }
         // form: Fill object region using parametrized fx.
-        template<auto RenderOrder = e2::render::prerender, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
+        template<auto RenderOrder = e2::render::background::any, tier Tier = tier::release, class Fx, class Event = noop, bool fixed = std::is_same_v<Event, noop>>
         auto shader(Fx&& fx, Event sync = {}, sptr source_ptr = {})
         {
+            static constexpr auto is_cell = std::is_same_v<cell, std::decay_t<Fx>>;
             if constexpr (fixed)
             {
                 LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
@@ -2327,9 +2329,14 @@ namespace netxs::ui
                     param = new_value;
                     base::deface();
                 };
+                if constexpr (is_cell) fx.link(bell::id);
                 LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
                 {
-                    if (param) parent_canvas.fill(fx[param]);
+                    if (param)
+                    {
+                        if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
+                        else                   parent_canvas.fill(fx[param]);
+                    }
                 };
             }
             return This();
@@ -3934,7 +3941,7 @@ namespace netxs::ui
             : intpad{ intpad_value },
               extpad{ extpad_value }
         {
-            LISTEN(tier::release, e2::render::prerender, parent_canvas)
+            LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
             {
                 auto view = parent_canvas.view();
                 parent_canvas.view(view + extpad);
@@ -4011,7 +4018,7 @@ namespace netxs::ui
         bool unln{}; // item: Draw full-width underline.
 
     protected:
-        item(view label)
+        item(view label = {})
             : data{ label }
         {
             LISTEN(tier::release, e2::data::utf8, utf8)
@@ -4073,11 +4080,17 @@ namespace netxs::ui
         // item: .
         auto accented(bool b = true) { unln = b; return This(); }
         // item: .
+        void brush(cell c)
+        {
+            data.parser::brush.reset(c);
+        }
+        // item: .
+        template<bool Reflow = true>
         void set(view utf8)
         {
             data.parser::style.wrp(wrap::off);
             data = utf8;
-            base::reflow();
+            if constexpr (Reflow) base::reflow();
         }
     };
 
