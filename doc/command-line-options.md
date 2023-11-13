@@ -25,6 +25,6 @@ Application | Description
 `DTVT`      | DirectVT Proxy Console
 `Calc`      | Spreadsheet calculator (Demo)
 `Text`      | Text editor (Demo)
-`Gems`      | Desktopio application manager (Demo)
+`Gems`      | Application manager (Demo)
 `Test`      | Test page (Demo)
 `Truecolor` | Test page (Demo)

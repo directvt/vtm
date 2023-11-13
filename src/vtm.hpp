@@ -950,7 +950,7 @@ namespace netxs::app::vtm
         }
     };
 
-    // vtm: Desktopio Workspace.
+    // vtm: Desktop Workspace.
     struct hall
         : public host
     {

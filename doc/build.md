@@ -11,7 +11,7 @@ Build-time dependencies
 
 Use any terminal as a build environment
 ```
-git clone https://github.com/netxs-group/vtm.git
+git clone https://github.com/directvt/vtm.git
 cd vtm
 cmake . -B bin
 cmake --build bin
@@ -29,7 +29,7 @@ Build-time dependencies
 Use Developer Command Prompt as a build environment
 
 ```
-git clone https://github.com/netxs-group/vtm.git
+git clone https://github.com/directvt/vtm.git
 cd vtm
 cmake . -B bin
 cmake --build bin --config Release

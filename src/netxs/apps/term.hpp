@@ -77,7 +77,7 @@ namespace netxs::events::userland
 namespace netxs::app::term
 {
     static constexpr auto id = "term";
-    static constexpr auto desc = "Desktopio Terminal";
+    static constexpr auto desc = "Terminal Emulator";
 
     using events = netxs::events::userland::term;
 

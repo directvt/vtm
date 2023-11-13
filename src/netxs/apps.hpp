@@ -11,17 +11,17 @@ namespace netxs::app::strobe
 namespace netxs::app::settings
 {
     static constexpr auto id = "settings";
-    static constexpr auto desc = "Desktopio Settings";
+    static constexpr auto desc = "Desktop Settings";
 }
 namespace netxs::app::truecolor
 {
     static constexpr auto id = "truecolor";
-    static constexpr auto desc = "Desktopio ANSI Art";
+    static constexpr auto desc = "ANSI Art Test";
 }
 namespace netxs::app::headless
 {
     static constexpr auto id = "headless";
-    static constexpr auto desc = "Desktopio Headless Terminal";
+    static constexpr auto desc = "Headless Terminal Emulator";
 }
 namespace netxs::app::empty
 {

@@ -1184,7 +1184,7 @@ namespace netxs::ui
             void task(ansi::rule property)
             {
                 parser::flush();
-                log(prompt::term, "Desktopio vt-extensions are not supported");
+                log(prompt::term, "DirectVT extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
