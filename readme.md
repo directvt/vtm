@@ -1,6 +1,6 @@
 # vtm
 
-TL;DR: Text-based desktop inside your console.
+This is a text-based desktop inside your console.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -8,7 +8,7 @@ TL;DR: Text-based desktop inside your console.
 
 ## Concept
 
-vtm is a windowed multi-user environment for unlimited number of terminals. This is an infinite 2-D space of terminal windows.
+Technically, vtm is a windowed multi-user environment for an arbitrary number of running terminals, controlled from the built-in taskbar.
 
 To render its UI, vtm needs a text console -- be it a terminal emulator, Windows Command Prompt, or a Linux VGA Console. See [Tested Terminals](https://github.com/directvt/vtm/discussions/72) for details.
 
@@ -18,7 +18,7 @@ vtm is just a single executable without any third party dependencies.
 
 ### Adaptive Rendering
 
-vtm renders itself at 60 frames per second into own internal buffers. Output occurs only when the console is ready to receive the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
+vtm renders itself at 60 frames per second into its own internal buffers. Output to the console occurs only when the console is ready to accept the next frame. All pending frames are merged for smooth running even on non-accelerated text consoles.
 
 ### Multiplayer
 
