@@ -181,14 +181,18 @@ namespace netxs::app::vtm
                 };
                 window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    if (coor != new_area.coor) unbind(type::size);
+                    if (coor != new_area.coor) unbind(type::size, new_area);
+                };
+                window_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
+                {
+                    if (coor != new_area.coor) unbind(type::size, new_area);
                 };
 
                 window_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
                 window_ptr->SIGNAL(tier::anycast, vtm::events::attached, boss.base::This());
                 pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
             }
-            void unbind(type restore = type::full)
+            void unbind(type restore = type::full, rect new_area = {})
             {
                 if (!memo) return;
                 nexthop = saved;
@@ -212,9 +216,17 @@ namespace netxs::app::vtm
                 {
                     case type::full: window_ptr->base::extend(prev); break; // Restore previous position.
                     case type::coor: window_ptr->base::moveto(prev.coor); break;
-                    case type::size: window_ptr->base::resize(prev.size);
-                                     window_ptr->base::moveby(boss.base::coor() + window_ptr->base::anchor - prev.size / twod{ 2,4 }); // Centrify on mouse. See pro::frame pull.
-                                     break;
+                    case type::size:
+                    {
+                        auto& window = *window_ptr;
+                        auto window_size = window.base::size();
+                        auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
+                        anchor = anchor * prev.size / window_size;
+                        prev.coor = boss.base::coor() - new_area.coor;
+                        prev.coor += window.base::anchor - anchor; // Follow the mouse cursor. See pro::frame pull.
+                        window.base::extend(prev);
+                        break;
+                    }
                 }
                 what.applet.reset();
                 pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
