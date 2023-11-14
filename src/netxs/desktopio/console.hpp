@@ -1372,12 +1372,12 @@ namespace netxs::ui
                 {
                     conio.warping.send(canal, 0, warp);
                 };
-                LISTEN(tier::release, e2::form::size::enlarge::fullscreen, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.fullscreen.send(canal, ext_gear_id);
                 };
-                LISTEN(tier::release, e2::form::size::enlarge::maximize, gear, tokens)
+                LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, tokens)
                 {
                     auto [ext_gear_id, gear_ptr] = input.get_foreign_gear_id(gear.id);
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
