@@ -1396,7 +1396,9 @@ namespace netxs::app::vtm
                         {
                             if (auto& saved_area = *saved_area_ptr)
                             {
+                                auto& title = boss.template plugins<pro::title>();
                                 saved_area.coor += boss.base::coor();
+                                saved_area.coor.y -= title.head_size.y;
                                 boss.base::extend(saved_area); // Restore window size and relative coor.
                             }
                             maximize_token.reset();
