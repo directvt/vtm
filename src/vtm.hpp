@@ -1444,7 +1444,9 @@ namespace netxs::app::vtm
                             {
                                 if (new_area != boss.base::area())
                                 {
-                                    *saved_area_ptr = {}; // Preserve current window layout.
+                                    auto& saved_area = *saved_area_ptr;
+                                    if (new_area.size == boss.base::size()) saved_area.coor = new_area.coor - boss.base::coor(); // Restore saved size.
+                                    else                                    saved_area = {}; // Preserve current window layout.
                                     boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
