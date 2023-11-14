@@ -7404,7 +7404,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(master.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                        parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::fullscreen, gear);
                     }
                 });
             }
@@ -7418,7 +7418,7 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(master.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
+                        parent_ptr->RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                     }
                 });
             }

@@ -169,6 +169,14 @@ namespace netxs::app::vtm
                     if (new_area.coor != boss.base::coor()) unbind();
                     else what.applet->base::resize(new_area.size + pads);
                 };
+                window_ptr->LISTEN(tier::preview, e2::form::size::enlarge::any, gear, memo)
+                {
+                    auto deed = what.applet->bell::template protos<tier::preview>();
+                    if (deed == e2::form::size::enlarge::maximize.id)
+                    {
+                        unbind();
+                    }
+                };
                 window_ptr->LISTEN(tier::release, e2::form::size::minimize, gear, memo)
                 {
                     what.applet->bell::expire<tier::release>(); // Suppress hide/minimization.
@@ -177,7 +185,7 @@ namespace netxs::app::vtm
                 window_ptr->LISTEN(tier::release, e2::form::proceed::quit::one, fast, memo)
                 {
                     unbind();
-                    boss.expire<tier::release>(true);
+                    boss.expire<tier::release>(true); //todo revise: window_ptr(what.applet) or boss?
                 };
                 window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
@@ -1345,7 +1353,7 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
                     {
-                        boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
+                        boss.RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -1387,10 +1395,16 @@ namespace netxs::app::vtm
                                                     "\n\tdels ", counter.del_count);
                     };
 
+                    auto maximize_token_ptr = ptr::shared<subs>();
+                    auto saved_area_ptr = ptr::shared<rect>();
                     auto what_copy = what;
                     what_copy.applet = {};
-                    boss.LISTEN(tier::release, e2::form::size::enlarge::fullscreen, gear, -, (what_copy))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr))
                     {
+                        if (*maximize_token_ptr) // Restore maximized window.
+                        {
+                            boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
+                        }
                         auto window_ptr = boss.This();
                         auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                         auto what = what_copy;
@@ -1400,8 +1414,6 @@ namespace netxs::app::vtm
                         window_ptr->RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
-                    auto maximize_token_ptr = ptr::shared<subs>();
-                    auto saved_area_ptr = ptr::shared<rect>();
                     boss.LISTEN(tier::release, e2::form::size::restore, item_ptr, -, (maximize_token_ptr, saved_area_ptr))
                     {
                         if (auto& maximize_token = *maximize_token_ptr)
@@ -1417,7 +1429,7 @@ namespace netxs::app::vtm
                             boss.SIGNAL(tier::release, e2::form::state::maximized, id_t{});
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::size::enlarge::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
                     {
                         auto window_ptr = boss.This();
                         auto& maximize_token = *maximize_token_ptr;

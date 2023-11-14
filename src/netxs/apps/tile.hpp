@@ -173,7 +173,7 @@ namespace netxs::app::tile
                                     if (gear.countdown > 0)
                                     {
                                         gear.countdown--; // The only one can be maximized if several are selected.
-                                        boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
+                                        boss.RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                                     }
                                     break;
                                 case app::tile::events::ui::swap.id:
@@ -204,7 +204,7 @@ namespace netxs::app::tile
         {
             boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
             {
-                boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
+                boss.RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                 gear.dismiss();
             };
             //boss.LISTEN(tier::release, hids::events::mouse::button::click::leftright, gear)
@@ -585,7 +585,7 @@ namespace netxs::app::tile
                         if (item_ptr->base::kind() != base::node) pro::focus::set(item_ptr, gear.id, pro::focus::solo::off, pro::focus::flip::off);
                         else                                      pro::focus::off(item_ptr, gear.id); // Exclude grips.
                     };
-                    boss.LISTEN(tier::release, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::any, gear, -, (oneoff = subs{}))
                     {
                         if (boss.count() > 2 || oneoff) // It is a root or is already maximized. See build_inst::slot::_2's e2::form::proceed::attach for details.
                         {
