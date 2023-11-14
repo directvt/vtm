@@ -1445,8 +1445,14 @@ namespace netxs::app::vtm
                                 if (new_area != boss.base::area())
                                 {
                                     auto& saved_area = *saved_area_ptr;
-                                    if (new_area.size == boss.base::size()) saved_area.coor = new_area.coor - boss.base::coor(); // Restore saved size.
-                                    else                                    saved_area = {}; // Preserve current window layout.
+                                    if (new_area.size == boss.base::size()) // Restore saved size.
+                                    {
+                                        auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
+                                        anchor = anchor * saved_area.size / new_area.size;
+                                        saved_area.coor = boss.base::coor() - new_area.coor;
+                                        saved_area.coor+= boss.base::anchor - anchor; // Follow the mouse cursor.
+                                    }
+                                    else saved_area = {}; // Preserve current window layout.
                                     boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
