@@ -1412,6 +1412,7 @@ namespace netxs::app::vtm
                         {
                             pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true);
                             gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                            auto owner_id = gear.owner.id;
                             auto& saved_area = *saved_area_ptr;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
@@ -1446,7 +1447,20 @@ namespace netxs::app::vtm
                                     boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                                 }
                             };
-                            boss.SIGNAL(tier::release, e2::form::state::maximized, gear_id, (gear.owner.id));
+                            boss.LISTEN(tier::preview, hids::events::keybd::focus::bus::copy, seed, maximize_token, (owner_id)) // Preventing non-owner stealing focus.
+                            {
+                                if (auto gear_ptr = bell::getref<hids>(seed.id))
+                                {
+                                    auto& gear = *gear_ptr;
+                                    auto forbidden = gear.owner.id != owner_id;
+                                    if (forbidden)
+                                    {
+                                        seed.id = {};
+                                        boss.bell::template expire<tier::preview>();
+                                    }
+                                }
+                            };
+                            boss.SIGNAL(tier::release, e2::form::state::maximized, owner_id);
                         }
                     };
                 });
