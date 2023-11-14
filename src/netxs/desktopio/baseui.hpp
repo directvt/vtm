@@ -119,7 +119,12 @@ namespace netxs::events::userland
             };
             SUBSET_XS( render ) // release any: UI-tree default rendering submission.
             {
-                EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                GROUP_XS( background, ui::face ), // release: UI-tree background rendering. Used by form::shader.
+
+                SUBSET_XS( background )
+                {
+                    EVENT_XS( prerender, ui::face ), // release: UI-tree pre-rendering, used by pro::cache (can interrupt SIGNAL) and any kind of highlighters.
+                };
             };
             SUBSET_XS( config )
             {
@@ -180,18 +185,31 @@ namespace netxs::events::userland
             };
             SUBSET_XS( form )
             {
-                EVENT_XS( canvas   , sptr<core> ), // request global canvas.
-                GROUP_XS( layout   , const twod ),
-                GROUP_XS( draggable, bool       ), // signal to the form to enable draggablity for specified mouse button.
-                GROUP_XS( upon     , bool       ),
-                GROUP_XS( proceed  , bool       ),
-                GROUP_XS( cursor   , bool       ),
-                GROUP_XS( drag     , input::hids),
-                GROUP_XS( prop     , text       ),
-                GROUP_XS( global   , twod       ),
-                GROUP_XS( state    , const twod ),
-                GROUP_XS( animate  , id_t       ),
+                EVENT_XS( canvas   , sptr<core>  ), // request global canvas.
+                GROUP_XS( size     , input::hids ), // window size manipulation.
+                GROUP_XS( layout   , const twod  ),
+                GROUP_XS( draggable, bool        ), // signal to the form to enable draggablity for specified mouse button.
+                GROUP_XS( upon     , bool        ),
+                GROUP_XS( proceed  , bool        ),
+                GROUP_XS( cursor   , bool        ),
+                GROUP_XS( drag     , input::hids ),
+                GROUP_XS( prop     , text        ),
+                GROUP_XS( global   , twod        ),
+                GROUP_XS( state    , const twod  ),
+                GROUP_XS( animate  , id_t        ),
 
+                SUBSET_XS( size )
+                {
+                    EVENT_XS( restore    , ui::sptr    ),
+                    EVENT_XS( minimize   , input::hids ),
+                    GROUP_XS( enlarge    , input::hids ),
+
+                    SUBSET_XS( enlarge )
+                    {
+                        EVENT_XS( fullscreen , input::hids ),
+                        EVENT_XS( maximize   , input::hids ),
+                    };
+                };
                 SUBSET_XS( draggable )
                 {
                     EVENT_XS( left     , bool ),
@@ -205,27 +223,17 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( layout )
                 {
-                    EVENT_XS( fullscreen, input::hids ), // request to fullscreen.
-                    EVENT_XS( minimize  , input::hids ), // request to minimize.
-                    EVENT_XS( unselect  , input::hids ), // inform if unselected.
-                    EVENT_XS( selected  , input::hids ), // inform if selected.
-                    EVENT_XS( restore   , ui::sptr    ), // request to restore.
-                    EVENT_XS( shift     , const twod  ), // request a global shifting with delta.
-                    EVENT_XS( jumpto    , ui::base    ), // fly to the specified object.
-                    EVENT_XS( convey    , cube        ), // request a global conveying with delta (Inform all children to be conveyed).
-                    EVENT_XS( bubble    , rect        ), // order to popup the requested item through the visual tree.
-                    EVENT_XS( expose    , rect        ), // order to bring the requested item on top of the visual tree.
-                    EVENT_XS( appear    , twod        ), // fly to the specified coords.
-                    EVENT_XS( swarp     , const dent  ), // preview: form swarping
-                    GROUP_XS( go        , ui::sptr    ), // preview: form swarping
-                    //EVENT_XS( order     , si32       ), // return
-                    //EVENT_XS( strike    , rect       ), // inform about the child canvas has changed, only preview.
-                    //EVENT_XS( coor      , twod       ), // return object rect coor, only preview.
-                    //EVENT_XS( size      , twod       ), // return object rect size, only preview.
-                    //EVENT_XS( rect      , rect       ), // return object rect.
-                    //EVENT_XS( show      , bool       ), // order to make it visible.
-                    //EVENT_XS( hide      , bool       ), // order to make it hidden.
-                    
+                    EVENT_XS( unselect, input::hids ), // inform if unselected.
+                    EVENT_XS( selected, input::hids ), // inform if selected.
+                    EVENT_XS( shift   , const twod  ), // request a global shifting with delta.
+                    EVENT_XS( jumpto  , ui::base    ), // fly to the specified object.
+                    EVENT_XS( convey  , cube        ), // request a global conveying with delta (Inform all children to be conveyed).
+                    EVENT_XS( bubble  , rect        ), // order to popup the requested item through the visual tree.
+                    EVENT_XS( expose  , rect        ), // order to bring the requested item on top of the visual tree.
+                    EVENT_XS( appear  , twod        ), // fly to the specified coords.
+                    EVENT_XS( swarp   , const dent  ), // preview: form swarping
+                    GROUP_XS( go      , ui::sptr    ), // preview: form swarping
+
                     SUBSET_XS( go )
                     {
                         EVENT_XS( next , ui::sptr ), // request: proceed request for available objects (next)
@@ -457,6 +465,8 @@ namespace netxs::events::userland
                     EVENT_XS( color    , ui::tone ), // notify the object has changed tone, preview to set.
                     EVENT_XS( highlight, bool     ),
                     EVENT_XS( visible  , bool     ),
+                    EVENT_XS( maximized, id_t     ),
+                    EVENT_XS( disabled , bool     ),
                     GROUP_XS( keybd    , bool     ),
 
                     SUBSET_XS( keybd )
@@ -497,9 +507,11 @@ namespace netxs::ui
         cell warning;
         cell danger;
         cell action;
+        cell active;
         cell label;
         cell inactive;
         cell selected;
+        cell focused;
         cell menu_white;
         cell menu_black;
 
@@ -548,6 +560,8 @@ namespace netxs::ui
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
+                case tone::prop::active:     return g.active;
+                case tone::prop::focused:    return g.focused;
                 case tone::prop::warning:    return g.warning;
                 case tone::prop::danger:     return g.danger;
                 case tone::prop::action:     return g.action;
@@ -916,8 +930,8 @@ namespace netxs::ui
             if (hidden) return;
             if (auto context = canvas.change_basis(base::region, trim)) // Basis = base::region.coor.
             {
-                if (pred) SIGNAL(tier::release, e2::render::prerender, canvas);
-                if (post) SIGNAL(tier::release, e2::postrender,        canvas);
+                if (pred) SIGNAL(tier::release, e2::render::background::prerender, canvas);
+                if (post) SIGNAL(tier::release, e2::postrender, canvas);
             }
         }
 
@@ -992,7 +1006,7 @@ namespace netxs::ui
                 }
                 if (parent_ptr) parent_ptr->base::reflow(); //todo too expensive. ? accumulate deferred reflow? or make it when stated?
             };
-            LISTEN(tier::release, e2::render::any, parent_canvas)
+            LISTEN(tier::release, e2::render::background::any, parent_canvas)
             {
                 if (base::filler.wdt())
                 {

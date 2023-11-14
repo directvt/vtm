@@ -29,7 +29,7 @@ namespace netxs::events::userland
 namespace netxs::app::test
 {
     static constexpr auto id = "test";
-    static constexpr auto desc = "Desktopio App Testing (DEMO)";
+    static constexpr auto desc = "Text Layout Test (DEMO)";
 
     using events = netxs::events::userland::test;
 
@@ -81,11 +81,11 @@ namespace netxs::app::test
                 auto intro = ansi::mgl(0).mgr(0)
                     .add(" ")
                     //+ ansi::jet(bias::right).mgl(1).mgr(1).wrp(true)
-                    //+ "https://github.com/netxs-group/vtm\n\n"
+                    //+ "https://github.com/directvt/vtm\n\n"
                     .jet(bias::center).wrp(wrap::off).fgc(whitelt).mgl(0).mgr(0).eol()
                     .fgc(c1).bgc(c2).add("▄")
                     .fgc(c2).bgc(c1).add("▄")
-                    .fgc(clr).bgc().add("  Desktopio Environment\n")
+                    .fgc(clr).bgc().add("  Text-based Desktop Environment\n")
                     .fgc().bgc().add("Test Page    \n\n")
 
                     .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)

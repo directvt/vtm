@@ -75,7 +75,7 @@
     <th>double LeftClick</th>
     <td colspan="3"></td>
     <td></td>
-    <td colspan="2">Toggle fullscreen</td>
+    <td colspan="2">Maximize<br>Restore</td>
     <td colspan="3"></td>
   </tr>
   <tr>
@@ -85,7 +85,7 @@
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="3">Adjust taskbar width</td>
+    <td colspan="3"></td>
     <td colspan="3">Move window or Select text</td>
     <td colspan="1">Resize window</td>
     <td colspan="1">Move window</td>

@@ -77,7 +77,7 @@ namespace netxs::events::userland
 namespace netxs::app::term
 {
     static constexpr auto id = "term";
-    static constexpr auto desc = "Desktopio Terminal";
+    static constexpr auto desc = "Terminal Emulator";
 
     using events = netxs::events::userland::term;
 
@@ -331,7 +331,7 @@ namespace netxs::app::term
             {
                 _submit<true>(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
-                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                    boss.RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
                 });
             }
             static void TerminalRestart(ui::item& boss, menu::item& item)
@@ -640,7 +640,7 @@ namespace netxs::app::term
             else window->plugin<pro::focus>(pro::focus::mode::focusable, faux);
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(cB.fgc(), cB.bgc());
+                                ->colors(cB);
             auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
             auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                         ->limits(dot_11, { 400,200 });
@@ -663,7 +663,7 @@ namespace netxs::app::term
                             {
                                 gate_ptr->SIGNAL(tier::release, e2::form::proceed::onbehalf, [&](auto& gear)
                                 {
-                                    boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                                    boss.RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
                                 });
                             }
                         }

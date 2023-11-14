@@ -1184,7 +1184,7 @@ namespace netxs::ui
             void task(ansi::rule property)
             {
                 parser::flush();
-                log(prompt::term, "Desktopio vt-extensions are not supported");
+                log(prompt::term, "DirectVT extensions are not supported");
                 //auto& cur_line = batch.current();
                 //if (cur_line.busy())
                 //{
@@ -7404,7 +7404,21 @@ namespace netxs::ui
                     {
                         auto& gear = *gear_ptr;
                         if (gear.captured(master.id)) gear.setfree(true);
-                        parent_ptr->RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                        parent_ptr->RISEUP(tier::release, e2::form::size::enlarge::fullscreen, gear);
+                    }
+                });
+            }
+            void handle(s11n::xs::maximize            lock)
+            {
+                auto& m = lock.thing;
+                master.trysync(master.active, [&]
+                {
+                    if (auto gear_ptr = bell::getref<hids>(m.gear_id))
+                    if (auto parent_ptr = master.base::parent())
+                    {
+                        auto& gear = *gear_ptr;
+                        if (gear.captured(master.id)) gear.setfree(true);
+                        parent_ptr->RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
                     }
                 });
             }
@@ -7484,7 +7498,7 @@ namespace netxs::ui
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                     {
                         auto& gear = *gear_ptr;
-                        master.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                        master.RISEUP(tier::release, e2::form::size::minimize, gear);
                     }
                 });
             }

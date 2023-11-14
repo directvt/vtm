@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.19";
+    static const auto version = "v0.9.20";
     static const auto desktopio = "desktopio";
     static const auto logsuffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
@@ -228,8 +228,8 @@ namespace netxs::app::shared
                 button->active(); // Always active for tooltips.
                 if (alive)
                 {
-                    if (hover.set()) button->shader(cell::shaders::color(hover), e2::form::state::hover);
-                    else             button->shader(cell::shaders::xlight,       e2::form::state::hover);
+                    if (hover.set()) button->shader(hover                , e2::form::state::hover);
+                    else             button->shader(cell::shaders::xlight, e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(notes)
                     ->setpad({ 2, 2, !slimsize, !slimsize })
@@ -265,7 +265,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.RISEUP(tier::release, e2::form::layout::minimize, gear);
+                            boss.RISEUP(tier::release, e2::form::size::minimize, gear);
                             gear.dismiss();
                         };
                     }},
@@ -274,7 +274,7 @@ namespace netxs::app::shared
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
-                            boss.RISEUP(tier::release, e2::form::layout::fullscreen, gear);
+                            boss.RISEUP(tier::release, e2::form::size::enlarge::maximize, gear);
                             gear.dismiss();
                         };
                     }},

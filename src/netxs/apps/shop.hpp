@@ -25,7 +25,7 @@ namespace netxs::events::userland
     };
 }
 
-// shop: Desktopio App Store.
+// shop: App manager.
 namespace netxs::app::shop
 {
     static constexpr auto id = "gems";
@@ -97,7 +97,7 @@ namespace netxs::app::shop
                     "Tiling window manager."),
 
                     item("Text", cyandk, "102", "Free ", "Get",
-                    "Text editor for Desktopio environment. "
+                    "Text editor for text-based desktop environment. "
                     "Basic editing tool which allows "
                     "desktop users to create documents containing rich text."),
 
@@ -163,11 +163,11 @@ namespace netxs::app::shop
                 .mgl(2).mgr(2).wrp(wrap::off)
                 .fgc(bluedk).jet(bias::left)
                 .bgc(bluedk).fgc(0xFFFFFFFF)
-                .add(" Desktopio Environment "
+                .add(" Text-based Desktop Environment "
                 "\n\n")
                 .fgc().bgc().jet(bias::left).wrp(wrap::on).add(
-                "Desktopio Environment is a cross-platform, full-featured desktop environment."
-                " A user interface where by all output is presented in the form of text.\n"
+                "A text-based desktop environment is an environment "
+                "in which the entire user interface is presented using text output.\n"
                 "The first biggest advantage of this concept that "
                 "it can be used directly over SSH connections, no additional protocol needed.\n"
                 "The second is the flexible multi-user interface "

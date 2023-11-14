@@ -1,6 +1,6 @@
 # The panel
 
-In release [v0.9.9v](https://github.com/netxs-group/vtm/releases/tag/v0.9.9v) a slot for the desktop live panel was introduced. 
+In release [v0.9.9v](https://github.com/directvt/vtm/releases/tag/v0.9.9v) a slot for the desktop live panel was introduced. 
 
 ## Panel contents
 
