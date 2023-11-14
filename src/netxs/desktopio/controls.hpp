@@ -186,7 +186,13 @@ namespace netxs::ui
                     {
                         auto width = master.base::size() + outer;
                         auto delta = (corner(width) + origin - curpos) * sector;
-                        if (auto dxdy = master.base::sizeby(zoom ? delta * 2 : delta))
+                        if (zoom) delta *= 2;
+
+                        auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
+                        auto preview_area = rect{ master.base::coor() + preview_step, master.base::size() + delta };
+                        master.SIGNAL(tier::preview, e2::area, preview_area);
+
+                        if (auto dxdy = master.base::sizeby(delta))
                         {
                             auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
                             master.base::moveby(step);
