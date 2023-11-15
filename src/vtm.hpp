@@ -23,28 +23,6 @@ namespace netxs::app::vtm
         sptr applet{};
     };
 
-    namespace winform
-    {
-        namespace type
-        {
-            static const auto undefined = "undefined"s;
-            static const auto minimized = "minimized"s;
-            static const auto maximized = "maximized"s;
-        }
-
-        enum form
-        {
-            undefined,
-            minimized,
-            maximized,
-        };
-
-        static auto options = std::unordered_map<text, form>
-           {{ type::undefined, form::undefined },
-            { type::minimized, form::minimized },
-            { type::maximized, form::maximized }};
-    }
-
     namespace attr
     {
         static constexpr auto id       = "id";
@@ -932,7 +910,7 @@ namespace netxs::app::vtm
         void jump_to(base& window)
         {
             SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-            auto object_area = window.area() + dent{ 2,2,1,1 };
+            window.SIGNAL(tier::request, e2::form::prop::window::fullsize, object_area, ());
             auto outside = viewport.unite(object_area);
             if (outside != viewport)
             {
@@ -1355,14 +1333,19 @@ namespace netxs::app::vtm
                         boss.RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
+                    boss.LISTEN(tier::request, e2::form::prop::window::fullsize, object_area)
+                    {
+                        auto& title = boss.template plugins<pro::title>();
+                        auto t = std::max(1, title.head_size.y);
+                        auto b = std::max(1, title.foot_size.y);
+                        object_area = boss.base::area() + dent{ 2, 2, t, b };
+                    };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
                         auto home = rect{ -dot_21, boss.base::size() + dot_21 * 2 }; // Including resizer grips.
                         if (!home.hittest(gear.coord))
                         {
-                            auto center = boss.base::center();
-                            gear.owner.SIGNAL(tier::release, e2::form::layout::shift, center);
-                            boss.base::deface();
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, boss);
                         }
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
@@ -1432,31 +1415,38 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                     {
+                        boss.RISEUP(tier::request, e2::form::prop::zorder, order, ());
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                        auto recalc = [](auto& boss, auto viewport)
+                        {
+                            auto& title = boss.template plugins<pro::title>();
+                            title.recalc(viewport.size);
+                            auto t = title.head_size.y;
+                            auto b = title.foot_size.y;
+                            auto new_area = viewport - dent{ 0, 0, t, b };
+                            if (boss.base::area() != new_area)
+                            {
+                                boss.base::extend(new_area);
+                            }
+                        };
+                        if (order == zpos::backmost) // It is a region view. Just resize it.
+                        {
+                            recalc(boss, viewport - dent{ 2, 2, 0, 0 });
+                            return;
+                        }
+
                         auto window_ptr = boss.This();
                         if (maximize_token) // Restore maximized window.
                         {
-                            boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
+                            boss.SIGNAL(tier::release, e2::form::size::restore, window_ptr);
                         }
                         else
                         {
                             pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true);
-                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                             auto owner_id = gear.owner.id;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
                             viewport_area = viewport;
-                            auto recalc = [](auto& boss, auto viewport)
-                            {
-                                auto& title = boss.template plugins<pro::title>();
-                                title.recalc(viewport.size);
-                                auto t = title.head_size.y;
-                                auto b = title.foot_size.y;
-                                auto new_area = viewport - dent{ 0, 0, t, b };
-                                if (boss.base::area() != new_area)
-                                {
-                                    boss.base::extend(new_area);
-                                }
-                            };
                             recalc(boss, viewport);
                             gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
                             {
@@ -1526,6 +1516,7 @@ namespace netxs::app::vtm
             auto  dflt_spec = desk::spec
             {
                 .hidden   = faux,
+                .winform  = shared::winform::undefined,
                 .slimmenu = faux,
                 .type     = defapp,
                 .notfound = true,
@@ -1568,6 +1559,7 @@ namespace netxs::app::vtm
                     conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
                     conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
                     conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
+                    conf_rec.winform  = item.take(attr::winform,  fallback.winform, shared::winform::options);
                     conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
                     conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
                     conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
@@ -1744,6 +1736,9 @@ namespace netxs::app::vtm
                         //};
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                        auto& cfg = dbase.menu[what.menuid];
+                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
                     }
                 }
             };
@@ -1814,13 +1809,13 @@ namespace netxs::app::vtm
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
                                     app.take(attr::winsize, twod{ 80,25 }) };
-                    auto winform =  app.take(attr::winform, vtm::winform::undefined, vtm::winform::options);
+                    auto winform =  app.take(attr::winform, shared::winform::undefined, shared::winform::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
                     if (what.menuid.size())
                     {
                         auto window_ptr = create(what);
-                        if (winform == vtm::winform::minimized) window_ptr->base::hidden = true;
+                        if (winform == shared::winform::minimized) window_ptr->base::hidden = true;
                         else if (focused) foci.push_back(window_ptr);
                     }
                     else log(prompt::hall, "Unexpected empty app id in autorun configuration");

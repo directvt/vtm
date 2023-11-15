@@ -130,6 +130,28 @@ namespace netxs::app::shared
 
     using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
 
+    namespace winform
+    {
+        namespace type
+        {
+            static const auto undefined = "undefined"s;
+            static const auto minimized = "minimized"s;
+            static const auto maximized = "maximized"s;
+        }
+
+        enum form
+        {
+            undefined,
+            minimized,
+            maximized,
+        };
+
+        static auto options = std::unordered_map<text, form>
+           {{ type::undefined, form::undefined },
+            { type::minimized, form::minimized },
+            { type::maximized, form::maximized }};
+    }
+
     namespace menu
     {
         namespace attr
