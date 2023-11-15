@@ -535,14 +535,13 @@ namespace netxs::app::desk
                 return users;
             };
 
-            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux, datetime::now() - 501ms });
+            auto size_config_ptr = ptr::shared(std::tuple{ menu_max_conf, menu_min_conf, faux });
             auto& size_config = *size_config_ptr;
             //todo Apple Clang don't get it.
-            //auto& [menu_max_size, menu_min_size, active, skip] = size_config;
+            //auto& [menu_max_size, menu_min_size, active] = size_config;
             auto& menu_max_size = std::get<0>(size_config);
             auto& menu_min_size = std::get<1>(size_config);
             auto& active        = std::get<2>(size_config);
-            auto& skip          = std::get<3>(size_config);
 
             window->invoke([&, menu_selected](auto& boss) mutable
             {
@@ -630,10 +629,6 @@ namespace netxs::app::desk
                     {
                         boss.RISEUP(tier::preview, events::ui::toggle, !active);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::size::restore, item_ptr)
-                    {
-                        skip = datetime::now();
-                    };
                     boss.LISTEN(tier::release, e2::form::state::mouse, state)
                     {
                         auto& timer = boss.template plugins<pro::timer>();
@@ -689,17 +684,7 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::release, events::ui::sync, true);
                     };
                 });
-            auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor())
-                ->invoke([&](auto& boss)
-                {
-                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
-                    {
-                        if (state && skip + 500ms < datetime::now())
-                        {
-                            boss.RISEUP(tier::preview, events::ui::toggle, state);
-                        }
-                    };
-                });
+            auto taskbar_park = taskbar_grips->attach(slot::_1, ui::cake::ctor());
             auto taskbar = taskbar_park->attach(ui::fork::ctor(axis::Y)->alignment({ snap::head, snap::head }, { snap::head, snap::tail }));
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
@@ -764,7 +749,17 @@ namespace netxs::app::desk
             });
             auto bttns_cake = taskbar->attach(slot::_2, ui::cake::ctor());
             auto bttns_area = bttns_cake->attach(ui::rail::ctor(axes::X_only))
-                ->limits({ -1, 1 + tall * 2 }, { -1, 1 + tall * 2 });
+                ->limits({ -1, 1 + tall * 2 }, { -1, 1 + tall * 2 })
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::form::state::mouse, state)
+                    {
+                        if (state)
+                        {
+                            boss.RISEUP(tier::preview, events::ui::toggle, state);
+                        }
+                    };
+                });
             bttns_cake->attach(app::shared::underlined_hz_scrollbar(bttns_area));
             auto bttns = bttns_area->attach(ui::fork::ctor(axis::X))
                 ->limits(bttn_min_size, bttn_max_size);

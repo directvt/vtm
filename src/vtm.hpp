@@ -212,7 +212,6 @@ namespace netxs::app::vtm
                 boss.RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                 boss.RISEUP(tier::preview, e2::form::prop::ui::header, prev_header);
                 boss.RISEUP(tier::preview, e2::form::prop::ui::footer, prev_footer);
-                boss.SIGNAL(tier::anycast, e2::form::size::restore, empty, ()); // Notify app::desk to suppress triggering.
                 auto window_ptr = what.applet;
                 auto gear_id_list = pro::focus::get(window_ptr, true); // Expropriate all foci.
                 window_ptr->base::detach();
