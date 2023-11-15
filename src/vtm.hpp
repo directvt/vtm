@@ -1476,7 +1476,9 @@ namespace netxs::app::vtm
                                         auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
                                         anchor = anchor * saved_area.size / new_area.size;
                                         saved_area.coor = boss.base::coor() - new_area.coor;
-                                        saved_area.coor+= boss.base::anchor - anchor; // Follow the mouse cursor.
+                                        saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
+                                        auto& title = boss.template plugins<pro::title>();
+                                        saved_area.coor.y += title.head_size.y; // Compensating header height.
                                     }
                                     else saved_area = {}; // Preserve current window layout.
                                     boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
