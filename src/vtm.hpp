@@ -189,18 +189,18 @@ namespace netxs::app::vtm
                 };
                 window_ptr->LISTEN(tier::release, e2::area, new_area, memo)
                 {
-                    if (coor != new_area.coor) unbind(type::size, new_area);
+                    if (coor != new_area.coor) unbind(type::size);
                 };
                 window_ptr->LISTEN(tier::preview, e2::area, new_area, memo)
                 {
-                    if (coor != new_area.coor) unbind(type::size, new_area);
+                    if (coor != new_area.coor) unbind(type::size);
                 };
 
                 window_ptr->SIGNAL(tier::release, e2::form::upon::vtree::attached, boss.base::This());
                 window_ptr->SIGNAL(tier::anycast, vtm::events::attached, boss.base::This());
                 pro::focus::set(window_ptr, gear_id_list, pro::focus::solo::on, pro::focus::flip::off, true); // Refocus.
             }
-            void unbind(type restore = type::full, rect new_area = {})
+            void unbind(type restore = type::full)
             {
                 if (!memo) return;
                 nexthop = saved;
@@ -230,7 +230,7 @@ namespace netxs::app::vtm
                         auto window_size = window.base::size();
                         auto anchor = std::clamp(window.base::anchor, dot_00, std::max(dot_00, window_size));
                         anchor = anchor * prev.size / window_size;
-                        prev.coor = boss.base::coor() - new_area.coor;
+                        prev.coor = boss.base::coor();
                         prev.coor += window.base::anchor - anchor; // Follow the mouse cursor. See pro::frame pull.
                         window.base::extend(prev);
                         break;
@@ -317,7 +317,7 @@ namespace netxs::app::vtm
                             case e2::form::drag::pull::leftright.id:
                             {
                                 auto delta = gear.delta.get();
-                                boss.base::anchor = gear.coord; // See pro::align unbind.
+                                boss.base::anchor = gear.coord - delta; // See pro::align unbind.
 
                                 auto preview_area = rect{ boss.base::coor() + delta, boss.base::size() };
                                 boss.SIGNAL(tier::preview, e2::area, preview_area);
@@ -1396,12 +1396,16 @@ namespace netxs::app::vtm
                     };
 
                     auto maximize_token_ptr = ptr::shared<subs>();
+                    auto viewport_area_ptr = ptr::shared<rect>();
                     auto saved_area_ptr = ptr::shared<rect>();
+                    auto& maximize_token = *maximize_token_ptr;
+                    auto& viewport_area = *viewport_area_ptr;
+                    auto& saved_area = *saved_area_ptr;
                     auto what_copy = what;
                     what_copy.applet = {};
-                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::fullscreen, gear, -, (what_copy, maximize_token_ptr, saved_area_ptr, viewport_area_ptr))
                     {
-                        if (*maximize_token_ptr) // Restore maximized window.
+                        if (maximize_token) // Restore maximized window.
                         {
                             boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                         }
@@ -1414,25 +1418,22 @@ namespace netxs::app::vtm
                         window_ptr->RISEUP(tier::request, e2::form::prop::ui::footer, what.footer);
                         gear.owner.SIGNAL(tier::release, vtm::events::gate::fullscreen, what);
                     };
-                    boss.LISTEN(tier::release, e2::form::size::restore, item_ptr, -, (maximize_token_ptr, saved_area_ptr))
+                    boss.LISTEN(tier::release, e2::form::size::restore, item_ptr)
                     {
-                        if (auto& maximize_token = *maximize_token_ptr)
+                        if (maximize_token)
                         {
-                            if (auto& saved_area = *saved_area_ptr)
+                            if (saved_area)
                             {
-                                auto& title = boss.template plugins<pro::title>();
-                                saved_area.coor += boss.base::coor();
-                                saved_area.coor.y -= title.head_size.y;
+                                saved_area.coor += viewport_area.coor;
                                 boss.base::extend(saved_area); // Restore window size and relative coor.
                             }
                             maximize_token.reset();
                             boss.SIGNAL(tier::release, e2::form::state::maximized, id_t{});
                         }
                     };
-                    boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear, -, (maximize_token_ptr, saved_area_ptr))
+                    boss.LISTEN(tier::preview, e2::form::size::enlarge::maximize, gear)
                     {
                         auto window_ptr = boss.This();
-                        auto& maximize_token = *maximize_token_ptr;
                         if (maximize_token) // Restore maximized window.
                         {
                             boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
@@ -1442,9 +1443,9 @@ namespace netxs::app::vtm
                             pro::focus::set(window_ptr, gear.id, pro::focus::solo::on, pro::focus::flip::off, true);
                             gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                             auto owner_id = gear.owner.id;
-                            auto& saved_area = *saved_area_ptr;
                             saved_area = boss.base::area();
                             saved_area.coor -= viewport.coor;
+                            viewport_area = viewport;
                             auto recalc = [](auto& boss, auto viewport)
                             {
                                 auto& title = boss.template plugins<pro::title>();
@@ -1460,25 +1461,23 @@ namespace netxs::app::vtm
                             recalc(boss, viewport);
                             gear.owner.LISTEN(tier::release, e2::form::prop::viewport, viewport, maximize_token)
                             {
+                                viewport_area = viewport;
                                 recalc(boss, viewport);
                             };
                             gear.owner.LISTEN(tier::release, e2::dtor, p, maximize_token)
                             {
                                 boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
                             };
-                            boss.LISTEN(tier::preview, e2::area, new_area, maximize_token, (saved_area_ptr))
+                            boss.LISTEN(tier::preview, e2::area, new_area, maximize_token)
                             {
                                 if (new_area != boss.base::area())
                                 {
-                                    auto& saved_area = *saved_area_ptr;
                                     if (new_area.size == boss.base::size()) // Restore saved size.
                                     {
                                         auto anchor = std::clamp(boss.base::anchor, dot_00, std::max(dot_00, new_area.size));
                                         anchor = anchor * saved_area.size / new_area.size;
-                                        saved_area.coor = boss.base::coor() - new_area.coor;
+                                        saved_area.coor = boss.base::coor() - viewport_area.coor; // Compensating header height.
                                         saved_area.coor += boss.base::anchor - anchor; // Follow the mouse cursor.
-                                        auto& title = boss.template plugins<pro::title>();
-                                        saved_area.coor.y += title.head_size.y; // Compensating header height.
                                     }
                                     else saved_area = {}; // Preserve current window layout.
                                     boss.SIGNAL(tier::release, e2::form::size::restore, boss.This());
