@@ -330,6 +330,8 @@ namespace netxs::app::vtm
                 };
                 boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, memo)
                 {
+                    boss.SIGNAL(tier::request, e2::form::state::maximized, owner_id, ());
+                    if (owner_id) return; // Don't move maximized window.
                     auto& area = boss.base::area();
                     auto coord = gear.coord + area.coor;
                     if (!area.hittest(coord))
