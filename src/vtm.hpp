@@ -320,7 +320,7 @@ namespace netxs::app::vtm
                     }
                     else
                     {
-                        auto boundary = gear.area();
+                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, boundary, ());
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
                         {
                             convey(x, boundary);
