@@ -2900,27 +2900,6 @@ namespace netxs::os
                 }
                 return socket;
             }
-            template<bool Log = true>
-            static auto test(text name)
-            {
-                #if defined(_WIN32)
-
-                    auto next = WIN32_FIND_DATAW{};
-                    auto path = os::path::wr_pipe(name);
-                    auto what = utf::to_utf(path);
-                    auto hndl = ::FindFirstFileW(what.c_str(), &next);
-                    auto hits = hndl != os::invalid_fd;
-                    if (hits) log(prompt::path, path);
-                    ::FindClose(hndl);
-                    return hits;
-
-                #else
-
-                    //todo optimize
-                    return !!os::ipc::socket::open<os::role::client, faux>(name);
-
-                #endif
-            }
         };
 
         auto stdio()
