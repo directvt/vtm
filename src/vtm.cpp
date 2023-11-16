@@ -104,8 +104,8 @@ int main(int argc, char* argv[])
     auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::desktopio, os::process::elevated ? "!_" : "_", userid);;
-    auto prefix_log = prefix + app::shared::logsuffix;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!_" : "_", userid);;
+    auto prefix_log = prefix + app::shared::log_suffix;
 
     log(prompt::vtm, app::shared::version);
     if (errmsg.size())
@@ -217,36 +217,48 @@ int main(int argc, char* argv[])
     else
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto client = os::ipc::socket::open<os::role::client, faux>(prefix);
+        if (client && (whoami == type::server || whoami == type::daemon))
+        {
+            os::fail("Server already running");
+            return 1;
+        }
+        else if (whoami == type::client && !client)
+        {
+            log("%%New vtm session for [%userid%]", prompt::main, userid);
+            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            if (successor)
+            {
+                os::dtvt::vtmode |= ui::console::onlylog;
+                whoami = type::server;
+            }
+            else if (!success)
+            {
+                os::fail("Failed to start session");
+                return 1;
+            }
+        }
+
         if (whoami == type::client)
         {
-            auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
-            {
-                log("%%New vtm session for %userid%", prompt::main, userid);
-                auto success = faux;
-                if (os::process::fork(success, prefix, config.utf8()))
-                {
-                    os::dtvt::vtmode |= ui::console::onlylog;
-                    whoami = type::server;
-                }
-                return success;
-            });
-            if (client)
+            if (client || (client = os::ipc::socket::open<os::role::client>(prefix)))
             {
                 os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }
-            else if (whoami != type::server)
+            else
             {
                 os::fail("No vtm server connection");
                 return 1;
             }
         }
+        else client.reset();
 
         if (whoami == type::daemon)
         {
-            auto success = faux;
-            if (os::process::fork(success, prefix, config.utf8()))
+            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            if (successor)
             {
                 os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
@@ -276,7 +288,7 @@ int main(int argc, char* argv[])
         domain->plugin<scripting::host>();
         domain->autorun();
 
-        log("%%Server started"
+        log("%%Session started"
           "\n      user: %userid%"
           "\n      pipe: %prefix%", prompt::main, userid, prefix);
 

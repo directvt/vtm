@@ -24,8 +24,8 @@ namespace netxs::app
 namespace netxs::app::shared
 {
     static const auto version = "v0.9.23";
-    static const auto desktopio = "desktopio";
-    static const auto logsuffix = "_log";
+    static const auto ipc_prefix = "vtm";
+    static const auto log_suffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
 
@@ -491,7 +491,7 @@ namespace netxs::app::shared
                 if (shadow.starts_with(":"))
                 {
                     shadow.remove_prefix(1);
-                    auto utf8 = os::ipc::memory::get(shadow);
+                    auto utf8 = os::process::memory::get(shadow);
                     if (utf8.size())
                     {
                         conf.fuse<Print>(utf8);
