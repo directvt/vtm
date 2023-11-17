@@ -2853,25 +2853,16 @@ namespace netxs::os
                         auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
                         std::copy(path.begin(), path.end(), sun_path);
 
-                        auto connect = [&]
-                        {
-                            return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
-                        };
-
                         if constexpr (Role == role::server)
                         {
                             #if defined(__BSD__)
                                 if (fs::exists(path))
                                 {
-                                    if (connect())
+                                    log(prompt::path, "Removing filesystem socket file ", path);
+                                    if (-1 == ::unlink(path.c_str())) // Cleanup file system socket.
                                     {
-                                        os::fail("Server already running");
+                                        os::fail("Failed to remove socket file");
                                         os::close(r);
-                                    }
-                                    else
-                                    {
-                                        log(prompt::path, "Removing filesystem socket file ", path);
-                                        ::unlink(path.c_str()); // Cleanup file system socket.
                                     }
                                 }
                             #endif
@@ -2891,7 +2882,7 @@ namespace netxs::os
                         else if constexpr (Role == role::client)
                         {
                             name.clear(); // No need to unlink a file system socket on client disconnect.
-                            if (!connect())
+                            if (-1 == ::connect(r, (struct sockaddr*)&addr, sock_addr_len))
                             {
                                 if constexpr (Log) os::fail("Connection failed");
                                 os::close(r);
