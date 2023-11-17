@@ -2738,7 +2738,7 @@ namespace netxs::os
                 auto state = pipe::shut();
                 if (state)
                 {
-                    if constexpr (debugmode) log(prompt::xipc, "Client disconnects: ", handle);
+                    if constexpr (debugmode) log(prompt::xipc, "Link shutdown: ", handle);
                     #if defined(_WIN32)
                         ::DisconnectNamedPipe(handle.w);
                         handle.shutdown(); // To trigger the read end to close.
