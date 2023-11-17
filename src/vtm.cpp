@@ -333,13 +333,15 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, client, settings](auto session_id)
                 {
-                    auto id = utf::concat(*client);
-                    if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
-                    auto config = xmls{ settings };
-                    auto packet = os::tty::stream.init.recv(client);
-                    config.fuse(packet.config);
-                    domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
-                    if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
+                    if (auto packet = os::tty::stream.init.recv(client))
+                    {
+                        auto id = utf::concat(*client);
+                        if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
+                        auto config = xmls{ settings };
+                        config.fuse(packet.config);
+                        domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
+                        if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
+                    }
                 });
             }
         }

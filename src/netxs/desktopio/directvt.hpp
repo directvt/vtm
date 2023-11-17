@@ -123,10 +123,16 @@ namespace netxs::directvt
             //todo revise
             type next{};
 
+            constexpr explicit operator bool () const
+            {
+                return valid;
+            }
+
         protected:
             escx block;
             sz_t basis;
             sz_t start;
+            bool valid;
 
             // stream: .
             template<class T>
@@ -436,7 +442,7 @@ namespace netxs::directvt
                 auto shot = input(buff.data(), buff.size());
                 if (shot.size() != buff.size())
                 {
-                    log(prompt::dtvt, "Stream corrupted");
+                    if constexpr (debugmode) log(prompt::dtvt, "Stream interrupted");
                     return faux;
                 }
                 auto rest = netxs::aligned<sz_t>(buff.data());
@@ -475,6 +481,7 @@ namespace netxs::directvt
             template<type Kind, class ...Args>
             void set(Args&&... args)
             {
+                valid = true;
                 add(Kind, std::forward<Args>(args)...);
             }
             // stream: .
@@ -486,7 +493,8 @@ namespace netxs::directvt
             }
             stream(type kind)
                 : basis{ sizeof(basis) + sizeof(kind) },
-                  start{ basis }
+                  start{ basis },
+                  valid{ true  }
             {
                 add(basis, kind);
             }
@@ -731,7 +739,8 @@ namespace netxs::directvt
                 template<class P>                                                           \
                 auto load(P recv)                                                           \
                 {                                                                           \
-                    return stream::read_block(*this, recv);                                 \
+                    stream::valid = stream::read_block(*this, recv);                        \
+                    return stream::valid;                                                   \
                 }                                                                           \
                 void wipe()                                                                 \
                 {                                                                           \
