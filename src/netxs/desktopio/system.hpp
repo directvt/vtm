@@ -91,7 +91,6 @@ namespace netxs::os
     static constexpr auto ttysize = twod{ 2500, 50 };
     static constexpr auto app_wait_timeout = 5000;
     static constexpr auto unexpected = " returns unexpected result"sv;
-    static constexpr auto consumed = " consumed"sv;
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
     void release()
@@ -1178,6 +1177,20 @@ namespace netxs::os
            ~fire()           { for (auto& f : h) os::close(f); }
             void reset()     { fired.exchange(true); auto c = ' '; auto rc = ::write(h[1], &c, sizeof(c)); }
             void flush()     { fired.exchange(faux); auto c = ' '; auto rc = ::read(h[0], &c, sizeof(c)); }
+            auto wait(span timeout = {})
+            {
+                using namespace std::chrono;
+                auto s = datetime::round<decltype(::timeval::tv_sec), seconds>(timeout);
+                auto m = datetime::round<decltype(::timeval::tv_usec), microseconds>(timeout - seconds{ s });
+                auto v = ::timeval{ .tv_sec = s, .tv_usec = m };
+                auto t = timeout != span{} ? &v : nullptr /*infinite*/;
+                auto socks = fd_set{};
+                FD_ZERO(&socks);
+                FD_SET(h[0], &socks);
+                auto nfds = 1 + h[0];
+                auto fired = ::select(nfds, &socks, 0, 0, t);
+                return fired;
+            }
 
         #endif
         void bell() { reset(); }
@@ -2279,16 +2292,14 @@ namespace netxs::os
         }
         auto fork(text prefix, view config)
         {
-            auto success = faux;
             #if defined(_WIN32)
 
                 auto ospath = process::memory::ref(prefix);
                 auto handle = process::memory::set(ospath, config);
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
-                auto signal = os::fire{ ospath += os::consumed };
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                success = ::CreateProcessW(nullptr,                      // lpApplicationName
+                auto rc = ::CreateProcessW(nullptr,                      // lpApplicationName
                                            cmdarg.data(),                // lpCommandLine
                                            nullptr,                      // lpProcessAttributes
                                            nullptr,                      // lpThreadAttributes
@@ -2299,16 +2310,17 @@ namespace netxs::os
                                            nullptr,                      // lpCurrentDirectory
                                            &upinfo.StartupInfo,          // lpStartupInfo
                                            &proinf);                     // lpProcessInformation
-                if (success) // Success. The fork concept is not supported on Windows.
+                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
+                if (rc) // Success. The fork concept is not supported on Windows.
                 {
                     os::close(proinf.hProcess);
                     os::close(proinf.hThread);
-                    signal.wait(10s); // Waiting for confirmation of receiving the configuration.
                 }
-                os::close(handle);
+                else success.reset();
 
             #else
 
+                auto success = faux;
                 auto p_id = os::process::sysfork();
                 if (p_id == 0) // Child process.
                 {
@@ -2330,7 +2342,6 @@ namespace netxs::os
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0);
                     success = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
-                    //todo wait until child opens socket
                 }
 
             #endif
@@ -2338,7 +2349,7 @@ namespace netxs::os
             if (success) log(prompt::os, "Process forked");
             else         os::fail("Can't fork process");
 
-            return std::pair{ success, faux }; // Parent branch.
+            return std::pair{ std::move(success), faux }; // Parent branch.
         }
         void spawn(text cwd, text cmdline)
         {
@@ -2745,7 +2756,7 @@ namespace netxs::os
                 return state;
             }
             template<role Role, bool Log = true>
-            static auto open(text name)
+            static auto open(text name, bool& denied)
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;
@@ -2758,7 +2769,7 @@ namespace netxs::os
 
                     if constexpr (Role == role::server)
                     {
-                        auto pipe = [](auto& h, auto& path, auto type)
+                        auto pipe = [&](auto& h, auto& path, auto type)
                         {
                             h = ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
                                                    type,                     // read/write access
@@ -2770,7 +2781,9 @@ namespace netxs::os
                                                    os::pipebuf,              // input buffer size
                                                    0,                        // client time-out
                                                    NULL);                    // DACL
-                            return h != os::invalid_fd;
+                            auto success = h != os::invalid_fd;
+                            if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
+                            return success;
                         };
 
                         if (!pipe(r, to_server, PIPE_ACCESS_INBOUND)
@@ -2779,16 +2792,10 @@ namespace netxs::os
                             os::close(r);
                             os::fail("Creation endpoint error");
                         }
-                        else
-                        {
-                            auto ospath = os::process::memory::ref(name);
-                            auto signal = os::fire{ ospath += os::consumed };
-                            signal.bell();
-                        }
                     }
                     else if constexpr (Role == role::client)
                     {
-                        auto pipe = [](auto& h, auto& path, auto type)
+                        auto pipe = [&](auto& h, auto& path, auto type)
                         {
                             h = ::CreateFileW(utf::to_utf(path).c_str(),
                                               type,
@@ -2797,7 +2804,9 @@ namespace netxs::os
                                               OPEN_EXISTING, // opens existing pipe
                                               0,             // default attributes
                                               NULL);         // no template file
-                            return h != os::invalid_fd;
+                            auto success = h != os::invalid_fd;
+                            if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
+                            return success;
                         };
                         if (!pipe(w, to_server, GENERIC_WRITE)
                          || !pipe(r, to_client, GENERIC_READ))
@@ -2877,9 +2886,6 @@ namespace netxs::os
                                 os::fail("Unix socket listening error for ", path);
                                 os::close(r);
                             }
-                            auto ospath = os::process::memory::ref(name);
-                            auto signal = os::fire{ ospath += os::consumed };
-                            signal.bell();
                             std::swap(path, name); // To unlink.
                         }
                         else if constexpr (Role == role::client)
