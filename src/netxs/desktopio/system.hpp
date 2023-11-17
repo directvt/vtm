@@ -2620,10 +2620,10 @@ namespace netxs::os
                         return faux;
                     }
 
-                    log(prompt::sock, "Creds from SO_PEERCRED:",
-                      "\n      pid : ", cred.pid,
-                      "\n      euid: ", cred.uid,
-                      "\n      egid: ", cred.gid);
+                    if constexpr (debugmode) log(prompt::sock, "Creds from SO_PEERCRED:",
+                        "\n      pid : ", cred.pid,
+                        "\n      euid: ", cred.uid,
+                        "\n      egid: ", cred.gid);
 
                 #elif defined(__BSD__)
 
@@ -2641,10 +2641,10 @@ namespace netxs::os
                         return faux;
                     }
 
-                    log(prompt::sock, "Creds from ::getpeereid():",
-                      "\n      pid : ", id,
-                      "\n      euid: ", euid,
-                      "\n      egid: ", egid);
+                    if constexpr (debugmode) log(prompt::sock, "Creds from ::getpeereid():",
+                        "\n      pid : ", id,
+                        "\n      euid: ", euid,
+                        "\n      egid: ", egid);
 
                 #endif
 
