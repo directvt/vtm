@@ -186,12 +186,14 @@ namespace netxs::app::desk
                 {
                     boss.base::hidden = true;
                     auto data_src_shadow = ptr::shadow(data_src);
-                    item_area->LISTEN(tier::release, e2::form::state::mouse, state, -)
+                    item_area->LISTEN(tier::release, e2::form::state::mouse, hover, -)
                     {
                         if (disabled) return;
-                        if (boss.base::hidden != !state)
+                        boss.RISEUP(tier::request, events::ui::toggle, unfolded, ());
+                        auto hidden = !unfolded || !hover;
+                        if (boss.base::hidden != hidden)
                         {
-                            boss.base::hidden = !state;
+                            boss.base::hidden = hidden;
                             boss.base::reflow();
                         }
                     };
