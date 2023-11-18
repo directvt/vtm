@@ -3166,7 +3166,7 @@ namespace netxs::os
                 log(prompt::os, "Color mode: ", dtvt::mode & ui::console::vt16  ? "VT 16-color"
                                               : dtvt::mode & ui::console::nt16  ? "Win32 Console API 16-color"
                                               : dtvt::mode & ui::console::vt256 ? "VT 256-color"
-                                                                                : "VT true-color");
+                                                                                : "VT truecolor");
                 log(prompt::os, "Mouse mode: ", dtvt::mode & ui::console::mouse ? "PS/2"
                                               : dtvt::mode & ui::console::nt    ? "Win32 Console API"
                                                                                 : "VT-style");
