@@ -3051,7 +3051,6 @@ namespace netxs::os
                         dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
                         ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
-                        log(prompt::os, "16-color windows console");
                     }
                     auto size = DWORD{ os::pipebuf };
                     auto wstr = wide(size, 0);
@@ -3100,17 +3099,24 @@ namespace netxs::os
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                mode |= ui::console::direct;
+                dtvt::mode |= ui::console::direct;
             }
             else
             {
-                #if defined(__linux__)
-                if (os::linux_console) mode |= ui::console::mouse;
-                #endif
-                if (auto term = os::env::get("TERM"); term.size())
-                {
-                    log(prompt::os, "Terminal type \"", term, "\"");
+                auto colorterm = os::env::get("COLORTERM");
+                auto term = text{ dtvt::mode & ui::console::nt16 ? "Windows Console" : "" };
+                if (term.empty()) term = os::env::get("TERM");
+                if (term.empty()) term = os::env::get("TERM_PROGRAM");
+                if (term.empty()) term = "VT";
 
+                #if defined(__linux__)
+                    if (os::linux_console) dtvt::mode |= ui::console::mouse;
+                #elif defined(_WIN32)
+                    dtvt::mode |= ui::console::nt; // Use win32 console api for input.
+                #endif
+
+                if (colorterm != "truecolor" && colorterm != "24bit")
+                {
                     auto vt16colors = { // https://github.com//termstandard/colors
                         "ansi",
                         "linux",
@@ -3124,7 +3130,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        mode |= ui::console::vt16;
+                        dtvt::mode |= ui::console::vt16;
                     }
                     else
                     {
@@ -3132,35 +3138,40 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                mode |= ui::console::vt16;
+                                dtvt::mode |= ui::console::vt16;
                                 break;
                             }
                         }
-                        if (!mode)
+                        if (!(dtvt::mode & ui::console::vt16))
                         {
                             for (auto& type : vt256colors)
                             {
                                 if (term == type)
                                 {
-                                    mode |= ui::console::vt256;
+                                    dtvt::mode |= ui::console::vt256;
                                     break;
                                 }
                             }
                         }
                     }
-
-                    if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-                    {
-                        log("%%macOS Apple Terminal detected", prompt::os);
-                        if (!(mode & ui::console::vt16)) mode |= ui::console::vt256;
-                    }
-                    log(prompt::os, "Color mode: ", mode & ui::console::vt16  ? "16-color"
-                                                  : mode & ui::console::vt256 ? "256-color"
-                                                                              : "true-color");
-                    log(prompt::os, "Mouse mode: ", mode & ui::console::mouse ? "console" : "vt-style");
+                    #if defined(__APPLE__)
+                        if (!(dtvt::mode & ui::console::vt16)) // Apple terminal detection.
+                        {
+                            dtvt::mode |= ui::console::vt256;
+                        }
+                    #endif
                 }
+
+                log(prompt::os, "Terminal type: ", term);
+                log(prompt::os, "Color mode: ", dtvt::mode & ui::console::vt16  ? "VT 16-color"
+                                              : dtvt::mode & ui::console::nt16  ? "Win32 Console API 16-color"
+                                              : dtvt::mode & ui::console::vt256 ? "VT 256-color"
+                                                                                : "VT true-color");
+                log(prompt::os, "Mouse mode: ", dtvt::mode & ui::console::mouse ? "PS/2"
+                                              : dtvt::mode & ui::console::nt    ? "Win32 Console API"
+                                                                                : "VT-style");
             }
-            return mode;
+            return dtvt::mode;
         }();
 
         struct vtty
