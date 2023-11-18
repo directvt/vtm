@@ -11,7 +11,8 @@ namespace netxs::ui
     {
         static auto id = std::pair<ui32, time>{};
         static constexpr auto mouse   = 1 << 0;
-        static constexpr auto onlylog = 1 << 5;
+        static constexpr auto nt      = 1 << 5;
+        static constexpr auto onlylog = 1 << 6;
         //todo make 3-bit field for color mode
         static constexpr auto vtrgb   = 0;
         static constexpr auto nt16    = 1 << 1;

@@ -5237,10 +5237,7 @@ struct consrv : ipc::stdcon
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
             os::env::set("TERM", "xterm-256color");
-            if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-            {
-                os::env::set("TERM_PROGRAM", "vtm");
-            }
+            os::env::set("COLORTERM", "truecolor");
             os::process::spawn(cwd, cmdline);
         }
         // Parent branch.

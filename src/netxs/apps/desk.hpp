@@ -22,6 +22,7 @@ namespace netxs::app::desk
         rgba      fgc{};
         twod  winsize{};
         twod  wincoor{};
+        shared::winform::form winform{};
         bool slimmenu{};
         bool splitter{};
         text   hotkey{};

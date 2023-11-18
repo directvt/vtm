@@ -183,7 +183,12 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
                             parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
                             {
-                                app::shared::set_title(boss, gear, bias::center);
+                                auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
+                                if (area.hittest(gear.coord))
+                                {
+                                    app::shared::set_title(boss, gear, bias::center);
+                                    gear.dismiss(true);
+                                }
                             };
                         };
                     });

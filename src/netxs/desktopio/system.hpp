@@ -1152,20 +1152,45 @@ namespace netxs::os
             fd_t h; // fire: Descriptor for IO interrupt.
 
             operator auto () { return h; }
-            fire(bool i = 1) { ok(h = ::CreateEventW(NULL, i, FALSE, NULL), "::CreateEventW()", os::unexpected); }
+            fire(qiew name = {})
+            {
+                ok(h = ::CreateEventW(NULL, TRUE, FALSE, name ? utf::to_utf(name).c_str() : nullptr), "::CreateEventW()", os::unexpected);
+            }
            ~fire()           { os::close(h); }
             void reset()     { fired.exchange(true); ::SetEvent(h);   }
             void flush()     { fired.exchange(faux); ::ResetEvent(h); }
+            auto wait(span timeout = {})
+            {
+                auto t = timeout == span{} ? INFINITE : datetime::round<DWORD>(timeout);
+                return WAIT_OBJECT_0 == ::WaitForSingleObject(h, t);
+            }
 
         #else
 
             fd_t h[2] = { os::invalid_fd, os::invalid_fd }; // fire: Descriptors for IO interrupt.
 
             operator auto () { return h[0]; }
-            fire()           { ok(::pipe(h), "::pipe(2)", os::unexpected); }
+            fire(qiew name = {})
+            {
+                ok(::pipe(h), "::pipe(2)", os::unexpected);
+            }
            ~fire()           { for (auto& f : h) os::close(f); }
             void reset()     { fired.exchange(true); auto c = ' '; auto rc = ::write(h[1], &c, sizeof(c)); }
             void flush()     { fired.exchange(faux); auto c = ' '; auto rc = ::read(h[0], &c, sizeof(c)); }
+            auto wait(span timeout = {})
+            {
+                using namespace std::chrono;
+                auto s = datetime::round<decltype(::timeval::tv_sec), seconds>(timeout);
+                auto m = datetime::round<decltype(::timeval::tv_usec), microseconds>(timeout - seconds{ s });
+                auto v = ::timeval{ .tv_sec = s, .tv_usec = m };
+                auto t = timeout != span{} ? &v : nullptr /*infinite*/;
+                auto socks = fd_set{};
+                FD_ZERO(&socks);
+                FD_SET(h[0], &socks);
+                auto nfds = 1 + h[0];
+                auto fired = ::select(nfds, &socks, 0, 0, t);
+                return fired;
+            }
 
         #endif
         void bell() { reset(); }
@@ -1643,8 +1668,8 @@ namespace netxs::os
     {
         #if defined(_WIN32)
             static const auto pipe_ns = "\\\\.\\pipe\\";
-            static const auto wr_pipe = "\\\\.\\pipe\\w_";
-            static const auto rd_pipe = "\\\\.\\pipe\\r_";
+            auto wr_pipe(text name) { return pipe_ns + name + "_w"; }
+            auto rd_pipe(text name) { return pipe_ns + name + "_r"; }
         #endif
         // os::path: OS settings path.
         static const auto etc = []
@@ -1891,659 +1916,6 @@ namespace netxs::os
         }
     }
 
-    namespace ipc
-    {
-        struct memory
-        {
-            static auto get(view reference)
-            {
-                auto utf8 = text{};
-                #if defined(_WIN32)
-
-                    if (auto ref = utf::to_int<intptr_t, 0x10>(reference))
-                    {
-                        auto handle = (HANDLE)ref.value();
-                        if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
-                        {
-                            utf8 = (char*)data;
-                            ::UnmapViewOfFile(data);
-                        }
-                        os::close(handle);
-                    }
-
-                #endif
-                return utf8;
-            }
-            static auto set(view data)
-            {
-                #if defined(_WIN32)
-
-                    auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
-                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), nullptr); ok(handle, "::CreateFileMappingA()", os::unexpected);
-                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                ok(buffer, "::MapViewOfFile()", os::unexpected);
-                    std::copy(std::begin(source), std::end(source), (char*)buffer);
-                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
-                    ok(::SetHandleInformation(handle, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT), "::SetHandleInformation()", os::unexpected);
-                    return handle;
-
-                #endif
-            }
-        };
-
-        struct stdcon : pipe
-        {
-            sock handle; // ipc::stdcon: IO descriptor.
-            text buffer; // ipc::stdcon: Receive buffer.
-            flag inread; // ipc::stdcon: Reading is incomplete.
-
-            stdcon()
-                : pipe{ faux },
-                  buffer(os::pipebuf, 0)
-            { }
-            stdcon(sock&& fd)
-                : pipe{ true },
-                  handle{ std::move(fd) },
-                  buffer(os::pipebuf, 0)
-            { }
-            stdcon(fd_t r, fd_t w)
-                : pipe{ true },
-                  handle{ r, w },
-                  buffer(os::pipebuf, 0)
-            { }
-
-            void start(fd_t fd)
-            {
-                pipe::start();
-                handle = { fd, fd };
-            }
-            void cleanup()
-            {
-                pipe::cleanup();
-                handle = {};
-            }
-            void operator = (stdcon&& p)
-            {
-                handle = std::move(p.handle);
-                buffer = std::move(p.buffer);
-                pipe::active.exchange(p.pipe::active);
-                p.pipe::active = faux;
-            }
-
-            virtual bool send(view buff) override
-            {
-                pipe::isbusy = faux; // io::send blocks until the send is complete.
-                return io::send(handle.w, buff);
-            }
-            virtual qiew recv(char* buff, size_t size) override
-            {
-                auto result = qiew{};
-                inread.exchange(true);
-                if (pipe::active) // The read call can be interrupted by io::abort().
-                {
-                    result = io::recv(handle, buff, size); // The read call can be interrupted by the write side when their read call is interrupted.
-                }
-                inread.exchange(faux);
-                return result;
-            }
-            virtual qiew recv() override // It's not thread safe!
-            {
-                return recv(buffer.data(), buffer.size());
-            }
-            void abort(auto& thread)
-            {
-                if (pipe::shut() && inread)
-                {
-                    io::abort(thread);
-                }
-            }
-            virtual bool shut() override
-            {
-                auto state = pipe::shut();
-                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
-                return state;
-            }
-            virtual bool stop() override
-            {
-                return shut();
-            }
-            virtual std::ostream& show(std::ostream& s) const override
-            {
-                return s << handle;
-            }
-        };
-
-        struct xcross
-            : public stdcon
-        {
-            struct fifo
-            {
-                using lock = std::mutex;
-                using sync = std::condition_variable;
-
-                bool  alive; // fifo: .
-                lock  mutex; // fifo: .
-                sync  wsync; // fifo: .
-                sync  rsync; // fifo: .
-                text  store; // fifo: .
-                flag& going; // fifo: Sending not completed.
-                flag  fired; // fifo: Read interruptor.
-
-                fifo(flag& busy)
-                    : alive{ true },
-                      going{ busy },
-                      fired{ faux }
-                { }
-
-                auto send(view block)
-                {
-                    if (block.size())
-                    {
-                        auto guard = std::unique_lock{ mutex };
-                        if (alive)
-                        {
-                            store += block;
-                            wsync.notify_one();
-                        }
-                        return alive;
-                    }
-                    return faux;
-                }
-                auto read(text& yield)
-                {
-                    auto guard = std::unique_lock{ mutex };
-                    wsync.wait(guard, [&]{ return store.size() || !alive || fired; });
-                    if (fired)
-                    {
-                        fired = faux;
-                    }
-                    else if (alive)
-                    {
-                        std::swap(store, yield);
-                        going = faux;
-                        going.notify_all();
-                        store.clear();
-                        return qiew{ yield };
-                    }
-                    return qiew{};
-                }
-                void wake()
-                {
-                    fired = true;
-                    wsync.notify_one();
-                }
-                void stop()
-                {
-                    auto guard = std::lock_guard{ mutex };
-                    alive = faux;
-                    going = faux;
-                    going.notify_all();
-                    wsync.notify_one();
-                }
-            };
-
-            sptr<fifo>   client;
-            sptr<fifo>   server;
-            sptr<xcross> remote;
-
-            xcross()
-            { }
-            xcross(sptr<xcross> remote)
-                : client{ ptr::shared<fifo>(isbusy)         },
-                  server{ ptr::shared<fifo>(remote->isbusy) },
-                  remote{ remote }
-            {
-                remote->client = server;
-                remote->server = client;
-                remote->active = true;
-                active = true;
-            }
-
-            void wake() override
-            {
-                server->wake();
-            }
-            qiew recv() override
-            {
-                return server->read(buffer);
-            }
-            bool send(view data) override
-            {
-                return client->send(data);
-            }
-            std::ostream& show(std::ostream& s) const override
-            {
-                return s << "local pipe: server=" << std::showbase << std::hex << server.get() << " client=" << std::showbase << std::hex << client.get();
-            }
-            bool shut() override
-            {
-                auto state = stdcon::shut();
-                server->stop();
-                client->stop();
-                return state;
-            }
-        };
-
-        struct socket
-            : public stdcon
-        {
-            text scpath; // ipc:socket: Socket path (in order to unlink).
-            fire signal; // ipc:socket: Interruptor.
-
-            socket(sock& fd)
-                : stdcon{ std::move(fd) }
-            { }
-            socket(fd_t r, fd_t w, text path)
-                : stdcon{ r, w },
-                  scpath{ path }
-            { }
-           ~socket()
-            {
-                #if defined(__BSD__)
-
-                    if (scpath.length())
-                    {
-                        ::unlink(scpath.c_str()); // Cleanup file system unix domain socket.
-                    }
-
-                #endif
-            }
-
-            auto auth(view id) const // Check peer cred.
-            {
-                #if defined(_WIN32)
-
-                    //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
-                    //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
-
-                #elif defined(__linux__)
-
-                    auto cred = ucred{};
-                    #ifdef __ANDROID__
-                        auto size = socklen_t{ sizeof(cred) };
-                    #else
-                        auto size = unsigned{ sizeof(cred) };
-                    #endif
-
-                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET)", os::unexpected))
-                    {
-                        return faux;
-                    }
-
-                    if (cred.uid && id != utf::concat(cred.uid))
-                    {
-                        fail(prompt::sock, "Foreign users are not allowed to the session");
-                        return faux;
-                    }
-
-                    log(prompt::sock, "Creds from SO_PEERCRED:",
-                      "\n      pid : ", cred.pid,
-                      "\n      euid: ", cred.uid,
-                      "\n      egid: ", cred.gid);
-
-                #elif defined(__BSD__)
-
-                    auto euid = uid_t{};
-                    auto egid = gid_t{};
-
-                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid()", os::unexpected))
-                    {
-                        return faux;
-                    }
-
-                    if (euid && id != utf::concat(euid))
-                    {
-                        fail(prompt::sock, "Foreign users are not allowed to the session");
-                        return faux;
-                    }
-
-                    log(prompt::sock, "Creds from ::getpeereid():",
-                      "\n      pid : ", id,
-                      "\n      euid: ", euid,
-                      "\n      egid: ", egid);
-
-                #endif
-
-                return true;
-            }
-            auto meet()
-            {
-                if constexpr (debugmode) log(prompt::xipc, "Active server side link ", handle);
-                auto client = sptr<ipc::socket>{};
-                #if defined(_WIN32)
-
-                    auto to_server = os::path::rd_pipe + scpath;
-                    auto to_client = os::path::wr_pipe + scpath;
-                    auto next_link = [&](auto h, auto const& path, auto type)
-                    {
-                        auto next_waiting_point = os::invalid_fd;
-                        auto connected = ::ConnectNamedPipe(h, NULL)
-                            ? true
-                            : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
-                        if (pipe::active && connected) // Recreate the waiting point for the next client.
-                        {
-                            next_waiting_point =
-                                ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
-                                                   type,                     // read/write access
-                                                   PIPE_TYPE_BYTE |          // message type pipe
-                                                   PIPE_READMODE_BYTE |      // message-read mode
-                                                   PIPE_WAIT,                // blocking mode
-                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
-                                                   os::pipebuf,              // output buffer size
-                                                   os::pipebuf,              // input buffer size
-                                                   0,                        // client time-out
-                                                   NULL);                    // DACL (pipe_acl)
-                            // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
-                            //       The ACLs in the default security descriptor for a named pipe grant full control to the
-                            //       LocalSystem account, administrators, and the creator owner. They also grant read access to
-                            //       members of the Everyone group and the anonymous account.
-                            //       Without write access, the desktop will be inaccessible to non-owners.
-                        }
-                        else if (pipe::active) os::fail(prompt::meet, "Not active");
-
-                        return next_waiting_point;
-                    };
-
-                    auto r = next_link(handle.r, to_server, PIPE_ACCESS_INBOUND);
-                    if (r == os::invalid_fd)
-                    {
-                        if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(r)", os::unexpected);
-                    }
-                    else
-                    {
-                        auto w = next_link(handle.w, to_client, PIPE_ACCESS_OUTBOUND);
-                        if (w == os::invalid_fd)
-                        {
-                            ::CloseHandle(r);
-                            if (pipe::active) os::fail(prompt::meet, "::CreateNamedPipe(w)", os::unexpected);
-                        }
-                        else
-                        {
-                            client = ptr::shared<ipc::socket>(handle);
-                            handle = { r, w };
-                        }
-                    }
-
-                #else
-
-                    auto h_proc = [&]
-                    {
-                        auto h = ::accept(handle.r, 0, 0);
-                        auto s = sock{ h, h };
-                        if (s) client = ptr::shared<ipc::socket>(s);
-                    };
-                    auto f_proc = [&]
-                    {
-                        signal.flush();
-                    };
-                    io::select(handle.r, h_proc,
-                               signal  , f_proc);
-
-                #endif
-                return client;
-            }
-            bool stop() override
-            {
-                auto state = pipe::stop();
-                if (state)
-                {
-                    if constexpr (debugmode) log(prompt::xipc, "Closing server side link ", handle);
-                    #if defined(_WIN32)
-                        auto to_client = os::path::wr_pipe + scpath;
-                        auto to_server = os::path::rd_pipe + scpath;
-                        if (handle.w != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_client).c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
-                        if (handle.r != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_server).c_str()); // This may fail, but this is ok - it means the client is already disconnected.
-                    #else
-                        signal.reset();
-                    #endif
-                }
-                return state;
-            }
-            bool shut() override
-            {
-                auto state = pipe::shut();
-                if (state)
-                {
-                    if constexpr (debugmode) log(prompt::xipc, "Client disconnects: ", handle);
-                    #if defined(_WIN32)
-                        ::DisconnectNamedPipe(handle.w);
-                        handle.shutdown(); // To trigger the read end to close.
-                    #else
-                        ok(::shutdown(handle.w, SHUT_RDWR), "::shutdown()", os::unexpected); // Further sends and receives are disallowed.
-                        // An important conceptual reason to want to use shutdown:
-                        //    To signal EOF to the peer and still be able
-                        //    to receive pending data the peer sent.
-                        //    "shutdown() doesn't actually close the file descriptor
-                        //     — it just changes its usability.
-                        // To free a socket descriptor, you need to use os::close().
-                        // Note: .r == .w, it is a full duplex socket handle on POSIX.
-                    #endif
-                }
-                return state;
-            }
-            template<role Role, bool Log = true, class P = noop>
-            static auto open(text path, span retry_timeout = {}, P retry_proc = {})
-            {
-                auto r = os::invalid_fd;
-                auto w = os::invalid_fd;
-                auto socket = sptr<ipc::socket>{};
-                auto try_start = [&](auto play, auto retry_proc)
-                {
-                    auto done = play();
-                    if (!done)
-                    {
-                        if (!retry_proc())
-                        {
-                           if constexpr (Log) os::fail("Failed to start server");
-                        }
-                        else
-                        {
-                            auto stop = datetime::now() + retry_timeout;
-                            do
-                            {
-                                os::sleep(100ms);
-                                done = play();
-                            }
-                            while (!done && stop > datetime::now());
-                        }
-                    }
-                    return done;
-                };
-
-                #if defined(_WIN32)
-
-                    auto to_server = os::path::rd_pipe + path;
-                    auto to_client = os::path::wr_pipe + path;
-
-                    if constexpr (Role == role::server)
-                    {
-                        auto test = [](text const& path, text prefix = os::path::pipe_ns)
-                        {
-                            auto hits = faux;
-                            auto next = WIN32_FIND_DATAW{};
-                            auto name = utf::to_utf(path.substr(prefix.size()));
-                            auto what = utf::to_utf(prefix + '*');
-                            auto hndl = ::FindFirstFileW(what.c_str(), &next);
-                            if (hndl != os::invalid_fd)
-                            {
-                                do hits = next.cFileName == name;
-                                while (!hits && ::FindNextFileW(hndl, &next));
-
-                                if (hits) log(prompt::path, path);
-                                ::FindClose(hndl);
-                            }
-                            return hits;
-                        };
-                        if (test(to_server))
-                        {
-                            os::fail("Server already running");
-                            return socket;
-                        }
-
-                        auto pipe = [](auto const& path, auto type)
-                        {
-                            return ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
-                                                      type,                     // read/write access
-                                                      PIPE_TYPE_BYTE |          // message type pipe
-                                                      PIPE_READMODE_BYTE |      // message-read mode
-                                                      PIPE_WAIT,                // blocking mode
-                                                      PIPE_UNLIMITED_INSTANCES, // max instances
-                                                      os::pipebuf,              // output buffer size
-                                                      os::pipebuf,              // input buffer size
-                                                      0,                        // client time-out
-                                                      NULL);                    // DACL
-                        };
-
-                        r = pipe(to_server, PIPE_ACCESS_INBOUND);
-                        if (r == os::invalid_fd)
-                        {
-                            os::fail("::CreateNamedPipe(r)", os::unexpected);
-                        }
-                        else
-                        {
-                            w = pipe(to_client, PIPE_ACCESS_OUTBOUND);
-                            if (w == os::invalid_fd)
-                            {
-                                os::fail("::CreateNamedPipe(w)", os::unexpected);
-                                os::close(r);
-                            }
-                        }
-                    }
-                    else if constexpr (Role == role::client)
-                    {
-                        auto pipe = [](auto const& path, auto type)
-                        {
-                            return ::CreateFileW(utf::to_utf(path).c_str(),
-                                                 type,
-                                                 0,             // no sharing
-                                                 NULL,          // default security attributes
-                                                 OPEN_EXISTING, // opens existing pipe
-                                                 0,             // default attributes
-                                                 NULL);         // no template file
-                        };
-                        auto play = [&]
-                        {
-                            w = pipe(to_server, GENERIC_WRITE);
-                            if (w == os::invalid_fd)
-                            {
-                                return faux;
-                            }
-
-                            r = pipe(to_client, GENERIC_READ);
-                            if (r == os::invalid_fd)
-                            {
-                                os::close(w);
-                                return faux;
-                            }
-                            return true;
-                        };
-                        if (!try_start(play, retry_proc))
-                        {
-                            if constexpr (Log) os::fail("Connection error");
-                        }
-                    }
-
-                #else
-
-                    auto addr = sockaddr_un{};
-                    auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
-
-                    #if defined(__BSD__)
-                        //todo unify "/.config/vtm"
-                        auto home = os::path::home / ".config/vtm";
-                        if (!fs::exists(home))
-                        {
-                            if constexpr (Log) log("%%Create home directory '%path%'", prompt::path, home.string());
-                            auto ec = std::error_code{};
-                            fs::create_directory(home, ec);
-                            if (ec && Log) log("%%Directory '%path%' creation error %error%", prompt::path, home.string(), ec.value());
-                        }
-                        path = (home / path).string() + ".sock";
-                        sun_path--; // File system unix domain socket.
-                        if constexpr (Log) log(prompt::open, "File system socket ", path);
-                    #endif
-
-                    if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
-                    {
-                        if constexpr (Log) os::fail("Unix socket path too long");
-                    }
-                    else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == os::invalid_fd)
-                    {
-                        if constexpr (Log) os::fail("Unix socket opening error");
-                    }
-                    else
-                    {
-                        r = w;
-                        addr.sun_family = AF_UNIX;
-                        auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
-                        std::copy(path.begin(), path.end(), sun_path);
-
-                        auto play = [&]
-                        {
-                            return -1 != ::connect(r, (struct sockaddr*)&addr, sock_addr_len);
-                        };
-
-                        if constexpr (Role == role::server)
-                        {
-                            #if defined(__BSD__)
-                                if (fs::exists(path))
-                                {
-                                    if (play())
-                                    {
-                                        os::fail("Server already running");
-                                        os::close(r);
-                                    }
-                                    else
-                                    {
-                                        log(prompt::path, "Removing filesystem socket file ", path);
-                                        ::unlink(path.c_str()); // Cleanup file system socket.
-                                    }
-                                }
-                            #endif
-
-                            if (r != os::invalid_fd && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
-                            {
-                                os::fail("Unix socket binding error for ", path);
-                                os::close(r);
-                            }
-                            else if (::listen(r, 5) == -1)
-                            {
-                                os::fail("Unix socket listening error for ", path);
-                                os::close(r);
-                            }
-                        }
-                        else if constexpr (Role == role::client)
-                        {
-                            path.clear(); // No need to unlink a file system socket on client disconnect.
-                            if (!try_start(play, retry_proc))
-                            {
-                                if constexpr (Log) os::fail("Connection failed");
-                                os::close(r);
-                            }
-                        }
-                    }
-
-                #endif
-                if (r != os::invalid_fd && w != os::invalid_fd)
-                {
-                    socket = ptr::shared<ipc::socket>(r, w, path);
-                }
-                return socket;
-            }
-        };
-
-        auto stdio()
-        {
-            return ptr::shared<ipc::stdcon>(os::stdin_fd, os::stdout_fd);
-        }
-        auto xlink()
-        {
-            auto a = ptr::shared<ipc::xcross>();
-            auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
-            return std::pair{ a, b };
-        }
-    }
-
     namespace process
     {
         static const auto elevated = []
@@ -2561,6 +1933,46 @@ namespace netxs::os
             #endif
             return result;
         }();
+
+        namespace memory
+        {
+            auto ref(text prefix)
+            {
+                return (process::elevated ? "Global\\" : "Local\\") + prefix + "_config";
+            }
+            auto get(text ospath)
+            {
+                auto utf8 = text{};
+                #if defined(_WIN32)
+
+                    if (auto handle = ::OpenFileMappingA(FILE_MAP_READ, FALSE, ospath.c_str()))
+                    {
+                        if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
+                        {
+                            utf8 = (char*)data;
+                            ::UnmapViewOfFile(data);
+                        }
+                        os::close(handle);
+                    }
+
+                #endif
+                return utf8;
+            }
+            auto set(text ospath, view data)
+            {
+                #if defined(_WIN32)
+
+                    auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
+                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), ospath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
+                    auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                          ok(buffer, "::MapViewOfFile()", os::unexpected);
+                    std::copy(std::begin(source), std::end(source), (char*)buffer);
+                    ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
+                    return handle;
+
+                #endif
+            }
+        }
+
         auto getid()
         {
             #if defined(_WIN32)
@@ -2878,43 +2290,37 @@ namespace netxs::os
             if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmdline, "'");
             return faux;
         }
-        auto fork(bool& result, view prefix, view config)
+        auto fork(text prefix, view config)
         {
-            result = faux;
             #if defined(_WIN32)
 
-                auto handle = os::ipc::memory::set(config);
-                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", handle, " -s"));
+                auto ospath = process::memory::ref(prefix);
+                auto handle = process::memory::set(ospath, config);
+                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto buffer = std::vector<byte>{};
-                auto buflen = SIZE_T{ 0 };
-                ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
-                result = buflen;
-                buffer.resize(buflen);
-                upinfo.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data());
-                result = result && ::InitializeProcThreadAttributeList(upinfo.lpAttributeList, 1, 0, &buflen);
-                result = result && ::UpdateProcThreadAttribute(upinfo.lpAttributeList, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, &handle, sizeof(handle), nullptr, nullptr);
-                result = result && ::CreateProcessW(nullptr,                      // lpApplicationName
-                                                    cmdarg.data(),                // lpCommandLine
-                                                    nullptr,                      // lpProcessAttributes
-                                                    nullptr,                      // lpThreadAttributes
-                                                    TRUE,                         // bInheritHandles
-                                                    DETACHED_PROCESS |            // dwCreationFlags
-                                                    EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
-                                                    nullptr,                      // lpEnvironment
-                                                    nullptr,                      // lpCurrentDirectory
-                                                    &upinfo.StartupInfo,          // lpStartupInfo
-                                                    &proinf);                     // lpProcessInformation
-                os::close(handle);
-                if (result) // Success. The fork concept is not supported on Windows.
+                auto rc = ::CreateProcessW(nullptr,                      // lpApplicationName
+                                           cmdarg.data(),                // lpCommandLine
+                                           nullptr,                      // lpProcessAttributes
+                                           nullptr,                      // lpThreadAttributes
+                                           TRUE,                         // bInheritHandles
+                                           DETACHED_PROCESS |            // dwCreationFlags
+                                           EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                           nullptr,                      // lpEnvironment
+                                           nullptr,                      // lpCurrentDirectory
+                                           &upinfo.StartupInfo,          // lpStartupInfo
+                                           &proinf);                     // lpProcessInformation
+                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
+                if (rc) // Success. The fork concept is not supported on Windows.
                 {
                     os::close(proinf.hProcess);
                     os::close(proinf.hThread);
                 }
+                else success.reset();
 
             #else
 
+                auto success = faux;
                 auto p_id = os::process::sysfork();
                 if (p_id == 0) // Child process.
                 {
@@ -2926,7 +2332,7 @@ namespace netxs::os
                         os::close(os::stdin_fd ); // No stdio needed in daemon mode.
                         os::close(os::stdout_fd); //
                         os::close(os::stderr_fd); //
-                        return true;
+                        return std::pair{ success, true }; // Child branch.
                     }
                     else if (p_id > 0) os::process::exit<true>(0); // Success.
                     else               os::process::exit<true>(1); // Fail.
@@ -2935,15 +2341,15 @@ namespace netxs::os
                 {
                     auto stat = int{};
                     ::waitpid(p_id, &stat, 0);
-                    result = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
+                    success = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
                 }
 
             #endif
 
-            if (result) log(prompt::os, "Process forked");
-            else   os::fail(prompt::os, "Can't fork process");
+            if (success) log(prompt::os, "Process forked");
+            else         os::fail("Can't fork process");
 
-            return faux; // Parent branch.
+            return std::pair{ std::move(success), faux }; // Parent branch.
         }
         void spawn(text cwd, text cmdline)
         {
@@ -2964,6 +2370,544 @@ namespace netxs::os
                 os::process::exit<true>(err_code);
 
             #endif
+        }
+    }
+
+    namespace ipc
+    {
+        struct stdcon : pipe
+        {
+            sock handle; // ipc::stdcon: IO descriptor.
+            text buffer; // ipc::stdcon: Receive buffer.
+            flag inread; // ipc::stdcon: Reading is incomplete.
+
+            stdcon()
+                : pipe{ faux },
+                  buffer(os::pipebuf, 0)
+            { }
+            stdcon(sock&& fd)
+                : pipe{ true },
+                  handle{ std::move(fd) },
+                  buffer(os::pipebuf, 0)
+            { }
+            stdcon(fd_t r, fd_t w)
+                : pipe{ true },
+                  handle{ r, w },
+                  buffer(os::pipebuf, 0)
+            { }
+
+            void start(fd_t fd)
+            {
+                pipe::start();
+                handle = { fd, fd };
+            }
+            void cleanup()
+            {
+                pipe::cleanup();
+                handle = {};
+            }
+            void operator = (stdcon&& p)
+            {
+                handle = std::move(p.handle);
+                buffer = std::move(p.buffer);
+                pipe::active.exchange(p.pipe::active);
+                p.pipe::active = faux;
+            }
+
+            virtual bool send(view buff) override
+            {
+                pipe::isbusy = faux; // io::send blocks until the send is complete.
+                return io::send(handle.w, buff);
+            }
+            virtual qiew recv(char* buff, size_t size) override
+            {
+                auto result = qiew{};
+                inread.exchange(true);
+                if (pipe::active) // The read call can be interrupted by io::abort().
+                {
+                    result = io::recv(handle, buff, size); // The read call can be interrupted by the write side when their read call is interrupted.
+                }
+                inread.exchange(faux);
+                return result;
+            }
+            virtual qiew recv() override // It's not thread safe!
+            {
+                return recv(buffer.data(), buffer.size());
+            }
+            void abort(auto& thread)
+            {
+                if (pipe::shut() && inread)
+                {
+                    io::abort(thread);
+                }
+            }
+            virtual bool shut() override
+            {
+                auto state = pipe::shut();
+                handle.shutdown(); // Close the writing handle to interrupt a reading call on the server side and trigger to close the server writing handle to interrupt owr reading call.
+                return state;
+            }
+            virtual bool stop() override
+            {
+                return shut();
+            }
+            virtual std::ostream& show(std::ostream& s) const override
+            {
+                return s << handle;
+            }
+        };
+
+        struct xcross
+            : public stdcon
+        {
+            struct fifo
+            {
+                using lock = std::mutex;
+                using sync = std::condition_variable;
+
+                bool  alive; // fifo: .
+                lock  mutex; // fifo: .
+                sync  wsync; // fifo: .
+                sync  rsync; // fifo: .
+                text  store; // fifo: .
+                flag& going; // fifo: Sending not completed.
+                flag  fired; // fifo: Read interruptor.
+
+                fifo(flag& busy)
+                    : alive{ true },
+                      going{ busy },
+                      fired{ faux }
+                { }
+
+                auto send(view block)
+                {
+                    if (block.size())
+                    {
+                        auto guard = std::unique_lock{ mutex };
+                        if (alive)
+                        {
+                            store += block;
+                            wsync.notify_one();
+                        }
+                        return alive;
+                    }
+                    return faux;
+                }
+                auto read(text& yield)
+                {
+                    auto guard = std::unique_lock{ mutex };
+                    wsync.wait(guard, [&]{ return store.size() || !alive || fired; });
+                    if (fired)
+                    {
+                        fired = faux;
+                    }
+                    else if (alive)
+                    {
+                        std::swap(store, yield);
+                        going = faux;
+                        going.notify_all();
+                        store.clear();
+                        return qiew{ yield };
+                    }
+                    return qiew{};
+                }
+                void wake()
+                {
+                    fired = true;
+                    wsync.notify_one();
+                }
+                void stop()
+                {
+                    auto guard = std::lock_guard{ mutex };
+                    alive = faux;
+                    going = faux;
+                    going.notify_all();
+                    wsync.notify_one();
+                }
+            };
+
+            sptr<fifo>   client;
+            sptr<fifo>   server;
+            sptr<xcross> remote;
+
+            xcross()
+            { }
+            xcross(sptr<xcross> remote)
+                : client{ ptr::shared<fifo>(isbusy)         },
+                  server{ ptr::shared<fifo>(remote->isbusy) },
+                  remote{ remote }
+            {
+                remote->client = server;
+                remote->server = client;
+                remote->active = true;
+                active = true;
+            }
+
+            void wake() override
+            {
+                server->wake();
+            }
+            qiew recv() override
+            {
+                return server->read(buffer);
+            }
+            bool send(view data) override
+            {
+                return client->send(data);
+            }
+            std::ostream& show(std::ostream& s) const override
+            {
+                return s << "local pipe: server=" << std::showbase << std::hex << server.get() << " client=" << std::showbase << std::hex << client.get();
+            }
+            bool shut() override
+            {
+                auto state = stdcon::shut();
+                server->stop();
+                client->stop();
+                return state;
+            }
+        };
+
+        struct socket
+            : public stdcon
+        {
+            text scpath; // ipc:socket: Socket path (in order to unlink).
+            fire signal; // ipc:socket: Interruptor.
+
+            socket(sock& fd)
+                : stdcon{ std::move(fd) }
+            { }
+            socket(fd_t r, fd_t w, text path)
+                : stdcon{ r, w },
+                  scpath{ path }
+            { }
+           ~socket()
+            {
+                #if defined(__BSD__)
+
+                    if (scpath.length())
+                    {
+                        ::unlink(scpath.c_str()); // Cleanup file system unix domain socket.
+                    }
+
+                #endif
+            }
+
+            auto auth(view id) const // Check peer cred.
+            {
+                #if defined(_WIN32)
+
+                    //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
+                    //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
+
+                #elif defined(__linux__)
+
+                    auto cred = ucred{};
+                    #ifdef __ANDROID__
+                        auto size = socklen_t{ sizeof(cred) };
+                    #else
+                        auto size = unsigned{ sizeof(cred) };
+                    #endif
+
+                    if (!ok(::getsockopt(handle.r, SOL_SOCKET, SO_PEERCRED, &cred, &size), "::getsockopt(SOL_SOCKET)", os::unexpected))
+                    {
+                        return faux;
+                    }
+
+                    if (cred.uid && id != utf::concat(cred.uid))
+                    {
+                        fail(prompt::sock, "Foreign users are not allowed to the session");
+                        return faux;
+                    }
+
+                    if constexpr (debugmode) log(prompt::sock, "Creds from SO_PEERCRED:",
+                        "\n      pid : ", cred.pid,
+                        "\n      euid: ", cred.uid,
+                        "\n      egid: ", cred.gid);
+
+                #elif defined(__BSD__)
+
+                    auto euid = uid_t{};
+                    auto egid = gid_t{};
+
+                    if (!ok(::getpeereid(handle.r, &euid, &egid), "::getpeereid()", os::unexpected))
+                    {
+                        return faux;
+                    }
+
+                    if (euid && id != utf::concat(euid))
+                    {
+                        fail(prompt::sock, "Foreign users are not allowed to the session");
+                        return faux;
+                    }
+
+                    if constexpr (debugmode) log(prompt::sock, "Creds from ::getpeereid():",
+                        "\n      pid : ", id,
+                        "\n      euid: ", euid,
+                        "\n      egid: ", egid);
+
+                #endif
+
+                return true;
+            }
+            auto meet()
+            {
+                if constexpr (debugmode) log(prompt::xipc, "Active server side link ", handle);
+                auto client = sptr<ipc::socket>{};
+                #if defined(_WIN32)
+
+                    auto next_link = [&](auto& next_waiting_point, auto h, auto path, auto type)
+                    {
+                        auto connected = ::ConnectNamedPipe(h, NULL)
+                            ? true
+                            : (::GetLastError() == ERROR_PIPE_CONNECTED);
+
+                        if (pipe::active && connected) // Recreate the waiting point for the next client.
+                        {
+                            next_waiting_point =
+                                ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
+                                                   type,                     // read/write access
+                                                   PIPE_TYPE_BYTE |          // message type pipe
+                                                   PIPE_READMODE_BYTE |      // message-read mode
+                                                   PIPE_WAIT,                // blocking mode
+                                                   PIPE_UNLIMITED_INSTANCES, // max. instances
+                                                   os::pipebuf,              // output buffer size
+                                                   os::pipebuf,              // input buffer size
+                                                   0,                        // client time-out
+                                                   NULL);                    // DACL (pipe_acl)
+                            // DACL: auto pipe_acl = security_descriptor(security_descriptor_string);
+                            //       The ACLs in the default security descriptor for a named pipe grant full control to the
+                            //       LocalSystem account, administrators, and the creator owner. They also grant read access to
+                            //       members of the Everyone group and the anonymous account.
+                            //       Without write access, the desktop will be inaccessible to non-owners.
+                            if (next_waiting_point == os::invalid_fd) os::fail(prompt::meet, "::CreateNamedPipe()", os::unexpected);
+                        }
+                        else if (pipe::active) os::fail(prompt::meet, "Not active");
+
+                        auto success = next_waiting_point != os::invalid_fd;
+                        return success;
+                    };
+
+                    auto r = os::invalid_fd;
+                    auto w = os::invalid_fd;
+                    if (next_link(r, handle.r, os::path::rd_pipe(scpath), PIPE_ACCESS_INBOUND)
+                     && next_link(w, handle.w, os::path::wr_pipe(scpath), PIPE_ACCESS_OUTBOUND))
+                    {
+                        client = ptr::shared<ipc::socket>(handle);
+                        handle = { r, w };
+                    }
+                    else os::close(r);
+
+                #else
+
+                    auto h_proc = [&]
+                    {
+                        auto h = ::accept(handle.r, 0, 0);
+                        auto s = sock{ h, h };
+                        if (s) client = ptr::shared<ipc::socket>(s);
+                    };
+                    auto f_proc = [&]
+                    {
+                        signal.flush();
+                    };
+                    io::select(handle.r, h_proc,
+                               signal  , f_proc);
+
+                #endif
+                return client;
+            }
+            bool stop() override
+            {
+                auto state = pipe::stop();
+                if (state)
+                {
+                    if constexpr (debugmode) log(prompt::xipc, "Closing server side link ", handle);
+                    #if defined(_WIN32)
+                        auto to_client = os::path::wr_pipe(scpath);
+                        auto to_server = os::path::rd_pipe(scpath);
+                        if (handle.w != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_client).c_str()); // Interrupt ::ConnectNamedPipe(). Disconnection order does matter.
+                        if (handle.r != os::invalid_fd) ::DeleteFileW(utf::to_utf(to_server).c_str()); // This may fail, but this is ok - it means the client is already disconnected.
+                    #else
+                        signal.reset();
+                    #endif
+                }
+                return state;
+            }
+            bool shut() override
+            {
+                auto state = pipe::shut();
+                if (state)
+                {
+                    if constexpr (debugmode) log(prompt::xipc, "Link shutdown: ", handle);
+                    #if defined(_WIN32)
+                        ::DisconnectNamedPipe(handle.w);
+                        handle.shutdown(); // To trigger the read end to close.
+                    #else
+                        ok(::shutdown(handle.w, SHUT_RDWR), "::shutdown()", os::unexpected); // Further sends and receives are disallowed.
+                        // An important conceptual reason to want to use shutdown:
+                        //    To signal EOF to the peer and still be able
+                        //    to receive pending data the peer sent.
+                        //    "shutdown() doesn't actually close the file descriptor
+                        //     — it just changes its usability.
+                        // To free a socket descriptor, you need to use os::close().
+                        // Note: .r == .w, it is a full duplex socket handle on POSIX.
+                    #endif
+                }
+                return state;
+            }
+            template<role Role, bool Log = true>
+            static auto open(text name, bool& denied)
+            {
+                auto r = os::invalid_fd;
+                auto w = os::invalid_fd;
+                auto socket = sptr<ipc::socket>{};
+
+                #if defined(_WIN32)
+
+                    auto to_server = os::path::rd_pipe(name);
+                    auto to_client = os::path::wr_pipe(name);
+
+                    if constexpr (Role == role::server)
+                    {
+                        auto pipe = [&](auto& h, auto& path, auto type)
+                        {
+                            h = ::CreateNamedPipeW(utf::to_utf(path).c_str(),// pipe path
+                                                   type,                     // read/write access
+                                                   PIPE_TYPE_BYTE |          // message type pipe
+                                                   PIPE_READMODE_BYTE |      // message-read mode
+                                                   PIPE_WAIT,                // blocking mode
+                                                   PIPE_UNLIMITED_INSTANCES, // max instances
+                                                   os::pipebuf,              // output buffer size
+                                                   os::pipebuf,              // input buffer size
+                                                   0,                        // client time-out
+                                                   NULL);                    // DACL
+                            auto success = h != os::invalid_fd;
+                            if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
+                            return success;
+                        };
+
+                        if (!pipe(r, to_server, PIPE_ACCESS_INBOUND)
+                         || !pipe(w, to_client, PIPE_ACCESS_OUTBOUND))
+                        {
+                            os::close(r);
+                            os::fail("Creation endpoint error");
+                        }
+                    }
+                    else if constexpr (Role == role::client)
+                    {
+                        auto pipe = [&](auto& h, auto& path, auto type)
+                        {
+                            h = ::CreateFileW(utf::to_utf(path).c_str(),
+                                              type,
+                                              0,             // no sharing
+                                              NULL,          // default security attributes
+                                              OPEN_EXISTING, // opens existing pipe
+                                              0,             // default attributes
+                                              NULL);         // no template file
+                            auto success = h != os::invalid_fd;
+                            if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
+                            return success;
+                        };
+                        if (!pipe(w, to_server, GENERIC_WRITE)
+                         || !pipe(r, to_client, GENERIC_READ))
+                        {
+                            os::close(w);
+                            if constexpr (Log) os::fail("Connection error");
+                        }
+                    }
+
+                #else
+
+                    auto addr = sockaddr_un{};
+                    auto sun_path = addr.sun_path + 1; // Abstract namespace socket (begins with zero). The abstract socket namespace is a nonportable Linux extension.
+
+                    #if defined(__BSD__)
+                        //todo unify "/.config/vtm"
+                        auto home = os::path::home / ".config/vtm";
+                        if (!fs::exists(home))
+                        {
+                            if constexpr (Log) log("%%Create home directory '%path%'", prompt::path, home.string());
+                            auto ec = std::error_code{};
+                            fs::create_directory(home, ec);
+                            if (ec && Log) log("%%Directory '%path%' creation error %error%", prompt::path, home.string(), ec.value());
+                        }
+                        auto path = (home / name).string() + ".sock";
+                        sun_path--; // File system unix domain socket.
+                        if constexpr (Log) log(prompt::open, "File system socket ", path);
+                    #else
+                        auto path = name;
+                    #endif
+
+                    if (path.size() > sizeof(sockaddr_un::sun_path) - 2)
+                    {
+                        if constexpr (Log) os::fail("Unix socket path too long");
+                    }
+                    else if ((w = ::socket(AF_UNIX, SOCK_STREAM, 0)) == os::invalid_fd)
+                    {
+                        if constexpr (Log) os::fail("Unix socket opening error");
+                    }
+                    else
+                    {
+                        r = w;
+                        addr.sun_family = AF_UNIX;
+                        auto sock_addr_len = (socklen_t)(sizeof(addr) - (sizeof(sockaddr_un::sun_path) - path.size() - 1));
+                        std::copy(path.begin(), path.end(), sun_path);
+
+                        if constexpr (Role == role::server)
+                        {
+                            #if defined(__BSD__)
+                                if (fs::exists(path))
+                                {
+                                    log(prompt::path, "Removing filesystem socket file ", path);
+                                    if (-1 == ::unlink(path.c_str())) // Cleanup file system socket.
+                                    {
+                                        os::fail("Failed to remove socket file");
+                                        os::close(r);
+                                    }
+                                }
+                            #endif
+
+                            if (r != os::invalid_fd && ::bind(r, (struct sockaddr*)&addr, sock_addr_len) == -1)
+                            {
+                                os::fail("Unix socket binding error for ", path);
+                                os::close(r);
+                            }
+                            else if (::listen(r, 5) == -1)
+                            {
+                                os::fail("Unix socket listening error for ", path);
+                                os::close(r);
+                            }
+                            std::swap(path, name); // To unlink.
+                        }
+                        else if constexpr (Role == role::client)
+                        {
+                            name.clear(); // No need to unlink a file system socket on client disconnect.
+                            if (-1 == ::connect(r, (struct sockaddr*)&addr, sock_addr_len))
+                            {
+                                if constexpr (Log) os::fail("Connection failed");
+                                os::close(r);
+                            }
+                        }
+                    }
+
+                #endif
+                if (r != os::invalid_fd && w != os::invalid_fd)
+                {
+                    socket = ptr::shared<ipc::socket>(r, w, name);
+                }
+                return socket;
+            }
+        };
+
+        auto stdio()
+        {
+            return ptr::shared<ipc::stdcon>(os::stdin_fd, os::stdout_fd);
+        }
+        auto xlink()
+        {
+            auto a = ptr::shared<ipc::xcross>();
+            auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
+            return std::pair{ a, b };
         }
     }
 
@@ -3107,7 +3051,6 @@ namespace netxs::os
                         dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
                         outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
                         ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
-                        log(prompt::os, "16-color windows console");
                     }
                     auto size = DWORD{ os::pipebuf };
                     auto wstr = wide(size, 0);
@@ -3156,17 +3099,24 @@ namespace netxs::os
             if (os::dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                mode |= ui::console::direct;
+                dtvt::mode |= ui::console::direct;
             }
             else
             {
-                #if defined(__linux__)
-                if (os::linux_console) mode |= ui::console::mouse;
-                #endif
-                if (auto term = os::env::get("TERM"); term.size())
-                {
-                    log(prompt::os, "Terminal type \"", term, "\"");
+                auto colorterm = os::env::get("COLORTERM");
+                auto term = text{ dtvt::mode & ui::console::nt16 ? "Windows Console" : "" };
+                if (term.empty()) term = os::env::get("TERM");
+                if (term.empty()) term = os::env::get("TERM_PROGRAM");
+                if (term.empty()) term = "VT";
 
+                #if defined(__linux__)
+                    if (os::linux_console) dtvt::mode |= ui::console::mouse;
+                #elif defined(_WIN32)
+                    dtvt::mode |= ui::console::nt; // Use win32 console api for input.
+                #endif
+
+                if (colorterm != "truecolor" && colorterm != "24bit")
+                {
                     auto vt16colors = { // https://github.com//termstandard/colors
                         "ansi",
                         "linux",
@@ -3180,7 +3130,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        mode |= ui::console::vt16;
+                        dtvt::mode |= ui::console::vt16;
                     }
                     else
                     {
@@ -3188,35 +3138,40 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                mode |= ui::console::vt16;
+                                dtvt::mode |= ui::console::vt16;
                                 break;
                             }
                         }
-                        if (!mode)
+                        if (!(dtvt::mode & ui::console::vt16))
                         {
                             for (auto& type : vt256colors)
                             {
                                 if (term == type)
                                 {
-                                    mode |= ui::console::vt256;
+                                    dtvt::mode |= ui::console::vt256;
                                     break;
                                 }
                             }
                         }
                     }
-
-                    if (os::env::get("TERM_PROGRAM") == "Apple_Terminal")
-                    {
-                        log("%%macOS Apple Terminal detected", prompt::os);
-                        if (!(mode & ui::console::vt16)) mode |= ui::console::vt256;
-                    }
-                    log(prompt::os, "Color mode: ", mode & ui::console::vt16  ? "16-color"
-                                                  : mode & ui::console::vt256 ? "256-color"
-                                                                              : "true-color");
-                    log(prompt::os, "Mouse mode: ", mode & ui::console::mouse ? "console" : "vt-style");
+                    #if defined(__APPLE__)
+                        if (!(dtvt::mode & ui::console::vt16)) // Apple terminal detection.
+                        {
+                            dtvt::mode |= ui::console::vt256;
+                        }
+                    #endif
                 }
+
+                log(prompt::os, "Terminal type: ", term);
+                log(prompt::os, "Color mode: ", dtvt::mode & ui::console::vt16  ? "VT 16-color"
+                                              : dtvt::mode & ui::console::nt16  ? "Win32 Console API 16-color"
+                                              : dtvt::mode & ui::console::vt256 ? "VT 256-color"
+                                                                                : "VT truecolor");
+                log(prompt::os, "Mouse mode: ", dtvt::mode & ui::console::mouse ? "PS/2"
+                                              : dtvt::mode & ui::console::nt    ? "Win32 Console API"
+                                                                                : "VT-style");
             }
-            return mode;
+            return dtvt::mode;
         }();
 
         struct vtty

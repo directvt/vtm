@@ -8,15 +8,8 @@
 
 using namespace netxs;
 
-enum class type
-{
-    client,
-    server,
-    daemon,
-    runapp,
-    config,
-    logger,
-};
+enum class type { client, server, daemon, logger, runapp, config };
+enum class code { noaccess, noserver, nodaemon, nologger, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
@@ -101,16 +94,28 @@ int main(int argc, char* argv[])
         }
     }
 
+    auto denied = faux;
     auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::desktopio, os::process::elevated ? "!_" : "_", userid);;
-    auto prefix_log = prefix + app::shared::logsuffix;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!_" : "_", userid);;
+    auto prefix_log = prefix + app::shared::log_suffix;
+    auto failed = [&](auto cause)
+    {
+        os::fail(cause == code::noaccess ? "Access denied"
+               : cause == code::interfer ? "Server already running"
+               : cause == code::noserver ? "Failed to start server"
+               : cause == code::nologger ? "Failed to start logger"
+               : cause == code::nodaemon ? "Failed to daemonize"
+               : cause == code::errormsg ? errmsg.c_str()
+                                         : "");
+        return 1;
+    };
 
     log(prompt::vtm, app::shared::version);
     if (errmsg.size())
     {
-        os::fail(errmsg);
+        failed(code::errormsg);
         log("\n"
             "Virtual terminal multiplexer with window manager and session sharing.\n"
             "\n"
@@ -172,7 +177,8 @@ int main(int argc, char* argv[])
         });
         while (online)
         {
-            stream = os::ipc::socket::open<os::role::client, faux>(prefix_log);
+            stream = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
+            if (denied) return failed(code::noaccess);
             if (stream)
             {
                 log("%%Connected", prompt::main);
@@ -217,66 +223,83 @@ int main(int argc, char* argv[])
     else
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
+        auto client = os::ipc::socket::open<os::role::client, faux>(prefix, denied);
+
+        auto ospath = os::process::memory::ref(prefix);
+        auto signal = ptr::shared<os::fire>(ospath + "started"); // Signaling that the server is ready for incoming connections.
+
+             if (denied)                           return failed(code::noaccess);
+        else if (whoami != type::client && client) return failed(code::interfer);
+        else if (whoami == type::client && !client)
+        {
+            log("%%New vtm session for [%userid%]", prompt::main, userid);
+            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            if (successor)
+            {
+                os::dtvt::vtmode |= ui::console::onlylog;
+                whoami = type::server;
+            }
+            else
+            {
+                if (success) signal->wait(10s); // Waiting for confirmation of receiving the configuration.
+                else         return failed(code::noserver);
+            }
+        }
+
         if (whoami == type::client)
         {
-            auto client = os::ipc::socket::open<os::role::client>(prefix, 10s, [&]
-            {
-                log("%%New vtm session for %userid%", prompt::main, userid);
-                auto success = faux;
-                if (os::process::fork(success, prefix, config.utf8()))
-                {
-                    os::dtvt::vtmode |= ui::console::onlylog;
-                    whoami = type::server;
-                }
-                return success;
-            });
-            if (client)
+            signal.reset();
+            if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
                 os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }
-            else if (whoami != type::server)
-            {
-                os::fail("No vtm server connection");
-                return 1;
-            }
+            else return failed(denied ? code::noaccess : code::noserver);
         }
 
         if (whoami == type::daemon)
         {
-            auto success = faux;
-            if (os::process::fork(success, prefix, config.utf8()))
+            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            if (successor)
             {
                 os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
             }
             else 
             {
-                if (!success) os::fail("Failed to daemonize");
-                return !success;
+                if (success)
+                {
+                    signal->wait(10s); // Waiting for confirmation of receiving the configuration.
+                    return 0;
+                }
+                else return failed(code::nodaemon);
             }
         }
         
-        auto server = os::ipc::socket::open<os::role::server>(prefix);
+        auto server = os::ipc::socket::open<os::role::server>(prefix, denied);
         if (!server)
         {
-            os::fail("Can't start vtm server");
-            return 1;
+            if (denied) failed(code::noaccess);
+            return      failed(code::noserver);
         }
-        auto logger = os::ipc::socket::open<os::role::server>(prefix_log);
+        auto logger = os::ipc::socket::open<os::role::server>(prefix_log, denied);
         if (!logger)
         {
-            os::fail("Can't start vtm logger");
-            return 1;
+            if (denied) failed(code::noaccess);
+            return      failed(code::nologger);
         }
+
+        signal->bell(); // Signal we are started and ready for connections.
+        signal.reset();
+
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
         auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
         domain->plugin<scripting::host>();
         domain->autorun();
 
-        log("%%Server started"
+        log("%%Session started"
           "\n      user: %userid%"
           "\n      pipe: %prefix%", prompt::main, userid, prefix);
 
@@ -310,13 +333,15 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, client, settings](auto session_id)
                 {
-                    auto id = utf::concat(*client);
-                    if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
-                    auto config = xmls{ settings };
-                    auto packet = os::tty::stream.init.recv(client);
-                    config.fuse(packet.config);
-                    domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
-                    if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
+                    if (auto packet = os::tty::stream.init.recv(client))
+                    {
+                        auto id = utf::concat(*client);
+                        if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
+                        auto config = xmls{ settings };
+                        config.fuse(packet.config);
+                        domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
+                        if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
+                    }
                 });
             }
         }
