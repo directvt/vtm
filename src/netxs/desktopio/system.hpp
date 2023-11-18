@@ -4931,7 +4931,7 @@ namespace netxs::os
                     os::stdout_fd = saved_fd;
                     if (ok(::SetConsoleActiveScreenBuffer(os::stdout_fd), "::SetConsoleActiveScreenBuffer()", os::unexpected))
                     {
-                        if (s != dtvt::consize()) // wt issue GH #16231
+                        if (dtvt::vtmode & ui::console::nt16 && s != dtvt::consize()) // wt issue GH #16231
                         {
                             std::cout << prompt::os << ansi::err("Terminal is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
                         }
