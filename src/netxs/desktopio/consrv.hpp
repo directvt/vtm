@@ -99,13 +99,18 @@ struct consrv
                                     nullptr,
                                     nullptr);
         auto wide_cmdline = utf::to_utf(cmdline);
+        auto env_ptr = ::GetEnvironmentStringsW(); // Add $VTM=1 to environment block.
+        auto new_env = [&](auto i){ while (*i++ || *i) { } return wide{ env_ptr, (size_t)(i - env_ptr) }; }(env_ptr);
+        if (utf::divide(utf::to_utf(new_env), '\0', [&](auto v){ return !v.starts_with("VTM="); })) new_env += L"VTM=1\0"s;
+        ::FreeEnvironmentStringsW(env_ptr);
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wide_cmdline.data(),                 // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
                                     nullptr,                             // lpThreadAttributes
                                     TRUE,                                // bInheritHandles
-                                    EXTENDED_STARTUPINFO_PRESENT,        // dwCreationFlags (override startupInfo type)
-                                    nullptr,                             // lpEnvironment
+                                    EXTENDED_STARTUPINFO_PRESENT |       // dwCreationFlags (override startupInfo type)
+                                    CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
+                                    new_env.data(),                      // lpEnvironment
                                     cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
                                                : nullptr,
                                    &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
@@ -5236,6 +5241,7 @@ struct consrv : ipc::stdcon
                     "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
+            os::env::set("VTM", "1");
             os::env::set("TERM", "xterm-256color");
             os::env::set("COLORTERM", "truecolor");
             os::process::spawn(cwd, cmdline);
