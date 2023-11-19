@@ -2266,7 +2266,7 @@ namespace netxs::os
                 {
                     if constexpr (Daemon)
                     {
-                        ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                        //::umask(0); // Set the file mode creation mask for child process.
                         os::close(os::stdin_fd );
                         os::close(os::stdout_fd);
                         os::close(os::stderr_fd);
