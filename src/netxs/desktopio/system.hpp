@@ -2299,17 +2299,22 @@ namespace netxs::os
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto rc = ::CreateProcessW(nullptr,                      // lpApplicationName
-                                           cmdarg.data(),                // lpCommandLine
-                                           nullptr,                      // lpProcessAttributes
-                                           nullptr,                      // lpThreadAttributes
-                                           TRUE,                         // bInheritHandles
-                                           DETACHED_PROCESS |            // dwCreationFlags
-                                           EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
-                                           nullptr,                      // lpEnvironment
-                                           nullptr,                      // lpCurrentDirectory
-                                           &upinfo.StartupInfo,          // lpStartupInfo
-                                           &proinf);                     // lpProcessInformation
+                auto ptoken = os::invalid_fd;
+                auto slzero = DWORD{ 0 };
+                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
+                rc = rc && ::CreateProcessAsUserW(ptoken,
+                                                  nullptr,                      // lpApplicationName
+                                                  cmdarg.data(),                // lpCommandLine
+                                                  nullptr,                      // lpProcessAttributes
+                                                  nullptr,                      // lpThreadAttributes
+                                                  TRUE,                         // bInheritHandles
+                                                  DETACHED_PROCESS |            // dwCreationFlags
+                                                  EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                                  nullptr,                      // lpEnvironment
+                                                  nullptr,                      // lpCurrentDirectory
+                                                  &upinfo.StartupInfo,          // lpStartupInfo
+                                                  &proinf);                     // lpProcessInformation
+                os::close(ptoken);
                 auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
                 if (rc) // Success. The fork concept is not supported on Windows.
                 {
@@ -2347,7 +2352,7 @@ namespace netxs::os
             #endif
 
             if (success) log(prompt::os, "Process forked");
-            else         os::fail("Can't fork process");
+            else         os::fail("Failed to fork process");
 
             return std::pair{ std::move(success), faux }; // Parent branch.
         }
