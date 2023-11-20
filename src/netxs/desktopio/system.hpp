@@ -2266,7 +2266,7 @@ namespace netxs::os
                 {
                     if constexpr (Daemon)
                     {
-                        ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
+                        //::umask(0); // Set the file mode creation mask for child process.
                         os::close(os::stdin_fd );
                         os::close(os::stdout_fd);
                         os::close(os::stderr_fd);
@@ -2333,7 +2333,6 @@ namespace netxs::os
                     if (p_id == 0) // GrandChild process.
                     {
                         ::setsid(); // Open new session and new process group in it.
-                        ::umask(0); // Set the file mode creation mask for child process (all access bits are set by default).
                         os::close(os::stdin_fd ); // No stdio needed in daemon mode.
                         os::close(os::stdout_fd); //
                         os::close(os::stderr_fd); //
