@@ -49,10 +49,6 @@ If you have questions, encounter unexpected behavior, inconsistent wording/gramm
 
 Any feedback in any language is welcome.
 
-# Related Repositories
-
-[Desktopio Framework Documentation](https://github.com/netxs-group/Desktopio-Docs)
-
 ---
 
 [![HitCount](https://views.whatilearened.today/views/github/directvt/vtm.svg)](https://github.com/directvt/vtm) [![Twitter handle][]][twitter badge]
