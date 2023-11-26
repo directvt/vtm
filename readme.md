@@ -48,11 +48,3 @@ Note: You can use [Github Actions](../../actions) to build statically linked bin
 If you have questions, encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, consider [filing an issue](https://github.com/directvt/vtm/issues/new/choose).
 
 Any feedback in any language is welcome.
-
----
-
-[![HitCount](https://views.whatilearened.today/views/github/directvt/vtm.svg)](https://github.com/directvt/vtm) [![Twitter handle][]][twitter badge]
-
-[//]: # (LINKS)
-[twitter handle]: https://img.shields.io/twitter/follow/desktopio.svg?style=social&label=Follow
-[twitter badge]: https://twitter.com/desktopio
