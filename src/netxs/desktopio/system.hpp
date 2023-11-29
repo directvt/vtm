@@ -2420,7 +2420,7 @@ namespace netxs::os
                 {
                     auto err = std::error_code{};
                     fs::current_path(cwd, err);
-                    if (err) log("%%Failed to change current working directory to '%cwd%', error code: %code%\n", prompt::os, cwd, err.value());
+                    if (err) log("%%Failed to change current directory to '%cwd%', error code: %code%\n", prompt::os, cwd, err.value());
                 }
                 os::process::execvpe(cmd, env);
                 auto err_code = os::error();
@@ -3270,7 +3270,7 @@ namespace netxs::os
             auto create(twod initsize)
             {
                 auto marker = directvt::binary::marker{ cfg.size(), initsize };
-                log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
                 auto onerror = [&]()
                 {
                     log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
@@ -3287,7 +3287,6 @@ namespace netxs::os
                     auto procsinf = PROCESS_INFORMATION{};
                     auto attrbuff = std::vector<byte>{};
                     auto attrsize = SIZE_T{ 0 };
-                    auto stdhndls = std::array<HANDLE, 2>{};
 
                     auto tunnel = [&]
                     {
@@ -3299,9 +3298,6 @@ namespace netxs::os
                          && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
                         {
                             io::send(m_pipe_w, marker);
-                            startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                            startinf.StartupInfo.hStdInput  = s_pipe_r;
-                            startinf.StartupInfo.hStdOutput = s_pipe_w;
                             return true;
                         }
                         else
@@ -3315,17 +3311,18 @@ namespace netxs::os
                     };
                     auto fillup = [&]
                     {
-                        stdhndls[0] = s_pipe_r;
-                        stdhndls[1] = s_pipe_w;
                         ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                         attrbuff.resize(attrsize);
                         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+                        startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                        startinf.StartupInfo.hStdInput  = s_pipe_r;
+                        startinf.StartupInfo.hStdOutput = s_pipe_w;
                         if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
                          && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                         0,
                                                         PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                        &stdhndls,
-                                                        sizeof(stdhndls),
+                                                       &startinf.StartupInfo.hStdInput,
+                                                 sizeof(startinf.StartupInfo.hStdInput) * 2,
                                                         nullptr,
                                                         nullptr))
                         {
@@ -3391,8 +3388,8 @@ namespace netxs::os
                             {
                                 auto err = std::error_code{};
                                 fs::current_path(cwd, err);
-                                if (err) log("%%%err%Failed to change current working directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil());
-                                else     log("%%Change current working directory to '%cwd%'", prompt::dtvt, cwd);
+                                if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil());
+                                else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cwd);
                             }
                             os::fdscleanup();
                             env = os::env::add(env);
@@ -3511,7 +3508,7 @@ namespace netxs::os
             void create(auto& terminal, text cmd, text cwd, text env, twod win)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
-                                     log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
+                                     log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -3806,8 +3803,8 @@ namespace netxs::os
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cmd), cwd.empty() ? "current working directory"s
-                                                                                                          : "'" + cwd + "'");
+                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cmd), cwd.empty() ? "current directory"s
+                                                                                                      : "'" + cwd + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = os::invalid_fd;

@@ -65,9 +65,9 @@ struct consrv
             return err_code;
         }
         start();
-        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);
-        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);
-        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+        startinf.StartupInfo.hStdInput  = 0;
+        startinf.StartupInfo.hStdOutput = 0;
+        startinf.StartupInfo.hStdError  = 0;
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
@@ -80,17 +80,19 @@ struct consrv
                                      | STARTF_USEPOSITION
                                      | STARTF_USECOUNTCHARS
                                      | STARTF_USEFILLATTRIBUTE;
-        ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+        //::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
+        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
         attrbuff.resize(attrsize);
         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
-        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                    0,
-                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                   &startinf.StartupInfo.hStdInput,
-                             sizeof(startinf.StartupInfo.hStdInput) * 3,
-                                    nullptr,
-                                    nullptr);
+        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize);
+        //::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+        // ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+        //                             0,
+        //                             PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+        //                            &startinf.StartupInfo.hStdInput,
+        //                      sizeof(startinf.StartupInfo.hStdInput) * 3,
+        //                             nullptr,
+        //                             nullptr);
         ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                     0,
                                     ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),
@@ -2469,21 +2471,23 @@ struct impl : consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-        log("\tprocid: ", client.procid, "\n",
-            "\tthread: ", client.thread, "\n",
-            "\tpgroup: ", client.pgroup, "\n",
-            "\ticonid: ", client.detail.iconid, "\n",
-            "\thotkey: ", client.detail.hotkey, "\n",
-            "\tconfig: ", client.detail.config, "\n",
-            "\tcolors: ", client.detail.colors, "\n",
-            "\tformat: ", client.detail.format, "\n",
-            "\tscroll: ", client.detail.scroll, "\n",
-            "\tcliapp: ", client.detail.cliapp, "\n",
-            "\texpose: ", client.detail.expose, "\n",
-            "\twindow: ", client.detail.window, "\n",
-            "\theader: ", client.detail.header, "\n",
-            "\tapname: ", client.detail.curexe, "\n",
-            "\tcurdir: ", client.detail.curdir);
+        log("\tprocid: ", client.procid,
+          "\n\tthread: ", client.thread,
+          "\n\tpgroup: ", client.pgroup,
+          "\n\ticonid: ", client.detail.iconid,
+          "\n\thotkey: ", client.detail.hotkey,
+          "\n\tconfig: ", client.detail.config,
+          "\n\tcolors: ", client.detail.colors,
+          "\n\tformat: ", client.detail.format,
+          "\n\tscroll: ", client.detail.scroll,
+          "\n\tcliapp: ", client.detail.cliapp,
+          "\n\texpose: ", client.detail.expose,
+          "\n\twindow: ", client.detail.window,
+          "\n\theader: ", client.detail.header,
+          "\n\tapname: ", client.detail.curexe,
+          "\n\tcurdir: ", client.detail.curdir,
+          "\n\tevents handle: ", &inphndl,
+          "\n\tscroll handle: ", &outhndl);
 
         struct connect_info : wrap<connect_info>
         {
@@ -2841,6 +2845,8 @@ struct impl : consrv
             initdata = toUTF8;
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            "\n\tclient procid: ", packet.client ? ((clnt*)packet.client)->procid : Arch{},
+            "\n\thandle: ", (hndl*)packet.target,
             "\n\tnamesize: ", namesize,
             "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
             "\n\treadstep: ", readstep,
@@ -2926,6 +2932,8 @@ struct impl : consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
+        log("\tclient procid: ", client_ptr->procid,
+          "\n\thandle: ", events_handle_ptr);
         auto& events_handle = *events_handle_ptr; //todo validate events_handle
         events.take(packet);
     }
@@ -3018,6 +3026,8 @@ struct impl : consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
+        log("\tclient procid: ", client.procid,
+          "\n\thandle: ", scroll_handle_ptr);
         auto& scroll_handle = *scroll_handle_ptr;
 
         if (auto datasize = size_check(packet.packsz,  answer.readoffset()))

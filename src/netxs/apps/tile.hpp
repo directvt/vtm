@@ -946,8 +946,8 @@ namespace netxs::app::tile
             {
                 auto err = std::error_code{};
                 fs::current_path(cwd, err);
-                if (err) log("%%Failed to change current working directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
-                else     log("%%Change current working directory to '%cwd%'", prompt::tile, cwd);
+                if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
+                else     log("%%Change current directory to '%cwd%'", prompt::tile, cwd);
             }
 
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
