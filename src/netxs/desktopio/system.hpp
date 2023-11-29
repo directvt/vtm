@@ -3242,7 +3242,7 @@ namespace netxs::os
             text env; // vtty: Environment block.
             text cfg; // vtty: App config.
 
-            fd_t                    prochndl{ os::invalid_fd };
+            //fd_t                    prochndl{ os::invalid_fd };
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
@@ -3283,10 +3283,6 @@ namespace netxs::os
                     auto s_pipe_w = os::invalid_fd;
                     auto m_pipe_r = os::invalid_fd;
                     auto m_pipe_w = os::invalid_fd;
-                    auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                    auto procsinf = PROCESS_INFORMATION{};
-                    auto attrbuff = std::vector<byte>{};
-                    auto attrsize = SIZE_T{ 0 };
 
                     auto tunnel = [&]
                     {
@@ -3309,56 +3305,52 @@ namespace netxs::os
                             return faux;
                         }
                     };
-                    auto fillup = [&]
+                    auto create = [&]
                     {
+                        auto wcmd = utf::to_utf(cmd);
+                        auto wcwd = utf::to_utf(cwd);
+                        auto wenv = utf::to_utf(os::env::add(env));
+                        auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                        auto procsinf = PROCESS_INFORMATION{};
+                        auto attrbuff = std::vector<byte>{};
+                        auto attrsize = SIZE_T{ 0 };
                         ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                         attrbuff.resize(attrsize);
                         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
                         startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                         startinf.StartupInfo.hStdInput  = s_pipe_r;
                         startinf.StartupInfo.hStdOutput = s_pipe_w;
-                        if (::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                        0,
-                                                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                       &startinf.StartupInfo.hStdInput,
-                                                 sizeof(startinf.StartupInfo.hStdInput) * 2,
-                                                        nullptr,
-                                                        nullptr))
+                        auto ok = true
+                        && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                        && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                                       0,
+                                                       PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                      &startinf.StartupInfo.hStdInput,
+                                                sizeof(startinf.StartupInfo.hStdInput) * 2,
+                                                       nullptr,
+                                                       nullptr)
+                        && ::CreateProcessW(nullptr,                             // lpApplicationName
+                                            wcmd.data(),                         // lpCommandLine
+                                            nullptr,                             // lpProcessAttributes
+                                            nullptr,                             // lpThreadAttributes
+                                            TRUE,                                // bInheritHandles
+                                            DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                            EXTENDED_STARTUPINFO_PRESENT |       // override startupInfo type
+                                            CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
+                                            wenv.data(),                         // lpEnvironment
+                                            wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
+                                                        : nullptr,
+                                            &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                            &procsinf);                          // lpProcessInformation
+                        if (ok)
                         {
-                            return true;
+                            os::close(procsinf.hThread);
+                            os::close(procsinf.hProcess);
                         }
-                        else return faux;
+                        return ok;
                     };
-                    auto create = [&]
-                    {
-                        auto wcmd = utf::to_utf(cmd);
-                        auto wcwd = utf::to_utf(cwd);
-                        auto wenv = utf::to_utf(os::env::add(env));
-                        return ::CreateProcessW(nullptr,                             // lpApplicationName
-                                                wcmd.data(),                         // lpCommandLine
-                                                nullptr,                             // lpProcessAttributes
-                                                nullptr,                             // lpThreadAttributes
-                                                TRUE,                                // bInheritHandles
-                                                DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                                EXTENDED_STARTUPINFO_PRESENT |       // override startupInfo type
-                                                CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
-                                                wenv.data(),                         // lpEnvironment
-                                                wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
-                                                            : nullptr,
-                                                &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                                &procsinf);                          // lpProcessInformation
-                    };
-                    auto result = tunnel() && fillup() && create();
-                    if (result)
-                    {
-                        os::close( procsinf.hThread );
-                        prochndl = procsinf.hProcess;
-                    }
-                    else
-                    {
-                        onerror();
-                    }
+                    auto result = tunnel() && create();
+                    if (!result) onerror();
 
                 #else
 
