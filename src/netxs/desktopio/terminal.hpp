@@ -7048,7 +7048,7 @@ namespace netxs::ui
         {
             netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
             {
-                ipccon.cleanup(io_log);
+                ipccon.payoff(io_log);
                 auto lock = netxs::events::sync{};
                 auto error = [&]
                 {
@@ -7108,7 +7108,7 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.start(*this, cmdarg, curdir, envvar, target->panel);
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel);
             }
         }
         void close()
@@ -7129,7 +7129,7 @@ namespace netxs::ui
                 {
                     netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
                     {
-                        ipccon.cleanup(io_log); // Wait child process.
+                        ipccon.payoff(io_log); // Wait child process.
                         close();
                     });
                 }
@@ -7770,10 +7770,6 @@ namespace netxs::ui
         using vtty = os::dtvt::vtty;
 
         evnt stream; // dtvt: Event handler.
-        text curdir; // dtvt: Current working directory.
-        text cmdarg; // dtvt: Startup command line arguments.
-        text envvar; // dtvt: Environment block.
-        text xmlcfg; // dtvt: Startup config.
         flag active; // dtvt: Terminal lifetime.
         si32 nodata; // dtvt: Show splash "No signal".
         face splash; // dtvt: "No signal" splash.
@@ -7828,8 +7824,8 @@ namespace netxs::ui
             if (!ipccon)
             {
                 auto winsize = base::size();
-                ipccon.start(cmdarg, curdir, envvar, winsize, xmlcfg, [&](view utf8) { ondata(utf8); },
-                                                                      [&]            { onexit();     });
+                ipccon.runapp(winsize, [&](view utf8) { ondata(utf8); },
+                                       [&]            { onexit();     });
             }
         }
         // dtvt: Close dtvt-object.
@@ -7846,7 +7842,7 @@ namespace netxs::ui
             }
             netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
             {
-                ipccon.cleanup();
+                ipccon.payoff();
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
             });
         }
@@ -7882,11 +7878,8 @@ namespace netxs::ui
               active{ true },
               opaque{ 0xFF },
               nodata{      },
-              curdir{ cwd  },
-              cmdarg{ cmd  },
-              envvar{ env  },
-              xmlcfg{ cfg  },
-              errmsg{ genmsg(msgs::no_signal) }
+              errmsg{ genmsg(msgs::no_signal) },
+              ipccon{ .cmd = cmd, .cwd = cwd, .env = env, .cfg = cfg }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;

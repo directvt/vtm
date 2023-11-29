@@ -139,7 +139,7 @@ namespace netxs::scripting
             engine->write(data + '\n');
         }
         // scripting::host: Start a new process.
-        void start(text cmd, text cwd, text env, twod win)
+        void runapp(text cmd, text cwd, text env, twod win)
         {
             if (!engine) return;
             cmdarg = cmd;
@@ -147,8 +147,8 @@ namespace netxs::scripting
             envvar = env;
             if (!engine->connected())
             {
-                engine->start(cmd, cwd, env, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                  [&](auto code, auto msg) { onexit(code, msg); });
+                engine->runapp(cmd, cwd, env, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                   [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -177,7 +177,7 @@ namespace netxs::scripting
                 auto win = os::ttysize;
                 if (tty) engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
                 else     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
-                start(cmd, cwd, env, win);
+                runapp(cmd, cwd, env, win);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();

@@ -3237,6 +3237,11 @@ namespace netxs::os
         {
             using s11n = directvt::binary::s11n;
 
+            text cmd; // vtty: Command line.
+            text cwd; // vtty: Current working directory.
+            text env; // vtty: Environment block.
+            text cfg; // vtty: App config.
+
             fd_t                    prochndl{ os::invalid_fd };
             flag                    attached{};
             ipc::stdcon             termlink{};
@@ -3247,7 +3252,7 @@ namespace netxs::os
 
             operator bool () { return attached; }
 
-            void cleanup()
+            void payoff()
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
                 if (attached.exchange(faux)) // Detach child process and forget.
@@ -3262,10 +3267,9 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
-            auto attach_process(text cmd, text cwd, text env, twod win, size_t config_size)
+            auto create(twod initsize)
             {
-                auto marker = directvt::binary::marker{ config_size, win };
-                utf::change(cmd, "\\\"", "'");
+                auto marker = directvt::binary::marker{ cfg.size(), initsize };
                 log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 auto onerror = [&]()
                 {
@@ -3414,6 +3418,11 @@ namespace netxs::os
                 #endif
                 os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                 os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+                if (cfg.size())
+                {
+                    auto guard = std::lock_guard{ writemtx };
+                    writebuf = cfg + writebuf;
+                }
                 return ipc::stdcon{ m_pipe_r, m_pipe_w };
             }
             void writer()
@@ -3436,30 +3445,22 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
-            void reader(auto receiver)
+            void runapp(twod initsize, auto receiver, auto shutdown)
             {
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
-                directvt::binary::stream::reading_loop(termlink, receiver);
-                if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
-            }
-            void start(text cmd, text cwd, text env, twod win, text config, auto receiver, auto shutdown)
-            {
-                stdinput = std::thread{[&, cmd, cwd, env, win, config, receiver, shutdown]
+                stdinput = std::thread{[&, initsize, receiver, shutdown]
                 {
-                    auto config_size = config.size();
-                    termlink = attach_process(cmd, cwd, env, win, config_size);
-                    if (config_size)
-                    {
-                        auto guard = std::lock_guard{ writemtx };
-                        writebuf = config + writebuf;
-                    }
+                    termlink = create(initsize);
                     attached.exchange(!!termlink);
                     if (attached)
                     {
                         if constexpr (debugmode) log("%%DirectVT console created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{[&] { writer(); }};
-                        reader(receiver);
+
+                        if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+                        directvt::binary::stream::reading_loop(termlink, receiver);
+                        if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+
                         if (attached.exchange(faux)) writesyn.notify_one(); // Interrupt writing thread.
                         if constexpr (debugmode) log(prompt::dtvt, "Writing thread joining", ' ', utf::to_hex_0x(stdinput.get_id()));
                         stdwrite.join();
@@ -3494,7 +3495,7 @@ namespace netxs::os
 
             operator bool () { return attached; }
 
-            void cleanup(bool io_log)
+            void payoff(bool io_log)
             {
                 if (stdwrite.joinable())
                 {
@@ -3506,10 +3507,8 @@ namespace netxs::os
                 writebuf = {};
                 if (termlink) termlink->cleanup(io_log);
             }
-            template<class Term>
-            void attach_process(Term& terminal, text cmd, text cwd, text env, twod win)
+            void create(auto& terminal, text cmd, text cwd, text env, twod win)
             {
-                utf::change(cmd, "\\\"", "\"");
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
                                      log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 if (!termlink)
@@ -3540,8 +3539,7 @@ namespace netxs::os
                 attached.exchange(!errcode);
                 writesyn.notify_one(); // Flush temp buffer.
             }
-            template<class Term>
-            void writer(Term& terminal)
+            void writer(auto& terminal)
             {
                 auto guard = std::unique_lock{ writemtx };
                 auto cache = text{};
@@ -3560,14 +3558,13 @@ namespace netxs::os
                     guard.lock();
                 }
             }
-            template<class Term>
-            void start(Term& terminal, text cmd, text cwd, text env, twod win)
+            void runapp(auto& terminal, text cmd, text cwd, text env, twod win)
             {
                 signaled.exchange(faux);
                 stdwrite = std::thread{[&, cmd, cwd, env, win]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    attach_process(terminal, cmd, cwd, env, win);
+                    create(terminal, cmd, cwd, env, win);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
@@ -3722,8 +3719,8 @@ namespace netxs::os
             { }
 
             virtual void write(view data) = 0;
-            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                       std::function<void(si32, view)> shutdown_hndl) = 0;
+            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
+                                                                        std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
         };
@@ -3768,7 +3765,7 @@ namespace netxs::os
                 termlink.stop();
             }
             // task: Cleaning in order to be able to restart.
-            void cleanup()
+            void payoff()
             {
                 if (stdwrite.joinable())
                 {
@@ -3803,12 +3800,11 @@ namespace netxs::os
                 auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                       std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
+                                                                        std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                utf::change(cmd, "\\\"", "'");
                 log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cmd), cwd.empty() ? "current working directory"s
                                                                                                           : "'" + cwd + "'");
                 #if defined(_WIN32)
@@ -3939,7 +3935,7 @@ namespace netxs::os
                 {
                     wait_child();
                 }
-                cleanup();
+                payoff();
             }
             void read_socket_thread()
             {
@@ -4006,10 +4002,10 @@ namespace netxs::os
             {
                 vtty::sighup();
             }
-            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                       std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
+                                                                        std::function<void(si32, view)> shutdown_hndl) override
             {
-                vtty::start(base_tty::terminal, cmd, cwd, env, win);
+                vtty::runapp(base_tty::terminal, cmd, cwd, env, win);
             }
             tty(Term& terminal)
                 : base_tty{ terminal }
