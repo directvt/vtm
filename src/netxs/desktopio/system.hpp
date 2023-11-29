@@ -2260,7 +2260,7 @@ namespace netxs::os
 
             #endif
         }
-        auto execvpe(text env, text cmd)
+        auto execvpe(text cmd, text env)
         {
             #if defined(_WIN32)
             #else
@@ -2295,7 +2295,7 @@ namespace netxs::os
         }
         //todo deprecated
         template<bool Logs = true, bool Daemon = faux>
-        auto exec(text env, text cmd)
+        auto exec(text cmd, text env)
         {
             if constexpr (Logs) log(prompt::exec, "'", cmd, "'");
             #if defined(_WIN32)
@@ -2327,7 +2327,7 @@ namespace netxs::os
                         os::close(os::stdout_fd);
                         os::close(os::stderr_fd);
                     }
-                    os::process::execvpe(env, cmd);
+                    os::process::execvpe(cmd, env);
                     auto errcode = errno;
                     if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmd, "'");
                     os::process::exit<true>(errcode);
@@ -2411,7 +2411,7 @@ namespace netxs::os
 
             return std::pair{ std::move(success), faux }; // Parent branch.
         }
-        void spawn(text env, text cwd, text cmd)
+        void spawn(text cmd, text cwd, text env)
         {
             #if defined(_WIN32)
             #else
@@ -2422,7 +2422,7 @@ namespace netxs::os
                     fs::current_path(cwd, err);
                     if (err) log("%%Failed to change current working directory to '%cwd%', error code: %code%\n", prompt::os, cwd, err.value());
                 }
-                os::process::execvpe(env, cmd);
+                os::process::execvpe(cmd, env);
                 auto err_code = os::error();
                 log(ansi::bgc(reddk).fgc(whitelt).add("Process creation error ", err_code, " \n"
                                                       " cwd: ", cwd.empty() ? "not specified"s : cwd, " \n"
@@ -3262,9 +3262,9 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
-            auto attach_process(text env, text cwd, text cmd, twod winsz, size_t config_size)
+            auto attach_process(text cmd, text cwd, text env, twod win, size_t config_size)
             {
-                auto marker = directvt::binary::marker{ config_size, winsz };
+                auto marker = directvt::binary::marker{ config_size, win };
                 utf::change(cmd, "\\\"", "'");
                 log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current working directory"s : "'" + cwd + "'");
                 auto onerror = [&]()
@@ -3392,7 +3392,7 @@ namespace netxs::os
                             os::fdscleanup();
                             env = os::env::add(env);
                             os::signals::listener.reset();
-                            os::process::execvpe(env, cmd);
+                            os::process::execvpe(cmd, env);
                             onerror();
                             os::process::exit<true>(0);
                         }
@@ -3442,12 +3442,12 @@ namespace netxs::os
                 directvt::binary::stream::reading_loop(termlink, receiver);
                 if constexpr (debugmode) log(prompt::dtvt, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
-            void start(text env, text cwd, text cmd, text config, twod win, auto receiver, auto shutdown)
+            void start(text cmd, text cwd, text env, twod win, text config, auto receiver, auto shutdown)
             {
-                stdinput = std::thread{[&, env, cwd, cmd, config, win, receiver, shutdown]
+                stdinput = std::thread{[&, cmd, cwd, env, win, config, receiver, shutdown]
                 {
                     auto config_size = config.size();
-                    termlink = attach_process(env, cwd, cmd, win, config_size);
+                    termlink = attach_process(cmd, cwd, env, win, config_size);
                     if (config_size)
                     {
                         auto guard = std::lock_guard{ writemtx };
@@ -3507,7 +3507,7 @@ namespace netxs::os
                 if (termlink) termlink->cleanup(io_log);
             }
             template<class Term>
-            void attach_process(Term& terminal, text env, text cwd, text cmd, twod win)
+            void attach_process(Term& terminal, text cmd, text cwd, text env, twod win)
             {
                 utf::change(cmd, "\\\"", "\"");
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
@@ -3530,7 +3530,7 @@ namespace netxs::os
                         }
                     }
                 };
-                auto errcode = termlink->attach(terminal, win, env, cwd, cmd, trailer);
+                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \r\n"s
@@ -3561,13 +3561,13 @@ namespace netxs::os
                 }
             }
             template<class Term>
-            void start(Term& terminal, text env, text cwd, text cmd, twod win)
+            void start(Term& terminal, text cmd, text cwd, text env, twod win)
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{[&, env, cwd, cmd, win]
+                stdwrite = std::thread{[&, cmd, cwd, env, win]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    attach_process(terminal, env, cwd, cmd, win);
+                    attach_process(terminal, cmd, cwd, env, win);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
@@ -3722,7 +3722,7 @@ namespace netxs::os
             { }
 
             virtual void write(view data) = 0;
-            virtual void start(text env, text cwd, text cmd, twod win, std::function<void(view)> input_hndl,
+            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
                                                                        std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
@@ -3803,7 +3803,7 @@ namespace netxs::os
                 auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual void start(text env, text cwd, text cmd, twod win, std::function<void(view)> input_hndl,
+            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
                                                                        std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
@@ -3920,7 +3920,7 @@ namespace netxs::os
                         os::fdscleanup();
                         env = os::env::add(env);
                         os::signals::listener.reset();
-                        os::process::spawn(env, cwd, cmd);
+                        os::process::spawn(cmd, cwd, env);
                     }
                     // Parent branch.
                     os::close(to_client[0]);
@@ -4006,10 +4006,10 @@ namespace netxs::os
             {
                 vtty::sighup();
             }
-            virtual void start(text env, text cwd, text cmd, twod win, std::function<void(view)> input_hndl,
+            virtual void start(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
                                                                        std::function<void(si32, view)> shutdown_hndl) override
             {
-                vtty::start(base_tty::terminal, env, cwd, cmd, win);
+                vtty::start(base_tty::terminal, cmd, cwd, env, win);
             }
             tty(Term& terminal)
                 : base_tty{ terminal }

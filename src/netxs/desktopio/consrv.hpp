@@ -45,7 +45,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, twod win, text env, text cwd, text cmd, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -5205,7 +5205,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, twod win, text env, text cwd, text cmd, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -5243,7 +5243,7 @@ struct consrv : ipc::stdcon
                     "TERM=xterm-256color\0"
                     "COLORTERM=truecolor\0";
             env = os::env::add(env);
-            os::process::spawn(env, cwd, cmd);
+            os::process::spawn(cmd, cwd, env);
         }
         // Parent branch.
         auto err_code = 0;

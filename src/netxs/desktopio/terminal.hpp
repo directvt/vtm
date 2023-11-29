@@ -7108,7 +7108,7 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.start(*this, envvar, curdir, cmdarg, target->panel);
+                ipccon.start(*this, cmdarg, curdir, envvar, target->panel);
             }
         }
         void close()
@@ -7176,7 +7176,7 @@ namespace netxs::ui
             new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
-        term(text env, text cwd, text cmd, xmls& xml_config)
+        term(text cmd, text cwd, text env, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },
@@ -7828,7 +7828,7 @@ namespace netxs::ui
             if (!ipccon)
             {
                 auto winsize = base::size();
-                ipccon.start(envvar, curdir, cmdarg, xmlcfg, winsize, [&](view utf8) { ondata(utf8); },
+                ipccon.start(cmdarg, curdir, envvar, winsize, xmlcfg, [&](view utf8) { ondata(utf8); },
                                                                       [&]            { onexit();     });
             }
         }
@@ -7877,7 +7877,7 @@ namespace netxs::ui
         }
 
     protected:
-        dtvt(text env, text cwd, text cmd, text cfg)
+        dtvt(text cmd, text cwd, text env, text cfg)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },

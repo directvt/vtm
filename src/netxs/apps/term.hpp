@@ -685,7 +685,8 @@ namespace netxs::app::term
                 });
 
             auto shell = os::env::shell() + " -i";
-            auto inst = scroll->attach(ui::term::ctor(env, cwd, arg.empty() ? shell : arg, config))
+            auto cmd = arg.empty() ? shell : arg;
+            auto inst = scroll->attach(ui::term::ctor(cmd, cwd, env, config))
                               ->plugin<pro::focus>(pro::focus::mode::focused);
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));

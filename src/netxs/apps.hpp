@@ -351,9 +351,9 @@ namespace netxs::app::shared
                                 ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->limits({ 10,1 }); // mc crashes when window is too small
-                    auto data = param.empty() ? os::env::shell() + " -i"
-                                              : param;
-                    auto inst = scroll->attach(ui::term::ctor(env, cwd, data, config))
+                    auto cmd = param.empty() ? os::env::shell() + " -i"
+                                             : param;
+                    auto inst = scroll->attach(ui::term::ctor(cmd, cwd, env, config))
                                       ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
@@ -430,12 +430,12 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_DirectVT      = [](text env, text cwd, text cmd, xmls& config, text patch)
         {
-            auto param_shadow = view{ param };
-            auto term_type = shared::app_class(param_shadow);
-            param = param_shadow;
-            return ui::dtvt::ctor(env, cwd, param, patch)
+            auto cmd_shadow = view{ cmd };
+            auto term_type = shared::app_class(cmd_shadow);
+            cmd = cmd_shadow;
+            return ui::dtvt::ctor(cmd, cwd, env, patch)
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)
                 ->invoke([](auto& boss)

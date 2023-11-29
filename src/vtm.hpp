@@ -324,6 +324,7 @@ namespace netxs::app::vtm
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, boundary, ());
                         robo.actify(gear.fader<quadratic<twod>>(2s), [&, boundary](auto x)
                         {
+                            //todo revise: crash after window closed (bad weak ptr)
                             convey(x, boundary);
                             boss.strike();
                         });
@@ -1267,7 +1268,10 @@ namespace netxs::app::vtm
                     };
                     boss.LISTEN(tier::release, e2::area, new_area)
                     {
-                        boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
+                        if (new_area.size != boss.base::size())
+                        {
+                            boss.SIGNAL(tier::anycast, e2::form::upon::resized, new_area);
+                        }
                     };
                     auto last_state = ptr::shared(faux);
                     boss.LISTEN(tier::release, e2::form::layout::selected, gear, -, (last_state))

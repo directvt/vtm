@@ -187,11 +187,15 @@ namespace netxs::app::desk
                 {
                     boss.base::hidden = true;
                     auto data_src_shadow = ptr::shadow(data_src);
+                    auto& item_area_inst = *item_area;
                     item_area->LISTEN(tier::release, e2::form::state::mouse, hover, -)
                     {
                         if (disabled) return;
-                        boss.RISEUP(tier::request, events::ui::toggle, unfolded, ());
-                        auto hidden = !unfolded || !hover;
+                        //boss.RISEUP(tier::request, events::ui::toggle, unfolded, ());
+                        //auto hidden = !unfolded || !hover;
+                        //auto folded = item_area_inst.base::size().x <= boss.base::size().x * 2;
+                        //auto hidden = folded || !hover;
+                        auto hidden = !hover;
                         if (boss.base::hidden != hidden)
                         {
                             boss.base::hidden = hidden;
@@ -333,10 +337,6 @@ namespace netxs::app::desk
                         ->limits({ 5, -1 }, { 5, -1 })
                         ->invoke([&](auto& boss)
                         {
-                            boss.LISTEN(tier::anycast, events::ui::recalc, state)
-                            {
-                                boss.base::hidden = !isfolded && !state;
-                            };
                             boss.LISTEN(tier::release, e2::form::state::mouse, state)
                             {
                                 if (!state)
