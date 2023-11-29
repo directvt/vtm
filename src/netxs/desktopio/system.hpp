@@ -3386,6 +3386,7 @@ namespace netxs::os
                             ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
                             ::dup2(s_pipe_r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
                             ::dup2(s_pipe_w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                            ::close(STDERR_FILENO);          os::stderr_fd = os::invalid_fd;
                             if (cwd.size())
                             {
                                 auto err = std::error_code{};
