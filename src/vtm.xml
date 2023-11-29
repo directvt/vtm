@@ -148,6 +148,7 @@ R"==(
         <color fgc=whitedk bgc=0xC0202020 /> <!-- Set the bgc alpha to FF to disable acrylics in taskbar. -->
     </menu>
     <panel> <!-- Desktop info panel. -->
+        <env = ""/> <!-- Environment block. -->
         <cmd = ""/> <!-- Command-line to activate. -->
         <cwd = ""/> <!-- Working directory. -->
         <height = 1 /> <!-- Desktop space reserved on top. -->

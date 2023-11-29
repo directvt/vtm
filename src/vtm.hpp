@@ -42,6 +42,7 @@ namespace netxs::app::vtm
         static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
         static constexpr auto cwd      = "cwd";
+        static constexpr auto env      = "env";
         static constexpr auto param    = "param";
         static constexpr auto splitter = "splitter";
         static constexpr auto config   = "config";
@@ -1588,6 +1589,16 @@ namespace netxs::app::vtm
                             conf_rec.patch = settings.utf8();
                         }
                     }
+                    auto envar        = item.list(attr::env);
+                    if (envar.empty()) conf_rec.env = fallback.env;
+                    else for (auto& v : envar)
+                    {
+                        auto value = v->value();
+                        if (value.size())
+                        {
+                            conf_rec.env += value + '\0';
+                        }
+                    }
                     if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
 
                     utf::to_low(conf_rec.type);
@@ -1596,6 +1607,7 @@ namespace netxs::app::vtm
                     utf::change(conf_rec.label,  "$0", current_module_file);
                     utf::change(conf_rec.notes,  "$0", current_module_file);
                     utf::change(conf_rec.param,  "$0", current_module_file);
+                    utf::change(conf_rec.env,    "$0", current_module_file);
                 };
 
                 auto& proto = find(menuid);
@@ -1650,7 +1662,7 @@ namespace netxs::app::vtm
             {
                 auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.cwd, setup.param, host::config, setup.patch);
+                what.applet = maker(setup.env, setup.cwd, setup.param, host::config, setup.patch);
                 what.header = setup.title;
                 what.footer = setup.footer;
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
@@ -1876,7 +1888,7 @@ namespace netxs::app::vtm
             };
             //todo make it configurable
             auto patch = ""s;
-            auto deskmenu = app::shared::builder(app::desk::id)("", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
+            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
             user->attach(deskmenu);
             user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.

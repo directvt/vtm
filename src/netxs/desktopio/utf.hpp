@@ -946,14 +946,14 @@ namespace netxs::utf
     }
     // utf: Return left substring (from begin) until delimeter (lazy=faux: from left, true: from right).
     template<class T>
-    T cutoff(T const& txt, T const& delimiter = T{ '.' }, bool lazy = true)
+    T cutoff(T const& txt, T const& delimiter = T{ '.' }, bool lazy = true, size_t skip = 0)
     {
-        return txt.substr(0, lazy ? txt.find(delimiter) : txt.rfind(delimiter));
+        return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
     }
     template<class T>
-    T cutoff(T const& txt, char delimiter, bool lazy = true)
+    T cutoff(T const& txt, char delimiter, bool lazy = true, size_t skip = 0)
     {
-        return txt.substr(0, lazy ? txt.find(delimiter) : txt.rfind(delimiter));
+        return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
     }
     template<class T>
     inline T domain(T const& txt)

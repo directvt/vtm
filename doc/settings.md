@@ -198,7 +198,9 @@ Attribute  | Description                                       | Value type | Ma
 `bgc`      |  App window background color                      | `RGBA`     |           |
 `fgc`      |  App window foreground color                      | `RGBA`     |           |
 `winsize`  |  App window 2D size                               | `x;y`      |           |
+`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |           |
 `slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
+`env`      |  Environment variable in "var=val" format         | `string`   |           |
 `cwd`      |  Current working directory                        | `string`   |           |
 `type`     |  App type                                         | `string`   |           | `SHELL`
 `param`    |  App constructor arguments                        | `string`   |           | empty
@@ -223,7 +225,7 @@ Type              | Parameter        | Description
 `Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
 `Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
 
-The following configuration items have the same meaning:
+The following configuration items produce the same final result:
 ```
 <item …. param=‘mc’/>
 <item …. type=SHELL param=‘mc’/>

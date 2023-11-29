@@ -128,7 +128,7 @@ namespace netxs::app::shared
         gear.dismiss(true);
     };
 
-    using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
+    using builder_t = std::function<ui::sptr(text, text, text, xmls&, text)>;
 
     namespace winform
     {
@@ -432,7 +432,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, xmls&, text) -> ui::sptr
+        [&](text, text, text, xmls&, text) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -562,7 +562,7 @@ namespace netxs::app::shared
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
         os::dtvt::isolated = !direct;
-        auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        auto applet = app::shared::builder(aclass)("", "", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();

@@ -620,7 +620,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text cwd, text arg, xmls& config, text patch)
+        auto build = [](text env, text cwd, text arg, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -685,7 +685,7 @@ namespace netxs::app::term
                 });
 
             auto shell = os::env::shell() + " -i";
-            auto inst = scroll->attach(ui::term::ctor(cwd, arg.empty() ? shell : arg, config))
+            auto inst = scroll->attach(ui::term::ctor(env, cwd, arg.empty() ? shell : arg, config))
                               ->plugin<pro::focus>(pro::focus::mode::focused);
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));

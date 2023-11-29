@@ -64,7 +64,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Strobe        = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -90,7 +90,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Settings      = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -113,7 +113,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Empty         = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -135,7 +135,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Region        = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -194,7 +194,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Truecolor     = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -328,7 +328,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, xmls& config, text patch)
+        auto build_Headless      = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -353,7 +353,7 @@ namespace netxs::app::shared
                                         ->limits({ 10,1 }); // mc crashes when window is too small
                     auto data = param.empty() ? os::env::shell() + " -i"
                                               : param;
-                    auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                    auto inst = scroll->attach(ui::term::ctor(env, cwd, data, config))
                                       ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
@@ -430,12 +430,12 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text cwd, text param, xmls& config, text patch)
+        auto build_DirectVT      = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto param_shadow = view{ param };
             auto term_type = shared::app_class(param_shadow);
             param = param_shadow;
-            return ui::dtvt::ctor(cwd, param, patch)
+            return ui::dtvt::ctor(env, cwd, param, patch)
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)
                 ->invoke([](auto& boss)
@@ -458,7 +458,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)
+        auto build_ANSIVT        = [](text env, text cwd, text param, xmls& config, text patch)
         {
             if (param.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -466,15 +466,15 @@ namespace netxs::app::shared
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
             args += " -r term ";
             args += param;
-            return build_DirectVT(cwd, args, config, patch);
+            return build_DirectVT(env, cwd, args, config, patch);
         };
-        auto build_SHELL         = [](text cwd, text param, xmls& config, text patch)
+        auto build_SHELL         = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
             args += " -r term ";
             args += os::env::shell(param);
-            return build_DirectVT(cwd, args, config, patch);
+            return build_DirectVT(env, cwd, args, config, patch);
         };
 
         app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };

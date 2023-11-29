@@ -6205,8 +6205,9 @@ namespace netxs::ui
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
         escx       w32key; // term: win32-input-mode forward buffer.
-        text       cmdarg; // term: Startup command line arguments.
+        text       envvar; // term: Environment block.
         text       curdir; // term: Current working directory.
+        text       cmdarg; // term: Startup command line arguments.
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -7107,7 +7108,7 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.start(*this, curdir, cmdarg, target->panel);
+                ipccon.start(*this, envvar, curdir, cmdarg, target->panel);
             }
         }
         void close()
@@ -7175,7 +7176,7 @@ namespace netxs::ui
             new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
-        term(text cwd, text cmd, xmls& xml_config)
+        term(text env, text cwd, text cmd, xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },
@@ -7195,6 +7196,7 @@ namespace netxs::ui
               resume{  faux },
               forced{  faux },
               styled{  faux },
+              envvar{ env   },
               curdir{ cwd   },
               cmdarg{ cmd   },
               io_log{ config.def_io_log },
@@ -7637,9 +7639,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& boss)
                 {
-                    auto utf8 = view{ lock.thing.err_msg };
                     master.errmsg = master.genmsg(utf8);
                     master.deface();
                 });
@@ -7771,6 +7772,7 @@ namespace netxs::ui
         evnt stream; // dtvt: Event handler.
         text curdir; // dtvt: Current working directory.
         text cmdarg; // dtvt: Startup command line arguments.
+        text envvar; // dtvt: Environment block.
         text xmlcfg; // dtvt: Startup config.
         flag active; // dtvt: Terminal lifetime.
         si32 nodata; // dtvt: Show splash "No signal".
@@ -7826,8 +7828,8 @@ namespace netxs::ui
             if (!ipccon)
             {
                 auto winsize = base::size();
-                ipccon.start(curdir, cmdarg, xmlcfg, winsize, [&](view utf8) { ondata(utf8); },
-                                                              [&]            { onexit();     });
+                ipccon.start(envvar, curdir, cmdarg, xmlcfg, winsize, [&](view utf8) { ondata(utf8); },
+                                                                      [&]            { onexit();     });
             }
         }
         // dtvt: Close dtvt-object.
@@ -7875,13 +7877,14 @@ namespace netxs::ui
         }
 
     protected:
-        dtvt(text cwd, text cmd, text cfg)
+        dtvt(text env, text cwd, text cmd, text cfg)
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
               curdir{ cwd  },
               cmdarg{ cmd  },
+              envvar{ env  },
               xmlcfg{ cfg  },
               errmsg{ genmsg(msgs::no_signal) }
         {
