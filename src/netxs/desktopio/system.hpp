@@ -3242,7 +3242,6 @@ namespace netxs::os
             text env; // vtty: Environment block.
             text cfg; // vtty: App config.
 
-            //fd_t                    prochndl{ os::invalid_fd };
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
