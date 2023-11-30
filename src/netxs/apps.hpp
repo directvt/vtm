@@ -442,7 +442,11 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        boss.start(patch, [cmd, cwd, env](auto r, auto w){ os::dtvt::connect(r, w, cmd, cwd, env); return cmd; });
+                        boss.start(patch, [cmd, cwd, env](auto r, auto w)
+                        {
+                            os::dtvt::connect(cmd, cwd, env, r, w);
+                            return cmd;
+                        });
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {

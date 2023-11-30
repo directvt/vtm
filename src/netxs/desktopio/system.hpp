@@ -3247,7 +3247,7 @@ namespace netxs::os
             return dtvt::mode;
         }();
 
-        auto connect(fd_t& r, fd_t& w, text cmd, text cwd, text env)
+        auto connect(text cmd, text cwd, text env, fd_t r, fd_t w)
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
             auto result = true;
@@ -3386,21 +3386,6 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
-            auto create(text config, twod initsize)
-            {
-                auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
-                auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
-
-                auto marker = directvt::binary::marker{ config.size(), initsize };
-                io::send(m_pipe_w, marker);
-                if (config.size())
-                {
-                    auto guard = std::lock_guard{ writemtx };
-                    writebuf = config + writebuf;
-                }
-                termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
-                return std::pair{ s_pipe_r, s_pipe_w };
-            }
             void writer()
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
@@ -3425,8 +3410,18 @@ namespace netxs::os
             {
                 stdinput = std::thread{[&, config, initsize, connect, receiver, shutdown]
                 {
-                    auto [r, w] = create(config, initsize);
-                    auto cmd = connect(r, w);
+                    auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
+                    auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
+                    io::send(m_pipe_w, directvt::binary::marker{ config.size(), initsize });
+                    if (config.size())
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        writebuf = config + writebuf;
+                    }
+                    termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
+
+                    auto cmd = connect(s_pipe_r, s_pipe_w);
+
                     attached.exchange(!!termlink);
                     if (attached)
                     {
@@ -3450,7 +3445,7 @@ namespace netxs::os
             {
                 auto guard = std::lock_guard{ writemtx };
                 writebuf += data;
-                if (attached) writesyn.notify_one();
+                writesyn.notify_one();
             }
         };
     }
