@@ -442,6 +442,7 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
+                        //todo connect with external process using cmd, cwd, env
                         boss.start();
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)

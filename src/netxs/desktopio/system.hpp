@@ -3269,43 +3269,28 @@ namespace netxs::os
             auto create(twod initsize)
             {
                 auto marker = directvt::binary::marker{ cfg.size(), initsize };
-                log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
-                auto onerror = [&]()
-                {
-                    log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
-                        "\r\n\tcwd: '", cwd, "'",
-                        "\r\n\tcmd: '", cmd, "'");
-                };
+                auto s_pipe_r = os::invalid_fd;
+                auto s_pipe_w = os::invalid_fd;
+                auto m_pipe_r = os::invalid_fd;
+                auto m_pipe_w = os::invalid_fd;
                 #if defined(_WIN32)
 
-                    auto s_pipe_r = os::invalid_fd;
-                    auto s_pipe_w = os::invalid_fd;
-                    auto m_pipe_r = os::invalid_fd;
-                    auto m_pipe_w = os::invalid_fd;
+                    auto sa = SECURITY_ATTRIBUTES{};
+                    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                    sa.lpSecurityDescriptor = NULL;
+                    sa.bInheritHandle = TRUE;
+                    ok(::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0), "", os::unexpected);
+                    ok(::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0), "", os::unexpected);
 
-                    auto tunnel = [&]
+                    auto connect = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
                     {
-                        auto sa = SECURITY_ATTRIBUTES{};
-                        sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                        sa.lpSecurityDescriptor = NULL;
-                        sa.bInheritHandle = TRUE;
-                        if (::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0)
-                         && ::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0))
+                        log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+                        auto onerror = [&]()
                         {
-                            io::send(m_pipe_w, marker);
-                            return true;
-                        }
-                        else
-                        {
-                            os::close(m_pipe_w);
-                            os::close(m_pipe_r);
-                            os::close(s_pipe_w);
-                            os::close(s_pipe_r);
-                            return faux;
-                        }
-                    };
-                    auto create = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
-                    {
+                            log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                                "\r\n\tcwd: '", cwd, "'",
+                                "\r\n\tcmd: '", cmd, "'");
+                        };
                         auto wcmd = utf::to_utf(cmd);
                         auto wcwd = utf::to_utf(cwd);
                         auto wenv = utf::to_utf(os::env::add(env));
@@ -3319,7 +3304,7 @@ namespace netxs::os
                         startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                         startinf.StartupInfo.hStdInput  = s_pipe_r;
                         startinf.StartupInfo.hStdOutput = s_pipe_w;
-                        auto ok = true
+                        auto result = true
                         && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
                         && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                        0,
@@ -3341,15 +3326,14 @@ namespace netxs::os
                                                         : nullptr,
                                             &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                             &procsinf);                          // lpProcessInformation
-                        if (ok)
+                        if (result)
                         {
                             os::close(procsinf.hThread);
                             os::close(procsinf.hProcess);
                         }
-                        return ok;
+                        else onerror();
+                        return result;
                     };
-                    auto result = tunnel() && create(s_pipe_r, s_pipe_w, cmd, cwd, env);
-                    if (!result) onerror();
 
                 #else
 
@@ -3357,12 +3341,21 @@ namespace netxs::os
                     auto to_client = std::to_array({ os::invalid_fd, os::invalid_fd });
                     ok(::pipe(to_server.data()), "::pipe(to_server)", os::unexpected);
                     ok(::pipe(to_client.data()), "::pipe(to_client)", os::unexpected);
-                    auto s_pipe_r = to_client[0];
-                    auto s_pipe_w = to_server[1];
-                    auto m_pipe_r = to_server[0];
-                    auto m_pipe_w = to_client[1];
-                    io::send(m_pipe_w, marker);
+                    s_pipe_r = to_client[0];
+                    s_pipe_w = to_server[1];
+                    m_pipe_r = to_server[0];
+                    m_pipe_w = to_client[1];
 
+                auto connect = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
+                {
+                    log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+                    auto onerror = [&]()
+                    {
+                        log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                            "\r\n\tcwd: '", cwd, "'",
+                            "\r\n\tcmd: '", cmd, "'");
+                    };
+                    auto result = true;
                     auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
                                                         // like SSH/netcat/inetd that forwards traffic from a real dtvt-app.
                     if (p_id == 0) // Child branch.
@@ -3400,11 +3393,30 @@ namespace netxs::os
                     {
                         auto stat = int{};
                         ::waitpid(p_id, &stat, 0); // Close zombie.
-                        if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0) onerror(); // Catch fast exit(1).
+                        if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0)
+                        {
+                            result = faux;
+                            onerror(); // Catch fast exit(1).
+                        }
                     }
-                    else onerror();
-
+                    else
+                    {
+                        result = faux;
+                        onerror();
+                    }
+                    return result;
+                };
                 #endif
+
+                io::send(m_pipe_w, marker);
+
+                auto result = connect(s_pipe_r, s_pipe_w, cmd, cwd, env);
+                if (!result)
+                {
+                    os::close(m_pipe_w);
+                    os::close(m_pipe_r);
+                }
+
                 os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
                 os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
                 if (cfg.size())
