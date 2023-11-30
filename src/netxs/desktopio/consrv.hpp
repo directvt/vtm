@@ -65,9 +65,9 @@ struct consrv
             return err_code;
         }
         start();
-        startinf.StartupInfo.hStdInput  = 0;
-        startinf.StartupInfo.hStdOutput = 0;
-        startinf.StartupInfo.hStdError  = 0;
+        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);        // Windows8's cmd.exe requires that handles.
+        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);        //
+        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput); //
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
@@ -80,19 +80,17 @@ struct consrv
                                      | STARTF_USEPOSITION
                                      | STARTF_USECOUNTCHARS
                                      | STARTF_USEFILLATTRIBUTE;
-        //::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
-        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+        ::InitializeProcThreadAttributeList(nullptr, 2, 0, &attrsize);
         attrbuff.resize(attrsize);
         startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize);
-        //::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
-        // ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-        //                             0,
-        //                             PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-        //                            &startinf.StartupInfo.hStdInput,
-        //                      sizeof(startinf.StartupInfo.hStdInput) * 3,
-        //                             nullptr,
-        //                             nullptr);
+        ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 2, 0, &attrsize);
+        ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                    0,
+                                    PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                   &startinf.StartupInfo.hStdInput,
+                             sizeof(startinf.StartupInfo.hStdInput) * 3,
+                                    nullptr,
+                                    nullptr);
         ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                     0,
                                     ProcThreadAttributeValue(sizeof("Reference"), faux, true, faux),

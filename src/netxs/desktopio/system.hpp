@@ -3304,7 +3304,7 @@ namespace netxs::os
                             return faux;
                         }
                     };
-                    auto create = [&]
+                    auto create = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
                     {
                         auto wcmd = utf::to_utf(cmd);
                         auto wcwd = utf::to_utf(cwd);
@@ -3348,7 +3348,7 @@ namespace netxs::os
                         }
                         return ok;
                     };
-                    auto result = tunnel() && create();
+                    auto result = tunnel() && create(s_pipe_r, s_pipe_w, cmd, cwd, env);
                     if (!result) onerror();
 
                 #else
