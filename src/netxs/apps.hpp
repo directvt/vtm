@@ -435,15 +435,14 @@ namespace netxs::app::shared
             auto cmd_shadow = view{ cmd };
             auto term_type = shared::app_class(cmd_shadow);
             cmd = cmd_shadow;
-            return ui::dtvt::ctor(cmd, cwd, env, patch)
+            return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)
-                ->invoke([](auto& boss)
+                ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        //todo connect with external process using cmd, cwd, env
-                        boss.start();
+                        boss.start(patch, [cmd, cwd, env](auto r, auto w){ os::dtvt::connect(r, w, cmd, cwd, env); return cmd; });
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {

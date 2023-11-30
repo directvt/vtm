@@ -7819,13 +7819,13 @@ namespace netxs::ui
             ipccon.output(data);
         }
         // dtvt: Attach a new process.
-        void start()
+        void start(text config, auto connect)
         {
             if (!ipccon)
             {
                 auto winsize = base::size();
-                ipccon.runapp(winsize, [&](view utf8) { ondata(utf8); },
-                                       [&]            { onexit();     });
+                ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
+                                                        [&]            { onexit();     });
             }
         }
         // dtvt: Close dtvt-object.
@@ -7873,13 +7873,12 @@ namespace netxs::ui
         }
 
     protected:
-        dtvt(text cmd, text cwd, text env, text cfg)
+        dtvt()
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
-              errmsg{ genmsg(msgs::no_signal) },
-              ipccon{ .cmd = cmd, .cwd = cwd, .env = env, .cfg = cfg }
+              errmsg{ genmsg(msgs::no_signal) }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;

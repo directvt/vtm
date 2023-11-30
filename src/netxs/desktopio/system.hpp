@@ -2969,6 +2969,20 @@ namespace netxs::os
             auto b = ptr::shared<ipc::xcross>(a); // Queue entanglement for xlink.
             return std::pair{ a, b };
         }
+        auto newpipe()
+        {
+            auto h = std::pair{ os::invalid_fd /*r*/, os::invalid_fd /*w*/ };
+            #if defined(_WIN32)
+                auto sa = SECURITY_ATTRIBUTES{};
+                sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+                sa.lpSecurityDescriptor = NULL;
+                sa.bInheritHandle = TRUE;
+                ok(::CreatePipe(&h.first, &h.second, &sa, 0), "::CreatePipe()", os::unexpected);
+            #else
+                ok(::pipe(&h.first), "::pipe(pair)", os::unexpected);
+            #endif
+            return h;
+        }
     }
 
     namespace dtvt
@@ -3233,14 +3247,120 @@ namespace netxs::os
             return dtvt::mode;
         }();
 
+        auto connect(fd_t& r, fd_t& w, text cmd, text cwd, text env)
+        {
+            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+            auto result = true;
+            auto onerror = [&]()
+            {
+                log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
+                    "\r\n\tcwd: '", cwd, "'",
+                    "\r\n\tcmd: '", cmd, "'");
+            };
+            #if defined(_WIN32)
+
+                auto wcmd = utf::to_utf(cmd);
+                auto wcwd = utf::to_utf(cwd);
+                auto wenv = utf::to_utf(os::env::add(env));
+                auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto procsinf = PROCESS_INFORMATION{};
+                auto attrbuff = std::vector<byte>{};
+                auto attrsize = SIZE_T{ 0 };
+                ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
+                attrbuff.resize(attrsize);
+                startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
+                startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
+                startinf.StartupInfo.hStdInput  = r;
+                startinf.StartupInfo.hStdOutput = w;
+                result = true
+                && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
+                && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
+                                               0,
+                                               PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                              &startinf.StartupInfo.hStdInput,
+                                        sizeof(startinf.StartupInfo.hStdInput) * 2,
+                                               nullptr,
+                                               nullptr)
+                && ::CreateProcessW(nullptr,                             // lpApplicationName
+                                    wcmd.data(),                         // lpCommandLine
+                                    nullptr,                             // lpProcessAttributes
+                                    nullptr,                             // lpThreadAttributes
+                                    TRUE,                                // bInheritHandles
+                                    DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
+                                    EXTENDED_STARTUPINFO_PRESENT |       // override startupInfo type
+                                    CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
+                                    wenv.data(),                         // lpEnvironment
+                                    wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
+                                                : nullptr,
+                                    &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
+                                    &procsinf);                          // lpProcessInformation
+                if (result)
+                {
+                    os::close(procsinf.hThread);
+                    os::close(procsinf.hProcess);
+                }
+                else onerror();
+            
+            #else
+
+                auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
+                                                    // like SSH/netcat/inetd that forwards traffic from a real dtvt-app.
+                if (p_id == 0) // Child branch.
+                {
+                    auto p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
+                    if (p_id == 0) // Grandchild process.
+                    {
+                        os::dtvt::active = true;
+                        ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
+                        ::dup2(r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                        ::dup2(w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                        ::close(STDERR_FILENO);   os::stderr_fd = os::invalid_fd;
+                        if (cwd.size())
+                        {
+                            auto err = std::error_code{};
+                            fs::current_path(cwd, err);
+                            if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil());
+                            else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cwd);
+                        }
+                        os::fdscleanup();
+                        env = os::env::add(env);
+                        os::signals::listener.reset();
+                        os::process::execvpe(cmd, env);
+                        onerror();
+                        os::process::exit<true>(0);
+                    }
+                    else if (p_id > 0) os::process::exit<true>(0); // Fast exit the child process and leave the grandchild process detached.
+                    else
+                    {
+                        onerror();
+                        os::process::exit<true>(1); // Something went wrong. Fast exit anyway.
+                    }
+                }
+                else if (p_id > 0) // Parent branch. Reap the child process to avoid zombies.
+                {
+                    auto stat = int{};
+                    ::waitpid(p_id, &stat, 0); // Close zombie.
+                    if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0)
+                    {
+                        result = faux;
+                        onerror(); // Catch fast exit(1).
+                    }
+                }
+                else
+                {
+                    result = faux;
+                    onerror();
+                }
+
+            #endif
+            os::close(w); // Close inheritable handles to avoid deadlocking at process exit.
+            os::close(r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+            return result;
+        }
+
         struct vtty
         {
             using s11n = directvt::binary::s11n;
-
-            text cmd; // vtty: Command line.
-            text cwd; // vtty: Current working directory.
-            text env; // vtty: Environment block.
-            text cfg; // vtty: App config.
 
             flag                    attached{};
             ipc::stdcon             termlink{};
@@ -3266,165 +3386,20 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor complete");
             }
-            auto create(twod initsize)
+            auto create(text config, twod initsize)
             {
-                auto marker = directvt::binary::marker{ cfg.size(), initsize };
-                auto s_pipe_r = os::invalid_fd;
-                auto s_pipe_w = os::invalid_fd;
-                auto m_pipe_r = os::invalid_fd;
-                auto m_pipe_w = os::invalid_fd;
-                #if defined(_WIN32)
+                auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
+                auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
 
-                    auto sa = SECURITY_ATTRIBUTES{};
-                    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
-                    sa.lpSecurityDescriptor = NULL;
-                    sa.bInheritHandle = TRUE;
-                    ok(::CreatePipe(&s_pipe_r, &m_pipe_w, &sa, 0), "", os::unexpected);
-                    ok(::CreatePipe(&m_pipe_r, &s_pipe_w, &sa, 0), "", os::unexpected);
-
-                    auto connect = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
-                    {
-                        log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
-                        auto onerror = [&]()
-                        {
-                            log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
-                                "\r\n\tcwd: '", cwd, "'",
-                                "\r\n\tcmd: '", cmd, "'");
-                        };
-                        auto wcmd = utf::to_utf(cmd);
-                        auto wcwd = utf::to_utf(cwd);
-                        auto wenv = utf::to_utf(os::env::add(env));
-                        auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                        auto procsinf = PROCESS_INFORMATION{};
-                        auto attrbuff = std::vector<byte>{};
-                        auto attrsize = SIZE_T{ 0 };
-                        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
-                        attrbuff.resize(attrsize);
-                        startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
-                        startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                        startinf.StartupInfo.hStdInput  = s_pipe_r;
-                        startinf.StartupInfo.hStdOutput = s_pipe_w;
-                        auto result = true
-                        && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
-                        && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
-                                                       0,
-                                                       PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                                                      &startinf.StartupInfo.hStdInput,
-                                                sizeof(startinf.StartupInfo.hStdInput) * 2,
-                                                       nullptr,
-                                                       nullptr)
-                        && ::CreateProcessW(nullptr,                             // lpApplicationName
-                                            wcmd.data(),                         // lpCommandLine
-                                            nullptr,                             // lpProcessAttributes
-                                            nullptr,                             // lpThreadAttributes
-                                            TRUE,                                // bInheritHandles
-                                            DETACHED_PROCESS |                   // create without attached console, dwCreationFlags
-                                            EXTENDED_STARTUPINFO_PRESENT |       // override startupInfo type
-                                            CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
-                                            wenv.data(),                         // lpEnvironment
-                                            wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
-                                                        : nullptr,
-                                            &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
-                                            &procsinf);                          // lpProcessInformation
-                        if (result)
-                        {
-                            os::close(procsinf.hThread);
-                            os::close(procsinf.hProcess);
-                        }
-                        else onerror();
-                        return result;
-                    };
-
-                #else
-
-                    auto to_server = std::to_array({ os::invalid_fd, os::invalid_fd });
-                    auto to_client = std::to_array({ os::invalid_fd, os::invalid_fd });
-                    ok(::pipe(to_server.data()), "::pipe(to_server)", os::unexpected);
-                    ok(::pipe(to_client.data()), "::pipe(to_client)", os::unexpected);
-                    s_pipe_r = to_client[0];
-                    s_pipe_w = to_server[1];
-                    m_pipe_r = to_server[0];
-                    m_pipe_w = to_client[1];
-
-                auto connect = [](fd_t s_pipe_r, fd_t s_pipe_w, text cmd, text cwd, text env)
-                {
-                    log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
-                    auto onerror = [&]()
-                    {
-                        log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
-                            "\r\n\tcwd: '", cwd, "'",
-                            "\r\n\tcmd: '", cmd, "'");
-                    };
-                    auto result = true;
-                    auto p_id = os::process::sysfork(); // dtvt-app can be either a real dtvt-app or a proxy
-                                                        // like SSH/netcat/inetd that forwards traffic from a real dtvt-app.
-                    if (p_id == 0) // Child branch.
-                    {
-                        auto p_id = os::process::sysfork(); // Second fork to detach process and avoid zombies.
-                        if (p_id == 0) // Grandchild process.
-                        {
-                            os::dtvt::active = true;
-                            ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
-                            ::dup2(s_pipe_r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-                            ::dup2(s_pipe_w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                            ::close(STDERR_FILENO);          os::stderr_fd = os::invalid_fd;
-                            if (cwd.size())
-                            {
-                                auto err = std::error_code{};
-                                fs::current_path(cwd, err);
-                                if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil());
-                                else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cwd);
-                            }
-                            os::fdscleanup();
-                            env = os::env::add(env);
-                            os::signals::listener.reset();
-                            os::process::execvpe(cmd, env);
-                            onerror();
-                            os::process::exit<true>(0);
-                        }
-                        else if (p_id > 0) os::process::exit<true>(0); // Fast exit the child process and leave the grandchild process detached.
-                        else
-                        {
-                            onerror();
-                            os::process::exit<true>(1); // Something went wrong. Fast exit anyway.
-                        }
-                    }
-                    else if (p_id > 0) // Parent branch. Reap the child process to avoid zombies.
-                    {
-                        auto stat = int{};
-                        ::waitpid(p_id, &stat, 0); // Close zombie.
-                        if (WIFEXITED(stat) && WEXITSTATUS(stat) != 0)
-                        {
-                            result = faux;
-                            onerror(); // Catch fast exit(1).
-                        }
-                    }
-                    else
-                    {
-                        result = faux;
-                        onerror();
-                    }
-                    return result;
-                };
-                #endif
-
+                auto marker = directvt::binary::marker{ config.size(), initsize };
                 io::send(m_pipe_w, marker);
-
-                auto result = connect(s_pipe_r, s_pipe_w, cmd, cwd, env);
-                if (!result)
-                {
-                    os::close(m_pipe_w);
-                    os::close(m_pipe_r);
-                }
-
-                os::close(s_pipe_w); // Close inheritable handles to avoid deadlocking at process exit.
-                os::close(s_pipe_r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
-                if (cfg.size())
+                if (config.size())
                 {
                     auto guard = std::lock_guard{ writemtx };
-                    writebuf = cfg + writebuf;
+                    writebuf = config + writebuf;
                 }
-                return ipc::stdcon{ m_pipe_r, m_pipe_w };
+                termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
+                return std::pair{ s_pipe_r, s_pipe_w };
             }
             void writer()
             {
@@ -3446,11 +3421,12 @@ namespace netxs::os
                 }
                 if constexpr (debugmode) log(prompt::dtvt, "Writing thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             }
-            void runapp(twod initsize, auto receiver, auto shutdown)
+            void runapp(text config, twod initsize, auto connect, auto receiver, auto shutdown)
             {
-                stdinput = std::thread{[&, initsize, receiver, shutdown]
+                stdinput = std::thread{[&, config, initsize, connect, receiver, shutdown]
                 {
-                    termlink = create(initsize);
+                    auto [r, w] = create(config, initsize);
+                    auto cmd = connect(r, w);
                     attached.exchange(!!termlink);
                     if (attached)
                     {
