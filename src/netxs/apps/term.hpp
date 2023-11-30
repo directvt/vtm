@@ -626,10 +626,7 @@ namespace netxs::app::term
             auto cB = menu_white;
 
             auto window = ui::cake::ctor();
-            auto arg_shadow = view{ arg };
-            auto term_type = shared::app_class(arg_shadow);
-            arg = arg_shadow;
-            if (term_type == shared::app_type::normal)
+            if (os::dtvt::active)
             {
                 //todo revise focus
                 window->plugin<pro::focus>()

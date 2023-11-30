@@ -432,9 +432,6 @@ namespace netxs::app::shared
         };
         auto build_DirectVT      = [](text env, text cwd, text cmd, xmls& config, text patch)
         {
-            auto cmd_shadow = view{ cmd };
-            auto term_type = shared::app_class(cmd_shadow);
-            cmd = cmd_shadow;
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)

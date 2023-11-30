@@ -29,23 +29,6 @@ namespace netxs::app::shared
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
 
-    enum class app_type
-    {
-        simple,
-        normal,
-    };
-
-    const auto app_class = [](view& v)
-    {
-        auto type = app_type::normal;
-        if (!v.empty() && v.front() == '!')
-        {
-            type = app_type::simple;
-            v.remove_prefix(1);
-            v = utf::trim(v);
-        }
-        return type;
-    };
     const auto closing_on_quit = [](auto& boss)
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -562,7 +545,7 @@ namespace netxs::app::shared
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
         os::dtvt::isolated = !direct;
-        auto applet = app::shared::builder(aclass)("", "", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        auto applet = app::shared::builder(aclass)("", "", params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s));
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();
