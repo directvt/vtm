@@ -3353,8 +3353,8 @@ namespace netxs::os
                 }
 
             #endif
-            os::close(w); // Close inheritable handles to avoid deadlocking at process exit.
-            os::close(r); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
+            os::close(r); // Close inheritable handles to avoid deadlocking at process exit.
+            os::close(w); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
             return result;
         }
 
@@ -3479,7 +3479,7 @@ namespace netxs::os
                 writebuf = {};
                 if (termlink) termlink->cleanup(io_log);
             }
-            void create(auto& terminal, text cmd, text cwd, text env, twod win)
+            void create(auto& terminal, text cmd, text cwd, text env, twod win, fd_t r, fd_t w)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
                                      log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
@@ -3501,7 +3501,7 @@ namespace netxs::os
                         }
                     }
                 };
-                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer);
+                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer, r, w);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \r\n"s
@@ -3530,13 +3530,13 @@ namespace netxs::os
                     guard.lock();
                 }
             }
-            void runapp(auto& terminal, text cmd, text cwd, text env, twod win)
+            void runapp(auto& terminal, text cmd, text cwd, text env, twod win, fd_t r = os::invalid_fd, fd_t w = os::invalid_fd)
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{[&, cmd, cwd, env, win]
+                stdwrite = std::thread{[&, cmd, cwd, env, win, r, w]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    create(terminal, cmd, cwd, env, win);
+                    create(terminal, cmd, cwd, env, win, r, w);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};

@@ -683,7 +683,7 @@ namespace netxs::app::term
 
             auto shell = os::env::shell() + " -i";
             auto cmd = arg.empty() ? shell : arg;
-            auto inst = scroll->attach(ui::term::ctor(cmd, cwd, env, config))
+            auto inst = scroll->attach(ui::term::ctor(config))
                               ->plugin<pro::focus>(pro::focus::mode::focused);
             auto scroll_bars = layers->attach(ui::fork::ctor());
             auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
@@ -778,7 +778,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
-                ->invoke([](auto& boss)
+                ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
@@ -835,9 +835,9 @@ namespace netxs::app::term
                     {
                         boss.set_align(align);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env))
                     {
-                        boss.start();
+                        boss.start(cmd, cwd, env);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                     {

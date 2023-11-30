@@ -43,6 +43,16 @@ namespace netxs::app::dtvt
     static constexpr auto id = "dtvt";
     static constexpr auto desc = "DirectVT Proxy Console";
 }
+namespace netxs::app::xlinkvt
+{
+    static constexpr auto id = "xlinkvt";
+    static constexpr auto desc = "XLinkVT Console";
+}
+namespace netxs::app::xlvt
+{
+    static constexpr auto id = "xlvt";
+    static constexpr auto desc = "XLinkVT Console";
+}
 namespace netxs::app::shell
 {
     static constexpr auto id = "shell";
@@ -353,7 +363,7 @@ namespace netxs::app::shared
                                         ->limits({ 10,1 }); // mc crashes when window is too small
                     auto cmd = param.empty() ? os::env::shell() + " -i"
                                              : param;
-                    auto inst = scroll->attach(ui::term::ctor(cmd, cwd, env, config))
+                    auto inst = scroll->attach(ui::term::ctor(config))
                                       ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
@@ -410,9 +420,9 @@ namespace netxs::app::shared
                                             {
                                                 boss.set_align(align);
                                             };
-                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env))
                                             {
-                                                boss.start();
+                                                boss.start(cmd, cwd, env);
                                             };
                                             boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                                             {
@@ -459,6 +469,79 @@ namespace netxs::app::shared
                     };
                 });
         };
+        auto build_XLinkVT       = [](text env, text cwd, text cmd, xmls& config, text patch)
+        {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
+            auto window = ui::veer::ctor()
+                ->limits(dot_11, { 400,200 });
+            auto term = ui::cake::ctor()
+                ->plugin<pro::acryl>()
+                ->plugin<pro::cache>()
+                ->active(cB);
+                //->invoke([&](auto& boss)
+                //{
+                //    closing_on_quit(boss);
+                //});
+            auto scrl = term->attach(ui::rail::ctor());
+            auto inst = scrl->attach(ui::term::ctor(config))
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->colors(whitelt, blackdk)
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                    {
+                        boss.sighup(fast);
+                    };
+                });
+            term->attach(app::shared::scroll_bars(scrl));
+            auto& term_inst = *inst;
+
+            auto dtvt = ui::dtvt::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::active)
+                ->limits(dot_11)
+                ->invoke([&](auto& boss)
+                {
+                    auto& window_inst = *window;
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
+                    {
+                        boss.start(patch, [&, cmd, cwd, env](auto r, auto w)
+                        {
+                            term_inst.start(cmd, cwd, env, r, w);
+                            return cmd;
+                        });
+                    };
+                    boss.LISTEN(tier::preview, e2::form::prop::ui::header, header)
+                    {
+                        if (window_inst.back() != boss.This())
+                        {
+                            window_inst.roll();
+                            boss.reflow();
+                        }
+                        boss.bell::template expire<tier::preview>(true);
+                    };
+                    boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
+                    {
+                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                    {
+                        boss.stop(fast);
+                    };
+                });
+            window->branch(dtvt)
+                  ->branch(term);
+            return window;
+        };
         auto build_ANSIVT        = [](text env, text cwd, text param, xmls& config, text patch)
         {
             if (param.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
@@ -486,6 +569,8 @@ namespace netxs::app::shared
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
         app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
+        app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
+        app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
         app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
     }

@@ -6208,6 +6208,8 @@ namespace netxs::ui
         text       envvar; // term: Environment block.
         text       curdir; // term: Current working directory.
         text       cmdarg; // term: Startup command line arguments.
+        os::fd_t   r_link; // term: .
+        os::fd_t   w_link; // term: .
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -7108,7 +7110,20 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel);
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, r_link, w_link);
+            }
+        }
+        void start(text cmd, text cwd, text env, os::fd_t r = os::invalid_fd, os::fd_t w = os::invalid_fd)
+        {
+            cmdarg = cmd;
+            curdir = cwd;
+            envvar = env;
+            //todo close unused handles (ipc::stdcon)
+            r_link = r;
+            w_link = w;
+            if (!ipccon)
+            {
+                ipccon.runapp(*this, cmd, cwd, env, target->panel, r, w);
             }
         }
         void close()
@@ -7176,7 +7191,7 @@ namespace netxs::ui
             new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
-        term(text cmd, text cwd, text env, xmls& xml_config)
+        term(xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },
@@ -7196,9 +7211,6 @@ namespace netxs::ui
               resume{  faux },
               forced{  faux },
               styled{  faux },
-              envvar{ env   },
-              curdir{ cwd   },
-              cmdarg{ cmd   },
               io_log{ config.def_io_log },
               selmod{ config.def_selmod },
               selalt{ config.def_selalt },

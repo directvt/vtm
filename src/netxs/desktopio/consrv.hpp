@@ -45,7 +45,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fd_t r, fd_t w)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -65,9 +65,20 @@ struct consrv
             return err_code;
         }
         start();
-        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);        // Windows8's cmd.exe requires that handles.
-        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);        //
-        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput); //
+        auto handle_count = 3;
+        //todo close unused handles
+        if (r == os::invalid_fd)
+        {
+            startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);        // Windows8's cmd.exe requires that handles.
+            startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);        //
+            startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput); //
+        }
+        else
+        {
+            handle_count = 2;
+            startinf.StartupInfo.hStdInput  = r;
+            startinf.StartupInfo.hStdOutput = w;
+        }
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
@@ -88,7 +99,7 @@ struct consrv
                                     0,
                                     PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
                                    &startinf.StartupInfo.hStdInput,
-                             sizeof(startinf.StartupInfo.hStdInput) * 3,
+                             sizeof(startinf.StartupInfo.hStdInput) * handle_count,
                                     nullptr,
                                     nullptr);
         ::UpdateProcThreadAttribute(startinf.lpAttributeList,
@@ -5213,7 +5224,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fd_t r, fd_t w)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
