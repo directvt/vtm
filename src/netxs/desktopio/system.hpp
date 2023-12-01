@@ -2095,6 +2095,13 @@ namespace netxs::os
             }
             // args: Return true if not the end.
             operator bool () const { return iter != data.end(); }
+            // args: Test the starting substring of the current argument.
+            template<class ...Args>
+            auto starts(Args&&... args)
+            {
+                auto result = iter != data.end() && (iter->starts_with(args) || ...);
+                return result;
+            }
             // args: Test the current argument and step forward if met.
             template<class ...Args>
             auto match(Args&&... args)

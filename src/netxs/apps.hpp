@@ -18,6 +18,10 @@ namespace netxs::app::truecolor
     static constexpr auto id = "truecolor";
     static constexpr auto desc = "ANSI Art Test";
 }
+namespace netxs::app::ssh
+{
+    static constexpr auto id = "ssh";
+}
 namespace netxs::app::headless
 {
     static constexpr auto id = "headless";
@@ -46,12 +50,12 @@ namespace netxs::app::dtvt
 namespace netxs::app::xlinkvt
 {
     static constexpr auto id = "xlinkvt";
-    static constexpr auto desc = "XLinkVT Console";
+    static constexpr auto desc = "XLinkVT Console (Cross-linked VT)";
 }
 namespace netxs::app::xlvt
 {
     static constexpr auto id = "xlvt";
-    static constexpr auto desc = "XLinkVT Console";
+    static constexpr auto desc = "XLinkVT Console (Cross-linked VT)";
 }
 namespace netxs::app::shell
 {

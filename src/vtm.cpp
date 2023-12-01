@@ -22,7 +22,12 @@ int main(int argc, char* argv[])
     auto errmsg = text{};
     auto vtpipe = text{};
     auto getopt = os::process::args{ argc, argv };
-    while (getopt)
+    if (getopt.starts(app::ssh::id))
+    {
+        whoami = type::runapp;
+        params = getopt.rest();
+    }
+    else while (getopt)
     {
         if (getopt.match("-r", "--runapp"))
         {
@@ -116,44 +121,45 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\n"
-            "Virtual terminal multiplexer with window manager and session sharing.\n"
+        log("\nVirtual terminal multiplexer."
             "\n"
-            "  Syntax:\n"
+            "\n  Syntax:"
             "\n"
-            "    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]\n"
+            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
             "\n"
-            "  Options:\n"
+            "\n  Options:"
             "\n"
-            "    No arguments       Run client, auto start server if it is not running.\n"
-            "    -c, --config <..>  Load specified settings file.\n"
-            "    -p, --pipe   <..>  Set the pipe to connect to.\n"
-            "    -q, --quiet        Disable logging.\n"
-            "    -l, --listconfig   Show configuration and exit.\n"
-            "    -m, --monitor      Monitor server log.\n"
-            "    -d, --daemon       Run server in background.\n"
-            "    -s, --server       Run server in interactive mode.\n"
-            "    -r, --runapp <..>  Run standalone application.\n"
-            "    -v, --version      Show version and exit.\n"
-            "    -?, -h, --help     Show usage message.\n"
-            "    --onlylog          Disable interactive user input.\n"
+            "\n    No arguments       Run client, auto start server if it is not running."
+            "\n    -c, --config <..>  Load specified settings file."
+            "\n    -p, --pipe   <..>  Set the pipe to connect to."
+            "\n    -q, --quiet        Disable logging."
+            "\n    -l, --listconfig   Show configuration and exit."
+            "\n    -m, --monitor      Monitor server log."
+            "\n    -d, --daemon       Run server in background."
+            "\n    -s, --server       Run server in interactive mode."
+            "\n    -r, --runapp <..>  Run standalone application."
+            "\n    -v, --version      Show version and exit."
+            "\n    -?, -h, --help     Show usage message."
+            "\n    --onlylog          Disable interactive user input."
             "\n"
-            "  Settings loading and merging order:\n"
+            "\n  Settings loading and merging order:"
             "\n"
-            "    - Initialize hardcoded settings\n"
-            "    - Merge with explicitly specified settings from --config <file>\n"
-            "    - If the --config option is not used or <file> cannot be loaded:\n"
-            "        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "\n"
-            "        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "\n"
-            "        - Merge with DirectVT packet received from the parent process (dtvt-mode only)\n"
+            "\n    - Initialize hardcoded settings"
+            "\n    - Merge with explicitly specified settings from --config <file>"
+            "\n    - If the --config option is not used or <file> cannot be loaded:"
+            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
+            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
+            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode only)"
             "\n"
-            "  Registered applications:\n"
+            "\n  Registered applications:"
             "\n"
-            "    Term  Terminal emulator (default)\n"
-            "    DTVT  DirectVT Proxy Console\n"
-            "    Text  (Demo) Text editor\n"
-            "    Calc  (Demo) Spreadsheet calculator\n"
-            "    Gems  (Demo) Application distribution hub\n"
+            "\n    Term  Terminal emulator (default)"
+            "\n    DTVT  DirectVT Proxy Console"
+            "\n    XLVT  DTVT with controlling terminal onboard (for OpenSSH interactivity)"
+            "\n    Text  (Demo) Text editor"
+            "\n    Calc  (Demo) Spreadsheet calculator"
+            "\n    Gems  (Demo) Application distribution hub"
+            "\n"
             );
     }
     else if (whoami == type::config)
@@ -212,6 +218,12 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
         else if (shadow.starts_with(app::settings::id))  { aclass = app::settings::id;  apname = app::settings::desc;  }
         else if (shadow.starts_with(app::truecolor::id)) { aclass = app::truecolor::id; apname = app::truecolor::desc; }
+        else if (shadow.starts_with(app::ssh::id))
+        {
+            params = " "s + params;
+            aclass = app::xlvt::id;
+            apname = app::xlvt::desc;
+        }
         else
         {
             params = " "s + params;
