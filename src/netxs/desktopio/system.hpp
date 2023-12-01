@@ -2297,7 +2297,10 @@ namespace netxs::os
                         envp.push_back((char*)c.data());
                     }
                     envp.push_back(nullptr);
-                    ::execvpe(argv.front(), argv.data(), envp.data());
+                    auto backup = environ;
+                    environ = envp.data();
+                    ::execvp(argv.front(), argv.data());
+                    environ = backup;
                 }
 
             #endif
