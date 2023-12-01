@@ -455,7 +455,7 @@ namespace netxs::app::tile
         auto empty_slot = [](auto&& empty_slot, auto min_state) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
+                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*cut_scope*/)
                 ->active()
                 ->invoke([&](auto& boss)
                 {

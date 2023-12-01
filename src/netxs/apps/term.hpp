@@ -634,7 +634,7 @@ namespace netxs::app::term
                       ->plugin<pro::acryl>()
                       ->plugin<pro::cache>();
             }
-            else window->plugin<pro::focus>(pro::focus::mode::focusable, faux);
+            else window->plugin<pro::focus>(pro::focus::mode::focusable);
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB);

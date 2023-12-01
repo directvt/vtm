@@ -434,23 +434,26 @@ namespace netxs::app::shared
                 });
             auto msg = ui::post::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                + "\n\nUnsupported application type\n\n"
-                + ansi::nil().wrp(wrap::on)
-                + "Only the following application types are supported\n\n"
-                + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                + "   type = DirectVT(dtvt) \n"
-                  "   type = ANSIVT   \n"
-                  "   type = SHELL    \n"
-                  "   type = Group    \n"
-                  "   type = Region   \n\n"
-                + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                 .add(prompt::apps, "See logs for details."));
+                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) +
+                    "\n"
+                    "\nUnsupported application type"
+                    "\n" + ansi::nil().wrp(wrap::on) +
+                    "\nOnly the following application types are supported"
+                    "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
+                    "\n   type = DirectVT(dtvt)"
+                    "\n   type = XLinkVT(xlvt)"
+                    "\n   type = ANSIVT"
+                    "\n   type = SHELL"
+                    "\n   type = Group"
+                    "\n   type = Region"
+                    "\n"
+                    "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                    .add(prompt::apps, "See logs for details."));
             auto placeholder = ui::cake::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
                 ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
-                  ->attach(placeholder);
+                ->attach(placeholder);
             return window;
         };
         auto& map = creator();

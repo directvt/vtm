@@ -50,12 +50,12 @@ namespace netxs::app::dtvt
 namespace netxs::app::xlinkvt
 {
     static constexpr auto id = "xlinkvt";
-    static constexpr auto desc = "XLinkVT Console (Cross-linked VT)";
+    static constexpr auto desc = "XLinkVT";
 }
 namespace netxs::app::xlvt
 {
     static constexpr auto id = "xlvt";
-    static constexpr auto desc = "XLinkVT Console (Cross-linked VT)";
+    static constexpr auto desc = "XLinkVT";
 }
 namespace netxs::app::shell
 {
@@ -479,7 +479,8 @@ namespace netxs::app::shared
             auto cB = menu_white;
 
             auto window = ui::veer::ctor()
-                ->limits(dot_11, { 400,200 });
+                ->limits(dot_11, { 400,200 })
+                ->plugin<pro::focus>(pro::focus::mode::active);
             auto term = ui::cake::ctor()
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
@@ -507,7 +508,7 @@ namespace netxs::app::shared
             auto& term_inst = *inst;
 
             auto dtvt = ui::dtvt::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::active)
+                ->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
@@ -524,6 +525,9 @@ namespace netxs::app::shared
                     {
                         if (window_inst.back() != boss.This())
                         {
+                            auto gear_id_list = pro::focus::get(window_inst.back(), true); // Expropriate all foci.
+                            pro::focus::off(window_inst.back());
+                            pro::focus::set(window_inst.front(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
                             window_inst.roll();
                             boss.reflow();
                         }

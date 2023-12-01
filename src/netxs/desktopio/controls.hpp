@@ -1342,7 +1342,8 @@ namespace netxs::ui
             }
 
             focus(base&&) = delete;
-            focus(base& boss, mode m = mode::hub, bool visible = true, bool cut_scope = faux)
+            //todo drop visible
+            focus(base& boss, mode m = mode::hub, bool cut_scope = faux)
                 : skill{ boss },
                   focusable{ m != mode::hub && m != mode::active },
                   scope{ cut_scope }
