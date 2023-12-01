@@ -7021,7 +7021,7 @@ namespace netxs::ui
                 case commands::ui::togglewrp: console.selection_setwrp();          break;
                 case commands::ui::togglesel: selection_selmod();                  break;
                 case commands::ui::restart:   restart();                           break;
-                case commands::ui::sighup:    sighup(true);                        break;
+                case commands::ui::sighup:    close(true);                         break;
                 case commands::ui::undo:      ipccon.undo(true);                   break;
                 case commands::ui::redo:      ipccon.undo(faux);                   break;
                 case commands::ui::deselect:  selection_cancel();                  break;
@@ -7120,17 +7120,14 @@ namespace netxs::ui
             fdlink = fds;
             start();
         }
-        void close()
-        {
-            this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
-        }
         void restart()
         {
             resume.exchange(true);
             ipccon.sighup(faux);
         }
-        void sighup(bool fast)
+        void close(bool fast = true, bool notify = true)
         {
+            if (notify) this->SIGNAL(tier::request, e2::form::proceed::quit::one, fast);
             forced = fast;
             if (ipccon)
             {
@@ -7139,14 +7136,14 @@ namespace netxs::ui
                     netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
                     {
                         ipccon.payoff(io_log); // Wait child process.
-                        close();
+                        this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
                     });
                 }
             }
             else // Child process exited with non-zero code and term waits keypress.
             {
                 onerun.reset();
-                close();
+                this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
             }
         }
         // term: Resize terminal window.
@@ -7835,8 +7832,9 @@ namespace netxs::ui
             }
         }
         // dtvt: Close dtvt-object.
-        void stop(bool fast)
+        void stop(bool fast, bool notify = true)
         {
+            if (notify) this->SIGNAL(tier::request, e2::form::proceed::quit::one, fast);
             if (fast && active.exchange(faux) && ipccon) // Notify and queue closing immediately.
             {
                 stream.s11n::sysclose.send(*this, fast);

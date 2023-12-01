@@ -786,7 +786,7 @@ namespace netxs::app::term
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        boss.sighup(fast);
+                        boss.close(fast);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                     {

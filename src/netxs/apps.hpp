@@ -379,7 +379,7 @@ namespace netxs::app::shared
                                             };
                                             boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                                             {
-                                                boss.sighup(fast);
+                                                boss.close(fast);
                                             };
                                             boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                                             {
@@ -485,33 +485,33 @@ namespace netxs::app::shared
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->active(cB);
-                //->invoke([&](auto& boss)
-                //{
-                //    closing_on_quit(boss);
-                //});
+            auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->colors(whitelt, blackdk)
                 ->invoke([&](auto& boss)
                 {
+                    auto& dtvt_inst = *dtvt;
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
                         boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        boss.sighup(fast);
+                        boss.close(fast, faux);
+                    };
+                    boss.LISTEN(tier::request, e2::form::proceed::quit::one, fast)
+                    {
+                        dtvt_inst.stop(fast, faux);
                     };
                 });
             term->attach(app::shared::scroll_bars(scrl));
-            auto& term_inst = *inst;
-
-            auto dtvt = ui::dtvt::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::focusable)
+            dtvt->plugin<pro::focus>(pro::focus::mode::focusable)
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
+                    auto& term_inst = *inst;
                     auto& window_inst = *window;
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
@@ -543,11 +543,26 @@ namespace netxs::app::shared
                     };
                     boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                     {
-                        boss.stop(fast);
+                        boss.stop(fast, faux);
+                    };
+                    boss.LISTEN(tier::request, e2::form::proceed::quit::one, fast)
+                    {
+                        term_inst.close(fast, faux);
                     };
                 });
             window->branch(dtvt)
-                  ->branch(term);
+                ->branch(term)
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
+                    {
+                        if (--count == 0)
+                        if (auto parent = boss.parent())
+                        {
+                            parent->RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                        }
+                    };
+                });
             return window;
         };
         auto build_ANSIVT        = [](text env, text cwd, text param, xmls& config, text patch)
