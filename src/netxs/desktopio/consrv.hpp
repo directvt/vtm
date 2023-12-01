@@ -32,7 +32,7 @@ struct consrv
     {
         if (waitexit.joinable())
         {
-            if (io_log) log(prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            if (io_log) log("%%Process waiter joining %%", prompt::vtty, utf::to_hex_0x(waitexit.get_id()));
             waitexit.join();
         }
     }

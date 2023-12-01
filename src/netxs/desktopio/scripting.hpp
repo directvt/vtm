@@ -107,7 +107,7 @@ namespace netxs::scripting
             });
         }
         // scripting::host: Shutdown callback handler.
-        void onexit(si32 code, view msg = {})
+        void onexit(si32 code, view msg = {}, bool exit_after_sighup = faux)
         {
             //todo initiate global shutdown
 

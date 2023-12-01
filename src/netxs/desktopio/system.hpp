@@ -3503,10 +3503,7 @@ namespace netxs::os
                         auto exitcode = termlink->wait();
                         log("%%Process '%cmd%' exited with code %code%", prompt::vtty, utf::debase(cmd), utf::to_hex_0x(exitcode));
                         writesyn.notify_one(); // Interrupt writing thread.
-                        if (!signaled.exchange(true))
-                        {
-                            terminal.onexit(exitcode); // Only if the process terminates on its own (not forced by sighup).
-                        }
+                        terminal.onexit(exitcode, "Process exited", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
                 };
                 auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer, fds);

@@ -7045,9 +7045,10 @@ namespace netxs::ui
             follow[axis::Y] = true;
             write(data);
         }
-        void onexit(si32 code, text msg = {})
+        void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
-            netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
+            if (exit_after_sighup) close();
+            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
             {
                 ipccon.payoff(io_log);
                 auto lock = netxs::events::sync{};
