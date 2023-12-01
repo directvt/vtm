@@ -1143,6 +1143,8 @@ namespace netxs::os
         }
     };
 
+    using fdrw = sptr<sock>;
+
     struct fire
     {
         flag fired{};
@@ -3254,7 +3256,7 @@ namespace netxs::os
             return dtvt::mode;
         }();
 
-        auto connect(text cmd, text cwd, text env, fd_t r, fd_t w)
+        auto connect(text cmd, text cwd, text env, fdrw fds)
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
             auto result = true;
@@ -3277,8 +3279,8 @@ namespace netxs::os
                 attrbuff.resize(attrsize);
                 startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
                 startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
-                startinf.StartupInfo.hStdInput  = r;
-                startinf.StartupInfo.hStdOutput = w;
+                startinf.StartupInfo.hStdInput  = fds->r;
+                startinf.StartupInfo.hStdOutput = fds->w;
                 result = true
                 && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
                 && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
@@ -3319,9 +3321,10 @@ namespace netxs::os
                     {
                         os::dtvt::active = true;
                         ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
-                        ::dup2(r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-                        ::dup2(w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                        ::close(STDERR_FILENO);   os::stderr_fd = os::invalid_fd;
+                        ::dup2(fds->r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                        ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                        ::close(STDERR_FILENO);        os::stderr_fd = os::invalid_fd;
+                        fds.reset();
                         if (cwd.size())
                         {
                             auto err = std::error_code{};
@@ -3360,8 +3363,6 @@ namespace netxs::os
                 }
 
             #endif
-            os::close(r); // Close inheritable handles to avoid deadlocking at process exit.
-            os::close(w); // Only when all write handles to the pipe are closed, the ReadFile function returns zero.
             return result;
         }
 
@@ -3427,7 +3428,7 @@ namespace netxs::os
                     }
                     termlink = ipc::stdcon{ m_pipe_r, m_pipe_w };
 
-                    auto cmd = connect(s_pipe_r, s_pipe_w);
+                    auto cmd = connect(ptr::shared<sock>(s_pipe_r, s_pipe_w));
 
                     attached.exchange(!!termlink);
                     if (attached)
@@ -3486,7 +3487,7 @@ namespace netxs::os
                 writebuf = {};
                 if (termlink) termlink->cleanup(io_log);
             }
-            void create(auto& terminal, text cmd, text cwd, text env, twod win, fd_t r, fd_t w)
+            void create(auto& terminal, text cmd, text cwd, text env, twod win, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
                                      log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
@@ -3508,7 +3509,7 @@ namespace netxs::os
                         }
                     }
                 };
-                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer, r, w);
+                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer, fds);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \r\n"s
@@ -3537,13 +3538,13 @@ namespace netxs::os
                     guard.lock();
                 }
             }
-            void runapp(auto& terminal, text cmd, text cwd, text env, twod win, fd_t r = os::invalid_fd, fd_t w = os::invalid_fd)
+            void runapp(auto& terminal, text cmd, text cwd, text env, twod win, fdrw fds = {})
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{[&, cmd, cwd, env, win, r, w]
+                stdwrite = std::thread{[&, cmd, cwd, env, win, fds]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    create(terminal, cmd, cwd, env, win, r, w);
+                    create(terminal, cmd, cwd, env, win, fds);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};

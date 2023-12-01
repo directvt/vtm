@@ -6208,8 +6208,7 @@ namespace netxs::ui
         text       envvar; // term: Environment block.
         text       curdir; // term: Current working directory.
         text       cmdarg; // term: Startup command line arguments.
-        os::fd_t   r_link; // term: .
-        os::fd_t   w_link; // term: .
+        os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -7110,21 +7109,16 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, r_link, w_link);
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
             }
         }
-        void start(text cmd, text cwd, text env, os::fd_t r = os::invalid_fd, os::fd_t w = os::invalid_fd)
+        void start(text cmd, text cwd, text env, os::fdrw fds = {})
         {
             cmdarg = cmd;
             curdir = cwd;
             envvar = env;
-            //todo close unused handles (ipc::stdcon)
-            r_link = r;
-            w_link = w;
-            if (!ipccon)
-            {
-                ipccon.runapp(*this, cmd, cwd, env, target->panel, r, w);
-            }
+            fdlink = fds;
+            start();
         }
         void close()
         {

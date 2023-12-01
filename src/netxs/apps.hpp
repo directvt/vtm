@@ -453,9 +453,9 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        boss.start(patch, [cmd, cwd, env](auto r, auto w)
+                        boss.start(patch, [cmd, cwd, env](auto fds)
                         {
-                            os::dtvt::connect(cmd, cwd, env, r, w);
+                            os::dtvt::connect(cmd, cwd, env, fds);
                             return cmd;
                         });
                     };
@@ -514,9 +514,9 @@ namespace netxs::app::shared
                     auto& window_inst = *window;
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        boss.start(patch, [&, cmd, cwd, env](auto r, auto w)
+                        boss.start(patch, [&, cmd, cwd, env](auto fds)
                         {
-                            term_inst.start(cmd, cwd, env, r, w);
+                            term_inst.start(cmd, cwd, env, fds);
                             return cmd;
                         });
                     };
