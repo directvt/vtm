@@ -5244,9 +5244,18 @@ struct consrv : ipc::stdcon
             winsz(win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
             os::dtvt::active = faux; // Logger update.
             os::dtvt::client = {};   //
-            ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-            ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-            ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            if (r == os::invalid_fd)
+            {
+                ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            }
+            else
+            {
+                ::dup2(r,         STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                ::dup2(w,         STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            }
             os::fdscleanup();
             os::signals::listener.reset();
             if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
