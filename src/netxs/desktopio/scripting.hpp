@@ -14,6 +14,7 @@ namespace netxs::scripting
     }
     namespace attr
     {
+        static constexpr auto env = "env";
         static constexpr auto cwd = "cwd";
         static constexpr auto cmd = "cmd";
         static constexpr auto run = "run";
@@ -87,6 +88,7 @@ namespace netxs::scripting
         xlat stream; // scripting::host: Event tracker.
         text curdir; // scripting::host: Current working directory.
         text cmdarg; // scripting::host: Startup command line arguments.
+        text envvar; // scripting::host: Environment block.
         flag active; // scripting::host: Scripting engine lifetime.
         vtty engine; // scripting::host: Scripting engine instance.
 
@@ -105,7 +107,7 @@ namespace netxs::scripting
             });
         }
         // scripting::host: Shutdown callback handler.
-        void onexit(si32 code, view msg = {})
+        void onexit(si32 code, view msg = {}, bool exit_after_sighup = faux)
         {
             //todo initiate global shutdown
 
@@ -137,15 +139,16 @@ namespace netxs::scripting
             engine->write(data + '\n');
         }
         // scripting::host: Start a new process.
-        void start(text cwd, text cmd)
+        void runapp(text cmd, text cwd, text env, twod win)
         {
             if (!engine) return;
-            curdir = cwd;
             cmdarg = cmd;
+            curdir = cwd;
+            envvar = env;
             if (!engine->connected())
             {
-                engine->start(curdir, cmdarg, os::ttysize, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                           [&](auto code, auto msg) { onexit(code, msg); });
+                engine->runapp(cmd, cwd, env, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                                   [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -166,13 +169,15 @@ namespace netxs::scripting
                 config.pushd(path::scripting);
                 auto rse = config.take(attr::rse, ""s);
                 config.cd(rse);
+                auto env = config.take(attr::env, ""s);
                 auto cwd = config.take(attr::cwd, ""s);
                 auto cmd = config.take(attr::cmd, ""s);
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
+                auto win = os::ttysize;
                 if (tty) engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
                 else     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
-                start(cwd, cmd);
+                runapp(cmd, cwd, env, win);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();

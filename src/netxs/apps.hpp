@@ -18,6 +18,10 @@ namespace netxs::app::truecolor
     static constexpr auto id = "truecolor";
     static constexpr auto desc = "ANSI Art Test";
 }
+namespace netxs::app::ssh
+{
+    static constexpr auto id = "ssh";
+}
 namespace netxs::app::headless
 {
     static constexpr auto id = "headless";
@@ -43,6 +47,16 @@ namespace netxs::app::dtvt
     static constexpr auto id = "dtvt";
     static constexpr auto desc = "DirectVT Proxy Console";
 }
+namespace netxs::app::xlinkvt
+{
+    static constexpr auto id = "xlinkvt";
+    static constexpr auto desc = "XLinkVT";
+}
+namespace netxs::app::xlvt
+{
+    static constexpr auto id = "xlvt";
+    static constexpr auto desc = "XLinkVT";
+}
 namespace netxs::app::shell
 {
     static constexpr auto id = "shell";
@@ -64,7 +78,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Strobe        = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -90,7 +104,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Settings      = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -113,7 +127,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Empty         = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -135,7 +149,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Region        = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Region        = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -194,7 +208,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Truecolor     = [](text cwd, text v,     xmls& config, text patch)
+        auto build_Truecolor     = [](text env, text cwd, text v,     xmls& config, text patch)
         {
             #pragma region samples
                 //todo put all ansi art into external files
@@ -328,7 +342,7 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
-        auto build_Headless      = [](text cwd, text param, xmls& config, text patch)
+        auto build_Headless      = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -351,9 +365,9 @@ namespace netxs::app::shared
                                 ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->limits({ 10,1 }); // mc crashes when window is too small
-                    auto data = param.empty() ? os::env::shell() + " -i"
-                                              : param;
-                    auto inst = scroll->attach(ui::term::ctor(cwd, data, config))
+                    auto cmd = param.empty() ? os::env::shell() + " -i"
+                                             : param;
+                    auto inst = scroll->attach(ui::term::ctor(config))
                                       ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
                                       ->invoke([&](auto& boss)
@@ -365,7 +379,7 @@ namespace netxs::app::shared
                                             };
                                             boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
                                             {
-                                                boss.sighup(fast);
+                                                boss.close(fast);
                                             };
                                             boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
                                             {
@@ -410,9 +424,9 @@ namespace netxs::app::shared
                                             {
                                                 boss.set_align(align);
                                             };
-                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env))
                                             {
-                                                boss.start();
+                                                boss.start(cmd, cwd, env);
                                             };
                                             boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                                             {
@@ -430,19 +444,20 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text cwd, text param, xmls& config, text patch)
+        auto build_DirectVT      = [](text env, text cwd, text cmd, xmls& config, text patch)
         {
-            auto param_shadow = view{ param };
-            auto term_type = shared::app_class(param_shadow);
-            param = param_shadow;
-            return ui::dtvt::ctor(cwd, param, patch)
+            return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)
-                ->invoke([](auto& boss)
+                ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        boss.start();
+                        boss.start(patch, [cmd, cwd, env](auto fds)
+                        {
+                            os::dtvt::connect(cmd, cwd, env, fds);
+                            return cmd;
+                        });
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
@@ -458,7 +473,100 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_ANSIVT        = [](text cwd, text param, xmls& config, text patch)
+        auto build_XLinkVT       = [](text env, text cwd, text cmd, xmls& config, text patch)
+        {
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+
+            auto window = ui::veer::ctor()
+                ->limits(dot_11, { 400,200 })
+                ->plugin<pro::focus>(pro::focus::mode::active);
+            auto term = ui::cake::ctor()
+                ->plugin<pro::acryl>()
+                ->plugin<pro::cache>()
+                ->active(cB);
+            auto dtvt = ui::dtvt::ctor();
+            auto scrl = term->attach(ui::rail::ctor());
+            auto inst = scrl->attach(ui::term::ctor(config))
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->colors(whitelt, blackdk)
+                ->invoke([&](auto& boss)
+                {
+                    auto& dtvt_inst = *dtvt;
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                    {
+                        boss.close(fast, faux);
+                    };
+                    boss.LISTEN(tier::request, e2::form::proceed::quit::one, fast)
+                    {
+                        dtvt_inst.stop(fast, faux);
+                    };
+                });
+            term->attach(app::shared::scroll_bars(scrl));
+            dtvt->plugin<pro::focus>(pro::focus::mode::focusable)
+                ->limits(dot_11)
+                ->invoke([&](auto& boss)
+                {
+                    auto& term_inst = *inst;
+                    auto& window_inst = *window;
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
+                    {
+                        boss.start(patch, [&, cmd, cwd, env](auto fds)
+                        {
+                            term_inst.start(cmd, cwd, env, fds);
+                            return cmd;
+                        });
+                    };
+                    boss.LISTEN(tier::preview, e2::form::prop::ui::header, header)
+                    {
+                        if (window_inst.back() != boss.This())
+                        {
+                            auto gear_id_list = pro::focus::get(window_inst.back(), true); // Expropriate all foci.
+                            pro::focus::off(window_inst.back());
+                            pro::focus::set(window_inst.front(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
+                            window_inst.roll();
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
+                            boss.reflow();
+                        }
+                        boss.bell::template expire<tier::preview>(true);
+                    };
+                    boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
+                    {
+                        boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                    {
+                        boss.stop(fast, faux);
+                    };
+                    boss.LISTEN(tier::request, e2::form::proceed::quit::one, fast)
+                    {
+                        term_inst.close(fast, faux);
+                    };
+                });
+            window->branch(dtvt)
+                ->branch(term)
+                ->invoke([&](auto& boss)
+                {
+                    boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
+                    {
+                        if (--count == 0)
+                        if (auto parent = boss.parent())
+                        {
+                            parent->RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                        }
+                    };
+                });
+            return window;
+        };
+        auto build_ANSIVT        = [](text env, text cwd, text param, xmls& config, text patch)
         {
             if (param.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
 
@@ -466,15 +574,15 @@ namespace netxs::app::shared
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
             args += " -r term ";
             args += param;
-            return build_DirectVT(cwd, args, config, patch);
+            return build_DirectVT(env, cwd, args, config, patch);
         };
-        auto build_SHELL         = [](text cwd, text param, xmls& config, text patch)
+        auto build_SHELL         = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto args = os::process::binary();
             if (args.find(' ') != text::npos) args = "\"" + args + "\"";
             args += " -r term ";
             args += os::env::shell(param);
-            return build_DirectVT(cwd, args, config, patch);
+            return build_DirectVT(env, cwd, args, config, patch);
         };
 
         app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
@@ -485,6 +593,8 @@ namespace netxs::app::shared
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
         app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
+        app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
+        app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
         app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
     }

@@ -1,6 +1,7 @@
 ## Built-in Applications
 - `▀▄ Term`     Terminal Emulator
 - `▀▄ DirectVT` DirectVT Proxy Console
+- `▀▄ XLinkVT`  DirectVT Proxy Console with controlling terminal onboard
 - `▀▄ View`     Workspace Navigation Helper
 - `▀▄ Tile`     Tiling Window anager
 
@@ -233,6 +234,27 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 # DirectVT Proxy Console
 
 ...
+
+This console mode is activated by the `-r dtvt` option.
+
+Example:
+```
+vtm -r dtvt vtm -r truecolor
+```
+
+# DirectVT Proxy Console with controlling terminal onboard
+
+This console mode is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
+
+This mode is enabled automatically if the first command line argument begins with `ssh` literal.
+
+The following commands are identical:
+```
+vtm -r xlvt ssh user@host vtm
+```
+```
+vtm ssh user@host vtm
+```
 
 # Workspace Navigation Helper
 

@@ -75,7 +75,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
 )";
 
-        auto build = [](text cwd, text arg, xmls& config, text patch)
+        auto build = [](text env, text cwd, text arg, xmls& config, text patch)
         {
             auto highlight_color = skin::color(tone::highlight);
 

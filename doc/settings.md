@@ -198,7 +198,9 @@ Attribute  | Description                                       | Value type | Ma
 `bgc`      |  App window background color                      | `RGBA`     |           |
 `fgc`      |  App window foreground color                      | `RGBA`     |           |
 `winsize`  |  App window 2D size                               | `x;y`      |           |
+`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |           |
 `slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
+`env`      |  Environment variable in "var=val" format         | `string`   |           |
 `cwd`      |  Current working directory                        | `string`   |           |
 `type`     |  App type                                         | `string`   |           | `SHELL`
 `param`    |  App constructor arguments                        | `string`   |           | empty
@@ -218,12 +220,13 @@ Type     | Format
 Type              | Parameter        | Description
 ------------------|------------------|-----------
 `DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
+`XLVT`\|`XLinkVT` | `_command line_` | Run `_command line_` using DirectVT protocol with controlling terminal attached for OpenSSH interactivity. Usage example `type=XLVT param="_command line_"`.
 `ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
 `SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL param="_command line_"`. Same as `type=DirectVT param="$0 -r term _shell_ -c _command line_"`.
 `Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
 `Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
 
-The following configuration items have the same meaning:
+The following configuration items produce the same final result:
 ```
 <item …. param=‘mc’/>
 <item …. type=SHELL param=‘mc’/>

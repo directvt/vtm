@@ -23,6 +23,7 @@ Application | Description
 ------------|------------------------------------------
 `Term`      | Terminal emulator (default)
 `DTVT`      | DirectVT Proxy Console
+`XLVT`      | DirectVT Proxy Console with controlling terminal onboard (Cross-linked VT)
 `Calc`      | Spreadsheet calculator (Demo)
 `Text`      | Text editor (Demo)
 `Gems`      | Application manager (Demo)

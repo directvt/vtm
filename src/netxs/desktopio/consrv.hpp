@@ -32,7 +32,7 @@ struct consrv
     {
         if (waitexit.joinable())
         {
-            if (io_log) log(prompt::vtty, "Process waiter joining", ' ', utf::to_hex_0x(waitexit.get_id()));
+            if (io_log) log("%%Process waiter joining %%", prompt::vtty, utf::to_hex_0x(waitexit.get_id()));
             waitexit.join();
         }
     }
@@ -45,7 +45,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -65,15 +65,25 @@ struct consrv
             return err_code;
         }
         start();
-        startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);
-        startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);
-        startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput);
+        auto handle_count = 3;
+        if (fdlink)
+        {
+            handle_count = 2;
+            startinf.StartupInfo.hStdInput  = fdlink->r;
+            startinf.StartupInfo.hStdOutput = fdlink->w;
+        }
+        else
+        {
+            startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);        // Windows8's cmd.exe requires that handles.
+            startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);        //
+            startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput); //
+        }
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
         startinf.StartupInfo.dwYCountChars = 0;
-        startinf.StartupInfo.dwXSize = win_size.x;
-        startinf.StartupInfo.dwYSize = win_size.y;
+        startinf.StartupInfo.dwXSize = win.x;
+        startinf.StartupInfo.dwYSize = win.y;
         startinf.StartupInfo.dwFillAttribute = 1;
         startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                      | STARTF_USESIZE
@@ -88,7 +98,7 @@ struct consrv
                                     0,
                                     PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
                                    &startinf.StartupInfo.hStdInput,
-                             sizeof(startinf.StartupInfo.hStdInput) * 3,
+                             sizeof(startinf.StartupInfo.hStdInput) * handle_count,
                                     nullptr,
                                     nullptr);
         ::UpdateProcThreadAttribute(startinf.lpAttributeList,
@@ -98,23 +108,27 @@ struct consrv
                              sizeof(refdrv),
                                     nullptr,
                                     nullptr);
-        auto wide_cmdline = utf::to_utf(cmdline);
-        auto env_ptr = ::GetEnvironmentStringsW(); // Add $VTM=1 to environment block.
-        auto new_env = [&](auto i){ while (*i++ || *i) { } return wide{ env_ptr, (size_t)(i - env_ptr) }; }(env_ptr);
-        if (utf::divide(utf::to_utf(new_env), '\0', [&](auto v){ return !v.starts_with("VTM="); })) new_env += L"VTM=1\0"s;
-        ::FreeEnvironmentStringsW(env_ptr);
+        auto wcmd = utf::to_utf(cmd);
+        auto wcwd = utf::to_utf(cwd);
+        auto wenv = utf::to_utf(os::env::add(env + "VTM=1\0"));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
-                                    wide_cmdline.data(),                 // lpCommandLine
+                                    wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
                                     nullptr,                             // lpThreadAttributes
                                     TRUE,                                // bInheritHandles
                                     EXTENDED_STARTUPINFO_PRESENT |       // dwCreationFlags (override startupInfo type)
                                     CREATE_UNICODE_ENVIRONMENT,          // Environment block in UTF-16.
-                                    new_env.data(),                      // lpEnvironment
-                                    cwd.size() ? utf::to_utf(cwd).c_str()// lpCurrentDirectory
-                                               : nullptr,
+                                    wenv.data(),                         // lpEnvironment
+                                    wcwd.size() ? wcwd.c_str()           // lpCurrentDirectory
+                                                : nullptr,
                                    &startinf.StartupInfo,                // lpStartupInfo (ptr to STARTUPINFOEX)
                                    &procsinf);                           // lpProcessInformation
+        if (!fdlink)
+        {
+            os::close(startinf.StartupInfo.hStdInput);
+            os::close(startinf.StartupInfo.hStdOutput);
+            os::close(startinf.StartupInfo.hStdError);
+        }
         if (ret == 0)
         {
             prochndl = { os::invalid_fd };
@@ -2471,21 +2485,23 @@ struct impl : consrv
         client.detail.header = utf::to_utf(details.header_data, details.header_size / sizeof(wchr));
         client.detail.curexe = utf::to_utf(details.curexe_data, details.curexe_size / sizeof(wchr));
         client.detail.curdir = utf::to_utf(details.curdir_data, details.curdir_size / sizeof(wchr));
-        log("\tprocid: ", client.procid, "\n",
-            "\tthread: ", client.thread, "\n",
-            "\tpgroup: ", client.pgroup, "\n",
-            "\ticonid: ", client.detail.iconid, "\n",
-            "\thotkey: ", client.detail.hotkey, "\n",
-            "\tconfig: ", client.detail.config, "\n",
-            "\tcolors: ", client.detail.colors, "\n",
-            "\tformat: ", client.detail.format, "\n",
-            "\tscroll: ", client.detail.scroll, "\n",
-            "\tcliapp: ", client.detail.cliapp, "\n",
-            "\texpose: ", client.detail.expose, "\n",
-            "\twindow: ", client.detail.window, "\n",
-            "\theader: ", client.detail.header, "\n",
-            "\tapname: ", client.detail.curexe, "\n",
-            "\tcurdir: ", client.detail.curdir);
+        log("\tprocid: ", client.procid,
+          "\n\tthread: ", client.thread,
+          "\n\tpgroup: ", client.pgroup,
+          "\n\ticonid: ", client.detail.iconid,
+          "\n\thotkey: ", client.detail.hotkey,
+          "\n\tconfig: ", client.detail.config,
+          "\n\tcolors: ", client.detail.colors,
+          "\n\tformat: ", client.detail.format,
+          "\n\tscroll: ", client.detail.scroll,
+          "\n\tcliapp: ", client.detail.cliapp,
+          "\n\texpose: ", client.detail.expose,
+          "\n\twindow: ", client.detail.window,
+          "\n\theader: ", client.detail.header,
+          "\n\tapname: ", client.detail.curexe,
+          "\n\tcurdir: ", client.detail.curdir,
+          "\n\tevents handle: ", &inphndl,
+          "\n\tscroll handle: ", &outhndl);
 
         struct connect_info : wrap<connect_info>
         {
@@ -2843,6 +2859,8 @@ struct impl : consrv
             initdata = toUTF8;
         }
         log("\t", show_page(packet.input.utf16, inpenc->codepage),
+            "\n\tclient procid: ", packet.client ? ((clnt*)packet.client)->procid : Arch{},
+            "\n\thandle: ", (hndl*)packet.target,
             "\n\tnamesize: ", namesize,
             "\n\tnameview: ", utf::debase(utf::to_utf(nameview)),
             "\n\treadstep: ", readstep,
@@ -2928,6 +2946,8 @@ struct impl : consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
+        log("\tclient procid: ", client_ptr->procid,
+          "\n\thandle: ", events_handle_ptr);
         auto& events_handle = *events_handle_ptr; //todo validate events_handle
         events.take(packet);
     }
@@ -3020,6 +3040,8 @@ struct impl : consrv
             answer.status = nt::status::invalid_handle;
             return;
         }
+        log("\tclient procid: ", client.procid,
+          "\n\thandle: ", scroll_handle_ptr);
         auto& scroll_handle = *scroll_handle_ptr;
 
         if (auto datasize = size_check(packet.packsz,  answer.readoffset()))
@@ -5207,7 +5229,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, twod win_size, text cwd, text cmdline, Proc trailer)
+    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -5224,12 +5246,22 @@ struct consrv : ipc::stdcon
             auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
             auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR | O_NOCTTY) }; // Open slave TTY via string ptsname(fdm) (BSD doesn't auto assign controlling terminal: we should assign it explicitly).
             auto rc4 = os::syscall{ ::ioctl(fds.value, TIOCSCTTY, 0) }; // Assign it as a controlling TTY (in order to receive WINCH and other signals).
-            winsz(win_size); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
+            winsz(win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
             os::dtvt::active = faux; // Logger update.
             os::dtvt::client = {};   //
-            ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
-            ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-            ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            if (fdlink)
+            {
+                ::dup2(fdlink->r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                ::dup2(fdlink->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+                fdlink.reset();
+            }
+            else
+            {
+                ::dup2(fds.value, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
+                ::dup2(fds.value, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
+                ::dup2(fds.value, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
+            }
             os::fdscleanup();
             os::signals::listener.reset();
             if (!fdm || !rc1 || !rc2 || !rc3 || !rc4 || !fds) // Report if something went wrong.
@@ -5241,10 +5273,11 @@ struct consrv : ipc::stdcon
                     "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
-            os::env::set("VTM", "1");
-            os::env::set("TERM", "xterm-256color");
-            os::env::set("COLORTERM", "truecolor");
-            os::process::spawn(cwd, cmdline);
+            env +=  "VTM=1\0"
+                    "TERM=xterm-256color\0"
+                    "COLORTERM=truecolor\0";
+            env = os::env::add(env);
+            os::process::spawn(cmd, cwd, env);
         }
         // Parent branch.
         auto err_code = 0;

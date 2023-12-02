@@ -23,29 +23,12 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.26";
+    static const auto version = "v0.9.27";
     static const auto ipc_prefix = "vtm";
     static const auto log_suffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
 
-    enum class app_type
-    {
-        simple,
-        normal,
-    };
-
-    const auto app_class = [](view& v)
-    {
-        auto type = app_type::normal;
-        if (!v.empty() && v.front() == '!')
-        {
-            type = app_type::simple;
-            v.remove_prefix(1);
-            v = utf::trim(v);
-        }
-        return type;
-    };
     const auto closing_on_quit = [](auto& boss)
     {
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
@@ -128,7 +111,7 @@ namespace netxs::app::shared
         gear.dismiss(true);
     };
 
-    using builder_t = std::function<ui::sptr(text, text, xmls&, text)>;
+    using builder_t = std::function<ui::sptr(text, text, text, xmls&, text)>;
 
     namespace winform
     {
@@ -432,7 +415,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, xmls&, text) -> ui::sptr
+        [&](text, text, text, xmls&, text) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -451,23 +434,26 @@ namespace netxs::app::shared
                 });
             auto msg = ui::post::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
-                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off)
-                + "\n\nUnsupported application type\n\n"
-                + ansi::nil().wrp(wrap::on)
-                + "Only the following application types are supported\n\n"
-                + ansi::nil().wrp(wrap::off).fgc(whitedk)
-                + "   type = DirectVT(dtvt) \n"
-                  "   type = ANSIVT   \n"
-                  "   type = SHELL    \n"
-                  "   type = Group    \n"
-                  "   type = Region   \n\n"
-                + ansi::nil().wrp(wrap::on).fgc(whitelt)
-                 .add(prompt::apps, "See logs for details."));
+                ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) +
+                    "\n"
+                    "\nUnsupported application type"
+                    "\n" + ansi::nil().wrp(wrap::on) +
+                    "\nOnly the following application types are supported"
+                    "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
+                    "\n   type = DirectVT(dtvt)"
+                    "\n   type = XLinkVT(xlvt)"
+                    "\n   type = ANSIVT"
+                    "\n   type = SHELL"
+                    "\n   type = Group"
+                    "\n   type = Region"
+                    "\n"
+                    "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
+                    .add(prompt::apps, "See logs for details."));
             auto placeholder = ui::cake::ctor()
                 ->colors(whitelt, rgba{ 0x7F404040 })
                 ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
-                  ->attach(placeholder);
+                ->attach(placeholder);
             return window;
         };
         auto& map = creator();
@@ -562,7 +548,7 @@ namespace netxs::app::shared
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
         os::dtvt::isolated = !direct;
-        auto applet = app::shared::builder(aclass)("", (direct ? "" : "!") + params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s)); // ! - means simple (i.e. w/o plugins)
+        auto applet = app::shared::builder(aclass)("", "", params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s));
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();

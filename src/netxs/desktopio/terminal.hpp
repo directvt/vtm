@@ -6205,8 +6205,10 @@ namespace netxs::ui
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
         escx       w32key; // term: win32-input-mode forward buffer.
-        text       cmdarg; // term: Startup command line arguments.
+        text       envvar; // term: Environment block.
         text       curdir; // term: Current working directory.
+        text       cmdarg; // term: Startup command line arguments.
+        os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
@@ -7019,7 +7021,7 @@ namespace netxs::ui
                 case commands::ui::togglewrp: console.selection_setwrp();          break;
                 case commands::ui::togglesel: selection_selmod();                  break;
                 case commands::ui::restart:   restart();                           break;
-                case commands::ui::sighup:    sighup(true);                        break;
+                case commands::ui::sighup:    close(true);                         break;
                 case commands::ui::undo:      ipccon.undo(true);                   break;
                 case commands::ui::redo:      ipccon.undo(faux);                   break;
                 case commands::ui::deselect:  selection_cancel();                  break;
@@ -7043,11 +7045,12 @@ namespace netxs::ui
             follow[axis::Y] = true;
             write(data);
         }
-        void onexit(si32 code, text msg = {})
+        void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
-            netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
+            if (exit_after_sighup) close();
+            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
             {
-                ipccon.cleanup(io_log);
+                ipccon.payoff(io_log);
                 auto lock = netxs::events::sync{};
                 auto error = [&]
                 {
@@ -7107,20 +7110,25 @@ namespace netxs::ui
         {
             if (!ipccon)
             {
-                ipccon.start(*this, curdir, cmdarg, target->panel);
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
             }
         }
-        void close()
+        void start(text cmd, text cwd, text env, os::fdrw fds = {})
         {
-            this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
+            cmdarg = cmd;
+            curdir = cwd;
+            envvar = env;
+            fdlink = fds;
+            start();
         }
         void restart()
         {
             resume.exchange(true);
             ipccon.sighup(faux);
         }
-        void sighup(bool fast)
+        void close(bool fast = true, bool notify = true)
         {
+            if (notify) this->SIGNAL(tier::request, e2::form::proceed::quit::one, fast);
             forced = fast;
             if (ipccon)
             {
@@ -7128,15 +7136,15 @@ namespace netxs::ui
                 {
                     netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
                     {
-                        ipccon.cleanup(io_log); // Wait child process.
-                        close();
+                        ipccon.payoff(io_log); // Wait child process.
+                        this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
                     });
                 }
             }
             else // Child process exited with non-zero code and term waits keypress.
             {
                 onerun.reset();
-                close();
+                this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
             }
         }
         // term: Resize terminal window.
@@ -7175,7 +7183,7 @@ namespace netxs::ui
             new_area.size.y += console.get_basis();
             new_area -= base::intpad;
         }
-        term(text cwd, text cmd, xmls& xml_config)
+        term(xmls& xml_config)
             : config{ xml_config },
               normal{ *this },
               altbuf{ *this },
@@ -7195,8 +7203,6 @@ namespace netxs::ui
               resume{  faux },
               forced{  faux },
               styled{  faux },
-              curdir{ cwd   },
-              cmdarg{ cmd   },
               io_log{ config.def_io_log },
               selmod{ config.def_selmod },
               selalt{ config.def_selalt },
@@ -7637,9 +7643,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& boss)
                 {
-                    auto utf8 = view{ lock.thing.err_msg };
                     master.errmsg = master.genmsg(utf8);
                     master.deface();
                 });
@@ -7769,9 +7774,6 @@ namespace netxs::ui
         using vtty = os::dtvt::vtty;
 
         evnt stream; // dtvt: Event handler.
-        text curdir; // dtvt: Current working directory.
-        text cmdarg; // dtvt: Startup command line arguments.
-        text xmlcfg; // dtvt: Startup config.
         flag active; // dtvt: Terminal lifetime.
         si32 nodata; // dtvt: Show splash "No signal".
         face splash; // dtvt: "No signal" splash.
@@ -7821,18 +7823,19 @@ namespace netxs::ui
             ipccon.output(data);
         }
         // dtvt: Attach a new process.
-        void start()
+        void start(text config, auto connect)
         {
             if (!ipccon)
             {
                 auto winsize = base::size();
-                ipccon.start(curdir, cmdarg, xmlcfg, winsize, [&](view utf8) { ondata(utf8); },
-                                                              [&]            { onexit();     });
+                ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
+                                                        [&]            { onexit();     });
             }
         }
         // dtvt: Close dtvt-object.
-        void stop(bool fast)
+        void stop(bool fast, bool notify = true)
         {
+            if (notify) this->SIGNAL(tier::request, e2::form::proceed::quit::one, fast);
             if (fast && active.exchange(faux) && ipccon) // Notify and queue closing immediately.
             {
                 stream.s11n::sysclose.send(*this, fast);
@@ -7844,7 +7847,7 @@ namespace netxs::ui
             }
             netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
             {
-                ipccon.cleanup();
+                ipccon.payoff();
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019
             });
         }
@@ -7875,14 +7878,11 @@ namespace netxs::ui
         }
 
     protected:
-        dtvt(text cwd, text cmd, text cfg)
+        dtvt()
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
               nodata{      },
-              curdir{ cwd  },
-              cmdarg{ cmd  },
-              xmlcfg{ cfg  },
               errmsg{ genmsg(msgs::no_signal) }
         {
             //todo make it configurable (max_drops)

@@ -58,24 +58,25 @@ int main(int argc, char* argv[])
     {
         os::fail(errmsg);
         log("\n"
-            "  Syntax:\n"
+            "\n  Syntax:"
             "\n"
-            "    " + os::process::binary<true>() + " [ -c <file> ] [ -l ]\n"
+            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -l ]"
             "\n"
-            "  Options:\n"
+            "\n  Options:"
             "\n"
-            "    No arguments       Run application.\n"
-            "    -c, --config <..>  Load specified settings file.\n"
-            "    -l, --listconfig   Show configuration and exit.\n"
+            "\n    No arguments       Run application."
+            "\n    -c, --config <..>  Load specified settings file."
+            "\n    -l, --listconfig   Show configuration and exit."
             "\n"
-            "  Settings loading and merging order:\n"
+            "\n  Settings loading and merging order:"
             "\n"
-            "    - Initialize hardcoded settings\n"
-            "    - Merge with explicitly specified settings from --config <file>\n"
-            "    - If the --config option is not used or <file> cannot be loaded:\n"
-            "        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "\n"
-            "        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "\n"
-            "        - Merge with DirectVT packet received from the parent process (dtvt-mode only)\n");
+            "\n    - Initialize hardcoded settings"
+            "\n    - Merge with explicitly specified settings from --config <file>"
+            "\n    - If the --config option is not used or <file> cannot be loaded:"
+            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
+            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
+            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode only)"
+            "\n");
     }
     else if (cfonly)
     {

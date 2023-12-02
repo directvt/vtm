@@ -455,7 +455,7 @@ namespace netxs::app::tile
         auto empty_slot = [](auto&& empty_slot, auto min_state) -> netxs::sptr<ui::veer>
         {
             return ui::veer::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*default*/, true)
+                ->plugin<pro::focus>(pro::focus::mode::hub/*default*/, true/*cut_scope*/)
                 ->active()
                 ->invoke([&](auto& boss)
                 {
@@ -787,7 +787,7 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text cwd, view param, xmls& config, text patch) -> sptr
+        auto build_inst = [](text env, text cwd, view param, xmls& config, text patch) -> sptr
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -946,8 +946,8 @@ namespace netxs::app::tile
             {
                 auto err = std::error_code{};
                 fs::current_path(cwd, err);
-                if (err) log("%%Failed to change current working directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
-                else     log("%%Change current working directory to '%cwd%'", prompt::tile, cwd);
+                if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
+                else     log("%%Change current directory to '%cwd%'", prompt::tile, cwd);
             }
 
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))
