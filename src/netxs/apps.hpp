@@ -529,6 +529,7 @@ namespace netxs::app::shared
                             pro::focus::off(window_inst.back());
                             pro::focus::set(window_inst.front(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
                             window_inst.roll();
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
                             boss.reflow();
                         }
                         boss.bell::template expire<tier::preview>(true);
