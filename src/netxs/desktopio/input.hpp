@@ -668,6 +668,15 @@ namespace netxs::input
                 blocked <<= 3;
             }
         }
+        // mouse: Sync the button state with a bitset.
+        auto sync_button_state(ui32 bitstat)
+        {
+            for (auto& b : bttns)
+            {
+                b.pressed = bitstat & 0x1;
+                bitstat >> 1;
+            }
+        }
         // mouse: Return a kinetic animator.
         template<class Law>
         auto fader(span spell)
@@ -694,6 +703,7 @@ namespace netxs::input
                 coord = m.coordxy;
                 prime = m.coordxy;
                 fire(movement); // Update mouse enter/leave state.
+                sync_button_state(m.buttons);
                 return;
             }
             if (m_buttons[leftright]) // Cancel left and right dragging if it is.
@@ -748,7 +758,11 @@ namespace netxs::input
                 fire(movement);
             }
 
-            if (!busy && fire_fast()) return;
+            if (!busy && fire_fast())
+            {
+                sync_button_state(m.buttons);
+                return;
+            }
 
             auto genptr = std::begin(bttns);
             for (auto i = 0; i < numofbuttons; i++)
@@ -780,7 +794,7 @@ namespace netxs::input
                                 // Fire a double/triple-click if delay is not expired
                                 // and the mouse is at the same position.
                                 auto& s = stamp[i];
-                                auto fired = datetime::now();
+                                auto fired = m.timecod;
                                 if (fired - s.fired < delay && s.coord == coord)
                                 {
                                     if (!genbtn.blocked)

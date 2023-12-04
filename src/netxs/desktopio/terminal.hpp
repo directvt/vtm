@@ -293,14 +293,12 @@ namespace netxs::ui
             prot        encod; // m_tracking: Mouse encoding protocol.
             mode        state; // m_tracking: Mouse reporting mode.
             si32        smode; // m_tracking: Selection mode state backup.
-            si32        bttns; // m_tracking: Last buttons state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
                   encod{ prot::x11               },
                   state{ mode::none              },
-                  smode{ owner.config.def_selmod },
-                  bttns{ 0                       }
+                  smode{ owner.config.def_selmod }
             { }
 
             operator bool () { return state != mode::none; }

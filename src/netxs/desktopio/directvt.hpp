@@ -827,6 +827,7 @@ namespace netxs::directvt
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
                                         (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                        (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))

@@ -4241,6 +4241,7 @@ namespace netxs::os
                     if (count == 0) continue;
                     items.resize(count);
                     if (!::ReadConsoleInputW(os::stdin_fd, items.data(), count, &count)) break;
+                    auto timecode = datetime::now();
                     auto head = items.begin();
                     auto tail = items.end();
                     while (alive && head != tail)
@@ -4266,6 +4267,7 @@ namespace netxs::os
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
+                                m.timecod = timecode;
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
@@ -4353,6 +4355,7 @@ namespace netxs::os
                             if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
+                                m.timecod = timecode;
                                 mouse(m);
                             }
                         }
@@ -4545,6 +4548,7 @@ namespace netxs::os
                                                 if (pos == len) { total = strv; break; } // incomlpete sequence
                                                 if (strv.at(pos) == 'M' || strv.at(pos) == 'm')
                                                 {
+                                                    auto timecode = datetime::now();
                                                     auto ispressed = (strv.at(pos) == 'M');
                                                     ++pos;
 
@@ -4572,6 +4576,7 @@ namespace netxs::os
                                                     {
                                                         m.buttons = {};
                                                         m.changed++;
+                                                        m.timecod = timecode;
                                                         mouse(m);
                                                     }
                                                     m.coordxy = { x, y };
@@ -4590,6 +4595,7 @@ namespace netxs::os
                                                             break;
                                                     }
                                                     m.changed++;
+                                                    m.timecod = timecode;
                                                     mouse(m);
                                                     unk = faux;
                                                 }
@@ -4662,6 +4668,7 @@ namespace netxs::os
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
+                                m.timecod = datetime::now();
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
@@ -4694,6 +4701,7 @@ namespace netxs::os
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;
+                            m.timecod = datetime::now();
                             m.changed++;
                             mouse(m);
                         }

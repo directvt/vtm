@@ -872,7 +872,7 @@ struct impl : consrv
                 if (prvbtn != sysbtn && sysbtn) // MS UX guidelines recommend signaling a double-click when the button is pressed twice rather than when it is released twice.
                 {
                     auto& s = dclick[i];
-                    auto fired = datetime::now();
+                    auto fired = gear.m.timecod;
                     if (fired - s.fired < gear.delay && s.coord == coord) // Set the double-click flag if the delay has not expired and the mouse is in the same position.
                     {
                         flags |= DOUBLE_CLICK;
