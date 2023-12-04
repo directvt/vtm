@@ -504,6 +504,7 @@ struct impl : consrv
         using work = std::thread;
         using cast = std::unordered_map<text, std::unordered_map<text, text>>;
         using hist = std::unordered_map<text, memo>;
+        using mbtn = netxs::input::mouse::hist;
 
         static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
         static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
@@ -528,13 +529,16 @@ struct impl : consrv
         bool  ctrl_c; // evnt: Ctrl+C was pressed.
         cast  macros; // evnt: Doskey macros storage.
         hist  inputs; // evnt: Input history per process name storage.
+        mbtn  dclick; // evnt: Mouse double-click tracker.
+        si32  mstate; // evnt: Mouse button last state.
 
         evnt(impl& serv)
             :  server{ serv },
                closed{ faux },
                ondata{ true },
                leader{      },
-               ctrl_c{ faux }
+               ctrl_c{ faux },
+               mstate{      }
         { }
 
         auto& ref_history(text& exe)
@@ -860,8 +864,28 @@ struct impl : consrv
             auto state = os::nt::ms_kbstate(gear.ctlstate);
             auto bttns = gear.m.buttons & 0b00011111;
             auto flags = ui32{};
-            if (moved         ) flags |= MOUSE_MOVED;
-            if (gear.m.doubled) flags |= DOUBLE_CLICK;
+            if (moved) flags |= MOUSE_MOVED;
+            for (auto i = 0; i < dclick.size(); i++)
+            {
+                auto prvbtn = mstate & (1 << i);
+                auto sysbtn = bttns  & (1 << i);
+                if (prvbtn != sysbtn && sysbtn) // MS UX guidelines recommend signaling a double-click when the button is pressed twice rather than when it is released twice.
+                {
+                    auto& s = dclick[i];
+                    auto fired = datetime::now();
+                    if (fired - s.fired < gear.delay && s.coord == coord) // Set the double-click flag if the delay has not expired and the mouse is in the same position.
+                    {
+                        flags |= DOUBLE_CLICK;
+                        s.fired = {};
+                    }
+                    else
+                    {
+                        s.fired = fired;
+                        s.coord = coord;
+                    }
+                }
+            }
+            mstate = bttns;
             if (gear.m.wheeldt)
             {
                      if (gear.m.wheeled) flags |= MOUSE_WHEELED;

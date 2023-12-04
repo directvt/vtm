@@ -3371,8 +3371,6 @@ namespace netxs::os
 
         struct vtty
         {
-            using s11n = directvt::binary::s11n;
-
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
@@ -4265,8 +4263,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.doubled = faux;
-                                m.doubled = faux;
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
@@ -4347,7 +4343,6 @@ namespace netxs::os
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
                             check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
-                            check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
                             check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                             check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
@@ -4559,7 +4554,6 @@ namespace netxs::os
                                                     auto ctl = ctrl.value();
 
                                                     m.enabled = {};
-                                                    m.doubled = {};
                                                     m.wheeled = {};
                                                     m.hzwheel = {};
                                                     m.wheeldt = {};
@@ -4665,8 +4659,6 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.doubled = faux;
-                                m.doubled = faux;
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;

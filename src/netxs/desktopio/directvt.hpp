@@ -823,7 +823,6 @@ namespace netxs::directvt
                                         (ui32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (ui32, enabled)  // sysmouse: Mouse device health status.
                                         (ui32, buttons)  // sysmouse: Buttons bit state.
-                                        (bool, doubled)  // sysmouse: Double click.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.

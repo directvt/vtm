@@ -822,7 +822,6 @@ namespace netxs::input
                 m.wheeled = {}; // Clear one-shot events.
                 m.hzwheel = {};
                 m.wheeldt = {};
-                m.doubled = {};
             }
         }
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
@@ -1467,7 +1466,6 @@ namespace netxs::input
                         m.wheeled = {};
                         m.wheeldt = {};
                         m.hzwheel = {};
-                        m.doubled = {};
                     }
                 }
                 else if (mouse::swift == next_id) mouse::setfree();
