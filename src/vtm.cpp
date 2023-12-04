@@ -99,6 +99,8 @@ int main(int argc, char* argv[])
         }
     }
 
+    os::dtvt::checkpoint();
+
     auto denied = faux;
     auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();

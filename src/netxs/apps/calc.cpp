@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
     }
     auto params = getopt.rest();
 
+    os::dtvt::checkpoint();
     banner();
     if (errmsg.size())
     {

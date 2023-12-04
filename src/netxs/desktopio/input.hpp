@@ -674,7 +674,7 @@ namespace netxs::input
             for (auto& b : bttns)
             {
                 b.pressed = bitstat & 0x1;
-                bitstat >> 1;
+                bitstat >>= 1;
             }
         }
         // mouse: Return a kinetic animator.

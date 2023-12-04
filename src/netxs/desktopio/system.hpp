@@ -3116,62 +3116,12 @@ namespace netxs::os
             else
             {
                 #if defined(_WIN32)
-
-                    ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
-                    ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
-                    dtvt::backup.opage = ::GetConsoleOutputCP();
-                    dtvt::backup.ipage = ::GetConsoleCP();
-                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
-                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
-                    auto inpmode = DWORD{ nt::console::inmode::extended
-                                        | nt::console::inmode::winsize
-                                        | nt::console::inmode::quickedit };
-                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
-                    auto outmode = DWORD{ nt::console::outmode::no_auto_cr
-                                        | nt::console::outmode::wrap_at_eol
-                                        | nt::console::outmode::preprocess
-                                        | nt::console::outmode::vt };
-                    if (!::SetConsoleMode(os::stdout_fd, outmode) || nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                    if (nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
                     {
-                        dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
-                        outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
-                        ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                        dtvt::mode |= ui::console::nt16;
                     }
-                    auto size = DWORD{ os::pipebuf };
-                    auto wstr = wide(size, 0);
-                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
-                    dtvt::backup.title = wstr.data();
-                    ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
-
-                #else
-
-                    if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
-                    {
-                        auto raw_mode = dtvt::backup;
-                        ::cfmakeraw(&raw_mode);
-                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
-                        os::vgafont();
-                        io::send(os::stdout_fd, ansi::save_title());
-                    }
-                    else os::fail("Check you are using the proper tty device");
-
                 #endif
                 dtvt::win_sz = dtvt::consize();
-                auto repair = []
-                {
-                    #if defined(_WIN32)
-                        ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
-                        ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
-                        ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
-                        ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
-                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
-                        ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
-                    #else
-                        ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
-                        io::send(os::stdout_fd, ansi::load_title());
-                    #endif
-                };
-                std::atexit(repair);
             }
             return active;
         }();
@@ -3259,6 +3209,71 @@ namespace netxs::os
             return dtvt::mode;
         }();
 
+        auto checkpoint()
+        {
+            if (dtvt::active) return;
+            #if defined(_WIN32)
+
+                ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
+                ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
+                dtvt::backup.opage = ::GetConsoleOutputCP();
+                dtvt::backup.ipage = ::GetConsoleCP();
+                ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
+                ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
+                auto inpmode = DWORD{ nt::console::inmode::extended
+                                    | nt::console::inmode::winsize
+                                    | nt::console::inmode::quickedit };
+                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
+                auto outmode = dtvt::mode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
+                             ? DWORD{ nt::console::outmode::wrap_at_eol
+                                    | nt::console::outmode::preprocess }
+                             : DWORD{ nt::console::outmode::no_auto_cr
+                                    | nt::console::outmode::wrap_at_eol
+                                    | nt::console::outmode::preprocess
+                                    | nt::console::outmode::vt };
+                ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                //todo test on win8
+                //if (!::SetConsoleMode(os::stdout_fd, outmode) || nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                //{
+                //    dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
+                //    outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
+                //    ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                //}
+                auto size = DWORD{ os::pipebuf };
+                auto wstr = wide(size, 0);
+                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
+                dtvt::backup.title = wstr.data();
+                ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
+
+            #else
+
+                if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
+                {
+                    auto raw_mode = dtvt::backup;
+                    ::cfmakeraw(&raw_mode);
+                    ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
+                    os::vgafont();
+                    io::send(os::stdout_fd, ansi::save_title());
+                }
+                else os::fail("Check you are using the proper tty device");
+
+            #endif
+            auto repair = []
+            {
+                #if defined(_WIN32)
+                    ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
+                    ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
+                    ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
+                    ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
+                    ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
+                    ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
+                #else
+                    ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
+                    io::send(os::stdout_fd, ansi::load_title());
+                #endif
+            };
+            std::atexit(repair);
+        }
         auto connect(text cmd, text cwd, text env, fdrw fds)
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
