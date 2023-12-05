@@ -3232,13 +3232,6 @@ namespace netxs::os
                                     | nt::console::outmode::preprocess
                                     | nt::console::outmode::vt };
                 ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
-                //todo test on win8
-                //if (!::SetConsoleMode(os::stdout_fd, outmode) || nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
-                //{
-                //    dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
-                //    outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
-                //    ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
-                //}
                 auto size = DWORD{ os::pipebuf };
                 auto wstr = wide(size, 0);
                 ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
