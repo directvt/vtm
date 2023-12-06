@@ -274,7 +274,7 @@ namespace netxs
         // rgba: Rough alpha blending RGBA colors.
         //void mix_alpha(rgba c)
         //{
-        //	auto blend = [] (auto const& c1, auto const& c2, auto const& alpha)
+        //	auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
         //	{
         //		return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
         //	};
