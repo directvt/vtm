@@ -4458,14 +4458,14 @@ namespace netxs::os
                 }
 
                 // The following sequences are processed here:
-                // ESC
-                // ESC ESC
+                // ESC          Escape
+                // ESC ESC      Escape
                 // ESC [ I
                 // ESC [ O
-                // ESC [ < 0 ; x ; y m
-                // ESC [ < 0 ; x ; y M
+                // ESC [ < mod ; x ; y m
+                // ESC [ < mod ; x ; y M
                 // ESC [ 33 : format p
-                // ESC [ a1; ...; aN _
+                // ESC [ a1 ; ... ; aN _
                 // ESC [ [ A
                 // ESC [ [ B
                 // ESC [ [ C
@@ -4497,6 +4497,11 @@ namespace netxs::os
                 // ESC O z      F12
                 // 0x1a (SUB)   Pause
                 // 0x7f (DEL)   Backspace
+                //
+                // CSI final bytes: 0x40–0x7E  @A–Z[\]^_`a–z{|}~
+                // ESC O        SS3,    Sets a flag for the next char
+                // ESC [ [      CSI [,  Sets a flag for the next char
+                // CSI ~, F, G, H, Z, I, O, M, m, _, p
                 auto filter = [&, total = text{}](view accum) mutable
                 {
                     if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.

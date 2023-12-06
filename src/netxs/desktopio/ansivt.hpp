@@ -1159,7 +1159,7 @@ namespace netxs::ansi
             if constexpr (InitOutputMode)
             {
                 #define V [](auto& q, auto& p)
-                #define F(t, q) p->task(rule{ fn::t, q })
+                #define F(t, n) p->task(rule{ fn::t, n })
 
                 table[csi_cuu] = V{ F(dy,-q(1)); };              // fx_cuu
                 table[csi_cud] = V{ F(dy, q(1)); };              // fx_cud
@@ -1336,6 +1336,7 @@ namespace netxs::ansi
                 esc[esc_key_a ] = keym;
                 esc[esc_key_n ] = keym;
                 esc[esc_g0set ] = g0__;
+                //esc[esc_ss3   ] = xss3;
                 //esc[esc_sc] = ;
                 //esc[esc_rc] = ;
                 //esc['M'  ] = __ri;
