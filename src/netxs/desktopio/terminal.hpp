@@ -695,7 +695,7 @@ namespace netxs::ui
 
         // term: Generic terminal buffer.
         struct bufferbase
-            : public ansi::parser
+            : public ansi::output::parser
         {
             static void set_autocr(bool autocr)
             {

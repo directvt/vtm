@@ -606,7 +606,7 @@ namespace netxs::os
                 }
 
                 struct vtparser
-                    : public ansi::parser
+                    : public ansi::output::parser
                 {
                     using redo = std::list<std::pair<deco, ansi::mark>>;
 
@@ -4462,8 +4462,41 @@ namespace netxs::os
                 // ESC ESC
                 // ESC [ I
                 // ESC [ O
-                // ESC [ < 0 ; x ; y M/m
+                // ESC [ < 0 ; x ; y m
+                // ESC [ < 0 ; x ; y M
                 // ESC [ 33 : format p
+                // ESC [ a1; ...; aN _
+                // ESC [ [ A
+                // ESC [ [ B
+                // ESC [ [ C
+                // ESC [ [ D
+                // ESC [ [ E
+                // ESC [ Z          Shit+Tab
+                // ESC [ ... H      Home
+                // ESC [ 1 ~        Home
+                // ESC [ 7 ~        Home
+                // ESC [ 2 ~        Insert
+                // ESC [ 3 ~        Delete
+                // ESC [ 4 ~        End
+                // ESC [ 8 ~        End
+                // ESC [ ... F      End
+                // ESC [ G          Keypad 5
+                // ESC [ ... ~      PgUp, PgDn, F5 ... F24
+                // ESC [ 1 0 ~  F0
+                // ESC O P      F1
+                // ESC O Q      F2
+                // ESC O R      F3
+                // ESC O S      F4
+                // ESC O t      F5
+                // ESC O u      F6
+                // ESC O v      F7
+                // ESC O l      F8
+                // ESC O w      F9
+                // ESC O x      F10
+                // ESC O y      F11
+                // ESC O z      F12
+                // 0x1a (SUB)   Pause
+                // 0x7f (DEL)   Backspace
                 auto filter = [&, total = text{}](view accum) mutable
                 {
                     if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.
