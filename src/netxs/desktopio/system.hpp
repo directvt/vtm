@@ -4502,6 +4502,73 @@ namespace netxs::os
                 // ESC O        SS3,    Sets a flag for the next char
                 // ESC [ [      CSI [,  Sets a flag for the next char
                 // CSI ~, F, G, H, Z, I, O, M, m, _, p
+                // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
+
+                //
+                // total += accum;
+                // while (total.size())
+                // if (flag_paste)
+                // {
+                //      looking for
+                //      if (paste end)
+                //      {
+                //          paste(p);
+                //          flag_paste = faux;
+                //      }
+                // }
+                // else if (total.size() == 1)
+                // {
+                //      detect key
+                //      send key press
+                //      send key release
+                // }
+                // else if (total.front() == '\033')
+                // {
+                //     take sequence
+                //     if (sequence incomplete) break;
+                //     else if (seq == mouse)
+                //     {
+                //          mouse(m);
+                //     }
+                //     else if (seq == focus)
+                //     {
+                //          focus(f);
+                //     }
+                //     else if (seq == style)
+                //     {
+                //          style(s);
+                //     }
+                //     else if (seq == paste)
+                //     {
+                //          set flag_paste
+                //          continue;
+                //     }
+                //     else if (seq == win32)
+                //     {
+                //          keybd(k);
+                //     }
+                //     else
+                //     {
+                //          detect key
+                //          send key press
+                //          send key release
+                //     }
+                // }
+                // else
+                // {
+                //     take cluster
+                //     if (cluster.size() == 1 && (cluster.front() < 32 || cluster.front() == 0x7f))
+                //     {
+                //         detect key
+                //     }
+                //     else
+                //     {
+                //          key = undef
+                //          key.cluster = cluster;
+                //     }
+                //     send key press
+                //     send key release
+                // }
                 auto filter = [&, total = text{}](view accum) mutable
                 {
                     if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.
