@@ -810,7 +810,7 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
                 vt.intro[ctrl::esc][esc_apc   ] = V{ p->msg(esc_apc, q); }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::esc][esc_dsc   ] = V{ p->msg(esc_dsc, q); }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->msg(esc_dcs, q); }; // ESC P ... ST  DCS.
                 vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
                 vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
@@ -1241,7 +1241,7 @@ namespace netxs::ui
                     // Unexpected
                     case ansi::esc_csi   :
                     case ansi::esc_ocs   :
-                    case ansi::esc_dsc   :
+                    case ansi::esc_dcs   :
                     case ansi::esc_sos   :
                     case ansi::esc_pm    :
                     case ansi::esc_apc   :

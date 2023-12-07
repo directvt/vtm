@@ -17,7 +17,7 @@ namespace netxs::ansi
 
     static const auto esc_csi     = '['; // ESC [ ...
     static const auto esc_ocs     = ']'; // ESC ] ...
-    static const auto esc_dsc     = 'P'; // ESC P ... BELL/ST
+    static const auto esc_dcs     = 'P'; // ESC P ... BELL/ST
     static const auto esc_sos     = 'X'; // ESC X ... BELL/ST
     static const auto esc_pm      = '^'; // ESC ^ ... BELL/ST
     static const auto esc_apc     = '_'; // ESC _ ... BELL/ST
@@ -1820,7 +1820,7 @@ namespace netxs::ansi
                         }
                     }
                     // test Message/Command:
-                    else if (c == 'P'  // DSC ESC P ... BEL
+                    else if (c == 'P'  // DCS ESC P ... BEL
                           || c == 'X'  // SOS ESC X ... BEL
                           || c == '^'  // PM  ESC ^ ... BEL
                           || c == '_') // APC ESC _ ... BEL

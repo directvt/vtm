@@ -4465,7 +4465,6 @@ namespace netxs::os
                 // ESC [ < mod ; x ; y m
                 // ESC [ < mod ; x ; y M
                 // ESC [ 33 : format p
-                // ESC [ a1 ; ... ; aN _
                 // ESC [ [ A
                 // ESC [ [ B
                 // ESC [ [ C
@@ -4512,13 +4511,61 @@ namespace netxs::os
                     style,
                     paste,
                 };
-                auto take_sequence = [](qiew cache)
+                auto take_sequence = [](qiew s) // s.size() always > 1.
                 {
+                    static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
                     auto t = type::undef;
-                    auto s = cache;
                     auto incomplete = faux;
-                    //todo
-
+                    auto head = s.begin() + 1; // Pop Esc.
+                    auto tail = s.end();
+                    auto c = *head++;
+                    if (c == '[') // CSI: ESC [ pn;...;pn cmd
+                    {
+                        while (head != tail) // Looking for CSI command.
+                        {
+                            c = *head++;
+                            if (c >= 0x40 && c <= 0x7E) break;
+                        }
+                        if (head == tail) incomplete = true;
+                        else
+                        {
+                            auto len = std::distance(s.begin(), head);
+                            if (c == 'm' || c == 'M')
+                            {
+                                if (len > 3 && s[2] == '<') t = type::mouse;
+                            }
+                            else if (c == 'p')
+                            {
+                                if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
+                            }
+                            else if (c == 'I' || c == 'O')
+                            {
+                                t = type::focus;
+                            }
+                            else if (c == '[') // ESC [ [ byte
+                            {
+                                if (len == 3)
+                                {
+                                    if (s.size() > 3) len++; // Eat the next byte.
+                                    else              incomplete = true;
+                                }
+                            }
+                            else if (c == '~')
+                            {
+                                if (s.starts_with(ansi::paste_begin)) t = type::paste; // ESC [ 2 0 0 ~
+                            }
+                            s = s.substr(0, len);
+                        }
+                    }
+                    else if (c == 'O') // SS3: ESC O byte
+                    {
+                        if (s.size() < 3) incomplete = true;
+                        else              s = s.substr(0, 3);
+                    }
+                    else if (c == '\033') // ESC ESC
+                    {
+                        s = s.substr(0, 1);
+                    }
                     return std::tuple{ t, s, incomplete };
                 };
                 auto detect_key = [](auto& k, qiew cluster)
@@ -4620,7 +4667,7 @@ namespace netxs::os
                                     p.txtdata.clear();
                                 }
                             }
-                            else // type::undef
+                            else // t == type::undef
                             {
                                 detect_key(k, s);
                                 k.pressed = true; keybd(k);
