@@ -4552,7 +4552,7 @@ namespace netxs::os
                             }
                             else if (c == '~')
                             {
-                                if (s.starts_with(ansi::paste_begin)) t = type::paste; // ESC [ 2 0 0 ~
+                                if (s.starts_with(ansi::paste_begin)) t = type::paste; // "\033[200~"
                             }
                             s = s.substr(0, len);
                         }
@@ -4642,7 +4642,8 @@ namespace netxs::os
                             }
                             else if (t == type::focus)
                             {
-                                //focus(f);
+                                f.state = s.back() == 'I';
+                                focus(f);
                             }
                             else if (t == type::style)
                             {
