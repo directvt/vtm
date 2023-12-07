@@ -4499,9 +4499,9 @@ namespace netxs::os
                 // 0x7f (DEL)   Backspace
                 //
                 // CSI final bytes: 0x40–0x7E  @A–Z[\]^_`a–z{|}~
-                // ESC O        SS3,    Sets a flag for the next char
-                // ESC [ [      CSI [,  Sets a flag for the next char
-                // CSI ~, F, G, H, Z, I, O, M, m, _, p
+                // ESC O        Alt+Shift+O
+                // ESC [        Alt+[
+                // CSI ~, A, B, C, D, F, G, H, Z, I, O, M, m, p
                 // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
 
                 enum class type
