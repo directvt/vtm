@@ -4504,100 +4504,139 @@ namespace netxs::os
                 // CSI ~, F, G, H, Z, I, O, M, m, _, p
                 // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
 
-                auto total = text{};
-                auto pflag = faux;
-                auto parser = [&](view accum)
+                enum class type
                 {
-                    total += accum;
-                    while (total.size())
-                    if (pflag)
+                    undef,
+                    mouse,
+                    focus,
+                    style,
+                    paste,
+                };
+                auto take_sequence = [](qiew cache)
+                {
+                    auto t = type::undef;
+                    auto s = cache;
+                    auto incomplete = faux;
+                    //todo
+
+                    return std::tuple{ t, s, incomplete };
+                };
+                auto detect_key = [](auto& k, qiew cluster)
+                {
+                    if (cluster.size() == 1)
                     {
-                        auto pos = total.find(ansi::paste_end);
-                        if (pos != text::npos)
+                        if (cluster.front() < 32 || cluster.front() == 0x7f) // Control
                         {
-                            p.txtdata += total.substr(0, pos);
-                            total.erase(0, pos + ansi::paste_end.size());
-                            paste(p);
-                            pflag = faux;
-                            p.txtdata.clear();
-                            continue;
+
                         }
-                        else
+                        else // Alphanumeric
                         {
-                            auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
-                            if (pos != text::npos) pos += total.size() - accum.size();
-                            p.txtdata += total.substr(0, pos);
-                            total.erase(0, pos);
-                            break;
+                            //k.keycode = {};
+                            //k.cluster = "";
                         }
-                    }
-                    else if (total.size() == 1)
-                    {
-                        //detect key
-                        //send key press
-                        //send key release
-                    }
-                    else if (total.front() == '\033')
-                    {
-                        //take sequence
-                        //if (sequence incomplete) break;
-                        //else if (seq == mouse)
-                        //{
-                        //    mouse(m);
-                        //}
-                        //else if (seq == focus)
-                        //{
-                        //     focus(f);
-                        //}
-                        //else if (seq == style)
-                        //{
-                        //    style(s);
-                        //}
-                        //else if (seq == paste)
-                        {
-                            auto pos = total.find(ansi::paste_end, ansi::paste_begin.size());
-                            if (pos == text::npos)
-                            {
-                                auto pos = total.rfind('\033'); // Find the probable beginning of the closing sequence.
-                                p.txtdata = total.substr(0, pos);
-                                total.erase(0, pos);
-                                pflag = true;
-                                break;
-                            }
-                            else
-                            {
-                                p.txtdata = total.substr(ansi::paste_begin.size(), pos - ansi::paste_begin.size());
-                                total.erase(0, pos + ansi::paste_end.size());
-                                paste(p);
-                                p.txtdata.clear();
-                            }
-                        }
-                        //else if (seq == win32)
-                        //{
-                        //    keybd(k);
-                        //}
-                        //else
-                        //{
-                        //    detect key
-                        //    send key press
-                        //    send key release
-                        //}
                     }
                     else
                     {
-                        //take cluster
-                        //if (cluster.size() == 1 && (cluster.front() < 32 || cluster.front() == 0x7f))
-                        //{
-                        //    detect key
-                        //}
-                        //else
-                        //{
-                        //    key = undef
-                        //    key.cluster = cluster;
-                        //}
-                        //send key press
-                        //send key release
+                        if (cluster.front() == '\033')
+                        {
+                            //k.keycode = {};
+                            //k.cluster = "";
+                        }
+                        else // EGC
+                        {
+                            //k.keycode = {};
+                            //k.cluster = "";
+                        }
                     }
+                };
+
+                auto parser = [&, input = text{}, pflag = faux](view accum) mutable
+                {
+                    input += accum;
+                    auto cache = qiew{ input };
+                    while (cache.size())
+                    {
+                        if (pflag)
+                        {
+                            auto pos = cache.find(ansi::paste_end);
+                            if (pos != text::npos)
+                            {
+                                p.txtdata += cache.substr(0, pos);
+                                cache.remove_prefix(pos + ansi::paste_end.size());
+                                paste(p);
+                                pflag = faux;
+                                p.txtdata.clear();
+                                continue;
+                            }
+                            else
+                            {
+                                auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                if (pos != text::npos) pos += cache.size() - accum.size();
+                                p.txtdata += cache.substr(0, pos);
+                                cache.remove_prefix(pos);
+                                break;
+                            }
+                        }
+                        else if (cache.size() == 1)
+                        {
+                            detect_key(k, cache);
+                            k.pressed = true; keybd(k);
+                            k.pressed = faux; keybd(k);
+                            cache.clear();
+                        }
+                        else if (cache.front() == '\033')
+                        {
+                            auto [t, s, incomplete] = take_sequence(cache);
+                            if (incomplete) break;
+                            cache.remove_prefix(s.size());
+                            if (t == type::mouse)
+                            {
+                                //mouse(m);
+                            }
+                            else if (t == type::focus)
+                            {
+                                //focus(f);
+                            }
+                            else if (t == type::style)
+                            {
+                                //style(s);
+                            }
+                            else if (t == type::paste)
+                            {
+                                auto pos = cache.find(ansi::paste_end);
+                                if (pos == text::npos)
+                                {
+                                    auto pos = cache.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                    p.txtdata = cache.substr(0, pos);
+                                    cache.remove_prefix(pos);
+                                    pflag = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    p.txtdata = cache.substr(0, pos);
+                                    cache.remove_prefix(pos + ansi::paste_end.size());
+                                    paste(p);
+                                    p.txtdata.clear();
+                                }
+                            }
+                            else // type::undef
+                            {
+                                detect_key(k, s);
+                                k.pressed = true; keybd(k);
+                                k.pressed = faux; keybd(k);
+                            }
+                        }
+                        else
+                        {
+                            auto cluster = utf::letter(cache);
+                            detect_key(k, cluster.text);
+                            k.pressed = true; keybd(k);
+                            k.pressed = faux; keybd(k);
+                            cache.remove_prefix(cluster.attr.utf8len);
+                        }
+                    }
+                    input = cache;
                 };
                 auto filter = [&, total = text{}](view accum) mutable
                 {
