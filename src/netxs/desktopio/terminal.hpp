@@ -695,7 +695,7 @@ namespace netxs::ui
 
         // term: Generic terminal buffer.
         struct bufferbase
-            : public ansi::output::parser
+            : public ansi::parser
         {
             static void set_autocr(bool autocr)
             {
@@ -6680,7 +6680,12 @@ namespace netxs::ui
             follow[axis::X] = true;
             if (bpmode)
             {
-                data = "\033[200~" + data + "\033[201~";
+                auto temp = text{};
+                temp.reserve(data.size() + ansi::paste_begin.size() + ansi::paste_end.size());
+                temp += ansi::paste_begin;
+                temp += data;
+                temp += ansi::paste_end;
+                std::swap(data, temp);
             }
             //todo paste is a special type operation like a mouse reporting.
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
@@ -6767,8 +6772,16 @@ namespace netxs::ui
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
-                if (bpmode) data_out("\033[200~" + utf8 + "\033[201~");
-                else        data_out(utf8);
+                if (bpmode)
+                {
+                    auto temp = text{};
+                    temp.reserve(utf8.size() + ansi::paste_begin.size() + ansi::paste_end.size());
+                    temp += ansi::paste_begin;
+                    temp += utf8;
+                    temp += ansi::paste_end;
+                    std::swap(utf8, temp);
+                }
+                data_out(utf8);
                 gear.dismiss();
             }
         }

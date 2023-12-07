@@ -249,16 +249,19 @@ namespace netxs::ansi
     //static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
     static const auto ctrl_break = si32{ 0x46 }; // Pressed Ctrl+Break scancode.
 
+    static const auto paste_begin = "\033[200~"sv; // Bracketed paste begin.
+    static const auto paste_end   = "\033[201~"sv; // Bracketed paste end.
+
     template<class Base>
     class basevt
     {
         char  heap[32];
-        char* tail = heap + sizeof(heap);
         Base& block;
 
         template<class T>
         inline void itos(T data)
         {
+            auto tail = heap + sizeof(heap);
             auto cptr = tail;
             auto bake = [&](auto bits)
             {
@@ -1093,7 +1096,7 @@ namespace netxs::ansi
     template<class Q, class C>
     using func = generics::tree<Q, C*, std::function<void(Q&, C*&)>>;
 
-    template<class T, bool NoMultiArg = faux, bool InitOutputMode = true>
+    template<class T, bool NoMultiArg = faux>
     struct csi_t
     {
         using tree = func<fifo, T>;
@@ -1154,13 +1157,11 @@ namespace netxs::ansi
             table_dblqoute.resize(0x100);
             table_sglqoute.resize(0x100);
             table_asterisk.resize(0x100);
+
+            #define V [](auto& q, auto& p)
+            #define F(t, n) p->task(rule{ fn::t, n })
+
             table         .resize(0x100);
-
-            if constexpr (InitOutputMode)
-            {
-                #define V [](auto& q, auto& p)
-                #define F(t, n) p->task(rule{ fn::t, n })
-
                 table[csi_cuu] = V{ F(dy,-q(1)); };              // fx_cuu
                 table[csi_cud] = V{ F(dy, q(1)); };              // fx_cud
                 table[csi_cuf] = V{ F(dx, q(1)); };              // fx_cuf
@@ -1280,9 +1281,8 @@ namespace netxs::ansi
                     sgr[sgr_bg_cyn_lt] = V{ p->brush.bgc(tint::cyanlt   ); }; // fx_sgr_bg_16<tint::cyanlt>   ;
                     sgr[sgr_bg_wht_lt] = V{ p->brush.bgc(tint::whitelt  ); }; // fx_sgr_bg_16<tint::whitelt>  ;
 
-                #undef F
-                #undef V
-            }
+            #undef F
+            #undef V
         }
 
         void proceed(si32 cmd, T*& client) { table.execute(cmd, client); }
@@ -1316,10 +1316,10 @@ namespace netxs::ansi
     template<class T, bool InitOutputMode = true>
     struct vt_parser
     {
-        ansi::csi_t<T, faux, InitOutputMode> csier; // vt_parser: CSI table.
-        ansi::esc_t<T>                       intro; // vt_parser:  C0 table.
-        ansi::osc_t<T>                       oscer; // vt_parser: OSC table.
-        si32                                 decsg; // vt_parser: Enable DEC Special Graphics Mode (if non zero).
+        ansi::csi_t<T> csier; // vt_parser: CSI table.
+        ansi::esc_t<T> intro; // vt_parser:  C0 table.
+        ansi::osc_t<T> oscer; // vt_parser: OSC table.
+        si32           decsg; // vt_parser: Enable DEC Special Graphics Mode (if non zero).
 
         vt_parser()
             : decsg{ 0 }
@@ -1611,194 +1611,106 @@ namespace netxs::ansi
         }
     };
 
-    namespace output
+    struct parser
     {
-        struct parser
+        deco style{}; // parser: Parser style.
+        deco state{}; // parser: Parser style last state.
+        grid proto{}; // parser: Proto lyric.
+        si32 count{}; // parser: Proto lyric length.
+        mark brush{}; // parser: Parser brush.
+        //text debug{};
+
+        parser() = default;
+        parser(deco style)
+            : style{ style },
+              state{ style }
+        { }
+
+        template<class T>
+        struct vt_parser
+            : public ansi::vt_parser<T>
         {
-            deco style{}; // parser: Parser style.
-            deco state{}; // parser: Parser style last state.
-            grid proto{}; // parser: Proto lyric.
-            si32 count{}; // parser: Proto lyric length.
-            mark brush{}; // parser: Parser brush.
-            //text debug{};
-
-            parser() = default;
-            parser(deco style)
-                : style{ style },
-                  state{ style }
-            { }
-
-            template<class T>
-            struct vt_parser
-                : public ansi::vt_parser<T>
+            using vt = ansi::vt_parser<T>;
+            vt_parser() : vt()
             {
-                using vt = ansi::vt_parser<T>;
-                vt_parser() : vt()
+                if constexpr (requires{ T::parser_config(*this); })
                 {
-                    if constexpr (requires{ T::parser_config(*this); })
-                    {
-                        T::parser_config(*this);
-                    }
-                }
-            };
-
-            void data(core& cooked)
-            {
-                if (auto count = cooked.size().x)
-                {
-                    cooked.each([&](cell& c) { c.meta(brush); });
-                    data(count, cooked.pick());
+                    T::parser_config(*this);
                 }
             }
-            void post(utf::frag const& cluster)
-            {
-                static auto marker = ansi::marker{};
+        };
 
-                auto& utf8 = cluster.text;
-                auto& attr = cluster.attr;
-                if (auto w = attr.ucwidth)
+        void data(core& cooked)
+        {
+            if (auto count = cooked.size().x)
+            {
+                cooked.each([&](cell& c) { c.meta(brush); });
+                data(count, cooked.pick());
+            }
+        }
+        void post(utf::frag const& cluster)
+        {
+            static auto marker = ansi::marker{};
+
+            auto& utf8 = cluster.text;
+            auto& attr = cluster.attr;
+            if (auto w = attr.ucwidth)
+            {
+                count += w;
+                brush.set_gc(utf8, w);
+                proto.push_back(brush);
+                //debug += (debug.size() ? "_"s : ""s) + text(utf8);
+            }
+            else
+            {
+                if (auto set_prop = marker.setter[attr.control])
                 {
-                    count += w;
-                    brush.set_gc(utf8, w);
-                    proto.push_back(brush);
-                    //debug += (debug.size() ? "_"s : ""s) + text(utf8);
-                }
-                else
-                {
-                    if (auto set_prop = marker.setter[attr.control])
+                    if (proto.size())
                     {
-                        if (proto.size())
-                        {
-                            set_prop(proto.back());
-                        }
-                        else
-                        {
-                            auto empty = brush;
-                            empty.txt(whitespace).wdt(w);
-                            set_prop(empty);
-                            proto.push_back(empty);
-                        }
+                        set_prop(proto.back());
                     }
                     else
                     {
-                        brush.set_gc(utf8, w);
-                        proto.push_back(brush);
+                        auto empty = brush;
+                        empty.txt(whitespace).wdt(w);
+                        set_prop(empty);
+                        proto.push_back(empty);
                     }
-                    //auto i = utf::to_hex((size_t)attr.control, 5, true);
-                    //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
                 }
-            }
-            inline void flush_style()
-            {
-                if (state != style)
+                else
                 {
-                    meta(state);
-                    state = style;
+                    brush.set_gc(utf8, w);
+                    proto.push_back(brush);
                 }
+                //auto i = utf::to_hex((size_t)attr.control, 5, true);
+                //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
             }
-            inline void flush_data()
-            {
-                if (count)
-                {
-                    data(count, proto);
-                    proto.clear();
-                    count = 0;
-                }
-            }
-            inline void flush()
-            {
-                flush_style();
-                flush_data();
-            }
-            virtual void meta(deco const& old_style)         { };
-            virtual void data(si32 count, grid const& proto) { };
-        };
-    }
-
-    namespace input
-    {
-        struct parser
+        }
+        inline void flush_style()
         {
-            grid proto{}; // parser: Proto lyric.
-            si32 count{}; // parser: Proto lyric length.
-
-            parser() = default;
-
-            template<class T>
-            struct vt_parser
-                : public ansi::vt_parser<T, faux>
+            if (state != style)
             {
-                using vt = ansi::vt_parser<T, faux>;
-                vt_parser() : vt()
-                {
-                    if constexpr (requires{ T::parser_config(*this); })
-                    {
-                        T::parser_config(*this);
-                    }
-                }
-            };
-
-            void data(core& cooked)
-            {
-                //if (auto count = cooked.size().x)
-                //{
-                //    cooked.each([&](cell& c) { c.meta(brush); });
-                //    data(count, cooked.pick());
-                //}
+                meta(state);
+                state = style;
             }
-            void post(utf::frag const& cluster)
+        }
+        inline void flush_data()
+        {
+            if (count)
             {
-                //static auto marker = ansi::marker{};
-                //auto& utf8 = cluster.text;
-                //auto& attr = cluster.attr;
-                //if (auto w = attr.ucwidth)
-                //{
-                //    count += w;
-                //    brush.set_gc(utf8, w);
-                //    proto.push_back(brush);
-                //    //debug += (debug.size() ? "_"s : ""s) + text(utf8);
-                //}
-                //else
-                //{
-                //    if (auto set_prop = marker.setter[attr.control])
-                //    {
-                //        if (proto.size())
-                //        {
-                //            set_prop(proto.back());
-                //        }
-                //        else
-                //        {
-                //            auto empty = brush;
-                //            empty.txt(whitespace).wdt(w);
-                //            set_prop(empty);
-                //            proto.push_back(empty);
-                //        }
-                //    }
-                //    else
-                //    {
-                //        brush.set_gc(utf8, w);
-                //        proto.push_back(brush);
-                //    }
-                //    //auto i = utf::to_hex((size_t)attr.control, 5, true);
-                //    //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
-                //}
+                data(count, proto);
+                proto.clear();
+                count = 0;
             }
-            inline void flush_data()
-            {
-                //if (count)
-                //{
-                //    data(count, proto);
-                //    proto.clear();
-                //    count = 0;
-                //}
-            }
-            inline void flush()
-            {
-                flush_data();
-            }
-            //virtual void data(si32 count, grid const& proto) { };
-        };
-    }
+        }
+        inline void flush()
+        {
+            flush_style();
+            flush_data();
+        }
+        virtual void meta(deco const& old_style)         { };
+        virtual void data(si32 count, grid const& proto) { };
+    };
 
     // ansi: Caret manipulation command list.
     struct writ

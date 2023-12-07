@@ -606,7 +606,7 @@ namespace netxs::os
                 }
 
                 struct vtparser
-                    : public ansi::output::parser
+                    : public ansi::parser
                 {
                     using redo = std::list<std::pair<deco, ansi::mark>>;
 
@@ -4504,71 +4504,101 @@ namespace netxs::os
                 // CSI ~, F, G, H, Z, I, O, M, m, _, p
                 // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
 
-                //
-                // total += accum;
-                // while (total.size())
-                // if (flag_paste)
-                // {
-                //      looking for
-                //      if (paste end)
-                //      {
-                //          paste(p);
-                //          flag_paste = faux;
-                //      }
-                // }
-                // else if (total.size() == 1)
-                // {
-                //      detect key
-                //      send key press
-                //      send key release
-                // }
-                // else if (total.front() == '\033')
-                // {
-                //     take sequence
-                //     if (sequence incomplete) break;
-                //     else if (seq == mouse)
-                //     {
-                //          mouse(m);
-                //     }
-                //     else if (seq == focus)
-                //     {
-                //          focus(f);
-                //     }
-                //     else if (seq == style)
-                //     {
-                //          style(s);
-                //     }
-                //     else if (seq == paste)
-                //     {
-                //          set flag_paste
-                //          continue;
-                //     }
-                //     else if (seq == win32)
-                //     {
-                //          keybd(k);
-                //     }
-                //     else
-                //     {
-                //          detect key
-                //          send key press
-                //          send key release
-                //     }
-                // }
-                // else
-                // {
-                //     take cluster
-                //     if (cluster.size() == 1 && (cluster.front() < 32 || cluster.front() == 0x7f))
-                //     {
-                //         detect key
-                //     }
-                //     else
-                //     {
-                //          key = undef
-                //          key.cluster = cluster;
-                //     }
-                //     send key press
-                //     send key release
-                // }
+                auto total = text{};
+                auto pflag = faux;
+                auto parser = [&](view accum)
+                {
+                    total += accum;
+                    while (total.size())
+                    if (pflag)
+                    {
+                        auto pos = total.find(ansi::paste_end);
+                        if (pos != text::npos)
+                        {
+                            p.txtdata += total.substr(0, pos);
+                            total.erase(0, pos + ansi::paste_end.size());
+                            paste(p);
+                            pflag = faux;
+                            p.txtdata.clear();
+                            continue;
+                        }
+                        else
+                        {
+                            auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
+                            if (pos != text::npos) pos += total.size() - accum.size();
+                            p.txtdata += total.substr(0, pos);
+                            total.erase(0, pos);
+                            break;
+                        }
+                    }
+                    else if (total.size() == 1)
+                    {
+                        //detect key
+                        //send key press
+                        //send key release
+                    }
+                    else if (total.front() == '\033')
+                    {
+                        //take sequence
+                        //if (sequence incomplete) break;
+                        //else if (seq == mouse)
+                        //{
+                        //    mouse(m);
+                        //}
+                        //else if (seq == focus)
+                        //{
+                        //     focus(f);
+                        //}
+                        //else if (seq == style)
+                        //{
+                        //    style(s);
+                        //}
+                        //else if (seq == paste)
+                        {
+                            auto pos = total.find(ansi::paste_end, ansi::paste_begin.size());
+                            if (pos == text::npos)
+                            {
+                                auto pos = total.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                p.txtdata = total.substr(0, pos);
+                                total.erase(0, pos);
+                                pflag = true;
+                                break;
+                            }
+                            else
+                            {
+                                p.txtdata = total.substr(ansi::paste_begin.size(), pos - ansi::paste_begin.size());
+                                total.erase(0, pos + ansi::paste_end.size());
+                                paste(p);
+                                p.txtdata.clear();
+                            }
+                        }
+                        //else if (seq == win32)
+                        //{
+                        //    keybd(k);
+                        //}
+                        //else
+                        //{
+                        //    detect key
+                        //    send key press
+                        //    send key release
+                        //}
+                    }
+                    else
+                    {
+                        //take cluster
+                        //if (cluster.size() == 1 && (cluster.front() < 32 || cluster.front() == 0x7f))
+                        //{
+                        //    detect key
+                        //}
+                        //else
+                        //{
+                        //    key = undef
+                        //    key.cluster = cluster;
+                        //}
+                        //send key press
+                        //send key release
+                    }
+                };
                 auto filter = [&, total = text{}](view accum) mutable
                 {
                     if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.

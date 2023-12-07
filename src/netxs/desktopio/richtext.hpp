@@ -1017,7 +1017,7 @@ namespace netxs::ui
 
     // richtext: Enriched text paragraph.
     class para
-        : public ansi::output::parser
+        : public ansi::parser
     {
         using corx = netxs::sptr<rich>;
 
@@ -1086,11 +1086,11 @@ namespace netxs::ui
             {
                 auto c = cluster;
                 c.attr.ucwidth = netxs::unidata::widths::slim;
-                ansi::output::parser::post(c);
+                ansi::parser::post(c);
             }
             else
             {
-                ansi::output::parser::post(cluster);
+                ansi::parser::post(cluster);
             }
         }
         void id(ui32 newid) { index = newid; }
@@ -1496,7 +1496,7 @@ namespace netxs::ui
 
     // richtext: Enriched text page.
     class page
-        : public ansi::output::parser
+        : public ansi::parser
     {
         using list = std::list<netxs::sptr<para>>;
         using iter = list::iterator;
@@ -1702,11 +1702,11 @@ namespace netxs::ui
             {
                 auto c = cluster;
                 c.attr.ucwidth = netxs::unidata::widths::slim;
-                ansi::output::parser::post(c);
+                ansi::parser::post(c);
             }
             else
             {
-                ansi::output::parser::post(cluster);
+                ansi::parser::post(cluster);
             }
         }
         void data(si32 count, grid const& proto) override
