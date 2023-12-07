@@ -4494,6 +4494,7 @@ namespace netxs::os
                 // ESC O x      F10
                 // ESC O y      F11
                 // ESC O z      F12
+                // ESC cluster  Alt+Key Ctrl+Alt+Key
                 // 0x1a (SUB)   Pause
                 // 0x7f (DEL)   Backspace
                 //
@@ -4516,56 +4517,54 @@ namespace netxs::os
                 {
                     auto t = type::undef;
                     auto incomplete = faux;
-                    auto head = s.begin() + 1; // Pop Esc.
-                    auto tail = s.end();
-                    auto c = *head++;
-                    if (c == '[') // CSI: ESC [ pn;...;pn cmd
+                    if (s.size() > 2) // ESC [ == Alt+[   ESC O == Alt+Shift+O
                     {
-                        while (head != tail) // Looking for CSI command.
+                        auto head = s.begin() + 1; // Pop Esc.
+                        auto tail = s.end();
+                        auto c = *head++;
+                        if (c == '[') // CSI: ESC [ pn;...;pn cmd
                         {
-                            c = *head;
-                            if (c >= 0x40 && c <= 0x7E) break;
-                            head++;
-                        }
-                        if (head == tail) incomplete = true;
-                        else
-                        {
-                            auto len = std::distance(s.begin(), head) + 1;
-                            if (c == 'm' || c == 'M')
+                            while (head != tail) // Looking for CSI command.
                             {
-                                if (len > 3 && s[2] == '<') t = type::mouse;
+                                c = *head;
+                                if (c >= 0x40 && c <= 0x7E) break;
+                                head++;
                             }
-                            else if (c == 'p')
+                            if (head == tail) incomplete = true;
+                            else
                             {
-                                if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
-                            }
-                            else if (c == 'I' || c == 'O')
-                            {
-                                t = type::focus;
-                            }
-                            else if (c == '[') // ESC [ [ byte
-                            {
-                                if (len == 3)
+                                auto len = std::distance(s.begin(), head) + 1;
+                                if (c == 'm' || c == 'M')
                                 {
-                                    if (s.size() > 3) len++; // Eat the next byte.
-                                    else              incomplete = true;
+                                    if (len > 3 && s[2] == '<') t = type::mouse;
                                 }
+                                else if (c == 'p')
+                                {
+                                    if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
+                                }
+                                else if (c == 'I' || c == 'O')
+                                {
+                                    t = type::focus;
+                                }
+                                else if (c == '[') // ESC [ [ byte
+                                {
+                                    if (len == 3)
+                                    {
+                                        if (s.size() > 3) len++; // Eat the next byte.
+                                        else              incomplete = true;
+                                    }
+                                }
+                                else if (c == '~')
+                                {
+                                    if (s.starts_with(ansi::paste_begin)) t = type::paste; // "\033[200~"
+                                }
+                                s = s.substr(0, len);
                             }
-                            else if (c == '~')
-                            {
-                                if (s.starts_with(ansi::paste_begin)) t = type::paste; // "\033[200~"
-                            }
-                            s = s.substr(0, len);
                         }
-                    }
-                    else if (c == 'O') // SS3: ESC O byte
-                    {
-                        if (s.size() < 3) incomplete = true;
-                        else              s = s.substr(0, 3);
-                    }
-                    else if (c == '\033') // ESC ESC
-                    {
-                        s = s.substr(0, 1);
+                        else if (c == 'O') // SS3: ESC O byte
+                        {
+                            s = s.substr(0, 3);
+                        }
                     }
                     return std::tuple{ t, s, incomplete };
                 };
