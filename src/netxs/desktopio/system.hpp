@@ -4636,9 +4636,65 @@ namespace netxs::os
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete) break;
                             cache.remove_prefix(s.size());
-                            if (t == type::mouse)
+                            if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
                             {
-                                //mouse(m);
+                                auto tmp = s.substr(3); // Pop "\033[<"
+                                auto ctrl = utf::to_int(tmp);
+                                if (tmp.empty() || !ctrl) continue;
+                                tmp.pop_front(); // Pop ;
+                                auto pos_x = utf::to_int(tmp);
+                                if (tmp.empty() || !pos_x) continue;
+                                tmp.pop_front(); // Pop ;
+                                auto pos_y = utf::to_int(tmp);
+                                if (!pos_y) continue;
+
+                                auto timecode = datetime::now();
+                                auto ispressed = s.back() == 'M';
+                                auto clamp = [](auto a) { return std::clamp(a, si32min / 2, si32max / 2); };
+                                auto x = clamp(pos_x.value() - 1);
+                                auto y = clamp(pos_y.value() - 1);
+                                auto ctl = ctrl.value();
+
+                                m.enabled = {};
+                                m.wheeled = {};
+                                m.hzwheel = {};
+                                m.wheeldt = {};
+                                m.ctlstat = {};
+                                // 000 000 00
+                                //   | ||| ||
+                                //   | ||| └----- button number
+                                //   | └--------- ctl state
+                                if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
+                                if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
+                                if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
+                                ctl &= ~0b00011100;
+                                k.ctlstat = m.ctlstat;
+
+                                if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
+                                {
+                                    m.buttons = {};
+                                    m.changed++;
+                                    m.timecod = timecode;
+                                    mouse(m);
+                                }
+                                m.coordxy = { x, y };
+                                switch (ctl)
+                                {
+                                    case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
+                                    case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
+                                    case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
+                                    case 64:
+                                        m.wheeled = true;
+                                        m.wheeldt = 1;
+                                        break;
+                                    case 65:
+                                        m.wheeled = true;
+                                        m.wheeldt = -1;
+                                        break;
+                                }
+                                m.changed++;
+                                m.timecod = timecode;
+                                mouse(m);
                             }
                             else if (t == type::focus)
                             {
