@@ -4511,9 +4511,9 @@ namespace netxs::os
                     style,
                     paste,
                 };
+                static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
                 auto take_sequence = [](qiew s) // s.size() always > 1.
                 {
-                    static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
                     auto t = type::undef;
                     auto incomplete = faux;
                     auto head = s.begin() + 1; // Pop Esc.
@@ -4647,7 +4647,11 @@ namespace netxs::os
                             }
                             else if (t == type::style)
                             {
-                                //style(s);
+                                auto tmp = s.substr(style_cmd.size());
+                                if (auto format = utf::to_int<ui32>(tmp))
+                                {
+                                    style(deco{ format.value() });
+                                }
                             }
                             else if (t == type::paste)
                             {
