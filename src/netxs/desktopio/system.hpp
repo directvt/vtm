@@ -4523,13 +4523,14 @@ namespace netxs::os
                     {
                         while (head != tail) // Looking for CSI command.
                         {
-                            c = *head++;
+                            c = *head;
                             if (c >= 0x40 && c <= 0x7E) break;
+                            head++;
                         }
                         if (head == tail) incomplete = true;
                         else
                         {
-                            auto len = std::distance(s.begin(), head);
+                            auto len = std::distance(s.begin(), head) + 1;
                             if (c == 'm' || c == 'M')
                             {
                                 if (len > 3 && s[2] == '<') t = type::mouse;
