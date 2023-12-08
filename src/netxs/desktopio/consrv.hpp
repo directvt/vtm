@@ -506,11 +506,6 @@ struct impl : consrv
         using hist = std::unordered_map<text, memo>;
         using mbtn = netxs::input::mouse::hist;
 
-        static constexpr auto shift_pressed = ui32{ SHIFT_PRESSED                          };
-        static constexpr auto alt___pressed = ui32{ LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED  };
-        static constexpr auto ctrl__pressed = ui32{ LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED };
-        static constexpr auto altgr_pressed = ui32{ alt___pressed | ctrl__pressed          };
-
         impl& server; // evnt: Console server reference.
         vect  stream; // evnt: Input event list.
         vect  recbuf; // evnt: Temporary buffer for copying event records.
@@ -940,9 +935,9 @@ struct impl : consrv
         {
             struct vkey { si16 key, vkey; ui32 base; };
             static auto x = ::VkKeyScanW(C);
-            static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? shift_pressed : 0)
-                                                        | (x & 0x0200 ? ctrl__pressed : 0)
-                                                        | (x & 0x0400 ? alt___pressed : 0)) << 8 };
+            static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? input::hids::anyShift : 0)
+                                                        | (x & 0x0200 ? input::hids::anyCtrl  : 0)
+                                                        | (x & 0x0400 ? input::hids::anyAlt   : 0)) << 8 };
             return k;
         }
         template<char C>
@@ -952,115 +947,112 @@ struct impl : consrv
             static auto need_shift = !!(x.key & 0x100);
             static auto need__ctrl = !!(x.key & 0x200);
             static auto need___alt = !!(x.key & 0x400);
-            return v == x.vkey && need_shift == !!(s & shift_pressed)
-                               && need__ctrl == !!(s & ctrl__pressed)
-                               && need___alt == !!(s & alt___pressed);
+            return v == x.vkey && need_shift == !!(s & (SHIFT_PRESSED                         ))
+                               && need__ctrl == !!(s & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED))
+                               && need___alt == !!(s & (LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED ));
         }
-        static auto mapvkey(wchr& c, ui16 v)
-        {
-            return v != VK_CONTROL && v != VK_SHIFT && (c = ::MapVirtualKeyW(v, MAPVK_VK_TO_CHAR) & 0xffff);
-        }
-        auto vtencode(input::hids& gear, si32 ctrls, bool decckm, wchr c)
+        auto vtencode(input::hids& gear, bool decckm)
         {
             static auto truenull = takevkey<'\0'>().vkey;
-            static auto alonekey = std::unordered_map<ui16, wide>
+            static auto alonekey = std::unordered_map<ui16, text>
             {
-                { VK_BACK,   L"\x7f"     },
-                { VK_TAB,    L"\x09"     },
-                { VK_PAUSE,  L"\x1a"     },
-                { VK_ESCAPE, L"\033"     },
-                { VK_PRIOR,  L"\033[5~"  },
-                { VK_NEXT,   L"\033[6~"  },
-                { VK_END,    L"\033[F"   },
-                { VK_HOME,   L"\033[H"   },
-                { VK_LEFT,   L"\033[D"   },
-                { VK_UP,     L"\033[A"   },
-                { VK_RIGHT,  L"\033[C"   },
-                { VK_DOWN,   L"\033[B"   },
-                { VK_INSERT, L"\033[2~"  },
-                { VK_DELETE, L"\033[3~"  },
-                { VK_F1,     L"\033OP"   },
-                { VK_F2,     L"\033OQ"   },
-                { VK_F3,     L"\033OR"   },
-                { VK_F4,     L"\033OS"   },
-                { VK_F5,     L"\033[15~" },
-                { VK_F6,     L"\033[17~" },
-                { VK_F7,     L"\033[18~" },
-                { VK_F8,     L"\033[19~" },
-                { VK_F9,     L"\033[20~" },
-                { VK_F10,    L"\033[21~" },
-                { VK_F11,    L"\033[23~" },
-                { VK_F12,    L"\033[24~" },
+                { VK_BACK,   "\x7f"     },
+                { VK_TAB,    "\x09"     },
+                { VK_PAUSE,  "\x1a"     },
+                { VK_ESCAPE, "\033"     },
+                { VK_PRIOR,  "\033[5~"  },
+                { VK_NEXT,   "\033[6~"  },
+                { VK_END,    "\033[F"   },
+                { VK_HOME,   "\033[H"   },
+                { VK_LEFT,   "\033[D"   },
+                { VK_UP,     "\033[A"   },
+                { VK_RIGHT,  "\033[C"   },
+                { VK_DOWN,   "\033[B"   },
+                { VK_INSERT, "\033[2~"  },
+                { VK_DELETE, "\033[3~"  },
+                { VK_F1,     "\033OP"   },
+                { VK_F2,     "\033OQ"   },
+                { VK_F3,     "\033OR"   },
+                { VK_F4,     "\033OS"   },
+                { VK_F5,     "\033[15~" },
+                { VK_F6,     "\033[17~" },
+                { VK_F7,     "\033[18~" },
+                { VK_F8,     "\033[19~" },
+                { VK_F9,     "\033[20~" },
+                { VK_F10,    "\033[21~" },
+                { VK_F11,    "\033[23~" },
+                { VK_F12,    "\033[24~" },
             };
-            static auto shiftkey = std::unordered_map<ui16, wide>
+            static auto shiftkey = std::unordered_map<ui16, text>
             {
-                { VK_PRIOR,  L"\033[5; ~"  },
-                { VK_NEXT,   L"\033[6; ~"  },
-                { VK_END,    L"\033[1; F"  },
-                { VK_HOME,   L"\033[1; H"  },
-                { VK_LEFT,   L"\033[1; D"  },
-                { VK_UP,     L"\033[1; A"  },
-                { VK_RIGHT,  L"\033[1; C"  },
-                { VK_DOWN,   L"\033[1; B"  },
-                { VK_INSERT, L"\033[2; ~"  },
-                { VK_DELETE, L"\033[3; ~"  },
-                { VK_F1,     L"\033[1; P"  },
-                { VK_F2,     L"\033[1; Q"  },
-                { VK_F3,     L"\033[1; R"  },
-                { VK_F4,     L"\033[1; S"  },
-                { VK_F5,     L"\033[15; ~" },
-                { VK_F6,     L"\033[17; ~" },
-                { VK_F7,     L"\033[18; ~" },
-                { VK_F8,     L"\033[19; ~" },
-                { VK_F9,     L"\033[20; ~" },
-                { VK_F10,    L"\033[21; ~" },
-                { VK_F11,    L"\033[23; ~" },
-                { VK_F12,    L"\033[24; ~" },
+                { VK_PRIOR,  "\033[5; ~"  },
+                { VK_NEXT,   "\033[6; ~"  },
+                { VK_END,    "\033[1; F"  },
+                { VK_HOME,   "\033[1; H"  },
+                { VK_LEFT,   "\033[1; D"  },
+                { VK_UP,     "\033[1; A"  },
+                { VK_RIGHT,  "\033[1; C"  },
+                { VK_DOWN,   "\033[1; B"  },
+                { VK_INSERT, "\033[2; ~"  },
+                { VK_DELETE, "\033[3; ~"  },
+                { VK_F1,     "\033[1; P"  },
+                { VK_F2,     "\033[1; Q"  },
+                { VK_F3,     "\033[1; R"  },
+                { VK_F4,     "\033[1; S"  },
+                { VK_F5,     "\033[15; ~" },
+                { VK_F6,     "\033[17; ~" },
+                { VK_F7,     "\033[18; ~" },
+                { VK_F8,     "\033[19; ~" },
+                { VK_F9,     "\033[20; ~" },
+                { VK_F10,    "\033[21; ~" },
+                { VK_F11,    "\033[23; ~" },
+                { VK_F12,    "\033[24; ~" },
             };
-            static auto specials = std::unordered_map<ui32, wide>
+            static auto specials = std::unordered_map<ui32, text>
             {
-                { VK_BACK              | ctrl__pressed << 8, { L"\x08"      }},
-                { VK_BACK              | alt___pressed << 8, { L"\033\x7f"  }},
-                { VK_BACK              | altgr_pressed << 8, { L"\033\x08"  }},
-                { VK_TAB               | ctrl__pressed << 8, { L"\t"        }},
-                { VK_TAB               | shift_pressed << 8, { L"\033[Z"    }},
-                { VK_TAB               | alt___pressed << 8, { L"\033[1;3I" }},
-                { VK_ESCAPE            | alt___pressed << 8, { L"\033\033"  }},
-                { '1'                  | ctrl__pressed << 8, { L"1"         }},
-                { '3'                  | ctrl__pressed << 8, { L"\x1b"      }},
-                { '4'                  | ctrl__pressed << 8, { L"\x1c"      }},
-                { '5'                  | ctrl__pressed << 8, { L"\x1d"      }},
-                { '6'                  | ctrl__pressed << 8, { L"\x1e"      }},
-                { '7'                  | ctrl__pressed << 8, { L"\x1f"      }},
-                { '8'                  | ctrl__pressed << 8, { L"\x7f"      }},
-                { '9'                  | ctrl__pressed << 8, { L"9"         }},
-                { VK_DIVIDE            | ctrl__pressed << 8, { L"\x1f"      }},
-                { takevkey<'?'>().base | altgr_pressed << 8, { L"\033\x7f"  }},
-                { takevkey<'?'>().base | ctrl__pressed << 8, { L"\x7f"      }},
-                { takevkey<'/'>().base | altgr_pressed << 8, { L"\033\x1f"  }},
-                { takevkey<'/'>().base | ctrl__pressed << 8, { L"\x1f"      }},
+                { VK_BACK              | input::hids::anyCtrl  << 8, { "\x08"      }},
+                { VK_BACK              | input::hids::anyAlt   << 8, { "\033\x7f"  }},
+                { VK_BACK              | input::hids::anyAltGr << 8, { "\033\x08"  }},
+                { VK_TAB               | input::hids::anyCtrl  << 8, { "\t"        }},
+                { VK_TAB               | input::hids::anyShift << 8, { "\033[Z"    }},
+                { VK_TAB               | input::hids::anyAlt   << 8, { "\033[1;3I" }},
+                { VK_ESCAPE            | input::hids::anyAlt   << 8, { "\033\033"  }},
+                { '1'                  | input::hids::anyCtrl  << 8, { "1"         }},
+                { '3'                  | input::hids::anyCtrl  << 8, { "\x1b"      }},
+                { '4'                  | input::hids::anyCtrl  << 8, { "\x1c"      }},
+                { '5'                  | input::hids::anyCtrl  << 8, { "\x1d"      }},
+                { '6'                  | input::hids::anyCtrl  << 8, { "\x1e"      }},
+                { '7'                  | input::hids::anyCtrl  << 8, { "\x1f"      }},
+                { '8'                  | input::hids::anyCtrl  << 8, { "\x7f"      }},
+                { '9'                  | input::hids::anyCtrl  << 8, { "9"         }},
+                { VK_DIVIDE            | input::hids::anyCtrl  << 8, { "\x1f"      }},
+                { takevkey<'?'>().base | input::hids::anyAltGr << 8, { "\033\x7f"  }},
+                { takevkey<'?'>().base | input::hids::anyCtrl  << 8, { "\x7f"      }},
+                { takevkey<'/'>().base | input::hids::anyAltGr << 8, { "\033\x1f"  }},
+                { takevkey<'/'>().base | input::hids::anyCtrl  << 8, { "\x1f"      }},
             };
 
             if (server.inpmod & nt::console::inmode::vt && gear.pressed)
             {
-                auto& s = ctrls;
-                auto& v = gear.virtcod;
+                auto s = gear.ctlstate;
+                auto v = gear.virtcod;
+                auto c = gear.cluster.empty() ? 0 : gear.cluster.front();
 
-                if (s & LEFT_CTRL_PRESSED && s & RIGHT_ALT_PRESSED) // This combination is already translated.
+                if (s & input::hids::LCtrl && s & input::hids::RAlt) // This combination is already translated.
                 {
-                    s &= ~(LEFT_CTRL_PRESSED | RIGHT_ALT_PRESSED);
+                    s &= ~(input::hids::LCtrl | input::hids::RAlt);
                 }
 
-                auto shift = s & shift_pressed ? shift_pressed : 0;
-                auto alt   = s & alt___pressed ? alt___pressed : 0;
-                auto ctrl  = s & ctrl__pressed ? ctrl__pressed : 0;
+                auto shift = s & input::hids::anyShift ? input::hids::anyShift : 0;
+                auto alt   = s & input::hids::anyAlt   ? input::hids::anyAlt   : 0;
+                auto ctrl  = s & input::hids::anyCtrl  ? input::hids::anyCtrl  : 0;
                 if (shift || alt || ctrl)
                 {
                     if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
                     {
                         auto a = c ? c : v; // Chars and vkeys for ' '(0x20),'A'-'Z'(0x41-5a) are the same on windows.
-                             if (a == 0x20 || (a >= 0x41 && a <= 0x5a)) return generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
-                        else if (c == 0x00 && v == truenull           ) return generate('\033', (wchr)('@' & 0b00011111)); // Map ctrl+alt+@ to ^[^@;
+                             if (a == 0x20 || (a >= 0x41 && a <= 0x5a)) return "\033"s + (char)(a & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                        else if (c == 0x00 && v == truenull           ) return "\033\0"s;  //'\033' + (wchr)('@' & 0b00011111)); // Map ctrl+alt+@ to ^[^@;
                     }
 
                     if (auto iter = shiftkey.find(v); iter != shiftkey.end())
@@ -1070,28 +1062,28 @@ struct impl : consrv
                         if (shift) mods += 1;
                         if (alt  ) mods += 2;
                         if (ctrl ) mods += 4;
-                        return generate(iter->second);
+                        return iter->second;
                     }
                     else if (auto iter = specials.find(v | (shift | alt | ctrl) << 8); iter != specials.end())
                     {
-                        return generate(iter->second);
+                        return iter->second;
                     }
-                    else if (!ctrl &&  alt && c) return generate('\033', c);
+                    else if (!ctrl &&  alt && c) return text{ '\033' + gear.cluster };
                     else if ( ctrl && !alt)
                     {
-                             if (c == 0x20 || (c == 0x00 && v == truenull)) return generate('@' & 0b00011111, s, truenull); // Detect ctrl+@ and ctrl+space.
-                        else if (c == 0x00 && mapvkey(c, v))                return generate( c  & 0b00011111); // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
+                             if (c == 0x20 || (c == 0x00 && v == truenull)) return text(1, '@' & 0b00011111); // Detect ctrl+@ and ctrl+space.
+                        else if (c == 0x00 && (v >= 0x41 && v <= 0x5A))     return text(1,  v  & 0b00011111); // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
                     }
                 }
 
                 if (auto iter = alonekey.find(v); iter != alonekey.end())
                 {
                     if (v >= VK_END && v <= VK_DOWN) iter->second[1] = decckm ? 'O' : '[';
-                    return generate(iter->second);
+                    return iter->second;
                 }
-                else if (c) return generate(c); //todo check surrogate pairs
+                else if (c) return gear.cluster;
             }
-            return faux;
+            return text{};
         }
         void keybd(input::hids& gear, bool decckm)
         {
@@ -1113,9 +1105,16 @@ struct impl : consrv
                     }
                 }
             }
-            else if (!vtencode(gear, ctrls, decckm, c))
+            else
             {
-                generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
+                auto yield = vtencode(gear, decckm);
+                if (yield.size())
+                {
+                    toWIDE.clear();
+                    utf::to_utf(yield, toWIDE);
+                    generate(toWIDE);
+                }
+                else generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
             }
 
             if (c == ansi::c0_etx)

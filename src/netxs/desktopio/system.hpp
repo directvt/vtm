@@ -3602,24 +3602,7 @@ namespace netxs::os
                     if (encod == prot::w32) termlink->keybd(gear, decckm, bpmode);
                     else
                     {
-                        //todo generate vt from keycode
-                        auto utf8 = gear.interpret();
-                        if (!bpmode)
-                        {
-                            utf::change(utf8, "\033[200~", "");
-                            utf::change(utf8, "\033[201~", "");
-                        }
-                        if (decckm)
-                        {
-                            utf::change(utf8, "\033[A",  "\033OA");
-                            utf::change(utf8, "\033[B",  "\033OB");
-                            utf::change(utf8, "\033[C",  "\033OC");
-                            utf::change(utf8, "\033[D",  "\033OD");
-                            utf::change(utf8, "\033[1A", "\033OA");
-                            utf::change(utf8, "\033[1B", "\033OB");
-                            utf::change(utf8, "\033[1C", "\033OC");
-                            utf::change(utf8, "\033[1D", "\033OD");
-                        }
+                        auto utf8 = gear.interpret(decckm);
                         auto guard = std::lock_guard{ writemtx };
                         writebuf += utf8;
                         writesyn.notify_one();
@@ -4501,6 +4484,7 @@ namespace netxs::os
                 // CSI final bytes: 0x40–0x7E  @A–Z[\]^_`a–z{|}~
                 // ESC O        Alt+Shift+O
                 // ESC [        Alt+[
+                // \033[1;3I    Alt+Tab
                 // CSI ~, A, B, C, D, F, G, H, Z, I, O, M, m, p
                 // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
 
@@ -4513,9 +4497,11 @@ namespace netxs::os
                     paste,
                 };
                 static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
-                auto take_sequence = [](qiew s) // s.size() always > 1.
+                auto take_sequence = [](qiew& cache) // s.size() always > 1.
                 {
+                    auto s = cache;
                     auto t = type::undef;
+                    auto l = 0;
                     auto incomplete = faux;
                     if (s.size() > 2) // ESC [ == Alt+[   ESC O == Alt+Shift+O
                     {
@@ -4542,7 +4528,7 @@ namespace netxs::os
                                 {
                                     if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
                                 }
-                                else if (c == 'I' || c == 'O')
+                                else if ((c == 'I' || c == 'O') && len == 3) // \033[1;3I == Alt+Tab
                                 {
                                     t = type::focus;
                                 }
@@ -4565,6 +4551,16 @@ namespace netxs::os
                         {
                             s = s.substr(0, 3);
                         }
+                        else // ESC cluster == Alt+cluster
+                        {
+                            auto cluster = utf::letter(s.substr(1));
+                            s = cluster.text;
+                            l = cluster.attr.utf8len;
+                        }
+                    }
+                    if (!incomplete)
+                    {
+                        cache.remove_prefix(l ? l : s.size());
                     }
                     return std::tuple{ t, s, incomplete };
                 };
@@ -4572,7 +4568,7 @@ namespace netxs::os
                 {
                     if (cluster.size() == 1)
                     {
-                        if (cluster.front() < 32 || cluster.front() == 0x7f) // Control
+                        if (cluster.front() < 32 || cluster.front() == 0x7f) // Ctrl+key
                         {
 
                         }
@@ -4635,8 +4631,7 @@ namespace netxs::os
                         {
                             auto [t, s, incomplete] = take_sequence(cache);
                             if (incomplete) break;
-                            cache.remove_prefix(s.size());
-                            if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
+                            else if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
                             {
                                 auto tmp = s.substr(3); // Pop "\033[<"
                                 auto ctrl = utf::to_int(tmp);

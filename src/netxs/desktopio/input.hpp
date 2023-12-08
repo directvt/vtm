@@ -904,12 +904,11 @@ namespace netxs::input
         text cluster = {};
         bool extflag = {};
         bool pressed = {};
+        bool handled = {};
         ui16 virtcod = {};
         ui16 scancod = {};
-        hint cause = netxs::events::userland::hids::keybd::data::post.id;
-        text keystrokes;
-        bool handled = {};
         si32 keycode = {};
+        hint cause = netxs::events::userland::hids::keybd::data::post.id;
 
         auto doinput()
         {
@@ -1294,6 +1293,7 @@ namespace netxs::input
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,
             anyShift = LShift | RShift,
+            anyAltGr = anyAlt | anyCtrl,
             anyWin   = LWin   | RWin,
         };
 
@@ -1490,7 +1490,6 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
         }
         void fire_paste()
@@ -1511,10 +1510,11 @@ namespace netxs::input
             owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
             mouse::delta.set(); // Update time stamp.
         }
-        text interpret()
+        text interpret(bool decckm)
         {
             auto textline = text{};
-            auto ctrl = [&](auto pure, auto f, auto suffix)
+            //todo replace with consrv::vtencode
+            auto ctrl = [&](auto pure, auto appl, auto f, auto suffix)
             {
                 textline = "\033";
                 if (ctlstate & hids::anyShift)
@@ -1532,7 +1532,11 @@ namespace netxs::input
                     textline += f;
                     textline += ";5";
                 }
-                else textline += pure;
+                else
+                {
+                    if (decckm) textline += appl;
+                    else        textline += pure;
+                }
                 textline += suffix;
             };
             if (pressed)
@@ -1548,40 +1552,40 @@ namespace netxs::input
                         textline = ctlstate & hids::anyShift ? "\033[Z"
                                                              : "\t";
                         break;
-                    case key::PageUp:     ctrl("[5",  "[5",  "~"); break;
-                    case key::PageDown:   ctrl("[6",  "[6",  "~"); break;
-                    case key::Insert:     ctrl("[2",  "[2",  "~"); break;
-                    case key::Delete:     ctrl("[3",  "[3",  "~"); break;
-                    case key::End:        ctrl("[",   "[1",  "F"); break;
-                    case key::Home:       ctrl("[",   "[1",  "H"); break;
-                    case key::UpArrow:    ctrl("[",   "[1",  "A"); break;
-                    case key::DownArrow:  ctrl("[",   "[1",  "B"); break;
-                    case key::RightArrow: ctrl("[",   "[1",  "C"); break;
-                    case key::LeftArrow:  ctrl("[",   "[1",  "D"); break;
-                    case key::F1:         ctrl("O",   "[1",  "P"); break;
-                    case key::F2:         ctrl("O",   "[1",  "Q"); break;
-                    case key::F3:         ctrl("O",   "[1",  "R"); break;
-                    case key::F4:         ctrl("O",   "[1",  "S"); break;
-                    case key::F5:         ctrl("[15", "[15", "~"); break;
-                    case key::F6:         ctrl("[17", "[17", "~"); break;
-                    case key::F7:         ctrl("[18", "[18", "~"); break;
-                    case key::F8:         ctrl("[19", "[19", "~"); break;
-                    case key::F9:         ctrl("[20", "[20", "~"); break;
-                    case key::F10:        ctrl("[21", "[21", "~"); break;
-                    case key::F11:        ctrl("[23", "[23", "~"); break;
-                    case key::F12:        ctrl("[24", "[24", "~"); break;
-                    case key::F13:        ctrl("[25", "[25", "~"); break;
-                    case key::F14:        ctrl("[26", "[26", "~"); break;
-                    case key::F15:        ctrl("[28", "[28", "~"); break;
-                    case key::F16:        ctrl("[29", "[29", "~"); break;
-                    case key::F17:        ctrl("[31", "[31", "~"); break;
-                    case key::F18:        ctrl("[32", "[32", "~"); break;
-                    case key::F19:        ctrl("[33", "[33", "~"); break;
-                    case key::F20:        ctrl("[34", "[34", "~"); break;
-                    case key::F21:        ctrl("[35", "[35", "~"); break;
-                    case key::F22:        ctrl("[36", "[36", "~"); break;
-                    case key::F23:        ctrl("[37", "[37", "~"); break;
-                    case key::F24:        ctrl("[38", "[38", "~"); break;
+                    case key::PageUp:     ctrl("[5",  "[5",  "[5",  "~"); break;
+                    case key::PageDown:   ctrl("[6",  "[6",  "[6",  "~"); break;
+                    case key::Insert:     ctrl("[2",  "[2",  "[2",  "~"); break;
+                    case key::Delete:     ctrl("[3",  "[3",  "[3",  "~"); break;
+                    case key::End:        ctrl("[",   "O",   "[1",  "F"); break;
+                    case key::Home:       ctrl("[",   "O",   "[1",  "H"); break;
+                    case key::UpArrow:    ctrl("[",   "O",   "[1",  "A"); break;
+                    case key::DownArrow:  ctrl("[",   "O",   "[1",  "B"); break;
+                    case key::RightArrow: ctrl("[",   "O",   "[1",  "C"); break;
+                    case key::LeftArrow:  ctrl("[",   "O",   "[1",  "D"); break;
+                    case key::F1:         ctrl("O",   "O",   "[1",  "P"); break;
+                    case key::F2:         ctrl("O",   "O",   "[1",  "Q"); break;
+                    case key::F3:         ctrl("O",   "O",   "[1",  "R"); break;
+                    case key::F4:         ctrl("O",   "O",   "[1",  "S"); break;
+                    case key::F5:         ctrl("[15", "[15", "[15", "~"); break;
+                    case key::F6:         ctrl("[17", "[17", "[17", "~"); break;
+                    case key::F7:         ctrl("[18", "[18", "[18", "~"); break;
+                    case key::F8:         ctrl("[19", "[19", "[19", "~"); break;
+                    case key::F9:         ctrl("[20", "[20", "[20", "~"); break;
+                    case key::F10:        ctrl("[21", "[21", "[21", "~"); break;
+                    case key::F11:        ctrl("[23", "[23", "[23", "~"); break;
+                    case key::F12:        ctrl("[24", "[24", "[24", "~"); break;
+                    case key::F13:        ctrl("[25", "[25", "[25", "~"); break;
+                    case key::F14:        ctrl("[26", "[26", "[26", "~"); break;
+                    case key::F15:        ctrl("[28", "[28", "[28", "~"); break;
+                    case key::F16:        ctrl("[29", "[29", "[29", "~"); break;
+                    case key::F17:        ctrl("[31", "[31", "[31", "~"); break;
+                    case key::F18:        ctrl("[32", "[32", "[32", "~"); break;
+                    case key::F19:        ctrl("[33", "[33", "[33", "~"); break;
+                    case key::F20:        ctrl("[34", "[34", "[34", "~"); break;
+                    case key::F21:        ctrl("[35", "[35", "[35", "~"); break;
+                    case key::F22:        ctrl("[36", "[36", "[36", "~"); break;
+                    case key::F23:        ctrl("[37", "[37", "[37", "~"); break;
+                    case key::F24:        ctrl("[38", "[38", "[38", "~"); break;
                     default:
                         textline = cluster;
                         break;

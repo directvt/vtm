@@ -757,16 +757,18 @@ namespace netxs::app::vtm
             {
                 //todo deprecated
                 //todo unify
-                auto F12 = (gear.keycode == input::key::F12 && gear.meta(hids::anyAlt)) || gear.keystrokes == "\033[24;3~"s;
-                if (F12 && gear.pressed) // Disconnect by Alt+F12.
+                if (!gear.pressed) return;
+                auto key = gear.keycode;
+                auto AltF12 = key == input::key::F12 && gear.meta(hids::anyAlt);
+                if (AltF12) // Disconnect by Alt+F12.
                 {
                     gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                     this->bell::expire<tier::preview>();
                     gear.set_handled(true);
                     return;
                 }
-                auto F10 = gear.keycode == input::key::F10 || gear.keystrokes == "\033[21~"s;
-                if (F10 && gear.pressed)
+                auto F10 = key == input::key::F10;
+                if (F10)
                 {
                     auto window_ptr = e2::form::layout::go::item.param();
                     this->RISEUP(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
@@ -778,12 +780,9 @@ namespace netxs::app::vtm
                     }
                     return;
                 }
-                auto& keystrokes = gear.keystrokes;
-                auto pgup = keystrokes == "\033[5;5~"s
-                        || (keystrokes == "\033[5~"s && gear.meta(hids::anyCtrl));
-                auto pgdn = keystrokes == "\033[6;5~"s
-                        || (keystrokes == "\033[6~"s && gear.meta(hids::anyCtrl));
-                if (pgup || pgdn)
+                auto CtrlPgUp = key == input::key::PageUp   && gear.meta(hids::anyCtrl);
+                auto CtrlPgDn = key == input::key::PageDown && gear.meta(hids::anyCtrl);
+                if (CtrlPgUp || CtrlPgDn)
                 {
                     if (align.what.applet)
                     {
@@ -800,8 +799,8 @@ namespace netxs::app::vtm
                     {
                         window_ptr.reset();
                         owner_id = id_t{};
-                        if (pgdn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                        else      this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                        if (CtrlPgDn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                        else          this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
                         if (window_ptr) window_ptr->SIGNAL(tier::request, e2::form::state::maximized, owner_id);
                         maximized = owner_id == gear.owner.id;
                         if (!owner_id || maximized) break;

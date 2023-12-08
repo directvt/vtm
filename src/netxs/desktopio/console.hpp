@@ -1174,7 +1174,7 @@ namespace netxs::ui
             LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
             {
                 //todo unify
-                if (gear.keystrokes == props.debug_toggle)
+                if (gear.keybd::cluster == props.debug_toggle)
                 {
                     debug ? debug.stop()
                           : debug.start();
