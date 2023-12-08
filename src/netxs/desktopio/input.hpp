@@ -512,7 +512,7 @@ namespace netxs::input
         auto xlat(Args&&... args)
         {
             auto iter = keymap.find(map{ args... });
-            return iter != keymap.end() ? iter->second : input::key::undef;
+            return iter != keymap.end() ? iter->second : key::undef;
         }
     }
 
@@ -1513,86 +1513,140 @@ namespace netxs::input
         }
         text interpret(bool decckm)
         {
-            auto textline = text{};
-            //todo replace with consrv::vtencode
-            auto ctrl = [&](auto pure, auto appl, auto f, auto suffix)
+            static auto true_null = key::Key2; //takevkey<'\0'>().vkey; // Ctrl+Shift+VK_2 for US
+            static auto alone_key = std::unordered_map<ui16, text>
             {
-                textline = "\033";
-                if (ctlstate & hids::anyShift)
-                {
-                    textline += f;
-                    textline += ";2";
-                }
-                else if (ctlstate & hids::anyAlt)
-                {
-                    textline += f;
-                    textline += ";3";
-                }
-                else if (ctlstate & hids::anyCtrl)
-                {
-                    textline += f;
-                    textline += ";5";
-                }
-                else
-                {
-                    if (decckm) textline += appl;
-                    else        textline += pure;
-                }
-                textline += suffix;
+                { key::Backspace,  "\x7f"     },
+                { key::Tab,        "\x09"     },
+                { key::Pause,      "\x1a"     },
+                { key::Esc,        "\033"     },
+                { key::PageUp,     "\033[5~"  },
+                { key::PageDown,   "\033[6~"  },
+                { key::End,        "\033[F"   },
+                { key::Home,       "\033[H"   },
+                { key::LeftArrow,  "\033[D"   },
+                { key::UpArrow,    "\033[A"   },
+                { key::RightArrow, "\033[C"   },
+                { key::DownArrow,  "\033[B"   },
+                { key::Insert,     "\033[2~"  },
+                { key::Delete,     "\033[3~"  },
+                { key::F1,         "\033OP"   },
+                { key::F2,         "\033OQ"   },
+                { key::F3,         "\033OR"   },
+                { key::F4,         "\033OS"   },
+                { key::F5,         "\033[15~" },
+                { key::F6,         "\033[17~" },
+                { key::F7,         "\033[18~" },
+                { key::F8,         "\033[19~" },
+                { key::F9,         "\033[20~" },
+                { key::F10,        "\033[21~" },
+                { key::F11,        "\033[23~" },
+                { key::F12,        "\033[24~" },
             };
-            if (pressed)
+            static auto shift_key = std::unordered_map<ui16, text>
             {
-                switch (keycode & -2 /*Generic keys only*/)
+                { key::PageUp,     "\033[5; ~"  },
+                { key::PageDown,   "\033[6; ~"  },
+                { key::End,        "\033[1; F"  },
+                { key::Home,       "\033[1; H"  },
+                { key::LeftArrow,  "\033[1; D"  },
+                { key::UpArrow,    "\033[1; A"  },
+                { key::RightArrow, "\033[1; C"  },
+                { key::DownArrow,  "\033[1; B"  },
+                { key::Insert,     "\033[2; ~"  },
+                { key::Delete,     "\033[3; ~"  },
+                { key::F1,         "\033[1; P"  },
+                { key::F2,         "\033[1; Q"  },
+                { key::F3,         "\033[1; R"  },
+                { key::F4,         "\033[1; S"  },
+                { key::F5,         "\033[15; ~" },
+                { key::F6,         "\033[17; ~" },
+                { key::F7,         "\033[18; ~" },
+                { key::F8,         "\033[19; ~" },
+                { key::F9,         "\033[20; ~" },
+                { key::F10,        "\033[21; ~" },
+                { key::F11,        "\033[23; ~" },
+                { key::F12,        "\033[24; ~" },
+            };
+            static auto other_key = std::unordered_map<ui32, text>
+            {
+                { key::Backspace | hids::anyCtrl  << 8, { "\x08"      }},
+                { key::Backspace | hids::anyAlt   << 8, { "\033\x7f"  }},
+                { key::Backspace | hids::anyAltGr << 8, { "\033\x08"  }},
+                { key::Tab       | hids::anyCtrl  << 8, { "\t"        }},
+                { key::Tab       | hids::anyShift << 8, { "\033[Z"    }},
+                { key::Tab       | hids::anyAlt   << 8, { "\033[1;3I" }},
+                { key::Esc       | hids::anyAlt   << 8, { "\033\033"  }},
+                { key::Key1      | hids::anyCtrl  << 8, { "1"         }},
+                { key::Key3      | hids::anyCtrl  << 8, { "\x1b"      }},
+                { key::Key4      | hids::anyCtrl  << 8, { "\x1c"      }},
+                { key::Key5      | hids::anyCtrl  << 8, { "\x1d"      }},
+                { key::Key6      | hids::anyCtrl  << 8, { "\x1e"      }},
+                { key::Key7      | hids::anyCtrl  << 8, { "\x1f"      }},
+                { key::Key8      | hids::anyCtrl  << 8, { "\x7f"      }},
+                { key::Key9      | hids::anyCtrl  << 8, { "9"         }},
+                { key::Slash     | hids::anyAltGr << 8, { "\033\x1f"  }}, // takevkey<'/'>().base
+                { key::Slash     | hids::anyCtrl  << 8, { "\x1f"      }}, // takevkey<'/'>().base
+                { key::Slash     |(hids::anyAltGr | hids::anyShift) << 8, { "\033\x7f"  }}, // takevkey<'?'>().base
+                { key::Slash     |(hids::anyCtrl  | hids::anyShift) << 8, { "\x7f"      }}, // takevkey<'?'>().base
+                //{ key::Slash     | hids::anyCtrl  << 8, { "\x1f"      }}, // VK_DIVIDE
+            };
+
+            if (keybd::pressed)
+            {
+                auto s = hids::ctlstate;
+                auto v = keybd::keycode & -2; // Generic keys only
+                auto c = keybd::cluster.empty() ? 0 : keybd::cluster.front();
+
+                if (s & hids::LCtrl && s & hids::RAlt) // This combination is already translated.
                 {
-                    //todo Ctrl+Space
-                    //     Ctrl+Backspace
-                    //     Alt+0..9
-                    //     Ctrl/Shift+Enter
-                    case key::Backspace: textline = "\177"; break;
-                    case key::Tab:
-                        textline = ctlstate & hids::anyShift ? "\033[Z"
-                                                             : "\t";
-                        break;
-                    case key::PageUp:     ctrl("[5",  "[5",  "[5",  "~"); break;
-                    case key::PageDown:   ctrl("[6",  "[6",  "[6",  "~"); break;
-                    case key::Insert:     ctrl("[2",  "[2",  "[2",  "~"); break;
-                    case key::Delete:     ctrl("[3",  "[3",  "[3",  "~"); break;
-                    case key::End:        ctrl("[",   "O",   "[1",  "F"); break;
-                    case key::Home:       ctrl("[",   "O",   "[1",  "H"); break;
-                    case key::UpArrow:    ctrl("[",   "O",   "[1",  "A"); break;
-                    case key::DownArrow:  ctrl("[",   "O",   "[1",  "B"); break;
-                    case key::RightArrow: ctrl("[",   "O",   "[1",  "C"); break;
-                    case key::LeftArrow:  ctrl("[",   "O",   "[1",  "D"); break;
-                    case key::F1:         ctrl("O",   "O",   "[1",  "P"); break;
-                    case key::F2:         ctrl("O",   "O",   "[1",  "Q"); break;
-                    case key::F3:         ctrl("O",   "O",   "[1",  "R"); break;
-                    case key::F4:         ctrl("O",   "O",   "[1",  "S"); break;
-                    case key::F5:         ctrl("[15", "[15", "[15", "~"); break;
-                    case key::F6:         ctrl("[17", "[17", "[17", "~"); break;
-                    case key::F7:         ctrl("[18", "[18", "[18", "~"); break;
-                    case key::F8:         ctrl("[19", "[19", "[19", "~"); break;
-                    case key::F9:         ctrl("[20", "[20", "[20", "~"); break;
-                    case key::F10:        ctrl("[21", "[21", "[21", "~"); break;
-                    case key::F11:        ctrl("[23", "[23", "[23", "~"); break;
-                    case key::F12:        ctrl("[24", "[24", "[24", "~"); break;
-                    case key::F13:        ctrl("[25", "[25", "[25", "~"); break;
-                    case key::F14:        ctrl("[26", "[26", "[26", "~"); break;
-                    case key::F15:        ctrl("[28", "[28", "[28", "~"); break;
-                    case key::F16:        ctrl("[29", "[29", "[29", "~"); break;
-                    case key::F17:        ctrl("[31", "[31", "[31", "~"); break;
-                    case key::F18:        ctrl("[32", "[32", "[32", "~"); break;
-                    case key::F19:        ctrl("[33", "[33", "[33", "~"); break;
-                    case key::F20:        ctrl("[34", "[34", "[34", "~"); break;
-                    case key::F21:        ctrl("[35", "[35", "[35", "~"); break;
-                    case key::F22:        ctrl("[36", "[36", "[36", "~"); break;
-                    case key::F23:        ctrl("[37", "[37", "[37", "~"); break;
-                    case key::F24:        ctrl("[38", "[38", "[38", "~"); break;
-                    default:
-                        textline = cluster;
-                        break;
+                    s &= ~(hids::LCtrl | hids::RAlt);
                 }
+
+                auto shift = s & hids::anyShift ? hids::anyShift : 0;
+                auto alt   = s & hids::anyAlt   ? hids::anyAlt   : 0;
+                auto ctrl  = s & hids::anyCtrl  ? hids::anyCtrl  : 0;
+                if (shift || alt || ctrl)
+                {
+                    if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
+                    {
+                        if (c == 0) // Chars and vkeys for ' '(0x20),'A'-'Z'(0x41-5a) are the same on windows.
+                        {
+                                 if (v >= key::KeyA  && v <= key::KeyZ) return "\033"s + (char)((0x41 + (v - key::KeyA) / 2) & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                            else if (v == key::Space || v == true_null) return "\033\0"s;  //'\033' + (wchr)('@' & 0b00011111)); // Map ctrl+alt+@ to ^[^@;
+                        }
+                        else if (c == 0x20 || (c >= 'A' && c <= 'Z')) return "\033"s + (char)(c & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                    }
+
+                    if (auto iter = shift_key.find(v); iter != shift_key.end())
+                    {
+                        auto& mods = *++(iter->second.rbegin());
+                        mods = '1';
+                        if (shift) mods += 1;
+                        if (alt  ) mods += 2;
+                        if (ctrl ) mods += 4;
+                        return iter->second;
+                    }
+                    else if (auto iter = other_key.find(v | (shift | alt | ctrl) << 8); iter != other_key.end())
+                    {
+                        return iter->second;
+                    }
+                    else if (!ctrl &&  alt && c) return text{ '\033' + keybd::cluster };
+                    else if ( ctrl && !alt)
+                    {
+                             if (c == 0x20 || (c == 0x00 && v == true_null))      return text(1, '@' & 0b00011111); // Detect ctrl+@ and ctrl+space.
+                        else if (c == 0x00 && (v >= key::KeyA && v <= key::KeyZ)) return text(1, (0x41 + (v - key::KeyA) / 2) & 0b00011111); // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
+                    }
+                }
+
+                if (auto iter = alone_key.find(v); iter != alone_key.end())
+                {
+                    if (v >= key::End && v <= key::DownArrow) iter->second[1] = decckm ? 'O' : '[';
+                    return iter->second;
+                }
+                else if (c) return keybd::cluster;
             }
-            return textline;
+            return text{};
         }
     };
 }

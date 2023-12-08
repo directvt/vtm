@@ -951,143 +951,6 @@ struct impl : consrv
                                && need__ctrl == !!(s & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED))
                                && need___alt == !!(s & (LEFT_ALT_PRESSED  | RIGHT_ALT_PRESSED ));
         }
-        auto vtencode(input::hids& gear, bool decckm)
-        {
-            static auto truenull = input::key::Key2; //takevkey<'\0'>().vkey; // Ctrl+Shift+VK_2 for US
-            static auto alonekey = std::unordered_map<ui16, text>
-            {
-                { input::key::Backspace,  "\x7f"     },
-                { input::key::Tab,        "\x09"     },
-                { input::key::Pause,      "\x1a"     },
-                { input::key::Esc,        "\033"     },
-                { input::key::PageUp,     "\033[5~"  },
-                { input::key::PageDown,   "\033[6~"  },
-                { input::key::End,        "\033[F"   },
-                { input::key::Home,       "\033[H"   },
-                { input::key::LeftArrow,  "\033[D"   },
-                { input::key::UpArrow,    "\033[A"   },
-                { input::key::RightArrow, "\033[C"   },
-                { input::key::DownArrow,  "\033[B"   },
-                { input::key::Insert,     "\033[2~"  },
-                { input::key::Delete,     "\033[3~"  },
-                { input::key::F1,         "\033OP"   },
-                { input::key::F2,         "\033OQ"   },
-                { input::key::F3,         "\033OR"   },
-                { input::key::F4,         "\033OS"   },
-                { input::key::F5,         "\033[15~" },
-                { input::key::F6,         "\033[17~" },
-                { input::key::F7,         "\033[18~" },
-                { input::key::F8,         "\033[19~" },
-                { input::key::F9,         "\033[20~" },
-                { input::key::F10,        "\033[21~" },
-                { input::key::F11,        "\033[23~" },
-                { input::key::F12,        "\033[24~" },
-            };
-            static auto shiftkey = std::unordered_map<ui16, text>
-            {
-                { input::key::PageUp,     "\033[5; ~"  },
-                { input::key::PageDown,   "\033[6; ~"  },
-                { input::key::End,        "\033[1; F"  },
-                { input::key::Home,       "\033[1; H"  },
-                { input::key::LeftArrow,  "\033[1; D"  },
-                { input::key::UpArrow,    "\033[1; A"  },
-                { input::key::RightArrow, "\033[1; C"  },
-                { input::key::DownArrow,  "\033[1; B"  },
-                { input::key::Insert,     "\033[2; ~"  },
-                { input::key::Delete,     "\033[3; ~"  },
-                { input::key::F1,         "\033[1; P"  },
-                { input::key::F2,         "\033[1; Q"  },
-                { input::key::F3,         "\033[1; R"  },
-                { input::key::F4,         "\033[1; S"  },
-                { input::key::F5,         "\033[15; ~" },
-                { input::key::F6,         "\033[17; ~" },
-                { input::key::F7,         "\033[18; ~" },
-                { input::key::F8,         "\033[19; ~" },
-                { input::key::F9,         "\033[20; ~" },
-                { input::key::F10,        "\033[21; ~" },
-                { input::key::F11,        "\033[23; ~" },
-                { input::key::F12,        "\033[24; ~" },
-            };
-            static auto specials = std::unordered_map<ui32, text>
-            {
-                { input::key::Backspace | input::hids::anyCtrl  << 8, { "\x08"      }},
-                { input::key::Backspace | input::hids::anyAlt   << 8, { "\033\x7f"  }},
-                { input::key::Backspace | input::hids::anyAltGr << 8, { "\033\x08"  }},
-                { input::key::Tab       | input::hids::anyCtrl  << 8, { "\t"        }},
-                { input::key::Tab       | input::hids::anyShift << 8, { "\033[Z"    }},
-                { input::key::Tab       | input::hids::anyAlt   << 8, { "\033[1;3I" }},
-                { input::key::Esc       | input::hids::anyAlt   << 8, { "\033\033"  }},
-                { input::key::Key1      | input::hids::anyCtrl  << 8, { "1"         }},
-                { input::key::Key3      | input::hids::anyCtrl  << 8, { "\x1b"      }},
-                { input::key::Key4      | input::hids::anyCtrl  << 8, { "\x1c"      }},
-                { input::key::Key5      | input::hids::anyCtrl  << 8, { "\x1d"      }},
-                { input::key::Key6      | input::hids::anyCtrl  << 8, { "\x1e"      }},
-                { input::key::Key7      | input::hids::anyCtrl  << 8, { "\x1f"      }},
-                { input::key::Key8      | input::hids::anyCtrl  << 8, { "\x7f"      }},
-                { input::key::Key9      | input::hids::anyCtrl  << 8, { "9"         }},
-                { input::key::Slash     | input::hids::anyAltGr << 8, { "\033\x1f"  }}, // takevkey<'/'>().base
-                { input::key::Slash     | input::hids::anyCtrl  << 8, { "\x1f"      }}, // takevkey<'/'>().base
-                { input::key::Slash     |(input::hids::anyAltGr | input::hids::anyShift) << 8, { "\033\x7f"  }}, // takevkey<'?'>().base
-                { input::key::Slash     |(input::hids::anyCtrl  | input::hids::anyShift) << 8, { "\x7f"      }}, // takevkey<'?'>().base
-                //{ input::key::Slash     | input::hids::anyCtrl  << 8, { "\x1f"      }}, // VK_DIVIDE
-            };
-
-            if (server.inpmod & nt::console::inmode::vt && gear.pressed)
-            {
-                auto s = gear.ctlstate;
-                auto v = gear.keycode & -2; // Generic keys only
-                auto c = gear.cluster.empty() ? 0 : gear.cluster.front();
-
-                if (s & input::hids::LCtrl && s & input::hids::RAlt) // This combination is already translated.
-                {
-                    s &= ~(input::hids::LCtrl | input::hids::RAlt);
-                }
-
-                auto shift = s & input::hids::anyShift ? input::hids::anyShift : 0;
-                auto alt   = s & input::hids::anyAlt   ? input::hids::anyAlt   : 0;
-                auto ctrl  = s & input::hids::anyCtrl  ? input::hids::anyCtrl  : 0;
-                if (shift || alt || ctrl)
-                {
-                    if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
-                    {
-                        if (c == 0) // Chars and vkeys for ' '(0x20),'A'-'Z'(0x41-5a) are the same on windows.
-                        {
-                                 if (v >= input::key::KeyA  && v <= input::key::KeyZ) return "\033"s + (char)((0x41 + (v - input::key::KeyA) / 2) & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
-                            else if (v == input::key::Space || v == truenull)         return "\033\0"s;  //'\033' + (wchr)('@' & 0b00011111)); // Map ctrl+alt+@ to ^[^@;
-                        }
-                        else if (c == 0x20 || (c >= 'A' && c <= 'Z')) return "\033"s + (char)(c & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
-                    }
-
-                    if (auto iter = shiftkey.find(v); iter != shiftkey.end())
-                    {
-                        auto& mods = *++(iter->second.rbegin());
-                        mods = '1';
-                        if (shift) mods += 1;
-                        if (alt  ) mods += 2;
-                        if (ctrl ) mods += 4;
-                        return iter->second;
-                    }
-                    else if (auto iter = specials.find(v | (shift | alt | ctrl) << 8); iter != specials.end())
-                    {
-                        return iter->second;
-                    }
-                    else if (!ctrl &&  alt && c) return text{ '\033' + gear.cluster };
-                    else if ( ctrl && !alt)
-                    {
-                             if (c == 0x20 || (c == 0x00 && v == truenull))                     return text(1, '@' & 0b00011111); // Detect ctrl+@ and ctrl+space.
-                        else if (c == 0x00 && (v >= input::key::KeyA && v <= input::key::KeyZ)) return text(1, (0x41 + (v - input::key::KeyA) / 2) & 0b00011111); // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
-                    }
-                }
-
-                if (auto iter = alonekey.find(v); iter != alonekey.end())
-                {
-                    if (v >= input::key::End && v <= input::key::DownArrow) iter->second[1] = decckm ? 'O' : '[';
-                    return iter->second;
-                }
-                else if (c) return gear.cluster;
-            }
-            return text{};
-        }
         void keybd(input::hids& gear, bool decckm)
         {
             auto lock = std::lock_guard{ locker };
@@ -1110,12 +973,15 @@ struct impl : consrv
             }
             else
             {
-                auto yield = vtencode(gear, decckm);
-                if (yield.size())
+                if (server.inpmod & nt::console::inmode::vt)
                 {
-                    toWIDE.clear();
-                    utf::to_utf(yield, toWIDE);
-                    generate(toWIDE);
+                    auto yield = gear.interpret(decckm);
+                    if (yield.size())
+                    {
+                        toWIDE.clear();
+                        utf::to_utf(yield, toWIDE);
+                        generate(toWIDE);
+                    }
                 }
                 else generate(c, ctrls, gear.virtcod, gear.pressed, gear.scancod);
             }
