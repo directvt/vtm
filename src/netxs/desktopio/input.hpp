@@ -335,6 +335,7 @@ namespace netxs::input
             };
         };
 
+        //todo check non-us kb layouts with key::Slash
         #define key_list \
             /*Id   Vkey  Scan    CtrlState          Mask  I  Name            */\
             X(0,      0,    0,           0, 0x0000'00'FF, 1, undef            )\
