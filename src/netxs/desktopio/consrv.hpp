@@ -860,7 +860,7 @@ struct impl : consrv
             auto bttns = gear.m.buttons & 0b00011111;
             auto flags = ui32{};
             if (moved) flags |= MOUSE_MOVED;
-            for (auto i = 0; i < dclick.size(); i++)
+            for (auto i = 0_sz; i < dclick.size(); i++)
             {
                 auto prvbtn = mstate & (1 << i);
                 auto sysbtn = bttns  & (1 << i);
