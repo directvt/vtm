@@ -286,6 +286,17 @@ namespace netxs::input
         {
             sz_t hash; // map: Key hash.
 
+            //todo combine to the single vector
+            static auto& vkey()
+            {
+                static auto v = std::vector<byte>(256);
+                return v;
+            }
+            static auto& scan()
+            {
+                static auto s = std::vector<byte>(256);
+                return s;
+            }
             static auto& edit()
             {
                 static auto b = std::vector<byte>(256);
@@ -313,6 +324,14 @@ namespace netxs::input
             {
                 return edit()[keycode];
             }
+            static auto& vkey(si32 keycode)
+            {
+                return vkey()[keycode];
+            }
+            static auto& scan(si32 keycode)
+            {
+                return scan()[keycode];
+            }
 
             map(si32 vk, si32 sc, ui32 cs)
                 : hash{ static_cast<sz_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
@@ -322,6 +341,8 @@ namespace netxs::input
                 mask(vk) = keymask;
                 name(id) = keyname;
                 edit(id) = doinput;
+                vkey(id) = vk;
+                scan(id) = sc;
                 hash = static_cast<sz_t>(keymask & (vk | (sc << 8) | (cs << 16)));
             }
 
