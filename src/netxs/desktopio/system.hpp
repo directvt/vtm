@@ -953,6 +953,16 @@ namespace netxs::os
                 if (scrl  ) state |= SCROLLLOCK_ON;
                 return state;
             }
+            template<char C>
+            static auto takevkey()
+            {
+                struct vkey { si16 key, vkey; ui32 base; };
+                static auto x = ::VkKeyScanW(C);
+                static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? input::hids::anyShift : 0)
+                                                            | (x & 0x0200 ? input::hids::anyCtrl  : 0)
+                                                            | (x & 0x0400 ? input::hids::anyAlt   : 0)) << 8 };
+                return k;
+            }
             auto is_wow64()
             {
                 if constexpr (sizeof(void*) == 4)
@@ -4187,6 +4197,26 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
+                if (os::stdin_fd != os::invalid_fd) // Check and update keyboard layout.
+                {
+                    auto true_null = nt::takevkey<'\0'>().base;
+                    auto slash_key = nt::takevkey< '/'>().base;
+                    auto quest_key = nt::takevkey< '?'>().base;
+                    if ((true_null & 0xff) != '2'       // Send update for non-US keyboard layouts.
+                     || (slash_key & 0xff) != VK_OEM_2
+                     || (quest_key & 0xff) != VK_OEM_2)
+                    {
+                        true_null = input::key::find(true_null & 0xff, input::key::Key2);
+                        slash_key = input::key::find(slash_key & 0xff, input::key::Slash) | (slash_key & 0xff00);
+                        quest_key = input::key::find(quest_key & 0xff, input::key::Slash) | (quest_key & 0xff00);
+                        k.keycode = input::key::config;
+                        k.cluster.clear();
+                        utf::to_utf_from_code(true_null, k.cluster);
+                        utf::to_utf_from_code(slash_key, k.cluster);
+                        utf::to_utf_from_code(quest_key, k.cluster);
+                        keybd(k);
+                    }
+                }
                 auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
                                                             : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
                 while (alive)

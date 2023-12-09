@@ -806,10 +806,10 @@ struct impl : consrv
                 if (c == '\n' || c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
+                    generate('\r', s, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
-                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                    //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else
                 {
@@ -931,19 +931,9 @@ struct impl : consrv
             signal.notify_one();
         }
         template<char C>
-        static auto takevkey()
-        {
-            struct vkey { si16 key, vkey; ui32 base; };
-            static auto x = ::VkKeyScanW(C);
-            static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? input::hids::anyShift : 0)
-                                                        | (x & 0x0200 ? input::hids::anyCtrl  : 0)
-                                                        | (x & 0x0400 ? input::hids::anyAlt   : 0)) << 8 };
-            return k;
-        }
-        template<char C>
         static auto truechar(ui16 v, ui32 s)
         {
-            static auto x = takevkey<C>();
+            static auto x = os::nt::takevkey<C>();
             static auto need_shift = !!(x.key & 0x100);
             static auto need__ctrl = !!(x.key & 0x200);
             static auto need___alt = !!(x.key & 0x400);
