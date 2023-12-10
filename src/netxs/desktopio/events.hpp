@@ -418,8 +418,8 @@ namespace netxs::events
     #endif
 
     //todo deprecated?
-    //#define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&] (typename decltype( event )::type && param)
-    //#define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&] (typename decltype( event )::type && param)
+    //#define LISTEN_AND_RUN_T(level, event, token, param, arg) bell::template submit2<level,decltype( event )>( arg, token ) = [&](typename decltype( event )::type && param)
+    //#define LISTEN_AND_RUN(  level, event,        param, arg) bell::template submit2<level,decltype( event )>( arg        ) = [&](typename decltype( event )::type && param)
     //#define SIGNAL_GLOBAL(        event, param              ) bell::template signal_global(decltype( event )::id, static_cast<typename decltype( event )::type &&>(param))
     //#define LISTEN_GLOBAL(        event, param, token       ) bell::template submit_global( event, token -0 ) = [&]                  (typename decltype( event )::type&& param)
 

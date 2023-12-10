@@ -953,6 +953,16 @@ namespace netxs::os
                 if (scrl  ) state |= SCROLLLOCK_ON;
                 return state;
             }
+            template<char C>
+            static auto takevkey()
+            {
+                struct vkey { si16 key, vkey; ui32 base; };
+                static auto x = ::VkKeyScanW(C);
+                static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? input::hids::anyShift : 0)
+                                                            | (x & 0x0200 ? input::hids::anyCtrl  : 0)
+                                                            | (x & 0x0400 ? input::hids::anyAlt   : 0)) << 8 };
+                return k;
+            }
             auto is_wow64()
             {
                 if constexpr (sizeof(void*) == 4)
@@ -3116,62 +3126,12 @@ namespace netxs::os
             else
             {
                 #if defined(_WIN32)
-
-                    ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
-                    ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
-                    dtvt::backup.opage = ::GetConsoleOutputCP();
-                    dtvt::backup.ipage = ::GetConsoleCP();
-                    ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
-                    ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
-                    auto inpmode = DWORD{ nt::console::inmode::extended
-                                        | nt::console::inmode::winsize
-                                        | nt::console::inmode::quickedit };
-                    ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
-                    auto outmode = DWORD{ nt::console::outmode::no_auto_cr
-                                        | nt::console::outmode::wrap_at_eol
-                                        | nt::console::outmode::preprocess
-                                        | nt::console::outmode::vt };
-                    if (!::SetConsoleMode(os::stdout_fd, outmode) || nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                    if (nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
                     {
-                        dtvt::mode |= ui::console::nt16; // Legacy console detected - nt::console::outmode::vt + no_auto_cr not supported.
-                        outmode &= ~(nt::console::outmode::no_auto_cr | nt::console::outmode::vt);
-                        ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                        dtvt::mode |= ui::console::nt16;
                     }
-                    auto size = DWORD{ os::pipebuf };
-                    auto wstr = wide(size, 0);
-                    ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
-                    dtvt::backup.title = wstr.data();
-                    ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
-
-                #else
-
-                    if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
-                    {
-                        auto raw_mode = dtvt::backup;
-                        ::cfmakeraw(&raw_mode);
-                        ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
-                        os::vgafont();
-                        io::send(os::stdout_fd, ansi::save_title());
-                    }
-                    else os::fail("Check you are using the proper tty device");
-
                 #endif
                 dtvt::win_sz = dtvt::consize();
-                auto repair = []
-                {
-                    #if defined(_WIN32)
-                        ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
-                        ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
-                        ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
-                        ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
-                        ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
-                        ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
-                    #else
-                        ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
-                        io::send(os::stdout_fd, ansi::load_title());
-                    #endif
-                };
-                std::atexit(repair);
             }
             return active;
         }();
@@ -3259,6 +3219,64 @@ namespace netxs::os
             return dtvt::mode;
         }();
 
+        auto checkpoint()
+        {
+            if (dtvt::active) return;
+            #if defined(_WIN32)
+
+                ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
+                ok(::GetConsoleMode(os::stdin_fd , &dtvt::backup.imode), "::GetConsoleMode(os::stdin_fd)", os::unexpected);
+                dtvt::backup.opage = ::GetConsoleOutputCP();
+                dtvt::backup.ipage = ::GetConsoleCP();
+                ok(::SetConsoleOutputCP(65001), "::SetConsoleOutputCP()", os::unexpected);
+                ok(::SetConsoleCP(65001), "::SetConsoleCP()", os::unexpected);
+                auto inpmode = DWORD{ nt::console::inmode::extended
+                                    | nt::console::inmode::winsize
+                                    | nt::console::inmode::quickedit };
+                ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
+                auto outmode = dtvt::mode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
+                             ? DWORD{ nt::console::outmode::wrap_at_eol
+                                    | nt::console::outmode::preprocess }
+                             : DWORD{ nt::console::outmode::no_auto_cr
+                                    | nt::console::outmode::wrap_at_eol
+                                    | nt::console::outmode::preprocess
+                                    | nt::console::outmode::vt };
+                ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
+                auto size = DWORD{ os::pipebuf };
+                auto wstr = wide(size, 0);
+                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
+                dtvt::backup.title = wstr.data();
+                ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
+
+            #else
+
+                if (ok(::tcgetattr(os::stdin_fd, &dtvt::backup), "::tcgetattr(os::stdin_fd)", os::unexpected))
+                {
+                    auto raw_mode = dtvt::backup;
+                    ::cfmakeraw(&raw_mode);
+                    ok(::tcsetattr(os::stdin_fd, TCSANOW, &raw_mode), "::tcsetattr(os::stdin_fd, TCSANOW)", os::unexpected);
+                    os::vgafont();
+                    io::send(os::stdout_fd, ansi::save_title());
+                }
+                else os::fail("Check you are using the proper tty device");
+
+            #endif
+            auto repair = []
+            {
+                #if defined(_WIN32)
+                    ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
+                    ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
+                    ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
+                    ok(::SetConsoleCP(                        dtvt::backup.ipage), "::SetConsoleCP(ipage)", os::unexpected);
+                    ok(::SetConsoleTitleW(                    dtvt::backup.title.c_str()), "::SetConsoleTitleW()", os::unexpected);
+                    ok(::SetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::SetConsoleCursorInfo()", os::unexpected);
+                #else
+                    ::tcsetattr(os::stdin_fd, TCSANOW, &dtvt::backup);
+                    io::send(os::stdout_fd, ansi::load_title());
+                #endif
+            };
+            std::atexit(repair);
+        }
         auto connect(text cmd, text cwd, text env, fdrw fds)
         {
             log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
@@ -3371,8 +3389,6 @@ namespace netxs::os
 
         struct vtty
         {
-            using s11n = directvt::binary::s11n;
-
             flag                    attached{};
             ipc::stdcon             termlink{};
             std::thread             stdinput{};
@@ -3596,24 +3612,7 @@ namespace netxs::os
                     if (encod == prot::w32) termlink->keybd(gear, decckm, bpmode);
                     else
                     {
-                        //todo generate vt from keycode
-                        auto utf8 = gear.interpret();
-                        if (!bpmode)
-                        {
-                            utf::change(utf8, "\033[200~", "");
-                            utf::change(utf8, "\033[201~", "");
-                        }
-                        if (decckm)
-                        {
-                            utf::change(utf8, "\033[A",  "\033OA");
-                            utf::change(utf8, "\033[B",  "\033OB");
-                            utf::change(utf8, "\033[C",  "\033OC");
-                            utf::change(utf8, "\033[D",  "\033OD");
-                            utf::change(utf8, "\033[1A", "\033OA");
-                            utf::change(utf8, "\033[1B", "\033OB");
-                            utf::change(utf8, "\033[1C", "\033OC");
-                            utf::change(utf8, "\033[1D", "\033OD");
-                        }
+                        auto utf8 = gear.interpret(decckm);
                         auto guard = std::lock_guard{ writemtx };
                         writebuf += utf8;
                         writesyn.notify_one();
@@ -4198,6 +4197,26 @@ namespace netxs::os
                         oldval = newval;
                     }
                 };
+                if (os::stdin_fd != os::invalid_fd) // Check and update keyboard layout.
+                {
+                    auto true_null = nt::takevkey<'\0'>().base;
+                    auto slash_key = nt::takevkey< '/'>().base;
+                    auto quest_key = nt::takevkey< '?'>().base;
+                    if ((true_null & 0xff) != '2'       // Send update for non-US keyboard layouts.
+                     || (slash_key & 0xff) != VK_OEM_2
+                     || (quest_key & 0xff) != VK_OEM_2)
+                    {
+                        true_null = input::key::find(true_null & 0xff, input::key::Key2);
+                        slash_key = input::key::find(slash_key & 0xff, input::key::Slash) | (slash_key & 0xff00);
+                        quest_key = input::key::find(quest_key & 0xff, input::key::Slash) | (quest_key & 0xff00);
+                        k.keycode = input::key::config;
+                        k.cluster.clear();
+                        utf::to_utf_from_code(true_null, k.cluster);
+                        utf::to_utf_from_code(slash_key, k.cluster);
+                        utf::to_utf_from_code(quest_key, k.cluster);
+                        keybd(k);
+                    }
+                }
                 auto waits = os::stdin_fd != os::invalid_fd ? std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm, os::stdin_fd }
                                                             : std::vector{ (fd_t)os::signals::alarm, (fd_t)alarm };
                 while (alive)
@@ -4243,6 +4262,7 @@ namespace netxs::os
                     if (count == 0) continue;
                     items.resize(count);
                     if (!::ReadConsoleInputW(os::stdin_fd, items.data(), count, &count)) break;
+                    auto timecode = datetime::now();
                     auto head = items.begin();
                     auto tail = items.end();
                     while (alive && head != tail)
@@ -4265,11 +4285,10 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.doubled = faux;
-                                m.doubled = faux;
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
+                                m.timecod = timecode;
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
@@ -4347,7 +4366,6 @@ namespace netxs::os
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
                             check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
-                            check(changed, m.doubled, !!(r.Event.MouseEvent.dwEventFlags & DOUBLE_CLICK));
                             check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
                             check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
@@ -4358,6 +4376,7 @@ namespace netxs::os
                             if (changed || m.wheeled || m.hzwheel) // Don't fire the same state (conhost fires the same events every second).
                             {
                                 m.changed++;
+                                m.timecod = timecode;
                                 mouse(m);
                             }
                         }
@@ -4452,13 +4471,501 @@ namespace netxs::os
                 }
 
                 // The following sequences are processed here:
-                // ESC
-                // ESC ESC
+                // ESC          Escape
+                // ESC ESC      Escape
                 // ESC [ I
                 // ESC [ O
-                // ESC [ < 0 ; x ; y M/m
+                // ESC [ < mod ; x ; y m
+                // ESC [ < mod ; x ; y M
                 // ESC [ 33 : format p
-                auto filter = [&, total = text{}](view accum) mutable
+                // ESC [ [ A
+                // ESC [ [ B
+                // ESC [ [ C
+                // ESC [ [ D
+                // ESC [ [ E
+                // ESC [ Z          Shit+Tab
+                // ESC [ ... H      Home
+                // ESC [ 1 ~        Home
+                // ESC [ 7 ~        Home
+                // ESC [ 2 ~        Insert
+                // ESC [ 3 ~        Delete
+                // ESC [ 4 ~        End
+                // ESC [ 8 ~        End
+                // ESC [ ... F      End
+                // ESC [ G          Keypad 5
+                // ESC [ ... ~      PgUp, PgDn, F5 ... F24
+                // ESC [ 1 0 ~  F0
+                // ESC O P      F1
+                // ESC O Q      F2
+                // ESC O R      F3
+                // ESC O S      F4
+                // ESC O t      F5
+                // ESC O u      F6
+                // ESC O v      F7
+                // ESC O l      F8
+                // ESC O w      F9
+                // ESC O x      F10
+                // ESC O y      F11
+                // ESC O z      F12
+                // ESC cluster  Alt+Key Ctrl+Alt+Key
+                // 0x1a (SUB)   Pause
+                // 0x7f (DEL)   Backspace
+                //
+                // CSI final bytes: 0x40–0x7E  @A–Z[\]^_`a–z{|}~
+                // ESC O        Alt+Shift+O
+                // ESC [        Alt+[
+                // \033[1;3I    Alt+Tab
+                // CSI ~, A, B, C, D, F, G, H, Z, I, O, M, m, p
+                // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
+
+                enum class type
+                {
+                    undef,
+                    mouse,
+                    focus,
+                    style,
+                    paste,
+                };
+                static const auto style_cmd = "\033[" + std::to_string(ansi::ccc_stl) + ":";
+                auto take_sequence = [](qiew& cache) // s.size() always > 1.
+                {
+                    auto s = cache;
+                    auto t = type::undef;
+                    auto incomplete = faux;
+                    if (s.size() > 2) // ESC [ == Alt+[   ESC O == Alt+Shift+O
+                    {
+                        auto head = s.begin() + 1; // Pop Esc.
+                        auto tail = s.end();
+                        auto c = *head++;
+                        if (c == '[') // CSI: ESC [ pn;...;pn cmd
+                        {
+                            while (head != tail) // Looking for CSI command.
+                            {
+                                c = *head;
+                                if (c >= 0x40 && c <= 0x7E) break;
+                                head++;
+                            }
+                            if (head == tail) incomplete = true;
+                            else
+                            {
+                                auto len = std::distance(s.begin(), head) + 1;
+                                if (c == 'm' || c == 'M')
+                                {
+                                    if (len > 3 && s[2] == '<') t = type::mouse;
+                                }
+                                else if (c == 'p')
+                                {
+                                    if (s.starts_with(style_cmd)) t = type::style; // "\033[33:"...
+                                }
+                                else if ((c == 'I' || c == 'O') && len == 3) // \033[1;3I == Alt+Tab
+                                {
+                                    t = type::focus;
+                                }
+                                else if (c == '[') // ESC [ [ byte
+                                {
+                                    if (len == 3)
+                                    {
+                                        if (s.size() > 3) len++; // Eat the next byte.
+                                        else              incomplete = true;
+                                    }
+                                }
+                                else if (c == '~')
+                                {
+                                    if (s.starts_with(ansi::paste_begin)) t = type::paste; // "\033[200~"
+                                }
+                                s = s.substr(0, len);
+                            }
+                        }
+                        else if (c == 'O') // SS3: ESC O byte
+                        {
+                            s = s.substr(0, 3);
+                        }
+                        else // ESC cluster == Alt+cluster
+                        {
+                            auto cluster = utf::letter(s.substr(1));
+                            s = s.substr(0, cluster.attr.utf8len + 1);
+                        }
+                    }
+                    if (!incomplete)
+                    {
+                        cache.remove_prefix(s.size());
+                    }
+                    return std::tuple{ t, s, incomplete };
+                };
+
+                static auto vt2key = []
+                {
+                    using namespace input;
+                    auto keymask = std::vector<std::pair<ui32, text>>
+                    {
+                        { key::PageUp,     "\033[5; ~"  },
+                        { key::PageDown,   "\033[6; ~"  },
+                        { key::End,        "\033[1; F"  },
+                        { key::Home,       "\033[1; H"  },
+                        { key::LeftArrow,  "\033[1; D"  },
+                        { key::UpArrow,    "\033[1; A"  },
+                        { key::RightArrow, "\033[1; C"  },
+                        { key::DownArrow,  "\033[1; B"  },
+                        { key::Insert,     "\033[2; ~"  },
+                        { key::Delete,     "\033[3; ~"  },
+                        { key::F1,         "\033[1; P"  },
+                        { key::F2,         "\033[1; Q"  },
+                        { key::F3,         "\033[1; R"  },
+                        { key::F4,         "\033[1; S"  },
+                        { key::F5,         "\033[15; ~" },
+                        { key::F6,         "\033[17; ~" },
+                        { key::F7,         "\033[18; ~" },
+                        { key::F8,         "\033[19; ~" },
+                        { key::F9,         "\033[20; ~" },
+                        { key::F10,        "\033[21; ~" },
+                        { key::F11,        "\033[23; ~" },
+                        { key::F12,        "\033[24; ~" },
+                    };
+                    auto m = std::unordered_map<text, std::pair<text, ui32>, qiew::hash, qiew::equal>
+                    {
+                        //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt   << 8 }},
+                        { "\033\x7f"  , { "",     key::Slash         |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},
+                        { "\033\x00"s , { "",     key::Space         | hids::AltGr  << 8 }},
+                        { "\x00"s     , { " ",    key::Space         | hids::LCtrl  << 8 }},
+                        { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl  << 8 }},
+                        { "\033\x08"  , { "",     key::Backspace     | hids::AltGr  << 8 }},
+                        { "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }},
+                        { "\033[1;3I" , { "",     key::Tab           | hids::LAlt   << 8 }},
+                        { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
+                        { "\x7f"      , { "\x08", key::Backspace                         }},
+                        { "\x09"      , { "\x09", key::Tab                               }},
+                        { "\x0d"      , { "\x0a", key::Enter                             }},
+
+                        //{ "\x1a"      , { "",     key::Pause                             }},
+                        //{ "\x1a"      , { "\x1a", key::KeyZ          | hids::LCtrl  << 8 }},
+                        { "\033"      , { "\033", key::Esc                               }},
+                        { "\x1c"      , { "",     key::Key4          | hids::LCtrl  << 8 }},
+                        { "\x1d"      , { "",     key::Key5          | hids::LCtrl  << 8 }},
+                        { "\x1e"      , { "",     key::Key6          | hids::LCtrl  << 8 }},
+                        { "\x1f"      , { "",     key::Slash         | hids::LCtrl  << 8 }},
+                        { "\033\x1f"  , { "",     key::Slash         | hids::AltGr  << 8 }},
+                        { "\x20"      , { " ",    key::Space                             }},
+                        { "\x21"      , { "!",    key::Key1          | hids::LShift << 8 }},
+                        { "\x22"      , { "\"",   key::SingleQuote   | hids::LShift << 8 }},
+                        { "\x23"      , { "#",    key::Key3          | hids::LShift << 8 }},
+                        { "\x24"      , { "$",    key::Key4          | hids::LShift << 8 }},
+                        { "\x25"      , { "%",    key::Key5          | hids::LShift << 8 }},
+                        { "\x26"      , { "&",    key::Key7          | hids::LShift << 8 }},
+                        { "\x27"      , { "'",    key::SingleQuote                       }},
+                        { "\x28"      , { "(",    key::Key9          | hids::LShift << 8 }},
+                        { "\x29"      , { ")",    key::Key0          | hids::LShift << 8 }},
+                        { "\x2a"      , { "*",    key::Multiply                          }},
+                        { "\x2b"      , { "+",    key::Plus                              }},
+                        { "\x2c"      , { ",",    key::Comma                             }},
+                        { "\x2d"      , { "-",    key::Minus                             }},
+                        { "\x2e"      , { ".",    key::Period                            }},
+                        { "\x2f"      , { "/",    key::Slash                             }},
+
+                        { "\x3a"      , { ":",    key::Semicolon     | hids::LShift << 8 }},
+                        { "\x3b"      , { ";",    key::Semicolon                         }},
+                        { "\x3c"      , { "<",    key::Comma         | hids::LShift << 8 }},
+                        { "\x3d"      , { "=",    key::Equal                             }},
+                        { "\x3e"      , { ">",    key::Period        | hids::LShift << 8 }},
+                        { "\x3f"      , { "?",    key::Slash         | hids::LShift << 8 }},
+                        { "\x40"      , { "@",    key::Key2          | hids::LShift << 8 }},
+
+                        { "\x5b"      , { "[",    key::OpenBracket                       }},
+                        { "\x5c"      , { "\\",   key::BackSlash                         }},
+                        { "\x5d"      , { "]",    key::ClosedBracket                     }},
+                        { "\x5e"      , { "^",    key::Key6          | hids::LShift << 8 }},
+                        { "\x5f"      , { "_",    key::Minus         | hids::LShift << 8 }},
+                        { "\x60"      , { "`",    key::BackQuote                         }},
+
+                        { "\x7b"      , { "{",    key::OpenBracket   | hids::LShift << 8 }},
+                        { "\x7c"      , { "|",    key::BackSlash     | hids::LShift << 8 }},
+                        { "\x7d"      , { "}",    key::ClosedBracket | hids::LShift << 8 }},
+                        { "\x7e"      , { "~",    key::BackQuote     | hids::LShift << 8 }},
+
+                        { "\033[5~"   , { "",     key::PageUp                            }},
+                        { "\033[6~"   , { "",     key::PageDown                          }},
+                        { "\033[F"    , { "",     key::End                               }},
+                        { "\033[H"    , { "",     key::Home                              }},
+                        { "\033[D"    , { "",     key::LeftArrow                         }},
+                        { "\033[A"    , { "",     key::UpArrow                           }},
+                        { "\033[C"    , { "",     key::RightArrow                        }},
+                        { "\033[B"    , { "",     key::DownArrow                         }},
+                        { "\033[2~"   , { "",     key::Insert                            }},
+                        { "\033[3~"   , { "",     key::Delete                            }},
+                        { "\033OP"    , { "",     key::F1                                }},
+                        { "\033OQ"    , { "",     key::F2                                }},
+                        { "\033OR"    , { "",     key::F3                                }},
+                        { "\033OS"    , { "",     key::F4                                }},
+                        { "\033[15~"  , { "",     key::F5                                }},
+                        { "\033[17~"  , { "",     key::F6                                }},
+                        { "\033[18~"  , { "",     key::F7                                }},
+                        { "\033[19~"  , { "",     key::F8                                }},
+                        { "\033[20~"  , { "",     key::F9                                }},
+                        { "\033[21~"  , { "",     key::F10                               }},
+                        { "\033[23~"  , { "",     key::F11                               }},
+                        { "\033[24~"  , { "",     key::F12                               }},
+                    };
+
+                    for (auto i = 1; i < 8; i++)
+                    {
+                        auto mods = '1';
+                        auto ctls = 0;
+                        if (i & 0b001) { ctls |= hids::LShift; mods += 1; }
+                        if (i & 0b010) { ctls |= hids::LAlt;   mods += 2; }
+                        if (i & 0b100) { ctls |= hids::LCtrl;  mods += 4; }
+                        for (auto& [key, utf8] : keymask)
+                        {
+                            *++(utf8.rbegin()) = mods;
+                            m[utf8] = { "", key | (ctls << 8) };
+                        }
+                    }
+                    for (auto i = 0; i < 'Z' - 'A'; i++)
+                    {
+                        m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << 8) };
+                        m[text(1, i + 'a')] = { text(1, i + 'a'),  key::KeyA + i * 2 };
+                    }
+                    for (auto i = 0; i < 10; i++)
+                    {
+                        m[text(1, i + '0')] = { text(1, i + '0'), key::Key0 + i * 2 };
+                    }
+                    return m;
+                }();
+
+                auto detect_key = [&](auto& k, qiew cluster)
+                {
+                    using namespace input;
+                    auto iter = vt2key.find(cluster);
+                    if (iter != vt2key.end())
+                    {
+                        auto keys = iter->second.second;
+                        auto code = keys & 0xff;
+                        auto& rec = key::map::data(code);
+                        k.cluster = iter->second.first;
+                        k.keycode = code;
+                        k.ctlstat = keys >> 8;
+                        k.virtcod = rec.vkey;
+                        k.scancod = rec.scan;
+                    }
+                    else if (cluster.size() == 1)
+                    {
+                        auto c = cluster.front();
+                        if (c >= 1 && c <= 26) // Ctrl+key
+                        {
+                            auto code = key::KeyA + (c - 1) * 2;
+                            auto& rec = key::map::data(code);
+                            k.cluster = cluster;
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
+                            k.ctlstat = hids::LCtrl;
+                        }
+                        else // Unknown byte
+                        {
+                            auto code = key::undef;
+                            auto& rec = key::map::data(code);
+                            k.cluster = cluster;
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
+                        }
+                    }
+                    else if (cluster.front() == '\033')
+                    {
+                        auto c = cluster[1];
+                        if (c >= 1 && c <= 26) // Ctrl+Alt+key
+                        {
+                            auto code = key::KeyA + (c - 1) * 2;
+                            auto& rec = key::map::data(code);
+                            k.cluster = {};
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
+                            k.ctlstat = hids::LCtrl | hids::LAlt;
+                        }
+                        else // Alt+cluster
+                        {
+                            auto iter = vt2key.find(cluster.substr(1));
+                            if (iter != vt2key.end())
+                            {
+                                auto keys = iter->second.second;
+                                auto code = keys & 0xff;
+                                auto& rec = key::map::data(code);
+                                k.cluster = iter->second.first;
+                                k.keycode = code;
+                                k.virtcod = rec.vkey;
+                                k.scancod = rec.scan;
+                                k.ctlstat = hids::LAlt | (keys >> 8);
+                            }
+                            else
+                            {
+                                auto code = key::undef;
+                                auto& rec = key::map::data(code);
+                                k.cluster = cluster.substr(1);
+                                k.keycode = code;
+                                k.virtcod = rec.vkey;
+                                k.scancod = rec.scan;
+                                k.ctlstat = hids::LAlt;
+                            }
+                        }
+                    }
+                    else // Cluster
+                    {
+                        auto code = key::undef;
+                        auto& rec = key::map::data(code);
+                        k.cluster = cluster;
+                        k.keycode = code;
+                        k.virtcod = rec.vkey;
+                        k.scancod = rec.scan;
+                        k.ctlstat = {};
+                    }
+                    k.extflag = {};
+                    k.handled = {};
+                    k.pressed = true; keybd(k);
+                    k.pressed = faux; keybd(k);
+                };
+
+                auto filter = [&, input = text{}, pflag = faux](view accum) mutable
+                {
+                    input += accum;
+                    auto cache = qiew{ input };
+                    while (cache.size())
+                    {
+                        if (pflag)
+                        {
+                            auto pos = cache.find(ansi::paste_end);
+                            if (pos != text::npos)
+                            {
+                                p.txtdata += cache.substr(0, pos);
+                                cache.remove_prefix(pos + ansi::paste_end.size());
+                                paste(p);
+                                pflag = faux;
+                                p.txtdata.clear();
+                                continue;
+                            }
+                            else
+                            {
+                                auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                if (pos != text::npos) pos += cache.size() - accum.size();
+                                p.txtdata += cache.substr(0, pos);
+                                cache.remove_prefix(pos);
+                                break;
+                            }
+                        }
+                        else if (cache.size() == 1)
+                        {
+                            detect_key(k, cache);
+                            cache.clear();
+                        }
+                        else if (cache.front() == '\033')
+                        {
+                            auto [t, s, incomplete] = take_sequence(cache);
+                            if (incomplete) break;
+                            else if (t == type::mouse) // ESC [ < ctrl ; xpos ; ypos M
+                            {
+                                auto tmp = s.substr(3); // Pop "\033[<"
+                                auto ctrl = utf::to_int(tmp);
+                                if (tmp.empty() || !ctrl) continue;
+                                tmp.pop_front(); // Pop ;
+                                auto pos_x = utf::to_int(tmp);
+                                if (tmp.empty() || !pos_x) continue;
+                                tmp.pop_front(); // Pop ;
+                                auto pos_y = utf::to_int(tmp);
+                                if (!pos_y) continue;
+
+                                auto timecode = datetime::now();
+                                auto ispressed = s.back() == 'M';
+                                auto clamp = [](auto a) { return std::clamp(a, si32min / 2, si32max / 2); };
+                                auto x = clamp(pos_x.value() - 1);
+                                auto y = clamp(pos_y.value() - 1);
+                                auto ctl = ctrl.value();
+
+                                m.enabled = {};
+                                m.wheeled = {};
+                                m.hzwheel = {};
+                                m.wheeldt = {};
+                                m.ctlstat = {};
+                                // 000 000 00
+                                //   | ||| ||
+                                //   | ||| └----- button number
+                                //   | └--------- ctl state
+                                if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
+                                if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
+                                if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
+                                ctl &= ~0b00011100;
+                                k.ctlstat = m.ctlstat;
+
+                                if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
+                                {
+                                    m.buttons = {};
+                                    m.changed++;
+                                    m.timecod = timecode;
+                                    mouse(m);
+                                }
+                                m.coordxy = { x, y };
+                                switch (ctl)
+                                {
+                                    case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
+                                    case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
+                                    case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
+                                    case 64:
+                                        m.wheeled = true;
+                                        m.wheeldt = 1;
+                                        break;
+                                    case 65:
+                                        m.wheeled = true;
+                                        m.wheeldt = -1;
+                                        break;
+                                }
+                                m.changed++;
+                                m.timecod = timecode;
+                                mouse(m);
+                            }
+                            else if (t == type::focus)
+                            {
+                                f.state = s.back() == 'I';
+                                focus(f);
+                            }
+                            else if (t == type::style)
+                            {
+                                auto tmp = s.substr(style_cmd.size());
+                                if (auto format = utf::to_int<ui32>(tmp))
+                                {
+                                    style(deco{ format.value() });
+                                }
+                            }
+                            else if (t == type::paste)
+                            {
+                                auto pos = cache.find(ansi::paste_end);
+                                if (pos == text::npos)
+                                {
+                                    auto pos = cache.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                    p.txtdata = cache.substr(0, pos);
+                                    cache.remove_prefix(pos);
+                                    pflag = true;
+                                    break;
+                                }
+                                else
+                                {
+                                    p.txtdata = cache.substr(0, pos);
+                                    cache.remove_prefix(pos + ansi::paste_end.size());
+                                    paste(p);
+                                    p.txtdata.clear();
+                                }
+                            }
+                            else // t == type::undef
+                            {
+                                detect_key(k, s);
+                            }
+                        }
+                        else
+                        {
+                            auto cluster = utf::letter(cache);
+                            detect_key(k, cluster.text);
+                            cache.remove_prefix(cluster.attr.utf8len);
+                        }
+                    }
+                    input = cache;
+                };
+                auto filter_9 = [&, total = text{}](view accum) mutable
                 {
                     if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.
                     {
@@ -4550,6 +5057,7 @@ namespace netxs::os
                                                 if (pos == len) { total = strv; break; } // incomlpete sequence
                                                 if (strv.at(pos) == 'M' || strv.at(pos) == 'm')
                                                 {
+                                                    auto timecode = datetime::now();
                                                     auto ispressed = (strv.at(pos) == 'M');
                                                     ++pos;
 
@@ -4559,7 +5067,6 @@ namespace netxs::os
                                                     auto ctl = ctrl.value();
 
                                                     m.enabled = {};
-                                                    m.doubled = {};
                                                     m.wheeled = {};
                                                     m.hzwheel = {};
                                                     m.wheeldt = {};
@@ -4578,6 +5085,7 @@ namespace netxs::os
                                                     {
                                                         m.buttons = {};
                                                         m.changed++;
+                                                        m.timecod = timecode;
                                                         mouse(m);
                                                     }
                                                     m.coordxy = { x, y };
@@ -4596,6 +5104,7 @@ namespace netxs::os
                                                             break;
                                                     }
                                                     m.changed++;
+                                                    m.timecod = timecode;
                                                     mouse(m);
                                                     unk = faux;
                                                 }
@@ -4665,11 +5174,10 @@ namespace netxs::os
                             {
                                 k.ctlstat = kbmod;
                                 m.ctlstat = kbmod;
-                                m.doubled = faux;
-                                m.doubled = faux;
                                 m.wheeled = faux;
                                 m.hzwheel = faux;
                                 m.wheeldt = 0;
+                                m.timecod = datetime::now();
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
@@ -4702,6 +5210,7 @@ namespace netxs::os
                             m.coordxy = { mcoord / scale };
                             m.buttons = bttns;
                             m.ctlstat = k.ctlstat;
+                            m.timecod = datetime::now();
                             m.changed++;
                             mouse(m);
                         }

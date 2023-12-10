@@ -17,7 +17,7 @@ namespace netxs::ansi
 
     static const auto esc_csi     = '['; // ESC [ ...
     static const auto esc_ocs     = ']'; // ESC ] ...
-    static const auto esc_dsc     = 'P'; // ESC P ... BELL/ST
+    static const auto esc_dcs     = 'P'; // ESC P ... BELL/ST
     static const auto esc_sos     = 'X'; // ESC X ... BELL/ST
     static const auto esc_pm      = '^'; // ESC ^ ... BELL/ST
     static const auto esc_apc     = '_'; // ESC _ ... BELL/ST
@@ -249,16 +249,19 @@ namespace netxs::ansi
     //static const auto ctrl_break = si32{ 0xE046 }; // Pressed Ctrl+Break scancode.
     static const auto ctrl_break = si32{ 0x46 }; // Pressed Ctrl+Break scancode.
 
+    static const auto paste_begin = "\033[200~"sv; // Bracketed paste begin.
+    static const auto paste_end   = "\033[201~"sv; // Bracketed paste end.
+
     template<class Base>
     class basevt
     {
         char  heap[32];
-        char* tail = heap + sizeof(heap);
         Base& block;
 
         template<class T>
         inline void itos(T data)
         {
+            auto tail = heap + sizeof(heap);
             auto cptr = tail;
             auto bake = [&](auto bits)
             {
@@ -862,27 +865,27 @@ namespace netxs::ansi
     static auto link(si32 i)          { return escx{}.link(i);       } // ansi: Set object id link.
     static auto ref(si32 i)           { return escx{}.ref(i);        } // ansi: Create the reference to the existing paragraph. Create new id if it is not existing.
     static auto idx(si32 i)           { return escx{}.idx(i);        } // ansi: Split the text run and associate the fragment with an id.
-                                                                      //       All following text is under the IDX until the next command is issued.
-                                                                      //       Redefine if the id already exists.
-    // ansi: Caret forwarding instructions.
+                                                                       //       All following text is under the IDX until the next command is issued.
+                                                                       //       Redefine if the id already exists.
+    // ansi: Curses commands.
     // The order is important (see the richtext::flow::exec constexpr).
     //todo tie with richtext::flow::exec
     enum fn : si32
     {
-        dx, // horizontal delta.
-        dy, // vertical delta.
-        ax, // x absolute (0-based).
-        ay, // y absolute (0-based).
+        dx, // Cursor step horizontal delta.
+        dy, // Cursor step vertical delta.
+        ax, // Cursor to x absolute (0-based).
+        ay, // Cursor to y absolute (0-based).
 
         //todo deprecated
         ox, // old format x absolute (1-based).
         oy, // old format y absolute (1-based).
 
-        px, // x percent.
-        py, // y percent.
+        px, // Cursor to x percent position.
+        py, // Cursor to y percent position.
         //ts, // set tab size.
-        tb, // tab forward.
-        nl, // next line and reset x to west (carriage return).
+        tb, // Cursor tab forward.
+        nl, // Cursor to next line and reset x to west (carriage return).
         //br, // text wrap mode (DECSET: CSI ? 7 h/l Auto-wrap Mode (DECAWM) or CSI ? 45 h/l reverse wrap around mode).
         //yx, // bidi.
         //hz, // text horizontal alignment.
@@ -893,22 +896,22 @@ namespace netxs::ansi
         //wt, // set top		vertical wrapping field.
         //wb, // set bottom	vertical wrapping field.
 
-        sc, // save caret position.
-        rc, // load caret position.
-        zz, // all params reset to zero.
+        sc, // Save cursor position.
+        rc, // Load cursor position.
+        zz, // All params reset to zero.
 
         //todo revise/deprecated
         // ansi: Paint instructions. The order is important (see the mill).
         // CSI Ps J  Erase in Display (ED), VT100.
-        ed, // Ps = 0  ⇒  Erase Below (default).
-            // Ps = 1  ⇒  Erase Above.
+        ed, // Ps = 0  ⇒  Erase viewport Below (default).
+            // Ps = 1  ⇒  Erase viewport Above.
             // Ps = 2  ⇒  Erase All.
             // Ps = 3  ⇒  Erase Scrollback
 
         // CSI Ps K  Erase in Line (EL), VT100. Caret position does not change.
-        el, // Ps = 0  ⇒  Erase to Right (default).
-            // Ps = 1  ⇒  Erase to Left.
-            // Ps = 2  ⇒  Erase All.
+        el, // Ps = 0  ⇒  Erase line to Right (default).
+            // Ps = 1  ⇒  Erase line to Left.
+            // Ps = 2  ⇒  Erase line All.
 
         fn_count
     };
@@ -934,7 +937,7 @@ namespace netxs::ansi
             return *this;
         }
         mark(cell const& brush)
-            : cell { brush },
+            :  cell{ brush },
               fresh{ brush },
               spare{ brush }
         { }
@@ -1113,8 +1116,8 @@ namespace netxs::ansi
 
         csi_t()
         {
-           /* Contract for client p
-            * Unicode
+           /* Contract for client p in output mode.
+            * Unicode:
             * - void task(ansi::rule const& cmd);          // Proceed curses command.
             * - void meta(deco& old, deco& new);           // Proceed new style.
             * - void data(si32 count, grid const& proto);  // Proceed new cells.
@@ -1138,9 +1141,6 @@ namespace netxs::ansi
             * - void link(id_t i);                   // Set object id link.
             */
 
-            #define V [](auto& q, auto& p)
-            #define F(t, q) p->task(rule{ fn::t, q })
-
             table_quest   .resize(0x100);
                 table_quest[dec_set] = nullptr;
                 table_quest[dec_rst] = nullptr;
@@ -1157,6 +1157,9 @@ namespace netxs::ansi
             table_dblqoute.resize(0x100);
             table_sglqoute.resize(0x100);
             table_asterisk.resize(0x100);
+
+            #define V [](auto& q, auto& p)
+            #define F(t, n) p->task(rule{ fn::t, n })
 
             table         .resize(0x100);
                 table[csi_cuu] = V{ F(dy,-q(1)); };              // fx_cuu
@@ -1297,22 +1300,24 @@ namespace netxs::ansi
         void proceed_asterisk  (fifo& q, T*& p) { table_asterisk.execute(q, p); }
     };
 
-    template<class T> struct _glb { static typename T::template vt_parser<T>          vt_parser; };
-    template<class T>                      typename T::template vt_parser<T> _glb<T>::vt_parser;
-
-    template<class T> inline void parse(view utf8, T*&  dest) { _glb<T>::vt_parser.parse(utf8, dest); }
-    template<class T> inline void parse(view utf8, T*&& dest) { T* dptr = dest;    parse(utf8, dptr); }
-    template<class T> inline auto& get_parser()               { return _glb<T>::vt_parser; }
+    template<class T>
+    auto& get_parser()
+    {
+        static auto vt_parser = typename T::template vt_parser<T>{};
+        return vt_parser;
+    }
+    template<class T> void parse(view utf8, T*&  dest) { ansi::get_parser<T>().parse(utf8, dest); }
+    template<class T> void parse(view utf8, T*&& dest) { auto dptr = dest; parse(utf8, dptr); }
 
     template<class T> using esc_t = func<qiew, T>;
     template<class T> using osc_h = std::function<void(view&, T*&)>;
     template<class T> using osc_t = std::map<text, osc_h<T>>;
 
-    template<class T>
+    template<class T, bool InitOutputMode = true>
     struct vt_parser
     {
-        ansi::esc_t<T> intro; // vt_parser:  C0 table.
         ansi::csi_t<T> csier; // vt_parser: CSI table.
+        ansi::esc_t<T> intro; // vt_parser:  C0 table.
         ansi::osc_t<T> oscer; // vt_parser: OSC table.
         si32           decsg; // vt_parser: Enable DEC Special Graphics Mode (if non zero).
 
@@ -1331,19 +1336,19 @@ namespace netxs::ansi
                 esc[esc_key_a ] = keym;
                 esc[esc_key_n ] = keym;
                 esc[esc_g0set ] = g0__;
+                //esc[esc_ss3   ] = xss3;
                 //esc[esc_sc] = ;
                 //esc[esc_rc] = ;
                 //esc['M'  ] = __ri;
         }
 
-        // vt_parser: Static UTF-8/ANSI parser proc.
+        // vt_parser: Static UTF-8/ANSI parser.
         void parse(view utf8, T*& client)
         {
-            auto s = [&](auto& traits, auto& utf8)
+            auto s = [&](auto const& traits, qiew utf8)
             {
-                qiew queue{ utf8 };
-                intro.execute(traits.control, queue, client); // Make one iteration using firstcmd and return.
-                return queue;
+                intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
+                return utf8;
             };
             auto y = [&](auto const& cluster) { client->post(cluster); };
 
@@ -1353,7 +1358,7 @@ namespace netxs::ansi
         // vt_parser: Static UTF-8/ANSI parser proc.
         void parse(view utf8, T*&& client)
         {
-            T* p = client;
+            auto p = client;
             parse(utf8, p);
         }
 
@@ -1371,15 +1376,15 @@ namespace netxs::ansi
             if (ascii.length())
             {
                 auto b = '\0';
-                auto ints = []  (unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = []  (unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
-                auto cmds = []  (unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
-                auto isC0 = []  (unsigned char cmd) { return cmd <= 0x1F; };
-                auto trap = [&] (auto& c) // Catch and execute C0.
+                auto ints = [](unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
+                auto pars = [](unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
+                auto cmds = [](unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
+                auto isC0 = [](unsigned char cmd) { return cmd <= 0x1F; };
+                auto trap = [&](auto& c) // Catch and execute C0.
                 {
                     if (isC0(c))
                     {
-                        auto& intro = _glb<T>::vt_parser.intro;
+                        auto& intro = ansi::get_parser<T>().intro;
                         auto  empty = qiew{};
                         do
                         {
@@ -1393,7 +1398,7 @@ namespace netxs::ansi
                     }
                     return faux;
                 };
-                auto fill = [&] (auto& queue)
+                auto fill = [&](auto& queue)
                 {
                     auto a = ';';
                     auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
@@ -1429,7 +1434,7 @@ namespace netxs::ansi
                     }
                 };
 
-                auto& csier = _glb<T>::vt_parser.csier;
+                auto& csier = ansi::get_parser<T>().csier;
                 auto c = ascii.front();
                 if (cmds(c))
                 {
@@ -1488,7 +1493,7 @@ namespace netxs::ansi
             // Find ST and ';', if no ST or no ';' when drop
             if (ascii)
             {
-                auto& oscer = _glb<T>::vt_parser.oscer;
+                auto& oscer = ansi::get_parser<T>().oscer;
                 auto c = ascii.front();
                 if (c == 'P') // OSC_LINUX_COLOR  Set linux console 16 colors palette.
                 {
@@ -1619,10 +1624,11 @@ namespace netxs::ansi
         parser(deco style)
             : style{ style },
               state{ style }
-        { };
+        { }
 
         template<class T>
-        struct vt_parser : public ansi::vt_parser<T>
+        struct vt_parser
+            : public ansi::vt_parser<T>
         {
             using vt = ansi::vt_parser<T>;
             vt_parser() : vt()
@@ -1814,7 +1820,7 @@ namespace netxs::ansi
                         }
                     }
                     // test Message/Command:
-                    else if (c == 'P'  // DSC ESC P ... BEL
+                    else if (c == 'P'  // DCS ESC P ... BEL
                           || c == 'X'  // SOS ESC X ... BEL
                           || c == '^'  // PM  ESC ^ ... BEL
                           || c == '_') // APC ESC _ ... BEL

@@ -823,11 +823,11 @@ namespace netxs::directvt
                                         (ui32, ctlstat)  // sysmouse: Keybd modifiers.
                                         (ui32, enabled)  // sysmouse: Mouse device health status.
                                         (ui32, buttons)  // sysmouse: Buttons bit state.
-                                        (bool, doubled)  // sysmouse: Double click.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
                                         (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                        (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))

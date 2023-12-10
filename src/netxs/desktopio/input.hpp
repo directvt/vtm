@@ -286,42 +286,35 @@ namespace netxs::input
         {
             sz_t hash; // map: Key hash.
 
-            static auto& edit()
-            {
-                static auto b = std::vector<byte>(256);
-                return b;
-            }
             static auto& mask()
             {
                 static auto m = std::vector<si32>(256);
                 return m;
             }
-            static auto& mask(si32 vk)
+            static auto& mask(byte vk)
             {
-                return mask()[vk & 0xFF];
+                return mask()[vk];
             }
-            static auto& name()
+            static auto& data(byte keycode)
             {
-                static auto n = std::vector<view>(256);
-                return n;
-            }
-            static auto& name(si32 keycode)
-            {
-                return name()[keycode];
-            }
-            static auto& edit(si32 keycode)
-            {
-                return edit()[keycode];
+                struct key
+                {
+                    view name;
+                    si32 vkey;
+                    si32 scan;
+                    si32 edit;
+                };
+                static auto data = std::vector<key>(256);
+                return data[keycode];
             }
 
             map(si32 vk, si32 sc, ui32 cs)
                 : hash{ static_cast<sz_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
             { }
-            map(si32 vk, si32 sc, ui32 cs, si32 keymask, view keyname, byte doinput, si32 id)
+            map(si32 vk, si32 sc, ui32 cs, si32 keymask, view keyname, si32 doinput, si32 id)
             {
                 mask(vk) = keymask;
-                name(id) = keyname;
-                edit(id) = doinput;
+                data(id) = { .name = keyname, .vkey = vk, .scan = sc, .edit = doinput };
                 hash = static_cast<sz_t>(keymask & (vk | (sc << 8) | (cs << 16)));
             }
 
@@ -335,9 +328,11 @@ namespace netxs::input
             };
         };
 
+        //todo check non-us kb layouts with key::Slash
         #define key_list \
             /*Id   Vkey  Scan    CtrlState          Mask  I  Name            */\
             X(0,      0,    0,           0, 0x0000'00'FF, 1, undef            )\
+            X(1,   0xFF, 0xFF,           0, 0x0000'FF'FF, 0, config           )\
             X(2,   0x11, 0x1D,           0, 0x0100'00'FF, 0, LeftCtrl         )\
             X(4,   0x11, 0x1D, ExtendedKey, 0x0100'00'FF, 0, RightCtrl        )\
             X(6,   0x12, 0x38,           0, 0x0100'00'FF, 0, LeftAlt          )\
@@ -511,7 +506,20 @@ namespace netxs::input
         auto xlat(Args&&... args)
         {
             auto iter = keymap.find(map{ args... });
-            return iter != keymap.end() ? iter->second : input::key::undef;
+            return iter != keymap.end() ? iter->second : key::undef;
+        }
+        auto find(ui32 vkey, si32 fallback)
+        {
+            auto k = fallback;
+            for (auto& [key, val] : keymap)
+            {
+                if ((key.hash & 0xff) == vkey)
+                {
+                    k = val & -2; // Generic keys only.
+                    break;
+                }
+            }
+            return k;
         }
     }
 
@@ -668,6 +676,15 @@ namespace netxs::input
                 blocked <<= 3;
             }
         }
+        // mouse: Sync the button state with a bitset.
+        auto sync_button_state(ui32 bitstat)
+        {
+            for (auto& b : bttns)
+            {
+                b.pressed = bitstat & 0x1;
+                bitstat >>= 1;
+            }
+        }
         // mouse: Return a kinetic animator.
         template<class Law>
         auto fader(span spell)
@@ -694,6 +711,7 @@ namespace netxs::input
                 coord = m.coordxy;
                 prime = m.coordxy;
                 fire(movement); // Update mouse enter/leave state.
+                sync_button_state(m.buttons);
                 return;
             }
             if (m_buttons[leftright]) // Cancel left and right dragging if it is.
@@ -748,7 +766,11 @@ namespace netxs::input
                 fire(movement);
             }
 
-            if (!busy && fire_fast()) return;
+            if (!busy && fire_fast())
+            {
+                sync_button_state(m.buttons);
+                return;
+            }
 
             auto genptr = std::begin(bttns);
             for (auto i = 0; i < numofbuttons; i++)
@@ -780,7 +802,7 @@ namespace netxs::input
                                 // Fire a double/triple-click if delay is not expired
                                 // and the mouse is at the same position.
                                 auto& s = stamp[i];
-                                auto fired = datetime::now();
+                                auto fired = m.timecod;
                                 if (fired - s.fired < delay && s.coord == coord)
                                 {
                                     if (!genbtn.blocked)
@@ -822,7 +844,6 @@ namespace netxs::input
                 m.wheeled = {}; // Clear one-shot events.
                 m.hzwheel = {};
                 m.wheeldt = {};
-                m.doubled = {};
             }
         }
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
@@ -888,19 +909,20 @@ namespace netxs::input
             w32,
         };
 
+        ui32 nullkey = key::Key2;
+
         text cluster = {};
         bool extflag = {};
         bool pressed = {};
+        bool handled = {};
         ui16 virtcod = {};
         ui16 scancod = {};
-        hint cause = netxs::events::userland::hids::keybd::data::post.id;
-        text keystrokes;
-        bool handled = {};
         si32 keycode = {};
+        hint cause = netxs::events::userland::hids::keybd::data::post.id;
 
         auto doinput()
         {
-            return pressed && key::map::edit(keycode);
+            return pressed && key::map::data(keycode).edit;
         }
         auto generic()
         {
@@ -1095,6 +1117,116 @@ namespace netxs::input
     {
         using events = netxs::events::userland::hids;
         using list = std::list<wptr>;
+        using kmap = std::unordered_map<ui32, text>;
+
+        enum modifiers : ui32
+        {
+            LCtrl    = 1 <<  0, // Left  ⌃ Ctrl
+            RCtrl    = 1 <<  1, // Right ⌃ Ctrl
+            LAlt     = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
+            RAlt     = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
+            LShift   = 1 <<  4, // Left  ⇧ Shift
+            RShift   = 1 <<  5, // Right ⇧ Shift
+            LWin     = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            RWin     = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
+            NumLock  = 1 << 12, // ⇭ Num Lock
+            CapsLock = 1 << 13, // ⇪ Caps Lock
+            ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
+            AltGr    = LAlt   | LCtrl,
+            anyCtrl  = LCtrl  | RCtrl,
+            anyAlt   = LAlt   | RAlt,
+            anyShift = LShift | RShift,
+            anyAltGr = anyAlt | anyCtrl,
+            anyWin   = LWin   | RWin,
+        };
+
+        static auto build_alone_key()
+        {
+            return std::unordered_map<ui16, text>
+            {
+                { key::Backspace,  "\x7f"     },
+                { key::Tab,        "\x09"     },
+                { key::Pause,      "\x1a"     },
+                { key::Esc,        "\033"     },
+                { key::PageUp,     "\033[5~"  },
+                { key::PageDown,   "\033[6~"  },
+                { key::End,        "\033[F"   },
+                { key::Home,       "\033[H"   },
+                { key::LeftArrow,  "\033[D"   },
+                { key::UpArrow,    "\033[A"   },
+                { key::RightArrow, "\033[C"   },
+                { key::DownArrow,  "\033[B"   },
+                { key::Insert,     "\033[2~"  },
+                { key::Delete,     "\033[3~"  },
+                { key::F1,         "\033OP"   },
+                { key::F2,         "\033OQ"   },
+                { key::F3,         "\033OR"   },
+                { key::F4,         "\033OS"   },
+                { key::F5,         "\033[15~" },
+                { key::F6,         "\033[17~" },
+                { key::F7,         "\033[18~" },
+                { key::F8,         "\033[19~" },
+                { key::F9,         "\033[20~" },
+                { key::F10,        "\033[21~" },
+                { key::F11,        "\033[23~" },
+                { key::F12,        "\033[24~" },
+            };
+        }
+        static auto build_shift_key()
+        {
+            return std::unordered_map<ui16, text>
+            {
+                { key::PageUp,     "\033[5; ~"  },
+                { key::PageDown,   "\033[6; ~"  },
+                { key::End,        "\033[1; F"  },
+                { key::Home,       "\033[1; H"  },
+                { key::LeftArrow,  "\033[1; D"  },
+                { key::UpArrow,    "\033[1; A"  },
+                { key::RightArrow, "\033[1; C"  },
+                { key::DownArrow,  "\033[1; B"  },
+                { key::Insert,     "\033[2; ~"  },
+                { key::Delete,     "\033[3; ~"  },
+                { key::F1,         "\033[1; P"  },
+                { key::F2,         "\033[1; Q"  },
+                { key::F3,         "\033[1; R"  },
+                { key::F4,         "\033[1; S"  },
+                { key::F5,         "\033[15; ~" },
+                { key::F6,         "\033[17; ~" },
+                { key::F7,         "\033[18; ~" },
+                { key::F8,         "\033[19; ~" },
+                { key::F9,         "\033[20; ~" },
+                { key::F10,        "\033[21; ~" },
+                { key::F11,        "\033[23; ~" },
+                { key::F12,        "\033[24; ~" },
+            };
+
+        }
+        static auto build_other_key(ui32 slash, ui32 quest)
+        {
+            return std::unordered_map<ui32, text>
+            {
+                { key::Backspace | hids::anyCtrl  << 8, { "\x08"      }},
+                { key::Backspace | hids::anyAlt   << 8, { "\033\x7f"  }},
+                { key::Backspace | hids::anyAltGr << 8, { "\033\x08"  }},
+                { key::Tab       | hids::anyCtrl  << 8, { "\t"        }},
+                { key::Tab       | hids::anyShift << 8, { "\033[Z"    }},
+                { key::Tab       | hids::anyAlt   << 8, { "\033[1;3I" }},
+                { key::Esc       | hids::anyAlt   << 8, { "\033\033"  }},
+                { key::Key1      | hids::anyCtrl  << 8, { "1"         }},
+                { key::Key3      | hids::anyCtrl  << 8, { "\x1b"      }},
+                { key::Key4      | hids::anyCtrl  << 8, { "\x1c"      }},
+                { key::Key5      | hids::anyCtrl  << 8, { "\x1d"      }},
+                { key::Key6      | hids::anyCtrl  << 8, { "\x1e"      }},
+                { key::Key7      | hids::anyCtrl  << 8, { "\x1f"      }},
+                { key::Key8      | hids::anyCtrl  << 8, { "\x7f"      }},
+                { key::Key9      | hids::anyCtrl  << 8, { "9"         }},
+                { key::Slash     | hids::anyCtrl  << 8, { "\x1f"      }},
+                { slash          | hids::anyAltGr << 8, { "\033\x1f"  }},
+                { slash          | hids::anyCtrl  << 8, { "\x1f"      }},
+                { quest          | hids::anyAltGr << 8, { "\033\x7f"  }},
+                { quest          | hids::anyCtrl  << 8, { "\x7f"      }},
+            };
+        }
 
         id_t        relay; // hids: Mouse routing call stack initiator.
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
@@ -1124,6 +1256,7 @@ namespace netxs::input
         si32 countdown = 0;
 
         id_t user_index; // hids: User/Device image/icon index.
+        kmap other_key; // hids: Dynamic key-vt mapping.
 
         template<class T>
         hids(T& props, base& owner, core const& idmap)
@@ -1131,7 +1264,8 @@ namespace netxs::input
             owner{ owner },
             idmap{ idmap },
             alive{ faux },
-            tooltip_timeout{   props.tooltip_timeout }
+            tooltip_timeout{   props.tooltip_timeout },
+            other_key{ build_other_key(key::Slash, key::Slash | (hids::anyShift << 8)) } // Defaults for US layout.
         {
             board::ghost = props.clip_preview_glow;
             board::brush = props.clip_preview_clrs;
@@ -1265,25 +1399,6 @@ namespace netxs::input
             mouse::load_button_state(button_state);
         }
 
-        enum modifiers : ui32
-        {
-            LCtrl    = 1 <<  0, // Left  ⌃ Ctrl
-            RCtrl    = 1 <<  1, // Right ⌃ Ctrl
-            LAlt     = 1 <<  2, // Left  ⎇ Alt, Left  ⌥ Option
-            RAlt     = 1 <<  3, // Right ⎇ Alt, Right ⌥ Option, ⇮ AltGr
-            LShift   = 1 <<  4, // Left  ⇧ Shift
-            RShift   = 1 <<  5, // Right ⇧ Shift
-            LWin     = 1 <<  6, // Left  ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            RWin     = 1 <<  7, // Right ⊞ Win, ◆ Meta, ⌘ Cmd (Apple key), ❖ Super
-            NumLock  = 1 << 12, // ⇭ Num Lock
-            CapsLock = 1 << 13, // ⇪ Caps Lock
-            ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
-            anyCtrl  = LCtrl  | RCtrl,
-            anyAlt   = LAlt   | RAlt,
-            anyShift = LShift | RShift,
-            anyWin   = LWin   | RWin,
-        };
-
         auto meta(ui32 ctl_key = -1) { return ctlstate & ctl_key; }
         auto kbmod()
         {
@@ -1309,9 +1424,20 @@ namespace netxs::input
         }
         void take(syskeybd& k)
         {
-            tooltip_stop = true;
-            ctlstate = k.ctlstat;
-            keybd::update(k);
+            if (k.keycode == key::config) // Receive three layout related values coded as codepoints: nullkey keycode, '/' keycode+mods, '?' keycode+mods.
+            {
+                auto i = utf::cpit{ k.cluster };
+                keybd::nullkey = i.next().cdpoint;
+                auto slash     = i.next().cdpoint;
+                auto quest     = i.next().cdpoint;
+                other_key = build_other_key(slash, quest);
+            }
+            else
+            {
+                tooltip_stop = true;
+                ctlstate = k.ctlstat;
+                keybd::update(k);
+            }
         }
         void take(sysfocus& f)
         {
@@ -1467,7 +1593,6 @@ namespace netxs::input
                         m.wheeled = {};
                         m.wheeldt = {};
                         m.hzwheel = {};
-                        m.doubled = {};
                     }
                 }
                 else if (mouse::swift == next_id) mouse::setfree();
@@ -1478,7 +1603,6 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            keystrokes = interpret();
             owner.bell::template signal<tier::preview>(keybd::cause, *this);
         }
         void fire_paste()
@@ -1499,83 +1623,66 @@ namespace netxs::input
             owner.SIGNAL(tier::release, hids::events::clipbrd, *this);
             mouse::delta.set(); // Update time stamp.
         }
-        text interpret()
+        text interpret(bool decckm)
         {
-            auto textline = text{};
-            auto ctrl = [&](auto pure, auto f, auto suffix)
+            static auto alone_key = build_alone_key();
+            static auto shift_key = build_shift_key();
+
+            if (keybd::pressed)
             {
-                textline = "\033";
-                if (ctlstate & hids::anyShift)
+                auto s = hids::ctlstate;
+                auto v = keybd::keycode & -2; // Generic keys only
+                auto c = keybd::cluster.empty() ? 0 : keybd::cluster.front();
+
+                if (s & hids::LCtrl && s & hids::RAlt) // This combination is already translated.
                 {
-                    textline += f;
-                    textline += ";2";
+                    s &= ~(hids::LCtrl | hids::RAlt);
                 }
-                else if (ctlstate & hids::anyAlt)
+
+                auto shift = s & hids::anyShift ? hids::anyShift : 0;
+                auto alt   = s & hids::anyAlt   ? hids::anyAlt   : 0;
+                auto ctrl  = s & hids::anyCtrl  ? hids::anyCtrl  : 0;
+                if (shift || alt || ctrl)
                 {
-                    textline += f;
-                    textline += ";3";
+                    if (ctrl && alt) // c == 0 for ctrl+alt+key combinationsons on windows.
+                    {
+                        if (c == 0) // Chars and vkeys for ' '(0x20),'A'-'Z'(0x41-5a) are the same on windows.
+                        {
+                                 if (v >= key::KeyA  && v <= key::KeyZ)      return "\033"s + (char)((0x41 + (v - key::KeyA) / 2) & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                            else if (v == key::Space || v == keybd::nullkey) return "\033\0"s;  //'\033' + (wchr)('@' & 0b00011111)); // Map ctrl+alt+@ to ^[^@;
+                        }
+                        else if (c == 0x20 || (c >= 'A' && c <= 'Z')) return "\033"s + (char)(c & 0b00011111);//generate('\033', (wchr)( a  & 0b00011111)); // Alt causes to prepend '\033'. Ctrl trims by 0b00011111.
+                    }
+
+                    if (auto iter = shift_key.find(v); iter != shift_key.end())
+                    {
+                        auto& mods = *++(iter->second.rbegin());
+                        mods = '1';
+                        if (shift) mods += 1;
+                        if (alt  ) mods += 2;
+                        if (ctrl ) mods += 4;
+                        return iter->second;
+                    }
+                    else if (auto iter = other_key.find(v | (shift | alt | ctrl) << 8); iter != other_key.end())
+                    {
+                        return iter->second;
+                    }
+                    else if (!ctrl &&  alt && c) return text{ '\033' + keybd::cluster };
+                    else if ( ctrl && !alt)
+                    {
+                             if (c == 0x20 || (c == 0x00 && v == keybd::nullkey)) return text(1, '@' & 0b00011111); // Detect ctrl+@ and ctrl+space.
+                        else if (c == 0x00 && (v >= key::KeyA && v <= key::KeyZ)) return text(1, (0x41 + (v - key::KeyA) / 2) & 0b00011111); // Emulate ctrl+key mapping to C0 if current kb layout does not contain it.
+                    }
                 }
-                else if (ctlstate & hids::anyCtrl)
+
+                if (auto iter = alone_key.find(v); iter != alone_key.end())
                 {
-                    textline += f;
-                    textline += ";5";
+                    if (v >= key::End && v <= key::DownArrow) iter->second[1] = decckm ? 'O' : '[';
+                    return iter->second;
                 }
-                else textline += pure;
-                textline += suffix;
-            };
-            if (pressed)
-            {
-                switch (keycode & -2 /*Generic keys only*/)
-                {
-                    //todo Ctrl+Space
-                    //     Ctrl+Backspace
-                    //     Alt+0..9
-                    //     Ctrl/Shift+Enter
-                    case key::Backspace: textline = "\177"; break;
-                    case key::Tab:
-                        textline = ctlstate & hids::anyShift ? "\033[Z"
-                                                             : "\t";
-                        break;
-                    case key::PageUp:     ctrl("[5",  "[5",  "~"); break;
-                    case key::PageDown:   ctrl("[6",  "[6",  "~"); break;
-                    case key::Insert:     ctrl("[2",  "[2",  "~"); break;
-                    case key::Delete:     ctrl("[3",  "[3",  "~"); break;
-                    case key::End:        ctrl("[",   "[1",  "F"); break;
-                    case key::Home:       ctrl("[",   "[1",  "H"); break;
-                    case key::UpArrow:    ctrl("[",   "[1",  "A"); break;
-                    case key::DownArrow:  ctrl("[",   "[1",  "B"); break;
-                    case key::RightArrow: ctrl("[",   "[1",  "C"); break;
-                    case key::LeftArrow:  ctrl("[",   "[1",  "D"); break;
-                    case key::F1:         ctrl("O",   "[1",  "P"); break;
-                    case key::F2:         ctrl("O",   "[1",  "Q"); break;
-                    case key::F3:         ctrl("O",   "[1",  "R"); break;
-                    case key::F4:         ctrl("O",   "[1",  "S"); break;
-                    case key::F5:         ctrl("[15", "[15", "~"); break;
-                    case key::F6:         ctrl("[17", "[17", "~"); break;
-                    case key::F7:         ctrl("[18", "[18", "~"); break;
-                    case key::F8:         ctrl("[19", "[19", "~"); break;
-                    case key::F9:         ctrl("[20", "[20", "~"); break;
-                    case key::F10:        ctrl("[21", "[21", "~"); break;
-                    case key::F11:        ctrl("[23", "[23", "~"); break;
-                    case key::F12:        ctrl("[24", "[24", "~"); break;
-                    case key::F13:        ctrl("[25", "[25", "~"); break;
-                    case key::F14:        ctrl("[26", "[26", "~"); break;
-                    case key::F15:        ctrl("[28", "[28", "~"); break;
-                    case key::F16:        ctrl("[29", "[29", "~"); break;
-                    case key::F17:        ctrl("[31", "[31", "~"); break;
-                    case key::F18:        ctrl("[32", "[32", "~"); break;
-                    case key::F19:        ctrl("[33", "[33", "~"); break;
-                    case key::F20:        ctrl("[34", "[34", "~"); break;
-                    case key::F21:        ctrl("[35", "[35", "~"); break;
-                    case key::F22:        ctrl("[36", "[36", "~"); break;
-                    case key::F23:        ctrl("[37", "[37", "~"); break;
-                    case key::F24:        ctrl("[38", "[38", "~"); break;
-                    default:
-                        textline = cluster;
-                        break;
-                }
+                else if (c) return keybd::cluster;
             }
-            return textline;
+            return text{};
         }
     };
 }

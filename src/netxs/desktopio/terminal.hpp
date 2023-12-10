@@ -293,14 +293,12 @@ namespace netxs::ui
             prot        encod; // m_tracking: Mouse encoding protocol.
             mode        state; // m_tracking: Mouse reporting mode.
             si32        smode; // m_tracking: Selection mode state backup.
-            si32        bttns; // m_tracking: Last buttons state.
 
             m_tracking(term& owner)
                 : owner{ owner                   },
                   encod{ prot::x11               },
                   state{ mode::none              },
-                  smode{ owner.config.def_selmod },
-                  bttns{ 0                       }
+                  smode{ owner.config.def_selmod }
             { }
 
             operator bool () { return state != mode::none; }
@@ -812,7 +810,7 @@ namespace netxs::ui
                 vt.intro[ctrl::esc][esc_decdhl] = V{ p->dhl(q); };         // ESC # ...  ESC # 3, ESC # 4, ESC # 5, ESC # 6, ESC # 8
 
                 vt.intro[ctrl::esc][esc_apc   ] = V{ p->msg(esc_apc, q); }; // ESC _ ... ST  APC.
-                vt.intro[ctrl::esc][esc_dsc   ] = V{ p->msg(esc_dsc, q); }; // ESC P ... ST  DSC.
+                vt.intro[ctrl::esc][esc_dcs   ] = V{ p->msg(esc_dcs, q); }; // ESC P ... ST  DCS.
                 vt.intro[ctrl::esc][esc_sos   ] = V{ p->msg(esc_sos, q); }; // ESC X ... ST  SOS.
                 vt.intro[ctrl::esc][esc_pm    ] = V{ p->msg(esc_pm , q); }; // ESC ^ ... ST  PM.
 
@@ -1243,7 +1241,7 @@ namespace netxs::ui
                     // Unexpected
                     case ansi::esc_csi   :
                     case ansi::esc_ocs   :
-                    case ansi::esc_dsc   :
+                    case ansi::esc_dcs   :
                     case ansi::esc_sos   :
                     case ansi::esc_pm    :
                     case ansi::esc_apc   :
@@ -6682,7 +6680,12 @@ namespace netxs::ui
             follow[axis::X] = true;
             if (bpmode)
             {
-                data = "\033[200~" + data + "\033[201~";
+                auto temp = text{};
+                temp.reserve(data.size() + ansi::paste_begin.size() + ansi::paste_end.size());
+                temp += ansi::paste_begin;
+                temp += data;
+                temp += ansi::paste_end;
+                std::swap(data, temp);
             }
             //todo paste is a special type operation like a mouse reporting.
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
@@ -6769,8 +6772,16 @@ namespace netxs::ui
             {
                 pro::focus::set(this->This(), gear.id, pro::focus::solo::off, pro::focus::flip::off);
                 follow[axis::X] = true;
-                if (bpmode) data_out("\033[200~" + utf8 + "\033[201~");
-                else        data_out(utf8);
+                if (bpmode)
+                {
+                    auto temp = text{};
+                    temp.reserve(utf8.size() + ansi::paste_begin.size() + ansi::paste_end.size());
+                    temp += ansi::paste_begin;
+                    temp += utf8;
+                    temp += ansi::paste_end;
+                    std::swap(utf8, temp);
+                }
+                data_out(utf8);
                 gear.dismiss();
             }
         }
@@ -7276,7 +7287,7 @@ namespace netxs::ui
                 //        " virtcod: ", gear.virtcod,
                 //        " scancod: ", gear.scancod);
                 //}
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
+                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
             };
