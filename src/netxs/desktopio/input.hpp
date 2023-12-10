@@ -1132,6 +1132,7 @@ namespace netxs::input
             NumLock  = 1 << 12, // ⇭ Num Lock
             CapsLock = 1 << 13, // ⇪ Caps Lock
             ScrlLock = 1 << 14, // ⇳ Scroll Lock (⤓)
+            AltGr    = LAlt   | LCtrl,
             anyCtrl  = LCtrl  | RCtrl,
             anyAlt   = LAlt   | RAlt,
             anyShift = LShift | RShift,

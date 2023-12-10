@@ -4531,7 +4531,6 @@ namespace netxs::os
                 {
                     auto s = cache;
                     auto t = type::undef;
-                    auto l = 0;
                     auto incomplete = faux;
                     if (s.size() > 2) // ESC [ == Alt+[   ESC O == Alt+Shift+O
                     {
@@ -4584,13 +4583,12 @@ namespace netxs::os
                         else // ESC cluster == Alt+cluster
                         {
                             auto cluster = utf::letter(s.substr(1));
-                            s = cluster.text;
-                            l = cluster.attr.utf8len;
+                            s = s.substr(0, cluster.attr.utf8len + 1);
                         }
                     }
                     if (!incomplete)
                     {
-                        cache.remove_prefix(l ? l : s.size());
+                        cache.remove_prefix(s.size());
                     }
                     return std::tuple{ t, s, incomplete };
                 };
@@ -4625,75 +4623,116 @@ namespace netxs::os
                     };
                     auto m = std::unordered_map<text, std::pair<text, ui32>, qiew::hash, qiew::equal>
                     {
-                        { "\x08"      , { "\x7f", key::Backspace | hids::anyCtrl  << 8 }},
-                        { "\033\x7f"  , { "\x08", key::Backspace | hids::anyAlt   << 8 }},
-                        { "\033\x08"  , { "",     key::Backspace | hids::anyAltGr << 8 }},
-                        { "\033[Z"    , { "",     key::Tab       | hids::anyShift << 8 }},
-                        { "\033[1;3I" , { "",     key::Tab       | hids::anyAlt   << 8 }},
-                        { "\033\033"  , { "",     key::Esc       | hids::anyAlt   << 8 }},
-                        { "\x1f"      , { "",     key::Slash     | hids::anyCtrl  << 8 }},
-                        { "\033\x1f"  , { "",     key::Slash     | hids::anyAltGr << 8 }},
-                        { "\x20"      , { " ",    key::Space      }},
-                        { "\x0d"      , { "\x0a", key::Enter      }},
-                        { "\x7f"      , { "\x08", key::Backspace  }},
-                        { "\x09"      , { "\x09", key::Tab        }},
-                        { "\x1a"      , { "",     key::Pause      }},
-                        { "\033"      , { "\033", key::Esc        }},
-                        { "\x1c"      , { "",     key::Key4      | hids::anyCtrl  << 8 }},
-                        { "\x1d"      , { "",     key::Key5      | hids::anyCtrl  << 8 }},
-                        { "\x1e"      , { "",     key::Key6      | hids::anyCtrl  << 8 }},
-                        { "\033[5~"   , { "",     key::PageUp     }},
-                        { "\033[6~"   , { "",     key::PageDown   }},
-                        { "\033[F"    , { "",     key::End        }},
-                        { "\033[H"    , { "",     key::Home       }},
-                        { "\033[D"    , { "",     key::LeftArrow  }},
-                        { "\033[A"    , { "",     key::UpArrow    }},
-                        { "\033[C"    , { "",     key::RightArrow }},
-                        { "\033[B"    , { "",     key::DownArrow  }},
-                        { "\033[2~"   , { "",     key::Insert     }},
-                        { "\033[3~"   , { "",     key::Delete     }},
-                        { "\033OP"    , { "",     key::F1         }},
-                        { "\033OQ"    , { "",     key::F2         }},
-                        { "\033OR"    , { "",     key::F3         }},
-                        { "\033OS"    , { "",     key::F4         }},
-                        { "\033[15~"  , { "",     key::F5         }},
-                        { "\033[17~"  , { "",     key::F6         }},
-                        { "\033[18~"  , { "",     key::F7         }},
-                        { "\033[19~"  , { "",     key::F8         }},
-                        { "\033[20~"  , { "",     key::F9         }},
-                        { "\033[21~"  , { "",     key::F10        }},
-                        { "\033[23~"  , { "",     key::F11        }},
-                        { "\033[24~"  , { "",     key::F12        }},
+                        //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt   << 8 }},
+                        { "\033\x7f"  , { "",     key::Slash         |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},
+                        { "\033\x00"s , { "",     key::Space         | hids::AltGr  << 8 }},
+                        { "\x00"s     , { " ",    key::Space         | hids::LCtrl  << 8 }},
+                        { "\x08"      , { "\x7f", key::Backspace     | hids::LCtrl  << 8 }},
+                        { "\033\x08"  , { "",     key::Backspace     | hids::AltGr  << 8 }},
+                        { "\033[Z"    , { "",     key::Tab           | hids::LShift << 8 }},
+                        { "\033[1;3I" , { "",     key::Tab           | hids::LAlt   << 8 }},
+                        { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
+                        { "\x7f"      , { "\x08", key::Backspace                         }},
+                        { "\x09"      , { "\x09", key::Tab                               }},
+                        { "\x0d"      , { "\x0a", key::Enter                             }},
+
+                        //{ "\x1a"      , { "",     key::Pause                             }},
+                        //{ "\x1a"      , { "\x1a", key::KeyZ          | hids::LCtrl  << 8 }},
+                        { "\033"      , { "\033", key::Esc                               }},
+                        { "\x1c"      , { "",     key::Key4          | hids::LCtrl  << 8 }},
+                        { "\x1d"      , { "",     key::Key5          | hids::LCtrl  << 8 }},
+                        { "\x1e"      , { "",     key::Key6          | hids::LCtrl  << 8 }},
+                        { "\x1f"      , { "",     key::Slash         | hids::LCtrl  << 8 }},
+                        { "\033\x1f"  , { "",     key::Slash         | hids::AltGr  << 8 }},
+                        { "\x20"      , { " ",    key::Space                             }},
+                        { "\x21"      , { "!",    key::Key1          | hids::LShift << 8 }},
+                        { "\x22"      , { "\"",   key::SingleQuote   | hids::LShift << 8 }},
+                        { "\x23"      , { "#",    key::Key3          | hids::LShift << 8 }},
+                        { "\x24"      , { "$",    key::Key4          | hids::LShift << 8 }},
+                        { "\x25"      , { "%",    key::Key5          | hids::LShift << 8 }},
+                        { "\x26"      , { "&",    key::Key7          | hids::LShift << 8 }},
+                        { "\x27"      , { "'",    key::SingleQuote                       }},
+                        { "\x28"      , { "(",    key::Key9          | hids::LShift << 8 }},
+                        { "\x29"      , { ")",    key::Key0          | hids::LShift << 8 }},
+                        { "\x2a"      , { "*",    key::Multiply                          }},
+                        { "\x2b"      , { "+",    key::Plus                              }},
+                        { "\x2c"      , { ",",    key::Comma                             }},
+                        { "\x2d"      , { "-",    key::Minus                             }},
+                        { "\x2e"      , { ".",    key::Period                            }},
+                        { "\x2f"      , { "/",    key::Slash                             }},
+
+                        { "\x3a"      , { ":",    key::Semicolon     | hids::LShift << 8 }},
+                        { "\x3b"      , { ";",    key::Semicolon                         }},
+                        { "\x3c"      , { "<",    key::Comma         | hids::LShift << 8 }},
+                        { "\x3d"      , { "=",    key::Equal                             }},
+                        { "\x3e"      , { ">",    key::Period        | hids::LShift << 8 }},
+                        { "\x3f"      , { "?",    key::Slash         | hids::LShift << 8 }},
+                        { "\x40"      , { "@",    key::Key2          | hids::LShift << 8 }},
+
+                        { "\x5b"      , { "[",    key::OpenBracket                       }},
+                        { "\x5c"      , { "\\",   key::BackSlash                         }},
+                        { "\x5d"      , { "]",    key::ClosedBracket                     }},
+                        { "\x5e"      , { "^",    key::Key6          | hids::LShift << 8 }},
+                        { "\x5f"      , { "_",    key::Minus         | hids::LShift << 8 }},
+                        { "\x60"      , { "`",    key::BackQuote                         }},
+
+                        { "\x7b"      , { "{",    key::OpenBracket   | hids::LShift << 8 }},
+                        { "\x7c"      , { "|",    key::BackSlash     | hids::LShift << 8 }},
+                        { "\x7d"      , { "}",    key::ClosedBracket | hids::LShift << 8 }},
+                        { "\x7e"      , { "~",    key::BackQuote     | hids::LShift << 8 }},
+
+                        { "\033[5~"   , { "",     key::PageUp                            }},
+                        { "\033[6~"   , { "",     key::PageDown                          }},
+                        { "\033[F"    , { "",     key::End                               }},
+                        { "\033[H"    , { "",     key::Home                              }},
+                        { "\033[D"    , { "",     key::LeftArrow                         }},
+                        { "\033[A"    , { "",     key::UpArrow                           }},
+                        { "\033[C"    , { "",     key::RightArrow                        }},
+                        { "\033[B"    , { "",     key::DownArrow                         }},
+                        { "\033[2~"   , { "",     key::Insert                            }},
+                        { "\033[3~"   , { "",     key::Delete                            }},
+                        { "\033OP"    , { "",     key::F1                                }},
+                        { "\033OQ"    , { "",     key::F2                                }},
+                        { "\033OR"    , { "",     key::F3                                }},
+                        { "\033OS"    , { "",     key::F4                                }},
+                        { "\033[15~"  , { "",     key::F5                                }},
+                        { "\033[17~"  , { "",     key::F6                                }},
+                        { "\033[18~"  , { "",     key::F7                                }},
+                        { "\033[19~"  , { "",     key::F8                                }},
+                        { "\033[20~"  , { "",     key::F9                                }},
+                        { "\033[21~"  , { "",     key::F10                               }},
+                        { "\033[23~"  , { "",     key::F11                               }},
+                        { "\033[24~"  , { "",     key::F12                               }},
                     };
 
                     for (auto i = 1; i < 8; i++)
                     {
                         auto mods = '1';
                         auto ctls = 0;
-                        if (i & 0b001) { ctls |= input::hids::LShift; mods += 1; }
-                        if (i & 0b010) { ctls |= input::hids::LAlt;   mods += 2; }
-                        if (i & 0b100) { ctls |= input::hids::LCtrl;  mods += 4; }
+                        if (i & 0b001) { ctls |= hids::LShift; mods += 1; }
+                        if (i & 0b010) { ctls |= hids::LAlt;   mods += 2; }
+                        if (i & 0b100) { ctls |= hids::LCtrl;  mods += 4; }
                         for (auto& [key, utf8] : keymask)
                         {
                             *++(utf8.rbegin()) = mods;
                             m[utf8] = { "", key | (ctls << 8) };
                         }
                     }
-                    //todo for size = 1 detect in runtime
                     for (auto i = 0; i < 'Z' - 'A'; i++)
                     {
-                        m[text(1, i + 'A')] = { text(1, i + 'A'), (input::key::KeyA + i * 2) | (input::hids::LShift << 8) };
-                        m[text(1, i + 'a')] = { text(1, i + 'a'),  input::key::KeyA + i * 2 };
+                        m[text(1, i + 'A')] = { text(1, i + 'A'), (key::KeyA + i * 2) | (hids::LShift << 8) };
+                        m[text(1, i + 'a')] = { text(1, i + 'a'),  key::KeyA + i * 2 };
                     }
                     for (auto i = 0; i < 10; i++)
                     {
-                        m[text(1, i + '0')] = { text(1, i + '0'), input::key::Key0 + i * 2 };
+                        m[text(1, i + '0')] = { text(1, i + '0'), key::Key0 + i * 2 };
                     }
                     return m;
                 }();
 
                 auto detect_key = [&](auto& k, qiew cluster)
                 {
+                    using namespace input;
                     auto iter = vt2key.find(cluster);
                     if (iter != vt2key.end())
                     {
@@ -4703,66 +4742,85 @@ namespace netxs::os
                         k.cluster = iter->second.first;
                         k.keycode = code;
                         k.ctlstat = keys >> 8;
-                        k.extflag = {};
-                        k.handled = {};
                         k.virtcod = rec.vkey;
                         k.scancod = rec.scan;
-                        k.pressed = true; keybd(k);
-                        k.pressed = faux; keybd(k);
                     }
                     else if (cluster.size() == 1)
                     {
                         auto c = cluster.front();
-                        if (c >= 1 || c <= 26) // Ctrl+key
+                        if (c >= 1 && c <= 26) // Ctrl+key
                         {
-                            auto code = input::key::KeyA + c * 2;
+                            auto code = key::KeyA + (c - 1) * 2;
                             auto& rec = key::map::data(code);
-                            k.extflag = {};
-                            k.handled = {};
                             k.cluster = cluster;
                             k.keycode = code;
                             k.virtcod = rec.vkey;
                             k.scancod = rec.scan;
-                            k.ctlstat = input::hids::LCtrl;
-                            k.pressed = true; keybd(k);
-                            k.pressed = faux; keybd(k);
+                            k.ctlstat = hids::LCtrl;
                         }
-                    }
-                    return;
-                    {
-                        //else // Alphanumeric
+                        else // Unknown byte
                         {
-                            k.extflag = {};
-                            k.handled = {};
-                            k.ctlstat = {};
+                            auto code = key::undef;
+                            auto& rec = key::map::data(code);
                             k.cluster = cluster;
-                            k.virtcod = 0;
-                            k.scancod = 0;
-                            k.keycode = input::key::undef;
-                            k.pressed = true; keybd(k);
-                            k.pressed = faux; keybd(k);
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
                         }
                     }
-                    //else
+                    else if (cluster.front() == '\033')
                     {
-                        if (cluster.front() == '\033')
+                        auto c = cluster[1];
+                        if (c >= 1 && c <= 26) // Ctrl+Alt+key
                         {
-                            //k.keycode = {};
-                            //k.cluster = "";
+                            auto code = key::KeyA + (c - 1) * 2;
+                            auto& rec = key::map::data(code);
+                            k.cluster = {};
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
+                            k.ctlstat = hids::LCtrl | hids::LAlt;
                         }
-                        else // EGC
+                        else // Alt+cluster
                         {
-                            k.extflag = {};
-                            k.handled = {};
-                            k.ctlstat = {};
-                            k.cluster = cluster;
-                            k.virtcod = 0;
-                            k.scancod = 0;
-                            k.keycode = input::key::undef;
-                            k.pressed = true; keybd(k);
-                            k.pressed = faux; keybd(k);
+                            auto iter = vt2key.find(cluster.substr(1));
+                            if (iter != vt2key.end())
+                            {
+                                auto keys = iter->second.second;
+                                auto code = keys & 0xff;
+                                auto& rec = key::map::data(code);
+                                k.cluster = iter->second.first;
+                                k.keycode = code;
+                                k.virtcod = rec.vkey;
+                                k.scancod = rec.scan;
+                                k.ctlstat = hids::LAlt | (keys >> 8);
+                            }
+                            else
+                            {
+                                auto code = key::undef;
+                                auto& rec = key::map::data(code);
+                                k.cluster = cluster.substr(1);
+                                k.keycode = code;
+                                k.virtcod = rec.vkey;
+                                k.scancod = rec.scan;
+                                k.ctlstat = hids::LAlt;
+                            }
                         }
                     }
+                    else // Cluster
+                    {
+                        auto code = key::undef;
+                        auto& rec = key::map::data(code);
+                        k.cluster = cluster;
+                        k.keycode = code;
+                        k.virtcod = rec.vkey;
+                        k.scancod = rec.scan;
+                        k.ctlstat = {};
+                    }
+                    k.extflag = {};
+                    k.handled = {};
+                    k.pressed = true; keybd(k);
+                    k.pressed = faux; keybd(k);
                 };
 
                 auto filter = [&, input = text{}, pflag = faux](view accum) mutable
