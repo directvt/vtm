@@ -286,63 +286,35 @@ namespace netxs::input
         {
             sz_t hash; // map: Key hash.
 
-            //todo combine to the single vector
-            static auto& vkey()
-            {
-                static auto v = std::vector<byte>(256);
-                return v;
-            }
-            static auto& scan()
-            {
-                static auto s = std::vector<byte>(256);
-                return s;
-            }
-            static auto& edit()
-            {
-                static auto b = std::vector<byte>(256);
-                return b;
-            }
             static auto& mask()
             {
                 static auto m = std::vector<si32>(256);
                 return m;
             }
-            static auto& mask(si32 vk)
+            static auto& mask(byte vk)
             {
-                return mask()[vk & 0xFF];
+                return mask()[vk];
             }
-            static auto& name()
+            static auto& data(byte keycode)
             {
-                static auto n = std::vector<view>(256);
-                return n;
-            }
-            static auto& name(si32 keycode)
-            {
-                return name()[keycode];
-            }
-            static auto& edit(si32 keycode)
-            {
-                return edit()[keycode];
-            }
-            static auto& vkey(si32 keycode)
-            {
-                return vkey()[keycode];
-            }
-            static auto& scan(si32 keycode)
-            {
-                return scan()[keycode];
+                struct key
+                {
+                    view name;
+                    si32 vkey;
+                    si32 scan;
+                    si32 edit;
+                };
+                static auto data = std::vector<key>(256);
+                return data[keycode];
             }
 
             map(si32 vk, si32 sc, ui32 cs)
                 : hash{ static_cast<sz_t>(mask(vk) & (vk | (sc << 8) | (cs << 16))) }
             { }
-            map(si32 vk, si32 sc, ui32 cs, si32 keymask, view keyname, byte doinput, si32 id)
+            map(si32 vk, si32 sc, ui32 cs, si32 keymask, view keyname, si32 doinput, si32 id)
             {
                 mask(vk) = keymask;
-                name(id) = keyname;
-                edit(id) = doinput;
-                vkey(id) = vk;
-                scan(id) = sc;
+                data(id) = { .name = keyname, .vkey = vk, .scan = sc, .edit = doinput };
                 hash = static_cast<sz_t>(keymask & (vk | (sc << 8) | (cs << 16)));
             }
 
@@ -950,7 +922,7 @@ namespace netxs::input
 
         auto doinput()
         {
-            return pressed && key::map::edit(keycode);
+            return pressed && key::map::data(keycode).edit;
         }
         auto generic()
         {

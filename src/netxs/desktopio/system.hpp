@@ -4634,15 +4634,14 @@ namespace netxs::os
                         { "\x1f"      , { "",     key::Slash     | hids::anyCtrl  << 8 }},
                         { "\033\x1f"  , { "",     key::Slash     | hids::anyAltGr << 8 }},
                         { "\x20"      , { " ",    key::Space      }},
-                        { "\x0D"      , { "\n",   key::Enter      }},
+                        { "\x0d"      , { "\x0a", key::Enter      }},
                         { "\x7f"      , { "\x08", key::Backspace  }},
                         { "\x09"      , { "\x09", key::Tab        }},
                         { "\x1a"      , { "",     key::Pause      }},
-                        { "\x1b"      , { "",     key::Key3      | hids::anyCtrl  << 8 }},
+                        { "\033"      , { "\033", key::Esc        }},
                         { "\x1c"      , { "",     key::Key4      | hids::anyCtrl  << 8 }},
                         { "\x1d"      , { "",     key::Key5      | hids::anyCtrl  << 8 }},
                         { "\x1e"      , { "",     key::Key6      | hids::anyCtrl  << 8 }},
-                        { "\033"      , { "\033", key::Esc        }},
                         { "\033[5~"   , { "",     key::PageUp     }},
                         { "\033[6~"   , { "",     key::PageDown   }},
                         { "\033[F"    , { "",     key::End        }},
@@ -4698,14 +4697,16 @@ namespace netxs::os
                     auto iter = vt2key.find(cluster);
                     if (iter != vt2key.end())
                     {
-                        auto key = iter->second.second;
+                        auto keys = iter->second.second;
+                        auto code = keys & 0xff;
+                        auto& rec = key::map::data(code);
                         k.cluster = iter->second.first;
-                        k.keycode = key & 0xff;
-                        k.ctlstat = key >> 8;
+                        k.keycode = code;
+                        k.ctlstat = keys >> 8;
                         k.extflag = {};
                         k.handled = {};
-                        k.virtcod = input::key::map::vkey()[k.keycode];
-                        k.scancod = input::key::map::scan()[k.keycode];
+                        k.virtcod = rec.vkey;
+                        k.scancod = rec.scan;
                         k.pressed = true; keybd(k);
                         k.pressed = faux; keybd(k);
                     }
@@ -4714,13 +4715,15 @@ namespace netxs::os
                         auto c = cluster.front();
                         if (c >= 1 || c <= 26) // Ctrl+key
                         {
+                            auto code = input::key::KeyA + c * 2;
+                            auto& rec = key::map::data(code);
                             k.extflag = {};
                             k.handled = {};
                             k.cluster = cluster;
-                            k.keycode = input::key::KeyA + c * 2;
-                            k.virtcod = input::key::map::vkey()[k.keycode];
-                            k.scancod = input::key::map::scan()[k.keycode];
-                            k.ctlstat = input::hids::anyCtrl;
+                            k.keycode = code;
+                            k.virtcod = rec.vkey;
+                            k.scancod = rec.scan;
+                            k.ctlstat = input::hids::LCtrl;
                             k.pressed = true; keybd(k);
                             k.pressed = faux; keybd(k);
                         }

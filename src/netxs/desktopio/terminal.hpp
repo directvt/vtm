@@ -7287,7 +7287,7 @@ namespace netxs::ui
                 //        " virtcod: ", gear.virtcod,
                 //        " scancod: ", gear.scancod);
                 //}
-                if (io_log) log(prompt::key, ansi::hi(input::key::map::name(gear.keycode)));
+                if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, bpmode, kbmode);
             };
