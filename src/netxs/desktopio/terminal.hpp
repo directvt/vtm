@@ -7267,6 +7267,7 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::paste, gear)
             {
                 _paste(gear.paste::txtdata);
+                gear.dismiss();
             };
             LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
@@ -7722,31 +7723,11 @@ namespace netxs::ui
                                                 gear.keycode);
                     gear.dismiss();
                 };
-                //master.LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-                //{
-                //    auto focus_state = true;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
-                //master.LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-                //{
-                //    gear.remove_from_kb_focus(master.This());
-                //    auto focus_state = faux;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
-                //master.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, tokens)
-                //{
-                //    auto focus_state = faux;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
+                master.LISTEN(tier::release, hids::events::paste, gear, tokens)
+                {
+                    s11n::syspaste.send(master, gear.id, gear.txtdata);
+                    gear.dismiss();
+                };
                 master.LISTEN(tier::general, e2::config::fps, frame_rate, tokens)
                 {
                     if (frame_rate > 0)

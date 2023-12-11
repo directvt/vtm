@@ -4844,9 +4844,17 @@ namespace netxs::os
                             else
                             {
                                 auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
-                                if (pos != text::npos) pos += cache.size() - accum.size();
-                                p.txtdata += cache.substr(0, pos);
-                                cache.remove_prefix(pos);
+                                if (pos != text::npos)
+                                {
+                                    pos += cache.size();
+                                    p.txtdata += cache.substr(0, pos);
+                                    cache.remove_prefix(pos);
+                                }
+                                else
+                                {
+                                    p.txtdata += cache;
+                                    cache.clear();
+                                }
                                 break;
                             }
                         }
@@ -4935,20 +4943,21 @@ namespace netxs::os
                             else if (t == type::paste)
                             {
                                 auto pos = cache.find(ansi::paste_end);
-                                if (pos == text::npos)
-                                {
-                                    auto pos = cache.rfind('\033'); // Find the probable beginning of the closing sequence.
-                                    p.txtdata = cache.substr(0, pos);
-                                    cache.remove_prefix(pos);
-                                    pflag = true;
-                                    break;
-                                }
-                                else
+                                if (pos != text::npos)
                                 {
                                     p.txtdata = cache.substr(0, pos);
                                     cache.remove_prefix(pos + ansi::paste_end.size());
                                     paste(p);
                                     p.txtdata.clear();
+                                }
+                                else
+                                {
+                                    auto pos = cache.rfind('\033'); // Find the probable beginning of the closing sequence.
+                                    p.txtdata = cache.substr(0, pos);
+                                    if (pos != text::npos) cache.remove_prefix(pos);
+                                    else                   cache.clear();
+                                    pflag = true;
+                                    break;
                                 }
                             }
                             else // t == type::undef

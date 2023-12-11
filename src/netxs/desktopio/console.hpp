@@ -198,6 +198,7 @@ namespace netxs::ui
             void handle(s11n::xs::syspaste    lock)
             {
                 auto& paste = lock.thing;
+                //log("syspaste: ", ansi::hi(paste.txtdata));
                 notify(e2::conio::paste, paste);
             }
             void handle(s11n::xs::sysmouse    lock)
@@ -1041,6 +1042,15 @@ namespace netxs::ui
                 if (auto target = nexthop.lock())
                 {
                     target->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
+                }
+            };
+            LISTEN(tier::preview, hids::events::paste, gear, tokens) // Start of paste event propagation.
+            {
+                if (gear)
+                //if (auto target = local ? applet : base::parent())
+                if (auto target = nexthop.lock())
+                {
+                    target->SIGNAL(tier::preview, hids::events::paste, gear);
                 }
             };
             if (!direct)
