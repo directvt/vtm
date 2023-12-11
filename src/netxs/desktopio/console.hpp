@@ -1394,6 +1394,10 @@ namespace netxs::ui
                     if (gear_ptr) conio.maximize.send(canal, ext_gear_id);
                 };
             }
+            if (direct)
+            {
+                conio.sysstart.send(canal);
+            }
         }
         // gate: .
         void inform(rect new_area) override

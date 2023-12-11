@@ -7549,21 +7549,6 @@ namespace netxs::ui
                     s11n::clipdata.send(master, c.gear_id, c.hash, dot_00, text{}, mime::ansitext, text{});
                 });
             }
-            //void handle(s11n::xs::focus               lock)
-            //{
-            //    auto& f = lock.thing;
-            //    master.trysync(master.active, [&]
-            //    {
-            //        if (auto gear_ptr = bell::getref<hids>(f.gear_id))
-            //        {
-            //            auto& gear = *gear_ptr;
-            //            if (f.state) gear.kb_offer_8(master.This(), f.focus_force_group);
-            //            else         gear.remove_from_kb_focus(master.This());
-            //            if (f.state) pro::focus::set(master.This(), gear.id, f.focus_force_group ? pro::focus::solo::off : pro::focus::solo::on, pro::focus::flip::off);
-            //            else         pro::focus::off(master.This(), gear.id);
-            //        }
-            //    });
-            //}
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
@@ -7657,7 +7642,13 @@ namespace netxs::ui
                 master.active.exchange(faux);
                 master.stop(true);
             }
-
+            void handle(s11n::xs::sysstart            lock)
+            {
+                netxs::events::enqueue(master.This(), [&](auto& boss)
+                {
+                    master.RISEUP(tier::release, e2::form::global::sysstart, s, ());
+                });
+            }
             evnt(dtvt& master)
                 :   s11n{ *this, master.id },
                   master{ master           }

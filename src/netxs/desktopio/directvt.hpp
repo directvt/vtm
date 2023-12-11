@@ -806,6 +806,7 @@ namespace netxs::directvt
         STRUCT_macro(clipdata,          (id_t, gear_id) (time, hash) (twod, size) (text, utf8) (si32, form) (text, meta))
         STRUCT_macro(clipdata_request,  (id_t, gear_id) (time, hash))
         STRUCT_macro(sysboard,          (id_t, gear_id) (twod, size) (text, utf8) (si32, form))
+        STRUCT_macro_lite(sysstart)
         STRUCT_macro(sysclose,          (bool, fast))
         STRUCT_macro(syspaste,          (id_t, gear_id) (text, txtdata))
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
@@ -1331,6 +1332,7 @@ namespace netxs::directvt
             X(sysfocus         ) /* System focus state.                           */\
             X(syskeybd         ) /* System keybd device.                          */\
             X(sysmouse         ) /* System mouse device.                          */\
+            X(sysstart         ) /* System start event.                           */\
             X(sysclose         ) /* System close event.                           */\
             X(syswinsz         ) /* Console window resize.                        */\
             X(syspaste         ) /* Clipboard paste.                              */\
