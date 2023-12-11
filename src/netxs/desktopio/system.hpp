@@ -5385,6 +5385,7 @@ namespace netxs::os
                                     print(true);
                                 }
                                 break;
+                            case '\n':
                             case '\r': // Enter
                             {
                                 auto line = block + '\n';
