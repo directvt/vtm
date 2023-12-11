@@ -6677,19 +6677,10 @@ namespace netxs::ui
         }
         auto _paste(auto& data)
         {
-            follow[axis::X] = true;
-            if (bpmode)
-            {
-                auto temp = text{};
-                temp.reserve(data.size() + ansi::paste_begin.size() + ansi::paste_end.size());
-                temp += ansi::paste_begin;
-                temp += data;
-                temp += ansi::paste_end;
-                std::swap(data, temp);
-            }
-            //todo paste is a special type operation like a mouse reporting.
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
-            data_out(data);
+            follow[axis::X] = true;
+            follow[axis::Y] = true;
+            ipccon.paste(data, bpmode, kbmode);
         }
         auto paste(hids& gear)
         {
@@ -7290,7 +7281,7 @@ namespace netxs::ui
                 //}
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
-                ipccon.keybd(gear, decckm, bpmode, kbmode);
+                ipccon.keybd(gear, decckm, kbmode);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

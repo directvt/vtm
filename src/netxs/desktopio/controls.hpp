@@ -1343,9 +1343,9 @@ namespace netxs::ui
             template<auto KeyEvent>
             void forward()
             {
-                boss.LISTEN(tier::preview, KeyEvent, gear, memo) // Run after keyany.
+                boss.LISTEN(tier::preview, KeyEvent, gear, memo) // preview: Run after any.
                 {
-                    //if constexpr (debugmode) log(prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
+                    //if constexpr (debugmode) log(prompt::foci, "KeyEvent: gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
                     auto& route = get_route(gear.id);
                     if (route.active)

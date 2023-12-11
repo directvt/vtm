@@ -3603,18 +3603,40 @@ namespace netxs::os
                     }
                 }
             }
-            void keybd(input::hids& gear, bool decckm, bool bpmode, input::keybd::prot encod)
+            void keybd(input::hids& gear, bool decckm, input::keybd::prot encod)
             {
                 using prot = input::keybd::prot;
 
                 if (attached)
                 {
-                    if (encod == prot::w32) termlink->keybd(gear, decckm, bpmode);
+                    if (encod == prot::w32) termlink->keybd(gear, decckm);
                     else
                     {
                         auto utf8 = gear.interpret(decckm);
                         auto guard = std::lock_guard{ writemtx };
                         writebuf += utf8;
+                        writesyn.notify_one();
+                    }
+                }
+            }
+            void paste(view data, bool bpmode, input::keybd::prot encod)
+            {
+                using prot = input::keybd::prot;
+
+                if (attached)
+                {
+                    if (encod == prot::w32) termlink->paste(data);
+                    else
+                    {
+                        auto guard = std::lock_guard{ writemtx };
+                        if (bpmode)
+                        {
+                            writebuf.reserve(writebuf.size() + data.size() + ansi::paste_begin.size() + ansi::paste_end.size());
+                            writebuf += ansi::paste_begin;
+                            writebuf += data;
+                            writebuf += ansi::paste_end;
+                        }
+                        else writebuf += data;
                         writesyn.notify_one();
                     }
                 }
@@ -4469,54 +4491,6 @@ namespace netxs::os
                         os::close(fd);
                     }
                 }
-
-                // The following sequences are processed here:
-                // ESC          Escape
-                // ESC ESC      Escape
-                // ESC [ I
-                // ESC [ O
-                // ESC [ < mod ; x ; y m
-                // ESC [ < mod ; x ; y M
-                // ESC [ 33 : format p
-                // ESC [ [ A
-                // ESC [ [ B
-                // ESC [ [ C
-                // ESC [ [ D
-                // ESC [ [ E
-                // ESC [ Z          Shit+Tab
-                // ESC [ ... H      Home
-                // ESC [ 1 ~        Home
-                // ESC [ 7 ~        Home
-                // ESC [ 2 ~        Insert
-                // ESC [ 3 ~        Delete
-                // ESC [ 4 ~        End
-                // ESC [ 8 ~        End
-                // ESC [ ... F      End
-                // ESC [ G          Keypad 5
-                // ESC [ ... ~      PgUp, PgDn, F5 ... F24
-                // ESC [ 1 0 ~  F0
-                // ESC O P      F1
-                // ESC O Q      F2
-                // ESC O R      F3
-                // ESC O S      F4
-                // ESC O t      F5
-                // ESC O u      F6
-                // ESC O v      F7
-                // ESC O l      F8
-                // ESC O w      F9
-                // ESC O x      F10
-                // ESC O y      F11
-                // ESC O z      F12
-                // ESC cluster  Alt+Key Ctrl+Alt+Key
-                // 0x1a (SUB)   Pause
-                // 0x7f (DEL)   Backspace
-                //
-                // CSI final bytes: 0x40–0x7E  @A–Z[\]^_`a–z{|}~
-                // ESC O        Alt+Shift+O
-                // ESC [        Alt+[
-                // \033[1;3I    Alt+Tab
-                // CSI ~, A, B, C, D, F, G, H, Z, I, O, M, m, p
-                // ESC[200~  + utf8 +  ESC[201~     Clipboard paste()
 
                 enum class type
                 {
