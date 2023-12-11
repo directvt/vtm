@@ -1332,7 +1332,7 @@ namespace netxs::utf
         auto y = [&](frag const& cluster)
         {
                  if (cluster.text.front() == '\\') buff += "\\\\";
-            else if (cluster.text.front() == '\0') buff += "\\0";
+            else if (cluster.text.front() == '\0') buff += "\\0"sv;
             //else if (cluster.text.front() == ' ') buff += "\x20";
             else                                   buff += cluster.text;
         };

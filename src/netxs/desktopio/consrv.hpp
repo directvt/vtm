@@ -111,7 +111,7 @@ struct consrv
                                     nullptr);
         auto wcmd = utf::to_utf(cmd);
         auto wcwd = utf::to_utf(cwd);
-        auto wenv = utf::to_utf(os::env::add(env + "VTM=1\0"));
+        auto wenv = utf::to_utf(os::env::add(env += "VTM=1\0"sv));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
@@ -5222,7 +5222,7 @@ struct consrv : ipc::stdcon
             }
             env +=  "VTM=1\0"
                     "TERM=xterm-256color\0"
-                    "COLORTERM=truecolor\0";
+                    "COLORTERM=truecolor\0"sv;
             env = os::env::add(env);
             os::process::spawn(cmd, cwd, env);
         }
