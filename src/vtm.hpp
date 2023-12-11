@@ -521,7 +521,7 @@ namespace netxs::app::vtm
             {
                 using drag = hids::events::mouse::button::drag;
 
-                boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo)
+                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo)
                 {
                     if (gear.captured(boss.bell::id)) check_modifiers(gear);
                 };
@@ -737,7 +737,7 @@ namespace netxs::app::vtm
             {
                 nexthop = world_ptr;
             };
-            LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
+            LISTEN(tier::release, hids::events::keybd::key::post, gear, tokens)
             {
                 if (gear)
                 {
@@ -753,22 +753,18 @@ namespace netxs::app::vtm
                     }
                 }
             };
-            LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
             {
                 //todo deprecated
                 //todo unify
-                if (!gear.pressed) return;
-                auto key = gear.keycode;
-                auto AltF12 = key == input::key::F12 && gear.meta(hids::anyAlt);
-                if (AltF12) // Disconnect by Alt+F12.
+                if (!gear.keybd::pressed) return;
+                if (gear.chord(input::key::F12, hids::anyAlt)) // Disconnect by Alt+F12.
                 {
                     gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                     this->bell::expire<tier::preview>();
                     gear.set_handled(true);
-                    return;
                 }
-                auto F10 = key == input::key::F10;
-                if (F10)
+                else if (gear.chord(input::key::F10))
                 {
                     auto window_ptr = e2::form::layout::go::item.param();
                     this->RISEUP(tier::request, e2::form::layout::go::item, window_ptr); // Take current window.
@@ -778,12 +774,11 @@ namespace netxs::app::vtm
                         this->bell::expire<tier::preview>();
                         gear.set_handled(true);
                     }
-                    return;
                 }
-                auto CtrlPgUp = key == input::key::PageUp   && gear.meta(hids::anyCtrl);
-                auto CtrlPgDn = key == input::key::PageDown && gear.meta(hids::anyCtrl);
-                if (CtrlPgUp || CtrlPgDn)
+                else if (gear.chord(input::key::PageUp,   hids::anyCtrl)
+                      || gear.chord(input::key::PageDown, hids::anyCtrl))
                 {
+                    auto down = gear.keycode == input::key::PageDown;
                     if (align.what.applet)
                     {
                         align.unbind();
@@ -799,8 +794,8 @@ namespace netxs::app::vtm
                     {
                         window_ptr.reset();
                         owner_id = id_t{};
-                        if (CtrlPgDn) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
-                        else          this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
+                        if (down) this->RISEUP(tier::request, e2::form::layout::go::prev, window_ptr); // Take prev window.
+                        else      this->RISEUP(tier::request, e2::form::layout::go::next, window_ptr); // Take next window.
                         if (window_ptr) window_ptr->SIGNAL(tier::request, e2::form::state::maximized, owner_id);
                         maximized = owner_id == gear.owner.id;
                         if (!owner_id || maximized) break;
@@ -1770,11 +1765,11 @@ namespace netxs::app::vtm
                 slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 what.applet = slot;
             };
-            LISTEN(tier::release, hids::events::keybd::data::any, gear) // Last resort for unhandled kb event.
+            LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb event.
             {
                 if (gear)
                 {
-                    gear.owner.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                    gear.owner.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
                 }
             };
             LISTEN(tier::preview, hids::events::keybd::focus::cut, seed)

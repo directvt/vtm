@@ -1034,13 +1034,13 @@ namespace netxs::ui
                 }
                 oneoff_focus.reset();
             };
-            LISTEN(tier::preview, hids::events::keybd::data::post, gear, tokens) // Start of kb event propagation.
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear, tokens) // Start of kb event propagation.
             {
                 if (gear)
                 //if (auto target = local ? applet : base::parent())
                 if (auto target = nexthop.lock())
                 {
-                    target->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
+                    target->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
                 }
             };
             if (!direct)
@@ -1123,7 +1123,7 @@ namespace netxs::ui
             };
             if (direct) // Forward unhandled events outside.
             {
-                LISTEN(tier::release, hids::events::keybd::data::any, gear) // Return back unhandled keybd events.
+                LISTEN(tier::release, hids::events::keybd::key::any, gear) // Return back unhandled keybd events.
                 {
                     if (gear)
                     {
@@ -1171,7 +1171,7 @@ namespace netxs::ui
                 //todo hids
                 //proc(input.gear);
             };
-            LISTEN(tier::preview, hids::events::keybd::data::any, gear, tokens)
+            LISTEN(tier::preview, hids::events::keybd::key::any, gear, tokens)
             {
                 //todo unify
                 if (gear.keybd::cluster == props.debug_toggle)

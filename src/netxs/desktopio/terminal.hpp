@@ -7077,7 +7077,7 @@ namespace netxs::ui
                     auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
                                          .add("\n");
                     ondata(byemsg);
-                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -7268,7 +7268,7 @@ namespace netxs::ui
             {
                 _paste(gear.paste::txtdata);
             };
-            LISTEN(tier::release, hids::events::keybd::data::post, gear)
+            LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
                 //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
@@ -7483,7 +7483,7 @@ namespace netxs::ui
                         gear.handled  = k.handled;
                         do
                         {
-                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::key::post, gear);
                             parent_ptr = parent_ptr->parent();
                         }
                         while (gear && parent_ptr);
@@ -7709,7 +7709,7 @@ namespace netxs::ui
                     }
                     s11n::focusbus.send(master, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
-                master.LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
+                master.LISTEN(tier::release, hids::events::keybd::key::post, gear, tokens)
                 {
                     s11n::syskeybd.send(master, gear.id,
                                                 gear.ctlstate,

@@ -48,14 +48,12 @@ namespace netxs::events::userland
             };
             SUBSET_XS( keybd )
             {
-                EVENT_XS( down   , input::hids ),
-                EVENT_XS( up     , input::hids ),
-                GROUP_XS( data   , input::hids ),
+                GROUP_XS( key    , input::hids ),
                 GROUP_XS( control, input::hids ),
                 GROUP_XS( state  , input::hids ),
                 GROUP_XS( focus  , input::hids ),
 
-                SUBSET_XS( data )
+                SUBSET_XS( key )
                 {
                     EVENT_XS( post, input::hids ),
                 };
@@ -918,7 +916,6 @@ namespace netxs::input
         ui16 virtcod = {};
         ui16 scancod = {};
         si32 keycode = {};
-        hint cause = netxs::events::userland::hids::keybd::data::post.id;
 
         auto doinput()
         {
@@ -1400,6 +1397,12 @@ namespace netxs::input
         }
 
         auto meta(ui32 ctl_key = -1) { return ctlstate & ctl_key; }
+        template<class ...Args>
+        auto chord(si32 k, Args&&... mods)
+        {
+            if constexpr (sizeof...(mods)) return k == keybd::keycode && (meta(mods) && ...);
+            else                           return k == keybd::keycode;
+        }
         auto kbmod()
         {
             return meta(hids::anyCtrl | hids::anyAlt | hids::anyShift | hids::anyWin);
@@ -1603,7 +1606,7 @@ namespace netxs::input
         void fire_keybd()
         {
             alive = true;
-            owner.bell::template signal<tier::preview>(keybd::cause, *this);
+            owner.SIGNAL(tier::preview, hids::events::keybd::key::post, *this);
         }
         void fire_paste()
         {

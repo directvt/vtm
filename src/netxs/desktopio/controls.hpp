@@ -1372,7 +1372,7 @@ namespace netxs::ui
                     gear.dismiss();
                 };
                 // Subscribe on keybd events.
-                boss.LISTEN(tier::preview, hids::events::keybd::data::post, gear, memo) // Run after keybd::data::any.
+                boss.LISTEN(tier::preview, hids::events::keybd::key::post, gear, memo) // Run after keyany.
                 {
                     //if constexpr (debugmode) log(prompt::foci, "data::post gear:", gear.id, " hub:", boss.id, " gears.size:", gears.size());
                     if (!gear) return;
@@ -1383,12 +1383,12 @@ namespace netxs::ui
                         auto accum = alive;
                         route.foreach([&](auto& nexthop)
                         {
-                            nexthop->SIGNAL(tier::preview, hids::events::keybd::data::post, gear);
+                            nexthop->SIGNAL(tier::preview, hids::events::keybd::key::post, gear);
                             accum &= gear.alive;
                             gear.alive = alive;
                         });
                         gear.alive = accum;
-                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                        if (accum) boss.SIGNAL(tier::release, hids::events::keybd::key::post, gear);
                     }
                 };
                 // Subscribe on focus chain events.
@@ -1608,125 +1608,7 @@ namespace netxs::ui
                 };
             }
         };
-/*
-        // pro: Provides functionality related to keyboard input.
-        class keybd
-            : public skill
-        {
-            using skill::boss,
-                  skill::memo;
 
-            subs kb_subs{};
-            //todo foci
-            //std::list<id_t> saved;
-
-        public:
-            keybd(base&&) = delete;
-            keybd(base& boss) : skill{ boss }
-            {
-                //todo deprecated
-                //boss.LISTEN(tier::preview, hids::events::keybd::data, gear, memo)
-                //{
-                //    boss.SIGNAL(tier::release, hids::events::keybd::data, gear);
-                //};
-            };
-
-            // pro::keybd: Keybd offers promoter.
-            void active()
-            {
-                boss.LISTEN(tier::release, hids::events::mouse::button::any, gear, kb_subs)
-                {
-                    if (!gear) return;
-                    auto deed = boss.bell::protos<tier::release>();
-                    if (deed == hids::events::mouse::button::click::left.id) //todo make it configurable (left click)
-                    {
-                        if (gear.meta(hids::anyCtrl)) gear.kb_offer_1(boss.This());
-                        else                          gear.kb_offer_5(boss.This());
-                        pro::focus::set(boss.This(), gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                       : pro::focus::solo::on, pro::focus::flip::off);
-                        gear.dismiss();
-                    }
-                    else if (deed == hids::events::mouse::button::click::right.id) //todo make it configurable (left click)
-                    {
-                        gear.kb_offer_1(boss.This());
-                        pro::focus::set(boss.This(), gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                        gear.dismiss();
-                    }
-                };
-            }
-            //todo foci
-            // pro::keybd: Set focus root.
-            //void master()
-            //{
-            //    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
-            //    {
-            //        log("restore");
-            //        //if (boss.root()) // Restore focused state.
-            //        {
-            //            boss.SIGNAL(tier::anycast, hids::events::upevent::kboffer, gear);
-            //        }
-            //        if (gear.focus_changed())
-            //        {
-            //            boss.bell::expire<tier::release>();
-            //        }
-            //    };
-            //};
-            // pro::keybd: Subscribe on keybd offers.
-            void accept(bool value)
-            {
-                if (value)
-                {
-                    active();
-                    boss.LISTEN(tier::release, hids::events::upevent::kboffer, gear, kb_subs)
-                    {
-                        if (!gear.focus_changed())
-                        {
-                            gear.set_kb_focus(boss.This());
-                            //todo foci
-                            //boss.SIGNAL(tier::anycast, hids::events::upevent::kbannul, gear); // Drop saved foci.
-                            boss.bell::expire<tier::release>();
-                        }
-                    };
-                    boss.LISTEN(tier::release, hids::events::upevent::kbannul, gear, kb_subs)
-                    {
-                        gear.remove_from_kb_focus(boss.This());
-                    };
-
-                    ////todo foci
-                    //boss.LISTEN(tier::anycast, hids::events::upevent::kboffer, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    log("restore in place boss-id=", boss.id, " gear_id=", gear.id, " saved_size=", saved.size());
-                    //    for (auto gear_id : saved) // Restore saved focus.
-                    //    {
-                    //        if (gear_id == gear.id)
-                    //        {
-                    //            log(" good ");
-                    //            gear.kb_offer_1(boss.This());
-                    //            pro::focus::set(boss.This(), gear.id, pro::focus::solo::off, pro::focus::flip::on);
-                    //        }
-                    //    }
-                    //};
-                    //boss.LISTEN(tier::preview, hids::events::notify::keybd::lost, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    log("save boss.id=", boss.id, " gear_id=", gear.id);
-                    //    saved.push_back(gear.id);
-                    //};
-                    //boss.LISTEN(tier::anycast, hids::events::upevent::kbannul, gear, kb_subs) //todo no upevent used
-                    //{
-                    //    if (gear.focus_force_group = faux)
-                    //    {
-                    //        log("wipe ", boss.id);
-                    //        saved.remove_if([&](auto&& gear_id) { return gear_id == gear.id; });
-                    //    }
-                    //};
-                }
-                else
-                {
-                    kb_subs.clear();
-                }
-            }
-        };
-*/
         // pro: Mouse support.
         class mouse
             : public skill
