@@ -4823,7 +4823,7 @@ namespace netxs::os
                     k.pressed = faux; keybd(k);
                 };
 
-                auto filter = [&, input = text{}, pflag = faux](view accum) mutable
+                auto parser = [&, input = text{}, pflag = faux](view accum) mutable
                 {
                     input += accum;
                     auto cache = qiew{ input };
@@ -4965,204 +4965,6 @@ namespace netxs::os
                     }
                     input = cache;
                 };
-                auto filter_9 = [&, total = text{}](view accum) mutable
-                {
-                    if (os::linux_console && accum.starts_with("\033["sv)) // Replace Linux console specific keys.
-                    {
-                             if (accum == "\033[[A"sv ) total += "\033OP"sv;     // F1
-                        else if (accum == "\033[[B"sv ) total += "\033OQ"sv;     // F2
-                        else if (accum == "\033[[C"sv ) total += "\033OR"sv;     // F3
-                        else if (accum == "\033[[D"sv ) total += "\033OS"sv;     // F4
-                        else if (accum == "\033[[E"sv ) total += "\033[15~"sv;   // F5
-                        else if (accum == "\033[25~"sv) total += "\033[1;2P"sv;  // Shift+F1
-                        else if (accum == "\033[26~"sv) total += "\033[1;2Q"sv;  // Shift+F2
-                        else if (accum == "\033[28~"sv) total += "\033[1;2R"sv;  // Shift+F3
-                        else if (accum == "\033[29~"sv) total += "\033[1;2S"sv;  // Shift+F4
-                        else if (accum == "\033[31~"sv) total += "\033[15;2~"sv; // Shift+F5
-                        else if (accum == "\033[32~"sv) total += "\033[17;2~"sv; // Shift+F6
-                        else if (accum == "\033[33~"sv) total += "\033[18;2~"sv; // Shift+F7
-                        else if (accum == "\033[34~"sv) total += "\033[19;2~"sv; // Shift+F8
-                        else total += accum;
-                    }
-                    else total += accum;
-                    auto strv = view{ total };
-                    //todo unify (it is just a proof of concept)
-                    while (auto len = strv.size())
-                    {
-                        auto pos = 0_sz;
-                        auto unk = true;
-                        if (strv.at(0) == '\033')
-                        {
-                            ++pos;
-                            if (pos == len) // the only one esc
-                            {
-                                // Pass Esc.
-                                k.pressed = true;
-                                k.cluster = strv.substr(0, 1);
-                                keybd(k);
-                                total.clear();
-                                break;
-                            }
-                            else if (strv.at(pos) == '\033') // two consecutive escapes
-                            {
-                                // Pass Esc.
-                                k.pressed = true;
-                                k.cluster = strv.substr(0, 1);
-                                keybd(k);
-                                total = strv.substr(1);
-                                break;
-                            }
-                            else if (strv.at(pos) == '[')
-                            {
-                                if (++pos == len) { total = strv; break; } // incomlpete
-                                if (strv.at(pos) == 'I')
-                                {
-                                    f.state = true;
-                                    focus(f);
-                                    ++pos;
-                                    unk = faux;
-                                }
-                                else if (strv.at(pos) == 'O')
-                                {
-                                    f.state = faux;
-                                    focus(f);
-                                    ++pos;
-                                    unk = faux;
-                                }
-                                else if (strv.at(pos) == '<') // \033[<0;x;yM/m
-                                {
-                                    if (++pos == len) { total = strv; break; } // incomlpete sequence
-
-                                    auto tmp = strv.substr(pos);
-                                    auto l = tmp.size();
-                                    if (auto ctrl = utf::to_int(tmp))
-                                    {
-                                        pos += l - tmp.size();
-                                        if (pos == len) { total = strv; break; } // incomlpete sequence
-                                        if (++pos == len) { total = strv; break; } // incomlpete sequence
-
-                                        auto tmp = strv.substr(pos);
-                                        auto l = tmp.size();
-                                        if (auto pos_x = utf::to_int(tmp))
-                                        {
-                                            pos += l - tmp.size();
-                                            if (pos == len) { total = strv; break; }// incomlpete sequence
-                                            if (++pos == len) { total = strv; break; }// incomlpete sequence
-
-                                            auto tmp = strv.substr(pos);
-                                            auto l = tmp.size();
-                                            if (auto pos_y = utf::to_int(tmp))
-                                            {
-                                                pos += l - tmp.size();
-                                                if (pos == len) { total = strv; break; } // incomlpete sequence
-                                                if (strv.at(pos) == 'M' || strv.at(pos) == 'm')
-                                                {
-                                                    auto timecode = datetime::now();
-                                                    auto ispressed = (strv.at(pos) == 'M');
-                                                    ++pos;
-
-                                                    auto clamp = [](auto a) { return std::clamp(a, si32min / 2, si32max / 2); };
-                                                    auto x = clamp(pos_x.value() - 1);
-                                                    auto y = clamp(pos_y.value() - 1);
-                                                    auto ctl = ctrl.value();
-
-                                                    m.enabled = {};
-                                                    m.wheeled = {};
-                                                    m.hzwheel = {};
-                                                    m.wheeldt = {};
-                                                    m.ctlstat = {};
-                                                    // 000 000 00
-                                                    //   | ||| ||
-                                                    //   | ||| └----- button number
-                                                    //   | └--------- ctl state
-                                                    if (ctl & 0x04) m.ctlstat |= input::hids::LShift;
-                                                    if (ctl & 0x08) m.ctlstat |= input::hids::LAlt;
-                                                    if (ctl & 0x10) m.ctlstat |= input::hids::LCtrl;
-                                                    ctl &= ~0b00011100;
-                                                    k.ctlstat = m.ctlstat;
-
-                                                    if (ctl == 35 && m.buttons) // Moving without buttons (case when second release not fired: apple's terminal.app)
-                                                    {
-                                                        m.buttons = {};
-                                                        m.changed++;
-                                                        m.timecod = timecode;
-                                                        mouse(m);
-                                                    }
-                                                    m.coordxy = { x, y };
-                                                    switch (ctl)
-                                                    {
-                                                        case 0: netxs::set_bit<input::hids::left  >(m.buttons, ispressed); break;
-                                                        case 1: netxs::set_bit<input::hids::middle>(m.buttons, ispressed); break;
-                                                        case 2: netxs::set_bit<input::hids::right >(m.buttons, ispressed); break;
-                                                        case 64:
-                                                            m.wheeled = true;
-                                                            m.wheeldt = 1;
-                                                            break;
-                                                        case 65:
-                                                            m.wheeled = true;
-                                                            m.wheeldt = -1;
-                                                            break;
-                                                    }
-                                                    m.changed++;
-                                                    m.timecod = timecode;
-                                                    mouse(m);
-                                                    unk = faux;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                else if (strv.substr(pos).starts_with("33:")) // \033[33: format p
-                                {
-                                    pos += 3;
-                                    if (pos == len) { total = strv; break; } // incomlpete sequence
-
-                                    auto tmp = strv.substr(pos);
-                                    auto l = tmp.size();
-                                    if (auto format = utf::to_int<ui32>(tmp))
-                                    {
-                                        pos += l - tmp.size();
-                                        if (pos == len) { total = strv; break; } // incomlpete sequence
-                                        if (strv.at(pos) == ansi::csi_ccc)
-                                        {
-                                            ++pos;
-                                            style(deco{ format.value() });
-                                            unk = faux;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (unk)
-                        {
-                            pos = 0_sz;
-                        }
-                        else
-                        {
-                            total = strv.substr(pos);
-                            strv = total;
-                        }
-
-                        if (auto size = strv.size())
-                        {
-                            auto i = unk ? 1_sz : 0_sz;
-                            while (i != size && (strv.at(i) != '\033'))
-                            {
-                                i++;
-                            }
-
-                            if (i)
-                            {
-                                k.pressed = true;
-                                k.cluster = strv.substr(0, i);
-                                keybd(k);
-                                total = strv.substr(i);
-                                strv = total;
-                            }
-                        }
-                    }
-                };
                 auto h_proc = [&]
                 {
                     if (auto data = io::recv(os::stdin_fd, buffer))
@@ -5182,7 +4984,7 @@ namespace netxs::os
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
                         }
-                        filter(data);
+                        parser(data);
                     }
                     else alive = faux;
                 };

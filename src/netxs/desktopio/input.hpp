@@ -1608,7 +1608,7 @@ namespace netxs::input
         void fire_paste()
         {
             alive = true;
-            owner.SIGNAL(tier::release, hids::events::paste, *this);
+            owner.SIGNAL(tier::preview, hids::events::paste, *this);
         }
         void fire_focus()
         {
