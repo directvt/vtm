@@ -6677,19 +6677,10 @@ namespace netxs::ui
         }
         auto _paste(auto& data)
         {
-            follow[axis::X] = true;
-            if (bpmode)
-            {
-                auto temp = text{};
-                temp.reserve(data.size() + ansi::paste_begin.size() + ansi::paste_end.size());
-                temp += ansi::paste_begin;
-                temp += data;
-                temp += ansi::paste_end;
-                std::swap(data, temp);
-            }
-            //todo paste is a special type operation like a mouse reporting.
             //todo pasting must be ready to be interruped by any pressed key (to interrupt a huge paste).
-            data_out(data);
+            follow[axis::X] = true;
+            follow[axis::Y] = true;
+            ipccon.paste(data, bpmode, kbmode);
         }
         auto paste(hids& gear)
         {
@@ -7077,7 +7068,7 @@ namespace netxs::ui
                     auto byemsg = error().add("Press Esc to close or press Enter to restart the session.\r\n")
                                          .add("\n");
                     ondata(byemsg);
-                    this->LISTEN(tier::release, hids::events::keybd::data::post, gear, onerun) //todo VS2019 requires `this`
+                    this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
                         if (gear.pressed && gear.cluster.size())
                         {
@@ -7267,8 +7258,9 @@ namespace netxs::ui
             LISTEN(tier::release, hids::events::paste, gear)
             {
                 _paste(gear.paste::txtdata);
+                gear.dismiss();
             };
-            LISTEN(tier::release, hids::events::keybd::data::post, gear)
+            LISTEN(tier::release, hids::events::keybd::key::post, gear)
             {
                 //todo configurable Ctrl+Ins, Shift+Ins etc.
                 if (gear.handled) return; // Don't pass registered keyboard shortcuts.
@@ -7289,7 +7281,7 @@ namespace netxs::ui
                 //}
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
-                ipccon.keybd(gear, decckm, bpmode, kbmode);
+                ipccon.keybd(gear, decckm, kbmode);
             };
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -7483,7 +7475,7 @@ namespace netxs::ui
                         gear.handled  = k.handled;
                         do
                         {
-                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::data::post, gear);
+                            parent_ptr->SIGNAL(tier::release, hids::events::keybd::key::post, gear);
                             parent_ptr = parent_ptr->parent();
                         }
                         while (gear && parent_ptr);
@@ -7709,7 +7701,7 @@ namespace netxs::ui
                     }
                     s11n::focusbus.send(master, seed.id, seed.guid, netxs::events::subindex(deed));
                 };
-                master.LISTEN(tier::release, hids::events::keybd::data::post, gear, tokens)
+                master.LISTEN(tier::release, hids::events::keybd::key::post, gear, tokens)
                 {
                     s11n::syskeybd.send(master, gear.id,
                                                 gear.ctlstate,
@@ -7722,31 +7714,11 @@ namespace netxs::ui
                                                 gear.keycode);
                     gear.dismiss();
                 };
-                //master.LISTEN(tier::release, hids::events::upevent::kboffer, gear, tokens)
-                //{
-                //    auto focus_state = true;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
-                //master.LISTEN(tier::release, hids::events::upevent::kbannul, gear, tokens)
-                //{
-                //    gear.remove_from_kb_focus(master.This());
-                //    auto focus_state = faux;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
-                //master.LISTEN(tier::release, hids::events::notify::keybd::lost, gear, tokens)
-                //{
-                //    auto focus_state = faux;
-                //    s11n::sysfocus.send(master, gear.id,
-                //                                focus_state,
-                //                                gear.focus_combine,
-                //                                gear.focus_force_group);
-                //};
+                master.LISTEN(tier::release, hids::events::paste, gear, tokens)
+                {
+                    s11n::syspaste.send(master, gear.id, gear.txtdata);
+                    gear.dismiss();
+                };
                 master.LISTEN(tier::general, e2::config::fps, frame_rate, tokens)
                 {
                     if (frame_rate > 0)

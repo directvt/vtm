@@ -22,8 +22,9 @@ struct consrv
     virtual void reset() = 0;
     virtual fd_t watch() = 0;
     virtual bool send(view utf8) = 0;
-    virtual void keybd(input::hids& gear, bool decckm, bool bpmode) = 0;
+    virtual void keybd(input::hids& gear, bool decckm) = 0;
     virtual void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state) = 0;
+    virtual void paste(view block) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
     virtual void style(ui32 style) = 0;
@@ -110,7 +111,7 @@ struct consrv
                                     nullptr);
         auto wcmd = utf::to_utf(cmd);
         auto wcwd = utf::to_utf(cwd);
-        auto wenv = utf::to_utf(os::env::add(env + "VTM=1\0"));
+        auto wenv = utf::to_utf(os::env::add(env += "VTM=1\0"sv));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
@@ -795,7 +796,6 @@ struct impl : consrv
         }
         auto generate(wiew wstr, ui32 s = 0)
         {
-            //todo implement bracketed-paste using menu events (vt or menu bounds)
             stream.reserve(wstr.size());
             auto head = wstr.begin();
             auto tail = wstr.end();
@@ -823,6 +823,39 @@ struct impl : consrv
             toWIDE.clear();
             utf::to_utf(ustr, toWIDE);
             return generate(toWIDE);
+        }
+        void paste(view block)
+        {
+            auto lock = std::lock_guard{ locker };
+            { //todo pwsh/wsl is not yet ready for block-pasting (VK_RETURN conversion is required)
+                generate(block);
+                ondata.reset();
+                signal.notify_one();
+                return;
+            }
+
+            auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
+            auto keys = INPUT_RECORD{ .EventType = KEY_EVENT, .Event = { .KeyEvent = { .bKeyDown = 1, .wRepeatCount = 1 }}};
+
+            toWIDE.clear();
+            utf::to_utf(block, toWIDE);
+            
+            stream.reserve(stream.size() + toWIDE.size() + 2);
+
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_begin;
+            stream.emplace_back(data);
+            
+            for (auto c : toWIDE)
+            {
+                keys.Event.KeyEvent.uChar.UnicodeChar = c;
+                stream.emplace_back(keys);
+            }
+
+            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_end;
+            stream.emplace_back(data);
+            
+            ondata.reset();
+            signal.notify_one();
         }
         auto write(view ustr)
         {
@@ -1296,22 +1329,53 @@ struct impl : consrv
         {
             do
             {
-                for (auto& rec : stream) if (rec.EventType == KEY_EVENT)
+                auto clip = faux;
+                auto head = stream.begin();
+                auto tail = stream.end();
+                while (head != tail)
                 {
-                    auto& s = rec.Event.KeyEvent.dwControlKeyState;
-                    auto& d = rec.Event.KeyEvent.bKeyDown;
-                    auto& n = rec.Event.KeyEvent.wRepeatCount;
-                    auto& v = rec.Event.KeyEvent.wVirtualKeyCode;
-                    auto& c = rec.Event.KeyEvent.uChar.UnicodeChar;
-                    cooked.ctrl = s;
-                    if (n-- && (d && (c || truechar<'\0'>(v, s))
-                            || !d &&  c && v == VK_MENU))
+                    auto& r = *head++;
+                    if (r.EventType == KEY_EVENT)
                     {
-                        auto grow = utf::to_utf(c, wcpair, cooked.ustr);
-                        if (grow && n)
+                        if (clip)
                         {
-                            auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
-                            while (n--) cooked.ustr += temp;
+                            auto& c = r.Event.KeyEvent.uChar.UnicodeChar;
+                            utf::to_utf(c, wcpair, cooked.ustr);
+                        }
+                        else
+                        {
+                            auto& s = r.Event.KeyEvent.dwControlKeyState;
+                            auto& d = r.Event.KeyEvent.bKeyDown;
+                            auto& n = r.Event.KeyEvent.wRepeatCount;
+                            auto& v = r.Event.KeyEvent.wVirtualKeyCode;
+                            auto& c = r.Event.KeyEvent.uChar.UnicodeChar;
+                            cooked.ctrl = s;
+                            if (n-- && (d && (c || truechar<'\0'>(v, s))
+                                    || !d &&  c && v == VK_MENU))
+                            {
+                                auto grow = utf::to_utf(c, wcpair, cooked.ustr);
+                                if (grow && n)
+                                {
+                                    auto temp = view{ cooked.ustr.data() + cooked.ustr.size() - grow, grow };
+                                    while (n--) cooked.ustr += temp;
+                                }
+                            }
+                        }
+                    }
+                    else if (r.EventType == MENU_EVENT)
+                    {
+                        if (r.Event.MenuEvent.dwCommandId == (nt::console::event::custom | nt::console::event::paste_begin))
+                        {
+                            wcpair = {};
+                            clip = true;
+                            cooked.ctrl = 0;
+                            cooked.ustr += ansi::paste_begin;
+                        }
+                        else if (r.Event.MenuEvent.dwCommandId == (nt::console::event::custom | nt::console::event::paste_end))
+                        {
+                            wcpair = {};
+                            clip = faux;
+                            cooked.ustr += ansi::paste_end;
                         }
                     }
                 }
@@ -4968,7 +5032,8 @@ struct impl : consrv
     }
     void mouse(input::hids& gear, bool moved, twod coord,
         input::mouse::prot encod, input::mouse::mode state) { events.mouse(gear, moved, coord); }
-    void keybd(input::hids& gear, bool decckm, bool bpmode) { events.keybd(gear, decckm);       }
+    void keybd(input::hids& gear, bool decckm)              { events.keybd(gear, decckm);       }
+    void paste(view block)                                  { events.paste(block);              }
     void focus(bool state)                                  { events.focus(state);              }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
     void style(ui32 style)                                  { events.style(style);              }
@@ -5157,7 +5222,7 @@ struct consrv : ipc::stdcon
             }
             env +=  "VTM=1\0"
                     "TERM=xterm-256color\0"
-                    "COLORTERM=truecolor\0";
+                    "COLORTERM=truecolor\0"sv;
             env = os::env::add(env);
             os::process::spawn(cmd, cwd, env);
         }
@@ -5186,7 +5251,11 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
     }
-    void keybd(input::hids& gear, bool decckm, bool bpmode)
+    void keybd(input::hids& gear, bool decckm)
+    {
+        //todo win32-input-mode
+    }
+    void paste(view block)
     {
         //todo win32-input-mode
     }
