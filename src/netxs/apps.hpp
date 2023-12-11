@@ -521,7 +521,7 @@ namespace netxs::app::shared
                             return cmd;
                         });
                     };
-                    boss.LISTEN(tier::preview, e2::form::prop::ui::header, header)
+                    boss.LISTEN(tier::release, e2::form::global::sysstart, s)
                     {
                         if (window_inst.back() != boss.This())
                         {
@@ -532,7 +532,7 @@ namespace netxs::app::shared
                             boss.RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
                             boss.reflow();
                         }
-                        boss.bell::template expire<tier::preview>(true);
+                        boss.bell::template expire<tier::release>(true);
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
