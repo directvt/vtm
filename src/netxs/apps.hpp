@@ -348,13 +348,14 @@ namespace netxs::app::shared
             auto cB = menu_white;
 
             auto window = ui::cake::ctor()
-                  ->invoke([&](auto& boss)
-                    {
-                        closing_on_quit(boss);
-                    });
+                ->plugin<pro::focus>(pro::focus::mode::active)
+                ->invoke([&](auto& boss)
+                {
+                    closing_on_quit(boss);
+                });
             window->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>();
+                ->plugin<pro::acryl>()
+                ->plugin<pro::cache>();
             //auto object = window->attach(ui::fork::ctor(axis::Y))
             //                    ->colors(cB.fgc(), cB.bgc());
             //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
