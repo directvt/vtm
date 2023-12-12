@@ -1335,6 +1335,12 @@ namespace netxs::ui
                 }
                 return gear_id_list;
             }
+            static auto pass(sptr src_ptr, sptr dst_ptr)
+            {
+                auto gear_id_list = pro::focus::get(src_ptr, true); // Expropriate all foci.
+                pro::focus::off(src_ptr);
+                pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
+            }
             static auto test(base& item, input::hids& gear)
             {
                 item.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));

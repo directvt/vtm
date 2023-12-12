@@ -481,10 +481,9 @@ namespace netxs::app::shared
 
             auto window = ui::veer::ctor()
                 ->limits(dot_11, { 400,200 })
-                ->plugin<pro::focus>(pro::focus::mode::active);
+                ->plugin<pro::focus>(pro::focus::mode::hub);
             auto term = ui::cake::ctor()
-                ->plugin<pro::acryl>()
-                ->plugin<pro::cache>()
+                ->plugin<pro::focus>(pro::focus::mode::hub)
                 ->active(cB);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
@@ -494,6 +493,7 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
+                    boss.config.def_atexit = ui::term::commands::atexit::smart;
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
                         boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
@@ -522,19 +522,6 @@ namespace netxs::app::shared
                             return cmd;
                         });
                     };
-                    boss.LISTEN(tier::release, e2::form::global::sysstart, s)
-                    {
-                        if (window_inst.back() != boss.This())
-                        {
-                            auto gear_id_list = pro::focus::get(window_inst.back(), true); // Expropriate all foci.
-                            pro::focus::off(window_inst.back());
-                            pro::focus::set(window_inst.front(), gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
-                            window_inst.roll();
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
-                            boss.reflow();
-                        }
-                        boss.bell::template expire<tier::release>(true);
-                    };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
@@ -556,6 +543,19 @@ namespace netxs::app::shared
                 ->branch(term)
                 ->invoke([&](auto& boss)
                 {
+                    boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
+                    {
+                        if (!!started == order)
+                        {
+                            order = !order;
+                            pro::focus::pass(boss.back(), boss.front());
+                            boss.roll();
+                            boss.back()->RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
+                            boss.back()->reflow();
+                            boss.deface();
+                        }
+                        boss.bell::template expire<tier::release>(true);
+                    };
                     boss.LISTEN(tier::release, e2::form::proceed::quit::any, fast, -, (count = 2))
                     {
                         if (--count == 0)
