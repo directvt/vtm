@@ -1335,11 +1335,15 @@ namespace netxs::ui
                 }
                 return gear_id_list;
             }
-            static auto pass(sptr src_ptr, sptr dst_ptr)
+            static auto pass(sptr src_ptr, sptr dst_ptr, bool set_default = true)
             {
-                auto gear_id_list = pro::focus::get(src_ptr, true); // Expropriate all foci.
-                pro::focus::off(src_ptr);
-                pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, true); // Refocus.
+                auto gear_id_list = pro::focus::get(src_ptr, true);
+                if (set_default)
+                if (std::find(gear_id_list.begin(), gear_id_list.end(), id_t{}) == gear_id_list.end())
+                {
+                    gear_id_list.push_back(id_t{});
+                }
+                pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, faux); // Refocus.
             }
             static auto test(base& item, input::hids& gear)
             {

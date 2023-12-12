@@ -7070,22 +7070,14 @@ namespace netxs::ui
                     ondata(byemsg);
                     this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
-                        if (gear.pressed && gear.cluster.size())
+                        if (gear.pressed)
                         {
-                            switch (gear.cluster.front())
+                            switch (gear.keybd::generic())
                             {
-                                case ansi::c0_esc: close(); onerun.reset(); break;
-                                case ansi::c0_cr:  start(); onerun.reset(); break;
+                                case key::Esc:   close(); onerun.reset(); break;
+                                case key::Enter: start(); onerun.reset(); break;
                             }
                         }
-                        //if (gear.pressed)
-                        //{
-                        //    switch (gear.keybd::generic())
-                        //    {
-                        //        case key::Esc:   close(); onerun.reset(); break;
-                        //        case key::Enter: start(); onerun.reset(); break;
-                        //    }
-                        //}
                     };
                     this->RISEUP(tier::release, e2::form::global::sysstart, 0);
                 };
@@ -7111,10 +7103,7 @@ namespace netxs::ui
         }
         void start()
         {
-            if (!ipccon)
-            {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
-            }
+            RISEUP(tier::release, e2::form::upon::started, This());
         }
         void start(text cmd, text cwd, text env, os::fdrw fds = {})
         {
@@ -7122,7 +7111,10 @@ namespace netxs::ui
             curdir = cwd;
             envvar = env;
             fdlink = fds;
-            start();
+            if (!ipccon)
+            {
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
+            }
         }
         void restart()
         {
@@ -7800,12 +7792,14 @@ namespace netxs::ui
         // dtvt: Attach a new process.
         void start(text config, auto connect)
         {
-            if (!ipccon)
-            {
-                auto winsize = base::size();
-                ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
-                                                        [&]            { onexit();     });
-            }
+            if (ipccon) ipccon.payoff();
+            //todo fix Disconnected after reconnect
+            //nodata = {};
+            //stream.s11n::syswinsz.freeze().thing.winsize = {};
+            active.exchange(true);
+            auto winsize = base::size();
+            ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
+                                                    [&]            { onexit();     });
         }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)

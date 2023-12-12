@@ -425,9 +425,13 @@ namespace netxs::app::shared
                                             {
                                                 boss.set_align(align);
                                             };
-                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env))
+                                            boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env))
                                             {
                                                 boss.start(cmd, cwd, env);
+                                            };
+                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                                            {
+                                                boss.SIGNAL(tier::release, e2::form::upon::started, root);
                                             };
                                             boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                                             {
@@ -480,10 +484,8 @@ namespace netxs::app::shared
             auto cB = menu_white;
 
             auto window = ui::veer::ctor()
-                ->limits(dot_11, { 400,200 })
-                ->plugin<pro::focus>(pro::focus::mode::hub);
+                ->limits(dot_11, { 400,200 });
             auto term = ui::cake::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::hub)
                 ->active(cB);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
@@ -493,7 +495,7 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;
-                    boss.config.def_atexit = ui::term::commands::atexit::smart;
+                    boss.config.def_atexit = ui::term::commands::atexit::ask;
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
                         boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
@@ -513,15 +515,6 @@ namespace netxs::app::shared
                 ->invoke([&](auto& boss)
                 {
                     auto& term_inst = *inst;
-                    auto& window_inst = *window;
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
-                    {
-                        boss.start(patch, [&, cmd, cwd, env](auto fds)
-                        {
-                            term_inst.start(cmd, cwd, env, fds);
-                            return cmd;
-                        });
-                    };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
                         boss.RISEUP(tier::release, e2::config::plugins::sizer::alive, state);
@@ -543,16 +536,33 @@ namespace netxs::app::shared
                 ->branch(term)
                 ->invoke([&](auto& boss)
                 {
+                    auto& dtvt_inst = *dtvt;
+                    auto& term_inst = *inst;
+                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
+                    {
+                        dtvt_inst.start(patch, [&, cmd, cwd, env](auto fds)
+                        {
+                            term_inst.start(cmd, cwd, env, fds);
+                            return cmd;
+                        });
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
+                    };
                     boss.LISTEN(tier::release, e2::form::global::sysstart, started, -, (order = true))
                     {
                         if (!!started == order)
                         {
-                            order = !order;
-                            pro::focus::pass(boss.back(), boss.front());
+                            auto t = term_inst.This();
+                            auto d = dtvt_inst.This();
+                            if (order) pro::focus::pass(t, d);
+                            else       pro::focus::pass(d, t);
                             boss.roll();
                             boss.back()->RISEUP(tier::preview, e2::form::prop::ui::footer, footer, ());
                             boss.back()->reflow();
-                            boss.deface();
+                            boss.back()->deface();
+                            order = !order;
                         }
                         boss.bell::template expire<tier::release>(true);
                     };
