@@ -80,7 +80,7 @@ jobs:
     - name: Install compiler
       if: ${{ matrix.apt }}
       run: >
-        sudo apt -y install ${{ matrix.apt }}
+        sudo apt -y update && sudo apt -y install ${{ matrix.apt }}
 
     - name: Configure CMake
       run: >
