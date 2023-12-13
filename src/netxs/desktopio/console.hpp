@@ -293,9 +293,11 @@ namespace netxs::ui
                     image.set(winid, coord, cache, abort, debug.delta);
                     if (debug.delta)
                     {
+                        guard.unlock(); // Allow to abort.
                         canal.isbusy = true; // It's okay if someone resets the busy flag before sending.
                         image.sendby(canal);
                         canal.isbusy.wait(true); // Successive frames must be discarded until the current frame is delivered (to prevent unlimited buffer growth).
+                        guard.lock();
                     }
                     debug.watch = datetime::now() - start;
                 }
@@ -376,6 +378,8 @@ namespace netxs::ui
                     canal.isbusy.notify_all();
                     std::this_thread::yield();
                 }
+                canal.isbusy = faux;
+                canal.isbusy.notify_all();
                 paint.join();
                 if constexpr (debugmode) log(prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(id));
             }

@@ -146,6 +146,7 @@ namespace netxs::ui
             bool resetonkey;
             bool resetonout;
             bool def_io_log;
+            bool allow_logs;
             span def_period;
             pals def_colors;
 
@@ -201,6 +202,7 @@ namespace netxs::ui
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
                 def_io_log =             config.take("logs",                 faux);
+                allow_logs =             true; // Disallowed for xlvt.
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -7011,8 +7013,11 @@ namespace netxs::ui
         }
         void set_log(bool state)
         {
-            io_log = state;
-            SIGNAL(tier::release, ui::term::events::io_log, state);
+            if (config.allow_logs)
+            {
+                io_log = state;
+                SIGNAL(tier::release, ui::term::events::io_log, state);
+            }
         }
         void exec_cmd(commands::ui::commands cmd)
         {
@@ -7070,23 +7075,16 @@ namespace netxs::ui
                     ondata(byemsg);
                     this->LISTEN(tier::release, hids::events::keybd::key::post, gear, onerun) //todo VS2019 requires `this`
                     {
-                        if (gear.pressed && gear.cluster.size())
+                        if (gear.pressed)
                         {
-                            switch (gear.cluster.front())
+                            switch (gear.keybd::generic())
                             {
-                                case ansi::c0_esc: close(); onerun.reset(); break;
-                                case ansi::c0_cr:  start(); onerun.reset(); break;
+                                case key::Esc:   close(); onerun.reset(); break;
+                                case key::Enter: start(); onerun.reset(); break;
                             }
                         }
-                        //if (gear.pressed)
-                        //{
-                        //    switch (gear.keybd::generic())
-                        //    {
-                        //        case key::Esc:   close(); onerun.reset(); break;
-                        //        case key::Enter: start(); onerun.reset(); break;
-                        //    }
-                        //}
                     };
+                    this->RISEUP(tier::release, e2::form::global::sysstart, 0);
                 };
                 auto renew = [&]
                 {
@@ -7110,10 +7108,7 @@ namespace netxs::ui
         }
         void start()
         {
-            if (!ipccon)
-            {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
-            }
+            RISEUP(tier::release, e2::form::upon::started, This());
         }
         void start(text cmd, text cwd, text env, os::fdrw fds = {})
         {
@@ -7121,7 +7116,10 @@ namespace netxs::ui
             curdir = cwd;
             envvar = env;
             fdlink = fds;
-            start();
+            if (!ipccon)
+            {
+                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
+            }
         }
         void restart()
         {
@@ -7271,14 +7269,6 @@ namespace netxs::ui
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
                 }
-
-                //if (input::key::map::name(gear.keycode) == input::key::undef)
-                //{
-                //    log("gear.keycode: ",  gear.keycode,
-                //        " pressed: ", gear.pressed,
-                //        " virtcod: ", gear.virtcod,
-                //        " scancod: ", gear.scancod);
-                //}
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, kbmode);
@@ -7646,7 +7636,7 @@ namespace netxs::ui
             {
                 netxs::events::enqueue(master.This(), [&](auto& boss)
                 {
-                    master.RISEUP(tier::release, e2::form::global::sysstart, s, ());
+                    master.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
             }
             evnt(dtvt& master)
@@ -7799,12 +7789,17 @@ namespace netxs::ui
         // dtvt: Attach a new process.
         void start(text config, auto connect)
         {
-            if (!ipccon)
+            if (ipccon)
             {
-                auto winsize = base::size();
-                ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
-                                                        [&]            { onexit();     });
+                active.exchange(faux); // Do not show "Disconnected".
+                ipccon.payoff();
             }
+            errmsg = genmsg(msgs::no_signal);
+            nodata = {};
+            stream.s11n::syswinsz.freeze().thing.winsize = {};
+            active.exchange(true);
+            ipccon.runapp(config, base::size(), connect, [&](view utf8) { ondata(utf8); },
+                                                         [&]            { onexit();     });
         }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)
@@ -7826,7 +7821,7 @@ namespace netxs::ui
             });
         }
         // dtvt: Splash screen if there is no next frame.
-        void fallback(core const& canvas, bool forced = faux)
+        void fallback(core const& canvas, bool forced = faux, bool show_msg = true)
         {
             auto size = base::size();
             if (splash.size() != size || forced)
@@ -7836,10 +7831,17 @@ namespace netxs::ui
                 if (auto parent = base::parent()) parent_id = parent->id;
                 if (canvas.size())
                 {
-                    splash.zoom(canvas, cell::shaders::onlyid(parent_id));
-                    splash.output(errmsg);
-                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                    splash.output(errmsg);
+                    if (show_msg)
+                    {
+                        splash.zoom(canvas, cell::shaders::onlyid(parent_id));
+                        splash.output(errmsg);
+                        splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.output(errmsg);
+                    }
+                    else
+                    {
+                        splash.fill(canvas, cell::shaders::onlyid(parent_id));
+                    }
                 }
                 else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
             }
@@ -7856,16 +7858,13 @@ namespace netxs::ui
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
-              nodata{      },
-              errmsg{ genmsg(msgs::no_signal) }
+              nodata{      }
         {
-            //todo make it configurable (max_drops)
-            static constexpr auto max_drops = 1;
             SIGNAL(tier::general, e2::config::fps, fps, (-1));
-            maxoff = max_drops * span{ span::period::den / fps };
+            maxoff = span{ span::period::den / fps };
             LISTEN(tier::general, e2::config::fps, fps)
             {
-                maxoff = max_drops * span{ span::period::den / fps };
+                maxoff = span{ span::period::den / fps };
             };
             LISTEN(tier::anycast, e2::form::prop::lucidity, value)
             {
@@ -7896,7 +7895,7 @@ namespace netxs::ui
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();
-                            fallback(canvas);
+                            fallback(canvas, faux, faux);
                             fill(parent_canvas, splash);
                             return;
                         }

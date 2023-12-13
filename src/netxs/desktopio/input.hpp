@@ -110,6 +110,7 @@ namespace netxs::events::userland
                     EVENT_XS( off, input::foci ),
                     EVENT_XS( cut, input::foci ), // Cut mono focus branch.
                     EVENT_XS( dry, input::foci ), // Remove the reference to the specified applet.
+                    EVENT_XS( hop, input::foci ), // Change next hop destination. args: pair<what, with>.
                     GROUP_XS( bus, input::foci ),
 
                     SUBSET_XS( bus )
@@ -527,6 +528,7 @@ namespace netxs::input
         si32 solo{}; // foci: Exclusive focus request.
         bool flip{}; // foci: Toggle focus request.
         bool skip{}; // foci: Ignore focusable object, just activate it.
+        sptr what{}; // foci: Replacement item.
         sptr item{}; // foci: Next focused item.
         ui32 deep{}; // foci: Counter for debug.
         time guid{}; // foci: Originating environment ID.

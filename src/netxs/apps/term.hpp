@@ -835,9 +835,13 @@ namespace netxs::app::term
                     {
                         boss.set_align(align);
                     };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env))
+                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env))
                     {
                         boss.start(cmd, cwd, env);
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
                     };
                     boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
                     {

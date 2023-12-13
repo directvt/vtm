@@ -443,7 +443,7 @@ namespace netxs::events::userland
                 {
                     //EVENT_XS( ctxmenu , twod ), // request context menu at specified coords.
                     //deprecated - use tier::anycast
-                    EVENT_XS( sysstart, si32 ), // release: notify dtvt-application started
+                    EVENT_XS( sysstart, si32 ), // release: notify dtvt-application started: 1 - started, 0 - exited.
                     EVENT_XS( lucidity, si32 ), // set or request global window transparency, si32: 0-255, -1 to request.
                     //GROUP_XS( object,      ), // global scene objects events
                     //GROUP_XS( user  ,      ), // global scene users events
