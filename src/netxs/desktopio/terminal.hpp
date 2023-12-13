@@ -7789,14 +7789,17 @@ namespace netxs::ui
         // dtvt: Attach a new process.
         void start(text config, auto connect)
         {
-            if (ipccon) ipccon.payoff();
-            //todo fix Disconnected after reconnect
-            //nodata = {};
-            //stream.s11n::syswinsz.freeze().thing.winsize = {};
+            if (ipccon)
+            {
+                active.exchange(faux); // Do not show "Disconnected".
+                ipccon.payoff();
+            }
+            errmsg = genmsg(msgs::no_signal);
+            nodata = {};
+            stream.s11n::syswinsz.freeze().thing.winsize = {};
             active.exchange(true);
-            auto winsize = base::size();
-            ipccon.runapp(config, winsize, connect, [&](view utf8) { ondata(utf8); },
-                                                    [&]            { onexit();     });
+            ipccon.runapp(config, base::size(), connect, [&](view utf8) { ondata(utf8); },
+                                                         [&]            { onexit();     });
         }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)
@@ -7848,8 +7851,7 @@ namespace netxs::ui
             : stream{*this },
               active{ true },
               opaque{ 0xFF },
-              nodata{      },
-              errmsg{ genmsg(msgs::no_signal) }
+              nodata{      }
         {
             //todo make it configurable (max_drops)
             static constexpr auto max_drops = 1;
