@@ -7821,7 +7821,7 @@ namespace netxs::ui
             });
         }
         // dtvt: Splash screen if there is no next frame.
-        void fallback(core const& canvas, bool forced = faux)
+        void fallback(core const& canvas, bool forced = faux, bool show_msg = true)
         {
             auto size = base::size();
             if (splash.size() != size || forced)
@@ -7831,10 +7831,17 @@ namespace netxs::ui
                 if (auto parent = base::parent()) parent_id = parent->id;
                 if (canvas.size())
                 {
-                    splash.zoom(canvas, cell::shaders::onlyid(parent_id));
-                    splash.output(errmsg);
-                    splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
-                    splash.output(errmsg);
+                    if (show_msg)
+                    {
+                        splash.zoom(canvas, cell::shaders::onlyid(parent_id));
+                        splash.output(errmsg);
+                        splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.output(errmsg);
+                    }
+                    else
+                    {
+                        splash.fill(canvas, cell::shaders::onlyid(parent_id));
+                    }
                 }
                 else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
             }
@@ -7853,13 +7860,11 @@ namespace netxs::ui
               opaque{ 0xFF },
               nodata{      }
         {
-            //todo make it configurable (max_drops)
-            static constexpr auto max_drops = 1;
             SIGNAL(tier::general, e2::config::fps, fps, (-1));
-            maxoff = max_drops * span{ span::period::den / fps };
+            maxoff = span{ span::period::den / fps };
             LISTEN(tier::general, e2::config::fps, fps)
             {
-                maxoff = max_drops * span{ span::period::den / fps };
+                maxoff = span{ span::period::den / fps };
             };
             LISTEN(tier::anycast, e2::form::prop::lucidity, value)
             {
@@ -7890,7 +7895,7 @@ namespace netxs::ui
                          && size != canvas.size())
                         {
                             nodata = canvas.hash();
-                            fallback(canvas);
+                            fallback(canvas, faux, faux);
                             fill(parent_canvas, splash);
                             return;
                         }
