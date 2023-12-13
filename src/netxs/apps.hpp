@@ -496,6 +496,11 @@ namespace netxs::app::shared
                 {
                     auto& dtvt_inst = *dtvt;
                     boss.config.def_atexit = ui::term::commands::atexit::ask;
+                    if constexpr (!debugmode) // Forced disabling of logging for the controlling terminal.
+                    {
+                        boss.config.allow_logs = faux;
+                        boss.io_log = faux;
+                    }
                     boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
                     {
                         boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);

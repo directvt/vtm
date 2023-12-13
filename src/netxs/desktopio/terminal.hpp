@@ -146,6 +146,7 @@ namespace netxs::ui
             bool resetonkey;
             bool resetonout;
             bool def_io_log;
+            bool allow_logs;
             span def_period;
             pals def_colors;
 
@@ -201,6 +202,7 @@ namespace netxs::ui
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
                 def_io_log =             config.take("logs",                 faux);
+                allow_logs =             true; // Disallowed for xlvt.
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
@@ -7011,8 +7013,11 @@ namespace netxs::ui
         }
         void set_log(bool state)
         {
-            io_log = state;
-            SIGNAL(tier::release, ui::term::events::io_log, state);
+            if (config.allow_logs)
+            {
+                io_log = state;
+                SIGNAL(tier::release, ui::term::events::io_log, state);
+            }
         }
         void exec_cmd(commands::ui::commands cmd)
         {
@@ -7264,14 +7269,6 @@ namespace netxs::ui
                     follow[axis::X] = true;
                     follow[axis::Y] = true;
                 }
-
-                //if (input::key::map::name(gear.keycode) == input::key::undef)
-                //{
-                //    log("gear.keycode: ",  gear.keycode,
-                //        " pressed: ", gear.pressed,
-                //        " virtcod: ", gear.virtcod,
-                //        " scancod: ", gear.scancod);
-                //}
                 if (io_log) log(prompt::key, ansi::hi(input::key::map::data(gear.keycode).name));
 
                 ipccon.keybd(gear, decckm, kbmode);

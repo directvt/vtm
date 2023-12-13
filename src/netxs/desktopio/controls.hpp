@@ -1314,11 +1314,12 @@ namespace netxs::ui
                 if constexpr (std::is_same_v<id_t, std::decay_t<T>>) fire(gear_id);
                 else                    for (auto next_id : gear_id) fire(next_id);
             }
-            static void off(sptr item_ptr)
+            static auto off(sptr item_ptr)
             {
                 item_ptr->RISEUP(tier::request, e2::form::state::keybd::enlist, gear_id_list, ());
                 pro::focus::off(item_ptr, gear_id_list);
                 //if constexpr (debugmode) log(prompt::foci, "Full defocus item:", item_ptr->id);
+                return gear_id_list;
             }
             static auto get(sptr item_ptr, bool remove_default = faux)
             {
@@ -1335,15 +1336,14 @@ namespace netxs::ui
                 }
                 return gear_id_list;
             }
-            static auto pass(sptr src_ptr, sptr dst_ptr, bool set_default = true)
+            static auto pass(sptr src_ptr, sptr dst_ptr)
             {
-                auto gear_id_list = pro::focus::get(src_ptr, true);
-                if (set_default)
-                if (std::find(gear_id_list.begin(), gear_id_list.end(), id_t{}) == gear_id_list.end())
+                if (auto parent = src_ptr->parent())
                 {
-                    gear_id_list.push_back(id_t{});
+                    parent->RISEUP(tier::release, hids::events::keybd::focus::hop, seed, ({ .what = src_ptr, .item = dst_ptr }));
+                    auto gear_id_list = pro::focus::off(src_ptr);
+                    pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off);
                 }
-                pro::focus::set(dst_ptr, gear_id_list, pro::focus::solo::off, pro::focus::flip::off, faux); // Refocus.
             }
             static auto test(base& item, input::hids& gear)
             {
@@ -1460,6 +1460,20 @@ namespace netxs::ui
                         auto def_route = gears.find(id_t{}); // Check if the default route is present.
                         if (def_route != gears.end()) add_route(seed.id, def_route->second);
                         else                          add_route(seed.id, config{});
+                    }
+                };
+                // Replace next hop object "seed.what" with "seed.item".
+                boss.LISTEN(tier::release, hids::events::keybd::focus::hop, seed, memo)
+                {
+                    for (auto& [gear_id, route] : gears)
+                    {
+                        for (auto& next_wptr : route.next)
+                        {
+                            if (next_wptr.lock() == seed.what)
+                            {
+                                next_wptr = seed.item;
+                            }
+                        }
                     }
                 };
                 // Truncate the maximum path without branches.
