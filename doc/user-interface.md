@@ -26,7 +26,7 @@
     <td colspan="9">Disconnect all users and shutdown if there are no apps running</td>
   </tr>
   <tr>
-    <th>Alt/Option+F12</th>
+    <th>Shift+F7</th>
     <td colspan="9">Leave current session</td>
   </tr>
   <tr>

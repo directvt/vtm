@@ -758,7 +758,7 @@ namespace netxs::app::vtm
                 //todo deprecated
                 //todo unify
                 if (!gear.keybd::pressed) return;
-                if (gear.chord(input::key::F12, hids::anyAlt)) // Disconnect by Alt+F12.
+                if (gear.chord(input::key::F7, hids::anyShift)) // Disconnect by Shift+F7.
                 {
                     gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                     this->bell::expire<tier::preview>();
@@ -1762,7 +1762,7 @@ namespace netxs::app::vtm
                 slot->attach(what.applet);
                 log("%%Attach type=%itemtype% menuid=%id%", prompt::hall, utf::debase(cfg.type), utf::debase(what.menuid));
                 this->branch(what.menuid, slot, !cfg.hidden);
-                slot->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+                slot->SIGNAL(tier::anycast, e2::form::upon::started, empty, ());
                 what.applet = slot;
             };
             LISTEN(tier::release, hids::events::keybd::key::any, gear) // Last resort for unhandled kb event.
