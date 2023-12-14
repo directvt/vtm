@@ -427,7 +427,10 @@ namespace netxs::app::shared
                                             };
                                             boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env))
                                             {
-                                                boss.start(cmd, cwd, env);
+                                                if (root) // root is empty when d_n_d.
+                                                {
+                                                    boss.start(cmd, cwd, env);
+                                                }
                                             };
                                             boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                                             {
@@ -458,11 +461,14 @@ namespace netxs::app::shared
                 {
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        boss.start(patch, [cmd, cwd, env](auto fds)
+                        if (root) // root is empty when d_n_d.
                         {
-                            os::dtvt::connect(cmd, cwd, env, fds);
-                            return cmd;
-                        });
+                            boss.start(patch, [cmd, cwd, env](auto fds)
+                            {
+                                os::dtvt::connect(cmd, cwd, env, fds);
+                                return cmd;
+                            });
+                        }
                     };
                     boss.LISTEN(tier::preview, e2::config::plugins::sizer::alive, state)
                     {
@@ -546,11 +552,14 @@ namespace netxs::app::shared
                     auto& term_inst = *inst;
                     boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
                     {
-                        dtvt_inst.start(patch, [&, cmd, cwd, env](auto fds)
+                        if (root) // root is empty when d_n_d.
                         {
-                            term_inst.start(cmd, cwd, env, fds);
-                            return cmd;
-                        });
+                            dtvt_inst.start(patch, [&, cmd, cwd, env](auto fds)
+                            {
+                                term_inst.start(cmd, cwd, env, fds);
+                                return cmd;
+                            });
+                        }
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
