@@ -758,7 +758,7 @@ namespace netxs::app::vtm
                 //todo deprecated
                 //todo unify
                 if (!gear.keybd::pressed) return;
-                if (gear.chord(input::key::F12, hids::anyAlt)) // Disconnect by Alt+F12.
+                if (gear.chord(input::key::F7, hids::anyShift)) // Disconnect by Shift+F7.
                 {
                     gear.owner.SIGNAL(tier::preview, e2::conio::quit, deal, ());
                     this->bell::expire<tier::preview>();
