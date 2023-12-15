@@ -67,7 +67,7 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side can operate both in a common terminal environment (ANSI/VT mode) and in a vtm environment. If the client side is run in the vtm environment (DirectVT/dtvt mode), it can receive an event stream and render directly in binary form, avoiding any parsing.
+The vtm client side can operate both in a common terminal environment (ANSI/VT mode) and in a vtm environment. If the client side is run in the vtm environment (DirectVT/dtvt mode), it can receive an event stream and render directly in binary form, avoiding any parsing and cross-platform issues.
 
 ## DirectVT mode
 
