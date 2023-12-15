@@ -38,8 +38,8 @@ graph TB
         VTMs[vtm\nprocess 0]
     end
 
-    CS1 <-->|send: Events\nrecv: Render| SS
-    CS2 <-->|send: Events\nrecv: Render| SS
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
 ```
 
 - At startup, vtm connects to an existing server session or creates a new one.
