@@ -103,7 +103,7 @@ vtm expects input on multiple sources. The set of input sources varies by platfo
     - SIGHUP: Event is forwarded to the shutdown event channel (going to graceful shutdown).
     - SIGTERM: Event is forwarded to the shutdown event channel (going to graceful shutdown).
 - PS/2 Mouse device (Linux VGA Console only)
-    - `/dev/input/mice`
+    - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
 #### Windows
