@@ -2,7 +2,47 @@
 
 ## Process Model
 
-- At startup, vtm connects to an existing session or creates a new one.
+```mermaid
+graph TB
+    subgraph IE10[Text Console 1]
+        subgraph IE1[Input]
+            direction LR
+            C1[keybd, mouse, focus\nwinsize, signals]
+        end
+        subgraph OU1[Output]
+            TC1[scrollback\nbuffer]
+        end
+        subgraph CS1[Client 1]
+            VTM1[vtm\nprocess 1]
+        end
+        C1 --> CS1
+        TC1 --- CS1
+    end
+
+    subgraph IE20[Text Console 2]
+        subgraph IE2[Input]
+            direction LR
+            C2[keybd, mouse, focus\nwinsize, signals]
+        end
+        subgraph OU2[Output]
+            TC2[scrollback\nbuffer]
+        end
+        subgraph CS2[Client 2]
+            VTM2[vtm\nprocess 2]
+        end
+        C2 --> CS2
+        TC2 --- CS2
+    end
+
+    subgraph SS[Server session]
+        VTMs[vtm\nprocess 0]
+    end
+
+    CS1 <--> SS
+    CS2 <--> SS
+```
+
+- At startup, vtm connects to an existing server session or creates a new one.
 - The new session is hosted in a forked and detached vtm process.
 - The session is tied to an operating system's named pipe coined from the creator's name (if no explicitly specified pipe name).
 - Only the session creator can access the session (for non-elevated users).
