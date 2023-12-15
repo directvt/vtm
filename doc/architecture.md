@@ -64,7 +64,7 @@ Interprocess communication primarily relies on the following channels:
 - Clipboard paste event channel
 - Clipboard request channel
 - System clipboard update event channel
-- Bitmap output channel
+- Render output channel
 - Shutdown event channel
 
 ## DirectVT mode
