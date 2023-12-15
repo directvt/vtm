@@ -7,7 +7,7 @@ graph TB
     subgraph IE10[Text Console 1]
         subgraph IE1[Input]
             direction LR
-            C1[keybd, mouse, focus\nwinsize, paste, signals]
+            C1[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
         end
         subgraph OU1[Output]
             TC1[scrollback\nbuffer]
@@ -22,7 +22,7 @@ graph TB
     subgraph IE20[Text Console 2]
         subgraph IE2[Input]
             direction LR
-            C2[keybd, mouse, focus\nwinsize, paste, signals]
+            C2[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
         end
         subgraph OU2[Output]
             TC2[scrollback\nbuffer]
