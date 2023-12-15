@@ -20,28 +20,28 @@ Interprocess communication primarily relies on the following channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
-- Terminal window resize event channel
+- Terminal window size event channel
 - Clipboard paste event channel
 - Clipboard request channel
 - System clipboard update event channel
-- Shutdown event channel
 - Bitmap output channel
+- Shutdown event channel
 
 ## DirectVT mode
 
-In DirectVT mode, all input event channels and output operations are serialized and sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
+In DirectVT mode, all input events and output operations are serialized and sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
 
-## VT mode (plain text mode)
+## VT mode (plain text)
 
 ### Output
-
-vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
 
 Rendering is done taking into account the capabilities of the text console used. These capabilities are detected at startup. There are four groups:
 - VT Terminal with true colors support
 - VT Terminal with 256 colors support (Apple Terminal)
 - VT Terminal with 16 colors support (Linux VGA Console, 16-color terminals)
 - Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
+
+vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
 
 ### Input
 
