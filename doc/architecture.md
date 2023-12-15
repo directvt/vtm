@@ -22,7 +22,7 @@ In DirectVT mode, all input event channels and output operations are serialized 
 
 ## VT mode (plain text mode)
 
-### Ouput
+### Output
 
 vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
 
