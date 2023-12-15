@@ -7,7 +7,7 @@ graph TB
     subgraph IE10[Text Console 1]
         subgraph IE1[Input]
             direction LR
-            C1[keybd, mouse, focus\nwinsize, paste, signals]
+            C1[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
         end
         subgraph OU1[Output]
             TC1[scrollback\nbuffer]
@@ -22,7 +22,7 @@ graph TB
     subgraph IE20[Text Console 2]
         subgraph IE2[Input]
             direction LR
-            C2[keybd, mouse, focus\nwinsize, paste, signals]
+            C2[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
         end
         subgraph OU2[Output]
             TC2[scrollback\nbuffer]
@@ -38,8 +38,8 @@ graph TB
         VTMs[vtm\nprocess 0]
     end
 
-    CS1 <-->|send: Events\nrecv: Render| SS
-    CS2 <-->|send: Events\nrecv: Render| SS
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
 ```
 
 - At startup, vtm connects to an existing server session or creates a new one.
@@ -54,9 +54,9 @@ graph TB
 - The terminal process is a fork of the vtm session process, running as standalone terminal. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
 
-## Inter-Process Communication (client side)
+## Inter-Process Communication
 
-Interprocess communication primarily relies on the following channels:
+Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
@@ -64,14 +64,16 @@ Interprocess communication primarily relies on the following channels:
 - Clipboard paste event channel
 - Clipboard request channel
 - System clipboard update event channel
-- Bitmap output channel
+- Render output channel
 - Shutdown event channel
+
+The vtm client side can operate both in a common terminal environment (ANSI/VT mode) and in a vtm environment. If the client side is run in the vtm environment (DirectVT/dtvt mode), it can receive an event stream and render directly in binary form, avoiding any parsing and cross-platform issues.
 
 ## DirectVT mode
 
 In DirectVT mode, all input events and output operations are serialized and sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
 
-## VT mode (plain text)
+## ANSI/VT mode (plain text)
 
 ### Output
 
@@ -101,7 +103,7 @@ vtm expects input on multiple sources. The set of input sources varies by platfo
     - SIGHUP: Event is forwarded to the shutdown event channel (going to graceful shutdown).
     - SIGTERM: Event is forwarded to the shutdown event channel (going to graceful shutdown).
 - PS/2 Mouse device (Linux VGA Console only)
-    - `/dev/input/mice`
+    - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
 #### Windows
