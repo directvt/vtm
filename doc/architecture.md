@@ -16,6 +16,17 @@
 
 ## Inter-Process Communication (client side)
 
+Interprocess communication primarily relies on the following channels:
+- Keyboard event channel
+- Mouse event channel
+- Focus event channel
+- Terminal window resize event channel
+- Clipboard paste event channel
+- Clipboard request channel
+- System clipboard update event channel
+- Shutdown event channel
+- Bitmap output channel
+
 ## DirectVT mode
 
 In DirectVT mode, all input event channels and output operations are serialized and sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
