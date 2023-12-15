@@ -66,7 +66,7 @@ vtm expects input on multiple sources. The set of input sources varies by platfo
 
 #### Windows
 
-- Win32 Console Input (ReadConsoleInput)
+- ReadConsoleInput events (Win32 Console API)
     - The KEY_EVENT stream is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel (excluding repeat modifier keys).
     - The MOUSE_EVENT stream is forwarded to the mouse event channel (excluding double clicks and idle events).
     - The FOCUS_EVENT stream is forwarded to the focus event channel.
