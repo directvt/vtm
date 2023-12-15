@@ -42,7 +42,7 @@ vtm expects input on multiple sources. The set of input sources varies by platfo
     - Bracketed paste marks `\x1b[200~`/`\x1b[201~` are treated as the boundaries of a binary immutable block pasted from the clipboard. This immutable block is handled independently of keyboard input.
     - SGR mouse reporting sequences `\x1b[<s;x;yM/m` are redirected to the mouse event channel.
     - Terminal window focus reporting sequences `\x1b[I`/`\x1b[O` are redirected to the focus event channel.
-    - Line style reporting sequences `\x1b[33:STYLEp` are redirected to the style event channel (current/selected line wrapping on/off, left/right/center alingment).
+    - Line style reporting sequences `\x1b[33:STYLEp` are redirected to the style event channel (current/selected line wrapping on/off, left/right/center alignment).
     - All incoming text flow that does not fall into the above categories is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel.
 - Operating system signals
     - SIGWINCH: Event is forwarded to the window size event channel.
