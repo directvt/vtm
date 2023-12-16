@@ -142,7 +142,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     vtm
     ```
 
-### Run built-in terminal emulator with user default shell
+### Run built-in terminal with default shell
 
 - run command
     ```bash
@@ -159,7 +159,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 - run command
     ```bash
     vtm -r term /path/to/console/app
-    # `vtm -r term` to run the built-in terminal emulator to host the console application.
+    # The `vtm -r term` option means to run the built-in terminal to host the console application.
     ```
     or
     ```bash
@@ -172,7 +172,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 - run command
     ```bash
     vtm -r headless /path/to/console/app
-    # `vtm -r headless` to run the built-in terminal emulator without menu and bottom bar.
+    # The `vtm -r headless` option means to run the built-in terminal without menu and bottom bar.
     ```
 
 ## Remote Access
@@ -191,8 +191,8 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     vtm -r xlvt ssh user@server vtm -r term /path/to/console/app
-    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
-    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
+    # The `ssh user@server vtm` statement means to connect via ssh and run vtm on the remote host.
     ```
     or
     ```bash
@@ -209,8 +209,8 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     vtm -r xlvt ssh user@server vtm
-    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
-    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
+    # The `ssh user@server vtm` statement means to connect via ssh and run vtm on the remote host.
     ```
     or
     ```bash
@@ -231,7 +231,7 @@ The following examples assume that the vtm executable is available on both the s
     or
     ```bash
     ssh -t user@server vtm
-    # The `ssh -t ...` option to allocate TTY on remote host.
+    # The `ssh -t ...` option is required to allocate TTY on remote host.
     ```
 
 ### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
@@ -240,15 +240,15 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     ncat -l server_port -k -e vtm
-    # `-l server_port` to specify tcp port to listen.
-    # `-k` to keep open for multiple clients.
-    # `-e` to run vtm for every connected client.
+    # `-l server_port`: specify tcp port to listen.
+    # `-k`: order to keep connection open for multiple clients.
+    # `-e`: order to run vtm for every connected client.
     ```
 - Client:
     - run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm environment).
     # Note: Make sure `ncat` is installed.
     ```
 
@@ -259,8 +259,8 @@ The following examples assume that the vtm executable is available on both the s
     - Add the following line to the `/etc/inetd.conf`:
         ```bash
         server_port stream tcp nowait user_name /server/side/path/to/vtm  vtm
-        # `server_port` to specify tcp port to listen.
-        # `user_name` to specify user login name.
+        # `server_port`: tcp port to listen.
+        # `user_name`: user login name.
         ```
     - Launch `inetd`
         ```
@@ -270,7 +270,7 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
     # Note: Make sure `ncat` is installed.
     ```
 
@@ -286,7 +286,7 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
     # Note: Make sure `socat` is installed.
     ```
 
