@@ -177,7 +177,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Remote Access
 
-In general, the server and client host platforms may be different.
+In general, the server and client platforms may be different.
 
 When DirectVT mode is enabled, all keyboard, mouse and other input events are transmitted between hosts in binary form.
 
