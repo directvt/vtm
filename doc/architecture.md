@@ -107,7 +107,7 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
         - 0x8000: The subsequent MENU_EVENT record is forwarded to the style event channel.
         - 0x8001: Clipboard immutable block start (INPUT_RECORD begin mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD end mark appears, and then forwarded to the clipboard paste event channel.
         - 0x8002: Clipboard immutable block end (INPUT_RECORD end mark).
-- Windows system-defined messages
+- Window system-defined messages
     - WM_CREATE: Event is forwarded to the clipboard event channel.
     - WM_CLIPBOARDUPDATE: Event is forwarded to the clipboard event channel.
     - WM_ENDSESSION
