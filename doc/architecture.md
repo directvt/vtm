@@ -135,9 +135,9 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Remote Access
 
-The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
-
 In general, the server and client host platforms may be different.
+
+The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
 
 ### Run any standalone console application remotely via SSH
 
@@ -157,7 +157,7 @@ In general, the server and client host platforms may be different.
     The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
     The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
 
-### Run vtm remotely via SSH in DirectVT mode
+### Run vtm in DirectVT mode remotely via SSH
 
 - Server:
     - Install SSH-server
@@ -174,7 +174,7 @@ In general, the server and client host platforms may be different.
     ```
     The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
 
-### Run vtm remotely via SSH in ANSI/VT mode
+### Run vtm in ANSI/VT mode remotely via SSH
 
 - Server:
     - Install SSH-server.
@@ -189,7 +189,7 @@ In general, the server and client host platforms may be different.
     ssh user@server vtm
     ```
 
-### Run vtm over `netcat` in DirectVT mode (POSIX only, unencrypted, for private use only)
+### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
 
 - Server:
     - run command
@@ -207,7 +207,7 @@ In general, the server and client host platforms may be different.
     # Note: Make sure `ncat` is installed.
     ```
 
-### Run vtm remotely using `inetd` in DirectVT mode (POSIX only, unencrypted, for private use only)
+### Run vtm in DirectVT mode remotely using `inetd` (POSIX only, unencrypted, for private use only)
 
 - Server:
     - Install `inetd`
@@ -229,7 +229,7 @@ In general, the server and client host platforms may be different.
     # Note: Make sure `ncat` is installed.
     ```
 
-## Standard I/O Redirection (POSIX only)
+### Local Standard I/O Redirection (POSIX only)
 
 - Server
     - run commands
