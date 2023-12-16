@@ -151,7 +151,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     or
     ```bash
     vtm -r
-    # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
+    # The `vtm -r` option is auto converted to the `vtm -r term`.
     ```
 
 ### Run any standalone console application
