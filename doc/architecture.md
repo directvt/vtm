@@ -75,6 +75,8 @@ In DirectVT mode, the client side receives the event stream and renders directly
 
 ## ANSI/VT mode
 
+ANSI/VT mode I/O is done primarily in plain text.
+
 ### Input
 
 In ANSI/VT mode, the client side parses input from multiple standard sources, and forwards it through appropriate channels to the server side using the DirectVT protocol. The set of input sources varies by platform.
