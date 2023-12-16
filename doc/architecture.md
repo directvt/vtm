@@ -153,8 +153,8 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     or
     ```bash
     vtm -r
+    # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
-    The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
 
 ### Run any standalone console application
 
@@ -167,8 +167,8 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     or
     ```bash
     vtm -r /path/to/console/app
+    # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
-    The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
 
 ### Run any standalone console application without extra UI
 
@@ -199,9 +199,9 @@ The following examples assume that the vtm executable is available on both the s
     or
     ```bash
     vtm ssh user@server vtm -r /path/to/console/app
+    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
+    # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
-    The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
-    The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
 
 ### Run vtm in DirectVT mode remotely via SSH
 
@@ -217,8 +217,8 @@ The following examples assume that the vtm executable is available on both the s
     or
     ```bash
     vtm ssh user@server vtm
+    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
     ```
-    The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
 
 ### Run vtm in ANSI/VT mode remotely via SSH
 
