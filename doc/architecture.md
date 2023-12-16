@@ -154,7 +154,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r` option is auto converted to the `vtm -r term`.
     ```
 
-### Run any standalone console application
+### Run a standalone console application
 
 - run command
     ```bash
@@ -167,7 +167,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
-### Run any standalone console application without extra UI
+### Run a standalone console application without extra UI
 
 - run command
     ```bash
@@ -183,7 +183,7 @@ When DirectVT mode is enabled, all keyboard, mouse and other input events are tr
 
 The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
 
-### Run any standalone console application remotely via SSH
+### Run a standalone console application remotely via SSH
 
 - Server:
     - Install SSH-server
