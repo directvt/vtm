@@ -69,7 +69,7 @@ The vtm client side can operate both in a common terminal environment (ANSI/VT m
 
 ## DirectVT mode
 
-In DirectVT mode, all input events and output operations are serialized and sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
+In DirectVT mode, all input events and output operations are sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
 
 ## ANSI/VT mode (plain text)
 
