@@ -137,7 +137,42 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
 
-### Using SSH (ANSI/VT mode, encrypted)
+### Run any standalone console application via SSH in DirectVT/XLVT mode
+
+- Server:
+    - Install SSH-server
+- Client:
+    - run command
+    ```bash
+    vtm -r xlvt ssh user@server vtm -r term /path/to/console/app
+    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
+    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    ```
+    or
+    ```bash
+    vtm ssh user@server vtm -r /path/to/console/app
+    ```
+    The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
+    The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
+
+### SSHing in DirectVT/XLVT mode
+
+- Server:
+    - Install SSH-server
+- Client:
+    - run command
+    ```bash
+    vtm -r xlvt ssh user@server vtm
+    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
+    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    ```
+    or
+    ```bash
+    vtm ssh user@server vtm
+    ```
+    The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
+
+### SSHing in ANSI/VT mode
 
 - Server:
     - Install SSH-server.
@@ -150,22 +185,6 @@ The following examples assume that the vtm executable is available on both the s
     or
     ```bash
     ssh user@server vtm
-    ```
-
-### Using SSH (DirectVT/XLVT mode, encrypted)
-
-- Server:
-    - Install SSH-server
-- Client:
-    - run command
-    ```bash
-    vtm -r xlvt ssh user@server vtm
-    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
-    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
-    ```
-    or (the `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`)
-    ```bash
-    vtm ssh user@server vtm
     ```
 
 ### Using `netcat` (DirectVT mode, POSIX only, unencrypted, for private use only)
