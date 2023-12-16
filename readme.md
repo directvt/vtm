@@ -34,7 +34,7 @@ Note: You can use [Github Actions](../../actions) to build statically linked bin
 
 # Documentation
 
-- [Architecture and Features](doc/architecture.md)
+- [Architecture and Usage Scenarios](doc/architecture.md)
 - [Building from Source](doc/build.md)
 - [Command line Options](doc/command-line-options.md)
 - [User Interface](doc/user-interface.md)
