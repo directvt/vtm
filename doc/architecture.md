@@ -192,12 +192,11 @@ The following examples assume that the vtm executable is available on both the s
     ```bash
     vtm -r xlvt ssh user@server vtm -r term /path/to/console/app
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm` statement means to connect via ssh and run vtm on the remote host.
+    # The `ssh user@server vtm -r term` statement means to connect via ssh and run built-in terminal on the remote host.
     ```
     or
     ```bash
     vtm ssh user@server vtm -r /path/to/console/app
-    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
