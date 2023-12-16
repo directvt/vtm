@@ -137,16 +137,14 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run vtm desktop environment
 
-- Host:
-    - run command
+- run command
     ```bash
     vtm
     ```
 
 ### Run built-in terminal emulator with user default shell
 
-- Host:
-    - run command
+- run command
     ```bash
     vtm -r term
     ```
@@ -158,8 +156,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run any standalone console application
 
-- Host:
-    - run command
+- run command
     ```bash
     vtm -r term /path/to/console/app
     # `vtm -r term` to run the built-in terminal emulator to host the console application.
@@ -172,8 +169,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run any standalone console application without extra UI
 
-- Host:
-    - run command
+- run command
     ```bash
     vtm -r headless /path/to/console/app
     # `vtm -r headless` to run the built-in terminal emulator without menu and bottom bar.
