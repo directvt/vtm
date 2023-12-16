@@ -135,6 +135,14 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Local Usage
 
+### Run vtm desktop environment
+
+- Host:
+    - run command
+    ```bash
+    vtm
+    ```
+
 ### Run built-in terminal emulator with user default shell
 
 - Host:
