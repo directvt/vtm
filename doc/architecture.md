@@ -65,27 +65,21 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side can operate both in a common terminal environment (ANSI/VT mode) and in a vtm environment. If the client side is run in the vtm environment (DirectVT/dtvt mode), it can receive an event stream and render directly in binary form, avoiding any parsing and cross-platform issues.
+The vtm client side can operate in two modes, either in ANSI/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
+
+The vtm server side is always operate in DirectVT mode.
 
 ## DirectVT mode
 
-In DirectVT mode, all input events and output operations are sent in binary form as is (with platform endianness correction). The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
+In DirectVT mode, the client side receives the event stream and renders directly in binary form (with platform endianness correction), avoiding any parsing and cross-platform issues. The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
 
 ## ANSI/VT mode (plain text)
 
-### Output
-
-Rendering is done taking into account the capabilities of the text console used. These capabilities are detected at startup. There are four groups:
-- VT Terminal with true colors support
-- VT Terminal with 256 colors support (Apple Terminal)
-- VT Terminal with 16 colors support (Linux VGA Console, 16-color terminals)
-- Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
-
-vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
+In ANSI/VT mode, the client side parses input from standard input sources, and forwards it through appropriate channels to the server side using the binary DirectVT protocol. The binary render received for output from the server side is converted by the client side into a format suitable for the text console being used.
 
 ### Input
 
-vtm expects input on multiple sources. The set of input sources varies by platform.
+vtm expects input on multiple standard sources. The set of input sources varies by platform.
 
 #### Unix
 
@@ -121,6 +115,16 @@ vtm expects input on multiple sources. The set of input sources varies by platfo
     - CTRL_CLOSE_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
     - CTRL_LOGOFF_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
     - CTRL_SHUTDOWN_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
+
+### Output
+
+Rendering is done taking into account the capabilities of the text console used. These capabilities are detected at startup. There are four groups:
+- VT Terminal with true colors support
+- VT Terminal with 256 colors support (Apple Terminal)
+- VT Terminal with 16 colors support (Linux VGA Console, 16-color terminals)
+- Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
+
+vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
 
 # Usage Scenarios
 
