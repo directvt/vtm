@@ -73,7 +73,7 @@ The vtm server side is always operate in DirectVT mode.
 
 In DirectVT mode, the client side receives the event stream and renders directly in binary form (with platform endianness correction), avoiding any parsing and cross-platform issues. The exception is the synchronization of grapheme clusters larger than 7 bytes in UTF-8 format. Large clusters are synchronized between processes by request.
 
-## ANSI/VT mode (plain text)
+## ANSI/VT mode
 
 In ANSI/VT mode, the client side parses input from standard sources, and forwards it through appropriate channels to the server side using the binary DirectVT protocol. The binary render received for output from the server side is converted by the client side into a format suitable for the text console being used.
 
