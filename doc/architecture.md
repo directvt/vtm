@@ -160,7 +160,7 @@ The following examples assume that the vtm executable is available on both the s
     - run command
     ```bash
     vtm -r xlvt ssh user@server vtm
-    # `vtm -r xlvt`` to run the next statement in DirectVT/XLVT mode.
+    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
     # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
     ```
     or (the `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`)
