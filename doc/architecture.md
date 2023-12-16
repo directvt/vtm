@@ -135,18 +135,21 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Remote Access
 
+The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
+
 ### Using SSH (ANSI/VT mode, encrypted)
 
 - Server:
-    - Install SSH-server
+    - Install SSH-server.
 - Client:
+    - run commands
     ```bash
     ssh user@server
-    /server/side/path/to/vtm
+    vtm
     ```
     or
     ```bash
-    ssh user@server /server/side/path/to/vtm
+    ssh user@server vtm
     ```
 
 ### Using SSH (DirectVT/XLVT mode, encrypted)
@@ -154,27 +157,30 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 - Server:
     - Install SSH-server
 - Client:
+    - run command
     ```bash
-    vtm -r xlvt ssh user@server /server/side/path/to/vtm
-    # `vtm -r xlvt`` to run ~~DirectVT proxy (not required inside vtm environment)~~.
-    # `ssh user@server /server/side/path/to/vtm` to run vtm on remote host.
+    vtm -r xlvt ssh user@server vtm
+    # `vtm -r xlvt`` to run the next statement in DirectVT/XLVT mode.
+    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
     ```
-    or
+    or (the `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`)
     ```bash
-    vtm ssh user@server /server/side/path/to/vtm
+    vtm ssh user@server vtm
     ```
 
 ### Using `netcat` (DirectVT mode, POSIX only, unencrypted, for private use only)
 
 - Server:
+    - run command
     ```bash
-    ncat -l server_port -k -e /server/side/path/to/vtm
+    ncat -l server_port -k -e vtm
     # `-l server_port` to specify tcp port to listen.
     # `-k` to keep open for multiple clients.
     # `-e` to run vtm for every connected client.
     # Note: Make sure `ncat` is installed.
     ```
 - Client:
+    - run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
     # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
@@ -196,6 +202,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
         inetd
         ```
 - Client
+    - run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
     # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
@@ -205,22 +212,26 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 ## Standard I/O Redirection (POSIX only)
 
 - Server
+    - run commands
     ```bash
     mkfifo in && mkfifo out
     vtm >out <in
     ```
 - Client:
+    - run command
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
     # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
     # Note: Make sure `socat` is installed.
     ```
 
-## Tiling Window Manager
+## More tips
+
+### Tiling Window Manager
 
 Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `Group`](settings.md#app-type) for details.
 
-## Default Terminal Boost
+### Default Terminal Boost
 
 In addition to the default windowed mode, vtm can run as a standalone terminal emulator on top of the host console, extending its functionality with the following features:
 
@@ -231,7 +242,7 @@ In addition to the default windowed mode, vtm can run as a standalone terminal e
 
 The standalone terminal mode can be run by specifying the `-r` option: `vtm -r term`. See [Command line Options](command-line-options.md) for details.
 
-## VT Logging for Developers
+### VT Logging for Developers
 
 vtm allows developers to visualize standard input/output streams. Launched with the `vtm -m` option, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
