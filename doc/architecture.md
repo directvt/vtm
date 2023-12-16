@@ -79,7 +79,7 @@ In DirectVT mode, the client side receives the event stream and renders directly
 
 In ANSI/VT mode, the client side parses input from multiple standard sources, and forwards it through appropriate channels to the server side using the DirectVT protocol. The set of input sources varies by platform.
 
-#### Unix-like platform input sources
+#### Unix input sources
 
 - STDIN
     - Bracketed paste marks `\x1b[200~`/`\x1b[201~` are treated as the boundaries of a binary immutable block pasted from the clipboard. This immutable block is handled independently of keyboard input.
@@ -96,7 +96,7 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
     - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
-#### MS Windows platform input sources
+#### Windows input sources
 
 - ReadConsoleInput events (Win32 Console API)
     - The KEY_EVENT stream is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel (excluding repeat modifier keys).
