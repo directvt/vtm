@@ -75,13 +75,11 @@ In DirectVT mode, the client side receives the event stream and renders directly
 
 ## ANSI/VT mode
 
-In ANSI/VT mode, the client side parses input from standard sources, and forwards it through appropriate channels to the server side using the binary DirectVT protocol. The binary render received for output from the server side is converted by the client side into a format suitable for the text console being used.
-
 ### Input
 
-vtm expects input on multiple standard sources. The set of input sources varies by platform.
+In ANSI/VT mode, the client side parses input from multiple standard sources, and forwards it through appropriate channels to the server side using the DirectVT protocol. The set of input sources varies by platform.
 
-#### Unix
+#### Unix-like platform input sources
 
 - STDIN
     - Bracketed paste marks `\x1b[200~`/`\x1b[201~` are treated as the boundaries of a binary immutable block pasted from the clipboard. This immutable block is handled independently of keyboard input.
@@ -98,7 +96,7 @@ vtm expects input on multiple standard sources. The set of input sources varies 
     - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
-#### Windows
+#### MS Windows platform input sources
 
 - ReadConsoleInput events (Win32 Console API)
     - The KEY_EVENT stream is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel (excluding repeat modifier keys).
@@ -109,6 +107,13 @@ vtm expects input on multiple standard sources. The set of input sources varies 
         - 0x8000: The subsequent MENU_EVENT record is forwarded to the style event channel.
         - 0x8001: Clipboard immutable block start (INPUT_RECORD begin mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD end mark appears, and then forwarded to the clipboard paste event channel.
         - 0x8002: Clipboard immutable block end (INPUT_RECORD end mark).
+- Windows system-defined messages
+    - WM_CREATE: Event is forwarded to the clipboard event channel.
+    - WM_CLIPBOARDUPDATE: Event is forwarded to the clipboard event channel.
+    - WM_ENDSESSION
+        - ENDSESSION_CLOSEAPP: Register CTRL_CLOSE_EVENT signal.
+        - ENDSESSION_LOGOFF: Register CTRL_LOGOFF_EVENT signal.
+        - any other non-zero: Register CTRL_SHUTDOWN_EVENT signal.
 - Operating system signals
     - CTRL_C_EVENT: Event is tied to the `Ctrl+C` keys pressed, and forwarded to the keyboard event channel.
     - CTRL_BREAK_EVENT: Event is tied to the `Ctrl+Break` keys pressed, and forwarded to the keyboard event channel.
@@ -118,13 +123,13 @@ vtm expects input on multiple standard sources. The set of input sources varies 
 
 ### Output
 
-Rendering is done taking into account the capabilities of the text console used. These capabilities are detected at startup. There are four groups:
+The binary render received for output from the server side is converted by the client side into a format suitable for the type of console being used. The console type is detected at startup and can be one of the following:
 - VT Terminal with true colors support
 - VT Terminal with 256 colors support (Apple Terminal)
 - VT Terminal with 16 colors support (Linux VGA Console, 16-color terminals)
 - Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
 
-vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame. This applies to slow connections and consoles.
+vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame.
 
 # Usage Scenarios
 
