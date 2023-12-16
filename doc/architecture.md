@@ -133,6 +133,31 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 # Usage Scenarios
 
+## Local Usage
+
+### Run any standalone console application
+
+- Host:
+    - run command
+    ```bash
+    vtm -r term /path/to/console/app
+    # `vtm -r term` to run the built-in terminal emulator to host the console application.
+    ```
+    or
+    ```bash
+    vtm -r /path/to/console/app
+    ```
+    The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
+
+### Run any standalone console application without extra UI
+
+- Host:
+    - run command
+    ```bash
+    vtm -r headless /path/to/console/app
+    # `vtm -r headless` to run the built-in terminal emulator without menu and bottom bar.
+    ```
+
 ## Remote Access
 
 In general, the server and client host platforms may be different.
@@ -244,6 +269,10 @@ The following examples assume that the vtm executable is available on both the s
     # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
     # Note: Make sure `socat` is installed.
     ```
+
+## vtm Desktop Taskbar Menu Customization
+
+...
 
 ## More Tips
 
