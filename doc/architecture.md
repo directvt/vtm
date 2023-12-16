@@ -177,7 +177,6 @@ The following examples assume that the vtm executable is available on both the s
     # `-l server_port` to specify tcp port to listen.
     # `-k` to keep open for multiple clients.
     # `-e` to run vtm for every connected client.
-    # Note: Make sure `ncat` is installed.
     ```
 - Client:
     - run command
