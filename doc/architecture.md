@@ -232,7 +232,8 @@ The following examples assume that the vtm executable is available on both the s
     ```
     or
     ```bash
-    ssh user@server vtm
+    ssh -t user@server vtm
+    # The `ssh -t ...` option to allocate TTY on remote host.
     ```
 
 ### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
