@@ -137,14 +137,14 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run vtm desktop environment
 
-- run command
+- Run command
     ```bash
     vtm
     ```
 
 ### Run built-in terminal with default shell
 
-- run command
+- Run command
     ```bash
     vtm -r term
     ```
@@ -156,7 +156,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run a standalone console application
 
-- run command
+- Run command
     ```bash
     vtm -r term /path/to/console/app
     # The `vtm -r term` option means to run the built-in terminal to host the console application.
@@ -169,7 +169,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ### Run a standalone console application without extra UI
 
-- run command
+- Run command
     ```bash
     vtm -r headless /path/to/console/app
     # The `vtm -r headless` option means to run the built-in terminal without menu and bottom bar.
@@ -188,11 +188,11 @@ The following examples assume that the vtm executable is available on both the s
 - Server:
     - Install SSH-server
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r xlvt ssh user@server vtm -r term /path/to/console/app
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm -r term` statement means to connect via ssh and run built-in terminal on the remote host.
+    # The `ssh user@server vtm -r term` statement means to connect via ssh and run the built-in terminal on the remote host.
     ```
     or
     ```bash
@@ -205,7 +205,7 @@ The following examples assume that the vtm executable is available on both the s
 - Server:
     - Install SSH-server
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r xlvt ssh user@server vtm
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
@@ -222,7 +222,7 @@ The following examples assume that the vtm executable is available on both the s
 - Server:
     - Install SSH-server.
 - Client:
-    - run commands
+    - Run commands
     ```bash
     ssh user@server
     vtm
@@ -236,7 +236,7 @@ The following examples assume that the vtm executable is available on both the s
 ### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
 
 - Server:
-    - run command
+    - Run command
     ```bash
     ncat -l server_port -k -e vtm
     # `-l server_port`: specify tcp port to listen.
@@ -244,7 +244,7 @@ The following examples assume that the vtm executable is available on both the s
     # `-e`: order to run vtm for every connected client.
     ```
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
     # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm environment).
@@ -266,7 +266,7 @@ The following examples assume that the vtm executable is available on both the s
         inetd
         ```
 - Client
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
     # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
@@ -276,13 +276,13 @@ The following examples assume that the vtm executable is available on both the s
 ### Local Standard I/O Redirection (POSIX only)
 
 - Server
-    - run commands
+    - Run commands
     ```bash
     mkfifo in && mkfifo out
     vtm >out <in
     ```
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
     # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
