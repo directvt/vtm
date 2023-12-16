@@ -124,14 +124,97 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
 ### Output
 
 The binary render received for output from the server side is converted by the client side into a format suitable for the type of console being used. The console type is detected at startup and can be one of the following:
-- VT Terminal with true colors support
-- VT Terminal with 256 colors support (Apple Terminal)
-- VT Terminal with 16 colors support (Linux VGA Console, 16-color terminals)
+- VT Terminal with truecolor support
+- VT Terminal with 256-color support (Apple Terminal)
+- VT Terminal with 16-color support (Linux VGA Console, 16-color terminals)
 - Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
 
 vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame.
 
 # Usage Scenarios
+
+## Remote Access
+
+### Using SSH (ANSI/VT mode, encrypted)
+
+- Server:
+    - Install SSH-server
+- Client:
+    ```bash
+    ssh user@server
+    /server/side/path/to/vtm
+    ```
+    or
+    ```bash
+    ssh user@server /server/side/path/to/vtm
+    ```
+
+### Using SSH (DirectVT/XLVT mode, encrypted)
+
+- Server:
+    - Install SSH-server
+- Client:
+    ```bash
+    vtm -r xlvt ssh user@server /server/side/path/to/vtm
+    # `vtm -r xlvt`` to run ~~DirectVT proxy (not required inside vtm environment)~~.
+    # `ssh user@server /server/side/path/to/vtm` to run vtm on remote host.
+    ```
+    or
+    ```bash
+    vtm ssh user@server /server/side/path/to/vtm
+    ```
+
+### Using `netcat` (DirectVT mode, POSIX only, unencrypted, for private use only)
+
+- Server:
+    ```bash
+    ncat -l server_port -k -e /server/side/path/to/vtm
+    # `-l server_port` to specify tcp port to listen.
+    # `-k` to keep open for multiple clients.
+    # `-e` to run vtm for every connected client.
+    # Note: Make sure `ncat` is installed.
+    ```
+- Client:
+    ```bash
+    vtm -r dtvt ncat server_ip server_port
+    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # Note: Make sure `ncat` is installed.
+    ```
+
+### Using `inetd` (DirectVT mode, POSIX only, unencrypted, for private use only)
+
+- Server:
+    - Install `inetd`
+    - Add the following line to the `/etc/inetd.conf`:
+        ```bash
+        server_port stream tcp nowait user_name /server/side/path/to/vtm  vtm
+        # `server_port` to specify tcp port to listen.
+        # `user_name` to specify user login name.
+        ```
+    - Launch `inetd`
+        ```
+        inetd
+        ```
+- Client
+    ```bash
+    vtm -r dtvt ncat server_ip server_port
+    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # Note: Make sure `ncat` is installed.
+    ```
+
+## Standard I/O Redirection (POSIX only)
+
+- Server
+    ```bash
+    mkfifo in && mkfifo out
+    vtm >out <in
+    ```
+- Client:
+    ```bash
+    vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
+    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # Note: Make sure `socat` is installed.
+    ```
 
 ## Tiling Window Manager
 
