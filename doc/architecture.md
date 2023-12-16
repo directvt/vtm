@@ -75,7 +75,7 @@ In DirectVT mode, the client side receives the event stream and renders directly
 
 ## ANSI/VT mode (plain text)
 
-In ANSI/VT mode, the client side parses input from standard input sources, and forwards it through appropriate channels to the server side using the binary DirectVT protocol. The binary render received for output from the server side is converted by the client side into a format suitable for the text console being used.
+In ANSI/VT mode, the client side parses input from standard sources, and forwards it through appropriate channels to the server side using the binary DirectVT protocol. The binary render received for output from the server side is converted by the client side into a format suitable for the text console being used.
 
 ### Input
 
