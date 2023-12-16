@@ -49,9 +49,9 @@ graph TB
 - The session allows multiple access in real time.
 - The user can disconnect from the session and reconnect later.
 - Several independent sessions with different names can coexist.
-- Console applications are launched/executed/terminated by the user within the current session.
+- Console applications are launched/executed/terminated by the user within the current server session.
 - Non-DirectVT console application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the vtm session process, running as standalone terminal. Terminating this process will automatically close the application window.
+- The terminal process is a fork of the vtm server session process, running as standalone terminal. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
 
 ## Inter-Process Communication
