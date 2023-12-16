@@ -60,7 +60,7 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
-- Terminal window size event channel
+- Window size event channel
 - Clipboard event channel
 - Render output channel
 - Shutdown event channel
