@@ -297,7 +297,7 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 ```xml
 <config>
     <menu>
-        <!-- <item*> --> <!-- Clear default item list -->
+        <!-- <item*/> --> <!-- Clear default item list -->
         <item splitter label="Built-in apps"/>
         <item id="Text Editor demo" type=dtvt param="vtm -r text"/>
         <item id="Calculator demo" type=dtvt param="vtm -r calc"/>
