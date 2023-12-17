@@ -332,17 +332,6 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 
 Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `Group`](settings.md#app-type) for details.
 
-### Default Terminal Boost
-
-In addition to the default windowed mode, vtm can run as a standalone terminal emulator on top of the host console, extending its functionality with the following features:
-
-- Unlimited scrollback*
-- Unwrapped-text option
-- Horizontal scrolling
-- Rich text copy
-
-The standalone terminal mode can be run by specifying the `-r` option: `vtm -r term`. See [Command line Options](command-line-options.md) for details.
-
 ### VT Logging for Developers
 
 vtm allows developers to visualize standard input/output streams. Launched with the `vtm -m` option, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
