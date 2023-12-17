@@ -289,11 +289,35 @@ The following examples assume that the vtm executable is available on both the s
     # Note: Make sure `socat` is installed.
     ```
 
+## More Tips
+
 ## vtm Desktop Taskbar Menu Customization
 
-...
-
-## More Tips
+The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\\.config\\vtm\\settings.xml`):
+```xml
+<config>
+    <menu>
+        <!-- <item*> --> <!-- Clear default item list -->
+        <item splitter label="Built-in apps"/>
+        <item id="Text Editor demo" type=dtvt param="vtm -r text"/>
+        <item id="Calculator demo" type=dtvt param="vtm -r calc"/>
+        <item id="Truecolor test" type=dtvt param="vtm -r truecolor"/>
+        <item splitter label="Remote Access"/>
+        <item id="Run vtm in DirectVT mode remotely via SSH" type=xlvt param="ssh user@server vtm"/>
+        <item id="Run a standalone console application via ssh" type=xlvt param="ssh user@server vtm -r /path/to/console/app"/>
+        <item id="Run application via ssh w/o extra UI" type=xlvt param="ssh user@server vtm -r headless /path/to/console/app"/>
+        <item splitter label="Another Examples"/>
+        <item id="Far Manager" type=shell param="vtm -r headless far"/>
+        <item id="Far Manager in terminal" type=shell param="vtm -r term far"/>
+        <item id="Far Manager via ssh" type=xlvt param="ssh user@server vtm -r headless far"/>
+        <item id="cmd in terminal via ssh" type=xlvt param="ssh user@server vtm -r term cmd"/>
+        <item id="cmd via ssh" type=xlvt param="ssh user@server vtm -r headless cmd"/>
+        <item id="wsl via ssh" type=xlvt param="ssh user@server vtm -r headless  wsl"/>
+        <item id="mc via ssh" type=xlvt param="ssh user@server vtm -r headless mc"/>
+        <item id="wsl mc via ssh" type=xlvt param="ssh user@server vtm -r headless wsl mc"/>
+    </menu>
+</config>
+```
 
 ### Tiling Window Manager
 
