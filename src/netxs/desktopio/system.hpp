@@ -2387,7 +2387,8 @@ namespace netxs::os
                                                   nullptr,                      // lpThreadAttributes
                                                   TRUE,                         // bInheritHandles
                                                   DETACHED_PROCESS |            // dwCreationFlags
-                                                  EXTENDED_STARTUPINFO_PRESENT, // override startupInfo type
+                                                  EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
+                                                  CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
                                                   nullptr,                      // lpEnvironment
                                                   nullptr,                      // lpCurrentDirectory
                                                   &upinfo.StartupInfo,          // lpStartupInfo
