@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
             "\n    -m, --monitor      Monitor server log."
             "\n    -d, --daemon       Run server in background."
             "\n    -s, --server       Run server in interactive mode."
-            "\n    -r, --runapp <..>  Run standalone application."
+            "\n    -r, --runapp <..>  Run built-in application."
             "\n    -v, --version      Show version and exit."
             "\n    -?, -h, --help     Show usage message."
             "\n    --onlylog          Disable interactive user input."
@@ -153,7 +153,7 @@ int main(int argc, char* argv[])
             "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
             "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode only)"
             "\n"
-            "\n  Registered applications:"
+            "\n  Built-in applications:"
             "\n"
             "\n    Term  Terminal emulator (default)"
             "\n    DTVT  DirectVT Proxy Console"

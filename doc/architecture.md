@@ -79,7 +79,7 @@ In DirectVT mode, the client side receives the event stream and renders directly
 
 In ANSI/VT mode, the client side parses input from multiple standard sources, and forwards it through appropriate channels to the server side using the DirectVT protocol. The set of input sources varies by platform.
 
-#### Unix-like platform input sources
+#### Unix input sources
 
 - STDIN
     - Bracketed paste marks `\x1b[200~`/`\x1b[201~` are treated as the boundaries of a binary immutable block pasted from the clipboard. This immutable block is handled independently of keyboard input.
@@ -96,7 +96,7 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
     - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
-#### MS Windows platform input sources
+#### Windows input sources
 
 - ReadConsoleInput events (Win32 Console API)
     - The KEY_EVENT stream is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel (excluding repeat modifier keys).
@@ -107,7 +107,7 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
         - 0x8000: The subsequent MENU_EVENT record is forwarded to the style event channel.
         - 0x8001: Clipboard immutable block start (INPUT_RECORD begin mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD end mark appears, and then forwarded to the clipboard paste event channel.
         - 0x8002: Clipboard immutable block end (INPUT_RECORD end mark).
-- Windows system-defined messages
+- Window system-defined messages
     - WM_CREATE: Event is forwarded to the clipboard event channel.
     - WM_CLIPBOARDUPDATE: Event is forwarded to the clipboard event channel.
     - WM_ENDSESSION
@@ -135,34 +135,31 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Local Usage
 
-### Run vtm desktop environment
+### Run vtm desktop
 
-- Host:
-    - run command
+- Run command
     ```bash
     vtm
     ```
 
-### Run built-in terminal emulator with user default shell
+### Run built-in terminal with default shell
 
-- Host:
-    - run command
+- Run command
     ```bash
     vtm -r term
     ```
     or
     ```bash
     vtm -r
-    # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
+    # The `vtm -r` option is auto converted to the `vtm -r term`.
     ```
 
-### Run any standalone console application
+### Run a standalone console application
 
-- Host:
-    - run command
+- Run command
     ```bash
     vtm -r term /path/to/console/app
-    # `vtm -r term` to run the built-in terminal emulator to host the console application.
+    # The `vtm -r term` option means to run the built-in terminal to host the console application.
     ```
     or
     ```bash
@@ -170,38 +167,36 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
-### Run any standalone console application without extra UI
+### Run a standalone console application without extra UI
 
-- Host:
-    - run command
+- Run command
     ```bash
     vtm -r headless /path/to/console/app
-    # `vtm -r headless` to run the built-in terminal emulator without menu and bottom bar.
+    # The `vtm -r headless` option means to run the built-in terminal without menu and bottom bar.
     ```
 
 ## Remote Access
 
-In general, the server and client host platforms may be different.
+In general, the server and client platforms may be different.
 
 When DirectVT mode is enabled, all keyboard, mouse and other input events are transmitted between hosts in binary form.
 
 The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
 
-### Run any standalone console application remotely via SSH
+### Run a standalone console application remotely via SSH
 
 - Server:
     - Install SSH-server
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r xlvt ssh user@server vtm -r term /path/to/console/app
-    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
-    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
+    # The `ssh user@server vtm -r term` statement means to connect via ssh and run the built-in terminal on the remote host.
     ```
     or
     ```bash
     vtm ssh user@server vtm -r /path/to/console/app
-    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
@@ -210,11 +205,11 @@ The following examples assume that the vtm executable is available on both the s
 - Server:
     - Install SSH-server
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r xlvt ssh user@server vtm
-    # `vtm -r xlvt` to run the next statement in DirectVT/XLVT mode.
-    # `ssh user@server vtm` to connect via ssh and run vtm on the remote host.
+    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
+    # The `ssh user@server vtm` statement means to connect via ssh and run vtm on the remote host.
     ```
     or
     ```bash
@@ -227,7 +222,7 @@ The following examples assume that the vtm executable is available on both the s
 - Server:
     - Install SSH-server.
 - Client:
-    - run commands
+    - Run commands
     ```bash
     ssh user@server
     vtm
@@ -235,24 +230,24 @@ The following examples assume that the vtm executable is available on both the s
     or
     ```bash
     ssh -t user@server vtm
-    # The `ssh -t ...` option to allocate TTY on remote host.
+    # The `ssh -t ...` option is required to allocate TTY on remote host.
     ```
 
 ### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
 
 - Server:
-    - run command
+    - Run command
     ```bash
     ncat -l server_port -k -e vtm
-    # `-l server_port` to specify tcp port to listen.
-    # `-k` to keep open for multiple clients.
-    # `-e` to run vtm for every connected client.
+    # `-l server_port`: specify tcp port to listen.
+    # `-k`: order to keep connection open for multiple clients.
+    # `-e`: order to run vtm for every connected client.
     ```
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm environment).
     # Note: Make sure `ncat` is installed.
     ```
 
@@ -263,42 +258,66 @@ The following examples assume that the vtm executable is available on both the s
     - Add the following line to the `/etc/inetd.conf`:
         ```bash
         server_port stream tcp nowait user_name /server/side/path/to/vtm  vtm
-        # `server_port` to specify tcp port to listen.
-        # `user_name` to specify user login name.
+        # `server_port`: tcp port to listen.
+        # `user_name`: user login name.
         ```
     - Launch `inetd`
         ```
         inetd
         ```
 - Client
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt ncat server_ip server_port
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
     # Note: Make sure `ncat` is installed.
     ```
 
 ### Local Standard I/O Redirection (POSIX only)
 
 - Server
-    - run commands
+    - Run commands
     ```bash
     mkfifo in && mkfifo out
     vtm >out <in
     ```
 - Client:
-    - run command
+    - Run command
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
-    # `vtm -r dtvt` to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
     # Note: Make sure `socat` is installed.
     ```
 
+## More Tips
+
 ## vtm Desktop Taskbar Menu Customization
 
-...
-
-## More Tips
+The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\\.config\\vtm\\settings.xml`):
+```xml
+<config>
+    <menu>
+        <!-- <item*> --> <!-- Clear default item list -->
+        <item splitter label="Built-in apps"/>
+        <item id="Text Editor demo" type=dtvt param="vtm -r text"/>
+        <item id="Calculator demo" type=dtvt param="vtm -r calc"/>
+        <item id="Truecolor test" type=dtvt param="vtm -r truecolor"/>
+        <item splitter label="Remote Access"/>
+        <item id="Run vtm in DirectVT mode remotely via SSH" type=xlvt param="ssh user@server vtm"/>
+        <item id="Run a standalone console application via ssh" type=xlvt param="ssh user@server vtm -r /path/to/console/app"/>
+        <item id="Run application via ssh w/o extra UI" type=xlvt param="ssh user@server vtm -r headless /path/to/console/app"/>
+        <item splitter label="Another Examples"/>
+        <item id="Far Manager" type=shell param="vtm -r headless far"/>
+        <item id="Far Manager in terminal" type=shell param="vtm -r term far"/>
+        <item id="Far Manager via ssh" type=xlvt param="ssh user@server vtm -r headless far"/>
+        <item id="cmd in terminal via ssh" type=xlvt param="ssh user@server vtm -r term cmd"/>
+        <item id="cmd via ssh" type=xlvt param="ssh user@server vtm -r headless cmd"/>
+        <item id="wsl via ssh" type=xlvt param="ssh user@server vtm -r headless  wsl"/>
+        <item id="mc via ssh" type=xlvt param="ssh user@server vtm -r headless mc"/>
+        <item id="wsl mc via ssh" type=xlvt param="ssh user@server vtm -r headless wsl mc"/>
+    </menu>
+</config>
+```
 
 ### Tiling Window Manager
 
