@@ -4609,7 +4609,8 @@ namespace netxs::os
                         { "\033\033"  , { "",     key::Esc           | hids::LAlt   << 8 }},
                         { "\x7f"      , { "\x08", key::Backspace                         }},
                         { "\x09"      , { "\x09", key::Tab                               }},
-                        { "\x0d"      , { "\x0a", key::Enter                             }},
+                        { "\x0d"      , { "\x0d", key::Enter                             }},
+                        { "\x0a"      , { "\x0a", key::Enter         | hids::LCtrl  << 8 }},
 
                         //{ "\x1a"      , { "",     key::Pause                             }},
                         //{ "\x1a"      , { "\x1a", key::KeyZ          | hids::LCtrl  << 8 }},

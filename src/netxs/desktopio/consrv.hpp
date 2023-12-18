@@ -803,13 +803,18 @@ struct impl : consrv
             while (head != tail)
             {
                 auto c = *head++;
-                if (c == '\n' || c == '\r')
+                if (c == '\r')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter.
+                    generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate hitting Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
                     //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
+                }
+                else if (c == '\n')
+                {
+                    if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
+                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate hitting Shift+Enter.
                 }
                 else
                 {
@@ -827,33 +832,42 @@ struct impl : consrv
         void paste(view block)
         {
             auto lock = std::lock_guard{ locker };
-            { //todo pwsh/wsl is not yet ready for block-pasting (VK_RETURN conversion is required)
-                generate(block);
-                ondata.reset();
-                signal.notify_one();
-                return;
+            if (server.inpmod & nt::console::inmode::vt && server.uiterm.bpmode) // Paste binary immutable block.
+            {
+                auto keys = INPUT_RECORD{ .EventType = KEY_EVENT, .Event = { .KeyEvent = { .bKeyDown = 1, .wRepeatCount = 1 }}};
+                toWIDE.clear();
+                utf::to_utf(ansi::paste_begin, toWIDE);
+                utf::to_utf(block, toWIDE);
+                utf::to_utf(ansi::paste_end, toWIDE);
+                for (auto c : toWIDE)
+                {
+                    keys.Event.KeyEvent.uChar.UnicodeChar = c;
+                    stream.emplace_back(keys);
+                }
             }
+            else
+            {
+                generate(block);
+            }
+            signal.notify_one();
+            ondata.reset();
+            return;
 
+            //todo pwsh is not yet ready for block-pasting (VK_RETURN conversion is required)
             auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
             auto keys = INPUT_RECORD{ .EventType = KEY_EVENT, .Event = { .KeyEvent = { .bKeyDown = 1, .wRepeatCount = 1 }}};
-
             toWIDE.clear();
             utf::to_utf(block, toWIDE);
-            
             stream.reserve(stream.size() + toWIDE.size() + 2);
-
             data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_begin;
             stream.emplace_back(data);
-            
             for (auto c : toWIDE)
             {
                 keys.Event.KeyEvent.uChar.UnicodeChar = c;
                 stream.emplace_back(keys);
             }
-
             data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_end;
             stream.emplace_back(data);
-            
             ondata.reset();
             signal.notify_one();
         }

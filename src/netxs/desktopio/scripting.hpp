@@ -25,6 +25,7 @@ namespace netxs::scripting
     struct nullterm
     {
         bool  io_log{}; // nullterm: Stdio logging flag.
+        bool  bpmode{}; // nullterm: Bracketed paste mode flag.
         bool  altbuf{}; // nullterm: Altbuf buffer stub.
         bool  normal{}; // nullterm: Normal buffer stub.
         bool* target{ &normal }; // nullterm: Current buffer stub.
