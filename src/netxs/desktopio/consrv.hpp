@@ -814,7 +814,7 @@ struct impl : consrv
                 else if (c == '\n')
                 {
                     if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate hitting sHIFT+Enter.
+                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate hitting Shift+Enter.
                 }
                 else
                 {
