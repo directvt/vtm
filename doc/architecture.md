@@ -313,10 +313,10 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <item splitter label="Another Examples"/>
 
         <item id="Far Manager"             type=headless param="far"/>
-        <item id="Far Manager in terminal" type=term     param="far"/>
+        <item id="Far Manager in terminal" type=dtvt     param="$0 -r far"/>
 
         <item id="Midnight Commander"             type=headless param="mc"/>
-        <item id="Midnight Commander in terminal" type=term     param="mc"/>
+        <item id="Midnight Commander in terminal" type=dtvt     param="$0 -r mc"/>
 
         <item id="Far Manager via ssh"     type=xlvt param="ssh user@server vtm -r headless far"/>
         <item id="cmd in terminal via ssh" type=xlvt param="ssh user@server vtm -r term cmd"/>

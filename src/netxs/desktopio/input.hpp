@@ -1204,6 +1204,7 @@ namespace netxs::input
         {
             return std::unordered_map<ui32, text>
             {
+                { key::Enter     | hids::anyCtrl  << 8, { "\x0a"      }},
                 { key::Backspace | hids::anyCtrl  << 8, { "\x08"      }},
                 { key::Backspace | hids::anyAlt   << 8, { "\033\x7f"  }},
                 { key::Backspace | hids::anyAltGr << 8, { "\033\x08"  }},
