@@ -2454,6 +2454,15 @@ namespace netxs::os
 
             #endif
         }
+        auto install()
+        {
+            auto result = true;
+            //if (failed forced copy to system)
+            //      if (rename and mark to del at system restart)
+            //          copy to system
+            //      else result = faux;
+            return result;
+        }
     }
 
     namespace ipc
