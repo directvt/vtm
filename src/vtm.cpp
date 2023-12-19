@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Syntax:"
             "\n"
-            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
+            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -i | -u ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
             "\n"
             "\n  Options:"
             "\n"
