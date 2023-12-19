@@ -2454,13 +2454,50 @@ namespace netxs::os
 
             #endif
         }
-        auto install()
+        auto uninstall()
+        {
+            auto result = os::process::elevated;
+            if (!result) log(prompt::os, "System-wide uninstallation requires elevated privileges");
+            else
+            {
+                auto remove = []
+                {
+                    //...
+                    return true;
+                };
+                auto rename = [] // Rename and mark to delete on next reboot.
+                {
+                    //...
+                    return true;
+                };
+                result = remove() || rename();
+            }
+            return result;
+        }
+        auto _copy()
         {
             auto result = true;
-            //if (failed forced copy to system)
-            //      if (rename and mark to del at system restart)
-            //          copy to system
-            //      else result = faux;
+            #if defined(_WIN32)
+                //...
+                //if (!result) log(prompt::os, "Failed to copy to system...");
+            #else
+                //...
+                //if (!result) log(prompt::os, "Failed to copy to system...");
+            #endif
+            return result;
+        }
+        auto install()
+        {
+            auto result = os::process::elevated;
+            if (!result) log(prompt::os, "System-wide installation requires elevated privileges");
+            else
+            {
+                #if defined(_WIN32)
+                    result = !os::nt::is_wow64();
+                    if (!result) log(prompt::os, "The executable architecture doesn't match the system platform architecture");
+                #endif
+                result = result && uninstall() && _copy();
+            }
             return result;
         }
     }
