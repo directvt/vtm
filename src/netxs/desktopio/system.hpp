@@ -2458,12 +2458,12 @@ namespace netxs::os
         {
             if (!os::process::elevated)
             {
-                log(prompt::os, "System-wide operations require elevated privileges");
+                log("System-wide operations require elevated privileges.");
             }
             #if defined(_WIN32)
             else if (check_arch && os::nt::is_wow64())
             {
-                log(prompt::os, "The executable architecture doesn't match the system platform architecture");
+                log("The executable architecture doesn't match the system platform architecture.");
             }
             #endif
             else
@@ -2471,7 +2471,7 @@ namespace netxs::os
                 file = fs::path{ os::process::binary() };
                 if (file.empty())
                 {
-                    log(prompt::os, "Failed to get the process image path");
+                    log("Failed to get the process image path.");
                     return faux;
                 }
 
@@ -2491,15 +2491,26 @@ namespace netxs::os
             auto code = std::error_code{};
             auto remove = [&]
             {
-                auto path = text{};
                 if (!fs::exists(dest, code)) return true;
-                //...
-                return true;
+                auto done = fs::remove(dest, code);
+                if (done) log("File '%file%' has been removed.", dest.string());
+                return done;
             };
             auto rename = [&] // Rename and mark to delete on next reboot.
             {
-                //...
-                return true;
+                auto file = dest;
+                auto temp = file.filename().string() + '_' + utf::to_hex(datetime::round<ui64, std::chrono::nanoseconds>(datetime::now()));
+                dest.replace_filename(temp);
+                fs::rename(file, dest, code);
+                auto done = !code;
+                #if defined(_WIN32)
+                    auto rc = ::MoveFileExW(dest.wstring().c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT); // Schedule to delete dest on next reboot.
+                    if (rc) log("'%dest%' is scheduled to be removed at the next reboot.",   dest.string());
+                    else    log("Failed to schedule '%dest%' to be removed on next reboot.", dest.string());
+                #else
+                    log("Something went wrong. The file '%file%' has been renamed to '%dest%' and must be deleted manually.", file, dest);
+                #endif
+                return done;
             };
             auto done = remove() || rename();
             return done;
@@ -2515,14 +2526,15 @@ namespace netxs::os
         {
             auto file = fs::path{};
             auto dest = fs::path{};
+            auto code = std::error_code{};
             auto copy = [&]()
             {
-                auto code = std::error_code{};
                 auto done = fs::copy_file(file, dest, code);
-                if (!done) log("%%Failed to copy process image to %path%", prompt::os, dest);
+                if (done) log("The process image has been copied to '%path%'.", dest.string());
+                else      log("Failed to copy process image to '%path%'.", dest.string());
                 return done;
             };
-            auto done = getpaths(file, dest) && (fs::equivalent(file, dest) || (removefile(dest) && copy()));
+            auto done = getpaths(file, dest) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
             return done;
         }
     }

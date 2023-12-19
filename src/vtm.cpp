@@ -68,7 +68,7 @@ int main(int argc, char* argv[])
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::uninstall();
-            if (ok) log("%vtm% %ver% has been removed from the system.", app::vtm::id, app::shared::version);
+            if (ok) log("%vtm% is uninstalled.", app::vtm::id);
             return ok ? 0 : 1;
         }
         else if (getopt.match("-i", "--install"))
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::install();
-            if (ok) log("%vtm% %ver% has been installed to the system.", app::vtm::id, app::shared::version);
+            if (ok) log("%vtm% %ver% is installed.", app::vtm::id, app::shared::version);
             return ok ? 0 : 1;
         }
         else if (getopt.match("-c", "--config"))
