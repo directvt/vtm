@@ -805,16 +805,16 @@ struct impl : consrv
                 auto c = *head++;
                 if (c == '\r')
                 {
-                    if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate hitting Enter.
+                    if (head != tail && *head == '\n') head++; // Eat CR+LF.
+                    generate('\r', s, VK_RETURN, 1, 0x1c); // Emulate Enter.
                     // Far Manager treats Shift+Enter as its own macro not a soft break.
                     //if (noni) generate('\n', s);
                     //else      generate('\r', s | SHIFT_PRESSED, VK_RETURN, 1, 0x1c /*os::nt::takevkey<VK_RETURN>().key*/); // Emulate hitting Enter. Pressed Shift to soft line break when pasting from clipboard.
                 }
                 else if (c == '\n')
                 {
-                    if (head != tail && *head == (c == '\n' ? '\r' : '\n')) head++; // Eat CR+LF/LF+CR.
-                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate hitting Shift+Enter.
+                    if (head != tail && *head == '\r') head++; // Eat LF+CR.
+                    generate('\n', s | LEFT_CTRL_PRESSED, VK_RETURN, 1, 0x1c); // Emulate Shift+Enter.
                 }
                 else
                 {
