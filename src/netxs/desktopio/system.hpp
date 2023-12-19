@@ -2492,10 +2492,7 @@ namespace netxs::os
             auto remove = [&]
             {
                 auto path = text{};
-                if (fs::exists(dest, code))
-                {
-
-                }
+                if (!fs::exists(dest, code)) return true;
                 //...
                 return true;
             };
@@ -2505,13 +2502,6 @@ namespace netxs::os
                 return true;
             };
             auto done = remove() || rename();
-            return done;
-        }
-        auto copyfile(auto file, auto dest)
-        {
-            auto code = std::error_code{};
-            auto done = fs::copy_file(file, dest, code);
-            if (!done) log("%%Failed to copy process image to %path%", prompt::os, dest);
             return done;
         }
         auto uninstall()
@@ -2525,7 +2515,14 @@ namespace netxs::os
         {
             auto file = fs::path{};
             auto dest = fs::path{};
-            auto done = getpaths(file, dest) && (fs::equivalent(file, dest) || (removefile(dest) && copyfile(file, dest)));
+            auto copy = [&]()
+            {
+                auto code = std::error_code{};
+                auto done = fs::copy_file(file, dest, code);
+                if (!done) log("%%Failed to copy process image to %path%", prompt::os, dest);
+                return done;
+            };
+            auto done = getpaths(file, dest) && (fs::equivalent(file, dest) || (removefile(dest) && copy()));
             return done;
         }
     }
