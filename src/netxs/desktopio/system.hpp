@@ -2454,51 +2454,79 @@ namespace netxs::os
 
             #endif
         }
-        auto uninstall()
+        auto getpaths(auto& file, auto& dest, bool check_arch = true)
         {
-            auto result = os::process::elevated;
-            if (!result) log(prompt::os, "System-wide uninstallation requires elevated privileges");
+            if (!os::process::elevated)
+            {
+                log(prompt::os, "System-wide operations require elevated privileges");
+            }
+            #if defined(_WIN32)
+            else if (check_arch && os::nt::is_wow64())
+            {
+                log(prompt::os, "The executable architecture doesn't match the system platform architecture");
+            }
+            #endif
             else
             {
-                auto remove = []
+                file = fs::path{ os::process::binary() };
+                if (file.empty())
                 {
-                    //...
-                    return true;
-                };
-                auto rename = [] // Rename and mark to delete on next reboot.
-                {
-                    //...
-                    return true;
-                };
-                result = remove() || rename();
+                    log(prompt::os, "Failed to get the process image path");
+                    return faux;
+                }
+
+                #if defined(_WIN32)
+                auto dest_path = os::env::get("SystemRoot");
+                #else
+                auto dest_path = "/usr/local/bin";
+                #endif
+
+                dest = dest_path / file.filename();
+                return true;
             }
-            return result;
+            return faux;
         }
-        auto _copy()
+        auto removefile(auto dest)
         {
-            auto result = true;
-            #if defined(_WIN32)
+            auto code = std::error_code{};
+            auto remove = [&]
+            {
+                auto path = text{};
+                if (fs::exists(dest, code))
+                {
+
+                }
                 //...
-                //if (!result) log(prompt::os, "Failed to copy to system...");
-            #else
+                return true;
+            };
+            auto rename = [&] // Rename and mark to delete on next reboot.
+            {
                 //...
-                //if (!result) log(prompt::os, "Failed to copy to system...");
-            #endif
-            return result;
+                return true;
+            };
+            auto done = remove() || rename();
+            return done;
+        }
+        auto copyfile(auto file, auto dest)
+        {
+            auto code = std::error_code{};
+            auto done = fs::copy_file(file, dest, code);
+            if (!done) log("%%Failed to copy process image to %path%", prompt::os, dest);
+            return done;
+        }
+        auto uninstall()
+        {
+            auto file = fs::path{};
+            auto dest = fs::path{};
+            auto done = getpaths(file, dest, faux) && removefile(dest);
+            return done;
         }
         auto install()
         {
-            auto result = os::process::elevated;
-            if (!result) log(prompt::os, "System-wide installation requires elevated privileges");
-            else
-            {
-                #if defined(_WIN32)
-                    result = !os::nt::is_wow64();
-                    if (!result) log(prompt::os, "The executable architecture doesn't match the system platform architecture");
-                #endif
-                result = result && uninstall() && _copy();
-            }
-            return result;
+            auto file = fs::path{};
+            auto dest = fs::path{};
+            auto done = getpaths(file, dest) && (fs::equivalent(file, dest) || (removefile(dest) && copyfile(file, dest)));
+            return done;
         }
     }
 
