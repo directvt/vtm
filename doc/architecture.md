@@ -46,6 +46,7 @@ graph TB
 - The new session is hosted in a forked and detached vtm process.
 - The session is tied to an operating system's named pipe coined from the creator's name (if no explicitly specified pipe name).
 - Only the session creator can access the session (for non-elevated users).
+- The regular user and the elevated user are different independent users creating different server sessions.
 - The session allows multiple access in real time.
 - The user can disconnect from the session and reconnect later.
 - Several independent sessions with different names can coexist.
@@ -181,7 +182,7 @@ In general, the server and client platforms may be different.
 
 When DirectVT mode is enabled, all keyboard, mouse and other input events are transmitted between hosts in binary form.
 
-The following examples assume that the vtm executable is available on both the server and client side, and the path to the vtm executable is added to the PATH environment variable.
+The following examples assume that the vtm is installed on both the server and client side (or vtm is accessible via PATH).
 
 ### Run a standalone console application remotely via SSH
 
