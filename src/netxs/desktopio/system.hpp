@@ -2505,7 +2505,7 @@ namespace netxs::os
                 auto done = !code;
                 #if defined(_WIN32)
                     auto rc = ::MoveFileExW(dest.wstring().c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT); // Schedule to delete dest on next reboot.
-                    if (rc) log("File "%file%" has been renamed to "%dest%" and is scheduled to be removed on the next system start.", file.string(), dest.string());
+                    if (rc) log("File '%file%' has been renamed to '%dest%' and is scheduled to be removed on the next system start.", file.string(), dest.string());
                     else    log("Failed to schedule '%dest%' to be removed on next system start.", dest.string());
                 #else
                     log("Something went wrong. The file '%file%' has been renamed to '%dest%' and must be deleted manually.", file, dest);
