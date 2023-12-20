@@ -1,6 +1,6 @@
 # Command line Options `vtm(.exe)`
 
- `vtm [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
+ `vtm [ -c <file> ] [ -p <pipe> ] [ -i | -u ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
 
 Option                       | Description
 -----------------------------|-------------------------------------------------------
@@ -13,6 +13,8 @@ No arguments                 | Run client (auto start server).
 ` -d `, ` --daemon `         | Run server in background.
 ` -s `, ` --server `         | Run server in interactive mode.
 ` -r `, ` --runapp [<app>] ` | Run the specified `<app>` standalone.
+` -i `, ` --install `        | System-wide installation.
+` -u `, ` --uninstall `      | System-wide deinstallation.
 ` -v `, ` --version `        | Show version.
 ` -? `, ` -h `, ` --help `   | Show usage message.
 ` --onlylog  `               | Disable interactive user input.

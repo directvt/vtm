@@ -2454,6 +2454,89 @@ namespace netxs::os
 
             #endif
         }
+        auto getpaths(auto& file, auto& dest, bool check_arch = true)
+        {
+            if (!os::process::elevated)
+            {
+                log("System-wide operations require elevated privileges.");
+            }
+            #if defined(_WIN32)
+            else if (check_arch && os::nt::is_wow64())
+            {
+                log("The executable architecture doesn't match the system platform architecture.");
+            }
+            #endif
+            else
+            {
+                file = fs::path{ os::process::binary() };
+                if (file.empty())
+                {
+                    log("Failed to get the process image path.");
+                    return faux;
+                }
+
+                #if defined(_WIN32)
+                auto dest_path = os::env::get("SystemRoot");
+                #else
+                auto dest_path = "/usr/local/bin";
+                #endif
+
+                dest = dest_path / file.filename();
+                return true;
+            }
+            return faux;
+        }
+        auto removefile(auto dest)
+        {
+            auto code = std::error_code{};
+            auto remove = [&]
+            {
+                if (!fs::exists(dest, code)) return true;
+                auto done = fs::remove(dest, code);
+                if (done) log("File '%file%' has been removed.", dest.string());
+                return done;
+            };
+            auto rename = [&] // Rename and mark to delete on next reboot.
+            {
+                auto file = dest;
+                auto temp = file.filename().string() + '_' + utf::to_hex(datetime::round<ui64, std::chrono::nanoseconds>(datetime::now()));
+                dest.replace_filename(temp);
+                fs::rename(file, dest, code);
+                auto done = !code;
+                #if defined(_WIN32)
+                    auto rc = ::MoveFileExW(dest.wstring().c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT); // Schedule to delete dest on next reboot.
+                    if (rc) log("File '%file%' has been renamed to '%dest%' and is scheduled to be removed on the next system start.", file.string(), dest.string());
+                    else    log("Failed to schedule '%dest%' to be removed on next system start.", dest.string());
+                #else
+                    log("Something went wrong. The file '%file%' has been renamed to '%dest%' and must be deleted manually.", file, dest);
+                #endif
+                return done;
+            };
+            auto done = remove() || rename();
+            return done;
+        }
+        auto uninstall()
+        {
+            auto file = fs::path{};
+            auto dest = fs::path{};
+            auto done = getpaths(file, dest, faux) && removefile(dest);
+            return done;
+        }
+        auto install()
+        {
+            auto file = fs::path{};
+            auto dest = fs::path{};
+            auto code = std::error_code{};
+            auto copy = [&]()
+            {
+                auto done = fs::copy_file(file, dest, code);
+                if (done) log("The process image has been copied to '%path%'.", dest.string());
+                else      log("Failed to copy process image to '%path%'.", dest.string());
+                return done;
+            };
+            auto done = getpaths(file, dest) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
+            return done;
+        }
     }
 
     namespace ipc

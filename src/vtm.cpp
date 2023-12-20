@@ -63,6 +63,22 @@ int main(int argc, char* argv[])
         {
             whoami = type::config;
         }
+        else if (getopt.match("-u", "--uninstall"))
+        {
+            netxs::logger::wipe();
+            auto syslog = os::tty::logger();
+            auto ok = os::process::uninstall();
+            if (ok) log("%vtm% is uninstalled.", app::vtm::id);
+            return ok ? 0 : 1;
+        }
+        else if (getopt.match("-i", "--install"))
+        {
+            netxs::logger::wipe();
+            auto syslog = os::tty::logger();
+            auto ok = os::process::install();
+            if (ok) log("%vtm% %ver% is installed.", app::vtm::id, app::shared::version);
+            return ok ? 0 : 1;
+        }
         else if (getopt.match("-c", "--config"))
         {
             cfpath = getopt.next();
@@ -127,7 +143,7 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Syntax:"
             "\n"
-            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
+            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -i | -u ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
             "\n"
             "\n  Options:"
             "\n"
@@ -140,6 +156,8 @@ int main(int argc, char* argv[])
             "\n    -d, --daemon       Run server in background."
             "\n    -s, --server       Run server in interactive mode."
             "\n    -r, --runapp <..>  Run built-in application."
+            "\n    -i, --install      System-wide installation."
+            "\n    -u, --uninstall    System-wide deinstallation."
             "\n    -v, --version      Show version and exit."
             "\n    -?, -h, --help     Show usage message."
             "\n    --onlylog          Disable interactive user input."
