@@ -2530,7 +2530,7 @@ namespace netxs::os
             auto copy = [&]()
             {
                 auto done = fs::copy_file(file, dest, code);
-                if (done) log("The process image has been copied to '%path%'.", dest.string());
+                if (done) log("Process image has been copied to '%path%'.", dest.string());
                 else      log("Failed to copy process image to '%path%'.", dest.string());
                 return done;
             };

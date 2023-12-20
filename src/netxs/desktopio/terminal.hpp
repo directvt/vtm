@@ -196,7 +196,7 @@ namespace netxs::ui
                 def_tablen = std::max(1, config.take("tablen",               si32{ 8 }    ));
                 def_lucent = std::max(0, config.take("fields/lucent",        si32{ 0xC0 } ));
                 def_margin = std::max(0, config.take("fields/size",          si32{ 0 }    ));
-                def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::selmod);
+                def_selmod =             config.take("selection/mode",       mime::textonly, xml::options::format);
                 def_selalt =             config.take("selection/rect",       faux);
                 def_cur_on =             config.take("cursor/show",          true);
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);

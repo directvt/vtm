@@ -378,7 +378,7 @@ namespace netxs::app::term
             }
             static void TerminalSelectionMode(ui::item& boss, menu::item& item)
             {
-                item.reindex([](auto& utf8){ return netxs::get_or(xml::options::selmod, utf8, mime::disabled); });
+                item.reindex([](auto& utf8){ return netxs::get_or(xml::options::format, utf8, mime::disabled); });
                 _submit(boss, item, [](auto& boss, auto& item, auto& gear)
                 {
                     boss.SIGNAL(tier::anycast, preview::selection::mode, item.views[item.taken].value);
