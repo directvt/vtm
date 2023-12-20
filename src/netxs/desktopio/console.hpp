@@ -411,6 +411,7 @@ namespace netxs::ui
             bool show_regions; // conf: Highlight region ownership.
             bool simple; // conf: .
             svga vtmode; // conf: .
+            si32 clip_prtscrn_mime; // conf: Print-screen copy encoding format.
 
             void read(xmls& config)
             {
@@ -421,6 +422,7 @@ namespace netxs::ui
                 clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
                 clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
+                clip_prtscrn_mime = config.take("clipboard/format"         , mime::htmltext, xml::options::format);
                 dblclick_timeout  = config.take("mouse/dblclick"           , span{ 500ms });
                 tooltip_colors    = config.take("tooltips"                 , cell{}.bgc(0xFFffffff).fgc(0xFF000000));
                 tooltip_timeout   = config.take("tooltips/timeout"         , span{ 2000ms });
@@ -508,7 +510,10 @@ namespace netxs::ui
                     data.s11n(xmap, gear.slot);
                     if (data.length())
                     {
-                        gear.set_clipboard(gear.slot.size, data, mime::ansitext);
+                        if (boss.props.clip_prtscrn_mime != mime::disabled)
+                        {
+                            gear.set_clipboard(gear.slot.size, data, boss.props.clip_prtscrn_mime);
+                        }
                     }
                 };
                 boss.LISTEN(tier::release, e2::form::prop::filler, filler, memo)

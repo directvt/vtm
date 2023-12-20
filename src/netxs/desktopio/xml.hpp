@@ -1393,7 +1393,7 @@ namespace netxs::xml
     };
     namespace options
     {
-        static auto selmod = std::unordered_map<text, si32>
+        static auto format = std::unordered_map<text, si32>
            {{ "none",      mime::disabled },
             { "text",      mime::textonly },
             { "ansi",      mime::ansitext },

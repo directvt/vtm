@@ -241,13 +241,14 @@ R"==(
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7  />  <!-- Preview shadow strength (0-10). -->
             </preview>
+            <format=html />  <!-- text | ansi | rich | html | protected -->
         </clipboard>
         <mouse dblclick=500ms/>
         <tooltips timeout=2000ms enabled=true fgc=pureblack bgc=purewhite/>
         <debug overlay=off toggle="🐞"/>  <!-- Display console debug info. -->
         <regions enabled=0/>             <!-- Highlight UI objects boundaries. -->
         <keyboard>
-            <layout = QWERTY/>  <!-- QWERTY, AZERTY, Dvorak, etc. -->
+            <layout = QWERTY/>  <!-- Not implemented. QWERTY, AZERTY, Dvorak, etc. -->
         </keyboard>
     </client>
     <term>      <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->

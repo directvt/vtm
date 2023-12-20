@@ -1991,7 +1991,7 @@ namespace netxs::ui
             static const auto frag = "EndFragment:"s;
 
             auto crop = "<pre style=\"display:inline-block;"s;
-            crop += "font-size:14pt;font-family:'" + (font.empty() ? deffnt : font) + "',monospace;\">\n";
+            crop += "font-size:14pt;font-family:'" + (font.empty() ? deffnt : font) + "',monospace;line-height:1.0;\">\n";
             auto dest = html_dest_t{};
             for (auto& line_ptr : batch)
             {
