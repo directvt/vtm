@@ -412,6 +412,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 <timeout=3s />  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
                 <shadow=7   />  <!-- Preview shadow strength (0-10). -->
             </preview>
+            <format=html />  <!-- none | text | ansi | rich | html | protected -->
         </clipboard>
         <viewport coor=0,0 />
         <mouse dblclick=500ms />
