@@ -25,8 +25,6 @@
     #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
-    #include <WtsApi32.h>               // ::WTSGetActiveConsoleSessionId, ::WTSQueryUserToken
-    #pragma comment (lib, "Wtsapi32.lib")
 
 #else
 
