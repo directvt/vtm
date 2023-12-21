@@ -136,14 +136,14 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Local Usage
 
-### Run vtm desktop
+### Running vtm desktop
 
 - Run command
     ```bash
     vtm
     ```
 
-### Run built-in terminal with default shell
+### Running built-in terminal with default shell
 
 - Run command
     ```bash
@@ -155,7 +155,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r` option is auto converted to the `vtm -r term`.
     ```
 
-### Run a standalone console application
+### Running a standalone console application
 
 - Run command
     ```bash
@@ -168,7 +168,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
-### Run a standalone console application without extra UI
+### Running a standalone console application without extra UI
 
 - Run command
     ```bash
@@ -184,7 +184,7 @@ When DirectVT mode is enabled, all keyboard, mouse and other input events are tr
 
 The following examples assume that the vtm is installed on both the server and client side (or vtm is accessible via PATH).
 
-### Run a standalone console application remotely via SSH
+### Running a standalone console application remotely via SSH
 
 - Server:
     - Install SSH-server
@@ -201,7 +201,7 @@ The following examples assume that the vtm is installed on both the server and c
     # The `vtm -r ...` option is auto converted to the `vtm -r term ...`.
     ```
 
-### Run vtm in DirectVT mode remotely via SSH
+### Running vtm in DirectVT mode remotely via SSH
 
 - Server:
     - Install SSH-server
@@ -218,7 +218,7 @@ The following examples assume that the vtm is installed on both the server and c
     # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
     ```
 
-### Run vtm in ANSI/VT mode remotely via SSH
+### Running vtm in ANSI/VT mode remotely via SSH
 
 - Server:
     - Install SSH-server.
@@ -234,7 +234,7 @@ The following examples assume that the vtm is installed on both the server and c
     # The `ssh -t ...` option is required to allocate TTY on remote host.
     ```
 
-### Run vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
+### Running vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
 
 - Server:
     - Run command
@@ -252,7 +252,7 @@ The following examples assume that the vtm is installed on both the server and c
     # Note: Make sure `ncat` is installed.
     ```
 
-### Run vtm in DirectVT mode remotely using `inetd` (POSIX only, unencrypted, for private use only)
+### Running vtm in DirectVT mode remotely using `inetd` (POSIX only, unencrypted, for private use only)
 
 - Server:
     - Install `inetd`

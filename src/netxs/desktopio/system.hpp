@@ -25,6 +25,8 @@
     #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
+    #include <WtsApi32.h>               // ::WTSGetActiveConsoleSessionId, ::WTSQueryUserToken
+    #pragma comment (lib, "Wtsapi32.lib")
 
 #else
 
@@ -105,12 +107,11 @@ namespace netxs::os
         using pidt = DWORD;
         using fd_t = HANDLE;
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
-        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE };
-        static       auto stdin_fd     = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
-        static       auto stdout_fd    = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
-        static       auto stderr_fd    = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
-        static const auto codepage     = ui32{ ::GetOEMCP() };
-
+        static const auto codepage   = ui32{ ::GetOEMCP() };
+        static const auto invalid_fd = fd_t{ INVALID_HANDLE_VALUE };
+        static       auto stdin_fd   = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+        static       auto stdout_fd  = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+        static       auto stderr_fd  = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
 
     #else
 
@@ -973,6 +974,30 @@ namespace netxs::os
                 }
                 else return faux;
             }
+            auto runas(auto ptoken, auto&& cmdarg)
+            {
+                auto proinf = PROCESS_INFORMATION{};
+                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto result = ::CreateProcessAsUserW(ptoken,
+                                                     nullptr,                      // lpApplicationName
+                                                     cmdarg.data(),                // lpCommandLine
+                                                     nullptr,                      // lpProcessAttributes
+                                                     nullptr,                      // lpThreadAttributes
+                                                     TRUE,                         // bInheritHandles
+                                                     DETACHED_PROCESS |            // dwCreationFlags
+                                                     EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
+                                                     CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
+                                                     nullptr,                      // lpEnvironment
+                                                     nullptr,                      // lpCurrentDirectory
+                                                     &upinfo.StartupInfo,          // lpStartupInfo
+                                                     &proinf);                     // lpProcessInformation
+                if (result) // Close unused process handles.
+                {
+                    os::close(proinf.hProcess);
+                    os::close(proinf.hThread);
+                }
+                return result;
+            }
         }
 
     #else
@@ -1381,6 +1406,35 @@ namespace netxs::os
                 };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
             };
+            auto create()
+            {
+                //
+                return true;
+            }
+            auto start()
+            {
+                //
+                return true;
+            }
+            auto stop()
+            {
+                //
+                return true;
+            }
+            auto remove()
+            {
+                //
+                return true;
+            }
+            auto launch(auto cmdarg)
+            {
+                // create()
+                // start()
+                // stop()
+                // remove();
+                //
+                return true;
+            }
 
         #else
 
@@ -2375,32 +2429,26 @@ namespace netxs::os
                 auto ospath = process::memory::ref(prefix);
                 auto handle = process::memory::set(ospath, config);
                 auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
-                auto proinf = PROCESS_INFORMATION{};
-                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                 auto ptoken = os::invalid_fd;
-                auto slzero = DWORD{ 0 };
+                auto get_si = [&]
+                {
+                    auto count = DWORD{};
+                    auto session_id = DWORD{};
+                    ::GetTokenInformation(ptoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &count);
+                    return session_id;
+                };
                 auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
-                rc = rc && ::CreateProcessAsUserW(ptoken,
-                                                  nullptr,                      // lpApplicationName
-                                                  cmdarg.data(),                // lpCommandLine
-                                                  nullptr,                      // lpProcessAttributes
-                                                  nullptr,                      // lpThreadAttributes
-                                                  TRUE,                         // bInheritHandles
-                                                  DETACHED_PROCESS |            // dwCreationFlags
-                                                  EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
-                                                  CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
-                                                  nullptr,                      // lpEnvironment
-                                                  nullptr,                      // lpCurrentDirectory
-                                                  &upinfo.StartupInfo,          // lpStartupInfo
-                                                  &proinf);                     // lpProcessInformation
+                if (rc && process::elevated && get_si() != 0) // Run server in Session 0 for elevated users.
+                {
+                    rc = os::service::launch(cmdarg);
+                }
+                else
+                {
+                    rc = rc && os::nt::runas(ptoken, cmdarg);
+                }
                 os::close(ptoken);
                 auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
-                if (rc) // Success. The fork concept is not supported on Windows.
-                {
-                    os::close(proinf.hProcess);
-                    os::close(proinf.hThread);
-                }
-                else success.reset();
+                if (!rc) success.reset();
 
             #else
 
