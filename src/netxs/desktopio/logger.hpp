@@ -120,42 +120,12 @@ namespace netxs
 
 namespace
 {
-    namespace
-    {
-        netxs::view crop(netxs::view& format)
-        {
-            static constexpr auto delimiter = '%';
-            auto crop = format;
-            auto head = format.find(delimiter);
-            if (head == netxs::text::npos) format = {};
-            else
-            {
-                auto tail = format.find(delimiter, head + 1);
-                if (tail != netxs::text::npos)
-                {
-                    crop = format.substr(0, head); // Take leading substring.
-                    format.remove_prefix(tail + 1);
-                }
-            }
-            return crop;
-        }
-        void print(auto& input, netxs::view& format)
-        {
-            input << format;
-        }
-        void print(auto& input, netxs::view& format, auto&& arg, auto&& ...args)
-        {
-            input << crop(format) << std::forward<decltype(arg)>(arg);
-            if (format.length()) print(input, format, std::forward<decltype(args)>(args)...);
-            else                (void)(input << ...<< std::forward<decltype(args)>(args));
-        }
-    }
     template<bool Newline = true, class ...Args>
     void log(netxs::view format, Args&&... args)
     {
         auto state = netxs::logger::globals();
         if (state.quiet) return;
-        print(state.input, format, std::forward<Args>(args)...);
+        netxs::utf::print2(state.input, format, std::forward<Args>(args)...);
         if constexpr (Newline) state.input << '\n';
         state.flush();
     }

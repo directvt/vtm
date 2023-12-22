@@ -1615,6 +1615,40 @@ namespace netxs::utf
         }
         return qiew{ utf8.substr(0, crop) };
     }
+    void print2(auto& input, view& format)
+    {
+        input << format;
+    }
+    void print2(auto& input, view& format, auto&& arg, auto&& ...args)
+    {
+        auto crop = [](view& format)
+        {
+            static constexpr auto delimiter = '%';
+            auto crop = format;
+            auto head = format.find(delimiter);
+            if (head == netxs::text::npos) format = {};
+            else
+            {
+                auto tail = format.find(delimiter, head + 1);
+                if (tail != netxs::text::npos)
+                {
+                    crop = format.substr(0, head); // Take leading substring.
+                    format.remove_prefix(tail + 1);
+                }
+            }
+            return crop;
+        };
+        input << crop(format) << std::forward<decltype(arg)>(arg);
+        if (format.length()) print2(input, format, std::forward<decltype(args)>(args)...);
+        else                 (void)(input << ...<< std::forward<decltype(args)>(args));
+    }
+    template<class ...Args>
+    auto fprint(view format, Args&&... args)
+    {
+        auto input = flux{};
+        print2(input, format, std::forward<Args>(args)...);
+        return input.str();
+    }
 }
 
 namespace netxs

@@ -147,8 +147,8 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log(prompt::os, ansi::err(msg..., " (", os::error(), ") "));
-    };
+        log(prompt::os, ansi::err(utf::fprint(msg..., " (", os::error(), ") ")));
+    }
     template<bool Alert = true, class T, class ...Args>
     auto ok(T error_condition, Args&&... msg)
     {
@@ -2278,7 +2278,7 @@ namespace netxs::os
             #endif
             if (result.empty())
             {
-                os::fail("Can't get current module file path, fallback to '", process::arg0, "`");
+                os::fail("Can't get current module file path, fallback to '%arg0%`", process::arg0);
                 result = process::arg0;
             }
             if constexpr (NameOnly)
@@ -2403,7 +2403,7 @@ namespace netxs::os
                     }
                     os::process::execvpe(cmd, env);
                     auto errcode = errno;
-                    if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmd, "'");
+                    if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
                     os::process::exit<true>(errcode);
                 }
                 else if (p_id > 0) // Parent branch.
@@ -2417,7 +2417,7 @@ namespace netxs::os
                 }
 
             #endif
-            if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmd, "'");
+            if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
             return faux;
         }
         auto fork(text prefix, view config)
@@ -2892,7 +2892,7 @@ namespace netxs::os
                             //       LocalSystem account, administrators, and the creator owner. They also grant read access to
                             //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
-                            if (next_waiting_point == os::invalid_fd) os::fail(prompt::meet, "::CreateNamedPipe()", os::unexpected);
+                            if (next_waiting_point == os::invalid_fd) os::fail("::CreateNamedPipe()", os::unexpected);
                         }
                         else if (pipe::active) os::fail(prompt::meet, "Not active");
 
