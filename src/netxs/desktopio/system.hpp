@@ -1453,10 +1453,6 @@ namespace netxs::os
                 //
                 return true;
             }
-            auto launch(auto cmdarg)
-            {
-                return true;
-            }
 
         #else
 
@@ -2444,7 +2440,7 @@ namespace netxs::os
 
                 auto ospath = process::memory::ref(prefix);
                 auto handle = process::memory::set(ospath, config);
-                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
+                auto params = utf::concat(" --onlylog", " -p ", prefix, " -c :", ospath, " -s");
                 auto ptoken = os::invalid_fd;
                 auto get_si = [&]
                 {
@@ -2456,11 +2452,10 @@ namespace netxs::os
                 auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
                 if (rc && process::elevated && get_si() != 0) // Run server in Session 0 for elevated users.
                 {
-                    //rc = os::service::launch(cmdarg);
                     // Create service.
-                    auto user_id = os::nt::user();
-                    auto svcname = utf::to_utf("vtm " + user_id.first);
-                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + user_id.second + ' ') + cmdarg;
+                    auto proc_id = std::to_string(::GetCurrentProcessId());
+                    auto svcname = utf::to_utf("vtm " + proc_id);
+                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + proc_id + params);
                     auto mtxname = L"Global\\" + svcname;
                     auto svcsync = ::CreateMutexW(nullptr, TRUE, mtxname.data());
                     if (os::error() == ERROR_ALREADY_EXISTS && ::WaitForSingleObject(svcsync, 10000) != WAIT_OBJECT_0)
@@ -2530,6 +2525,7 @@ namespace netxs::os
                 }
                 else
                 {
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
                     rc = rc && os::nt::runas(ptoken, cmdarg);
                 }
                 os::close(ptoken);
@@ -2567,6 +2563,33 @@ namespace netxs::os
             else         os::fail("Failed to fork process");
 
             return std::pair{ std::move(success), faux }; // Parent branch.
+        }
+        auto dispatch(auto process_id, auto cmdarg)
+        {
+            static auto proc_id = utf::to_int(process_id).value();
+            static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
+            static auto svcname = utf::to_utf(utf::concat("vtm ", process_id));
+            static auto starter = [](auto... args)
+            {
+                auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
+                auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
+                auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
+                manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
+                auto ostoken = fd_t{};
+                auto mytoken = fd_t{};
+                auto session = DWORD{};
+                auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
+                process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
+                ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
+                mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
+                mytoken && os::nt::runas(mytoken, command);
+                os::close(mytoken);
+                os::close(ostoken);
+                os::close(process);
+                manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
+            };
+            static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
+            return !!::StartServiceCtrlDispatcherW(service.data());
         }
         void spawn(text cmd, text cwd, text env)
         {

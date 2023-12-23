@@ -31,11 +31,10 @@ int main(int argc, char* argv[])
     {
         if (getopt.match("--svc"))
         {
-            auto userid = getopt.next();
+            auto process_id = getopt.next();
             params = getopt.rest();
-            os::sleep(10s);
-            //todo
-            return 0;
+            auto ok = os::process::dispatch(process_id, params);
+            return ok ? 0 : 1;
         }
         else if (getopt.match("-r", "--runapp"))
         {
