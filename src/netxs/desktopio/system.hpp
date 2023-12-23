@@ -1757,16 +1757,27 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                auto buffer = wide{};
-                auto length = DWORD{};
-                ::GetUserNameW(buffer.data(), &length);
-                buffer.resize(length);
-                if(ok(::GetUserNameW(buffer.data(), &length), "::GetUserNameW()", os::unexpected))
+                auto token = os::invalid_fd;
+                auto usage = SID_NAME_USE{};
+                auto count = DWORD{};
+                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
+                auto bytes = text(count, '\0');
+                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
+                os::close(token);
+                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
+                auto name_len = DWORD{};
+                auto domain_len = DWORD{};
+                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
+                auto login = wide(name_len + domain_len, '\0'); // Terminating null in username is going to be '@'.
+                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, login.data(), &name_len, login.data() + name_len, &domain_len, &usage);
+                if (rc && login.size() > 1/*excluding terminating null*/)
                 {
-                    if (length && buffer.back() == 0) buffer.pop_back();
-                    return utf::to_utf(buffer);
+                    login.pop_back();
+                    login[name_len] = '@';
+                    return utf::to_low(utf::to_utf(login));
                 }
-                else return text{};
+                else return "unknown"s;
 
             #else
 
