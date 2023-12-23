@@ -1433,26 +1433,6 @@ namespace netxs::os
                 };
                 return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
             };
-            auto create()
-            {
-                //
-                return true;
-            }
-            auto start()
-            {
-                //
-                return true;
-            }
-            auto stop()
-            {
-                //
-                return true;
-            }
-            auto remove()
-            {
-                //
-                return true;
-            }
 
         #else
 
