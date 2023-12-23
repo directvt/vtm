@@ -2566,30 +2566,38 @@ namespace netxs::os
         }
         auto dispatch(auto process_id, auto cmdarg)
         {
-            static auto proc_id = utf::to_int(process_id).value();
-            static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
-            static auto svcname = utf::to_utf(utf::concat("vtm ", process_id));
-            static auto starter = [](auto... args)
-            {
-                auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
-                auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
-                auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
-                manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
-                auto ostoken = fd_t{};
-                auto mytoken = fd_t{};
-                auto session = DWORD{};
-                auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
-                process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
-                ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
-                mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                mytoken && os::nt::runas(mytoken, command);
-                os::close(mytoken);
-                os::close(ostoken);
-                os::close(process);
-                manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
-            };
-            static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
-            return !!::StartServiceCtrlDispatcherW(service.data());
+            #if defined(_WIN32)
+
+                static auto proc_id = utf::to_int(process_id).value();
+                static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
+                static auto svcname = utf::to_utf(utf::concat("vtm ", process_id));
+                static auto starter = [](auto... args)
+                {
+                    auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
+                    auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
+                    auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
+                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
+                    auto ostoken = fd_t{};
+                    auto mytoken = fd_t{};
+                    auto session = DWORD{};
+                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
+                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
+                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
+                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
+                    mytoken && os::nt::runas(mytoken, command);
+                    os::close(mytoken);
+                    os::close(ostoken);
+                    os::close(process);
+                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
+                };
+                static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
+                return !!::StartServiceCtrlDispatcherW(service.data());
+
+            #else
+
+                return true;
+
+            #endif
         }
         void spawn(text cmd, text cwd, text env)
         {
