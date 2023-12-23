@@ -22,9 +22,9 @@
     #include <Windows.h>
     #include <userenv.h>                 // ::GetUserProfileDirectoryW
     #pragma comment(lib, "Userenv.lib")
-    #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
+    #include <sddl.h>                    // ::ConvertSidToStringSidA()
 
 #else
 
@@ -996,6 +996,35 @@ namespace netxs::os
                 }
                 return result;
             }
+            auto user()
+            {
+                auto token = os::invalid_fd;
+                auto usage = SID_NAME_USE{};
+                auto count = DWORD{};
+                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
+                auto bytes = text(count, '\0');
+                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
+                os::close(token);
+                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
+                auto name_len = DWORD{};
+                auto domain_len = DWORD{};
+                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
+                auto login = wide(name_len + domain_len, '\0'); // Terminating null in username is going to be '@'.
+                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, login.data(), &name_len, login.data() + name_len, &domain_len, &usage);
+                auto chars = LPSTR{};
+                rc = rc && ::ConvertSidToStringSidA(owner.User.Sid, &chars);
+                auto user_id = text{ rc ? chars : "unknown" };
+                rc && LocalFree(chars);
+                if (rc && login.size() > 1/*excluding terminating null*/)
+                {
+                    login.pop_back();
+                    login[name_len] = '@';
+                    auto user_name = utf::to_low(utf::to_utf(login));
+                    return std::pair{ user_name, user_id };
+                }
+                else return std::pair{ "unknown"s, "unknown"s };
+            }
         }
 
     #else
@@ -1397,7 +1426,7 @@ namespace netxs::os
                     }
                 };
 
-        		set_status(SERVICE_RUNNING);
+                set_status(SERVICE_RUNNING);
                 auto deleter = [](auto*)
                 {
                     set_status(SERVICE_STOPPED);
@@ -1426,11 +1455,6 @@ namespace netxs::os
             }
             auto launch(auto cmdarg)
             {
-                // create()
-                // start()
-                // stop()
-                // remove();
-                //
                 return true;
             }
 
@@ -1757,33 +1781,16 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                auto token = os::invalid_fd;
-                auto usage = SID_NAME_USE{};
-                auto count = DWORD{};
-                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
-                rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
-                auto bytes = text(count, '\0');
-                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
-                os::close(token);
-                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
-                auto name_len = DWORD{};
-                auto domain_len = DWORD{};
-                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
-                auto login = wide(name_len + domain_len, '\0'); // Terminating null in username is going to be '@'.
-                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, login.data(), &name_len, login.data() + name_len, &domain_len, &usage);
-                if (rc && login.size() > 1/*excluding terminating null*/)
-                {
-                    login.pop_back();
-                    login[name_len] = '@';
-                    return utf::to_low(utf::to_utf(login));
-                }
-                else return "unknown"s;
+                return os::nt::user();
 
             #else
 
                 uid_t id;
                 id = ::geteuid();
-                return utf::concat(id);
+                //todo user + id
+                auto user_name = utf::concat(id);
+                auto user_id = user_name;
+                return std::pair{ user_name, user_id };
 
             #endif
         }
@@ -2449,7 +2456,77 @@ namespace netxs::os
                 auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
                 if (rc && process::elevated && get_si() != 0) // Run server in Session 0 for elevated users.
                 {
-                    rc = os::service::launch(cmdarg);
+                    //rc = os::service::launch(cmdarg);
+                    // Create service.
+                    auto user_id = os::nt::user();
+                    auto svcname = utf::to_utf("vtm " + user_id.first);
+                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + user_id.second + ' ') + cmdarg;
+                    auto mtxname = L"Global\\" + svcname;
+                    auto svcsync = ::CreateMutexW(nullptr, TRUE, mtxname.data());
+                    if (os::error() == ERROR_ALREADY_EXISTS && ::WaitForSingleObject(svcsync, 10000) != WAIT_OBJECT_0)
+                    {
+                        os::fail("Failed to sync service manager");
+                    }
+                    auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+                    auto service = ::CreateServiceW(manager,
+                                                    svcname.data(),
+                                                    svcname.data(),
+                                                    SERVICE_ALL_ACCESS,
+                                                    SERVICE_WIN32_OWN_PROCESS,
+                                                    SERVICE_DEMAND_START,
+                                                    SERVICE_ERROR_IGNORE,
+                                                    svcpath.data(),
+                                                    NULL,
+                                                    NULL,
+                                                    NULL,
+                                                    NULL,
+                                                    NULL);
+                    if (!service && os::error() == ERROR_SERVICE_EXISTS)
+                    {
+                        service = ::OpenServiceW(manager, svcname.data(), SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
+                    }
+
+                    // Run service.
+                    service && ::StartServiceW(service, 0, NULL);
+
+                    // Stop service.
+                    auto service_status = SERVICE_STATUS_PROCESS{};
+                    auto bytes_needed = DWORD{};
+                    if (!service || !::QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&service_status, sizeof(SERVICE_STATUS_PROCESS), &bytes_needed))
+                    {
+                        os::fail("Failed to get service status");
+                    }
+                    else
+                    {
+                        if (service_status.dwCurrentState != SERVICE_STOPPED)
+                        {
+                            if (auto process = ::OpenProcess(SYNCHRONIZE, FALSE, service_status.dwProcessId))
+                            {
+                                if (!process)
+                                {
+                                    os::fail("Failed to get process handle");
+                                }
+                                if (service_status.dwCurrentState != SERVICE_STOP_PENDING)
+                                {
+                                    if (!::ControlService(service, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS)&service_status))
+                                    {
+                                        os::fail("failed to stop service");
+                                    }
+                                }
+                                if (::WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
+                                {
+                                    //os::kill_process(service_status.dwProcessId);
+                                }
+                                os::close(process);
+                            }
+                        }
+                    }
+
+                    // Delete service.
+                    ::DeleteService(service);
+                    ::CloseServiceHandle(service);
+                    ::CloseServiceHandle(manager);
+                    os::close(svcsync);
                 }
                 else
                 {
