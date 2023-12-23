@@ -29,7 +29,14 @@ int main(int argc, char* argv[])
     }
     else while (getopt)
     {
-        if (getopt.match("-r", "--runapp"))
+        if (getopt.match("--svc"))
+        {
+            auto process_id = getopt.next();
+            params = getopt.rest();
+            auto ok = os::process::dispatch(process_id, params);
+            return ok ? 0 : 1;
+        }
+        else if (getopt.match("-r", "--runapp"))
         {
             whoami = type::runapp;
             params = getopt ? getopt.rest() : text{ app::term::id };
@@ -121,7 +128,7 @@ int main(int argc, char* argv[])
     auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!_" : "_", userid);;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!_" : "_", userid.second);;
     auto prefix_log = prefix + app::shared::log_suffix;
     auto failed = [&](auto cause)
     {
@@ -266,7 +273,7 @@ int main(int argc, char* argv[])
         else if (whoami != type::client && client) return failed(code::interfer);
         else if (whoami == type::client && !client)
         {
-            log("%%New vtm session for [%userid%]", prompt::main, userid);
+            log("%%New vtm session for [%userid%]", prompt::main, userid.first);
             auto [success, successor] = os::process::fork(prefix, config.utf8());
             if (successor)
             {
@@ -285,7 +292,7 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
-                os::tty::stream.init.send(client, userid, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                os::tty::stream.init.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }
@@ -335,7 +342,7 @@ int main(int argc, char* argv[])
 
         log("%%Session started"
           "\n      user: %userid%"
-          "\n      pipe: %prefix%", prompt::main, userid, prefix);
+          "\n      pipe: %prefix%", prompt::main, userid.first, prefix);
 
         auto stdlog = std::thread{ [&]
         {
@@ -363,7 +370,7 @@ int main(int argc, char* argv[])
                                           [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
         while (auto client = server->meet())
         {
-            if (client->auth(userid))
+            if (client->auth(userid.second))
             {
                 domain->run([&, client, settings](auto session_id)
                 {

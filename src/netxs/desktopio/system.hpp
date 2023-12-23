@@ -22,9 +22,10 @@
     #include <Windows.h>
     #include <userenv.h>                 // ::GetUserProfileDirectoryW
     #pragma comment(lib, "Userenv.lib")
-    #pragma comment(lib, "Advapi32.lib") // ::GetUserNameW()
+    #pragma comment(lib, "Advapi32.lib") // ::StartService() for arm arch
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
+    #include <sddl.h>                    // ::ConvertSidToStringSidA()
 
 #else
 
@@ -105,12 +106,11 @@ namespace netxs::os
         using pidt = DWORD;
         using fd_t = HANDLE;
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
-        static const auto invalid_fd   = fd_t{ INVALID_HANDLE_VALUE };
-        static       auto stdin_fd     = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
-        static       auto stdout_fd    = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
-        static       auto stderr_fd    = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
-        static const auto codepage     = ui32{ ::GetOEMCP() };
-
+        static const auto codepage   = ui32{ ::GetOEMCP() };
+        static const auto invalid_fd = fd_t{ INVALID_HANDLE_VALUE };
+        static       auto stdin_fd   = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+        static       auto stdout_fd  = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+        static       auto stderr_fd  = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
 
     #else
 
@@ -148,8 +148,8 @@ namespace netxs::os
     template<class ...Args>
     auto fail(Args&&... msg)
     {
-        log(prompt::os, ansi::err(msg..., " (", os::error(), ") "));
-    };
+        log(prompt::os, ansi::err(utf::fprint(msg..., " (", os::error(), ") ")));
+    }
     template<bool Alert = true, class T, class ...Args>
     auto ok(T error_condition, Args&&... msg)
     {
@@ -973,6 +973,59 @@ namespace netxs::os
                 }
                 else return faux;
             }
+            auto runas(auto ptoken, auto&& cmdarg)
+            {
+                auto proinf = PROCESS_INFORMATION{};
+                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto result = ::CreateProcessAsUserW(ptoken,
+                                                     nullptr,                      // lpApplicationName
+                                                     cmdarg.data(),                // lpCommandLine
+                                                     nullptr,                      // lpProcessAttributes
+                                                     nullptr,                      // lpThreadAttributes
+                                                     TRUE,                         // bInheritHandles
+                                                     DETACHED_PROCESS |            // dwCreationFlags
+                                                     EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
+                                                     CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
+                                                     nullptr,                      // lpEnvironment
+                                                     nullptr,                      // lpCurrentDirectory
+                                                     &upinfo.StartupInfo,          // lpStartupInfo
+                                                     &proinf);                     // lpProcessInformation
+                if (result) // Close unused process handles.
+                {
+                    os::close(proinf.hProcess);
+                    os::close(proinf.hThread);
+                }
+                return result;
+            }
+            auto user()
+            {
+                auto token = os::invalid_fd;
+                auto usage = SID_NAME_USE{};
+                auto count = DWORD{};
+                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
+                auto bytes = text(count, '\0');
+                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
+                os::close(token);
+                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
+                auto name_len = DWORD{};
+                auto domain_len = DWORD{};
+                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
+                auto login = wide(name_len + domain_len, '\0'); // Terminating null in username is going to be '@'.
+                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, login.data(), &name_len, login.data() + name_len, &domain_len, &usage);
+                auto chars = LPSTR{};
+                rc = rc && ::ConvertSidToStringSidA(owner.User.Sid, &chars);
+                auto user_id = text{ rc ? chars : "unknown" };
+                rc && LocalFree(chars);
+                if (rc && login.size() > 1/*excluding terminating null*/)
+                {
+                    login.pop_back();
+                    login[name_len] = '@';
+                    auto user_name = utf::to_low(utf::to_utf(login));
+                    return std::pair{ user_name, user_id };
+                }
+                else return std::pair{ "unknown"s, "unknown"s };
+            }
         }
 
     #else
@@ -1374,7 +1427,7 @@ namespace netxs::os
                     }
                 };
 
-        		set_status(SERVICE_RUNNING);
+                set_status(SERVICE_RUNNING);
                 auto deleter = [](auto*)
                 {
                     set_status(SERVICE_STOPPED);
@@ -1705,22 +1758,16 @@ namespace netxs::os
         {
             #if defined(_WIN32)
 
-                auto buffer = wide{};
-                auto length = DWORD{};
-                ::GetUserNameW(buffer.data(), &length);
-                buffer.resize(length);
-                if(ok(::GetUserNameW(buffer.data(), &length), "::GetUserNameW()", os::unexpected))
-                {
-                    if (length && buffer.back() == 0) buffer.pop_back();
-                    return utf::to_utf(buffer);
-                }
-                else return text{};
+                return os::nt::user();
 
             #else
 
                 uid_t id;
                 id = ::geteuid();
-                return utf::concat(id);
+                //todo user + id
+                auto user_name = utf::concat(id);
+                auto user_id = user_name;
+                return std::pair{ user_name, user_id };
 
             #endif
         }
@@ -2226,7 +2273,7 @@ namespace netxs::os
             #endif
             if (result.empty())
             {
-                os::fail("Can't get current module file path, fallback to '", process::arg0, "`");
+                os::fail("Can't get current module file path, fallback to '%arg0%`", process::arg0);
                 result = process::arg0;
             }
             if constexpr (NameOnly)
@@ -2351,7 +2398,7 @@ namespace netxs::os
                     }
                     os::process::execvpe(cmd, env);
                     auto errcode = errno;
-                    if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmd, "'");
+                    if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
                     os::process::exit<true>(errcode);
                 }
                 else if (p_id > 0) // Parent branch.
@@ -2365,7 +2412,7 @@ namespace netxs::os
                 }
 
             #endif
-            if constexpr (Logs) os::fail(prompt::exec, "Failed to spawn '", cmd, "'");
+            if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
             return faux;
         }
         auto fork(text prefix, view config)
@@ -2374,33 +2421,97 @@ namespace netxs::os
 
                 auto ospath = process::memory::ref(prefix);
                 auto handle = process::memory::set(ospath, config);
-                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " --onlylog", " -p ", prefix, " -c :", ospath, " -s"));
-                auto proinf = PROCESS_INFORMATION{};
-                auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto params = utf::concat(" --onlylog", " -p ", prefix, " -c :", ospath, " -s");
                 auto ptoken = os::invalid_fd;
-                auto slzero = DWORD{ 0 };
+                auto get_si = [&]
+                {
+                    auto count = DWORD{};
+                    auto session_id = DWORD{};
+                    ::GetTokenInformation(ptoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &count);
+                    return session_id;
+                };
                 auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
-                rc = rc && ::CreateProcessAsUserW(ptoken,
-                                                  nullptr,                      // lpApplicationName
-                                                  cmdarg.data(),                // lpCommandLine
-                                                  nullptr,                      // lpProcessAttributes
-                                                  nullptr,                      // lpThreadAttributes
-                                                  TRUE,                         // bInheritHandles
-                                                  DETACHED_PROCESS |            // dwCreationFlags
-                                                  EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
-                                                  CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
-                                                  nullptr,                      // lpEnvironment
-                                                  nullptr,                      // lpCurrentDirectory
-                                                  &upinfo.StartupInfo,          // lpStartupInfo
-                                                  &proinf);                     // lpProcessInformation
+                if (rc && process::elevated && get_si() != 0) // Run server in Session 0 for elevated users.
+                {
+                    // Create service.
+                    auto proc_id = std::to_string(::GetCurrentProcessId());
+                    auto svcname = utf::to_utf("vtm " + proc_id);
+                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + proc_id + params);
+                    auto mtxname = L"Global\\" + svcname;
+                    auto svcsync = ::CreateMutexW(nullptr, TRUE, mtxname.data());
+                    if (os::error() == ERROR_ALREADY_EXISTS && ::WaitForSingleObject(svcsync, 10000) != WAIT_OBJECT_0)
+                    {
+                        os::fail("Failed to sync service manager");
+                    }
+                    auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+                    auto service = ::CreateServiceW(manager,
+                                                    svcname.data(),
+                                                    svcname.data(),
+                                                    SERVICE_ALL_ACCESS,
+                                                    SERVICE_WIN32_OWN_PROCESS,
+                                                    SERVICE_DEMAND_START,
+                                                    SERVICE_ERROR_IGNORE,
+                                                    svcpath.data(),
+                                                    NULL,
+                                                    NULL,
+                                                    NULL,
+                                                    NULL,
+                                                    NULL);
+                    if (!service && os::error() == ERROR_SERVICE_EXISTS)
+                    {
+                        service = ::OpenServiceW(manager, svcname.data(), SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
+                    }
+
+                    // Run service.
+                    service && ::StartServiceW(service, 0, NULL);
+
+                    // Stop service.
+                    auto service_status = SERVICE_STATUS_PROCESS{};
+                    auto bytes_needed = DWORD{};
+                    if (!service || !::QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&service_status, sizeof(SERVICE_STATUS_PROCESS), &bytes_needed))
+                    {
+                        os::fail("Failed to get service status");
+                    }
+                    else
+                    {
+                        if (service_status.dwCurrentState != SERVICE_STOPPED)
+                        {
+                            if (auto process = ::OpenProcess(SYNCHRONIZE, FALSE, service_status.dwProcessId))
+                            {
+                                if (!process)
+                                {
+                                    os::fail("Failed to get process handle");
+                                }
+                                if (service_status.dwCurrentState != SERVICE_STOP_PENDING)
+                                {
+                                    if (!::ControlService(service, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS)&service_status))
+                                    {
+                                        os::fail("failed to stop service");
+                                    }
+                                }
+                                if (::WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
+                                {
+                                    //os::kill_process(service_status.dwProcessId);
+                                }
+                                os::close(process);
+                            }
+                        }
+                    }
+
+                    // Delete service.
+                    ::DeleteService(service);
+                    ::CloseServiceHandle(service);
+                    ::CloseServiceHandle(manager);
+                    os::close(svcsync);
+                }
+                else
+                {
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
+                    rc = rc && os::nt::runas(ptoken, cmdarg);
+                }
                 os::close(ptoken);
                 auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
-                if (rc) // Success. The fork concept is not supported on Windows.
-                {
-                    os::close(proinf.hProcess);
-                    os::close(proinf.hThread);
-                }
-                else success.reset();
+                if (!rc) success.reset();
 
             #else
 
@@ -2433,6 +2544,41 @@ namespace netxs::os
             else         os::fail("Failed to fork process");
 
             return std::pair{ std::move(success), faux }; // Parent branch.
+        }
+        auto dispatch(auto process_id, auto cmdarg)
+        {
+            #if defined(_WIN32)
+
+                static auto proc_id = utf::to_int(process_id).value();
+                static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
+                static auto svcname = utf::to_utf(utf::concat("vtm ", process_id));
+                static auto starter = [](auto... args)
+                {
+                    auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
+                    auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
+                    auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
+                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
+                    auto ostoken = fd_t{};
+                    auto mytoken = fd_t{};
+                    auto session = DWORD{};
+                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
+                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
+                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
+                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
+                    mytoken && os::nt::runas(mytoken, command);
+                    os::close(mytoken);
+                    os::close(ostoken);
+                    os::close(process);
+                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
+                };
+                static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
+                return !!::StartServiceCtrlDispatcherW(service.data());
+
+            #else
+
+                return true;
+
+            #endif
         }
         void spawn(text cmd, text cwd, text env)
         {
@@ -2846,7 +2992,7 @@ namespace netxs::os
                             //       LocalSystem account, administrators, and the creator owner. They also grant read access to
                             //       members of the Everyone group and the anonymous account.
                             //       Without write access, the desktop will be inaccessible to non-owners.
-                            if (next_waiting_point == os::invalid_fd) os::fail(prompt::meet, "::CreateNamedPipe()", os::unexpected);
+                            if (next_waiting_point == os::invalid_fd) os::fail("::CreateNamedPipe()", os::unexpected);
                         }
                         else if (pipe::active) os::fail(prompt::meet, "Not active");
 
