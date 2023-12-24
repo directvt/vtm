@@ -31,10 +31,17 @@ int main(int argc, char* argv[])
     {
         if (getopt.match("--svc"))
         {
-            auto process_id = getopt.next();
-            params = getopt.rest();
-            auto ok = os::process::dispatch(process_id, params);
-            return ok ? 0 : 1;
+            if (auto process_id = getopt.next())
+            {
+                params = getopt.rest();
+                auto ok = os::process::dispatch(process_id, params);
+                return ok ? 0 : 1;
+            }
+            else
+            {
+                auto ok = os::process::dispatch();
+                return ok ? 0 : 1;
+            }
         }
         else if (getopt.match("-r", "--runapp"))
         {
