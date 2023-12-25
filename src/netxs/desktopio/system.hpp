@@ -973,11 +973,11 @@ namespace netxs::os
                 }
                 else return faux;
             }
-            auto runas(auto ptoken, auto&& cmdarg)
+            auto runas(auto token, auto&& cmdarg)
             {
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto result = ::CreateProcessAsUserW(ptoken,
+                auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
                                                      nullptr,                      // lpProcessAttributes
@@ -995,6 +995,14 @@ namespace netxs::os
                     os::close(proinf.hProcess);
                     os::close(proinf.hThread);
                 }
+                return result;
+            }
+            auto runas(auto&& cmdarg)
+            {
+                auto token = os::invalid_fd;
+                ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                auto result = nt::runas(token, cmdarg);
+                os::close(token);
                 return result;
             }
             auto user()
@@ -1025,6 +1033,26 @@ namespace netxs::os
                     return std::pair{ user_name, user_id };
                 }
                 else return std::pair{ "unknown"s, "unknown"s };
+            }
+            auto session()
+            {
+                auto byte_count = DWORD{};
+                auto session_id = DWORD{};
+                auto proc_token = os::invalid_fd;;
+                ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &proc_token);
+                ::GetTokenInformation(proc_token, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &byte_count);
+                return session_id;
+            }
+            auto connect(auto&& ipcname, auto type, auto& link)
+            {
+                link = ::CreateFileW(ipcname.data(),
+                                     type,            // data access type
+                                     0,               // no sharing
+                                     NULL,            // default security attributes
+                                     OPEN_EXISTING,   // opens existing pipe
+                                     0,               // default attributes
+                                     NULL);           // no template file
+                return link != os::invalid_fd;
             }
         }
 
@@ -2366,112 +2394,36 @@ namespace netxs::os
         }
         auto fork(text prefix, view config)
         {
+            auto msg = [](bool success)
+            {
+                if (success) log(prompt::os, "Process forked");
+                else         os::fail("Failed to fork process");
+            };
+
             #if defined(_WIN32)
 
-                auto ospath = process::memory::ref(prefix);
-                auto handle = process::memory::set(ospath, config);
-                auto params = utf::concat(" --onlylog", " -p ", prefix, " -c :", ospath, " -s");
-                auto ptoken = os::invalid_fd;
-                auto get_si = [&]
+                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(nullptr, &::CloseHandle);
+                auto svclink = os::invalid_fd;
+                if (nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
-                    auto count = DWORD{};
-                    auto session_id = DWORD{};
-                    ::GetTokenInformation(ptoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &count);
-                    return session_id;
-                };
-                auto asksvc = [&] // Ask vtm service to run server in Session 0.
-                {
-                    auto pipe = ::CreateFileW(os::path::ipcname.data(),
-                                              FILE_WRITE_DATA, // only send data access
-                                              0,               // no sharing
-                                              NULL,            // default security attributes
-                                              OPEN_EXISTING,   // opens existing pipe
-                                              0,               // default attributes
-                                              NULL);           // no template file
-                    auto success = pipe != os::invalid_fd;
-                    auto e = os::error();
-                    if (success)
-                    {
-                        io::send(pipe, params);
-                        os::close(pipe);
-                    }
-                    return success;
-                };
-                auto viasvc = [&] // Run server in Session 0 for elevated users.
-                {
-                    return faux;
-                    if (!process::elevated) return faux;
-                    // Create service.
-                    auto proc_id = std::to_string(::GetCurrentProcessId());
-                    auto svcname = utf::to_utf(utf::concat(os::service::name, ' ', proc_id));
-                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + proc_id + params);
-                    auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-                    auto service = ::CreateServiceW(manager,
-                                                    svcname.data(),
-                                                    svcname.data(),
-                                                    SERVICE_ALL_ACCESS,
-                                                    SERVICE_WIN32_OWN_PROCESS,
-                                                    SERVICE_DEMAND_START,
-                                                    SERVICE_ERROR_IGNORE,
-                                                    svcpath.data(),
-                                                    NULL,
-                                                    NULL,
-                                                    NULL,
-                                                    NULL,
-                                                    NULL);
-                    if (!service && os::error() == ERROR_SERVICE_EXISTS)
-                    {
-                        service = ::OpenServiceW(manager, svcname.data(), SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
-                    }
-
-                    // Run service.
-                    service && ::StartServiceW(service, 0, NULL);
-
-                    // Stop service.
-                    auto svcstat = SERVICE_STATUS_PROCESS{};
-                    auto bufflen = DWORD{};
-                    if (!service || !::QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&svcstat, sizeof(SERVICE_STATUS_PROCESS), &bufflen))
-                    {
-                        os::fail("Failed to get service status");
-                    }
-                    else
-                    {
-                        if (svcstat.dwCurrentState != SERVICE_STOPPED)
-                        {
-                            if (svcstat.dwCurrentState != SERVICE_STOP_PENDING)
-                            {
-                                if (!::ControlService(service, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS)&svcstat))
-                                {
-                                    os::fail("Failed to stop service");
-                                }
-                            }
-                            if (auto process = ::OpenProcess(SYNCHRONIZE, FALSE, svcstat.dwProcessId))
-                            {
-                                if (::WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
-                                {
-                                    //os::kill_process(svcstat.dwProcessId);
-                                }
-                                os::close(process);
-                            }
-                            else os::fail("Failed to get process handle");
-                        }
-                    }
-
-                    // Delete service.
-                    ::DeleteService(service);
-                    ::CloseServiceHandle(service);
-                    ::CloseServiceHandle(manager);
-                    return true;
-                };
-                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
-                if (rc && get_si() == 0 || !asksvc() && !viasvc())
-                {
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
-                    rc = rc && os::nt::runas(ptoken, cmdarg);
+                    auto data = utf::concat("0000", prefix, '\0', config);
+                    auto& size = *(reinterpret_cast<ui32*>(data.data()));
+                    size = (ui32)data.size() - 4;
+                    io::send(svclink, data);
+                    //os::close(svclink);
+                    success.reset(svclink);
                 }
-                os::close(ptoken);
-                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
-                if (!rc) success.reset();
+                else
+                {
+                    auto ospath = process::memory::ref(prefix);
+                    auto handle = process::memory::set(ospath, config);
+                    auto params = utf::concat(" -s --onlylog -p ", prefix, " -c :", ospath);
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
+                    if (os::nt::runas(cmdarg)) success.reset(handle); // Do not close until confirmation from the child process is received.
+                    else                       os::close(handle);
+                }
+                msg(!!success);
+                return std::pair{ std::move(success), faux }; // Parent branch.
 
             #else
 
@@ -2497,49 +2449,8 @@ namespace netxs::os
                     ::waitpid(p_id, &stat, 0);
                     success = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
                 }
-
-            #endif
-
-            if (success) log(prompt::os, "Process forked");
-            else         os::fail("Failed to fork process");
-
-            return std::pair{ std::move(success), faux }; // Parent branch.
-        }
-        auto dispatch(auto process_id, auto cmdarg)
-        {
-            #if defined(_WIN32)
-
-                static auto proc_id = utf::to_int(process_id).value();
-                static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
-                static auto svcname = utf::to_utf(utf::concat(os::service::name, ' ', process_id));
-                static auto starter = [](auto... args)
-                {
-                    auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
-                    auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
-                    auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
-                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
-
-                    // Run process.
-                    auto ostoken = fd_t{};
-                    auto mytoken = fd_t{};
-                    auto session = DWORD{};
-                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
-                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
-                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
-                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                    mytoken && os::nt::runas(mytoken, command);
-                    os::close(mytoken);
-                    os::close(ostoken);
-                    os::close(process);
-
-                    manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
-                };
-                static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
-                return !!::StartServiceCtrlDispatcherW(service.data());
-
-            #else
-
-                return true;
+                msg(success);
+                return std::pair{ std::move(success), faux }; // Parent branch.
 
             #endif
         }
@@ -2568,8 +2479,8 @@ namespace netxs::os
                                                    PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE, // dwOpenMode
                                                    PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,         // dwPipeMode
                                                    1,                                                   // nMaxInstances
-                                                   MAX_PATH,                                            // nOutBufferSize
-                                                   MAX_PATH,                                            // nInBufferSize
+                                                   os::pipebuf,                                         // nOutBufferSize
+                                                   os::pipebuf,                                         // nInBufferSize
                                                    0,                                                   // nDefaultTimeOut
                                                    &sa);                                                // lpSecurityAttributes
                     ::LocalFree(sa.lpSecurityDescriptor);
@@ -2608,21 +2519,46 @@ namespace netxs::os
                         auto sync = std::lock_guard{ svcsync };
                         if (running && connected)
                         {
-                            auto argslen = DWORD{};
                             auto proc_id = DWORD{};
                             ::GetNamedPipeClientProcessId(svcpipe, &proc_id);
+                            if (!proc_id) break;
                             auto time = datetime::now();
-                            if (proc_id)
-                            while (::PeekNamedPipe(svcpipe, NULL, NULL, NULL, &argslen, NULL) && !argslen)
+                            auto wait = [&]
                             {
-                                if (datetime::now() - time > 10s) break;
-                                os::sleep(50ms);
-                            }
-                            if (argslen)
+                                auto size = DWORD{};
+                                while (::PeekNamedPipe(svcpipe, NULL, NULL, NULL, &size, NULL) && !size)
+                                {
+                                    if (datetime::now() - time > 10s) break;
+                                    std::this_thread::yield();
+                                }
+                                return size;
+                            };
+                            auto arglen = wait();
+                            if (arglen > sizeof(ui32))
                             {
-                                auto cmdargs = text(argslen, '\0');
-                                io::recv(svcpipe, cmdargs);
-                                auto command = utf::to_utf(os::process::binary() + ' ' + cmdargs);
+                                io::recv(svcpipe, &arglen, sizeof(arglen));
+                                auto params = text(arglen, '\0');
+                                auto buffer = params.data();
+                                if (arglen < ui16max * 16 /*1MB*/)
+                                while (arglen)
+                                {
+                                    auto next = wait();
+                                    if (next == 0) break;
+                                    if (auto crop = io::recv(svcpipe, buffer, arglen))
+                                    {
+                                        auto s = (ui32)crop.size();
+                                        arglen -= s;
+                                        buffer += s;
+                                    }
+                                }
+                                if (arglen) break;
+                                auto blocks = utf::divide(params, '\0');
+                                if (blocks.size() != 2) break;
+                                auto prefix = blocks[0];
+                                auto config = blocks[1];
+                                auto ospath = process::memory::ref(prefix);
+                                auto handle = process::memory::set(ospath, config);
+                                auto command = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", ospath));
 
                                 // Run process.
                                 auto ostoken = fd_t{};
@@ -3258,14 +3194,7 @@ namespace netxs::os
                     {
                         auto pipe = [&](auto& h, auto& path, auto type)
                         {
-                            h = ::CreateFileW(utf::to_utf(path).c_str(),
-                                              type,
-                                              0,             // no sharing
-                                              NULL,          // default security attributes
-                                              OPEN_EXISTING, // opens existing pipe
-                                              0,             // default attributes
-                                              NULL);         // no template file
-                            auto success = h != os::invalid_fd;
+                            auto success = nt::connect(utf::to_utf(path), type, h);
                             if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
                             return success;
                         };
