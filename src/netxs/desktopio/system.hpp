@@ -195,6 +195,30 @@ namespace netxs::os
 
         namespace nt
         {
+            struct acl : SECURITY_ATTRIBUTES
+            {
+                // e.g.: sddl = "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"
+                //  D    DACL
+                //  A    Allow
+                //  GR   FILE_GENERIC_READ
+                //  FW   FILE_WRITE_DATA
+                //  FA   Full Access
+                //  WD   Everyone
+                //  CO   Creator Owner
+                //  BA   Built-in Administrators
+                //  SY   LocalSystem
+                operator SECURITY_ATTRIBUTES* () { return this; }
+                acl(view sddl)
+                    : SECURITY_ATTRIBUTES{ sizeof(SECURITY_ATTRIBUTES) }
+                {
+                    ::ConvertStringSecurityDescriptorToSecurityDescriptorA(sddl.data(), SDDL_REVISION_1, &lpSecurityDescriptor, NULL);
+                }
+               ~acl()
+                {
+                    if (lpSecurityDescriptor) ::LocalFree(lpSecurityDescriptor);
+                }
+            };
+
             auto& get_ntdll()
             {
                 struct refs
@@ -2406,9 +2430,8 @@ namespace netxs::os
                 auto svclink = os::invalid_fd;
                 if (nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
-                    auto data = utf::concat("0000", prefix, '\0', config);
-                    auto& size = *(reinterpret_cast<ui32*>(data.data()));
-                    size = (ui32)data.size() - 4;
+                    auto size = (ui32)(prefix.size() + config.size() + 1);
+                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\0', config);
                     io::send(svclink, data);
                     //os::close(svclink);
                     success.reset(svclink);
@@ -2450,7 +2473,7 @@ namespace netxs::os
                     success = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
                 }
                 msg(success);
-                return std::pair{ std::move(success), faux }; // Parent branch.
+                return std::pair{ success, faux }; // Parent branch.
 
             #endif
         }
@@ -2461,31 +2484,14 @@ namespace netxs::os
                 static auto svcsync = std::mutex{};
                 static auto running = flag{ true };
                 static auto svcname = utf::to_utf(os::service::name);
-                static auto svcpipe = []
-                {
-                    // D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)
-                    //  D    DACL
-                    //  A    Allow
-                    //  GR   FILE_GENERIC_READ
-                    //  FW   FILE_WRITE_DATA
-                    //  WD   Everyone
-                    //  FA   Full Access
-                    //  CO   Creator Owner
-                    //  BA   Built-in Administrators
-                    //  SY   LocalSystem
-                    auto sa = SECURITY_ATTRIBUTES{ .nLength = sizeof(SECURITY_ATTRIBUTES), .bInheritHandle = FALSE };
-                    ::ConvertStringSecurityDescriptorToSecurityDescriptorA("D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)", SDDL_REVISION_1, &sa.lpSecurityDescriptor, NULL);
-                    auto pipe = ::CreateNamedPipeW(os::path::ipcname.data(),                            // lpName
-                                                   PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE, // dwOpenMode
-                                                   PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,         // dwPipeMode
-                                                   1,                                                   // nMaxInstances
-                                                   os::pipebuf,                                         // nOutBufferSize
-                                                   os::pipebuf,                                         // nInBufferSize
-                                                   0,                                                   // nDefaultTimeOut
-                                                   &sa);                                                // lpSecurityAttributes
-                    ::LocalFree(sa.lpSecurityDescriptor);
-                    return pipe;
-                }();
+                static auto svcpipe = ::CreateNamedPipeW(os::path::ipcname.data(),                            // lpName
+                                                         PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE, // dwOpenMode
+                                                         PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,         // dwPipeMode
+                                                         1,                                                   // nMaxInstances
+                                                         os::pipebuf,                                         // nOutBufferSize
+                                                         os::pipebuf,                                         // nInBufferSize
+                                                         0,                                                   // nDefaultTimeOut
+                                                         nt::acl{ "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)" }); // lpSecurityAttributes
                 static auto starter = [](auto... args)
                 {
                     auto svcstat = SERVICE_STATUS
