@@ -1080,6 +1080,8 @@ namespace netxs::os
             }
         }
 
+        auto operator ""_acl(char const* sddl, size_t size) { return nt::acl{ view{ sddl, size } }; }
+
     #else
 
         void fdscleanup() // Close all file descriptors except the standard ones.
@@ -2491,7 +2493,7 @@ namespace netxs::os
                                                          os::pipebuf,                                         // nOutBufferSize
                                                          os::pipebuf,                                         // nInBufferSize
                                                          0,                                                   // nDefaultTimeOut
-                                                         nt::acl{ "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)" }); // lpSecurityAttributes
+                                                         "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"_acl); // lpSecurityAttributes
                 static auto starter = [](auto... args)
                 {
                     auto svcstat = SERVICE_STATUS
