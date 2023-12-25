@@ -508,12 +508,7 @@ namespace netxs::os
                                                 0,
                                                 TRUE,
                                                 DUPLICATE_SAME_ACCESS);
-                    if (ok) return handle_clone;
-                    else
-                    {
-                        log(prompt::os, "Unexpected result when duplicate system object handle, errcode ", os::error());
-                        return os::invalid_fd;
-                    }
+                    return handle_clone;
                 }
                 template<svga Mode>
                 auto attr(cell const& c)
@@ -997,10 +992,62 @@ namespace netxs::os
                 }
                 else return faux;
             }
+            auto user(auto token)
+            {
+                auto rc = true;
+                auto usage = SID_NAME_USE{};
+                auto count = DWORD{};
+                auto chars = LPSTR{};
+                ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
+                auto bytes = text(count, '\0');
+                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
+                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
+                auto name_len = DWORD{};
+                auto domain_len = DWORD{};
+                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
+                auto name   = wide(name_len   ? name_len   - 1 : 0, '\0');
+                auto domain = wide(domain_len ? domain_len - 1 : 0, '\0');
+                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, name.data(), &name_len, domain.data(), &domain_len, &usage);
+                rc = rc && ::ConvertSidToStringSidA(owner.User.Sid, &chars);
+                auto sid = text{ rc ? chars : "" };
+                rc && ::LocalFree(chars);
+                return std::tuple{ rc, name, domain, sid };
+            }
+            auto session(auto token)
+            {
+                auto byte_count = DWORD{};
+                auto session_id = DWORD{};
+                ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &byte_count);
+                return session_id;
+            }
             auto runas(auto token, auto&& cmdarg)
             {
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
+                auto buffer = std::vector<byte>{};
+                auto h_prof = os::invalid_fd;
+                if (nt::session(token) == 0) // Load user profile in case of non-interactive session.
+                {
+                    auto buflen = SIZE_T{ 0 };
+                    auto [rc, username, domain, sid] = nt::user(token);
+                    auto profile_info = PROFILEINFOW{ .dwSize = sizeof(PROFILEINFOW) };
+                    profile_info.lpUserName = username.data();
+                    profile_info.lpServerName = domain.data();
+                    rc = rc && ::LoadUserProfileW(token, &profile_info);
+                    h_prof = nt::console::handle(profile_info.hProfile); // Make handle inheritable.
+                    os::close(profile_info.hProfile);
+                    rc && ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
+                    buffer.resize(buflen);
+                    upinfo.lpAttributeList = rc ? reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(buffer.data()) : nullptr;
+                    rc = rc && ::InitializeProcThreadAttributeList(upinfo.lpAttributeList, 1, 0, &buflen);
+                    rc = rc && ::UpdateProcThreadAttribute(upinfo.lpAttributeList,
+                                                           0,
+                                                           PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                                           &h_prof,
+                                                           sizeof(h_prof),
+                                                           nullptr,
+                                                           nullptr);
+                }
                 auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
@@ -1014,6 +1061,10 @@ namespace netxs::os
                                                      nullptr,                      // lpCurrentDirectory
                                                      &upinfo.StartupInfo,          // lpStartupInfo
                                                      &proinf);                     // lpProcessInformation
+                if (h_prof != os::invalid_fd)
+                {
+                    os::close(h_prof);
+                }
                 if (result) // Close unused process handles.
                 {
                     os::close(proinf.hProcess);
@@ -1032,39 +1083,23 @@ namespace netxs::os
             auto user()
             {
                 auto token = os::invalid_fd;
-                auto usage = SID_NAME_USE{};
-                auto count = DWORD{};
-                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
-                rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, nullptr, 0, &count);
-                auto bytes = text(count, '\0');
-                rc = rc && ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenUser, bytes.data(), count, &count);
+                ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                auto [rc, name, domain, sid] = nt::user(token);
                 os::close(token);
-                auto& owner = *(reinterpret_cast<TOKEN_USER*>(bytes.data()));
-                auto name_len = DWORD{};
-                auto domain_len = DWORD{};
-                rc && ::LookupAccountSidW(nullptr, owner.User.Sid, nullptr, &name_len, nullptr, &domain_len, &usage);
-                auto login = wide(name_len + domain_len, '\0'); // Terminating null in username is going to be '@'.
-                rc = rc && ::LookupAccountSidW(nullptr, owner.User.Sid, login.data(), &name_len, login.data() + name_len, &domain_len, &usage);
-                auto chars = LPSTR{};
-                rc = rc && ::ConvertSidToStringSidA(owner.User.Sid, &chars);
-                auto user_id = text{ rc ? chars : "unknown" };
-                rc && LocalFree(chars);
-                if (rc && login.size() > 1/*excluding terminating null*/)
+                if (rc && name.size())
                 {
-                    login.pop_back();
-                    login[name_len] = '@';
-                    auto user_name = utf::to_low(utf::to_utf(login));
+                    auto user_name = utf::to_low(utf::to_utf(name + L'@' + domain));
+                    auto user_id = sid.empty() ? "unknown"s : sid;
                     return std::pair{ user_name, user_id };
                 }
                 else return std::pair{ "unknown"s, "unknown"s };
             }
             auto session()
             {
-                auto byte_count = DWORD{};
-                auto session_id = DWORD{};
                 auto proc_token = os::invalid_fd;;
                 ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &proc_token);
-                ::GetTokenInformation(proc_token, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &byte_count);
+                auto session_id = nt::session(proc_token);
+                os::close(proc_token);
                 return session_id;
             }
             auto connect(auto&& ipcname, auto type, auto& link)
