@@ -2099,18 +2099,19 @@ namespace netxs::os
             return result;
         }();
 
+        auto started(text prefix)
+        {
+            return "Global\\" + prefix + "_started";
+        }
+
         namespace memory
         {
-            auto ref(text prefix)
-            {
-                return (process::elevated ? "Global\\" : "Local\\") + prefix + "_config";
-            }
-            auto get(text ospath)
+            auto get(text cfpath)
             {
                 auto utf8 = text{};
                 #if defined(_WIN32)
 
-                    if (auto handle = ::OpenFileMappingA(FILE_MAP_READ, FALSE, ospath.c_str()))
+                    if (auto handle = ::OpenFileMappingA(FILE_MAP_READ, FALSE, cfpath.c_str()))
                     {
                         if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
                         {
@@ -2123,12 +2124,12 @@ namespace netxs::os
                 #endif
                 return utf8;
             }
-            auto set(text ospath, view data)
+            auto set(text cfpath, view data)
             {
                 #if defined(_WIN32)
 
                     auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
-                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), ospath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
+                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), cfpath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
                     auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                          ok(buffer, "::MapViewOfFile()", os::unexpected);
                     std::copy(std::begin(source), std::end(source), (char*)buffer);
                     ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
@@ -2420,7 +2421,7 @@ namespace netxs::os
         }
         auto fork(text prefix, view config)
         {
-            auto msg = [](bool success)
+            auto msg = [](auto& success)
             {
                 if (success) log(prompt::os, "Process forked");
                 else         os::fail("Failed to fork process");
@@ -2435,19 +2436,20 @@ namespace netxs::os
                     auto size = (ui32)(prefix.size() + config.size() + 1);
                     auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\0', config);
                     io::send(svclink, data);
-                    //os::close(svclink);
-                    success.reset(svclink);
+                    success.reset(svclink); // Do not close until confirmation from the server process is received.
                 }
                 else
                 {
-                    auto ospath = process::memory::ref(prefix);
-                    auto handle = process::memory::set(ospath, config);
-                    auto params = utf::concat(" -s --onlylog -p ", prefix, " -c :", ospath);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
-                    if (os::nt::runas(cmdarg)) success.reset(handle); // Do not close until confirmation from the child process is received.
-                    else                       os::close(handle);
+                    auto cfpath = utf::concat(prefix, "_config");
+                    auto handle = process::memory::set(cfpath, config);
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                    if (os::nt::runas(cmdarg))
+                    {
+                        success.reset(handle); // Do not close until confirmation from the server process is received.
+                    }
+                    else os::close(handle);
                 }
-                msg(!!success);
+                msg(success);
                 return std::pair{ std::move(success), faux }; // Parent branch.
 
             #else
@@ -2530,6 +2532,7 @@ namespace netxs::os
                             auto proc_id = DWORD{};
                             ::GetNamedPipeClientProcessId(svcpipe, &proc_id);
                             if (!proc_id) break;
+                            //todo multithreaded reading
                             auto time = datetime::now();
                             auto wait = [&]
                             {
@@ -2541,32 +2544,32 @@ namespace netxs::os
                                 }
                                 return size;
                             };
-                            auto arglen = wait();
-                            if (arglen > sizeof(ui32))
+                            auto size = wait();
+                            if (size > sizeof(ui32))
                             {
-                                io::recv(svcpipe, &arglen, sizeof(arglen));
-                                auto params = text(arglen, '\0');
-                                auto buffer = params.data();
-                                if (arglen < ui16max * 16 /*1MB*/)
-                                while (arglen)
+                                io::recv(svcpipe, &size, sizeof(size));
+                                auto data = text(size, '\0');
+                                auto iter = data.data();
+                                if (size < ui16max * 16 /*1MB*/)
+                                while (size)
                                 {
                                     auto next = wait();
                                     if (next == 0) break;
-                                    if (auto crop = io::recv(svcpipe, buffer, arglen))
+                                    if (auto crop = io::recv(svcpipe, iter, size))
                                     {
                                         auto s = (ui32)crop.size();
-                                        arglen -= s;
-                                        buffer += s;
+                                        size -= s;
+                                        iter += s;
                                     }
                                 }
-                                if (arglen) break;
-                                auto blocks = utf::divide(params, '\0');
+                                if (size) break;
+                                auto blocks = utf::divide(data, '\0');
                                 if (blocks.size() != 2) break;
                                 auto prefix = blocks[0];
                                 auto config = blocks[1];
-                                auto ospath = process::memory::ref(prefix);
-                                auto handle = process::memory::set(ospath, config);
-                                auto command = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", ospath));
+                                auto cfpath = utf::concat(prefix, "_config");
+                                auto handle = process::memory::set(cfpath, config);
+                                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
 
                                 // Run process.
                                 auto ostoken = fd_t{};
@@ -2576,10 +2579,14 @@ namespace netxs::os
                                 process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
                                 ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
                                 mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                                mytoken && os::nt::runas(mytoken, command);
+                                mytoken && os::nt::runas(mytoken, cmdarg);
                                 os::close(mytoken);
                                 os::close(ostoken);
                                 os::close(process);
+
+                                // Wait for the client side to close for synchronization.
+                                io::recv(svcpipe, data);
+                                os::close(handle);
                             }
                             ::DisconnectNamedPipe(svcpipe);
                         }

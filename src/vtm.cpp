@@ -263,9 +263,7 @@ int main(int argc, char* argv[])
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto client = os::ipc::socket::open<os::role::client, faux>(prefix, denied);
-
-        auto ospath = os::process::memory::ref(prefix);
-        auto signal = ptr::shared<os::fire>(ospath + "started"); // Signaling that the server is ready for incoming connections.
+        auto signal = ptr::shared<os::fire>(os::process::started(prefix)); // Signaling that the server is ready for incoming connections.
 
              if (denied)                           return failed(code::noaccess);
         else if (whoami != type::client && client) return failed(code::interfer);
