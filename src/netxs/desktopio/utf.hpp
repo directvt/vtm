@@ -1138,8 +1138,8 @@ namespace netxs::utf
             return proc(end);
         }
     }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
-    auto divide(V1 const& utf8, V2 const& delimiter, std::vector<view>& crop)
+    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2, class Vector_qiew>
+    auto divide(V1 const& utf8, V2 const& delimiter, Vector_qiew& crop)
     {
         auto mark = qiew(delimiter);
         if (auto len = mark.size())
@@ -1169,7 +1169,7 @@ namespace netxs::utf
     template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
     auto divide(V1 const& utf8, V2 const& delimiter)
     {
-        auto crop = std::vector<view>{};
+        auto crop = std::vector<qiew>{};
         divide<Dir, SkipEmpty>(utf8, delimiter, crop);
         return crop;
     }

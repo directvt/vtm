@@ -195,6 +195,30 @@ namespace netxs::os
 
         namespace nt
         {
+            struct acl : SECURITY_ATTRIBUTES
+            {
+                // e.g.: sddl = "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"
+                //  D    DACL
+                //  A    Allow
+                //  GR   FILE_GENERIC_READ
+                //  FW   FILE_WRITE_DATA
+                //  FA   Full Access
+                //  WD   Everyone
+                //  CO   Creator Owner
+                //  BA   Built-in Administrators
+                //  SY   LocalSystem
+                operator SECURITY_ATTRIBUTES* () { return this; }
+                acl(view sddl)
+                    : SECURITY_ATTRIBUTES{ sizeof(SECURITY_ATTRIBUTES) }
+                {
+                    ::ConvertStringSecurityDescriptorToSecurityDescriptorA(sddl.data(), SDDL_REVISION_1, &lpSecurityDescriptor, NULL);
+                }
+               ~acl()
+                {
+                    if (lpSecurityDescriptor) ::LocalFree(lpSecurityDescriptor);
+                }
+            };
+
             auto& get_ntdll()
             {
                 struct refs
@@ -973,11 +997,11 @@ namespace netxs::os
                 }
                 else return faux;
             }
-            auto runas(auto ptoken, auto&& cmdarg)
+            auto runas(auto token, auto&& cmdarg)
             {
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
-                auto result = ::CreateProcessAsUserW(ptoken,
+                auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
                                                      nullptr,                      // lpProcessAttributes
@@ -995,6 +1019,14 @@ namespace netxs::os
                     os::close(proinf.hProcess);
                     os::close(proinf.hThread);
                 }
+                return result;
+            }
+            auto runas(auto&& cmdarg)
+            {
+                auto token = os::invalid_fd;
+                ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &token);
+                auto result = nt::runas(token, cmdarg);
+                os::close(token);
                 return result;
             }
             auto user()
@@ -1026,7 +1058,29 @@ namespace netxs::os
                 }
                 else return std::pair{ "unknown"s, "unknown"s };
             }
+            auto session()
+            {
+                auto byte_count = DWORD{};
+                auto session_id = DWORD{};
+                auto proc_token = os::invalid_fd;;
+                ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &proc_token);
+                ::GetTokenInformation(proc_token, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &byte_count);
+                return session_id;
+            }
+            auto connect(auto&& ipcname, auto type, auto& link)
+            {
+                link = ::CreateFileW(ipcname.data(),
+                                     type,            // data access type
+                                     0,               // no sharing
+                                     NULL,            // default security attributes
+                                     OPEN_EXISTING,   // opens existing pipe
+                                     0,               // default attributes
+                                     NULL);           // no template file
+                return link != os::invalid_fd;
+            }
         }
+
+        auto operator ""_acl(char const* sddl, size_t size) { return nt::acl{ view{ sddl, size } }; }
 
     #else
 
@@ -1386,6 +1440,7 @@ namespace netxs::os
     namespace service
     {
         static auto name = "vtm"sv;
+        static auto desc = "Text-based desktop environment."sv;
 
         #if defined(_WIN32)
 
@@ -1779,6 +1834,7 @@ namespace netxs::os
             static const auto pipe_ns = "\\\\.\\pipe\\";
             auto wr_pipe(text name) { return pipe_ns + name + "_w"; }
             auto rd_pipe(text name) { return pipe_ns + name + "_r"; }
+            auto ipcname = utf::to_utf(utf::concat(pipe_ns, os::service::name, "_svclink"));
         #endif
         // os::path: OS settings path.
         static const auto etc = []
@@ -2043,18 +2099,19 @@ namespace netxs::os
             return result;
         }();
 
+        auto started(text prefix)
+        {
+            return "Global\\" + prefix + "_started";
+        }
+
         namespace memory
         {
-            auto ref(text prefix)
-            {
-                return (process::elevated ? "Global\\" : "Local\\") + prefix + "_config";
-            }
-            auto get(text ospath)
+            auto get(text cfpath)
             {
                 auto utf8 = text{};
                 #if defined(_WIN32)
 
-                    if (auto handle = ::OpenFileMappingA(FILE_MAP_READ, FALSE, ospath.c_str()))
+                    if (auto handle = ::OpenFileMappingA(FILE_MAP_READ, FALSE, cfpath.c_str()))
                     {
                         if (auto data = ::MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0))
                         {
@@ -2067,12 +2124,12 @@ namespace netxs::os
                 #endif
                 return utf8;
             }
-            auto set(text ospath, view data)
+            auto set(text cfpath, view data)
             {
                 #if defined(_WIN32)
 
                     auto source = view{ data.data(), data.size() + 1/*trailing null*/ };
-                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), ospath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
+                    auto handle = ::CreateFileMappingA(os::invalid_fd, nullptr, PAGE_READWRITE, 0, (DWORD)source.size(), cfpath.c_str()); ok(handle, "::CreateFileMappingA()", os::unexpected);
                     auto buffer = ::MapViewOfFile(handle, FILE_MAP_WRITE, 0, 0, 0);                                                          ok(buffer, "::MapViewOfFile()", os::unexpected);
                     std::copy(std::begin(source), std::end(source), (char*)buffer);
                     ok(::UnmapViewOfFile(buffer), "::UnmapViewOfFile()", os::unexpected);
@@ -2173,8 +2230,8 @@ namespace netxs::os
             template<class ...Args>
             auto next()
             {
-                return iter != data.end() ? view{ *iter++ }
-                                          : view{};
+                return iter != data.end() ? qiew{ *iter++ }
+                                          : qiew{};
             }
             // args: Return the rest of the command line arguments.
             auto rest()
@@ -2362,156 +2419,38 @@ namespace netxs::os
 
             #endif
         }
-        //todo deprecated
-        template<bool Logs = true, bool Daemon = faux>
-        auto exec(text cmd, text env)
-        {
-            if constexpr (Logs) log(prompt::exec, "'", cmd, "'");
-            #if defined(_WIN32)
-                
-                auto shadow = view{ cmd };
-                auto binary = utf::to_utf(utf::get_token(shadow));
-                auto params = utf::to_utf(shadow);
-                auto ShExecInfo = ::SHELLEXECUTEINFOW{};
-                ShExecInfo.cbSize = sizeof(::SHELLEXECUTEINFOW);
-                ShExecInfo.fMask = SEE_MASK_NOCLOSEPROCESS;
-                ShExecInfo.hwnd = NULL;
-                ShExecInfo.lpVerb = NULL;
-                ShExecInfo.lpFile = binary.c_str();
-                ShExecInfo.lpParameters = params.c_str();
-                ShExecInfo.lpDirectory = NULL;
-                ShExecInfo.nShow = 0;
-                ShExecInfo.hInstApp = NULL;
-                if (::ShellExecuteExW(&ShExecInfo)) return true;
-
-            #else
-
-                auto p_id = os::process::sysfork();
-                if (p_id == 0) // Child branch.
-                {
-                    if constexpr (Daemon)
-                    {
-                        //::umask(0); // Set the file mode creation mask for child process.
-                        os::close(os::stdin_fd );
-                        os::close(os::stdout_fd);
-                        os::close(os::stderr_fd);
-                    }
-                    os::process::execvpe(cmd, env);
-                    auto errcode = errno;
-                    if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
-                    os::process::exit<true>(errcode);
-                }
-                else if (p_id > 0) // Parent branch.
-                {
-                    auto stat = int{};
-                    ::waitpid(p_id, &stat, 0); // Wait for the child to avoid zombies.
-                    if (WIFEXITED(stat) && WEXITSTATUS(stat) == 0)
-                    {
-                        return true; // Child forked and exited successfully.
-                    }
-                }
-
-            #endif
-            if constexpr (Logs) os::fail("%%Failed to spawn '%cmd%'", prompt::exec, cmd);
-            return faux;
-        }
         auto fork(text prefix, view config)
         {
+            auto msg = [](auto& success)
+            {
+                if (success) log(prompt::os, "Process forked");
+                else         os::fail("Failed to fork process");
+            };
+
             #if defined(_WIN32)
 
-                auto ospath = process::memory::ref(prefix);
-                auto handle = process::memory::set(ospath, config);
-                auto params = utf::concat(" --onlylog", " -p ", prefix, " -c :", ospath, " -s");
-                auto ptoken = os::invalid_fd;
-                auto get_si = [&]
+                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(nullptr, &::CloseHandle);
+                auto svclink = os::invalid_fd;
+                if (nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
-                    auto count = DWORD{};
-                    auto session_id = DWORD{};
-                    ::GetTokenInformation(ptoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &count);
-                    return session_id;
-                };
-                auto rc = ::OpenProcessToken(::GetCurrentProcess(), TOKEN_ALL_ACCESS, &ptoken);
-                if (rc && process::elevated && get_si() != 0) // Run server in Session 0 for elevated users.
-                {
-                    // Create service.
-                    auto proc_id = std::to_string(::GetCurrentProcessId());
-                    auto svcname = utf::to_utf("vtm " + proc_id);
-                    auto svcpath = utf::to_utf(os::process::binary() + " --svc " + proc_id + params);
-                    auto mtxname = L"Global\\" + svcname;
-                    auto svcsync = ::CreateMutexW(nullptr, TRUE, mtxname.data());
-                    if (os::error() == ERROR_ALREADY_EXISTS && ::WaitForSingleObject(svcsync, 10000) != WAIT_OBJECT_0)
-                    {
-                        os::fail("Failed to sync service manager");
-                    }
-                    auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
-                    auto service = ::CreateServiceW(manager,
-                                                    svcname.data(),
-                                                    svcname.data(),
-                                                    SERVICE_ALL_ACCESS,
-                                                    SERVICE_WIN32_OWN_PROCESS,
-                                                    SERVICE_DEMAND_START,
-                                                    SERVICE_ERROR_IGNORE,
-                                                    svcpath.data(),
-                                                    NULL,
-                                                    NULL,
-                                                    NULL,
-                                                    NULL,
-                                                    NULL);
-                    if (!service && os::error() == ERROR_SERVICE_EXISTS)
-                    {
-                        service = ::OpenServiceW(manager, svcname.data(), SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
-                    }
-
-                    // Run service.
-                    service && ::StartServiceW(service, 0, NULL);
-
-                    // Stop service.
-                    auto service_status = SERVICE_STATUS_PROCESS{};
-                    auto bytes_needed = DWORD{};
-                    if (!service || !::QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&service_status, sizeof(SERVICE_STATUS_PROCESS), &bytes_needed))
-                    {
-                        os::fail("Failed to get service status");
-                    }
-                    else
-                    {
-                        if (service_status.dwCurrentState != SERVICE_STOPPED)
-                        {
-                            if (auto process = ::OpenProcess(SYNCHRONIZE, FALSE, service_status.dwProcessId))
-                            {
-                                if (!process)
-                                {
-                                    os::fail("Failed to get process handle");
-                                }
-                                if (service_status.dwCurrentState != SERVICE_STOP_PENDING)
-                                {
-                                    if (!::ControlService(service, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS)&service_status))
-                                    {
-                                        os::fail("failed to stop service");
-                                    }
-                                }
-                                if (::WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
-                                {
-                                    //os::kill_process(service_status.dwProcessId);
-                                }
-                                os::close(process);
-                            }
-                        }
-                    }
-
-                    // Delete service.
-                    ::DeleteService(service);
-                    ::CloseServiceHandle(service);
-                    ::CloseServiceHandle(manager);
-                    os::close(svcsync);
+                    auto size = (ui32)(prefix.size() + config.size() + 1);
+                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\0', config);
+                    io::send(svclink, data);
+                    success.reset(svclink); // Do not close until confirmation from the server process is received.
                 }
                 else
                 {
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), params));
-                    rc = rc && os::nt::runas(ptoken, cmdarg);
+                    auto cfpath = utf::concat(prefix, "_config");
+                    auto handle = process::memory::set(cfpath, config);
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                    if (os::nt::runas(cmdarg))
+                    {
+                        success.reset(handle); // Do not close until confirmation from the server process is received.
+                    }
+                    else os::close(handle);
                 }
-                os::close(ptoken);
-                auto success = std::unique_ptr<std::remove_pointer<fd_t>::type, decltype(&::CloseHandle)>(handle, &::CloseHandle); // Do not close until confirmation from the child process is received.
-                if (!rc) success.reset();
+                msg(success);
+                return std::pair{ std::move(success), faux }; // Parent branch.
 
             #else
 
@@ -2537,42 +2476,117 @@ namespace netxs::os
                     ::waitpid(p_id, &stat, 0);
                     success = WIFEXITED(stat) && WEXITSTATUS(stat) == 0;
                 }
+                msg(success);
+                return std::pair{ success, faux }; // Parent branch.
 
             #endif
-
-            if (success) log(prompt::os, "Process forked");
-            else         os::fail("Failed to fork process");
-
-            return std::pair{ std::move(success), faux }; // Parent branch.
         }
-        auto dispatch(auto process_id, auto cmdarg)
+        auto dispatch()
         {
             #if defined(_WIN32)
 
-                static auto proc_id = utf::to_int(process_id).value();
-                static auto command = utf::to_utf(os::process::binary() + ' ' + cmdarg);
-                static auto svcname = utf::to_utf(utf::concat("vtm ", process_id));
+                static auto svcsync = std::mutex{};
+                static auto running = flag{ true };
+                static auto svcname = utf::to_utf(os::service::name);
+                static auto newpipe = [](auto first){ return ::CreateNamedPipeW(os::path::ipcname.data(),                  // lpName
+                                                        PIPE_ACCESS_INBOUND | (first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0), // dwOpenMode
+                                                        PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,                       // dwPipeMode
+                                                        PIPE_UNLIMITED_INSTANCES,                                          // nMaxInstances
+                                                        os::pipebuf,                                                       // nOutBufferSize
+                                                        os::pipebuf,                                                       // nInBufferSize
+                                                        0,                                                                 // nDefaultTimeOut
+                                                        "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"_acl); };    // lpSecurityAttributes
+                static auto svcpipe = newpipe(true);
                 static auto starter = [](auto... args)
                 {
-                    auto svcstat = SERVICE_STATUS{ .dwServiceType = SERVICE_WIN32_OWN_PROCESS, .dwControlsAccepted = SERVICE_ACCEPT_STOP };
-                    auto handler = [](auto... args) { return DWORD{ NO_ERROR }; };
+                    auto svcstat = SERVICE_STATUS
+                    {
+                        .dwServiceType = SERVICE_WIN32_OWN_PROCESS,
+                        .dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PRESHUTDOWN
+                    };
+                    auto handler = [](DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext)
+                    {
+                        switch (dwControl)
+                        {
+                            case SERVICE_CONTROL_STOP:
+                            case SERVICE_CONTROL_SHUTDOWN:
+                            case SERVICE_CONTROL_PRESHUTDOWN:
+                                if (svcpipe != os::invalid_fd)
+                                {
+                                    auto sync = std::lock_guard{ svcsync };
+                                    running.exchange(faux);
+                                    ::DeleteFileW(os::path::ipcname.data()); // Interrupt ::ConnectNamedPipe().
+                                }
+                                break;
+                            default: break;
+                        }
+                        return DWORD{ NO_ERROR };
+                    };
                     auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
                     manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
-                    auto ostoken = fd_t{};
-                    auto mytoken = fd_t{};
-                    auto session = DWORD{};
-                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
-                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
-                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
-                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                    mytoken && os::nt::runas(mytoken, command);
-                    os::close(mytoken);
-                    os::close(ostoken);
-                    os::close(process);
+                    auto threads = netxs::generics::pool{};
+                    while (true)
+                    {
+                        auto connected = ::ConnectNamedPipe(svcpipe, NULL) || os::error() == ERROR_PIPE_CONNECTED;
+                        auto lockguard = std::lock_guard{ svcsync };
+                        if (!running || !connected) break;
+                        threads.run([link = svcpipe](auto task_id)
+                        {
+                            auto size = ui32{};
+                            auto process_id = DWORD{};
+                            ::GetNamedPipeClientProcessId(link, &process_id);
+                            if (process_id
+                             && io::recv(link, &size, sizeof(size))
+                             && size < ui16max * 16 /*1MB*/)
+                            {
+                                auto data = text(size, '\0');
+                                auto iter = data.data();
+                                while (size)
+                                {
+                                    if (auto crop = io::recv(link, iter, size))
+                                    {
+                                        auto s = (ui32)crop.size();
+                                        size -= s;
+                                        iter += s;
+                                    }
+                                    else break;
+                                }
+                                if (size == 0)
+                                if (auto blocks = utf::divide(data, '\0'); blocks.size() == 2)
+                                {
+                                    auto prefix = blocks[0];
+                                    auto config = blocks[1];
+                                    auto cfpath = utf::concat(prefix, "_config");
+                                    auto handle = process::memory::set(cfpath, config);
+                                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                                    // Run server process.
+                                    auto ostoken = fd_t{};
+                                    auto mytoken = fd_t{};
+                                    auto session = DWORD{};
+                                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, process_id);
+                                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
+                                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
+                                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
+                                    mytoken && os::nt::runas(mytoken, cmdarg);
+                                    os::close(mytoken);
+                                    os::close(ostoken);
+                                    os::close(process);
+                                    // Wait for the client side to close for synchronization.
+                                    io::recv(link, data);
+                                    os::close(handle);
+                                }
+                            }
+                            os::close(link);
+                        });
+                        svcpipe = newpipe(faux);
+                    }
+                    threads.stop();
                     manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
                 };
                 static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
-                return !!::StartServiceCtrlDispatcherW(service.data());
+                auto ok = !!::StartServiceCtrlDispatcherW(service.data());
+                os::close(svcpipe);
+                return ok;
 
             #else
 
@@ -2637,6 +2651,45 @@ namespace netxs::os
             auto code = std::error_code{};
             auto remove = [&]
             {
+                #if defined(_WIN32)
+
+                    // Delete service.
+                    auto svcname = utf::to_utf(os::service::name);
+                    auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+                    auto service = ::OpenServiceW(manager, svcname.data(), SERVICE_ALL_ACCESS);
+                    // Stop service.
+                    auto svcstat = SERVICE_STATUS_PROCESS{};
+                    auto bufflen = DWORD{};
+                    if (service && ::QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (LPBYTE)&svcstat, sizeof(SERVICE_STATUS_PROCESS), &bufflen))
+                    {
+                        if (svcstat.dwCurrentState != SERVICE_STOPPED)
+                        {
+                            if (svcstat.dwCurrentState != SERVICE_STOP_PENDING)
+                            {
+                                if (!::ControlService(service, SERVICE_CONTROL_STOP, (LPSERVICE_STATUS)&svcstat))
+                                {
+                                    os::fail("Failed to stop service");
+                                }
+                            }
+                            if (auto process = ::OpenProcess(SYNCHRONIZE, FALSE, svcstat.dwProcessId))
+                            {
+                                if (::WaitForSingleObject(process, 10000) != WAIT_OBJECT_0)
+                                {
+                                    //os::kill_process(svcstat.dwProcessId);
+                                }
+                                os::close(process);
+                            }
+                            else os::fail("Failed to get process handle");
+                        }
+                    }
+
+                    // Delete service.
+                    ::DeleteService(service);
+                    ::CloseServiceHandle(service);
+                    ::CloseServiceHandle(manager);
+
+                #endif
+
                 if (!fs::exists(dest, code)) return true;
                 auto done = fs::remove(dest, code);
                 if (done) log("File '%file%' has been removed.", dest.string());
@@ -2676,8 +2729,44 @@ namespace netxs::os
             auto copy = [&]()
             {
                 auto done = fs::copy_file(file, dest, code);
-                if (done) log("Process image has been copied to '%path%'.", dest.string());
-                else      log("Failed to copy process image to '%path%'.", dest.string());
+                if (done)
+                {
+                    log("Process image has been copied to '%path%'.", dest.string());
+                    #if defined(_WIN32)
+
+                        // Create service.
+                        auto svcname = utf::to_utf(os::service::name);
+                        auto svcdesc = utf::to_utf(os::service::desc);
+                        auto svcpath = utf::to_utf(dest.string() + " --svc");
+                        auto manager = ::OpenSCManagerW(NULL, NULL, SC_MANAGER_CREATE_SERVICE);
+                        auto service = ::CreateServiceW(manager,
+                                                        svcname.data(),
+                                                        svcname.data(),
+                                                        SERVICE_ALL_ACCESS,
+                                                        SERVICE_WIN32_OWN_PROCESS,
+                                                        SERVICE_AUTO_START,
+                                                        SERVICE_ERROR_NORMAL,
+                                                        svcpath.data(),
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL,
+                                                        NULL);
+                        if (!service && os::error() == ERROR_SERVICE_EXISTS) // Should never happen.
+                        {
+                            log("Something went wrong while creating the vtm service.");
+                            service = ::OpenServiceW(manager, svcname.data(), SERVICE_START | SERVICE_STOP | DELETE | SERVICE_QUERY_STATUS);
+                        }
+                        auto desc = SERVICE_DESCRIPTIONW{ .lpDescription = svcdesc.data() };
+                        service && ::ChangeServiceConfig2W(service, SERVICE_CONFIG_DESCRIPTION, &desc);
+                        // Run service.
+                        service && ::StartServiceW(service, 0, NULL);
+                        ::CloseServiceHandle(service);
+                        ::CloseServiceHandle(manager);
+
+                    #endif
+                }
+                else log("Failed to copy process image to '%path%'.", dest.string());
                 return done;
             };
             auto done = getpaths(file, dest) && (fs::equivalent(file, dest, code) || (removefile(dest) && copy()));
@@ -2970,10 +3059,7 @@ namespace netxs::os
 
                     auto next_link = [&](auto& next_waiting_point, auto h, auto path, auto type)
                     {
-                        auto connected = ::ConnectNamedPipe(h, NULL)
-                            ? true
-                            : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
+                        auto connected = ::ConnectNamedPipe(h, NULL) || os::error() == ERROR_PIPE_CONNECTED;
                         if (pipe::active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
@@ -3109,14 +3195,7 @@ namespace netxs::os
                     {
                         auto pipe = [&](auto& h, auto& path, auto type)
                         {
-                            h = ::CreateFileW(utf::to_utf(path).c_str(),
-                                              type,
-                                              0,             // no sharing
-                                              NULL,          // default security attributes
-                                              OPEN_EXISTING, // opens existing pipe
-                                              0,             // default attributes
-                                              NULL);         // no template file
-                            auto success = h != os::invalid_fd;
+                            auto success = nt::connect(utf::to_utf(path), type, h);
                             if (!success && os::error() == ERROR_ACCESS_DENIED) denied = true;
                             return success;
                         };
