@@ -2488,14 +2488,15 @@ namespace netxs::os
                 static auto svcsync = std::mutex{};
                 static auto running = flag{ true };
                 static auto svcname = utf::to_utf(os::service::name);
-                static auto svcpipe = ::CreateNamedPipeW(os::path::ipcname.data(),                            // lpName
-                                                         PIPE_ACCESS_INBOUND | FILE_FLAG_FIRST_PIPE_INSTANCE, // dwOpenMode
-                                                         PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,         // dwPipeMode
-                                                         1,                                                   // nMaxInstances
-                                                         os::pipebuf,                                         // nOutBufferSize
-                                                         os::pipebuf,                                         // nInBufferSize
-                                                         0,                                                   // nDefaultTimeOut
-                                                         "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"_acl); // lpSecurityAttributes
+                static auto newpipe = [](auto first){ return ::CreateNamedPipeW(os::path::ipcname.data(),                  // lpName
+                                                        PIPE_ACCESS_INBOUND | (first ? FILE_FLAG_FIRST_PIPE_INSTANCE : 0), // dwOpenMode
+                                                        PIPE_TYPE_BYTE | PIPE_REJECT_REMOTE_CLIENTS,                       // dwPipeMode
+                                                        PIPE_UNLIMITED_INSTANCES,                                          // nMaxInstances
+                                                        os::pipebuf,                                                       // nOutBufferSize
+                                                        os::pipebuf,                                                       // nInBufferSize
+                                                        0,                                                                 // nDefaultTimeOut
+                                                        "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"_acl); };    // lpSecurityAttributes
+                static auto svcpipe = newpipe(true);
                 static auto starter = [](auto... args)
                 {
                     auto svcstat = SERVICE_STATUS
@@ -2523,75 +2524,63 @@ namespace netxs::os
                     };
                     auto manager = ::RegisterServiceCtrlHandlerExW(svcname.data(), handler, nullptr);
                     manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_RUNNING, &svcstat));
+                    auto threads = netxs::generics::pool{};
                     while (true)
                     {
-                        auto connected = ::ConnectNamedPipe(svcpipe, NULL) ? true : (os::error() == ERROR_PIPE_CONNECTED);
-                        auto sync = std::lock_guard{ svcsync };
-                        if (running && connected)
+                        auto connected = ::ConnectNamedPipe(svcpipe, NULL) || os::error() == ERROR_PIPE_CONNECTED;
+                        auto lockguard = std::lock_guard{ svcsync };
+                        if (!running || !connected) break;
+                        threads.run([link = svcpipe](auto task_id)
                         {
-                            auto proc_id = DWORD{};
-                            ::GetNamedPipeClientProcessId(svcpipe, &proc_id);
-                            if (!proc_id) break;
-                            //todo multithreaded reading
-                            auto time = datetime::now();
-                            auto wait = [&]
+                            auto size = ui32{};
+                            auto process_id = DWORD{};
+                            ::GetNamedPipeClientProcessId(link, &process_id);
+                            if (process_id
+                             && io::recv(link, &size, sizeof(size))
+                             && size < ui16max * 16 /*1MB*/)
                             {
-                                auto size = DWORD{};
-                                while (::PeekNamedPipe(svcpipe, NULL, NULL, NULL, &size, NULL) && !size)
-                                {
-                                    if (datetime::now() - time > 10s) break;
-                                    std::this_thread::yield();
-                                }
-                                return size;
-                            };
-                            auto size = wait();
-                            if (size > sizeof(ui32))
-                            {
-                                io::recv(svcpipe, &size, sizeof(size));
                                 auto data = text(size, '\0');
                                 auto iter = data.data();
-                                if (size < ui16max * 16 /*1MB*/)
                                 while (size)
                                 {
-                                    auto next = wait();
-                                    if (next == 0) break;
-                                    if (auto crop = io::recv(svcpipe, iter, size))
+                                    if (auto crop = io::recv(link, iter, size))
                                     {
                                         auto s = (ui32)crop.size();
                                         size -= s;
                                         iter += s;
                                     }
+                                    else break;
                                 }
-                                if (size) break;
-                                auto blocks = utf::divide(data, '\0');
-                                if (blocks.size() != 2) break;
-                                auto prefix = blocks[0];
-                                auto config = blocks[1];
-                                auto cfpath = utf::concat(prefix, "_config");
-                                auto handle = process::memory::set(cfpath, config);
-                                auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
-
-                                // Run process.
-                                auto ostoken = fd_t{};
-                                auto mytoken = fd_t{};
-                                auto session = DWORD{};
-                                auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, proc_id);
-                                process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
-                                ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
-                                mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                                mytoken && os::nt::runas(mytoken, cmdarg);
-                                os::close(mytoken);
-                                os::close(ostoken);
-                                os::close(process);
-
-                                // Wait for the client side to close for synchronization.
-                                io::recv(svcpipe, data);
-                                os::close(handle);
+                                if (size == 0)
+                                if (auto blocks = utf::divide(data, '\0'); blocks.size() == 2)
+                                {
+                                    auto prefix = blocks[0];
+                                    auto config = blocks[1];
+                                    auto cfpath = utf::concat(prefix, "_config");
+                                    auto handle = process::memory::set(cfpath, config);
+                                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                                    // Run server process.
+                                    auto ostoken = fd_t{};
+                                    auto mytoken = fd_t{};
+                                    auto session = DWORD{};
+                                    auto process = ::OpenProcess(PROCESS_ALL_ACCESS, TRUE, process_id);
+                                    process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
+                                    ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
+                                    mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
+                                    mytoken && os::nt::runas(mytoken, cmdarg);
+                                    os::close(mytoken);
+                                    os::close(ostoken);
+                                    os::close(process);
+                                    // Wait for the client side to close for synchronization.
+                                    io::recv(link, data);
+                                    os::close(handle);
+                                }
                             }
-                            ::DisconnectNamedPipe(svcpipe);
-                        }
-                        else break;
+                            os::close(link);
+                        });
+                        svcpipe = newpipe(faux);
                     }
+                    threads.stop();
                     manager && ::SetServiceStatus(manager, (svcstat.dwCurrentState = SERVICE_STOPPED, &svcstat));
                 };
                 static auto service = std::to_array<SERVICE_TABLE_ENTRYW>({{ .lpServiceName = svcname.data(), .lpServiceProc = starter }, {/*empty terminator*/}});
@@ -3070,10 +3059,7 @@ namespace netxs::os
 
                     auto next_link = [&](auto& next_waiting_point, auto h, auto path, auto type)
                     {
-                        auto connected = ::ConnectNamedPipe(h, NULL)
-                            ? true
-                            : (::GetLastError() == ERROR_PIPE_CONNECTED);
-
+                        auto connected = ::ConnectNamedPipe(h, NULL) || os::error() == ERROR_PIPE_CONNECTED;
                         if (pipe::active && connected) // Recreate the waiting point for the next client.
                         {
                             next_waiting_point =
