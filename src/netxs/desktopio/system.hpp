@@ -1364,6 +1364,7 @@ namespace netxs::os
             static auto queue = std::vector<sigt>{}; // Control event queue.
             static auto cache = std::vector<sigt>{};
             static auto alarm = fire{};
+            static auto leave = flag{};
             static auto fetch = []() -> auto&
             {
                 auto sync = std::lock_guard{ mutex };
@@ -1383,8 +1384,9 @@ namespace netxs::os
             {
                 static auto handler = [](sigt what) // Queue console control events.
                 {
+                    os::signals::leave.exchange(what > os::signals::ctrl_break);
                     place(what);
-                    if (what > os::signals::ctrl_break) // Waiting for process cleanup.
+                    if (os::signals::leave) // Waiting for process cleanup.
                     {
                         os::finalized.wait(faux);
                     }
@@ -3608,6 +3610,7 @@ namespace netxs::os
             auto repair = []
             {
                 #if defined(_WIN32)
+                    if (os::signals::leave) return; // Don't restore when closing the console. (deadlock on Windows 8).
                     ok(::SetConsoleMode(os::stdout_fd,        dtvt::backup.omode), "::SetConsoleMode(omode)", os::unexpected);
                     ok(::SetConsoleMode(os::stdin_fd,         dtvt::backup.imode), "::SetConsoleMode(imode)", os::unexpected);
                     ok(::SetConsoleOutputCP(                  dtvt::backup.opage), "::SetConsoleOutputCP(opage)", os::unexpected);
@@ -5600,6 +5603,7 @@ namespace netxs::os
             //test: os::sleep(2000ms); // Uncomment to test for delayed input events.
 
             #if defined(_WIN32)
+                if (os::signals::leave) return; // Don't restore when closing the console. (deadlock on Windows 8).
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
                 if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
