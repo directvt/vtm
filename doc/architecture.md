@@ -49,8 +49,8 @@ graph TB
 - The regular user and the elevated user are different independent users creating different server sessions.
 - The session allows multiple access in real time.
 - The user can disconnect from the session and reconnect later.
-- Several independent sessions with different names can coexist.
-- Console applications are launched/executed/terminated by the user within the current server session.
+- Sessions with different names can coexist independently.
+- Console applications are launched/terminated by the user within the current server session.
 - Non-DirectVT console application runs a pair of operating system processes: terminal process + application process.
 - The terminal process is a fork of the vtm server session process, running as standalone terminal. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
