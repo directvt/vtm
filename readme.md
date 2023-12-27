@@ -1,4 +1,4 @@
-vtm is a text-based desktop
+vtm is a text-based desktop.
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -27,13 +27,13 @@ vtm is a text-based desktop
 
 # Documentation
 
-- [Architecture and Usage](doc/architecture.md)
-- [Building from Source](doc/build.md)
-- [Command line Options](doc/command-line-options.md)
-- [User Interface](doc/user-interface.md)
+- [Architecture and usage](doc/architecture.md)
+- [Building from source](doc/build.md)
+- [Command-line options](doc/command-line-options.md)
+- [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Desktop Live Panel](doc/panel.md)
-- [Built-in Applications](doc/apps.md)
+- [Built-in applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)
 
 # Feedback
