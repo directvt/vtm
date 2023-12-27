@@ -35,7 +35,3 @@ vtm is a text-based desktop.
 - [Desktop Live Panel](doc/panel.md)
 - [Built-in applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)
-
-# Feedback
-
-If you have questions, encounter unexpected behavior, inconsistent wording/grammar/spelling, or find an option that doesn't work, consider [filing an issue](https://github.com/directvt/vtm/issues/new/choose).
