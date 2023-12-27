@@ -1477,7 +1477,7 @@ namespace netxs::os
     namespace service
     {
         static auto name = "vtm"sv;
-        static auto desc = "Text-based desktop environment."sv;
+        static auto desc = "Text mode desktop."sv;
 
         #if defined(_WIN32)
 
