@@ -294,19 +294,12 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </config>
         </item>
         <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/>
+   <!-- <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/> -->
    <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" Far Manager in its own window "/> -->
    <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" Midnight Commander in its own window "/> -->
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Tiling window manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized        notes=" Desktop region marker "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"   notes=" Settings " winsize=50,15 />
         <item id=Logs       label=Logs         type=DirectVT title="Logs"            param="$0 -q -r term $0 -m" notes=" Log monitor "/>
-   <!-- <item splitter label="demo" notes=" Demo apps                    \n Feel the Desktopio Framework "/> -->
-   <!-- <item id=Gems       label="Gems"       type=DirectVT title="Gems Title"            param="$0 -r gems"       notes=" App Distribution Hub "/> -->
-   <!-- <item id=Text       label="Text"       type=DirectVT title="Text Title"            param="$0 -r text"       notes=" Text Editor "/> -->
-   <!-- <item id=Calc       label="Calc"       type=DirectVT title="Calc Title"            param="$0 -r calc"       notes=" Spreadsheet Calculator "/> -->
-   <!-- <item id=Test       label="Test"       type=DirectVT title="Test Title"            param="$0 -r test"       notes=" Test Page "/> -->
-   <!-- <item id=Truecolor  label="Truecolor"  type=DirectVT title="True Title"            param="$0 -r truecolor"  notes=" Truecolor Test "/> -->
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->

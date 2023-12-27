@@ -237,9 +237,9 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 
 This console mode is activated by the `-r dtvt` option.
 
-Example:
+Example (running `vtm -r term` in dtvt-mode):
 ```
-vtm -r dtvt vtm -r truecolor
+vtm -r dtvt vtm -r term
 ```
 
 # DirectVT Proxy Console with controlling terminal onboard

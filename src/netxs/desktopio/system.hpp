@@ -118,6 +118,7 @@ namespace netxs::os
         using pidt = pid_t;
         using fd_t = int;
         using tios = ::termios;
+        static const auto codepage   = ui32{ 65001 };
         static const auto invalid_fd = fd_t{ -1            };
         static       auto stdin_fd   = fd_t{ STDIN_FILENO  };
         static       auto stdout_fd  = fd_t{ STDOUT_FILENO };
@@ -1478,60 +1479,6 @@ namespace netxs::os
     {
         static auto name = "vtm"sv;
         static auto desc = "Text mode desktop."sv;
-
-        #if defined(_WIN32)
-
-            static auto state = []
-            {
-                static auto status = SERVICE_STATUS{};
-                status.dwServiceType      = SERVICE_WIN32_OWN_PROCESS;
-                status.dwCurrentState     = SERVICE_START_PENDING;
-                status.dwControlsAccepted = SERVICE_ACCEPT_STOP
-                                          | SERVICE_ACCEPT_POWEREVENT
-                                          | SERVICE_ACCEPT_PRESHUTDOWN;
-                auto handler = [](auto dwControl, auto what, auto lpEventData, auto lpContext) // Queue NT service events.
-                {
-                    //os::signals::place(what);
-                    //if (what > os::signals::ctrl_break) // Waiting for process cleanup.
-                    //{
-                    //    os::finalized.wait(faux);
-                    //}
-                    return DWORD{ 1 };
-                };
-                static auto handle = ::RegisterServiceCtrlHandlerExW(utf::to_utf(name).c_str(), handler, nullptr);
-                static auto set_status = [](auto newstatus)
-                {
-                    if (!handle) return;
-                    status.dwWin32ExitCode = 0;
-                    status.dwCurrentState = newstatus;
-                    if (!::SetServiceStatus(handle, &status))
-                    {
-                        auto msg = ansi::add("Error setting service status ");
-                        switch (newstatus)
-                        {
-                            case SERVICE_RUNNING:      msg.add("SERVICE_RUNNING");      break;
-                            case SERVICE_STOPPED:      msg.add("SERVICE_STOPPED");      break;
-                            case SERVICE_STOP_PENDING: msg.add("SERVICE_STOP_PENDING"); break;
-                            default:                   msg.add(newstatus);
-                        }
-                        msg.add(": ", os::error());
-                        //event_report(msg);
-                    }
-                };
-
-                set_status(SERVICE_RUNNING);
-                auto deleter = [](auto*)
-                {
-                    set_status(SERVICE_STOPPED);
-                };
-                return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
-            };
-
-        #else
-
-            //todo implement
-
-        #endif
     }
 
     namespace io

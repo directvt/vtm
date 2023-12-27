@@ -181,9 +181,6 @@ int main(int argc, char* argv[])
             "\n    Term  Terminal emulator (default)"
             "\n    DTVT  DirectVT Proxy Console"
             "\n    XLVT  DTVT with controlling terminal onboard (for OpenSSH interactivity)"
-            "\n    Text  (Demo) Text editor"
-            "\n    Calc  (Demo) Spreadsheet calculator"
-            "\n    Gems  (Demo) Application distribution hub"
             "\n"
             );
     }
@@ -234,15 +231,17 @@ int main(int argc, char* argv[])
              if (shadow.starts_with(app::term::id))      { aclass = app::term::id;      apname = app::term::desc;      }
         else if (shadow.starts_with(app::dtvt::id))      { aclass = app::dtvt::id;      apname = app::dtvt::desc;      }
         else if (shadow.starts_with(app::xlvt::id))      { aclass = app::xlvt::id;      apname = app::xlvt::desc;      }
+        else if (shadow.starts_with(app::xlinkvt::id))   { aclass = app::xlinkvt::id;   apname = app::xlinkvt::desc;   }
+        else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
+        else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
+        #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aclass = app::calc::id;      apname = app::calc::desc;      }
         else if (shadow.starts_with(app::shop::id))      { aclass = app::shop::id;      apname = app::shop::desc;      }
         else if (shadow.starts_with(app::test::id))      { aclass = app::test::id;      apname = app::test::desc;      }
-        else if (shadow.starts_with(app::xlinkvt::id))   { aclass = app::xlinkvt::id;   apname = app::xlinkvt::desc;   }
-        else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
         else if (shadow.starts_with(app::textancy::id))  { aclass = app::textancy::id;  apname = app::textancy::desc;  }
-        else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
         else if (shadow.starts_with(app::settings::id))  { aclass = app::settings::id;  apname = app::settings::desc;  }
         else if (shadow.starts_with(app::truecolor::id)) { aclass = app::truecolor::id; apname = app::truecolor::desc; }
+        #endif
         else if (shadow.starts_with(app::ssh::id))
         {
             params = " "s + params;
