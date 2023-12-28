@@ -411,7 +411,7 @@ namespace netxs::app::desk
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
                 ->branch(ver_label)
-                ->plugin<pro::notes>(" About ")
+                ->template plugin<pro::notes>(" About ")
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (appid, label, title))

@@ -313,6 +313,7 @@ int main(int argc, char* argv[])
             }
         }
         
+        os::ipc::prefix = prefix;
         auto server = os::ipc::socket::open<os::role::server>(prefix, denied);
         if (!server)
         {

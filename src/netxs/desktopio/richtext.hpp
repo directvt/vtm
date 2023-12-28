@@ -415,6 +415,10 @@ namespace netxs::ui
         {
             reset(canvas.pagerect.coor);
         }
+        void reset(flow const& canvas, twod offset)
+        {
+            reset(canvas.pagerect.coor + offset);
+        }
         void set_style(deco const& new_style)
         {
             runstyle = new_style;

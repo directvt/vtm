@@ -638,61 +638,25 @@ namespace netxs::app::shared
             auto highlight_color = skin::color(tone::highlight);
             auto c1 = danger_color;
             auto c3 = highlight_color;
+            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto b1 = bluelt;
 
-            auto appstore_head =
-                ansi::nil().mgl(2).mgr(2)
-                .bld(true).fgc(whitelt).jet(bias::left).wrp(wrap::on)
-                .add("vtm").bld(faux).add("\n");
-            auto appstore_body = std::list<view>
-            {
-R"==(
-  Desktop
-
-          Owner: user@host
-    Connections: 1
-     Frame rate: 60fps
-         Uptime: 10 min
-)==",
-R"==(
-  System
-
-            OS: Windows/macOS/Linux/BSD
-           CPU: x86
-      Elevated: os::process::elevated ? yes : no
-       Process: /binary/path/vtm
-          Pipe: vtm_....
-      Codepage: 65001
-    Evironment:
-      ------------
-      list
-      ------------
-    Configuration:
-      ------------
-      list
-      ------------
-)==",
-            };
-            auto notes = ansi::nil().eol()
-                .mgl(2).mgr(3).wrp(wrap::off)
-                .fgc(bluedk).jet(bias::right)
-                //.bgc(bluedk).fgc(0xFFFFFFFF)
-                .add("https://github.com/directvt/vtm").eol();
-            auto window = ui::cake::ctor();
-            window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->colors(whitelt, 0x60000000)
-                  ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
-                  ->plugin<pro::cache>()
-                  ->invoke([](auto& boss)
-                  {
-                        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                        {
-                            boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
-                        };
-                  });
+            auto notes = ansi::nil().mgl(2).mgr(2).wrp(wrap::off).fgc(whitedk).jet(bias::right)
+                .add(app::shared::repository);
+            auto window = ui::cake::ctor()
+                ->plugin<pro::acryl>()
+                ->plugin<pro::cache>()
+                ->colors(whitedk, 0x30000000)
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                    };
+                });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto version = "vtm "s + app::shared::version;
+            auto version = ansi::fgc(b1).add("▀▄").fgc().add("  vtm");
             auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
             menu::list
             {
@@ -711,22 +675,78 @@ R"==(
                 }},
             });
             auto menu_object = object->attach(slot::_1, menu_block);
-            auto layers = object->attach(slot::_2, ui::cake::ctor());
+            auto inside = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+            auto layers = inside->attach(slot::_1, ui::cake::ctor());
             auto scroll = layers->attach(ui::rail::ctor())
                                 ->active()
                                 ->colors(whitedk, 0xFF0f0f0f)
                                 ->limits({ -1,-1 }, { -1,-1 });
+            static auto update = []
+            {
+                auto [days, hours, mins, secs] = datetime::breakdown(datetime::now() - os::process::id.second);
+                auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
+                            + (hours ? std::to_string(hours) + "h " : ""s)
+                            + (mins  ? std::to_string(mins)  + "m " : ""s)
+                            + (        std::to_string(secs)  + "s");
+                return std::list<text>
+                {
+                    utf::fprint("%%"
+                        "\nDesktop"
+                         "\n"
+                        "\n     Owner: %user@host%"
+                        "\n   Session: %pipe%"
+                        "\n     Users: %count%"
+                        "\n    Uptime: %uptime%",
+                        ansi::wrp(wrap::off),
+                        os::env::user().first,
+                        utf::debase<faux, faux>(os::ipc::prefix),
+                        os::ipc::count,
+                        uptime),
+                    utf::fprint("%%"
+                        "\nSystem"
+                        "\n"
+                        "\n        OS: %os%"
+                        "\n       CPU: %arch%"
+                        "\n   Process: %binary%"
+                        "\n       PID: %pid%"
+                        "\n  Elevated: %level%",
+                        ansi::wrp(wrap::off),
+                        os::platform.first,
+                        os::platform.second,
+                        os::process::binary(),
+                        os::process::id.first,
+                        os::process::elevated ? "Yes" : "No"),
+                };
+            };
+            auto body = update();
             auto items = scroll->attach(ui::list::ctor());
-            for (auto& body : appstore_body) items->attach(ui::post::ctor())
-                                                    ->upload(body)
-                                                    ->active()
-                                                    ->plugin<pro::focus>()
-                                                    ->plugin<pro::grade>()
-                                                    ->shader(cell::shaders::xlight, e2::form::state::hover)
-                                                    ->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
-            items->attach(ui::post::ctor())
-                    ->upload(notes)
-                    ->plugin<pro::grade>();
+            for (auto& item : body)
+            {
+                items->attach(ui::post::ctor())
+                    ->setpad({ 2, 2, 0, 2})
+                    ->upload(item, -1)
+                    ->active()
+                    ->template plugin<pro::focus>()
+                    ->template plugin<pro::grade>()
+                    ->shader(cell::shaders::xlight, e2::form::state::hover);
+                    //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
+            }
+            items->invoke([](auto& boss)
+            {
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
+                {
+                    auto body = update();
+                    auto iter = body.begin();
+                    for (auto& rec : boss.base::subset)
+                    {
+                        auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
+                        rec_ptr->upload(*iter++, -1);
+                    }
+                };
+            });
+            inside->attach(slot::_2, ui::post::ctor())
+                ->limits({ -1, 1 })
+                ->upload(notes);
             layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };

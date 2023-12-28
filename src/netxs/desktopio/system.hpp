@@ -118,7 +118,6 @@ namespace netxs::os
         using pidt = pid_t;
         using fd_t = int;
         using tios = ::termios;
-        static const auto codepage   = ui32{ 65001 };
         static const auto invalid_fd = fd_t{ -1            };
         static       auto stdin_fd   = fd_t{ STDIN_FILENO  };
         static       auto stdout_fd  = fd_t{ STDOUT_FILENO };
@@ -1117,9 +1116,34 @@ namespace netxs::os
         }
 
         auto operator ""_acl(char const* sddl, size_t size) { return nt::acl{ view{ sddl, size } }; }
+        static const auto platform = []
+        {
+            auto info = SYSTEM_INFO{};
+            ::GetSystemInfo(&info);
+            auto arch = nt::is_wow64() ? "WoW64 "s
+                : info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? "Intel "s
+                : info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM   ? "ARM "s
+                : ""s;
+            arch += sizeof(size_t) == 4 ? "32-bit" : "64-bit";
+            return std::pair{ "Windows"s, arch };
+        }();
 
     #else
 
+        static const auto platform = []
+        {
+            #if defined(__APPLE__)
+            auto platform = "macOS"s;
+            #elif defined(__linux__)
+            auto platform = "Linux"s;
+            #elif defined(__BSD__)
+            auto platform = "BSD"s;
+            #else
+            auto platform = "Unix"s;
+            #endif
+            auto arch = sizeof(size_t) == 4 ? "32-bit" : "64-bit";
+            return std::pair{ platform, arch };
+        }();
         void fdscleanup() // Close all file descriptors except the standard ones.
         {
             auto maxfd = ::sysconf(_SC_OPEN_MAX);
@@ -2760,6 +2784,9 @@ namespace netxs::os
 
     namespace ipc
     {
+        static auto prefix = text{};
+        static auto count = size_t{};
+
         struct stdcon : pipe
         {
             sock handle; // ipc::stdcon: IO descriptor.
