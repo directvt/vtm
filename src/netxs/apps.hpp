@@ -644,6 +644,7 @@ namespace netxs::app::shared
             auto notes = ansi::nil().mgl(2).mgr(2).wrp(wrap::off).fgc(whitedk).jet(bias::right)
                 .add(app::shared::repository);
             auto window = ui::cake::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->colors(whitedk, 0x30000000)
@@ -681,7 +682,7 @@ namespace netxs::app::shared
                                 ->active()
                                 ->colors(whitedk, 0xFF0f0f0f)
                                 ->limits({ -1,-1 }, { -1,-1 });
-            static auto update = []
+            static auto data = []
             {
                 auto [days, hours, mins, secs] = datetime::breakdown(datetime::now() - os::process::id.second);
                 auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
@@ -718,7 +719,17 @@ namespace netxs::app::shared
                         os::process::elevated ? "Yes" : "No"),
                 };
             };
-            auto body = update();
+            static auto update = [](auto& boss)
+            {
+                auto body = data();
+                auto iter = body.begin();
+                for (auto& rec : boss.base::subset)
+                {
+                    auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
+                    rec_ptr->upload(*iter++, -1);
+                }
+            };
+            auto body = data();
             auto items = scroll->attach(ui::list::ctor());
             for (auto& item : body)
             {
@@ -735,13 +746,23 @@ namespace netxs::app::shared
             {
                 boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
                 {
-                    auto body = update();
-                    auto iter = body.begin();
-                    for (auto& rec : boss.base::subset)
+                    update(boss);
+                };
+            });
+            window->invoke([&](auto& boss)
+            {
+                auto& items_inst = *items;
+                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear)
+                {
+                    if (!gear.keybd::pressed) return;
+                    if (gear.chord(input::key::F10)
+                     || gear.chord(input::key::Enter)
+                     || gear.chord(input::key::Esc))
                     {
-                        auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
-                        rec_ptr->upload(*iter++, -1);
+                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                        gear.set_handled(true);
                     }
+                    else update(items_inst);
                 };
             });
             inside->attach(slot::_2, ui::post::ctor())
