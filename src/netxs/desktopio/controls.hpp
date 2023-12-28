@@ -2934,11 +2934,13 @@ namespace netxs::ui
         twod square; // post: Page area.
         text source; // post: Text source.
         bool beyond; // post: Allow vertical scrolling beyond the last line.
+        bool recent; // post: Paragraphs are not aligned.
 
     protected:
         postfx(bool scroll_beyond = faux)
             :   flow{ square        },
-              beyond{ scroll_beyond }
+              beyond{ scroll_beyond },
+              recent{               }
         {
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
@@ -2952,18 +2954,28 @@ namespace netxs::ui
         void deform(rect& new_area) override
         {
             square = new_area.size;
-            auto entry = topic.lookup(base::anchor);
             flow::reset();
-            auto publish = [&](auto& combo)
+            if (recent) // Update new paragraph's coords before resize.
             {
-                combo.coord = flow::print(combo);
-                if (combo.id() == entry.id) entry.coor.y -= combo.coord.y;
-            };
-            topic.stream(publish);
-
-            // Apply only vertical anchoring for this type of control.
-            base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
-
+                auto publish = [&](auto& combo)
+                {
+                    combo.coord = flow::print(combo);
+                };
+                topic.stream(publish);
+                recent = faux;
+            }
+            else // Sync anchor.
+            {
+                auto entry = topic.lookup(base::anchor);
+                auto publish = [&](auto& combo)
+                {
+                    combo.coord = flow::print(combo);
+                    if (combo.id() == entry.id) entry.coor.y -= combo.coord.y;
+                };
+                topic.stream(publish);
+                // Apply only vertical anchoring for this type of control.
+                base::anchor.y -= entry.coor.y; // Move the central point accordingly to the anchored object
+            }
             auto& cover = flow::minmax();
             //todo move it to flow
             base::oversz = { -std::min(0, cover.l),
@@ -2995,14 +3007,15 @@ namespace netxs::ui
         // post: .
         auto upload(view utf8, si32 initial_width = 0) // Don't use cell link id here. Apply it to the parent (with a whole rect coverage).
         {
+            recent = true;
             source = utf8;
             topic = utf8;
             if (initial_width < 0)
             {
-                base::limits({ topic.limits().x + base::intpad.l + base::intpad.r, -1 });
-                initial_width = 0;
+                initial_width = topic.limits().x + base::intpad.l + base::intpad.r;
+                base::limits({ initial_width, -1 });
             }
-            base::resize(twod{ initial_width, 0 } + base::intpad);
+            base::resize(twod{ initial_width, 0 });
             base::reflow();
             return this->This();
         }

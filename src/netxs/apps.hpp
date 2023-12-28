@@ -3,9 +3,9 @@
 
 #pragma once
 
-namespace netxs::app::about
+namespace netxs::app::info
 {
-    static constexpr auto id = "about";
+    static constexpr auto id = "info";
 }
 namespace netxs::app::ssh
 {
@@ -630,7 +630,7 @@ namespace netxs::app::shared
             args += os::env::shell(param);
             return build_DirectVT(env, cwd, args, config, patch);
         };
-        auto build_About         = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_Info          = [](text env, text cwd, text param, xmls& config, text patch)
         {
             using namespace app::shared;
 
@@ -693,7 +693,7 @@ namespace netxs::app::shared
                 {
                     utf::fprint("%%"
                         "\nDesktop"
-                         "\n"
+                        "\n"
                         "\n     Owner: %user@host%"
                         "\n   Session: %pipe%"
                         "\n     Users: %count%"
@@ -782,6 +782,6 @@ namespace netxs::app::shared
         app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
         app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
-        app::shared::initialize builder_About     { app::about::id    , build_About      };
+        app::shared::initialize builder_Info      { app::info::id     , build_Info       };
     }
 }

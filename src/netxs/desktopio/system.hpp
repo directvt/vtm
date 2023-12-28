@@ -5596,7 +5596,7 @@ namespace netxs::os
                     {
                         if (!(dtvt::vtmode & ui::console::nt16) && s != dtvt::consize()) // wt issue GH #16231
                         {
-                            std::cout << prompt::os << ansi::err("Terminal is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
+                            std::cout << prompt::os << ansi::err("Terminal size is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
                         }
                     }
                 }
