@@ -51,6 +51,7 @@
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>      // ::splice()
+    #include <pwd.h>        // ::getpwuid()
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
@@ -1827,9 +1828,9 @@ namespace netxs::os
 
                 uid_t id;
                 id = ::geteuid();
-                //todo user + id
-                auto user_name = utf::concat(id);
-                auto user_id = user_name;
+                auto pwuid = ::getpwuid(id);
+                auto user_id = utf::concat(id);
+                auto user_name =  pwuid ? pwuid->pw_name : user_id;
                 return std::pair{ user_name, user_id };
 
             #endif
