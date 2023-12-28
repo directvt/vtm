@@ -1826,12 +1826,11 @@ namespace netxs::os
 
             #else
 
-                uid_t id;
-                id = ::geteuid();
-                auto pwuid = ::getpwuid(id);
-                auto user_id = utf::concat(id);
-                auto user_name =  pwuid ? pwuid->pw_name : user_id;
-                return std::pair{ user_name, user_id };
+                auto usrid = ::geteuid();
+                auto pwuid = ::getpwuid(usrid);
+                auto strid = utf::concat(usrid);
+                auto login = pwuid ? pwuid->pw_name : strid;
+                return std::pair{ login, strid };
 
             #endif
         }
