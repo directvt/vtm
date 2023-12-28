@@ -1878,6 +1878,7 @@ namespace netxs::app::vtm
             auto user = base::create<gate>(client, userid, vtmode, config, session_id);
             users.append(user);
             dbase.append(user);
+            os::ipc::users = users.size();
             user->SIGNAL(tier::release, e2::form::upon::vtree::attached, base::This());
             this->SIGNAL(tier::release, desk::events::usrs, dbase.usrs_ptr);
             user->LISTEN(tier::release, e2::conio::winsz, new_size, -)
@@ -1899,6 +1900,7 @@ namespace netxs::app::vtm
             auto& inst = *item_ptr;
             host::denote(items.remove(inst.id));
             auto block = users.remove(inst.id);
+            os::ipc::users = users.size();
             if (block) // Save user's viewport last position.
             {
                 host::denote(block);

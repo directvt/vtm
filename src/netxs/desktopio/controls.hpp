@@ -2997,6 +2997,11 @@ namespace netxs::ui
         {
             source = utf8;
             topic = utf8;
+            if (initial_width < 0)
+            {
+                base::limits({ topic.limits().x + base::intpad.l + base::intpad.r, -1 });
+                initial_width = 0;
+            }
             base::resize(twod{ initial_width, 0 } + base::intpad);
             base::reflow();
             return this->This();
@@ -3009,7 +3014,7 @@ namespace netxs::ui
         // post: .
         void output(face& canvas)
         {
-            flow::reset(canvas);
+            flow::reset(canvas, base::intpad.corner());
             auto publish = [&](auto const& combo)
             {
                 flow::print(combo, canvas, fx);

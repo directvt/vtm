@@ -400,7 +400,7 @@ namespace netxs::app::desk
             }
             return apps;
         };
-        auto background = [](text param)
+        auto background = [](auto appid, auto label, auto title)
         {
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
@@ -411,14 +411,10 @@ namespace netxs::app::desk
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
                 ->branch(ver_label)
-                ->plugin<pro::notes>(" About ")
+                ->template plugin<pro::notes>(" About ")
                 ->invoke([&](auto& boss)
                 {
-                    auto data = utf::divide(param, ";");
-                    auto aptype = text{ data.size() > 0 ? data[0] : view{} };
-                    auto menuid = text{ data.size() > 1 ? data[1] : view{} };
-                    auto params = text{ data.size() > 2 ? data[2] : view{} };
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (aptype, menuid, params))
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (appid, label, title))
                     {
                         static auto offset = dot_00;
                         auto& gate = gear.owner;
@@ -433,6 +429,7 @@ namespace netxs::app::desk
                         auto& menu_list = *menu_list_ptr;
                         auto& conf_list = *conf_list_ptr;
 
+                        auto menuid = label;
                         if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
                         {
                             auto i = 1;
@@ -442,10 +439,10 @@ namespace netxs::app::desk
                             std::swap(testid, menuid);
                         }
                         auto& m = conf_list[menuid];
-                        m.type = aptype;
-                        m.label = menuid;
-                        m.title = menuid; // Use the same title as the menu label.
-                        m.param = params;
+                        m.type = appid;
+                        m.label = label;
+                        m.title = title;
+                        m.param = {};
                         m.hidden = true;
                         menu_list[menuid];
 
@@ -550,7 +547,10 @@ namespace netxs::app::desk
 
             window->invoke([&, menu_selected](auto& boss) mutable
             {
-                auto ground = background("gems;Demo;"); // It can't be a child - it has exclusive rendering (first of all).
+                auto appid = "about"s;
+                auto label = "About"s;
+                auto title = ansi::jet(bias::right).add(label);
+                auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
                 {
                     if (!parent_ptr) return;

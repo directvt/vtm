@@ -51,6 +51,7 @@
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>      // ::splice()
+    #include <pwd.h>        // ::getpwuid()
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
@@ -1116,9 +1117,34 @@ namespace netxs::os
         }
 
         auto operator ""_acl(char const* sddl, size_t size) { return nt::acl{ view{ sddl, size } }; }
+        static const auto platform = []
+        {
+            auto info = SYSTEM_INFO{};
+            ::GetSystemInfo(&info);
+            auto arch = nt::is_wow64() ? "WoW64 "s
+                : info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_INTEL ? "Intel "s
+                : info.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_ARM   ? "ARM "s
+                : ""s;
+            arch += sizeof(size_t) == 4 ? "32-bit" : "64-bit";
+            return std::pair{ "Windows"s, arch };
+        }();
 
     #else
 
+        static const auto platform = []
+        {
+            #if defined(__APPLE__)
+            auto platform = "macOS"s;
+            #elif defined(__linux__)
+            auto platform = "Linux"s;
+            #elif defined(__BSD__)
+            auto platform = "BSD"s;
+            #else
+            auto platform = "Unix"s;
+            #endif
+            auto arch = sizeof(size_t) == 4 ? "32-bit" : "64-bit";
+            return std::pair{ platform, arch };
+        }();
         void fdscleanup() // Close all file descriptors except the standard ones.
         {
             auto maxfd = ::sysconf(_SC_OPEN_MAX);
@@ -1477,61 +1503,7 @@ namespace netxs::os
     namespace service
     {
         static auto name = "vtm"sv;
-        static auto desc = "Text-based desktop environment."sv;
-
-        #if defined(_WIN32)
-
-            static auto state = []
-            {
-                static auto status = SERVICE_STATUS{};
-                status.dwServiceType      = SERVICE_WIN32_OWN_PROCESS;
-                status.dwCurrentState     = SERVICE_START_PENDING;
-                status.dwControlsAccepted = SERVICE_ACCEPT_STOP
-                                          | SERVICE_ACCEPT_POWEREVENT
-                                          | SERVICE_ACCEPT_PRESHUTDOWN;
-                auto handler = [](auto dwControl, auto what, auto lpEventData, auto lpContext) // Queue NT service events.
-                {
-                    //os::signals::place(what);
-                    //if (what > os::signals::ctrl_break) // Waiting for process cleanup.
-                    //{
-                    //    os::finalized.wait(faux);
-                    //}
-                    return DWORD{ 1 };
-                };
-                static auto handle = ::RegisterServiceCtrlHandlerExW(utf::to_utf(name).c_str(), handler, nullptr);
-                static auto set_status = [](auto newstatus)
-                {
-                    if (!handle) return;
-                    status.dwWin32ExitCode = 0;
-                    status.dwCurrentState = newstatus;
-                    if (!::SetServiceStatus(handle, &status))
-                    {
-                        auto msg = ansi::add("Error setting service status ");
-                        switch (newstatus)
-                        {
-                            case SERVICE_RUNNING:      msg.add("SERVICE_RUNNING");      break;
-                            case SERVICE_STOPPED:      msg.add("SERVICE_STOPPED");      break;
-                            case SERVICE_STOP_PENDING: msg.add("SERVICE_STOP_PENDING"); break;
-                            default:                   msg.add(newstatus);
-                        }
-                        msg.add(": ", os::error());
-                        //event_report(msg);
-                    }
-                };
-
-                set_status(SERVICE_RUNNING);
-                auto deleter = [](auto*)
-                {
-                    set_status(SERVICE_STOPPED);
-                };
-                return std::unique_ptr<decltype(handler), decltype(deleter)>(&handler);
-            };
-
-        #else
-
-            //todo implement
-
-        #endif
+        static auto desc = "Text mode desktop."sv;
     }
 
     namespace io
@@ -1856,9 +1828,9 @@ namespace netxs::os
 
                 uid_t id;
                 id = ::geteuid();
-                //todo user + id
-                auto user_name = utf::concat(id);
-                auto user_id = user_name;
+                auto pwuid = ::getpwuid(id);
+                auto user_id = utf::concat(id);
+                auto user_name =  pwuid ? pwuid->pw_name : user_id;
                 return std::pair{ user_name, user_id };
 
             #endif
@@ -2813,6 +2785,11 @@ namespace netxs::os
 
     namespace ipc
     {
+        //todo unify
+        static auto prefix = text{};
+        static auto users = size_t{};
+        static auto monitors = size_t{};
+
         struct stdcon : pipe
         {
             sock handle; // ipc::stdcon: IO descriptor.

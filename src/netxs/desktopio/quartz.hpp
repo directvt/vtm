@@ -46,6 +46,14 @@ namespace netxs::datetime
     {
         return std::chrono::steady_clock::now();
     }
+    auto breakdown(span t)
+    {
+        auto days    = datetime::round<ui32, std::chrono::   days>(t);
+        auto hours   = datetime::round<ui32, std::chrono::  hours>(t -= std::chrono::   days{ days    });
+        auto minutes = datetime::round<ui32, std::chrono::minutes>(t -= std::chrono::  hours{ hours   });
+        auto seconds = datetime::round<ui32, std::chrono::seconds>(t -= std::chrono::minutes{ minutes });
+        return std::tuple{ days, hours, minutes, seconds };
+    }
 
     template<class Reactor, class Context>
     class quartz

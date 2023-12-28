@@ -64,13 +64,11 @@ R"==(
 #if defined(_WIN32)
 R"==(
         <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
-        <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/>
 )=="
 #endif
 R"==(
         <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
         <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized           notes=" Desktop region marker "/>
-        <item id=Settings   label=Settings     type=DirectVT title="Settings"              param="$0 -r settings"      notes=" Settings " winsize=50,15/>
         <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" Log monitor ">
             <config>
                 <term>

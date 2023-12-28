@@ -3,20 +3,9 @@
 
 #pragma once
 
-namespace netxs::app::strobe
+namespace netxs::app::about
 {
-    static constexpr auto id = "strobe";
-    static constexpr auto desc = "strobe";
-}
-namespace netxs::app::settings
-{
-    static constexpr auto id = "settings";
-    static constexpr auto desc = "Desktop Settings";
-}
-namespace netxs::app::truecolor
-{
-    static constexpr auto id = "truecolor";
-    static constexpr auto desc = "ANSI Art Test";
+    static constexpr auto id = "about";
 }
 namespace netxs::app::ssh
 {
@@ -26,11 +15,6 @@ namespace netxs::app::headless
 {
     static constexpr auto id = "headless";
     static constexpr auto desc = "Headless Terminal Emulator";
-}
-namespace netxs::app::empty
-{
-    static constexpr auto id = "empty";
-    static constexpr auto desc = "empty";
 }
 namespace netxs::app::ansivt
 {
@@ -69,10 +53,33 @@ namespace netxs::app::region
 }
 
 #include "apps/term.hpp"
+
+#if defined(DEBUG)
 #include "apps/calc.hpp"
 #include "apps/text.hpp"
 #include "apps/shop.hpp"
 #include "apps/test.hpp"
+
+namespace netxs::app::strobe
+{
+    static constexpr auto id = "strobe";
+    static constexpr auto desc = "strobe";
+}
+namespace netxs::app::settings
+{
+    static constexpr auto id = "settings";
+    static constexpr auto desc = "Desktop Settings";
+}
+namespace netxs::app::empty
+{
+    static constexpr auto id = "empty";
+    static constexpr auto desc = "empty";
+}
+namespace netxs::app::truecolor
+{
+    static constexpr auto id = "truecolor";
+    static constexpr auto desc = "ANSI Art Test";
+}
 
 namespace netxs::app::shared
 {
@@ -147,65 +154,6 @@ namespace netxs::app::shared
                   });
             auto object = window->attach(ui::mock::ctor())
                                 ->active();
-            return window;
-        };
-        auto build_Region        = [](text env, text cwd, text v,     xmls& config, text patch)
-        {
-            auto window = ui::cake::ctor();
-            window->invoke([&](auto& boss)
-                    {
-                        //todo reimplement (tiling/window)
-                        //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        //{
-                        //    auto outer = e2::config::plugins::sizer::outer.param();
-                        //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
-                        //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                        //    if (actual_rect.hittest(gear.coord))
-                        //    {
-                        //        rect viewport;
-                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                        //        boss.base::extend(viewport);
-                        //        gear.dismiss();
-                        //    }
-                        //};
-                        closing_on_quit(boss);
-                        boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
-                        {
-                            auto title_fg_color = rgba{ 0xFFffffff };
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::shadower);
-                            mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c) { c.fusefull(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        };
-                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-                        {
-                            auto& parent = *parent_ptr;
-                            closing_by_gesture(parent);
-
-                            //todo too hacky
-                            if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
-                            {
-                                form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
-                            }
-
-                            static auto i = 0; i++;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
-                            parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                            {
-                                auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
-                                if (area.hittest(gear.coord))
-                                {
-                                    app::shared::set_title(boss, gear, bias::center);
-                                    gear.dismiss(true);
-                                }
-                            };
-                        };
-                    });
             return window;
         };
         auto build_Truecolor     = [](text env, text cwd, text v,     xmls& config, text patch)
@@ -342,6 +290,78 @@ namespace netxs::app::shared
                             auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
+
+        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
+        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
+        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
+        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
+    }
+}
+#endif
+
+namespace netxs::app::shared
+{
+    namespace
+    {
+        auto build_Region        = [](text env, text cwd, text v,     xmls& config, text patch)
+        {
+            auto window = ui::cake::ctor();
+            window->invoke([&](auto& boss)
+                    {
+                        //todo reimplement (tiling/window)
+                        //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                        //{
+                        //    auto outer = e2::config::plugins::sizer::outer.param();
+                        //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
+                        //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                        //    if (actual_rect.hittest(gear.coord))
+                        //    {
+                        //        rect viewport;
+                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                        //        boss.base::extend(viewport);
+                        //        gear.dismiss();
+                        //    }
+                        //};
+                        closing_on_quit(boss);
+                        boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
+                        {
+                            auto title_fg_color = rgba{ 0xFFffffff };
+                            auto area = parent_canvas.full();
+                            auto mark = skin::color(tone::shadower);
+                            mark.fgc(title_fg_color).link(boss.bell::id);
+                            auto fill = [&](cell& c) { c.fusefull(mark); };
+                            parent_canvas.cage(area, dot_21, fill);
+                        };
+                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+                        {
+                            auto& parent = *parent_ptr;
+                            closing_by_gesture(parent);
+
+                            //todo too hacky
+                            if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
+                            {
+                                form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
+                            }
+
+                            static auto i = 0; i++;
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
+                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
+                            boss.RISEUP(tier::release, e2::config::plugins::align, faux);
+                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
+                            parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                            {
+                                auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
+                                if (area.hittest(gear.coord))
+                                {
+                                    app::shared::set_title(boss, gear, bias::center);
+                                    gear.dismiss(true);
+                                }
+                            };
+                        };
+                    });
+            return window;
+        };
         auto build_Headless      = [](text env, text cwd, text param, xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
@@ -452,7 +472,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text env, text cwd, text cmd, xmls& config, text patch)
+        auto build_DirectVT      = [](text env, text cwd, text cmd,   xmls& config, text patch)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
@@ -484,7 +504,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_XLinkVT       = [](text env, text cwd, text cmd, xmls& config, text patch)
+        auto build_XLinkVT       = [](text env, text cwd, text cmd,   xmls& config, text patch)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -610,18 +630,158 @@ namespace netxs::app::shared
             args += os::env::shell(param);
             return build_DirectVT(env, cwd, args, config, patch);
         };
+        auto build_About         = [](text env, text cwd, text param, xmls& config, text patch)
+        {
+            using namespace app::shared;
 
-        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
-        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
-        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
-        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
-        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
+            auto danger_color    = skin::color(tone::danger);
+            auto highlight_color = skin::color(tone::highlight);
+            auto c1 = danger_color;
+            auto c3 = highlight_color;
+            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            auto b1 = bluelt;
+
+            auto notes = ansi::nil().mgl(2).mgr(2).wrp(wrap::off).fgc(whitedk).jet(bias::right)
+                .add(app::shared::repository);
+            auto window = ui::cake::ctor()
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->plugin<pro::acryl>()
+                ->plugin<pro::cache>()
+                ->colors(whitedk, 0x30000000)
+                ->invoke([](auto& boss)
+                {
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
+                    };
+                });
+            auto object = window->attach(ui::fork::ctor(axis::Y))
+                                ->colors(whitelt, 0);
+            auto version = ansi::fgc(b1).add("▀▄").fgc().add("  vtm");
+            auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
+            menu::list
+            {
+                { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = version }}},
+                [](auto& boss, auto& item)
+                { }},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
+                [](auto& boss, auto& item)
+                {
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
+                    {
+                        auto backup = boss.This();
+                        boss.RISEUP(tier::release, e2::form::proceed::quit::one, true);
+                        gear.dismiss(true);
+                    };
+                }},
+            });
+            auto menu_object = object->attach(slot::_1, menu_block);
+            auto inside = object->attach(slot::_2, ui::fork::ctor(axis::Y));
+            auto layers = inside->attach(slot::_1, ui::cake::ctor());
+            auto scroll = layers->attach(ui::rail::ctor())
+                                ->active()
+                                ->colors(whitedk, 0xFF0f0f0f)
+                                ->limits({ -1,-1 }, { -1,-1 });
+            static auto data = []
+            {
+                auto [days, hours, mins, secs] = datetime::breakdown(datetime::now() - os::process::id.second);
+                auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
+                            + (hours ? std::to_string(hours) + "h " : ""s)
+                            + (mins  ? std::to_string(mins)  + "m " : ""s)
+                            + (        std::to_string(secs)  + "s");
+                return std::list<text>
+                {
+                    utf::fprint("%%"
+                        "\nDesktop"
+                         "\n"
+                        "\n     Owner: %user@host%"
+                        "\n   Session: %pipe%"
+                        "\n     Users: %count%"
+                        "\n  Monitors: %count%"
+                        "\n    Uptime: %uptime%",
+                        ansi::wrp(wrap::off),
+                        os::env::user().first,
+                        utf::debase<faux, faux>(os::ipc::prefix),
+                        os::ipc::users,
+                        os::ipc::monitors,
+                        uptime),
+                    utf::fprint("%%"
+                        "\nSystem"
+                        "\n"
+                        "\n        OS: %os%"
+                        "\n       CPU: %arch%"
+                        "\n   Process: %binary%"
+                        "\n       PID: %pid%"
+                        "\n  Elevated: %level%",
+                        ansi::wrp(wrap::off),
+                        os::platform.first,
+                        os::platform.second,
+                        os::process::binary(),
+                        os::process::id.first,
+                        os::process::elevated ? "Yes" : "No"),
+                };
+            };
+            static auto update = [](auto& boss)
+            {
+                auto body = data();
+                auto iter = body.begin();
+                for (auto& rec : boss.base::subset)
+                {
+                    auto rec_ptr = std::static_pointer_cast<ui::post>(rec);
+                    rec_ptr->upload(*iter++, -1);
+                }
+            };
+            auto body = data();
+            auto items = scroll->attach(ui::list::ctor());
+            for (auto& item : body)
+            {
+                items->attach(ui::post::ctor())
+                    ->setpad({ 2, 2, 0, 2})
+                    ->upload(item, -1)
+                    ->active()
+                    ->template plugin<pro::focus>()
+                    ->template plugin<pro::grade>()
+                    ->shader(cell::shaders::xlight, e2::form::state::hover);
+                    //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
+            }
+            items->invoke([](auto& boss)
+            {
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
+                {
+                    update(boss);
+                };
+            });
+            window->invoke([&](auto& boss)
+            {
+                auto& items_inst = *items;
+                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear)
+                {
+                    if (!gear.keybd::pressed) return;
+                    if (gear.chord(input::key::F10)
+                     || gear.chord(input::key::Enter)
+                     || gear.chord(input::key::Esc))
+                    {
+                        boss.SIGNAL(tier::anycast, e2::form::proceed::quit::one, true);
+                        gear.set_handled(true);
+                    }
+                    else update(items_inst);
+                };
+            });
+            inside->attach(slot::_2, ui::post::ctor())
+                ->limits({ -1, 1 })
+                ->upload(notes);
+            layers->attach(app::shared::scroll_bars(scroll));
+            return window;
+        };
+
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
+        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
         app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
         app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
         app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
         app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
         app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
+        app::shared::initialize builder_About     { app::about::id    , build_About      };
     }
 }
