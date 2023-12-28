@@ -697,11 +697,13 @@ namespace netxs::app::shared
                         "\n     Owner: %user@host%"
                         "\n   Session: %pipe%"
                         "\n     Users: %count%"
+                        "\n  Monitors: %count%"
                         "\n    Uptime: %uptime%",
                         ansi::wrp(wrap::off),
                         os::env::user().first,
                         utf::debase<faux, faux>(os::ipc::prefix),
-                        os::ipc::count,
+                        os::ipc::users,
+                        os::ipc::monitors,
                         uptime),
                     utf::fprint("%%"
                         "\nSystem"

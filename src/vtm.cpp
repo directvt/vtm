@@ -352,11 +352,13 @@ int main(int argc, char* argv[])
                     auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
                     domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
                     //todo send/receive dtvt events and signals
+                    os::ipc::monitors++;
                     while (auto line = monitor->recv())
                     {
                         domain->SIGNAL(tier::release, e2::conio::readline, line);
                     }
                     log("%%Monitor [%id%] disconnected", prompt::logs, id);
+                    os::ipc::monitors--;
                 });
             }
         }};

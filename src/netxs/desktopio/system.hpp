@@ -2784,8 +2784,10 @@ namespace netxs::os
 
     namespace ipc
     {
+        //todo unify
         static auto prefix = text{};
-        static auto count = size_t{};
+        static auto users = size_t{};
+        static auto monitors = size_t{};
 
         struct stdcon : pipe
         {
