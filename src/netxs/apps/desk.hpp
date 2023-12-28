@@ -519,7 +519,7 @@ namespace netxs::app::desk
                 auto active_color    = skin::globals().active;
                 auto cE = active_color;
                 auto c3 = highlight_color;
-                auto user = ui::item::ctor(escx(" &").nil().add(" ")
+                auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : rgba{}).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
