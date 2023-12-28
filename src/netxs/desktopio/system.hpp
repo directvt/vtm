@@ -1826,10 +1826,13 @@ namespace netxs::os
 
             #else
 
+                auto chars = text(255, 0);
+                auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
                 auto pwuid = ::getpwuid(usrid);
                 auto strid = utf::concat(usrid);
                 auto login = pwuid ? pwuid->pw_name : strid;
+                if (!error) login += '@' + text{ chars.data() };
                 return std::pair{ login, strid };
 
             #endif
