@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
     auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!_" : "_", userid.second);;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
     auto prefix_log = prefix + app::shared::log_suffix;
     auto failed = [&](auto cause)
     {

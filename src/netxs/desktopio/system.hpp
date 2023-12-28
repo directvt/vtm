@@ -1826,12 +1826,14 @@ namespace netxs::os
 
             #else
 
-                uid_t id;
-                id = ::geteuid();
-                auto pwuid = ::getpwuid(id);
-                auto user_id = utf::concat(id);
-                auto user_name =  pwuid ? pwuid->pw_name : user_id;
-                return std::pair{ user_name, user_id };
+                auto chars = text(255, 0);
+                auto error = ::gethostname(chars.data(), chars.size());
+                auto usrid = ::geteuid();
+                auto pwuid = ::getpwuid(usrid);
+                auto strid = utf::concat(usrid);
+                auto login = pwuid ? pwuid->pw_name : strid;
+                if (!error) login += '@' + text{ chars.data() };
+                return std::pair{ login, strid };
 
             #endif
         }
@@ -5597,7 +5599,7 @@ namespace netxs::os
                     {
                         if (!(dtvt::vtmode & ui::console::nt16) && s != dtvt::consize()) // wt issue GH #16231
                         {
-                            std::cout << prompt::os << ansi::err("Terminal is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
+                            std::cout << prompt::os << ansi::err("Terminal size is out of sync. See https://github.com/microsoft/terminal/issues/16231 for details.") << "\n";
                         }
                     }
                 }

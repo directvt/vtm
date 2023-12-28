@@ -279,7 +279,7 @@ namespace netxs::app::desk
                 auto block = apps->attach(ui::list::ctor())
                     ->shader(cell::shaders::xlight, e2::form::state::hover, head_fork)
                     ->setpad({ 0, 0, 0, 0 }, { 0, 0, -tall, 0 });
-                if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info/About.
+                if (!state) block->depend_on_collection(inst_ptr_list); // Remove not pinned apps, like Info.
                 block->attach(head_fork)
                     ->active()
                     ->template plugin<pro::notes>(obj_note.empty() ? def_note : obj_note)
@@ -411,7 +411,7 @@ namespace netxs::app::desk
                 ->alignment({ snap::tail, snap::tail });
             return ui::cake::ctor()
                 ->branch(ver_label)
-                ->template plugin<pro::notes>(" About ")
+                ->template plugin<pro::notes>(" Info ")
                 ->invoke([&](auto& boss)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (appid, label, title))
@@ -519,7 +519,7 @@ namespace netxs::app::desk
                 auto active_color    = skin::globals().active;
                 auto cE = active_color;
                 auto c3 = highlight_color;
-                auto user = ui::item::ctor(escx(" &").nil().add(" ")
+                auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : rgba{}).add(utf8).nil())
                     ->flexible()
                     ->setpad({ 1, 0, tall, tall }, { 0, 0, -tall, 0 })
@@ -547,8 +547,8 @@ namespace netxs::app::desk
 
             window->invoke([&, menu_selected](auto& boss) mutable
             {
-                auto appid = "about"s;
-                auto label = "About"s;
+                auto appid = "info"s;
+                auto label = "Info"s;
                 auto title = ansi::jet(bias::right).add(label);
                 auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
                 boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
