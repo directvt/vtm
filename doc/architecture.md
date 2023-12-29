@@ -35,16 +35,16 @@ graph TB
     end
 
     subgraph SS[Desktop Server]
+        direction TB
         VTMs[vtm\nprocess 0]
-    end
+        subgraph SE[Desktop Session]
+            APPs[Application 0\nApplication ..\nApplication N]
+        end
+        VTMs <--> SE
+   end
 
-    subgraph SE[Desktop Session]
-        APPs[Application 0\nApplication ..\nApplication N]
-    end
-
-    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
-    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
-    SS <--> SE
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
 ```
 
 - At startup, vtm connects to an existing desktop session or creates a new one.
