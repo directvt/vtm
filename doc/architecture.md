@@ -82,11 +82,11 @@ graph TB
 - Only the session creator can access the session (for non-elevated users).
 - The regular user and the elevated user are different independent users creating different desktop sessions.
 - The session allows multiple access in real time.
-- The user can disconnect from the session and reconnect later.
+- Users can disconnect from the session and reconnect later.
 - Sessions with different connection points can coexist independently.
-- Console applications are launched/terminated by the user within the current desktop session.
-- Non-DirectVT console application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application window.
+- Applications are launched/terminated by the user within the current desktop session.
+- Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
+- The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 ## Interprocess Communication
