@@ -1,4 +1,4 @@
-# Text mode Desktop Settings
+# Text Mode Desktop Settings
 
 ```mermaid
 graph LR

@@ -1,4 +1,4 @@
-# Text mode Desktop Architecture
+# Text Mode Desktop Architecture
 
 ## Process Model
 
@@ -70,9 +70,10 @@ graph TB
     CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
 ```
 
-- At startup, vtm connects to an existing desktop session or creates a new one.
-- The new session is hosted in a forked and detached vtm process (desktop server).
-- The session is tied to an operating system's named pipe coined from the creator's uid if no explicitly specified custom name (desktop session connection point).
+- At startup vtm creates a new or connects to an existing desktop session.
+- The desktop session is hosted in a forked and detached vtm process (desktop server).
+- The session is tied to an operating system's named pipe  (desktop session connection point).
+- The connection point is coined from the creator's uid, if the pipe name is not explicitly specified.
 - Only the session creator can access the session (for non-elevated users).
 - The regular user and the elevated user are different independent users creating different desktop sessions.
 - The session allows multiple access in real time.
@@ -80,7 +81,7 @@ graph TB
 - Sessions with different connection points can coexist independently.
 - Console applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT console application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running as standalone terminal. Terminating this process will automatically close the application window.
+- The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
 
 ## Inter-Process Communication

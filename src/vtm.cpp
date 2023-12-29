@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\nText mode desktop " + text{ app::shared::version } +
+        log("\nText Mode Desktop " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"
@@ -152,7 +152,7 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Options:"
             "\n"
-            "\n    No arguments       Connect to the desktop and automatically create a new desktop session if it is not running."
+            "\n    No arguments       Connect to the desktop (autostart new if not running)."
             "\n    -c, --config <..>  Load the specified settings file."
             "\n    -p, --pipe   <..>  Specify the desktop session connection point."
             "\n    -q, --quiet        Disable logging."

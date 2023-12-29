@@ -1,4 +1,4 @@
-# Text mode Desktop
+# Text Mode Desktop
 
 ### Command-line options
 
@@ -6,7 +6,7 @@
 
 Option                       | Description
 -----------------------------|-------------------------------------------------------
-No arguments                 | Connect to the desktop and automatically create a new desktop session if it is not running.
+No arguments                 | Connect to the desktop (autostart new if not running).
 ` -c `, ` --config <file> `  | Load the specified settings file.
 ` -p `, ` --pipe <pipe> `    | Specify the desktop session connection point."
 ` -q `, ` --quiet `          | Disable logging.
