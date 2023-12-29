@@ -42,7 +42,7 @@ graph TB
         subgraph OU3[Output]
             TC3[scrollback\nbuffer]
         end
-        subgraph CS3[DirectVT Client 3]
+        subgraph CS3[DirectVT Proxy]
             VTM3[vtm\nprocess 3]
         end
         C3 --> CS3
