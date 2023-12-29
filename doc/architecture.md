@@ -53,6 +53,10 @@ graph TB
     end
     CS3 <-->|DirectVT I/O\nsend: Events\nrecv: Render| APP01
 
+    subgraph NP[Connection Point]
+        TS["system-wide\nnamed pipe"]
+    end
+
     subgraph SS[Desktop Server]
         VTMs[vtm\nprocess 0]
         subgraph SE[Desktop Session]
@@ -66,8 +70,9 @@ graph TB
         VTMs === SE
    end
 
-    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
-    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| TS
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| TS
+    TS === VTMs
 ```
 
 - At startup vtm creates a new or connects to an existing desktop session.
