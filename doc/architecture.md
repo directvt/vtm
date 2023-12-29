@@ -35,12 +35,16 @@ graph TB
     end
 
     subgraph SS[Desktop Server]
-        direction TB
         VTMs[vtm\nprocess 0]
         subgraph SE[Desktop Session]
-            APPs[Application 0\nApplication ..\nApplication N]
+            DS1["DirectVT Application Manager"]
+            subgraph APPx[Running Applications]
+                APP1[DirectVT App1\napp: process 3]
+                APP2["App2 (Terminal+App2)\nvtm: process 4\napp: process 5"]
+                APP3["App3 (Terminal+App3)\nvtm: process 6\napp: process 7"]
+            end
         end
-        VTMs <--> SE
+        VTMs === SE
    end
 
     CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
