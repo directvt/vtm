@@ -40,6 +40,14 @@ graph TB
 
     CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
     CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+
+    subgraph SE[Desktop Session]
+        APPs[Application 0\nApplication ..\nApplication N]
+    end
+
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+    SS <--> SE
 ```
 
 - At startup, vtm connects to an existing desktop session or creates a new one.
