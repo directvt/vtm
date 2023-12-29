@@ -77,10 +77,10 @@ graph TB
 
 - At startup vtm creates a new or connects to an existing desktop session.
 - The desktop session is hosted in a forked and detached vtm process (desktop server).
-- The session is tied to an operating system's named pipe  (desktop session connection point).
-- The connection point is coined from the creator's uid, if the pipe name is not explicitly specified.
+- The session is tied to an operating system's named pipe (desktop session connection point).
+- The connection point unique name is coined from the creator's UID or specified explicitly.
 - Only the session creator can access the session (for non-elevated users).
-- The regular user and the elevated user are different independent users creating different desktop sessions.
+- The regular user and the elevated user are different independent users despite having the same username.
 - The session allows multiple access in real time.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different connection points can coexist independently.
@@ -103,6 +103,8 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 The vtm client side (desktop client) can operate in two modes, either in ANSI/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
 
 The vtm server side (desktop server) is always operate in DirectVT mode.
+
+The DirectVT client-server channel can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
 ## DirectVT mode
 
