@@ -1,4 +1,4 @@
-# Architecture
+# Text mode Desktop Architecture
 
 ## Process Model
 
@@ -12,7 +12,7 @@ graph TB
         subgraph OU1[Output]
             TC1[scrollback\nbuffer]
         end
-        subgraph CS1[Client 1]
+        subgraph CS1[Desktop Client 1]
             VTM1[vtm\nprocess 1]
         end
         C1 --> CS1
@@ -27,32 +27,60 @@ graph TB
         subgraph OU2[Output]
             TC2[scrollback\nbuffer]
         end
-        subgraph CS2[Client 2]
+        subgraph CS2[Desktop Client 2]
             VTM2[vtm\nprocess 2]
         end
         C2 --> CS2
         TC2 --- CS2
     end
 
-    subgraph SS[Server Session]
-        VTMs[vtm\nprocess 0]
+    subgraph IE30[Text Console 3]
+        subgraph IE3[Input]
+            direction LR
+            C3[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
+        end
+        subgraph OU3[Output]
+            TC3[scrollback\nbuffer]
+        end
+        subgraph CS3[DirectVT Client 3]
+            VTM3[vtm\nprocess 3]
+        end
+        C3 --> CS3
+        TC3 --- CS3
     end
+    subgraph APP0x[Standalone DirectVT Application]
+        APP01[DirectVT App4\napp: process 9]
+    end
+    CS3 <-->|DirectVT I/O\nsend: Events\nrecv: Render| APP01
 
-    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
-    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
+    subgraph SS[Desktop Server]
+        VTMs[vtm\nprocess 0]
+        subgraph SE[Desktop Session]
+            DS1["DirectVT Application Manager"]
+            subgraph APPx[Running Applications]
+                APP1[DirectVT App1\napp: process 4]
+                APP2["App2 (Terminal+App2)\nvtm: process 5\napp: process 6"]
+                APP3["App3 (Terminal+App3)\nvtm: process 7\napp: process 8"]
+            end
+        end
+        VTMs === SE
+   end
+
+    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
+    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| VTMs
 ```
 
-- At startup, vtm connects to an existing server session or creates a new one.
-- The new session is hosted in a forked and detached vtm process.
-- The session is tied to an operating system's named pipe coined from the creator's name (if no explicitly specified pipe name).
+- At startup, vtm connects to an existing desktop session or creates a new one.
+- The new session is hosted in a forked and detached vtm process (desktop server).
+- The session is tied to an operating system's named pipe coined from the creator's uid if no explicitly specified custom name (desktop session connection point).
 - Only the session creator can access the session (for non-elevated users).
-- The regular user and the elevated user are different independent users creating different server sessions.
+- The regular user and the elevated user are different independent users creating different desktop sessions.
 - The session allows multiple access in real time.
 - The user can disconnect from the session and reconnect later.
-- Sessions with different names can coexist independently.
-- Console applications are launched/terminated by the user within the current server session.
+- Sessions with different connection points can coexist independently.
+- Console applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT console application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the vtm server session process, running as standalone terminal. Terminating this process will automatically close the application window.
+- The terminal process is a fork of the original desktop server process, running as standalone terminal. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
 
 ## Inter-Process Communication
@@ -66,9 +94,9 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side can operate in two modes, either in ANSI/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
+The vtm client side (desktop client) can operate in two modes, either in ANSI/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
 
-The vtm server side is always operate in DirectVT mode.
+The vtm server side (desktop server) is always operate in DirectVT mode.
 
 ## DirectVT mode
 
@@ -292,7 +320,7 @@ The following examples assume that the vtm is installed on both the server and c
 
 ## More Tips
 
-## vtm Desktop Taskbar Menu Customization
+## Desktop Taskbar Menu Customization
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\\.config\\vtm\\settings.xml`):
 ```xml

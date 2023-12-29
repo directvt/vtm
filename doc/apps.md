@@ -1,3 +1,5 @@
+# Text mode Desktop
+
 ## Built-in Applications
 - `▀▄ Term`     Terminal Emulator
 - `▀▄ DirectVT` DirectVT Proxy Console
@@ -5,9 +7,9 @@
 - `▀▄ View`     Workspace Navigation Helper
 - `▀▄ Tile`     Tiling Window anager
 
-# Terminal Emulator
+## Terminal Emulator
 
-## Features
+### Features
 
 - UTF-8 Everywhere
 - TrueColor aware
@@ -39,7 +41,7 @@
 - Configurable at startup via `settings.xml`
 - Configurable in runtime using VT-sequences
 
-## VT Runtime configuraion sequences
+### Runtime configuraion vt-sequences
 
 Name         | Sequence                         | Description
 -------------|----------------------------------|-----------
@@ -55,11 +57,11 @@ Name         | Sequence                         | Description
 
 Note: It is possible to combine multiple command into a single sequence using a semicolon. For example, the following sequence disables wrapping, enables text selection, and sets background to blue: `CSI 12 : 2 ; 29 : 1 ; 28 : 44 p` or `CSI 12 : 2 ; 29 : 1 ; 28 : 48 : 2 : 0 : 0 : 255 p`.
 
-## Custom menu configuration
+### Custom menu configuration
       
 Terminal window menu can be composed from scratch by specifying a list of menu items in the `<config/term/menu/>` configuration file section.
 
-## Attributes for the `<config/term/menu/item>` object
+### Attributes for the `<config/term/menu/item>` object
 
 Attribute  | Description
 -----------|------------
@@ -70,7 +72,7 @@ action     | The function name which called on item activation. Inherited by the
 data       | Textual parameter for function call. Inherited by the label attribute.
 hotkey     | Keyboard shortcut for this menu item. Inherited by the label attribute (not implemented).
 
-## Attributes for the `<config/term/menu/item/label>` sub-object
+### Attributes for the `<config/term/menu/item/label>` sub-object
 
 Attribute        | Description
 -----------------|------------
@@ -80,7 +82,7 @@ action           | The function name which called on item activation. Inherited 
 data             | Textual parameter for function call. Inherited from item if not specified.
 hotkey           | Keyboard shortcut for this menu item. Inherited from item if not specified (not implemented).
 
-### Attribute `type=`
+#### Attribute `type=`
 
 Value     | Description
 ----------|------------
@@ -88,7 +90,7 @@ Option    | Cyclically selects the next label in the list and exec the function 
 Command   | Exec the function specified by the `action=` with `data=` as its parameter.
 Repeat    | Selects the next label and exec the function specified by the `action=` with `data=` as its parameter repeatedly from the time it is pressed until it is released.
 
-### Attribute `action=`
+#### Attribute `action=`
 
 `*` - Not implemented.
 
@@ -141,7 +143,7 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 *TerminalVideoHome           | Rewind DTVT-video to the beginning.
 *TerminalVideoEnd            | Rewind DTVT-video to the end.
 
-### Terminal configuration example
+#### Terminal configuration example
 ```xml
 <config>
  <term>
@@ -231,7 +233,7 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 </config>
 ```
 
-# DirectVT Proxy Console
+## DirectVT Proxy Console
 
 ...
 
@@ -242,7 +244,7 @@ Example (running `vtm -r term` in dtvt-mode):
 vtm -r dtvt vtm -r term
 ```
 
-# DirectVT Proxy Console with controlling terminal onboard
+## DirectVT Proxy Console with controlling terminal onboard
 
 This console mode is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
 
@@ -256,15 +258,15 @@ vtm -r xlvt ssh user@host vtm
 vtm ssh user@host vtm
 ```
 
-# Workspace Navigation Helper
+## Workspace Navigation Helper
 
-## Features
+### Features
 
 - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
-# Tiling Window Manager
+## Tiling Window Manager
 
-## Features
+### Features
 
 - Supports Drag and Drop for panes (like tabs in a browser).
 - Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
