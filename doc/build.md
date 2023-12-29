@@ -1,6 +1,8 @@
-# Building from Source
+# Text mode Desktop
 
-## Unix
+## Building from Source
+
+### Unix
 
 Build-time dependencies
  - 64-bit system host
@@ -21,7 +23,7 @@ vtm
 
 Note: A 32-bit binary executable can only be built using cross-compilation on a 64-bit system.
 
-## Windows
+### Windows
 
 Build-time dependencies
  - [git](https://git-scm.com/download/win), [cmake](https://learn.microsoft.com/en-us/cpp/build/cmake-projects-in-visual-studio?view=msvc-170#installation), [MSVC (Desktop Development with C++)](https://visualstudio.microsoft.com/downloads/)

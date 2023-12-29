@@ -1,28 +1,31 @@
-# Command line Options `vtm(.exe)`
+# Text mode Desktop
+
+### Command-line options
 
  `vtm [ -c <file> ] [ -p <pipe> ] [ -i | -u ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]`
 
 Option                       | Description
 -----------------------------|-------------------------------------------------------
-No arguments                 | Run client (auto start server).
-` -c `, ` --config <file> `  | Use specified configuration file.
-` -p `, ` --pipe <pipe> `    | Set the pipe to connect to.
+No arguments                 | Connect to the desktop and automatically create a new desktop session if it is not running.
+` -c `, ` --config <file> `  | Load the specified settings file.
+` -p `, ` --pipe <pipe> `    | Specify the desktop session connection point."
 ` -q `, ` --quiet `          | Disable logging.
-` -l `, ` --listconfig `     | Show configuration.
-` -m `, ` --monitor `        | Monitor server session log.
-` -d `, ` --daemon `         | Run server in background.
-` -s `, ` --server `         | Run server in interactive mode.
-` -r `, ` --runapp [<app>] ` | Run the specified `<app>` standalone.
+` -l `, ` --listconfig `     | Print configuration.
+` -m `, ` --monitor `        | Desktop session log.
+` -d `, ` --daemon `         | Run desktop server in background.
+` -s `, ` --server `         | Run desktop server in interactive mode.
+` -r `, ` --runapp [<app>] ` | Run the specified application in standalone mode.
 ` -i `, ` --install `        | System-wide installation.
 ` -u `, ` --uninstall `      | System-wide deinstallation.
-` -v `, ` --version `        | Show version.
-` -? `, ` -h `, ` --help `   | Show usage message.
-` --onlylog  `               | Disable interactive user input.
+` -v `, ` --version `        | Print version.
+` -? `, ` -h `, ` --help `   | Print command-line options.
+` --onlylog  `               | Disable interactive user input for desktop server.
 
-Registered `<app>`s:
+### Built-in applications
 
 Application | Description
 ------------|------------------------------------------
 `Term`      | Terminal emulator (default)
+`Headless`  | Terminal emulator without UI
 `DTVT`      | DirectVT Proxy Console
-`XLVT`      | DirectVT Proxy Console with controlling terminal onboard (Cross-linked VT)
+`XLVT`      | DirectVT Proxy Console with controlling terminal (Cross-linked VT)

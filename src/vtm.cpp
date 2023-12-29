@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("Show help message");
+            errmsg = ansi::nil().add("Print command-line options");
             break;
         }
         else if (getopt.match("-v", "--version"))
@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\nVirtual terminal multiplexer."
+        log("\nText mode desktop " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"
@@ -152,35 +152,36 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Options:"
             "\n"
-            "\n    No arguments       Run client, auto start server if it is not running."
-            "\n    -c, --config <..>  Load specified settings file."
-            "\n    -p, --pipe   <..>  Set the pipe to connect to."
+            "\n    No arguments       Connect to the desktop and automatically create a new desktop session if it is not running."
+            "\n    -c, --config <..>  Load the specified settings file."
+            "\n    -p, --pipe   <..>  Specify the desktop session connection point."
             "\n    -q, --quiet        Disable logging."
-            "\n    -l, --listconfig   Show configuration and exit."
-            "\n    -m, --monitor      Monitor server log."
-            "\n    -d, --daemon       Run server in background."
-            "\n    -s, --server       Run server in interactive mode."
-            "\n    -r, --runapp <..>  Run built-in application."
+            "\n    -l, --listconfig   Print configuration."
+            "\n    -m, --monitor      Desktop session log."
+            "\n    -d, --daemon       Run desktop server in background."
+            "\n    -s, --server       Run desktop server in interactive mode."
+            "\n    -r, --runapp <..>  Run the specified application in standalone mode."
             "\n    -i, --install      System-wide installation."
             "\n    -u, --uninstall    System-wide deinstallation."
-            "\n    -v, --version      Show version and exit."
-            "\n    -?, -h, --help     Show usage message."
-            "\n    --onlylog          Disable interactive user input."
+            "\n    -v, --version      Print version."
+            "\n    -?, -h, --help     Print command-line options."
+            "\n    --onlylog          Disable interactive user input for desktop server."
             "\n"
-            "\n  Settings loading and merging order:"
+            "\n  Settings loading order:"
             "\n"
             "\n    - Initialize hardcoded settings"
             "\n    - Merge with explicitly specified settings from --config <file>"
             "\n    - If the --config option is not used or <file> cannot be loaded:"
             "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
             "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
-            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode only)"
+            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)"
             "\n"
             "\n  Built-in applications:"
             "\n"
-            "\n    Term  Terminal emulator (default)"
-            "\n    DTVT  DirectVT Proxy Console"
-            "\n    XLVT  DTVT with controlling terminal onboard (for OpenSSH interactivity)"
+            "\n    Term      Terminal emulator (default)"
+            "\n    Headless  Terminal emulator without UI"
+            "\n    DTVT      DirectVT Proxy Console"
+            "\n    XLVT      DTVT with controlling terminal (for OpenSSH interactivity)"
             "\n"
             );
     }
