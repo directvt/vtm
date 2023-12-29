@@ -38,9 +38,6 @@ graph TB
         VTMs[vtm\nprocess 0]
     end
 
-    CS1 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
-    CS2 <-->|DirectVT I/O\nsend: Events\nrecv: Render| SS
-
     subgraph SE[Desktop Session]
         APPs[Application 0\nApplication ..\nApplication N]
     end
