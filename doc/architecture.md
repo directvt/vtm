@@ -12,7 +12,7 @@ graph TB
         subgraph OU1[Output]
             TC1[scrollback\nbuffer]
         end
-        subgraph CS1[Desktop client 1]
+        subgraph CS1[Desktop Client 1]
             VTM1[vtm\nprocess 1]
         end
         C1 --> CS1
@@ -27,14 +27,14 @@ graph TB
         subgraph OU2[Output]
             TC2[scrollback\nbuffer]
         end
-        subgraph CS2[Desktop client 2]
+        subgraph CS2[Desktop Client 2]
             VTM2[vtm\nprocess 2]
         end
         C2 --> CS2
         TC2 --- CS2
     end
 
-    subgraph SS[Desktop Session (desktop server)]
+    subgraph SS[Desktop Server]
         VTMs[vtm\nprocess 0]
     end
 
