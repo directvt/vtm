@@ -43,7 +43,7 @@ graph TB
 ```
 
 - At startup, vtm connects to an existing desktop session or creates a new one.
-- The new session is hosted in a forked and detached vtm process.
+- The new session is hosted in a forked and detached vtm process (desktop server).
 - The session is tied to an operating system's named pipe coined from the creator's uid if no explicitly specified custom name (desktop session connection point).
 - Only the session creator can access the session (for non-elevated users).
 - The regular user and the elevated user are different independent users creating different desktop sessions.
