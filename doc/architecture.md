@@ -84,7 +84,7 @@ graph TB
 - The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application window.
 - The session exists until it is explicitly shutted down.
 
-## Inter-Process Communication
+## Interprocess Communication
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
 - Keyboard event channel
