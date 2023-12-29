@@ -34,14 +34,33 @@ graph TB
         TC2 --- CS2
     end
 
+    subgraph IE30[Text Console 3]
+        subgraph IE3[Input]
+            direction LR
+            C3[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
+        end
+        subgraph OU3[Output]
+            TC3[scrollback\nbuffer]
+        end
+        subgraph CS3[DirectVT Client 3]
+            VTM3[vtm\nprocess 3]
+        end
+        C3 --> CS3
+        TC3 --- CS3
+    end
+    subgraph APP0x[Standalone DirectVT Application]
+        APP01[DirectVT App4\napp: process 9]
+    end
+    CS3 <-->|DirectVT I/O\nsend: Events\nrecv: Render| APP01
+
     subgraph SS[Desktop Server]
         VTMs[vtm\nprocess 0]
         subgraph SE[Desktop Session]
             DS1["DirectVT Application Manager"]
             subgraph APPx[Running Applications]
-                APP1[DirectVT App1\napp: process 3]
-                APP2["App2 (Terminal+App2)\nvtm: process 4\napp: process 5"]
-                APP3["App3 (Terminal+App3)\nvtm: process 6\napp: process 7"]
+                APP1[DirectVT App1\napp: process 4]
+                APP2["App2 (Terminal+App2)\nvtm: process 5\napp: process 6"]
+                APP3["App3 (Terminal+App3)\nvtm: process 7\napp: process 8"]
             end
         end
         VTMs === SE
