@@ -1,4 +1,4 @@
-# Text mode Desktop
+# Text Mode Desktop
 
 ## Building from Source
 

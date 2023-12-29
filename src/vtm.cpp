@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\nText mode desktop " + text{ app::shared::version } +
+        log("\nText Mode Desktop " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"

@@ -1,4 +1,4 @@
-# Text mode Desktop Architecture
+# Text Mode Desktop Architecture
 
 ## Process Model
 
