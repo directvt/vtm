@@ -1457,18 +1457,19 @@ namespace netxs::ui
                 auto refer = finish;
                 auto& item = **refer;
                 auto piece = item.size().x - suffix;
-
-                si32 start, width, yield;
+                auto start = 0;
+                auto width = 0;
+                auto yield = 0;
                 crop(piece, total, start, width);
                 yield = draw(item, start, width);
 
                 while (total -= yield)
                 {
-                    auto& item = **--refer;
-                    piece = item.size().x;
+                    auto& next = **--refer;
+                    piece = next.size().x;
 
                     crop(piece, total, start, width);
-                    yield = draw(item, start, width);
+                    yield = draw(next, start, width);
                 }
             }
             else
@@ -1479,8 +1480,8 @@ namespace netxs::ui
 
                 while (total -= yield)
                 {
-                    auto& item = **++refer;
-                    yield = draw(item, 0, total);
+                    auto& next = **++refer;
+                    yield = draw(next, 0, total);
                 }
             }
         }

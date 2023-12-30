@@ -90,10 +90,10 @@ namespace netxs
                     case mode_RGB:
                     {
                         auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
-                        chan.r = r == -1 ? queue.subarg(0) : r;
-                        chan.g = queue.subarg(0);
-                        chan.b = queue.subarg(0);
-                        chan.a = queue.subarg(0xFF);
+                        chan.r = (byte)(r == -1 ? queue.subarg(0) : r);
+                        chan.g = (byte)(queue.subarg(0));
+                        chan.b = (byte)(queue.subarg(0));
+                        chan.a = (byte)(queue.subarg(0xFF));
                         break;
                     }
                     case mode_256:
@@ -108,9 +108,9 @@ namespace netxs
                 switch (mode)
                 {
                     case mode_RGB:
-                        chan.r = queue(0);
-                        chan.g = queue(0);
-                        chan.b = queue(0);
+                        chan.r = (byte)(queue(0));
+                        chan.g = (byte)(queue(0));
+                        chan.b = (byte)(queue(0));
                         chan.a = 0xFF;
                         break;
                     case mode_256:
@@ -179,7 +179,7 @@ namespace netxs
         // rgba: Return 256-color 6x6x6 cube.
         auto to_256cube() const
         {
-            byte clr;
+            auto clr = 0;
             if (chan.r == chan.g
              && chan.r == chan.b)
             {
@@ -191,14 +191,14 @@ namespace netxs
                          +  6 * ((chan.g * 6) >> 8)
                               + ((chan.b * 6) >> 8);
             }
-            return clr;
+            return (byte)clr;
         }
         // rgba: Equal both to their average.
         void avg(rgba& c)
         {
-            chan.r = c.chan.r = (chan.r + c.chan.r) >> 1;
-            chan.g = c.chan.g = (chan.g + c.chan.g) >> 1;
-            chan.b = c.chan.b = (chan.b + c.chan.b) >> 1;
+            chan.r = c.chan.r = (byte)(((ui32)chan.r + c.chan.r) >> 1);
+            chan.g = c.chan.g = (byte)(((ui32)chan.g + c.chan.g) >> 1);
+            chan.b = c.chan.b = (byte)(((ui32)chan.b + c.chan.b) >> 1);
         }
         // rgba: One-side alpha blending RGBA colors.
         void inline mix_one(rgba c)
@@ -211,7 +211,7 @@ namespace netxs
             {
                 auto blend = [](auto c1, auto c2, auto alpha)
                 {
-                    return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
+                    return (byte)(((c1 << 8) + (c2 - c1) * alpha) >> 8);
                 };
                 chan.r = blend(chan.r, c.chan.r, c.chan.a);
                 chan.g = blend(chan.g, c.chan.g, c.chan.a);
@@ -230,20 +230,20 @@ namespace netxs
             else if (c.chan.a)
             {
                 //todo consider premultiplied alpha
-                auto a1 = chan.a;
-                auto a2 = c.chan.a;
-                unsigned const a = ((a2 + a1) << 8) - a1 * a2;
+                auto a1 = ui32{ chan.a };
+                auto a2 = ui32{ c.chan.a };
+                auto a = ((a2 + a1) << 8) - a1 * a2;
                 auto blend2 = [&](auto c1, auto c2)
                 {
                     auto t = c1 * a1;
-                    unsigned d = (((c2 * a2 + t) << 8) - t * a2);
-                    return d / a;
+                    auto d = ((c2 * a2 + t) << 8) - t * a2;
+                    return (byte)(d / a);
                     //return (((c2 * a2 + t) << 8) - t * a2) / a;
                 };
                 chan.r = blend2(chan.r, c.chan.r);
                 chan.g = blend2(chan.g, c.chan.g);
                 chan.b = blend2(chan.b, c.chan.b);
-                chan.a = a >> 8;
+                chan.a = (byte)(a >> 8);
             }
         }
         // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
@@ -256,7 +256,7 @@ namespace netxs
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
         // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c, byte alpha)
+        void inline mix(rgba c, si32 alpha)
         {
             if (alpha == 0xFF)
             {
@@ -265,10 +265,10 @@ namespace netxs
             else if (alpha)
             {
                 auto inverse = 256 - alpha;
-                chan.r = (c.chan.r * alpha + chan.r * inverse) >> 8;
-                chan.g = (c.chan.g * alpha + chan.g * inverse) >> 8;
-                chan.b = (c.chan.b * alpha + chan.b * inverse) >> 8;
-                chan.a = (c.chan.a * alpha + chan.a * inverse) >> 8;
+                chan.r = (byte)((c.chan.r * alpha + chan.r * inverse) >> 8);
+                chan.g = (byte)((c.chan.g * alpha + chan.g * inverse) >> 8);
+                chan.b = (byte)((c.chan.b * alpha + chan.b * inverse) >> 8);
+                chan.a = (byte)((c.chan.a * alpha + chan.a * inverse) >> 8);
             }
         }
         // rgba: Rough alpha blending RGBA colors.
@@ -2355,12 +2355,12 @@ namespace netxs
             auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
             auto block = core{ region.coor, new_sz, marker };
 
-            auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
-            netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
-            region.coor.x += a_size.x;
-            region.coor.y += new_sz.y - a_size.y;
-            region.size = b_size;
-            netxs::inbody<faux>(block, src, region, dot_00, cell::shaders::full);
+            auto r = rect{{ 0, new_sz.y - a_size.y }, a_size };
+            netxs::inbody<faux>(block, *this, r, dot_00, cell::shaders::full);
+            r.coor.x = a_size.x;
+            r.coor.y = new_sz.y - b_size.y;
+            r.size = b_size;
+            netxs::inbody<faux>(block, src, r, dot_00, cell::shaders::full);
 
             swap(block);
             digest++;

@@ -810,8 +810,8 @@ namespace netxs::unidata
         while (iter != tail)
         {
             auto n = *iter++;
-            if (n < 0) data.insert(data.end(), -n, *iter++);
-            else       data.push_back(n);
+            if (n < 0) data.insert(data.end(), -n, static_cast<T>(*iter++));
+            else       data.push_back(static_cast<T>(n));
         }
         return data;
     }

@@ -759,26 +759,24 @@ namespace netxs::utf
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     void purify(view& utf8)
     {
-        if (auto size = utf8.size())
+        auto head = utf8.rend();
+        auto tail = utf8.rbegin();
+        while (tail != head && (*tail & 0xc0) == 0x80) // Find first byte.
         {
-            auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
-            auto first = faux;
-
-            while (size && !(first = is_first(utf8[--size]))) // Find first byte.
-            { }
-
-            if (first) // Check codepoint.
+            ++tail;
+        }
+        if (tail != head) // Check codepoint.
+        {
+            auto p = head - tail - 1;
+            auto l = utf::letter(utf8.substr(p));
+            if (!l.attr.correct)
             {
-                auto l = utf::letter(utf8.substr(size));
-                if (!l.attr.correct)
-                {
-                    utf8 = utf8.substr(0, size);
-                }
+                utf8 = utf8.substr(0, p);
             }
-            else // Bad UTF-8 encoding (size == 0).
-            {
-                //Recycle all bad bytes (log?).
-            }
+        }
+        else // Bad UTF-8 encoding
+        {
+            //Recycle all bad bytes (log?).
         }
     }
     auto substr(qiew utf8, size_t start, size_t length = text::npos)

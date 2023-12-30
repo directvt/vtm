@@ -894,7 +894,7 @@ namespace netxs::os
                 bool nums   = ms_ctrls & NUMLOCK_ON;
                 bool caps   = ms_ctrls & CAPSLOCK_ON;
                 bool scrl   = ms_ctrls & SCROLLLOCK_ON;
-                auto state  = ui32{};
+                auto state  = si32{};
                 if (lshift) state |= input::hids::LShift;
                 if (rshift) state |= input::hids::RShift;
                 if (lalt  ) state |= input::hids::LAlt;
@@ -1957,7 +1957,8 @@ namespace netxs::os
                             {
                                 std::memcpy(dest, data.data(), size);
                                 ::GlobalUnlock(gmem);
-                                ok(::SetClipboardData(cf_format, gmem) && (success = true), "::SetClipboardData()", os::unexpected, ", cf_format=", cf_format);
+                                success = ::SetClipboardData(cf_format, gmem);
+                                ok(success, "::SetClipboardData()", os::unexpected, ", cf_format=", cf_format);
                             }
                             else log(prompt::os, "::GlobalLock()", os::unexpected);
                             ::GlobalFree(gmem);
@@ -4539,7 +4540,10 @@ namespace netxs::os
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 auto check = [](auto& changed, auto& oldval, auto newval)
                 {
-                    if (oldval != newval)
+                    auto diff = faux;
+                    if constexpr (std::is_integral_v<decltype(oldval)>) diff = std::cmp_not_equal(oldval, newval);
+                    else                                                diff = oldval != newval;
+                    if (diff)
                     {
                         changed++;
                         oldval = newval;
@@ -5456,8 +5460,9 @@ namespace netxs::os
                                         {
                                             //todo proceed other formats (rich/html/...)
                                         }
+                                        format = ::EnumClipboardFormats(format);
                                     }
-                                    while (format = ::EnumClipboardFormats(format));
+                                    while (format);
                                 }
                                 else sync(view{}, mime::textonly);
                             }

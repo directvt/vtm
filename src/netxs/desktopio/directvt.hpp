@@ -719,7 +719,7 @@ namespace netxs::directvt
                     stream::reset();                                                        \
                     stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
                 }                                                                           \
-                void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int _tmp = {})          \
+                void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int /*_tmp*/ = {})      \
                 {                                                                           \
                     SEQ_INIT_macro(WRAP_macro(struct_members))                              \
                     set();                                                                  \
@@ -767,7 +767,7 @@ namespace netxs::directvt
                     : stream{ kind }                                              \
                 { }                                                               \
                 void set() {}                                                     \
-                void get(view& data) {}                                           \
+                void get(view& _data) {}                                          \
                                                                                   \
                 friend std::ostream& operator << (std::ostream& s,                \
                                              CAT_macro(struct_name, _t) const& o) \
@@ -778,8 +778,8 @@ namespace netxs::directvt
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
 
         //todo unify
-        static auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
-        static auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
+        auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
+        auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
 
         STRUCT_macro(frame_element,     (frag, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))

@@ -200,10 +200,10 @@ struct impl : consrv
 
         auto save(para& line)
         {
-            auto& data = line.content();
-            if (undo.empty() || !data.same(undo.back().second))
+            auto& content = line.content();
+            if (undo.empty() || !content.same(undo.back().second))
             {
-                undo.emplace_back(line.caret, data);
+                undo.emplace_back(line.caret, content);
                 redo.clear();
             }
         }
@@ -212,11 +212,11 @@ struct impl : consrv
             if (back) std::swap(undo, redo);
             if (undo.size())
             {
-                auto& data = line.content();
-                while (undo.size() && data.same(undo.back().second)) undo.pop_back();
+                auto& content = line.content();
+                while (undo.size() && content.same(undo.back().second)) undo.pop_back();
                 if (undo.size())
                 {
-                    redo.emplace_back(line.caret, data);
+                    redo.emplace_back(line.caret, content);
                     line.content(undo.back().second);
                     line.caret = undo.back().first;
                     undo.pop_back();
@@ -483,7 +483,7 @@ struct impl : consrv
             report = result.length;
             if constexpr (Complete) //Note: Be sure that packet.reply.bytes or count is set.
             {
-                auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
+                nt::ioctl(nt::console::op::complete_io, condrv, *this);
             }
         }
         auto interrupt(fd_t condrv)
@@ -854,22 +854,22 @@ struct impl : consrv
             return;
 
             //todo pwsh is not yet ready for block-pasting (VK_RETURN conversion is required)
-            auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
-            auto keys = INPUT_RECORD{ .EventType = KEY_EVENT, .Event = { .KeyEvent = { .bKeyDown = 1, .wRepeatCount = 1 }}};
-            toWIDE.clear();
-            utf::to_utf(block, toWIDE);
-            stream.reserve(stream.size() + toWIDE.size() + 2);
-            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_begin;
-            stream.emplace_back(data);
-            for (auto c : toWIDE)
-            {
-                keys.Event.KeyEvent.uChar.UnicodeChar = c;
-                stream.emplace_back(keys);
-            }
-            data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_end;
-            stream.emplace_back(data);
-            ondata.reset();
-            signal.notify_one();
+            //auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
+            //auto keys = INPUT_RECORD{ .EventType = KEY_EVENT, .Event = { .KeyEvent = { .bKeyDown = 1, .wRepeatCount = 1 }}};
+            //toWIDE.clear();
+            //utf::to_utf(block, toWIDE);
+            //stream.reserve(stream.size() + toWIDE.size() + 2);
+            //data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_begin;
+            //stream.emplace_back(data);
+            //for (auto c : toWIDE)
+            //{
+            //    keys.Event.KeyEvent.uChar.UnicodeChar = c;
+            //    stream.emplace_back(keys);
+            //}
+            //data.Event.MenuEvent.dwCommandId = nt::console::event::custom | nt::console::event::paste_end;
+            //stream.emplace_back(data);
+            //ondata.reset();
+            //signal.notify_one();
         }
         auto write(view ustr)
         {
@@ -1445,7 +1445,7 @@ struct impl : consrv
                     auto lock = std::unique_lock{ locker };
                     auto& answer = std::get<0>(token);
                     auto& cancel = std::get<2>(token);
-                    auto& client = *(clnt*)packet.client;
+                    //auto& client = *(clnt*)packet.client;
                     answer.buffer = (Arch)&packet.input; // Restore after copy. Payload start address.
 
                     if (closed || cancel) return;
