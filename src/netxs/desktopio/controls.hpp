@@ -2001,7 +2001,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        lucidity = value;
+                        lucidity = (byte)value;
                     }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)

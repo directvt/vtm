@@ -656,7 +656,7 @@ namespace netxs::ui
             SIGNAL(tier::release, e2::form::prop::filler, filler);
         }
         // base: Align object.
-        void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
+        static void xform(snap atcrop, snap atgrow, si32& coor, si32& size, si32& width)
         {
             switch (size > width ? atcrop : atgrow)
             {
@@ -910,21 +910,21 @@ namespace netxs::ui
             bell::_saveme();
         }
 
-        void limits(twod min_sz = -dot_11, twod max_sz = -dot_11)
+        void limits(twod new_min_sz = -dot_11, twod new_max_sz = -dot_11)
         {
-            base::min_sz = min_sz.less(dot_00, skin::globals().min_value, min_sz);
-            base::max_sz = max_sz.less(dot_00, skin::globals().max_value, max_sz);
+            base::min_sz = new_min_sz.less(dot_00, skin::globals().min_value, new_min_sz);
+            base::max_sz = new_max_sz.less(dot_00, skin::globals().max_value, new_max_sz);
         }
-        void alignment(bind atgrow, bind atcrop = { snap::none, snap::none })
+        void alignment(bind new_atgrow, bind new_atcrop = { snap::none, snap::none })
         {
-            base::atgrow = atgrow;
-            base::atcrop.x = atcrop.x == snap::none ? atgrow.x : atcrop.x;
-            base::atcrop.y = atcrop.y == snap::none ? atgrow.y : atcrop.y;
+            base::atgrow = new_atgrow;
+            base::atcrop.x = new_atcrop.x == snap::none ? new_atgrow.x : new_atcrop.x;
+            base::atcrop.y = new_atcrop.y == snap::none ? new_atgrow.y : new_atcrop.y;
         }
-        void setpad(dent intpad, dent extpad = {})
+        void setpad(dent new_intpad, dent new_extpad = {})
         {
-            base::intpad = intpad;
-            base::extpad = extpad;
+            base::intpad = new_intpad;
+            base::extpad = new_extpad;
         }
         // base.: Render to the canvas. Trim = trim viewport to the nested object region.
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
@@ -938,8 +938,8 @@ namespace netxs::ui
         }
 
     protected:
-        virtual void deform(rect& new_area) {}
-        virtual void inform(rect new_area) {}
+        virtual void deform(rect& /*new_area*/) {}
+        virtual void inform(rect /*new_area*/) {}
         // base: Remove nested object.
         virtual void remove(sptr item_ptr)
         {

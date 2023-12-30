@@ -239,18 +239,18 @@ namespace netxs::directvt
                 else if constexpr (std::is_same_v<D, time>)
                 {
                     using span = decltype(time{}.time_since_epoch());
-                    using type = decltype(span{}.count());
-                    if (data.size() < sizeof(type))
+                    using data_type = decltype(span{}.count());
+                    if (data.size() < sizeof(data_type))
                     {
                         log(prompt::dtvt, "Corrupted datetime data");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
-                    auto temp = netxs::aligned<type>(data.data());
+                    auto temp = netxs::aligned<data_type>(data.data());
                     auto crop = time{ span{ temp }};
                     if constexpr (!PeekOnly)
                     {
-                        data.remove_prefix(sizeof(type));
+                        data.remove_prefix(sizeof(data_type));
                     }
                     return crop;
                 }
@@ -767,10 +767,10 @@ namespace netxs::directvt
                     : stream{ kind }                                              \
                 { }                                                               \
                 void set() {}                                                     \
-                void get(view& _data) {}                                          \
+                void get(view& /*_data*/) {}                                      \
                                                                                   \
                 friend std::ostream& operator << (std::ostream& s,                \
-                                             CAT_macro(struct_name, _t) const& o) \
+                                         CAT_macro(struct_name, _t) const& /*o*/) \
                 {                                                                 \
                     return s << #struct_name " { }";                              \
                 }                                                                 \
@@ -784,8 +784,8 @@ namespace netxs::directvt
         STRUCT_macro(frame_element,     (frag, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (si32, buttons))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
@@ -812,18 +812,18 @@ namespace netxs::directvt
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
-                                        (ui32, ctlstat)  // syskeybd: Keybd modifiers.
+                                        (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag) //todo deprecated
-                                        (ui32, virtcod) //todo deprecated
-                                        (ui32, scancod)  // syskeybd: Scancode.
+                                        (si32, virtcod) //todo deprecated
+                                        (si32, scancod)  // syskeybd: Scancode.
                                         (bool, pressed)  // syskeybd: Key is pressed.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)) // syskeybd: Key id.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
-                                        (ui32, ctlstat)  // sysmouse: Keybd modifiers.
-                                        (ui32, enabled)  // sysmouse: Mouse device health status.
-                                        (ui32, buttons)  // sysmouse: Buttons bit state.
+                                        (si32, ctlstat)  // sysmouse: Keybd modifiers.
+                                        (si32, enabled)  // sysmouse: Mouse device health status.
+                                        (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
@@ -953,13 +953,13 @@ namespace netxs::directvt
                 };
                 while (src != mid && !abort)
                 {
-                    auto end = src + min.x;
-                    while (src != end) map(*src++, *dst++);
+                    auto stop = src + min.x;
+                    while (src != stop) map(*src++, *dst++);
                     if (dtx >= 0) dst += dtx;
                     else
                     {
-                        end += -dtx;
-                        while (src != end) map(*src++, pen);
+                        stop += -dtx;
+                        while (src != stop) map(*src++, pen);
                     }
                 }
                 if (csz.y > fsz.y)

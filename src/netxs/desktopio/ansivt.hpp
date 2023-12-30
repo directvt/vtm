@@ -619,12 +619,12 @@ namespace netxs::ansi
             static constexpr auto wheel_dn = si32{ 65 };
 
             auto ctrl = si32{};
-            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
 
-            auto m_bttn = std::bitset<8>{ gear.m.buttons };
-            auto s_bttn = std::bitset<8>{ gear.s.buttons };
+            auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
+            auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
             auto m_left = m_bttn[hids::left  ];
             auto m_rght = m_bttn[hids::right ];
             auto m_mddl = m_bttn[hids::middle];
@@ -648,13 +648,13 @@ namespace netxs::ansi
                 ctrl |= mddl;
                 pressed = m_mddl;
             }
-            else if (gear.m.wheeled)
+            else if (gear.m_sys.wheeled)
             {
-                ctrl |= gear.m.wheeldt > 0 ? wheel_up
-                                           : wheel_dn;
+                ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
+                                               : wheel_dn;
                 pressed = true;
             }
-            else if (gear.m.buttons)
+            else if (gear.m_sys.buttons)
             {
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
@@ -684,12 +684,12 @@ namespace netxs::ansi
             static constexpr auto wheel_dn = si32{ 65 };
 
             auto ctrl = si32{};
-            if (gear.m.ctlstat & hids::anyShift) ctrl |= 0x04;
-            if (gear.m.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
-            if (gear.m.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
+            if (gear.m_sys.ctlstat & hids::anyShift) ctrl |= 0x04;
+            if (gear.m_sys.ctlstat & hids::anyAlt  ) ctrl |= 0x08;
+            if (gear.m_sys.ctlstat & hids::anyCtrl ) ctrl |= 0x10;
 
-            auto m_bttn = std::bitset<8>{ gear.m.buttons };
-            auto s_bttn = std::bitset<8>{ gear.s.buttons };
+            auto m_bttn = std::bitset<8>{ (ui32)gear.m_sys.buttons };
+            auto s_bttn = std::bitset<8>{ (ui32)gear.m_sav.buttons };
             auto m_left = m_bttn[hids::left  ];
             auto m_rght = m_bttn[hids::right ];
             auto m_mddl = m_bttn[hids::middle];
@@ -700,9 +700,9 @@ namespace netxs::ansi
                  if (m_left != s_left) ctrl |= m_left ? left : btup;
             else if (m_rght != s_rght) ctrl |= m_rght ? rght : btup;
             else if (m_mddl != s_mddl) ctrl |= m_mddl ? mddl : btup;
-            else if (gear.m.wheeled  ) ctrl |= gear.m.wheeldt > 0 ? wheel_up
-                                                                  : wheel_dn;
-            else if (gear.m.buttons)
+            else if (gear.m_sys.wheeled  ) ctrl |= gear.m_sys.wheeldt > 0 ? wheel_up
+                                                                          : wheel_dn;
+            else if (gear.m_sys.buttons)
             {
                      if (m_left) ctrl |= left;
                 else if (m_rght) ctrl |= rght;
@@ -771,7 +771,7 @@ namespace netxs::ansi
         auto& show_mouse(si32 b) { return add("\033[26:", b  , csi_ccc); } // escx: Should the mouse poiner to be drawn.
         auto& link(si32 i)       { return add("\033[31:", i  , csi_ccc); } // escx: Set object id link.
         auto& styled(si32 b)     { return add("\033[32:", b  , csi_ccc); } // escx: Enable line style reporting (0/1).
-        auto& style(ui32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
+        auto& style(si32 i)      { return add("\033[33:", i  , csi_ccc); } // escx: Line style response (deco::format: alignment, wrapping, RTL, etc).
     };
 
     template<bool UseSGR = true, bool Initial = true, bool Finalize = true>
@@ -973,7 +973,7 @@ namespace netxs::ansi
         dent margin     = {}; // deco: Page margins.
 
         deco() = default;
-        deco(ui32 format)
+        deco(si32 format)
             : wrapln{ (byte)((format >> 0) & 0x03) },
               adjust{ (byte)((format >> 2) & 0x03) },
               r_to_l{ (byte)((format >> 4) & 0x03) },
@@ -984,11 +984,11 @@ namespace netxs::ansi
         // deco: Return serialized deco (wo margins).
         auto format() const
         {
-            return (ui32)wrapln << 0 |
-                   (ui32)adjust << 2 |
-                   (ui32)r_to_l << 4 |
-                   (ui32)rlfeed << 6 |
-                   (ui32)tablen << 8;
+            return (si32)wrapln << 0 |
+                   (si32)adjust << 2 |
+                   (si32)r_to_l << 4 |
+                   (si32)rlfeed << 6 |
+                   (si32)tablen << 8;
         }
         auto  wrp   () const  { return wrapln;                                      } // deco: Return Auto wrapping.
         auto  jet   () const  { return adjust;                                      } // deco: Return Paragraph adjustment.

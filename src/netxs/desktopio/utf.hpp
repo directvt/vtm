@@ -1156,11 +1156,13 @@ namespace netxs::utf
             while ((pos = utf8.find(mark, cur)) != V1::npos)
             {
                 auto frag = view{ utf8.data() + cur, pos - cur };
-                if (!SkipEmpty || !frag.empty()) crop.push_back(frag);
+                auto push = !SkipEmpty || !frag.empty();
+                if (push) crop.push_back(frag);
                 cur = pos + len;
             }
-            auto end = view{ utf8.data() + cur, utf8.size() - cur };
-            if (!SkipEmpty || !end.empty()) crop.push_back(end);
+            auto tail = view{ utf8.data() + cur, utf8.size() - cur };
+            auto push = !SkipEmpty || !tail.empty();
+            if (push) crop.push_back(tail);
         }
         return crop;
     }

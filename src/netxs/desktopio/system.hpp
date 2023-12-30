@@ -949,8 +949,7 @@ namespace netxs::os
                      | vkeys[VK_CAPITAL ] & 0b0000'0001 ? CAPSLOCK_ON        : 0
                      | vkeys[VK_SCROLL  ] & 0b0000'0001 ? SCROLLLOCK_ON      : 0;
             }
-            template<class T1>
-            auto ms_kbstate(T1 ctrls)
+            auto ms_kbstate(si32 ctrls)
             {
                 bool lshift = ctrls & input::hids::LShift;
                 bool rshift = ctrls & input::hids::RShift;
@@ -976,7 +975,7 @@ namespace netxs::os
             template<char C>
             static auto takevkey()
             {
-                struct vkey { si16 key, vkey; ui32 base; };
+                struct vkey { si16 key, vkey; si32 base; };
                 static auto x = ::VkKeyScanW(C);
                 static auto k = vkey{ x, x & 0xff, x & 0xff |((x & 0x0100 ? input::hids::anyShift : 0)
                                                             | (x & 0x0200 ? input::hids::anyCtrl  : 0)
@@ -3979,8 +3978,8 @@ namespace netxs::os
                     else
                     {
                         if (state & mode::move
-                        || (state & mode::drag && (gear.m.buttons && moved))
-                        || (state & mode::bttn && (gear.m.buttons != gear.s.buttons || gear.m.wheeled)))
+                        || (state & mode::drag && (gear.m_sys.buttons && moved))
+                        || (state & mode::bttn && (gear.m_sys.buttons != gear.m_sav.buttons || gear.m_sys.wheeled)))
                         {
                             auto guard = std::lock_guard{ writemtx };
                                  if (encod == prot::sgr) writebuf.mouse_sgr(gear, coord);
@@ -4651,7 +4650,7 @@ namespace netxs::os
                                 k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                 k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                 k.pressed = r.Event.KeyEvent.bKeyDown;
-                                k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
+                                k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
                                 k.cluster = toutf;
                                 do
                                 {
@@ -4675,7 +4674,7 @@ namespace netxs::os
                                     k.virtcod = r.Event.KeyEvent.wVirtualKeyCode;
                                     k.scancod = r.Event.KeyEvent.wVirtualScanCode;
                                     k.cluster = toutf;
-                                    k.keycode = input::key::xlat(r.Event.KeyEvent.wVirtualKeyCode, r.Event.KeyEvent.wVirtualScanCode, r.Event.KeyEvent.dwControlKeyState);
+                                    k.keycode = input::key::xlat(k.virtcod, k.scancod, (si32)r.Event.KeyEvent.dwControlKeyState);
                                     do
                                     {
                                         k.pressed = true;
@@ -4698,7 +4697,7 @@ namespace netxs::os
                                     if (head != tail && head->EventType == MENU_EVENT)
                                     {
                                         auto r = *head++;
-                                        style(deco{ r.Event.MenuEvent.dwCommandId });
+                                        style(deco{ (si32)r.Event.MenuEvent.dwCommandId });
                                     }
                                     break;
                                 case nt::console::event::paste_begin:
@@ -4900,7 +4899,7 @@ namespace netxs::os
                 static auto vt2key = []
                 {
                     using namespace input;
-                    auto keymask = std::vector<std::pair<ui32, text>>
+                    auto keymask = std::vector<std::pair<si32, text>>
                     {
                         { key::PageUp,     "\033[5; ~"  },
                         { key::PageDown,   "\033[6; ~"  },
@@ -4925,7 +4924,7 @@ namespace netxs::os
                         { key::F11,        "\033[23; ~" },
                         { key::F12,        "\033[24; ~" },
                     };
-                    auto m = std::unordered_map<text, std::pair<text, ui32>, qiew::hash, qiew::equal>
+                    auto m = std::unordered_map<text, std::pair<text, si32>, qiew::hash, qiew::equal>
                     {
                         //{ "\033\x7f"  , { "\x08", key::Backspace     | hids::LAlt   << 8 }},
                         { "\033\x7f"  , { "",     key::Slash         |(hids::LCtrl | hids::LAlt | hids::LShift) << 8 }},
@@ -5240,7 +5239,7 @@ namespace netxs::os
                             else if (t == type::style)
                             {
                                 auto tmp = s.substr(style_cmd.size());
-                                if (auto format = utf::to_int<ui32>(tmp))
+                                if (auto format = utf::to_int(tmp))
                                 {
                                     style(deco{ format.value() });
                                 }

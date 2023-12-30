@@ -27,7 +27,7 @@ struct consrv
     virtual void paste(view block) = 0;
     virtual void focus(bool state) = 0;
     virtual void winsz(twod newsz) = 0;
-    virtual void style(ui32 style) = 0;
+    virtual void style(si32 style) = 0;
     virtual void sighup() = 0;
     void cleanup(bool io_log)
     {
@@ -890,7 +890,7 @@ struct impl : consrv
             ondata.reset();
             signal.notify_one();
         }
-        void style(ui32 format)
+        void style(si32 format)
         {
             auto lock = std::lock_guard{ locker };
             auto data = INPUT_RECORD{ .EventType = MENU_EVENT };
@@ -904,7 +904,7 @@ struct impl : consrv
         void mouse(input::hids& gear, bool moved, twod coord)
         {
             auto state = os::nt::ms_kbstate(gear.ctlstate);
-            auto bttns = gear.m.buttons & 0b00011111;
+            auto bttns = gear.m_sys.buttons & 0b00011111;
             auto flags = ui32{};
             if (moved) flags |= MOUSE_MOVED;
             for (auto i = 0_sz; i < dclick.size(); i++)
@@ -914,7 +914,7 @@ struct impl : consrv
                 if (prvbtn != sysbtn && sysbtn) // MS UX guidelines recommend signaling a double-click when the button is pressed twice rather than when it is released twice.
                 {
                     auto& s = dclick[i];
-                    auto fired = gear.m.timecod;
+                    auto fired = gear.m_sys.timecod;
                     if (fired - s.fired < gear.delay && s.coord == coord) // Set the double-click flag if the delay has not expired and the mouse is in the same position.
                     {
                         flags |= DOUBLE_CLICK;
@@ -928,11 +928,11 @@ struct impl : consrv
                 }
             }
             mstate = bttns;
-            if (gear.m.wheeldt)
+            if (gear.m_sys.wheeldt)
             {
-                     if (gear.m.wheeled) flags |= MOUSE_WHEELED;
-                else if (gear.m.hzwheel) flags |= MOUSE_HWHEELED;
-                bttns |= gear.m.wheeldt << 16;
+                     if (gear.m_sys.wheeled) flags |= MOUSE_WHEELED;
+                else if (gear.m_sys.hzwheel) flags |= MOUSE_HWHEELED;
+                bttns |= gear.m_sys.wheeldt << 16;
             }
             auto lock = std::lock_guard{ locker };
             stream.emplace_back(INPUT_RECORD
@@ -947,7 +947,7 @@ struct impl : consrv
                             .X = (si16)std::clamp<si32>(coord.x, 0, si16max),
                             .Y = (si16)std::clamp<si32>(coord.y, 0, si16max),
                         },
-                        .dwButtonState     = bttns,
+                        .dwButtonState     = (DWORD)bttns,
                         .dwControlKeyState = state,
                         .dwEventFlags      = flags,
                     }
@@ -5050,7 +5050,7 @@ struct impl : consrv
     void paste(view block)                                  { events.paste(block);              }
     void focus(bool state)                                  { events.focus(state);              }
     void winsz(twod newsz)                                  { events.winsz(newsz);              }
-    void style(ui32 style)                                  { events.style(style);              }
+    void style(si32 style)                                  { events.style(style);              }
     bool  send(view utf8)                                   { events.write(utf8); return true;  }
     void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
     fd_t watch()                                            { return events.ondata;             }
@@ -5273,7 +5273,7 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
     }
-    void style(ui32 format)
+    void style(si32 format)
     {
         //todo win32-input-mode
     }

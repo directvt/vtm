@@ -833,8 +833,8 @@ namespace netxs::ui
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
                 area.coor = gear.coord;
-                auto brush = gear.m.buttons ? cell{ busy }.txt(64 + gear.m.buttons/*A-Z*/)
-                                            : idle;
+                auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + gear.m_sys.buttons/*A-Z*/)
+                                                : idle;
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }

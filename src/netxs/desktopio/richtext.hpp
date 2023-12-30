@@ -17,21 +17,20 @@ namespace netxs::ui
 
     public:
         poly() = default;
-        poly(cell const& basis)
-            : basis{ basis }
+        poly(cell const& c)
+            : basis{ c }
         {
-            recalc(basis);
+            recalc(c);
         }
 
-        void recalc(cell const& basis)
+        void recalc(cell const& c)
         {
             for (auto k = 0; k < 256; k++)
             {
                 auto& b = grade[k];
-
-                b = basis;
-                b.bga(b.bga() * k >> 8);
-                b.fga(b.fga() * k >> 8);
+                b = c;
+                b.bga((byte)(b.bga() * k >> 8));
+                b.fga((byte)(b.fga() * k >> 8));
             }
         }
 
@@ -76,9 +75,9 @@ namespace netxs::ui
         static void exec_py(flow& f, si32 a) { f.py(a); }
         static void exec_tb(flow& f, si32 a) { f.tb(a); }
         static void exec_nl(flow& f, si32 a) { f.nl(a); }
-        static void exec_sc(flow& f, si32 a) { f.sc( ); }
-        static void exec_rc(flow& f, si32 a) { f.rc( ); }
-        static void exec_zz(flow& f, si32 a) { f.zz( ); }
+        static void exec_sc(flow& f, si32  ) { f.sc( ); }
+        static void exec_rc(flow& f, si32  ) { f.rc( ); }
+        static void exec_zz(flow& f, si32  ) { f.zz( ); }
 
         // flow: Draw commands (customizable).
         template<ansi::fn Cmd>
@@ -294,13 +293,12 @@ namespace netxs::ui
             }
         }
         // flow: Execute specified locus instruction list.
-        auto forward(writ const& cmd)
+        auto forward(writ const& cmds)
         {
-            auto& inst = *this;
             //flow::up();
-            for (auto [cmd, arg] : cmd)
+            for (auto [cmd, arg] : cmds)
             {
-                flow::exec[cmd](inst, arg);
+                flow::exec[cmd](*this, arg);
             }
             return flow::up();
         }
@@ -827,8 +825,8 @@ namespace netxs::ui
             while (iter != tail)
             {
                 auto head = --iter;
-                auto tail = head + step;
-                while (head != tail)
+                auto stop = head + step;
+                while (head != stop)
                 {
                     auto& src = *head;
                     auto& dst = *++head;
@@ -1078,10 +1076,10 @@ namespace netxs::ui
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 count, grid const& proto) override
+        void data(si32 cell_count, grid const& proto_cells) override
         {
-            lyric->splice(caret, count, proto, cell::shaders::full);
-            caret += count;
+            lyric->splice(caret, cell_count, proto_cells, cell::shaders::full);
+            caret += cell_count;
         }
         //todo unify: see ui::page::post
         void post(utf::frag const& cluster)
@@ -1696,7 +1694,7 @@ namespace netxs::ui
             auto& item = **layer;
             item.locus.push(cmd);
         }
-        void meta(deco const& old_style) override
+        void meta(deco const& /*old_style*/) override
         {
             auto& item = **layer;
             item.style = parser::style;
@@ -1714,11 +1712,11 @@ namespace netxs::ui
                 ansi::parser::post(cluster);
             }
         }
-        void data(si32 count, grid const& proto) override
+        void data(si32 cell_count, grid const& proto_cells) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
-            item.caret += count;
+            item.lyric->splice(item.caret, cell_count, proto_cells, cell::shaders::full);
+            item.caret += cell_count;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.
@@ -1858,8 +1856,8 @@ namespace netxs::ui
                 static constexpr auto off = "\\strike0 "sv;
                 data += b ? set : off;
             }
-            auto ovr(bool b) { } // not supported
-            auto blk(bool b) { } // not supported
+            auto ovr(bool) { } // not supported
+            auto blk(bool) { } // not supported
         };
 
         auto to_rich(text font = {}) const

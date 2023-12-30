@@ -307,8 +307,8 @@ namespace netxs::ui
 
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
-                auto m = std::bitset<8>{ gear.m.buttons };
-                auto s = std::bitset<8>{ gear.s.buttons };
+                auto m = std::bitset<8>{ (ui32)gear.m_sys.buttons };
+                auto s = std::bitset<8>{ (ui32)gear.m_sav.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
                     owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
@@ -342,15 +342,15 @@ namespace netxs::ui
                         {
                             if (gear.captured(owner.id))
                             {
-                                if (!gear.m.buttons) gear.setfree(true);
+                                if (!gear.m_sys.buttons) gear.setfree(true);
                             }
-                            else if (gear.m.buttons) gear.capture(owner.id);
+                            else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
-                            auto c = gear.m.coordxy;
+                            auto c = gear.m_sys.coordxy;
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
-                            if (gear.s.changed != gear.m.changed)
+                            if (gear.m_sav.changed != gear.m_sys.changed)
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state);
                             }
@@ -7647,31 +7647,31 @@ namespace netxs::ui
                 {
                     if (gear.captured(master.id))
                     {
-                        if (!gear.m.buttons) gear.setfree(true);
+                        if (!gear.m_sys.buttons) gear.setfree(true);
                     }
-                    else if (gear.m.buttons) gear.capture(master.id);
-                    gear.m.gear_id = gear.id;
-                    s11n::sysmouse.send(master, gear.m);
+                    else if (gear.m_sys.buttons) gear.capture(master.id);
+                    gear.m_sys.gear_id = gear.id;
+                    s11n::sysmouse.send(master, gear.m_sys);
                     gear.dismiss();
                 };
                 master.LISTEN(tier::general, hids::events::die, gear, tokens)
                 {
                     gear.setfree(true);
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::die;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::die;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::general, hids::events::halt, gear, tokens)
                 {
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, tokens)
                 {
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
                 {
