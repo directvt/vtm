@@ -594,8 +594,8 @@ namespace netxs
         auto limit = data1 + region.size.y * size1.x;
         while (limit != data1)
         {
-            auto limit = data1 + region.size.x;
-            while (limit != data1)
+            auto bound = data1 + region.size.x;
+            while (bound != data1)
             {
                 if constexpr (RtoL) handle(*data1++, *--data2);
                 else                handle(*data1++, *data2++);
@@ -657,13 +657,13 @@ namespace netxs
             auto limit = place.size.x * joint.size.y + frame;
             while (limit != frame)
             {
-                auto limit = frame + joint.size.x;
-                while (limit != frame)
+                auto bound = frame + joint.size.x;
+                while (bound != frame)
                 {
                     if constexpr (RtoL)
                     {
-                        if constexpr (Plain) handle(*--limit);
-                        else             if (handle(*--limit)) return;
+                        if constexpr (Plain) handle(*--bound);
+                        else             if (handle(*--bound)) return;
                     }
                     else
                     {

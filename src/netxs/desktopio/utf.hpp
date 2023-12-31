@@ -1551,9 +1551,9 @@ namespace netxs::utf
         auto test = utf8.find('\033');
         return test == text::npos;
     }
-    auto to_low(unsigned char c)
+    auto to_low(char c)
     {
-        return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+        return c >= 'A' && c <= 'Z' ? (char)(c + ('a' - 'A')) : c;
     }
     auto& to_low(text& utf8, size_t size = text::npos)
     {
@@ -1570,7 +1570,7 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
+        std::transform(head, tail, head, [](char c) { return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c; });
         return utf8;
     }
     auto to_up(text&& utf8)

@@ -1955,7 +1955,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Rasterize selection with grips.
-            void selection_raster(face& dest, auto curtop, auto curend, bool ontop = true, bool onend = true)
+            void selection_raster(face& dest, auto curtop, auto curend, bool /*ontop*/ = true, bool /*onend*/ = true)
             {
                 if (selection_active())
                 {
@@ -2231,18 +2231,18 @@ namespace netxs::ui
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
-                auto saved = coord;
+                auto start = coord;
                 coord.x += count;
                 //todo apply line adjusting (necessity is not clear)
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
-                    auto n = std::min(count, panel.x - std::max(0, saved.x));
-                    canvas.splice<Copy>(saved, n, proto, fuse);
+                    auto n = std::min(count, panel.x - std::max(0, start.x));
+                    canvas.splice<Copy>(start, n, proto, fuse);
                 }
                 else
                 {
                     wrapdn();
-                    if (saved.y < y_top)
+                    if (start.y < y_top)
                     {
                         if (coord.y >= y_top)
                         {
@@ -2252,12 +2252,12 @@ namespace netxs::ui
                             _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
-                    else if (saved.y <= y_end)
+                    else if (start.y <= y_end)
                     {
                         if (coord.y > y_end)
                         {
@@ -2281,7 +2281,7 @@ namespace netxs::ui
 
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = canvas.iend();
                         auto back = panel.x;
@@ -3366,10 +3366,10 @@ namespace netxs::ui
                 {
                     assert(curit != batch.end() - 1);
 
-                    auto& curln = *++curit;
-                    width = curln.length();
-                    wraps = curln.wrapped();
-                    curid = curln.index;
+                    auto& line = *++curit;
+                    width = line.length();
+                    wraps = line.wrapped();
+                    curid = line.index;
                     start = 0;
                 }
                 else assert(mapln.width == panel.x);
@@ -3394,10 +3394,10 @@ namespace netxs::ui
                     if (avail == 0) break;
 
                     assert(curit != batch.end() - 1);
-                    auto& curln = *++curit;
-                    width = curln.length();
-                    wraps = curln.wrapped();
-                    curid = curln.index;
+                    auto& line = *++curit;
+                    width = line.length();
+                    wraps = line.wrapped();
+                    curid = line.index;
                     start = 0;
                 }
                 assert(test_index());
@@ -4422,20 +4422,20 @@ namespace netxs::ui
                 else
                 {
                     coord.y -= y_end + 1;
-                    auto saved = coord;
+                    auto start = coord;
                     coord.x += count;
                     //todo apply line adjusting
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        dnbox.splice<Copy>(saved, n, proto, fuse);
+                        auto n = std::min(count, panel.x - std::max(0, start.x));
+                        dnbox.splice<Copy>(start, n, proto, fuse);
                     }
                     else
                     {
                         wrapdn();
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = dnbox.iter() + seek;
                         auto tail = dnbox.iend();
                         auto back = panel.x;
@@ -6517,7 +6517,7 @@ namespace netxs::ui
         template<class P>
         void update(P proc)
         {
-            auto done = bell::trysync(true, [&]
+            bell::trysync(true, [&]
             {
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
@@ -6645,7 +6645,7 @@ namespace netxs::ui
                 {
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec.
+                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto /*id*/) mutable // 0ms = current FPS ticks/sec.
                     {
                         auto shift = scrollby(delta);
                         return shore-- && (origin.x != limit && !!shift);

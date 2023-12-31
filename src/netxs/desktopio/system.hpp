@@ -582,12 +582,12 @@ namespace netxs::os
                 template<svga Mode>
                 void print(auto area, auto coor, auto head, auto tail) // STA
                 {
-                    static auto buffer = std::vector<CHAR_INFO>{};
+                    static auto outbuf = std::vector<CHAR_INFO>{};
                     static auto toWIDE = wide{};
 
                     auto dist = tail - head;
-                    buffer.resize(dist);
-                    auto dest = buffer.begin();
+                    outbuf.resize(dist);
+                    auto dest = outbuf.begin();
                     while (head != tail)
                     {
                         auto& src = *head++;
@@ -604,7 +604,7 @@ namespace netxs::os
                         }
                         else chr = 32;
                     }
-                    fill(buffer, area, coor);
+                    fill(outbuf, area, coor);
                     //todo Do we really need a wrap for wide chars? What about horizontal scrolling?
                     //auto dest = SMALL_RECT{ .Right = (SHORT)area.x, .Bottom = (SHORT)area.y };
                     //auto crop = COORD{ .Y = 1 };
@@ -2173,7 +2173,7 @@ namespace netxs::os
 
             // args: Recursive argument matching.
             template<class I>
-            auto test(I&& item) { return faux; }
+            auto test(I&& /*item*/) { return faux; }
             // args: Recursive argument matching.
             template<class I, class T, class ...Args>
             auto test(I&& item, T&& sample, Args&&... args)
@@ -2541,7 +2541,7 @@ namespace netxs::os
                         auto connected = ::ConnectNamedPipe(svcpipe, NULL) || os::error() == ERROR_PIPE_CONNECTED;
                         auto lockguard = std::lock_guard{ svcsync };
                         if (!running || !connected) break;
-                        threads.run([link = svcpipe](auto task_id)
+                        threads.run([link = svcpipe](auto /*task_id*/)
                         {
                             auto size = ui32{};
                             auto process_id = DWORD{};
@@ -4128,8 +4128,8 @@ namespace netxs::os
                 auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                        std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(text cmd, text cwd, text env, twod /*win*/, std::function<void(view)> input_hndl,
+                                                                            std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
@@ -4538,8 +4538,13 @@ namespace netxs::os
                 auto check = [](auto& changed, auto& oldval, auto newval)
                 {
                     auto diff = faux;
-                    if constexpr (std::is_integral_v<decltype(oldval)>) diff = std::cmp_not_equal(oldval, newval);
-                    else                                                diff = oldval != newval;
+                    //if constexpr (std::is_integral_v<decltype(newval)>)
+                    //{
+                    //    auto old = oldval;
+                    //    diff = std::cmp_not_equal(old, newval);
+                    //}
+                    //else diff = oldval != newval;
+                    diff = oldval != newval;
                     if (diff)
                     {
                         changed++;
@@ -4694,8 +4699,8 @@ namespace netxs::os
                                 case nt::console::event::style:
                                     if (head != tail && head->EventType == MENU_EVENT)
                                     {
-                                        auto r = *head++;
-                                        style(deco{ (si32)r.Event.MenuEvent.dwCommandId });
+                                        auto& next_rec = *head++;
+                                        style(deco{ (si32)next_rec.Event.MenuEvent.dwCommandId });
                                     }
                                     break;
                                 case nt::console::event::paste_begin:
@@ -5441,10 +5446,11 @@ namespace netxs::os
                                     {
                                         if (format == cf_text)
                                         {
-                                            auto type = hidden ? mime::safetext : mime::textonly;
-                                            if (auto hglb = ::GetClipboardData(format))
+                                            hglb = ::GetClipboardData(format);
+                                            if (hglb)
                                             if (auto lptr = ::GlobalLock(hglb))
                                             {
+                                                auto type = hidden ? mime::safetext : mime::textonly;
                                                 auto size = ::GlobalSize(hglb);
                                                 sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
                                                 ::GlobalUnlock(hglb);

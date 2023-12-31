@@ -2271,10 +2271,10 @@ namespace netxs::ui
             return This();
         }
         // form: Set control as root.
-        auto isroot(bool master, si32 family = base::client)
+        auto isroot(bool isroot, si32 ofkind = base::client)
         {
-            base::root(master);
-            base::kind(family);
+            base::root(isroot);
+            base::kind(ofkind);
             return This();
         }
         // form: Set the form visible for mouse.
@@ -3306,9 +3306,9 @@ namespace netxs::ui
             }
             else
             {
-                auto speed = dir ? wheel_dt : -wheel_dt;
-                auto delta = Axis == X ? twod{ speed * 2, 0 }
-                                       : twod{ 0, speed };
+                auto step = dir ? wheel_dt : -wheel_dt;
+                auto delta = Axis == X ? twod{ step * 2, 0 }
+                                       : twod{ 0, step };
                 scroll(delta);
             }
         }
@@ -3348,7 +3348,8 @@ namespace netxs::ui
         template<axis Axis, bool Forced = faux>
         void cancel()
         {
-            if (Forced || !inside<Axis>()) lineup<Axis>();
+            auto correct = Forced || !inside<Axis>();
+            if (correct) lineup<Axis>();
         }
         // rail: .
         template<axis Axis>

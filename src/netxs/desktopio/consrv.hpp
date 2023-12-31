@@ -5044,16 +5044,16 @@ struct impl : consrv
             }
         }
     }
-    void mouse(input::hids& gear, bool moved, twod coord,
-        input::mouse::prot encod, input::mouse::mode state) { events.mouse(gear, moved, coord); }
-    void keybd(input::hids& gear, bool decckm)              { events.keybd(gear, decckm);       }
-    void paste(view block)                                  { events.paste(block);              }
-    void focus(bool state)                                  { events.focus(state);              }
-    void winsz(twod newsz)                                  { events.winsz(newsz);              }
-    void style(si32 style)                                  { events.style(style);              }
-    bool  send(view utf8)                                   { events.write(utf8); return true;  }
-    void  undo(bool undo_redo)                              { events.undo(undo_redo);           }
-    fd_t watch()                                            { return events.ondata;             }
+    void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot /*encod*/,
+                 input::mouse::mode /*state*/) { events.mouse(gear, moved, coord); }
+    void keybd(input::hids& gear, bool decckm) { events.keybd(gear, decckm);       }
+    void paste(view block)                     { events.paste(block);              }
+    void focus(bool state)                     { events.focus(state);              }
+    void winsz(twod newsz)                     { events.winsz(newsz);              }
+    void style(si32 style)                     { events.style(style);              }
+    bool  send(view utf8)                      { events.write(utf8); return true;  }
+    void  undo(bool undo_redo)                 { events.undo(undo_redo);           }
+    fd_t watch()                               { return events.ondata;             }
 
     impl(Term& uiterm)
         : uiterm{ uiterm                                         },

@@ -1371,15 +1371,15 @@ namespace netxs::ansi
             //      [-----------------------]
 
             static constexpr auto maxarg = 32_sz; // ansi: Maximal number of the parameters in one escaped sequence.
-            using fifo = generics::bank<si32, maxarg>;
+            using fifo32 = generics::bank<si32, maxarg>;
 
             if (ascii.length())
             {
-                auto b = '\0';
-                auto ints = [](unsigned char cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = [](unsigned char cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
-                auto cmds = [](unsigned char cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
-                auto isC0 = [](unsigned char cmd) { return cmd <= 0x1F; };
+                auto b = 0;
+                auto ints = [](auto cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
+                auto pars = [](auto cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
+                auto cmds = [](auto cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
+                auto isC0 = [](auto cmd) { return cmd <= 0x1F; };
                 auto trap = [&](auto& c) // Catch and execute C0.
                 {
                     if (isC0(c))
@@ -1400,7 +1400,7 @@ namespace netxs::ansi
                 };
                 auto fill = [&](auto& queue)
                 {
-                    auto a = ';';
+                    auto a = (si32)';';
                     auto push = [&](auto num) // Parse subparameters divided by colon ':' (max arg value<int32_t> is 1,073,741,823)
                     {
                         if (a == ':') queue.template push<true>(num);
@@ -1421,7 +1421,7 @@ namespace netxs::ansi
                         {
                             auto c = ascii.front();
                             if (trap(c)) continue;
-                            push(fifo::skip); // Default parameter expressed by standalone delimiter/semicolon.
+                            push(fifo32::skip); // Default parameter expressed by standalone delimiter/semicolon.
                             a = c; // Delimiter or cmd after number.
                         }
                         ascii.pop_front();
@@ -1443,7 +1443,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    auto queue = fifo{ ccc_nop }; // Reserve for the command type.
+                    auto queue = fifo32{ ccc_nop }; // Reserve for the command type.
                     if (pars(c))
                     {
                         ascii.pop_front();
@@ -1542,21 +1542,21 @@ namespace netxs::ansi
 
                 while (head != tail)
                 {
-                    auto c = *head;
+                    c = *head;
                     if (c == ';')
                     {
                         delm = head++;
                         while (head != tail)
                         {
-                            unsigned char c = *head;
-                            if (c <= c0_esc) // To avoid double comparing.
+                            auto c0 = (byte)*head;
+                            if (c0 <= c0_esc) // To avoid double comparing.
                             {
-                                if (c == c0_bel)
+                                if (c0 == c0_bel)
                                 {
                                     exec(1);
                                     return;
                                 }
-                                else if (c == c0_esc)
+                                else if (c0 == c0_esc)
                                 {
                                     auto next = std::next(head);
                                     if (next != tail && *next == '\\')
@@ -1585,7 +1585,7 @@ namespace netxs::ansi
         }
 
         // vt_parser: Set keypad mode.
-        static void keym(qiew& ascii, T*& p)
+        static void keym(qiew& /*ascii*/, T*& /*p*/)
         {
             // Keypad mode	Application ESC =
             // Keypad mode	Numeric     ESC >
@@ -1598,7 +1598,7 @@ namespace netxs::ansi
         }
 
         // vt_parser: Designate G0 Character Set.
-        static void g0__(qiew& ascii, T*& p)
+        static void g0__(qiew& ascii, T*& /*p*/)
         {
             // ESC ( C
             //      [-]

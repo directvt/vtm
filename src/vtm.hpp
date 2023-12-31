@@ -1618,9 +1618,9 @@ namespace netxs::app::vtm
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
-                    auto& proto = alias.size() ? find(alias) // New based on alias_id.
-                                               : dflt_spec;  // New item.
-                    merge(conf_rec, proto);
+                    auto& dflt = alias.size() ? find(alias) // New based on alias_id.
+                                              : dflt_spec;  // New item.
+                    merge(conf_rec, dflt);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }

@@ -832,15 +832,15 @@ namespace netxs::generics
                         auto task = queue.front();
                         if (task >= 0 && (size_t)task < last->size())
                         {
-                            if (auto const& next = last->at(task))
+                            if (auto const& next_item = last->at(task))
                             {
                                 queue.pop_front();
-                                if (next.proc)
+                                if (next_item.proc)
                                 {
-                                    next.proc(queue, story);
+                                    next_item.proc(queue, story);
                                     break;
                                 }
-                                else last = &next;
+                                else last = &next_item;
                             }
                             else
                             {
