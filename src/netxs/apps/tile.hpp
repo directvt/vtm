@@ -698,7 +698,7 @@ namespace netxs::app::tile
                         }
 
                         insts_count++; //todo unify, demo limits
-                        config.applet->LISTEN(tier::release, e2::dtor, id)
+                        config.applet->LISTEN(tier::release, e2::dtor, applet_id)
                         {
                             insts_count--;
                             if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
@@ -737,21 +737,21 @@ namespace netxs::app::tile
                 auto s1 = si32{ 1 };
                 auto s2 = si32{ 1 };
                 auto w  = si32{-1 };
-                if (auto v = utf::to_int(utf8)) // Left side ratio
+                if (auto l = utf::to_int(utf8)) // Left side ratio
                 {
-                    s1 = std::abs(v.value());
+                    s1 = std::abs(l.value());
                     if (utf8.empty() || utf8.front() != ':') return slot;
                     utf8.remove_prefix(1);
-                    if (auto v = utf::to_int(utf8)) // Right side ratio
+                    if (auto r = utf::to_int(utf8)) // Right side ratio
                     {
-                        s2 = std::abs(v.value());
+                        s2 = std::abs(r.value());
                         utf::trim_front(utf8, " ");
                         if (!utf8.empty() && utf8.front() == ':') // Grip width.
                         {
                             utf8.remove_prefix(1);
-                            if (auto v = utf::to_int(utf8))
+                            if (auto g = utf::to_int(utf8))
                             {
-                                w = std::abs(v.value());
+                                w = std::abs(g.value());
                                 utf::trim_front(utf8, " ");
                             }
                         }

@@ -1158,7 +1158,7 @@ namespace netxs::ansi
             table_sglqoute.resize(0x100);
             table_asterisk.resize(0x100);
 
-            #define V [](auto& q, auto& p)
+            #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
             #define F(t, n) p->task(rule{ fn::t, n })
 
             table         .resize(0x100);

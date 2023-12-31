@@ -3780,10 +3780,11 @@ namespace netxs::ui
                 auto apply = [&](auto active)
                 {
                     wide = active;
-                    if (Axis == axis::Y && mult) config(active ? init * mult // Make vertical scrollbar
-                                                               : init);      // wider on hover.
+                    auto resize = Axis == axis::Y && mult;
+                    if (resize) config(active ? init * mult // Make vertical scrollbar
+                                              : init);      // wider on hover.
                     base::reflow();
-                    return faux; // One shot call.
+                    return faux; // One-shot call.
                 };
 
                 timer.pacify(activity::mouse_leave);
@@ -3850,7 +3851,7 @@ namespace netxs::ui
                 canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).xlight(); });
             }
         };
-        static constexpr auto underline = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+        static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
         {
             if (object_len && handle_len != region_len) // Show only if it is oversized.
             {

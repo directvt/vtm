@@ -641,7 +641,7 @@ namespace netxs::os
                     {
                         using namespace netxs::ansi;
 
-                        #define V [](auto& q, auto& p)
+                        #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                         vt.intro[ctrl::nul]              = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
                         vt.intro[ctrl::cr ]              = V{ p->task({ fn::ax, 0 }); };
                         vt.intro[ctrl::eol]              = V{ p->task({ fn::nl, 1 }); };

@@ -1009,11 +1009,11 @@ namespace netxs::app::vtm
                 auto& grade = skin::grade(is_active ? color.active
                                                     : color.passive);
                 auto obj_id = object->id;
-                auto pset = [&](twod p, byte k)
+                auto pset = [&](twod p, si32 k)
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
                     //canvas[p].fuse(grade[k], obj_id);
-                    canvas[p].link(obj_id).bgc().mix_one(grade[k].bgc());
+                    canvas[p].link(obj_id).bgc().mix_one(grade[k & 0xFF].bgc());
                 };
                 window.coor = dot_00;
                 netxs::online(window, origin, center, pset);

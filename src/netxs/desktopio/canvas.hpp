@@ -1444,29 +1444,30 @@ namespace netxs
         // cell: Copy view of the cell (Preserve ID).
         auto& set(cell const& c)  { uv = c.uv;
                                     st = c.st;
-                                    gc = c.gc;          return *this; }
-        auto& bgc (rgba c)        { uv.bg = c;          return *this; } // cell: Set Background color.
-        auto& fgc (rgba c)        { uv.fg = c;          return *this; } // cell: Set Foreground color.
-        auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
-        auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
-        auto& alpha(byte k)       { uv.bg.chan.a = k;
-                                    uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
-        auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
-        auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
-        auto& und (si32 n)        { st.und(n);          return *this; } // cell: Set Underline attribute.
-        auto& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
-        auto& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
-        auto& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
-        auto& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
-        auto& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
-        auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
-        auto& link(cell const& c) { id = c.id;          return *this; } // cell: Set link object ID.
-        auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
-        auto& txt (view c, si32 w){ gc.set(c, w);       return *this; } // cell: Set Grapheme cluster.
-        auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
-        auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
-        auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+                                    gc = c.gc;              return *this; }
+        auto& bgc (rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
+        auto& fgc (rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
+        auto& bga (si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set Background alpha/transparency.
+        auto& fga (si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set Foreground alpha/transparency.
+        auto& alpha(si32 k)       { uv.bg.chan.a = (byte)k;
+                                    uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
+        auto& bld (bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
+        auto& itc (bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
+        auto& und (si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
+        auto& ovr (bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
+        auto& inv (bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
+        auto& stk (bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
+        auto& blk (bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
+        auto& rtl (bool b)        { st.rtl(b);              return *this; } // cell: Set Right-To-Left attribute.
+        auto& link(id_t oid)      { id = oid;               return *this; } // cell: Set link object ID.
+        auto& link(cell const& c) { id = c.id;              return *this; } // cell: Set link object ID.
+        auto& txt (view c)        { c.size() ? gc.set(c)
+                                             : gc.wipe();   return *this; } // cell: Set Grapheme cluster.
+        auto& txt (view c, si32 w){ gc.set(c, w);           return *this; } // cell: Set Grapheme cluster.
+        auto& txt (char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
+        auto& txt (cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
+        auto& clr (cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
+        auto& wdt (si32 w)        { gc.state.width = w;     return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };

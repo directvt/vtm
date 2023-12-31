@@ -1525,7 +1525,7 @@ namespace netxs::ui
         {
             using namespace netxs::ansi;
 
-            #define V [](auto& q, auto& p)
+            #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
             //vt.intro[ctrl::nul]             = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
             vt.intro[ctrl::cr ]              = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
             vt.intro[ctrl::tab]              = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
@@ -2415,7 +2415,7 @@ namespace netxs::ui
 
             // Override vt-functionality.
             using namespace netxs::ansi;
-            #define V [](auto& q, auto& p)
+            #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
             vt.intro[ctrl::tab] = V{ p->tabs(q.pop_all(ctrl::tab)); };
             #undef V
         }

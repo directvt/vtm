@@ -701,7 +701,7 @@ namespace netxs::ui
         {
             static void set_autocr(bool autocr)
             {
-                #define V [](auto& q, auto& p)
+                #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
                 autocr ? parser.intro[ansi::ctrl::eol] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::eol)); }
                        : parser.intro[ansi::ctrl::eol] = V{          p->lf(q.pop_all(ansi::ctrl::eol)); };
@@ -711,7 +711,7 @@ namespace netxs::ui
             static void parser_config(T& vt)
             {
                 using namespace netxs::ansi;
-                #define V [](auto& q, auto& p)
+                #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
                 vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
@@ -5732,7 +5732,7 @@ namespace netxs::ui
                         auto tail = batch.end();
                         auto work = [&](auto fill)
                         {
-                            auto draw = [&](auto const& coord, auto const& subblock, auto isr_to_l)
+                            auto draw = [&](auto const& coord, auto const& subblock, auto /*isr_to_l*/)
                             {
                                      if (coord.y < curtop.y) return;
                                 else if (coord.y > curend.y) coor.y = stop;
@@ -6847,7 +6847,7 @@ namespace netxs::ui
                 auto shift = scrollby(delta);
                 coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
-                worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec.
+                worker.actify(0ms, [&, delta, coord, boxed](auto) mutable // 0ms = current FPS ticks/sec.
                                     {
                                         auto shift = scrollby(delta);
                                         coord -= shift;

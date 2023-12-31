@@ -117,10 +117,10 @@ namespace netxs::app::term
                     if (gear.capture(boss.id))
                     {
                         proc(boss, item, gear);
-                        tick.actify(0, skin::globals().repeat_delay, [&, proc](auto p)
+                        tick.actify(0, skin::globals().repeat_delay, [&, proc](auto)
                         {
                             proc(boss, item, gear);
-                            tick.actify(1, skin::globals().repeat_rate, [&, proc](auto d)
+                            tick.actify(1, skin::globals().repeat_rate, [&, proc](auto)
                             {
                                 proc(boss, item, gear);
                                 return true; // Repeat forever.
@@ -687,7 +687,7 @@ namespace netxs::app::term
                               ->plugin<pro::focus>(pro::focus::mode::focused);
             auto sb = layers->attach(ui::fork::ctor());
             auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-            static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto wide)
+            static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
             {
                 // Brightener isn't suitable for white backgrounds.
                 auto brighter = skin::color(tone::selector);

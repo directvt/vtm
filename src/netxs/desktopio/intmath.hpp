@@ -515,10 +515,10 @@ namespace netxs
         if (size1.x * size1.y == 0
          || size2.x * size2.y == 0) return;
 
-        auto dot_11 = size1 / size1;
-        auto msize0 = size1 - dot_11;
-        auto msize1 = max(dot_11, msize0);
-        auto msize2 = size2 - dot_11;
+        auto size11 = decltype(size1){ 1, 1 };
+        auto msize0 = size1 - size11;
+        auto msize1 = max(size11, msize0);
+        auto msize2 = size2 - size11;
 
         auto y = 0;
         auto h_line = [&]
@@ -761,7 +761,13 @@ namespace netxs
         p0 -= coor;
         p1 -= coor;
 
-        auto set = [&](auto const& p, auto k) { if (size.inside(p)) pset(p + coor, k); };
+        auto set = [&](auto const& p, auto k)
+        {
+            if (size.inside(p))
+            {
+                pset(p + coor, k);
+            }
+        };
         auto draw = [&](auto set)
         {
             if (dx == 0)
@@ -844,7 +850,7 @@ namespace netxs
                     dirx ? oldx += error
                          : oldx -= error;
                     oldy = newy;
-                    return delta;
+                    return (ui16)delta;
                 };
 
                 p1.x = static_cast<type>(x2);
