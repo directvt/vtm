@@ -502,13 +502,13 @@ namespace netxs::os
                 auto handle(fd_t cloned_handle)
                 {
                     auto handle_clone = os::invalid_fd;
-                    auto ok = ::DuplicateHandle(::GetCurrentProcess(),
-                                                cloned_handle,
-                                                ::GetCurrentProcess(),
-                                               &handle_clone,
-                                                0,
-                                                TRUE,
-                                                DUPLICATE_SAME_ACCESS);
+                    ::DuplicateHandle(::GetCurrentProcess(),
+                                      cloned_handle,
+                                      ::GetCurrentProcess(),
+                                     &handle_clone,
+                                      0,
+                                      TRUE,
+                                      DUPLICATE_SAME_ACCESS);
                     return handle_clone;
                 }
                 template<svga Mode>
@@ -662,19 +662,19 @@ namespace netxs::os
                     }
                     auto status()
                     {
-                        auto state = CONSOLE_SCREEN_BUFFER_INFO{};
-                        ::GetConsoleScreenBufferInfo(os::stdout_fd, &state);
-                        return state;
+                        auto s = CONSOLE_SCREEN_BUFFER_INFO{};
+                        ::GetConsoleScreenBufferInfo(os::stdout_fd, &s);
+                        return s;
                     }
                     void cursor(bool show)
                     {
-                        auto state = status();
+                        auto s = status();
                         if (show)
                         {
-                            if (coord.x < state.srWindow.Left // Sync viewport.
-                             || coord.x > state.srWindow.Right
-                             || coord.y < state.srWindow.Top
-                             || coord.y > state.srWindow.Bottom)
+                            if (coord.x < s.srWindow.Left // Sync viewport.
+                             || coord.x > s.srWindow.Right
+                             || coord.y < s.srWindow.Top
+                             || coord.y > s.srWindow.Bottom)
                             {
                                 auto delta = [](auto& head, auto& tail, auto coor)
                                 {
@@ -686,34 +686,34 @@ namespace netxs::os
                                     head += step;
                                     tail += step;
                                 };
-                                delta(state.srWindow.Left, state.srWindow.Right,  coord.x); // Win10 conhost crashes if vieport is outside the buffer (e.g. in case with deferred cursor position).
-                                delta(state.srWindow.Top,  state.srWindow.Bottom, coord.y);
-                                ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &state.srWindow);
+                                delta(s.srWindow.Left, s.srWindow.Right,  coord.x); // Win10 conhost crashes if vieport is outside the buffer (e.g. in case with deferred cursor position).
+                                delta(s.srWindow.Top,  s.srWindow.Bottom, coord.y);
+                                ::SetConsoleWindowInfo(os::stdout_fd, TRUE, &s.srWindow);
                             }
                             auto new_coord = coord;
-                            if (new_coord.x == state.dwSize.X) new_coord.x--; // win7/8 conhost isn't aware about the deferred cursor position.
+                            if (new_coord.x == s.dwSize.X) new_coord.x--; // win7/8 conhost isn't aware about the deferred cursor position.
                             ::SetConsoleCursorPosition(os::stdout_fd, { .X = (SHORT)new_coord.x, .Y = (SHORT)new_coord.y }); // Viewport follows to cursor.
                         }
                         if (shown == show) return;
                         shown = show;
-                        auto s = CONSOLE_CURSOR_INFO{};
-                        ::GetConsoleCursorInfo(os::stdout_fd, &s);
-                        s.bVisible = shown;
-                        ::SetConsoleCursorInfo(os::stdout_fd, &s);
+                        auto cursor = CONSOLE_CURSOR_INFO{};
+                        ::GetConsoleCursorInfo(os::stdout_fd, &cursor);
+                        cursor.bVisible = shown;
+                        ::SetConsoleCursorInfo(os::stdout_fd, &cursor);
                     }
 
                     vtparser()
                     {
-                        auto state = status(); // Update current brush state.
-                        auto c = cell{}.fgc(rgba::vga16[(state.wAttributes & 0x0F)])
-                                       .bgc(rgba::vga16[(state.wAttributes & 0xF0) >> 4])
-                                       .inv(state.wAttributes & COMMON_LVB_REVERSE_VIDEO);
+                        auto s = status(); // Update current brush state.
+                        auto c = cell{}.fgc(rgba::vga16[(s.wAttributes & 0x0F)])
+                                       .bgc(rgba::vga16[(s.wAttributes & 0xF0) >> 4])
+                                       .inv(s.wAttributes & COMMON_LVB_REVERSE_VIDEO);
                         parser::brush.reset(c);
                         parser::style.reset();
-                        auto s = CONSOLE_CURSOR_INFO{};
-                        ::GetConsoleCursorInfo(os::stdout_fd, &s);
-                        shown = s.bVisible;
-                        coord = { state.dwCursorPosition.X, state.dwCursorPosition.Y };
+                        auto cursor = CONSOLE_CURSOR_INFO{};
+                        ::GetConsoleCursorInfo(os::stdout_fd, &cursor);
+                        shown = cursor.bVisible;
+                        coord = { s.dwCursorPosition.X, s.dwCursorPosition.Y };
                     }
                     void pushsgr() // vtparser: CSI # {  Push SGR attributes.
                     {
@@ -795,11 +795,11 @@ namespace netxs::os
                                 }
                                 else if (cmd.arg == 3) // Ps = 3  ⇒  Erase Scrollback
                                 {
-                                    auto state = status();
+                                    auto s = status();
                                     auto color = console::attr<svga::nt16>(parser::brush);
-                                    auto start = COORD{ .X = 0, .Y = state.srWindow.Top - state.srWindow.Bottom - 1 };
+                                    auto start = COORD{ .X = 0, .Y = s.srWindow.Top - s.srWindow.Bottom - 1 };
                                     auto brush = CHAR_INFO{ .Char = L' ', .Attributes = color };
-                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &state.srWindow, nullptr, start, &brush);
+                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &s.srWindow, nullptr, start, &brush);
                                 }
                             }
                             else if (cmd.cmd == ansi::fn::el)

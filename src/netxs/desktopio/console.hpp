@@ -171,20 +171,20 @@ namespace netxs::ui
             }
             void handle(s11n::xs::logs        lock)
             {
-                auto& logs = lock.thing;
-                if (ui::console::id.first == lock.thing.id)
+                auto& item = lock.thing;
+                if (ui::console::id.first == item.id)
                 {
-                    notify<tier::general>(e2::conio::logs, logs.data);
+                    notify<tier::general>(e2::conio::logs, item.data);
                 }
                 else
                 {
-                    if (logs.data.size() && logs.data.back() == '\n') logs.data.pop_back();
-                    if (logs.data.size())
+                    if (item.data.size() && item.data.back() == '\n') item.data.pop_back();
+                    if (item.data.size())
                     {
                         auto data = escx{};
-                        utf::divide(logs.data, '\n', [&](auto line)
+                        utf::divide(item.data, '\n', [&](auto line)
                         {
-                            data.add(netxs::prompt::pads, logs.id, ": ", line, '\n');
+                            data.add(netxs::prompt::pads, item.id, ": ", line, '\n');
                         });
                         notify<tier::general>(e2::conio::logs, data);
                     }
@@ -203,8 +203,8 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysmouse    lock)
             {
-                auto& mouse = lock.thing;
-                notify(e2::conio::mouse, mouse);
+                auto& item = lock.thing;
+                notify(e2::conio::mouse, item);
             }
             void handle(s11n::xs::mousebar    lock)
             {
@@ -364,7 +364,7 @@ namespace netxs::ui
             void stop()
             {
                 if (!alive.exchange(faux)) return;
-                auto id = paint.get_id();
+                auto thread_id = paint.get_id();
                 while (true)
                 {
                     auto guard = std::unique_lock{ mutex, std::try_to_lock };
@@ -381,7 +381,7 @@ namespace netxs::ui
                 canal.isbusy = faux;
                 canal.isbusy.notify_all();
                 paint.join();
-                if constexpr (debugmode) log(prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(id));
+                if constexpr (debugmode) log(prompt::diff, "Rendering thread joined", ' ', utf::to_hex_0x(thread_id));
             }
         };
 
@@ -418,7 +418,7 @@ namespace netxs::ui
                 config.cd("/config/client/");
                 clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
                 clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
-                clip_preview_alfa = config.take("clipboard/preview/alpha"  , 0xFF);
+                clip_preview_alfa = config.take("clipboard/preview/alpha"  , byte{ 0xFF });
                 clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
                 clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
@@ -433,7 +433,7 @@ namespace netxs::ui
                 clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
             }
 
-            props_t(pipe& canal, view userid, si32 mode, bool isvtm, si32 session_id, xmls& config)
+            props_t(pipe& /*canal*/, view userid, si32 mode, bool isvtm, si32 session_id, xmls& config)
             {
                 read(config);
                 legacy_mode = mode;
@@ -516,10 +516,10 @@ namespace netxs::ui
                         }
                     }
                 };
-                boss.LISTEN(tier::release, e2::form::prop::filler, filler, memo)
+                boss.LISTEN(tier::release, e2::form::prop::filler, new_filler, memo)
                 {
                     auto guard = std::lock_guard{ sync }; // Syncing with diff::render thread.
-                    xmap.mark(filler);
+                    xmap.mark(new_filler);
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
                 {
@@ -563,7 +563,7 @@ namespace netxs::ui
             }
             void fire(hint event_id)
             {
-                for (auto& [id, gear_ptr] : gears)
+                for (auto& [gear_id, gear_ptr] : gears)
                 {
                     auto& gear = *gear_ptr;
                     gear.fire_fast();
@@ -782,7 +782,7 @@ namespace netxs::ui
                         status[prop::key_character].set(stress) = t;
                     }
                 };
-                boss.LISTEN(tier::release, e2::conio::error, e, tokens)
+                boss.LISTEN(tier::release, e2::conio::error, error, tokens)
                 {
                     shadow();
                     status[prop::last_event].set(stress) = "error";
@@ -812,7 +812,7 @@ namespace netxs::ui
         {
             auto& header = *uname.lyric;
             auto  half_x = header.size().x / 2;
-            for (auto& [id, gear_ptr] : input.gears)
+            for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -828,19 +828,19 @@ namespace netxs::ui
             static const auto idle = cell{}.txt("\xE2\x96\x88"/*\u2588 █ */).bgc(0x00).fgc(0xFF00ff00);
             static const auto busy = cell{}.bgc(reddk).fgc(0xFFffffff);
             auto area = rect_11;
-            for (auto& [id, gear_ptr] : input.gears)
+            for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
                 area.coor = gear.coord;
-                auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + gear.m_sys.buttons/*A-Z*/)
+                auto brush = gear.m_sys.buttons ? cell{ busy }.txt(64 + (char)gear.m_sys.buttons/*A-Z*/)
                                                 : idle;
                 canvas.fill(area, cell::shaders::fuse(brush));
             }
         }
         void draw_clipboard_preview(face& canvas, time const& stamp)
         {
-            for (auto& [id, gear_ptr] : input.gears)
+            for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 gear.board::shown = !gear.disabled &&
@@ -861,7 +861,7 @@ namespace netxs::ui
             auto area = canvas.area();
             auto zero = rect{ dot_00, area.size };
             canvas.area(zero);
-            for (auto& [id, gear_ptr] : input.gears)
+            for (auto& [gear_id, gear_ptr] : input.gears)
             {
                 auto& gear = *gear_ptr;
                 if (gear.disabled) continue;
@@ -872,10 +872,10 @@ namespace netxs::ui
                     {
                         //todo optimize - cache tooltip_page
                         auto tooltip_page = page{ tooltip_data };
-                        auto area = full;
-                        area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
-                        area.size.x = dot_mx.x; // Prevent line wrapping.
-                        canvas.full(area);
+                        auto full_area = full;
+                        full_area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        full_area.size.x = dot_mx.x; // Prevent line wrapping.
+                        canvas.full(full_area);
                         canvas.cup(dot_00);
                         canvas.output(tooltip_page, cell::shaders::color(props.tooltip_colors));
                     }
@@ -958,7 +958,7 @@ namespace netxs::ui
             {
                 if (props.clip_preview_time != span::zero()) // Check clipboard preview timeout.
                 {
-                    for (auto& [id, gear_ptr] : input.gears)
+                    for (auto& [gear_id, gear_ptr] : input.gears)
                     {
                         auto& gear = *gear_ptr;
                         if (gear.board::shown && props.clip_preview_time < stamp - gear.delta.stamp())
@@ -1180,10 +1180,10 @@ namespace netxs::ui
                 viewport = base::area();
             };
             //todo unify creation (delete simple create wo gear)
-            LISTEN(tier::preview, e2::form::proceed::create, region, tokens)
+            LISTEN(tier::preview, e2::form::proceed::create, dest_region, tokens)
             {
-                region.coor += base::coor();
-                this->RISEUP(tier::release, e2::form::proceed::create, region);
+                dest_region.coor += base::coor();
+                this->RISEUP(tier::release, e2::form::proceed::create, dest_region);
             };
             LISTEN(tier::release, e2::form::proceed::onbehalf, proc, tokens)
             {
@@ -1558,10 +1558,10 @@ namespace netxs::ui
                 debris.push_back(updateregion);
             }
         }
-        void deface(rect region) override
+        void deface(rect damaged_region) override
         {
-            base::deface(region);
-            denote(region);
+            base::deface(damaged_region);
+            denote(damaged_region);
         }
         // host: Create a new root of the specified subtype and attach it.
         auto invite(xipc uplink, sptr& applet, si32 vtmode, twod winsz)

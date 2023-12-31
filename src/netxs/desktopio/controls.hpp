@@ -184,8 +184,8 @@ namespace netxs::ui
                 {
                     if (seized)
                     {
-                        auto width = master.base::size() + outer;
-                        auto delta = (corner(width) + origin - curpos) * sector;
+                        auto boxsz = master.base::size() + outer;
+                        auto delta = (corner(boxsz) + origin - curpos) * sector;
                         if (zoom) delta *= 2;
 
                         auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
@@ -526,26 +526,26 @@ namespace netxs::ui
                     //todo revise, too many fillings (mold's artifacts)
                     auto normal = boss.base::color();
                     auto bright = skin::color(tone::brighter);
-                    auto shadow = skin::color(tone::shadower);
+                    //auto shadow = skin::color(tone::shadower);
                     //todo unify, make it more contrast
-                    shadow.alpha(0x80);
+                    //shadow.alpha(0x80);
                     bright.fgc(title_fg_color);
-                    shadow.fgc(title_fg_color);
-                    auto fillup = [&](auto bright, auto shadow)
+                    //shadow.fgc(title_fg_color);
+                    auto fillup = [&](auto fx)
                     {
-                        parent_canvas.fill(shadow);
+                        parent_canvas.fill(fx);
                     };
                     if (normal.bgc().alpha())
                     {
                         auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                        auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
-                        fillup(fuse_shadow, fuse_bright);
+                        //auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
+                        fillup(fuse_bright);
                     }
                     else
                     {
                         auto only_bright = [&](cell& c) { c.fuse(bright); };
-                        auto only_shadow = [&](cell& c) { c.fuse(shadow); };
-                        fillup(only_shadow, only_bright);
+                        //auto only_shadow = [&](cell& c) { c.fuse(shadow); };
+                        fillup(only_bright);
                     }
                     // Draw the border around
                     auto area = parent_canvas.full();
@@ -1621,7 +1621,7 @@ namespace netxs::ui
                         auto& route = iter->second;
                         if (route.active)
                         {
-                            route.foreach([&](auto& nexthop){ gear_test.second++; });
+                            route.foreach([&](auto& /*nexthop*/) { gear_test.second++; });
                         }
                     }
                 };
@@ -1893,7 +1893,7 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            robot  robo;   // fader: .
+            robot robo; // fader: .
             span fade;
             si32 transit;
             cell c1;
@@ -1902,10 +1902,10 @@ namespace netxs::ui
             bool fake = faux;
 
             //todo use lambda
-            void work(si32 transit)
+            void work(si32 balance)
             {
                 auto brush = boss.base::color();
-                brush.avg(c1, c2, transit);
+                brush.avg(c1, c2, balance);
                 fake = true;
                 boss.base::color(brush);
                 fake = faux;
@@ -2083,7 +2083,7 @@ namespace netxs::ui
 
         public:
             light(base&&) = delete;
-            light(base& boss, bool track_mouse = faux)
+            light(base& boss)
                 : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::form::state::highlight, state, memo)
@@ -2673,7 +2673,6 @@ namespace netxs::ui
             auto& y_size = new_size[updown];
             auto& x_size = new_size[1 - updown];
             auto  x_temp = x_size;
-            auto  y_temp = y_size;
             auto start = height;
             auto meter = [&]
             {
@@ -3206,11 +3205,11 @@ namespace netxs::ui
             {
                 cutoff();
             };
-            LISTEN(tier::release, e2::form::animate::reset, id)
+            LISTEN(tier::release, e2::form::animate::reset, task_id)
             {
                 cutoff();
             };
-            LISTEN(tier::release, e2::form::animate::stop, id)
+            LISTEN(tier::release, e2::form::animate::stop, task_id)
             {
                 switch (id)
                 {
@@ -4073,7 +4072,7 @@ namespace netxs::ui
 
         void set_pen(byte hilight)
         {
-            auto& pen = canvas.mark().bga(hilight);
+            canvas.mark().bga(hilight);
         }
         void recalc()
         {

@@ -152,9 +152,9 @@ namespace netxs
             return chan.a && chan.a != 0xFF;
         }
         // rgba: Set alpha channel.
-        void alpha(byte k)
+        void alpha(si32 k)
         {
-            chan.a = k;
+            chan.a = (byte)k;
         }
         // rgba: Return alpha channel.
         auto alpha() const
