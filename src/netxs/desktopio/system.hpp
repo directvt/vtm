@@ -4537,15 +4537,7 @@ namespace netxs::os
                 auto cinfo = CONSOLE_SCREEN_BUFFER_INFO{};
                 auto check = [](auto& changed, auto& oldval, auto newval)
                 {
-                    auto diff = faux;
-                    //if constexpr (std::is_integral_v<decltype(newval)>)
-                    //{
-                    //    auto old = oldval;
-                    //    diff = std::cmp_not_equal(old, newval);
-                    //}
-                    //else diff = oldval != newval;
-                    diff = oldval != newval;
-                    if (diff)
+                    if (oldval != newval)
                     {
                         changed++;
                         oldval = newval;
@@ -4719,10 +4711,10 @@ namespace netxs::os
                         {
                             auto changed = 0;
                             check(changed, m.ctlstat, kbmod);
-                            check(changed, m.buttons, r.Event.MouseEvent.dwButtonState & 0b00011111);
+                            check(changed, m.buttons, static_cast<si32>(r.Event.MouseEvent.dwButtonState & 0b00011111));
                             check(changed, m.wheeled, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_WHEELED));
                             check(changed, m.hzwheel, !!(r.Event.MouseEvent.dwEventFlags & MOUSE_HWHEELED));
-                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls
+                            check(changed, m.wheeldt, static_cast<si16>((0xFFFF0000 & r.Event.MouseEvent.dwButtonState) >> 16)); // dwButtonState too large when mouse scrolls. Use si16 to preserve dt sign.
                             if (!(dtvt::vtmode & ui::console::nt16 && m.wheeldt)) // Skip the mouse coord update when wheeling on win7/8 (broken coords).
                             {
                                 check(changed, m.coordxy, twod{ r.Event.MouseEvent.dwMousePosition.X, r.Event.MouseEvent.dwMousePosition.Y });

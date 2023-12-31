@@ -4225,13 +4225,13 @@ namespace netxs::ui
 
                 if (coord.y < y_top)
                 {
-                    auto saved = coord;
+                    auto start = coord;
                     coord.x += count;
                     //todo apply line adjusting (necessity is not clear)
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        upbox.splice<Copy>(saved, n, proto, fuse);
+                        auto n = std::min(count, panel.x - std::max(0, start.x));
+                        upbox.splice<Copy>(start, n, proto, fuse);
                     }
                     else
                     {
@@ -4244,7 +4244,7 @@ namespace netxs::ui
                             _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = upbox.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
@@ -4273,7 +4273,7 @@ namespace netxs::ui
                     else
                     {
                         auto max_y = arena - 1;
-                        auto saved = coord.y + batch.basis;
+                        auto cur_y = coord.y + batch.basis;
                         wrapdn();
 
                         auto query = coord.y - (index.size - 1);
@@ -4290,38 +4290,38 @@ namespace netxs::ui
                         {              // cursor overlaps some lines below and placed below the viewport.
                             curln.resize(batch.caret);
                             batch.recalc(curln);
-                            if (auto count = static_cast<si32>(batch.back().index - curid))
+                            if (auto n = static_cast<si32>(batch.back().index - curid))
                             {
-                                if constexpr (mixer) _merge(curln, oldsz, curid, count);
-                                assert(count > 0);
-                                while (count-- > 0) batch.pop_back();
+                                if constexpr (mixer) _merge(curln, oldsz, curid, n);
+                                assert(n > 0);
+                                while (n-- > 0) batch.pop_back();
                             }
 
-                            auto width = curln.length();
-                            auto trail = width - panel.x;
-                            auto start = panel.x;
+                            auto w = curln.length();
+                            auto a = panel.x;
+                            auto b = w - a;
 
-                            saved -= batch.basis;
-                            if (saved > 0)
+                            cur_y -= batch.basis;
+                            if (cur_y > 0)
                             {
-                                auto count = index.size - saved - 1;
-                                while (count-- > 0) index.pop_back();
+                                auto n = index.size - cur_y - 1;
+                                while (n-- > 0) index.pop_back();
                                 auto& mapln = index.back();
                                 mapln.width = panel.x;
-                                start += mapln.start;
+                                a += mapln.start;
                             }
-                            else // saved has scrolled out.
+                            else // cur_y has scrolled out.
                             {
                                 index.clear();
-                                start *= std::abs(saved);
+                                a *= std::abs(cur_y);
                             }
 
-                            while (start < trail)
+                            while (a < b)
                             {
-                                index.push_back(curid, start, panel.x);
-                                start += panel.x;
+                                index.push_back(curid, a, panel.x);
+                                a += panel.x;
                             }
-                            index.push_back(curid, start, width - start);
+                            index.push_back(curid, a, w - a);
 
                             if (coord.y > max_y)
                             {
@@ -4366,47 +4366,47 @@ namespace netxs::ui
                                 else                 curln.splice(batch.caret, shadow, cell::shaders::full);
 
                                 batch.recalc(curln);
-                                auto width = curln.length();
+                                auto w = curln.length();
                                 auto spoil = static_cast<si32>(mapln.index - curid);
                                 assert(spoil > 0);
 
                                 if constexpr (mixer) _merge(curln, oldsz, curid, spoil);
 
                                 auto after = batch.index() + 1;
-                                     spoil = batch.remove(after, spoil);
+                                spoil = batch.remove(after, spoil);
 
-                                if (saved < batch.basis)
+                                if (cur_y < batch.basis)
                                 {
                                     index_rebuild(); // Update index. (processing lines larger than viewport)
                                 }
                                 else
                                 {
-                                    saved -= batch.basis;
-                                    auto indit = index.begin() + saved;
-                                    auto endit = index.end();
-                                    auto start = indit->start;
-                                    auto trail = width - panel.x;
-                                    while (indit != endit && start < trail) // Update for current line.
+                                    cur_y -= batch.basis;
+                                    auto idx_a = index.begin() + cur_y;
+                                    auto idx_b = index.end();
+                                    auto a = idx_a->start;
+                                    auto b = w - panel.x;
+                                    while (idx_a != idx_b && a < b) // Update for current line.
                                     {
-                                        auto& i =*indit;
+                                        auto& i =*idx_a;
                                         i.index = curid;
-                                        i.start = start;
+                                        i.start = a;
                                         i.width = panel.x;
-                                        start  += panel.x;
-                                        ++indit;
+                                        a += panel.x;
+                                        ++idx_a;
                                     }
-                                    if (indit != endit)
+                                    if (idx_a != idx_b)
                                     {
-                                        auto& i =*indit;
+                                        auto& i = *idx_a;
                                         i.index = curid;
-                                        i.start = start;
-                                        i.width = width - start;
-                                        ++indit;
-                                        while (indit != endit) // Update the rest.
+                                        i.start = a;
+                                        i.width = w - a;
+                                        ++idx_a;
+                                        while (idx_a != idx_b) // Update the rest.
                                         {
-                                            auto& i = *indit;
-                                            i.index -= spoil;
-                                            ++indit;
+                                            auto& j = *idx_a;
+                                            j.index -= spoil;
+                                            ++idx_a;
                                         }
                                     }
                                     assert(test_index());
