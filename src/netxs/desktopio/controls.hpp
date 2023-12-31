@@ -2401,19 +2401,19 @@ namespace netxs::ui
             };
             return backup;
         }
-        auto limits(twod min_sz = -dot_11, twod max_sz = -dot_11)
+        auto limits(twod new_min_sz = -dot_11, twod new_max_sz = -dot_11)
         {
-            base::limits(min_sz, max_sz);
+            base::limits(new_min_sz, new_max_sz);
             return This();
         }
-        auto alignment(bind atgrow, bind atcrop = { snap::none, snap::none })
+        auto alignment(bind new_atgrow, bind new_atcrop = { snap::none, snap::none })
         {
-            base::alignment(atgrow, atcrop);
+            base::alignment(new_atgrow, new_atcrop);
             return This();
         }
-        auto setpad(dent intpad, dent extpad = {})
+        auto setpad(dent new_intpad, dent new_extpad = {})
         {
-            base::setpad(intpad, extpad);
+            base::setpad(new_intpad, new_extpad);
             return This();
         }
     };

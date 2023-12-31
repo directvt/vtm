@@ -267,7 +267,7 @@ namespace netxs::app::shared
                 auto control = std::vector<link>
                 {
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -276,7 +276,7 @@ namespace netxs::app::shared
                         };
                     }},
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize " }}},//, .hover = c6 }}},
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -285,7 +285,7 @@ namespace netxs::app::shared
                         };
                     }},
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -394,11 +394,11 @@ namespace netxs::app::shared
             auto c3 = highlight_color;
             auto items = list
             {
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);

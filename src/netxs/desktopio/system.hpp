@@ -683,8 +683,8 @@ namespace netxs::os
                                               : coor > tail ? coor - tail
                                               : coor < head ? coor - head
                                                             : 0;
-                                    head += step;
-                                    tail += step;
+                                    head += (SHORT)step;
+                                    tail += (SHORT)step;
                                 };
                                 delta(s.srWindow.Left, s.srWindow.Right,  coord.x); // Win10 conhost crashes if vieport is outside the buffer (e.g. in case with deferred cursor position).
                                 delta(s.srWindow.Top,  s.srWindow.Bottom, coord.y);
@@ -785,12 +785,12 @@ namespace netxs::os
                                     auto panel = console::buffer;
                                     auto color = console::attr<svga::nt16>(parser::brush);
                                     auto total = panel.x * panel.y;
-                                    auto count = panel.x * coord.y + coord.x;
+                                    auto chars = panel.x * coord.y + coord.x;
                                     auto start = coord;
-                                         if (cmd.arg == 0) { count = total - count;     } // Ps = 0  ⇒  Erase Below (default).
+                                         if (cmd.arg == 0) { chars = total - chars;     } // Ps = 0  ⇒  Erase Below (default).
                                     else if (cmd.arg == 1) { start = {};                } // Ps = 1  ⇒  Erase Above (Exclude current).
-                                    else if (cmd.arg == 2) { start = {}; count = total; } // Ps = 2  ⇒  Erase All.
-                                    auto empty = std::vector<CHAR_INFO>(count, { ' ', color });
+                                    else if (cmd.arg == 2) { start = {}; chars = total; } // Ps = 2  ⇒  Erase All.
+                                    auto empty = std::vector<CHAR_INFO>(chars, { ' ', color });
                                     fill(empty, panel, start);
                                 }
                                 else if (cmd.arg == 3) // Ps = 3  ⇒  Erase Scrollback
@@ -798,8 +798,8 @@ namespace netxs::os
                                     auto s = status();
                                     auto color = console::attr<svga::nt16>(parser::brush);
                                     auto start = COORD{ .X = 0, .Y = s.srWindow.Top - s.srWindow.Bottom - 1 };
-                                    auto brush = CHAR_INFO{ .Char = L' ', .Attributes = color };
-                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &s.srWindow, nullptr, start, &brush);
+                                    auto attrs = CHAR_INFO{ .Char = L' ', .Attributes = color };
+                                    ::ScrollConsoleScreenBufferW(os::stdout_fd, &s.srWindow, nullptr, start, &attrs);
                                 }
                             }
                             else if (cmd.cmd == ansi::fn::el)
@@ -831,26 +831,26 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 count, grid const& proto)
+                    void data(si32 cell_count, grid const& proto_cells)
                     {
-                        auto saved = coord;
+                        auto start = coord;
                         auto panel = console::buffer;
-                        coord.x += count;
+                        coord.x += cell_count;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
-                        saved.y -= scroll();
+                        start.y -= scroll();
                         auto seek = coord.x + coord.y * panel.x;
-                        if (count > seek)
+                        if (cell_count > seek)
                         {
-                            count = seek;
-                            saved = {};
+                            cell_count = seek;
+                            start = {};
                         }
-                        cache.resize(count);
+                        cache.resize(cell_count);
                         auto head = cache.begin();
                         auto tail = cache.end();
-                        auto data = proto.end();
+                        auto data = proto_cells.end();
                         rich::reverse_fill_proc<faux>(data, tail, head, cell::shaders::full);
-                        nt::console::print<svga::nt16>(panel, saved, head, tail);
+                        nt::console::print<svga::nt16>(panel, start, head, tail);
                     }
                 };
             }
@@ -1899,8 +1899,8 @@ namespace netxs::os
             static auto winhndl = HWND{};
             static auto sequence = std::numeric_limits<DWORD>::max();
             static auto mutex   = std::mutex();
-            static auto cf_text = CF_UNICODETEXT;
-            static auto cf_utf8 = CF_TEXT;
+            static auto cf_text = UINT{ CF_UNICODETEXT };
+            static auto cf_utf8 = UINT{ CF_TEXT };
             static auto cf_rich = ::RegisterClipboardFormatA("Rich Text Format");
             static auto cf_html = ::RegisterClipboardFormatA("HTML Format");
             static auto cf_ansi = ::RegisterClipboardFormatA("ANSI/VT Format");
@@ -1985,21 +1985,21 @@ namespace netxs::os
                         auto font = utf::to_utf(info.FaceName);
                         if (form == mime::richtext)
                         {
-                            auto rich = post.to_rich(font);
-                            auto utf8 = post.to_utf8();
-                            send(cf_rich, rich);
-                            send(cf_text, utf8);
+                            auto rich_data = post.to_rich(font);
+                            auto utf8_data = post.to_utf8();
+                            send(cf_rich, rich_data);
+                            send(cf_text, utf8_data);
                         }
                         else if (form == mime::htmltext)
                         {
-                            auto [html, code] = post.to_html(font);
-                            send(cf_html, html);
-                            send(cf_text, code);
+                            auto [html_data, code_data] = post.to_html(font);
+                            send(cf_html, html_data);
+                            send(cf_text, code_data);
                         }
                         else if (form == mime::ansitext)
                         {
-                            auto rich = post.to_rich(font);
-                            send(cf_rich, rich);
+                            auto rich_data = post.to_rich(font);
+                            send(cf_rich, rich_data);
                             send(cf_text, utf8);
                         }
                         else if (form == mime::safetext)
@@ -2037,14 +2037,14 @@ namespace netxs::os
                 if (form == mime::richtext)
                 {
                     auto post = page{ utf8 };
-                    auto rich = post.to_rich();
-                    send(rich);
+                    auto rich_data = post.to_rich();
+                    send(rich_data);
                 }
                 else if (form == mime::htmltext)
                 {
                     auto post = page{ utf8 };
-                    auto [html, code] = post.to_html();
-                    send(code);
+                    auto [html_data, code_data] = post.to_html();
+                    send(code_data);
                 }
                 else
                 {
@@ -2057,14 +2057,14 @@ namespace netxs::os
                 if (form == mime::richtext)
                 {
                     auto post = page{ utf8 };
-                    auto rich = post.to_rich();
-                    yield.clipbuf(size, rich, mime::richtext);
+                    auto rich_data = post.to_rich();
+                    yield.clipbuf(size, rich_data, mime::richtext);
                 }
                 else if (form == mime::htmltext)
                 {
                     auto post = page{ utf8 };
-                    auto [html, code] = post.to_html();
-                    yield.clipbuf(size, code, mime::htmltext);
+                    auto [html_data, code_data] = post.to_html();
+                    yield.clipbuf(size, code_data, mime::htmltext);
                 }
                 else if (form == mime::disabled && meta.size())
                 {
@@ -2182,7 +2182,7 @@ namespace netxs::os
             }
 
         public:
-            args(int argc, char** argv)
+            args([[maybe_unused]] int argc, [[maybe_unused]] char** argv)
             {
                 #if defined(_WIN32)
                     auto line = utf::to_utf(::GetCommandLineW());
@@ -2508,14 +2508,14 @@ namespace netxs::os
                                                         0,                                                                 // nDefaultTimeOut
                                                         "D:(A;;GRFW;;;WD)(A;;FA;;;CO)(A;;FA;;;SY)(A;;FA;;;BA)"_acl); };    // lpSecurityAttributes
                 static auto svcpipe = newpipe(true);
-                static auto starter = [](auto... args)
+                static auto starter = [](auto...)
                 {
                     auto svcstat = SERVICE_STATUS
                     {
                         .dwServiceType = SERVICE_WIN32_OWN_PROCESS,
                         .dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_PRESHUTDOWN
                     };
-                    auto handler = [](DWORD dwControl, DWORD dwEventType, LPVOID lpEventData, LPVOID lpContext)
+                    auto handler = [](DWORD dwControl, DWORD /*dwEventType*/, LPVOID /*lpEventData*/, LPVOID /*lpContext*/)
                     {
                         switch (dwControl)
                         {
@@ -3010,12 +3010,12 @@ namespace netxs::os
                 #endif
             }
 
-            auto auth(view id) const // Check peer cred.
+            auto auth([[maybe_unused]] view id) const // Check peer cred.
             {
                 #if defined(_WIN32)
 
-                    //Note: Named Pipes - default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner
-                    //https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
+                    // Named Pipes: Default ACL used for a named pipe grant full control to the LocalSystem, admins, and the creator owner.
+                    //              https://docs.microsoft.com/en-us/windows/win32/ipc/named-pipe-security-and-access-rights
 
                 #elif defined(__linux__)
 
@@ -3373,7 +3373,7 @@ namespace netxs::os
         static auto client = xipc{}; // dtvt: Internal IO link.
         static auto active = []      // dtvt: DirectVT mode is active.
         {
-            auto active = faux;
+            auto result = faux;
             auto cfsize = sz_t{};
             #if defined(_WIN32)
 
@@ -3386,8 +3386,8 @@ namespace netxs::os
                     if (::PeekNamedPipe(os::stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
-                        if (active)
+                        result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                        if (result)
                         {
                             io::recv(os::stdin_fd, buffer);
                         }
@@ -3396,7 +3396,7 @@ namespace netxs::os
                 else
                 {
                     length = (DWORD)io::recv(os::stdin_fd, buffer).size();
-                    active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                    result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
                 }
 
             #else
@@ -3410,8 +3410,8 @@ namespace netxs::os
                         auto length = header.length();
                         if (length)
                         {
-                            active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
-                            if (!active)
+                            result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                            if (!result)
                             {
                                 dtvt::header = header; //todo use it when the reading thread starts
                             }
@@ -3426,23 +3426,24 @@ namespace netxs::os
             if (cfsize)
             {
                 dtvt::config.resize(cfsize);
-                auto buffer = dtvt::config.data();
-                while (cfsize)
+                auto data = dtvt::config.data();
+                auto size = dtvt::config.size();
+                while (size)
                 {
-                    if (auto crop = io::recv(os::stdin_fd, buffer, cfsize))
+                    if (auto crop = io::recv(os::stdin_fd, data, size))
                     {
                         auto s = (sz_t)crop.size();
-                        cfsize -= s;
-                        buffer += s;
+                        size -= s;
+                        data += s;
                     }
                     else
                     {
-                        active = faux;
+                        result = faux;
                         break;
                     }
                 }
             }
-            if (active) // If we in dtvt mode.
+            if (result) // If we in dtvt mode.
             {
                 #if not defined(_WIN32)
                 fdscleanup(); // There are duplicated stdin/stdout handles among the leaked parent process handles, and this prevents them from being closed. Affected ssh, nc, ncat, socat.
@@ -3458,7 +3459,7 @@ namespace netxs::os
                 #endif
                 dtvt::win_sz = dtvt::consize();
             }
-            return active;
+            return result;
         }();
         static auto vtmode = []       // tty: VT mode bit set.
         {
@@ -4398,55 +4399,52 @@ namespace netxs::os
             }
             void handle(s11n::xs::header_request   lock)
             {
-                auto& header_request = lock.thing;
-                auto header = s11n::header.freeze();
-                header.thing.sendby<faux, faux>(dtvt::client);
+                auto item = s11n::header.freeze();
+                item.thing.sendby<faux, faux>(dtvt::client);
             }
             void handle(s11n::xs::footer_request   lock)
             {
-                auto& footer_request = lock.thing;
-                auto footer = s11n::footer.freeze();
-                footer.thing.sendby<faux, faux>(dtvt::client);
+                auto item = s11n::footer.freeze();
+                item.thing.sendby<faux, faux>(dtvt::client);
             }
             void handle(s11n::xs::footer           lock)
             {
-                auto& footer = lock.thing;
-                footer.set();
+                lock.thing.set();
             }
             void handle(s11n::xs::header           lock)
             {
-                auto& header = lock.thing;
-                if (header.utf8.length())
+                auto& item = lock.thing;
+                if (item.utf8.length())
                 {
-                    auto filtered = para{ header.utf8 }.lyric->utf8();
+                    auto filtered = para{ item.utf8 }.lyric->utf8();
                     tty::title(filtered);
                 }
-                header.set();
+                item.set();
             }
             void handle(s11n::xs::clipdata         lock)
             {
-                auto& clipdata = lock.thing;
-                if (clipdata.form == mime::disabled) input::board::normalize(clipdata);
-                else                                 clipdata.set();
-                os::clipboard::set(clipdata);
-                auto crop = utf::trunc(clipdata.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
-                s11n::sysboard.send(dtvt::client, id_t{}, clipdata.size, crop.str(), clipdata.form);
+                auto& item = lock.thing;
+                if (item.form == mime::disabled) input::board::normalize(item);
+                else                             item.set();
+                os::clipboard::set(item);
+                auto crop = utf::trunc(item.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                s11n::sysboard.send(dtvt::client, id_t{}, item.size, crop.str(), item.form);
             }
             void handle(s11n::xs::clipdata_request lock)
             {
-                auto& clipdata_request = lock.thing;
-                auto clipdata = s11n::clipdata.freeze();
-                if (clipdata.thing.hash != clipdata_request.hash)
+                auto& item = lock.thing;
+                auto data = s11n::clipdata.freeze();
+                if (data.thing.hash != item.hash)
                 {
-                    clipdata.thing.sendby<faux, faux>(dtvt::client);
+                    data.thing.sendby<faux, faux>(dtvt::client);
                 }
                 else // Send without payload if hash the same.
                 {
-                    auto temp = std::move(clipdata.thing.utf8);
-                    clipdata.thing.set();
-                    clipdata.thing.sendby<faux, faux>(dtvt::client);
-                    clipdata.thing.utf8 = std::move(temp);
-                    clipdata.thing.set();
+                    auto temp = std::move(data.thing.utf8);
+                    data.thing.set();
+                    data.thing.sendby<faux, faux>(dtvt::client);
+                    data.thing.utf8 = std::move(temp);
+                    data.thing.set();
                 }
             }
 

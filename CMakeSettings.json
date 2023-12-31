@@ -13,7 +13,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ],
