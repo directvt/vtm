@@ -2318,11 +2318,11 @@ namespace netxs::ui
         // form: UI-control will be detached upon destruction of the master.
         auto depend(sptr master_ptr)
         {
-            auto& master = *master_ptr;
-            master.LISTEN(tier::release, e2::dtor, id, memomap[master.id])
+            auto& master_inst = *master_ptr;
+            master_inst.LISTEN(tier::release, e2::dtor, master_id, memomap[master_inst.id])
             {
                 auto backup = This();
-                memomap.erase(master.id);
+                memomap.erase(master_inst.id);
                 if (memomap.empty()) base::detach();
             };
             return This();

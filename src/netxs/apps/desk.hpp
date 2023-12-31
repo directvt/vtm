@@ -187,7 +187,7 @@ namespace netxs::app::desk
                 {
                     boss.base::hidden = true;
                     auto data_src_shadow = ptr::shadow(data_src);
-                    auto& item_area_inst = *item_area;
+                    //auto& item_area_inst = *item_area;
                     item_area->LISTEN(tier::release, e2::form::state::mouse, hover, -)
                     {
                         if (disabled) return;
@@ -528,7 +528,7 @@ namespace netxs::app::desk
                     ->template plugin<pro::notes>(" Connected user ");
                 return user;
             };
-            auto branch_template = [user_template](auto& data_src, auto& usr_list)
+            auto branch_template = [user_template](auto& /*data_src*/, auto& usr_list)
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()

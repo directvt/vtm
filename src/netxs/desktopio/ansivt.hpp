@@ -1615,11 +1615,14 @@ namespace netxs::ansi
     {
         deco style{}; // parser: Parser style.
         deco state{}; // parser: Parser style last state.
-        grid proto{}; // parser: Proto lyric.
-        si32 count{}; // parser: Proto lyric length.
         mark brush{}; // parser: Parser brush.
+
+    private:
+        grid proto_cells{}; // parser: Proto lyric.
+        si32 proto_count{}; // parser: Proto lyric length.
         //text debug{};
 
+    public:
         parser() = default;
         parser(deco style)
             : style{ style },
@@ -1640,6 +1643,22 @@ namespace netxs::ansi
             }
         };
 
+        void assign(auto n, auto c)
+        {
+            proto_cells.assign(n, c);
+            data(n * c.wdt(), proto_cells);
+            proto_cells.clear();
+        }
+        void reset(cell c)
+        {
+            brush.reset(c);
+            proto_count = 0;
+            proto_cells.clear();
+        }
+        auto empty() const
+        {
+            return proto_cells.empty();
+        }
         void data(core& cooked)
         {
             if (auto len = cooked.size().x)
@@ -1656,31 +1675,31 @@ namespace netxs::ansi
             auto& attr = cluster.attr;
             if (auto w = attr.ucwidth)
             {
-                count += w;
+                proto_count += w;
                 brush.set_gc(utf8, w);
-                proto.push_back(brush);
+                proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
             else
             {
                 if (auto set_prop = marker.setter[attr.control])
                 {
-                    if (proto.size())
+                    if (proto_cells.size())
                     {
-                        set_prop(proto.back());
+                        set_prop(proto_cells.back());
                     }
                     else
                     {
                         auto empty = brush;
                         empty.txt(whitespace).wdt(w);
                         set_prop(empty);
-                        proto.push_back(empty);
+                        proto_cells.push_back(empty);
                     }
                 }
                 else
                 {
                     brush.set_gc(utf8, w);
-                    proto.push_back(brush);
+                    proto_cells.push_back(brush);
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);
                 //debug += (debug.size() ? "_<fn:"s : "<fn:"s) + i + ">"s;
@@ -1696,11 +1715,11 @@ namespace netxs::ansi
         }
         inline void flush_data()
         {
-            if (count)
+            if (proto_count)
             {
-                data(count, proto);
-                proto.clear();
-                count = 0;
+                data(proto_count, proto_cells);
+                proto_cells.clear();
+                proto_count = 0;
             }
         }
         inline void flush()

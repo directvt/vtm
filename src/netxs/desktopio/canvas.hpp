@@ -1263,7 +1263,7 @@ namespace netxs
             if (c.wdt()) gc = c.gc;
         }
         // cell: Mix colors using alpha.
-        void mixfull(cell const& c, byte alpha)
+        void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
             if (c.wdt())
@@ -1692,7 +1692,7 @@ namespace netxs
             struct disabled_t
             {
                 template<class T>
-                inline auto operator [] (T param) const
+                inline auto operator [] (T /*param*/) const
                 {
                     return disabled_t{};
                 }
@@ -1700,8 +1700,8 @@ namespace netxs
             };
             struct transparent_t : public brush_t<transparent_t>
             {
-                byte alpha;
-                constexpr transparent_t(byte alpha)
+                si32 alpha;
+                constexpr transparent_t(si32 alpha)
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1709,8 +1709,8 @@ namespace netxs
             };
             struct xlucent_t
             {
-                byte alpha;
-                constexpr xlucent_t(byte alpha)
+                si32 alpha;
+                constexpr xlucent_t(si32 alpha)
                     : alpha{ alpha }
                 { }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
@@ -1771,8 +1771,8 @@ namespace netxs
         public:
             template<class T>
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
-            static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
-            static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto transparent(si32 alpha) { return transparent_t{ alpha }; }
+            static constexpr auto     xlucent(si32 alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};

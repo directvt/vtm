@@ -54,11 +54,11 @@ namespace netxs::app::shared
     };
     const auto scroll_bars = [](auto master)
     {
-        auto scroll_bars = ui::fork::ctor();
-        auto scroll_bttm = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-        auto hz = scroll_bttm->attach(slot::_2, ui::grip<axis::X>::ctor(master));
-        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-        return scroll_bars;
+        auto sb = ui::fork::ctor();
+        auto bt = sb->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = bt->attach(slot::_2, ui::grip<axis::X>::ctor(master));
+        auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        return sb;
     };
     const auto underlined_hz_scrollbar = [](auto scrlrail)
     {

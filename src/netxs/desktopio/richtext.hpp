@@ -1057,17 +1057,15 @@ namespace netxs::ui
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
         auto  empty() const { return !length();       } // para: Return true if empty.
-        auto   step() const { return count;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
-        bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
+        bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            count = 0;
+            parser::reset(c);
             caret = 0;
-            brush.reset(c);
             //todo revise
             //style.rst();
             //proto.clear();
@@ -1076,10 +1074,10 @@ namespace netxs::ui
         }
         void task(ansi::rule const& cmd) { if (!busy()) locus.push(cmd); } // para: Add locus command. In case of text presence try to change current target otherwise abort content building.
         // para: Convert into the screen-adapted sequence (unfold, remove zerospace chars, etc.).
-        void data(si32 cell_count, grid const& proto_cells) override
+        void data(si32 count, grid const& proto) override
         {
-            lyric->splice(caret, cell_count, proto_cells, cell::shaders::full);
-            caret += cell_count;
+            lyric->splice(caret, count, proto, cell::shaders::full);
+            caret += count;
         }
         //todo unify: see ui::page::post
         void post(utf::frag const& cluster)
@@ -1712,11 +1710,11 @@ namespace netxs::ui
                 ansi::parser::post(cluster);
             }
         }
-        void data(si32 cell_count, grid const& proto_cells) override
+        void data(si32 count, grid const& proto) override
         {
             auto& item = **layer;
-            item.lyric->splice(item.caret, cell_count, proto_cells, cell::shaders::full);
-            item.caret += cell_count;
+            item.lyric->splice(item.caret, count, proto, cell::shaders::full);
+            item.caret += count;
         }
         auto& current()       { return **layer; } // page: Access to the current paragraph.
         auto& current() const { return **layer; } // page: RO access to the current paragraph.

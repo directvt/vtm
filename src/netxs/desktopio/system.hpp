@@ -831,24 +831,24 @@ namespace netxs::os
                         }
                         coord = std::clamp(coord, dot_00, console::buffer - dot_11);
                     }
-                    void data(si32 cell_count, grid const& proto_cells)
+                    void data(si32 count, grid const& proto)
                     {
                         auto start = coord;
                         auto panel = console::buffer;
-                        coord.x += cell_count;
+                        coord.x += count;
                         coord.y += (coord.x + (panel.x - 1)) / panel.x - 1;
                         coord.x  = (coord.x - 1) % panel.x + 1;
                         start.y -= scroll();
                         auto seek = coord.x + coord.y * panel.x;
-                        if (cell_count > seek)
+                        if (count > seek)
                         {
-                            cell_count = seek;
+                            count = seek;
                             start = {};
                         }
-                        cache.resize(cell_count);
+                        cache.resize(count);
                         auto head = cache.begin();
                         auto tail = cache.end();
-                        auto data = proto_cells.end();
+                        auto data = proto.end();
                         rich::reverse_fill_proc<faux>(data, tail, head, cell::shaders::full);
                         nt::console::print<svga::nt16>(panel, start, head, tail);
                     }

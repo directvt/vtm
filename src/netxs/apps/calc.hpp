@@ -62,11 +62,11 @@ namespace netxs::ui
                     }
                     return seized;
                 }
-                auto calc(base const& boss, twod coord)
+                auto calc(base const& owner, twod coord)
                 {
                     curpos = coord;
-                    auto area = boss.base::size();
-                    area.x += boss.base::oversz.r;
+                    auto area = owner.base::size();
+                    area.x += owner.base::oversz.r;
                     inside = area.inside(curpos);
                 }
                 auto drag(twod coord)
@@ -292,9 +292,9 @@ namespace netxs::app::calc
                     if (!(i % 2))
                     {
                         auto c0 = base;
-                        for (auto i = 0_sz; i < label.length(); i++)
+                        for (auto j = 0_sz; j < label.length(); j++)
                         {
-                            cellatix_rows += ansi::bgc(c0) + label[i];
+                            cellatix_rows += ansi::bgc(c0) + label[j];
                             c0 += step;
                         }
                         cellatix_rows += (i == 99 ? ""s : "\n"s);
@@ -304,9 +304,9 @@ namespace netxs::app::calc
                     else
                     {
                         auto c0 = base + step * (si32)label.length();
-                        for (auto i = 0_sz; i < label.length(); i++)
+                        for (auto j = 0_sz; j < label.length(); j++)
                         {
-                            cellatix_rows += ansi::bgc(c0) + label[i];
+                            cellatix_rows += ansi::bgc(c0) + label[j];
                             c0 -= step;
                         }
                         cellatix_rows += (i == 99 ? ""s : "\n"s);

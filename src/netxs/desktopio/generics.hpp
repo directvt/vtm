@@ -649,17 +649,17 @@ namespace netxs::generics
             auto btm_block = max - n;
             if (btm_block > top_block)
             {
-                auto tail = begin() - 1;
-                auto head = tail + top_block;
-                netxs::swap_block<faux>(head, tail, head + n);
+                auto b = begin() - 1;
+                auto a = b + top_block;
+                netxs::swap_block<faux>(a, b, b + n);
                 static constexpr auto UseBack = true;
                 while (n-- > 0) pop_front<UseBack>();
             }
             else
             {
-                auto tail = end();
-                auto head = tail - btm_block;
-                netxs::swap_block<true>(head, tail, head - n);
+                auto b = end();
+                auto a = b - btm_block;
+                netxs::swap_block<true>(a, b, a - n);
                 while (n-- > 0) pop_back();
             }
             index(tmp); // Restore current item selector.

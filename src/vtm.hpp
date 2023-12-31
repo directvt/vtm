@@ -102,7 +102,7 @@ namespace netxs::app::vtm
             hook maxs; // align: Fullscreen event subscription token.
 
             align(base&&) = delete;
-            align(base& boss, wptr& nexthop, bool maximize = true)
+            align(base& boss, wptr& nexthop, bool /*maximize*/ = true)
                 : skill{ boss },
                   nexthop{ nexthop}
             {
@@ -1105,12 +1105,12 @@ namespace netxs::app::vtm
             {
                 items.clear();
             }
-            rect remove(id_t id)
+            rect remove(id_t item_id)
             {
                 auto area = rect{};
                 auto head = items.begin();
                 auto tail = items.end();
-                auto item = search(head, tail, id);
+                auto item = search(head, tail, item_id);
                 if (item != tail)
                 {
                     area = (**item).object->region;
@@ -1118,11 +1118,11 @@ namespace netxs::app::vtm
                 }
                 return area;
             }
-            rect bubble(id_t id)
+            rect bubble(id_t item_id)
             {
                 auto head = items.rbegin();
                 auto tail = items.rend();
-                auto item = search(head, tail, id);
+                auto item = search(head, tail, item_id);
 
                 if (item != head && item != tail)
                 {
@@ -1143,11 +1143,11 @@ namespace netxs::app::vtm
 
                 return rect_00;
             }
-            rect expose(id_t id)
+            rect expose(id_t item_id)
             {
                 auto head = items.rbegin();
                 auto tail = items.rend();
-                auto item = search(head, tail, id);
+                auto item = search(head, tail, item_id);
 
                 if (item != head && item != tail)
                 {
@@ -1296,7 +1296,8 @@ namespace netxs::app::vtm
                             if (auto parent = boss.parent())
                             if (gear_test.second) // If it is focused pass the focus to the next desktop window.
                             {
-                                parent->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test, (gear.id, 0));
+                                gear_test = { gear.id, 0 };
+                                parent->SIGNAL(tier::request, e2::form::state::keybd::next, gear_test);
                                 if (gear_test.second == 1) // If it is the last focused item.
                                 {
                                     auto viewport = gear.owner.base::area();
@@ -1872,10 +1873,10 @@ namespace netxs::app::vtm
             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, twod winsz, xmls config, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, twod winsz, xmls app_config, si32 session_id)
         {
             auto lock = netxs::events::unique_lock();
-            auto user = base::create<gate>(client, userid, vtmode, config, session_id);
+            auto user = base::create<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
             dbase.append(user);
             os::ipc::users = users.size();
@@ -1887,7 +1888,7 @@ namespace netxs::app::vtm
             };
             //todo make it configurable
             auto patch = ""s;
-            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), config, patch);
+            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), app_config, patch);
             user->attach(deskmenu);
             user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.

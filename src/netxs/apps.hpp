@@ -85,7 +85,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text env, text cwd, text v,     xmls& config, text patch)
+        auto build_Strobe        = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -111,7 +111,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text env, text cwd, text v,     xmls& config, text patch)
+        auto build_Settings      = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -134,7 +134,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text env, text cwd, text v,     xmls& config, text patch)
+        auto build_Empty         = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -285,9 +285,9 @@ namespace netxs::app::shared
                                             ->colors(whitelt, reddk);
                                     scroll->attach(ui::post::ctor())
                                           ->upload(truecolor);
-                        auto scroll_bars = layers->attach(ui::fork::ctor());
-                            auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
-                            auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
+                        auto sb = layers->attach(ui::fork::ctor());
+                        auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
+                        auto hz = test_stat_area->attach(slot::_2, ui::grip<axis::X>::ctor(scroll));
             return window;
         };
 
@@ -303,7 +303,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Region        = [](text env, text cwd, text v,     xmls& config, text patch)
+        auto build_Region        = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -472,7 +472,7 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text env, text cwd, text cmd,   xmls& config, text patch)
+        auto build_DirectVT      = [](text env, text cwd, text cmd,   xmls& /*config*/, text patch)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
@@ -630,7 +630,7 @@ namespace netxs::app::shared
             args += os::env::shell(param);
             return build_DirectVT(env, cwd, args, config, patch);
         };
-        auto build_Info          = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_Info          = [](text env, text cwd, text param, xmls& /*config*/, text patch)
         {
             using namespace app::shared;
 
@@ -657,15 +657,15 @@ namespace netxs::app::shared
                 });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto version = ansi::fgc(b1).add("▀▄").fgc().add("  vtm");
+            auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  vtm");
             auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
             menu::list
             {
-                { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = version }}},
-                [](auto& boss, auto& item)
+                { menu::item{ menu::item::type::Splitter, faux, 0, std::vector<menu::item::look>{{ .label = ver }}},
+                [](auto& /*boss*/, auto& /*item*/)
                 { }},
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
-                [](auto& boss, auto& item)
+                [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
