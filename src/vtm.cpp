@@ -345,7 +345,7 @@ int main(int argc, char* argv[])
         {
             while (auto monitor = logger->meet())
             {
-                domain->run([&, monitor](auto session_id)
+                domain->run([&, monitor](auto /*task_id*/)
                 {
                     auto id = monitor->recv().str();
                     log("%%Monitor [%id%] connected", prompt::logs, id);

@@ -1601,13 +1601,13 @@ namespace netxs::os
                     else                           return _repack(h, a, Index{});
                 }
                 template<class P, class ...Args>
-                constexpr auto _fd_set(fd_t handle, P&& proc, Args&&... args)
+                constexpr auto _fd_set(fd_t handle, P&& /*proc*/, Args&&... args)
                 {
                     if constexpr (sizeof...(args)) return _combine(std::array{ handle }, std::forward<Args>(args)...);
                     else                           return std::array{ handle };
                 }
                 template<class R, class P, class ...Args>
-                constexpr auto _handle(R i, fd_t handle, P&& proc, Args&&... args)
+                constexpr auto _handle(R i, fd_t /*handle*/, P&& proc, Args&&... args)
                 {
                     if (i == 0)
                     {
@@ -5730,14 +5730,14 @@ namespace netxs::os
                                 break;
                         }
                     };
-                    auto mouse = [&](auto& data) { if (!alive) return; }; // Not used.
+                    auto mouse = [&](auto& /*data*/) { if (!alive) return; }; // Not used.
                     auto winsz = [&](auto& data)
                     {
                         if (!alive) return;
                         auto guard = std::lock_guard{ mutex };
                         panel = data.winsize;
                     };
-                    auto focus = [&](auto& data) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
+                    auto focus = [&](auto& /*data*/) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
                     auto paste = [&](auto& data)
                     {
                         auto guard = std::lock_guard{ mutex };
@@ -5745,7 +5745,7 @@ namespace netxs::os
                         block += data.txtdata;
                         print(true);
                     };
-                    auto close = [&](auto& data) 
+                    auto close = [&](auto& /*data*/)
                     {
                         if (alive.exchange(faux))
                         {

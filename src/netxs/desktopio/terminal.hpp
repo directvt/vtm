@@ -7052,7 +7052,7 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
+            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
             {
                 ipccon.payoff(io_log);
                 auto lock = netxs::events::sync{};
@@ -7131,7 +7131,7 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
                     {
                         ipccon.payoff(io_log); // Wait child process.
                         this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
@@ -7359,7 +7359,7 @@ namespace netxs::ui
                     list.thing.sendby(master);
                 }
                 lock.unlock();
-                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7367,7 +7367,7 @@ namespace netxs::ui
             void handle(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
-                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -7385,7 +7385,7 @@ namespace netxs::ui
                     cell::gc_set_data(jgc.token, jgc.cluster);
                     if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
-                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7489,7 +7489,7 @@ namespace netxs::ui
             void handle(s11n::xs::minimize            lock)
             {
                 auto& m = lock.thing;
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                     {
@@ -7500,7 +7500,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::expose              lock)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
@@ -7539,7 +7539,7 @@ namespace netxs::ui
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = h.utf8](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = h.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
@@ -7547,7 +7547,7 @@ namespace netxs::ui
             void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = f.utf8](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = f.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -7575,7 +7575,7 @@ namespace netxs::ui
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
+                netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
@@ -7588,9 +7588,9 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fps                 lock)
             {
-                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
-                    boss.SIGNAL(tier::general, e2::config::fps, fps);
+                    master.SIGNAL(tier::general, e2::config::fps, fps);
                 });
             }
             void handle(s11n::xs::logs                lock)
@@ -7618,7 +7618,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& boss)
+                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
                     master.errmsg = master.genmsg(utf8);
                     master.deface();
@@ -7631,7 +7631,7 @@ namespace netxs::ui
             }
             void handle(s11n::xs::sysstart            lock)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
@@ -7768,7 +7768,7 @@ namespace netxs::ui
         void onexit()
         {
             if (!active.exchange(faux)) return;
-            netxs::events::enqueue(This(), [&](auto& boss) mutable // Unexpected disconnection.
+            netxs::events::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -7811,7 +7811,7 @@ namespace netxs::ui
                 stream.s11n::sysclose.send(*this, fast);
                 return;
             }
-            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019

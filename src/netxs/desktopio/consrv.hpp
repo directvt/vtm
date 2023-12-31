@@ -768,7 +768,7 @@ struct impl : consrv
             recbuf.clear();
             cooked.drop();
         }
-        auto generate(wchr ch, ui32 st = 0, ui16 vc = 0, si32 dn = 1, ui16 sc = 0)
+        auto generate(wchr ch, si32 st = 0, si32 vc = 0, si32 dn = 1, si32 sc = 0)
         {
             stream.emplace_back(INPUT_RECORD
             {
@@ -779,10 +779,10 @@ struct impl : consrv
                     {
                         .bKeyDown               = dn,
                         .wRepeatCount           = 1,
-                        .wVirtualKeyCode        = vc,
-                        .wVirtualScanCode       = sc,
+                        .wVirtualKeyCode        = (ui16)vc,
+                        .wVirtualScanCode       = (ui16)sc,
                         .uChar = { .UnicodeChar = ch },
-                        .dwControlKeyState      = st,
+                        .dwControlKeyState      = (ui32)st,
                     }
                 }
             });
@@ -794,7 +794,7 @@ struct impl : consrv
             generate(c2);
             return true;
         }
-        auto generate(wiew wstr, ui32 s = 0)
+        auto generate(wiew wstr, si32 s = 0)
         {
             stream.reserve(wstr.size());
             auto head = wstr.begin();
@@ -999,12 +999,12 @@ struct impl : consrv
             auto ctrls = os::nt::ms_kbstate(gear.ctlstate) | (gear.extflag ? ENHANCED_KEY : 0);
             if (toWIDE.size() > 1) // Surrogate pair special case (not a clipboard paste, see generate(wiew wstr, ui32 s = 0)).
             {
-                if (gear.pressed) // Proceed push events only.
+                if (gear.pressed)
                 {
-                    for (auto c : toWIDE)
+                    for (auto a : toWIDE)
                     {
-                        generate(c, ctrls, gear.virtcod, 1, gear.scancod);
-                        generate(c, ctrls, gear.virtcod, 0, gear.scancod);
+                        generate(a, ctrls, gear.virtcod, 1, gear.scancod);
+                        generate(a, ctrls, gear.virtcod, 0, gear.scancod);
                     }
                 }
             }
@@ -1403,16 +1403,16 @@ struct impl : consrv
         template<bool Complete = faux, class Payload>
         auto reply(Payload& packet, cdrw& answer, ui32 readstep)
         {
-            auto& inpenc = *server.inpenc;
+            auto& i = *server.inpenc;
             if (server.io_log) log("\thandle ", utf::to_hex_0x(packet.target), ":",
                                  "\n\tbuffered ", Complete ? "read: " : "rest: ", ansi::hi(utf::debase<faux, faux>(cooked.ustr)),
-                                 "\n\treply ", server.show_page(packet.input.utf16, inpenc.codepage), ":");
-            if (packet.input.utf16 || inpenc.codepage == CP_UTF8)
+                                 "\n\treply ", server.show_page(packet.input.utf16, i.codepage), ":");
+            if (packet.input.utf16 || i.codepage == CP_UTF8)
             {
                 auto size = std::min((ui32)cooked.rest.size(), readstep);
                 auto data = view{ cooked.rest.data(), size };
                 if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(packet.input.utf16 ? utf::to_utf((wchr*)data.data(), data.size() / sizeof(wchr))
-                                                                                                       : data)));
+                                                                                                 : data)));
                 cooked.rest.remove_prefix(size);
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
@@ -1420,9 +1420,9 @@ struct impl : consrv
             }
             else
             {
-                auto data = inpenc.encode(cooked.rest, readstep);
+                auto data = i.encode(cooked.rest, readstep);
                 auto size = (ui32)data.size();
-                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(inpenc.decode_log(data))));
+                if (server.io_log) log("\t", ansi::hi(utf::debase<faux, faux>(i.decode_log(data))));
                 packet.reply.ctrls = cooked.ctrl;
                 packet.reply.bytes = size;
                 answer.send_data<Complete>(server.condrv, data);
@@ -1477,8 +1477,8 @@ struct impl : consrv
         auto sendevents(T&& recs, bool utf16)
         {
             auto lock = std::lock_guard{ locker };
-            auto& inpenc = *server.inpenc;
-            if (utf16 || inpenc.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
+            auto& i = *server.inpenc;
+            if (utf16 || i.codepage == CP_UTF8) // Store UTF-8 as is (I see no reason to decode).
             {
                 stream.insert(stream.end(), recs.begin(), recs.end());
             }
@@ -1497,18 +1497,18 @@ struct impl : consrv
                         {
                             if (leader.Event.KeyEvent.wVirtualKeyCode == coming.Event.KeyEvent.wVirtualKeyCode)
                             {
-                                coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(lead, next);
+                                coming.Event.KeyEvent.uChar.UnicodeChar = i.decode(lead, next);
                             }
                             leader = {}; // Drop hanging lead byte.
                         }
                         else
                         {
-                            if (inpenc.test(next))
+                            if (i.test(next))
                             {
                                 leader = coming;
                                 continue;
                             }
-                            else coming.Event.KeyEvent.uChar.UnicodeChar = inpenc.decode(next);
+                            else coming.Event.KeyEvent.uChar.UnicodeChar = i.decode(next);
                         }
                     }
                     stream.insert(stream.end(), coming);
@@ -1619,9 +1619,9 @@ struct impl : consrv
                         }
                     }
                 };
-                auto& codec = *server.inpenc;
-                if (codec.codepage == CP_UTF8) splitter([&](utfx& code, text& toUTF8){ utf::to_utf_from_code(code, toUTF8); });
-                else                           splitter([&](utfx& code, text& toANSI){          codec.encode(code, toANSI); });
+                auto& i = *server.inpenc;
+                if (i.codepage == CP_UTF8) splitter([&](utfx& code, text& toUTF8){ utf::to_utf_from_code(code, toUTF8); });
+                else                       splitter([&](utfx& code, text& toANSI){              i.encode(code, toANSI); });
             }
             auto size = std::min(limit, (ui32)recbuf.size());
             auto peek = packet.input.flags & Payload::peek;
@@ -1739,21 +1739,21 @@ struct impl : consrv
                 if ((charsize == 1))
                 {
                     OEMtoBMP.resize(256);
-                    auto i = 0;
+                    auto i = wchr{};
                     for (auto& c : OEMtoBMP) c = i++;
                 }
                 else
                 {
                     OEMtoBMP.resize(65536, 0);
-                    for (auto i = 0; i < 256; i++)
+                    for (auto i = wchr{ 0 }; i < 256; i++)
                     {
                         if (test((byte)i))
                         {
-                            auto lead = i << 8;
-                            auto head = OEMtoBMP.begin() + lead;
-                            auto tail = head + 256;
-                            *head++ = ++lead/*zero can't be a second byte*/;
-                            while (head != tail) *head++ = lead++;
+                            auto lead = (wchr)(i << 8);
+                            auto a = OEMtoBMP.begin() + lead;
+                            auto b = a + 256;
+                            *a++ = ++lead/*zero can't be a second byte*/;
+                            while (a != b) *a++ = lead++;
                         }
                         else OEMtoBMP[i] = i;
                     }
@@ -1798,7 +1798,7 @@ struct impl : consrv
                 // Reverse table.
                 auto bmp = std::vector<wchr>(65536, 0);
                 auto tmp = std::vector<byte>(65536 * 2, 0);
-                auto i = 0;
+                auto i = wchr{ 0 };
                 for (auto& b : bmp) b = i++;
                 ::WideCharToMultiByte(codepage, 0, bmp.data(), (si32)bmp.size(), (char *)tmp.data(), (si32)tmp.size(), 0, 0);
                 auto ptr = tmp.begin();
@@ -1904,7 +1904,7 @@ struct impl : consrv
                 auto c = (ui16)(byte)*head++;
                 if (test((byte)c))
                 {
-                    c = head != tail ? (c << 8) + (byte)*head++ : defchar();
+                    c = (ui16)(head != tail ? (c << 8) + (byte)*head++ : defchar());
                 }
                 auto bmp = OEMtoBMP[c];
                 utf::to_utf(bmp, toUTF8);
@@ -2908,7 +2908,7 @@ struct impl : consrv
         }
         log("\tclient procid: ", client_ptr->procid,
           "\n\thandle: ", events_handle_ptr);
-        auto& events_handle = *events_handle_ptr; //todo validate events_handle
+        //auto& events_handle = *events_handle_ptr; //todo validate events_handle
         events.take(packet);
     }
     auto api_events_add                      ()

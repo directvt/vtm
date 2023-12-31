@@ -141,8 +141,8 @@ namespace netxs::ui
                     }
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
-                        auto p = curpoint + printout.size.x - 1;
-                        if (block.at(p).wdt() == 2)
+                        auto q = curpoint + printout.size.x - 1;
+                        if (block.at(q).wdt() == 2)
                         {
                             --printout.size.x;
                         }

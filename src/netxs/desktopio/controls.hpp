@@ -3676,11 +3676,11 @@ namespace netxs::ui
                         pager_repeat();
                         gear.dismiss();
 
-                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto p)
+                        timer.actify(activity::pager_first, skin::globals().repeat_delay, [&](auto)
                         {
                             if (pager_repeat())
                             {
-                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto d)
+                                timer.actify(activity::pager_next, skin::globals().repeat_rate, [&](auto)
                                 {
                                     return pager_repeat(); // Repeat until on_pager.
                                 });
