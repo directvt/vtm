@@ -1250,7 +1250,7 @@ namespace netxs::ui
                 }
                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::count, count);
             }
-            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux, .token = {}, .next = {} })
+            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
             {
                 auto iter = gears.emplace(gear_id, std::move(cfg)).first;
                 if (gear_id != id_t{})

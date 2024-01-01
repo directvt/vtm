@@ -1592,9 +1592,9 @@ namespace netxs::ui
             void print_tabstops(text msg)
             {
                 log(msg, ":\n", "index size = ", stops.size());
-                auto i = 0;
+                auto i = 0u;
                 auto data = utf::adjust("coor:", 5, " ", faux);
-                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(i++), 4, " ", true);
+                while (i < stops.size()) data += utf::adjust(std::to_string(i++), 4, " ", true);
                 data += '\n' + utf::adjust("fwd:", 5, " ", faux);
                 for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(fwd), 4, " ", true);
                 data += '\n' + utf::adjust("rev:", 5, " ", faux);
@@ -2212,9 +2212,9 @@ namespace netxs::ui
             {
                 bufferbase::flush();
                 coord.x += n;
-                     if (coord.x < 0)       wrapup();
+                if      (coord.x < 0)       wrapup();
                 else if (coord.x > panel.x) wrapdn();
-                     if (coord.y < 0)        coord = dot_00;
+                if      (coord.y < 0)        coord = dot_00;
                 else if (coord.y >= panel.y) coord = panel - dot_01;
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
@@ -2306,7 +2306,6 @@ namespace netxs::ui
             void output(face& dest) override
             {
                 auto full = dest.full();
-                auto view = dest.view();
                 auto find = selection_active()
                          && match.length()
                          && owner.selmod == mime::textonly;
@@ -2419,8 +2418,8 @@ namespace netxs::ui
                     if (selection_selbox())
                     {
                         auto c = (selend + seltop) / 2;
-                        if (coor.x > c.x == seltop.x > selend.x) std::swap(seltop.x, selend.x);
-                        if (coor.y > c.y == seltop.y > selend.y) std::swap(seltop.y, selend.y);
+                        if ((coor.x > c.x) == (seltop.x > selend.x)) std::swap(seltop.x, selend.x);
+                        if ((coor.y > c.y) == (seltop.y > selend.y)) std::swap(seltop.y, selend.y);
                     }
                     else
                     {
@@ -2460,7 +2459,7 @@ namespace netxs::ui
                     bufferbase::selection_pickup(data, canvas, seltop, selend, selmod, selbox);
                     if (selbox && !data.empty()) data.eol();
                 }
-                return std::move(data);
+                return data;
             }
             // alt_screen: Highlight selection.
             void selection_render(face& dest) override
@@ -2868,7 +2867,7 @@ namespace netxs::ui
                 for (auto& i : index)
                 {
                     auto step = i.index - m;
-                    assert(step >= 0 && step < 2);
+                    assert(i.index >= m && step < 2);
                     m = i.index;
                 }
                 return true;
@@ -4972,9 +4971,9 @@ namespace netxs::ui
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upmid.link = topid;
+                if      (i_top < 0)           upmid.link = topid;
                 else if (i_top >= batch.size) upmid.link = endid;
-                     if (i_end < 0)           dnmid.link = topid;
+                if      (i_end < 0)           dnmid.link = topid;
                 else if (i_end >= batch.size) dnmid.link = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
@@ -5063,7 +5062,6 @@ namespace netxs::ui
                 {
                     selection_selbox(mode);
                     auto scrolling_margin = batch.slide + y_top;
-                    auto edge0 = dot_00;
                     auto edge1 = twod{ dot_mx.x, y_top - 1 };
                     auto edge2 = twod{-dot_mx.x, scrolling_margin };
                     auto edge3 = twod{ dot_mx.x, scrolling_margin + arena - 1 };
@@ -5284,7 +5282,7 @@ namespace netxs::ui
                             auto order = idtop != idend ? idend > idtop
                                                         : dnmid.coor.y != upmid.coor.y ? dnmid.coor.y > upmid.coor.y
                                                                                        : dnmid.coor.x > upmid.coor.x;
-                            swap = coor.y < scrolling_margin == order;
+                            swap = (coor.y < scrolling_margin) == order;
                         }
                     }
                     else
@@ -5297,7 +5295,7 @@ namespace netxs::ui
                         if (idtop != idend)
                         {
                             auto cy = (idend + idtop) / 2;
-                            swap = idcur > cy == idtop > idend;
+                            swap = (idcur > cy) == (idtop > idend);
                         }
                         else // idend == idtop
                         {
@@ -5306,7 +5304,7 @@ namespace netxs::ui
                                 if (dnmid.coor.y != upmid.coor.y)
                                 {
                                     auto cy = (dnmid.coor.y + upmid.coor.y) / 2;
-                                    swap = check.coor.y > cy == upmid.coor.y > dnmid.coor.y;
+                                    swap = (check.coor.y > cy) == (upmid.coor.y > dnmid.coor.y);
                                 }
                                 else
                                 {
@@ -5314,7 +5312,7 @@ namespace netxs::ui
                                                                          : std::abs(dnmid.coor.y - check.coor.y) > std::abs(upmid.coor.y - check.coor.y));
                                 }
                             }
-                            else swap = idcur > idend == upmid.coor.y > dnmid.coor.y;
+                            else swap = (idcur > idend) == (upmid.coor.y > dnmid.coor.y);
                         }
                     }
 
@@ -5331,7 +5329,7 @@ namespace netxs::ui
                     {
                         auto x = coor.x + owner.origin.x;
                         auto c = (upmid.coor.x + dnmid.coor.x) / 2;
-                        if (x > c == upmid.coor.x > dnmid.coor.x)
+                        if ((x > c) == (upmid.coor.x > dnmid.coor.x))
                         {
                             std::swap(uptop.coor.x, dntop.coor.x);
                             std::swap(upmid.coor.x, dnmid.coor.x);
@@ -5656,7 +5654,7 @@ namespace netxs::ui
                 auto yield = escx{};
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
-                if (!selection_active()) return std::move(yield);
+                if (!selection_active()) return yield;
                 if (selmod != mime::textonly
                  && selmod != mime::safetext) yield.nil();
                 len = yield.size();
@@ -5675,7 +5673,7 @@ namespace netxs::ui
                     bufferbase::selection_pickup(yield, dnbox, upend.coor, dnend.coor, selmod, selbox);
                 }
                 if (selbox && len(yield.size())) yield.eol();
-                return std::move(yield);
+                return yield;
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& dest) override
@@ -6191,37 +6189,37 @@ namespace netxs::ui
         using vtty = os::vt::vtty;
 
         termconfig config; // term: Terminal settings.
-        pro::timer worker; // term: Linear animation controller.
-        pro::robot dynamo; // term: Linear animation controller.
-        pro::caret cursor; // term: Text cursor controller.
-        term_state status; // term: Screen buffer status info.
-        w_tracking wtrack; // term: Terminal title tracking object.
-        f_tracking ftrack; // term: Keyboard focus tracking object.
-        m_tracking mtrack; // term: VT-style mouse tracking object.
-        c_tracking ctrack; // term: Custom terminal palette tracking object.
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
-        escx       w32key; // term: win32-input-mode forward buffer.
-        text       envvar; // term: Environment block.
-        text       curdir; // term: Current working directory.
-        text       cmdarg; // term: Startup command line arguments.
-        os::fdrw   fdlink; // term: Optional DirectVT uplink.
-        hook       onerun; // term: One-shot token for restart session.
+        pro::caret cursor; // term: Text cursor controller.
+        pro::timer worker; // term: Linear animation controller.
+        pro::robot dynamo; // term: Linear animation controller.
+        m_tracking mtrack; // term: VT-style mouse tracking object.
+        f_tracking ftrack; // term: Keyboard focus tracking object.
+        w_tracking wtrack; // term: Terminal title tracking object.
+        c_tracking ctrack; // term: Custom terminal palette tracking object.
+        term_state status; // term: Screen buffer status info.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
-        bool       selalt; // term: Selection form (rectangular/linear).
-        bool       io_log; // term: Stdio logging.
         bool       styled; // term: Line style reporting.
+        bool       io_log; // term: Stdio logging.
+        bool       selalt; // term: Selection form (rectangular/linear).
         flag       resume; // term: Restart scheduled.
         flag       forced; // term: Forced shutdown.
-        prot       kbmode; // term: Keyboard input mode.
         si32       selmod; // term: Selection mode.
         si32       altscr; // term: Alternate scroll mode.
+        prot       kbmode; // term: Keyboard input mode.
+        escx       w32key; // term: win32-input-mode forward buffer.
+        text       envvar; // term: Environment block.
+        text       curdir; // term: Current working directory.
+        text       cmdarg; // term: Startup command line arguments.
+        os::fdrw   fdlink; // term: Optional DirectVT uplink.
+        hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
@@ -7197,12 +7195,12 @@ namespace netxs::ui
               bpmode{  faux },
               unsync{  faux },
               invert{  faux },
-              resume{  faux },
-              forced{  faux },
               styled{  faux },
               io_log{ config.def_io_log },
-              selmod{ config.def_selmod },
               selalt{ config.def_selalt },
+              resume{  faux },
+              forced{  faux },
+              selmod{ config.def_selmod },
               altscr{ config.def_altscr },
               kbmode{ prot::vt }
         {

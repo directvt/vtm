@@ -35,7 +35,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra",
+          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         }
       ],
@@ -73,7 +73,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s -Wall -Wextra",
+          "value": "-pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -174,7 +174,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi -Wall -Wextra",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -202,7 +202,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -230,7 +230,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -257,7 +257,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         }
       ],

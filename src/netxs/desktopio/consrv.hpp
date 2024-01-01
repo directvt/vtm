@@ -5163,7 +5163,7 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
         using type = decltype(winsize::ws_row);
-        auto size = winsize{ .ws_row = (type)new_size.y, .ws_col = (type)new_size.x, .ws_xpixel = {}, .ws_ypixel = {} };
+        auto size = winsize{ .ws_row = (type)new_size.y, .ws_col = (type)new_size.x };
         ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected);
     }
     template<class Term>
