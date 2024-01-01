@@ -1843,7 +1843,7 @@ struct impl : consrv
                  if (code < 0x20 || code == 0x7F) code = *(c0_wchr.begin() + std::min<size_t>(code, c0_wchr.size() - 1));
             else if (code < OEMtoBMP.size())      code = OEMtoBMP[code];
             else                                  code = defchar();
-            return code;
+            return (wchr)code;
         }
         auto decode_char(byte lead, byte next)
         {
@@ -1854,7 +1854,7 @@ struct impl : consrv
         {
             if (code < OEMtoBMP.size()) code = OEMtoBMP[code];
             else                        code = defchar();
-            return code;
+            return (wchr)code;
         }
         auto decode(byte lead, byte next)
         {
@@ -1912,9 +1912,9 @@ struct impl : consrv
         }
         auto decode_run(auto&& toANSI)
         {
-            auto toUTF8 = text{};
-            decode_run(std::forward<decltype(toANSI)>(toANSI), toUTF8);
-            return toUTF8;
+            auto utf8 = text{};
+            decode_run(std::forward<decltype(toANSI)>(toANSI), utf8);
+            return utf8;
         }
         auto decode_log(view toANSI)
         {
@@ -1939,22 +1939,22 @@ struct impl : consrv
             toANSI.clear();
             if (hang) toANSI.push_back(last);
         }
-        auto encode(wchr code)
+        auto encode(utfx code)
         {
-            return BMPtoOEM[code];
+            return BMPtoOEM[(wchr)code];
         }
-        void encode(wchr code, text& ansi)
+        void encode(utfx code, text& ansi)
         {
             if (code >= 65536) code = defchar();
-            else               code = BMPtoOEM[code];
+            else               code = BMPtoOEM[(wchr)code];
             if (code < 256)
             {
                 ansi.push_back((byte)code);
             }
             else
             {
-                ansi.push_back(code >> 8);
-                ansi.push_back(code & 0xFF);
+                ansi.push_back((byte)(code >> 8));
+                ansi.push_back((byte)(code & 0xFF));
             }
         }
         void reset()
@@ -1984,8 +1984,8 @@ struct impl : consrv
                     auto size = code < 256 ? 1u : 2u;
                     if (rest < size) // Leave the last code point to indicate that the buffer is not empty.
                     {
-                        crop.push_back(code >> 8);
-                        lastbyte = code & 0xFF;
+                        crop.push_back((byte)(code >> 8));
+                        lastbyte = (byte)(code & 0xFF);
                         rest -= 1;
                         assert(rest == 0);
                     }
@@ -1997,8 +1997,8 @@ struct impl : consrv
                         }
                         else
                         {
-                            crop.push_back(code >> 8);
-                            crop.push_back(code & 0xFF);
+                            crop.push_back((byte)(code >> 8));
+                            crop.push_back((byte)(code & 0xFF));
                         }
                         rest -= size;
                         done += next.utf8len;
@@ -2214,18 +2214,18 @@ struct impl : consrv
             else
             {
                 auto client_ptr = &handle_ptr->boss;
-                if (auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
-                    iter != joined.end()) // Client exists.
+                if (auto iter0 = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                    iter0 != joined.end()) // Client exists.
                 {
                     auto& client = handle_ptr->boss;
-                    if (auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
-                        iter != client.tokens.end()) // Handle allocated.
+                    if (auto iter1 = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
+                        iter1 != client.tokens.end()) // Handle allocated.
                     {
                         auto link = handle_ptr->link;
-                        if (auto iter = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
-                            iter != client.alters.end()) // Buffer exists.
+                        if (auto iter2 = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
+                            iter2 != client.alters.end()) // Buffer exists.
                         {
-                            uiterm.update([&] { proc(*iter); });
+                            uiterm.update([&] { proc(*iter2); });
                             return true;
                         }
                     }
@@ -2248,18 +2248,18 @@ struct impl : consrv
             else
             {
                 auto client_ptr = &handle_ptr->boss;
-                if (auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
-                    iter != joined.end()) // Client exists.
+                if (auto iter0 = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client_ptr == &client; });
+                    iter0 != joined.end()) // Client exists.
                 {
                     auto& client = handle_ptr->boss;
-                    if (auto iter = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
-                        iter != client.tokens.end()) // Handle allocated.
+                    if (auto iter1 = std::find_if(client.tokens.begin(), client.tokens.end(), [&](auto& token){ return handle_ptr == &token; });
+                        iter1 != client.tokens.end()) // Handle allocated.
                     {
                         auto link = handle_ptr->link;
-                        if (auto iter = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
-                            iter != client.alters.end()) // Buffer exists.
+                        if (auto iter2 = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
+                            iter2 != client.alters.end()) // Buffer exists.
                         {
-                            result = &(*iter);
+                            result = &(*iter2);
                         }
                     }
                 }
@@ -3226,7 +3226,7 @@ struct impl : consrv
             packet.reply = {};
             return;
         }
-        auto& window = *window_ptr;
+        auto& window_inst = *window_ptr;
         auto view = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
@@ -3234,8 +3234,8 @@ struct impl : consrv
         auto recs = take_buffer<CHAR_INFO, feed::fwd>(packet);
         if constexpr (isreal())
         {
-            crop = view.trunc(window.panel);
-            mirror.size(window.panel);
+            crop = view.trunc(window_inst.panel);
+            mirror.size(window_inst.panel);
             mirror.view(crop);
             if (recs.size() && crop)
             {
@@ -3368,19 +3368,19 @@ struct impl : consrv
                 netxs::onbody(dest, copy, allfx, eolfx);
                 auto success = direct(packet.target, [&](auto& scrollback)
                 {
-                    write_block(scrollback, dest, crop.coor, rect{ dot_00, window.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
+                    write_block(scrollback, dest, crop.coor, rect{ dot_00, window_inst.panel }, cell::shaders::full); // cell::shaders::skipnuls for transparency?
                 });
                 if (!success) crop = {};
             }
         }
-        packet.reply.rectL = crop.coor.x;
-        packet.reply.rectT = crop.coor.y;
-        packet.reply.rectR = crop.coor.x + crop.size.x - 1;
-        packet.reply.rectB = crop.coor.y + crop.size.y - 1;
+        packet.reply.rectL = (si16)(crop.coor.x);
+        packet.reply.rectT = (si16)(crop.coor.y);
+        packet.reply.rectR = (si16)(crop.coor.x + crop.size.x - 1);
+        packet.reply.rectB = (si16)(crop.coor.y + crop.size.y - 1);
         log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
-            "\n\tinput.rect: ", view,
-            "\n\treply.rect: ", crop,
-            "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+          "\n\tinput.rect: ", view,
+          "\n\treply.rect: ", crop,
+          "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_attribute_set        ()
     {
@@ -3476,7 +3476,7 @@ struct impl : consrv
                             "\n\tcodec: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage),
                             "\n\tcoord: ", coord,
                             "\n\tcount: ", count);
-                auto impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
+                //auto impcls = coord == dot_00 && piece == ' ' && count == screen.panel.x * screen.panel.y;
                 if (piece <  ' ' || piece == 0x7F) piece = ' ';
                 if (piece == ' ' && count > maxsz)
                 {
@@ -3577,7 +3577,7 @@ struct impl : consrv
         {
             return;
         }
-        auto& window = *window_ptr;
+        auto& window_inst = *window_ptr;
         auto avail = size_check(packet.echosz, answer.sendoffset());
         if (!avail)
         {
@@ -3589,22 +3589,22 @@ struct impl : consrv
         auto coor = twod{ packet.input.coorx, packet.input.coory };
         if constexpr (isreal())
         {
-            auto view = rect{{ 0, coor.y }, { window.panel.x, (coor.x + count) / window.panel.x + 1 }};
-            view = view.trunc(window.panel);
+            auto view = rect{{ 0, coor.y }, { window_inst.panel.x, (coor.x + count) / window_inst.panel.x + 1 }};
+            view = view.trunc(window_inst.panel);
             count = std::max(0, std::min(view.size.x * view.size.y, coor.x + count) - coor.x);
             if (!view || !count)
             {
                 return;
             }
-            auto start = coor.x + coor.y * window.panel.x;
+            auto start = coor.x + coor.y * window_inst.panel.x;
             buffer.clear();
             auto mark = cell{};
             auto attr = brush_to_attr(mark);
-            mirror.size(window.panel);
+            mirror.size(window_inst.panel);
             mirror.view(view);
             mirror.fill(mark);
-            window.do_viewport_copy(mirror);
-            auto& copy = (rich&)mirror;
+            window_inst.do_viewport_copy(mirror);
+            //auto& copy = (rich&)mirror;
             if (packet.input.etype == type::attribute)
             {
                 log("\tinput.type: attributes");
@@ -3743,7 +3743,7 @@ struct impl : consrv
             packet.reply = {};
             return;
         }
-        auto& window = *window_ptr;
+        auto& window_inst = *window_ptr;
         auto view = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
@@ -3757,11 +3757,11 @@ struct impl : consrv
             {
                 auto mark = cell{};
                 auto attr = brush_to_attr(mark);
-                size = window.panel;
-                mirror.size(window.panel);
+                size = window_inst.panel;
+                mirror.size(window_inst.panel);
                 mirror.view(view);
                 mirror.fill(mark);
-                window.do_viewport_copy(mirror);
+                window_inst.do_viewport_copy(mirror);
                 crop = mirror.view();
                 auto& copy = (rich&)mirror;
                 auto  dest = netxs::raster(recs, view);
@@ -3861,10 +3861,10 @@ struct impl : consrv
                 answer.send_data(condrv, recs);
             }
         }
-        packet.reply.rectL = crop.coor.x;
-        packet.reply.rectT = crop.coor.y;
-        packet.reply.rectR = crop.coor.x + crop.size.x - 1;
-        packet.reply.rectB = crop.coor.y + crop.size.y - 1;
+        packet.reply.rectL = (si16)(crop.coor.x);
+        packet.reply.rectT = (si16)(crop.coor.y);
+        packet.reply.rectR = (si16)(crop.coor.x + crop.size.x - 1);
+        packet.reply.rectB = (si16)(crop.coor.y + crop.size.y - 1);
         log("\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
           "\n\tpanel size: ", size,
           "\n\tinput.rect: ", view,
@@ -4016,14 +4016,14 @@ struct impl : consrv
         {
             viewport = os::ttysize;
         }
-        packet.reply.cursorposx = caretpos.x;
-        packet.reply.cursorposy = caretpos.y;
-        packet.reply.buffersz_x = viewport.x;
-        packet.reply.buffersz_y = viewport.y;
-        packet.reply.windowsz_x = viewport.x;
-        packet.reply.windowsz_y = viewport.y;
-        packet.reply.maxwinsz_x = viewport.x;
-        packet.reply.maxwinsz_y = viewport.y;
+        packet.reply.cursorposx = (si16)(caretpos.x);
+        packet.reply.cursorposy = (si16)(caretpos.y);
+        packet.reply.buffersz_x = (si16)(viewport.x);
+        packet.reply.buffersz_y = (si16)(viewport.y);
+        packet.reply.windowsz_x = (si16)(viewport.x);
+        packet.reply.windowsz_y = (si16)(viewport.y);
+        packet.reply.maxwinsz_x = (si16)(viewport.x);
+        packet.reply.maxwinsz_y = (si16)(viewport.y);
         packet.reply.windowposx = 0;
         packet.reply.windowposy = 0;
         packet.reply.fullscreen = faux;
@@ -4115,16 +4115,17 @@ struct impl : consrv
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
         {
-            log("\t\t", utf::to_hex(i), " ", rgba{ c });
+            log("\t\t", utf::to_hex(i++), " ", rgba{ c });
         }
         if constexpr (isreal())
         {
             //todo set palette per buffer
             auto& rgbpalette = packet.input.rgbpalette;
             auto head = std::begin(uiterm.ctrack.color);
-            for (auto i = 0; i < 16; i++)
+            i = 0;
+            while (i < 16)
             {
-                auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
+                auto m = netxs::swap_bits<0, 2>(i++); // ANSI<->DOS color scheme reindex.
                 *head++ = rgbpalette[m] | 0xFF000000; // conhost crashed if alpha non zero.
             }
         }
@@ -4159,8 +4160,8 @@ struct impl : consrv
                 uiterm.window_resize(size);
             }
             auto viewport = console.panel;
-            packet.input.buffersz_x = viewport.x;
-            packet.input.buffersz_y = viewport.y;
+            packet.input.buffersz_x = (si16)(viewport.x);
+            packet.input.buffersz_y = (si16)(viewport.y);
         }
     }
     auto api_scrollback_viewport_get_max_size()
@@ -4181,14 +4182,14 @@ struct impl : consrv
         {
             auto& console = *window_ptr;
             auto viewport = console.panel;
-            packet.reply.maxwinsz_x = viewport.x;
-            packet.reply.maxwinsz_y = viewport.y;
+            packet.reply.maxwinsz_x = (si16)viewport.x;
+            packet.reply.maxwinsz_y = (si16)viewport.y;
         }
         else
         {
             auto viewport = os::ttysize;
-            packet.reply.maxwinsz_x = viewport.x;
-            packet.reply.maxwinsz_y = viewport.y;
+            packet.reply.maxwinsz_x = (si16)(viewport.x);
+            packet.reply.maxwinsz_y = (si16)(viewport.y);
         }
         log("\treply.maxwin size: ", twod{ packet.reply.maxwinsz_x, packet.reply.maxwinsz_y });
     }
@@ -4218,8 +4219,8 @@ struct impl : consrv
             auto viewport = console.panel;
             packet.input.rectL = 0;
             packet.input.rectT = 0;
-            packet.input.rectR = viewport.y - 1;
-            packet.input.rectB = viewport.y - 1;
+            packet.input.rectR = (si16)(viewport.y - 1);
+            packet.input.rectB = (si16)(viewport.y - 1);
             packet.input.isabsolute = 1;
         }
     }
@@ -4249,10 +4250,10 @@ struct impl : consrv
         if (!window_ptr) return;
         if constexpr (isreal())
         {
-            auto& window = *window_ptr;
-            if (packet.input.destx == 0 && packet.input.desty ==-window.panel.y
-             && packet.input.scrlL == 0 && packet.input.scrlR == window.panel.x
-             && packet.input.scrlT == 0 && packet.input.scrlB == window.panel.y)
+            auto& window_inst = *window_ptr;
+            if (packet.input.destx == 0 && packet.input.desty ==-window_inst.panel.y
+             && packet.input.scrlL == 0 && packet.input.scrlR == window_inst.panel.x
+             && packet.input.scrlT == 0 && packet.input.scrlB == window_inst.panel.y)
             {
                 log("\timplicit screen clearing detected",
                     "\n\tpacket.input.dest: ", twod{ packet.input.destx, packet.input.desty },
@@ -4264,13 +4265,13 @@ struct impl : consrv
                     "\n\tpacket.input.clipT: ", packet.input.clipT,
                     "\n\tpacket.input.clipR: ", packet.input.clipR,
                     "\n\tpacket.input.clipB: ", packet.input.clipB);
-                window.clear_all();
+                window_inst.clear_all();
                 return;
             }
             auto scrl = rect{{ packet.input.scrlL, packet.input.scrlT },
                              { std::max(0, packet.input.scrlR - packet.input.scrlL + 1),
                                std::max(0, packet.input.scrlB - packet.input.scrlT + 1) }};
-            auto clip = !packet.input.trunc ? rect{ dot_00, window.panel }
+            auto clip = !packet.input.trunc ? rect{ dot_00, window_inst.panel }
                                             : rect{{ packet.input.clipL, packet.input.clipT },
                                                    { std::max(0, packet.input.clipR - packet.input.clipL + 1),
                                                      std::max(0, packet.input.clipB - packet.input.clipT + 1) }};
@@ -4282,17 +4283,17 @@ struct impl : consrv
               "\n\tinput.trunc: ", packet.input.trunc ? "true" : "faux",
               "\n\tinput.utf16: ", packet.input.utf16 ? "true" : "faux",
               "\n\tinput.brush: ", mark);
-            scrl = scrl.trunc(window.panel);
-            clip = clip.trunc(window.panel);
-            mirror.size(window.panel);
+            scrl = scrl.trunc(window_inst.panel);
+            clip = clip.trunc(window_inst.panel);
+            mirror.size(window_inst.panel);
             mirror.view(scrl);
             mirror.fill(cell{});
-            window.do_viewport_copy(mirror);
+            window_inst.do_viewport_copy(mirror);
             mirror.view(scrl);
             filler.kill();
             filler.mark(mark);
             filler.size(scrl.size);
-            auto success = direct(packet.target, [&](auto& scrollback)
+            direct(packet.target, [&](auto& scrollback)
             {
                 write_block(scrollback, filler, scrl.coor, clip, cell::shaders::full);
                 write_block(scrollback, mirror, dest,      clip, cell::shaders::full);
@@ -4334,8 +4335,8 @@ struct impl : consrv
             }
             reply;
         };
-        auto& packet = payload::cast(upload);
-
+        //auto& packet = payload::cast(upload);
+        //
     }
     auto api_window_title_get                ()
     {
@@ -4518,14 +4519,14 @@ struct impl : consrv
         if constexpr (isreal())
         {
             auto& console = *window_ptr;
-            packet.reply.buffersz_x = console.panel.x;
-            packet.reply.buffersz_y = console.panel.y;
+            packet.reply.buffersz_x = (si16)console.panel.x;
+            packet.reply.buffersz_y = (si16)console.panel.y;
         }
         else
         {
             auto viewport = os::ttysize;
-            packet.reply.buffersz_x = viewport.x;
-            packet.reply.buffersz_y = viewport.y;
+            packet.reply.buffersz_x = (si16)(viewport.x);
+            packet.reply.buffersz_y = (si16)(viewport.y);
         }
         log("\tinput.flags: ", packet.input.flags,
           "\n\treply.buffer size: ", twod{ packet.reply.buffersz_x, packet.reply.buffersz_y });

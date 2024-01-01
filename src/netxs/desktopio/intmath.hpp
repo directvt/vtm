@@ -250,9 +250,9 @@ namespace netxs
     template<class T1, class T2>
     constexpr bool sum_overflow(T1& accum, T2 delta)
     {
-        auto store = accum;
-        accum += delta;
-        return accum <= store ? true : faux;
+        auto prev = accum;
+        accum = (T1)(accum + delta);
+        return accum <= prev;
     }
 
     // intmath: Clamp a value in case it exceeds its numerical limits.
