@@ -2168,7 +2168,7 @@ struct impl : consrv
         if (packet.input.utf16)
         {
             auto data = take_buffer<wchr, feed::fwd>(packet);
-            if (data.size() * sizeof(wchr) == size)
+            if (std::cmp_equal(data.size() * sizeof(wchr), size))
             {
                 auto shadow = wiew{ data.data(), data.size() };
                 // Note: The utf::pop_back is used due to the reverse order evaluation when calling std::make_tuple().
@@ -2178,7 +2178,7 @@ struct impl : consrv
         else
         {
             auto data = take_buffer<char, feed::fwd>(packet);
-            if (data.size() == size)
+            if (std::cmp_equal(data.size(), size))
             {
                 auto shadow = view{ data.data(), data.size() };
                 if (inpenc->codepage == CP_UTF8)

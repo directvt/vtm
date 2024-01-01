@@ -2863,13 +2863,14 @@ namespace netxs::ui
             }
             bool test_index()
             {
+                #if defined(DEBUG)
                 auto m = index.front().index;
                 for (auto& i : index)
                 {
-                    auto step = i.index - m;
-                    assert(i.index >= m && step < 2);
+                    assert(i.index >= m && i.index - m < 2);
                     m = i.index;
                 }
+                #endif
                 return true;
             }
             bool test_futures()
@@ -2886,13 +2887,14 @@ namespace netxs::ui
             }
             bool test_coord()
             {
-                auto wrapped_block = batch.caret - coord.x;
-                assert(coord.y < y_top || coord.y > y_end || wrapped_block % panel.x == 0);
+                assert(coord.y < y_top || coord.y > y_end || (batch.caret - coord.x/*wrapped_block*/) % panel.x == 0);
                 return true;
             }
             auto test_resize()
             {
+                #if defined(DEBUG)
                 auto c = batch.caret;
+                #endif
                 sync_coord();
                 assert(c == batch.caret);
                 return true;
@@ -4654,8 +4656,7 @@ namespace netxs::ui
 
                     sync_coord();
 
-                    auto stash = batch.vsize - batch.basis - index.size;
-                    assert(stash == 0);
+                    assert(batch.vsize - batch.basis - index.size == 0); // stash
                     assert(test_futures());
                     dnbox.wipe(blank);
                 };

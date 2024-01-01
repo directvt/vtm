@@ -1355,8 +1355,8 @@ namespace netxs::os
                 ok(::pipe(h), "::pipe(2)", os::unexpected);
             }
            ~fire()           { for (auto& f : h) os::close(f); }
-            void reset()     { fired.exchange(true); auto c = ' '; ::write(h[1], &c, sizeof(c)); }
-            void flush()     { fired.exchange(faux); auto c = ' '; ::read(h[0], &c, sizeof(c)); }
+            void reset()     { fired.exchange(true); auto c = ' '; (void)!::write(h[1], &c, sizeof(c)); }
+            void flush()     { fired.exchange(faux); auto c = ' '; (void)!::read(h[0], &c, sizeof(c)); }
             auto wait(span timeout = {})
             {
                 using namespace std::chrono;
