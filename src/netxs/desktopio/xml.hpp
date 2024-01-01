@@ -835,9 +835,8 @@ namespace netxs::xml
         }
         auto diff(view& data, view& temp, type kind = type::spaces)
         {
-            auto delta = temp.size() - data.size();
-                 if (delta > 0) page.append(kind, temp.substr(0, delta));
-            else if (delta < 0) fail("Unexpected data");
+                 if (temp.size() > data.size()) page.append(kind, temp.substr(0, temp.size() - data.size()));
+            else if (temp.size() < data.size()) fail("Unexpected data");
         }
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
@@ -1074,9 +1073,9 @@ namespace netxs::xml
                                     {
                                         item->insB = spaced ? page.back
                                                             : page.append(type::spaces);
-                                                              page.append(type::close_tag, skip_frag);
-                                        if (trim_frag.size()) page.append(type::spaces, trim_frag);
-                                                              page.append(type::end_token, item->name->utf8);
+                                        page.append(                      type::close_tag, skip_frag);
+                                        if (trim_frag.size()) page.append(type::spaces,    trim_frag);
+                                        page.append(                      type::end_token, item->name->utf8);
                                         data = temp;
                                         auto tail = data.find('>');
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
@@ -1087,9 +1086,9 @@ namespace netxs::xml
                                     else
                                     {
                                         what = type::unknown;
-                                                              page.append(what, skip_frag);
+                                        page.append(                      what, skip_frag);
                                         if (trim_frag.size()) page.append(what, trim_frag);
-                                                              page.append(what, object);
+                                        page.append(                      what, object);
                                         data = temp;
                                         auto tail = data.find('>');
                                         if (tail != view::npos) data.remove_prefix(tail + 1);

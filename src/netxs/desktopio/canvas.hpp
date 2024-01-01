@@ -669,10 +669,10 @@ namespace netxs
         { }
 
         irgb(rgba c)
-            : r { c.chan.r },
-              g { c.chan.g },
-              b { c.chan.b },
-              a { c.chan.a }
+            : r{ c.chan.r },
+              g{ c.chan.g },
+              b{ c.chan.b },
+              a{ c.chan.a }
         { }
 
         operator rgba() const { return rgba{ r, g, b, a }; }
@@ -772,6 +772,7 @@ namespace netxs
                 set(utf8, width);
             }
 
+            constexpr glyf& operator = (glyf const&) = default;
             auto operator == (glyf const& c) const
             {
                 return token == c.token;
@@ -960,6 +961,7 @@ namespace netxs
                 : token{ b.token }
             { }
 
+            constexpr body& operator = (body const&) = default;
             bool operator == (body const& b) const
             {
                 return token == b.token;
@@ -1057,6 +1059,7 @@ namespace netxs
                   fg{ c.fg }
             { }
 
+            constexpr clrs& operator = (clrs const&) = default;
             constexpr bool operator == (clrs const& c) const
             {
                 return bg == c.bg
@@ -1142,14 +1145,17 @@ namespace netxs
         clrs       uv;     // 8U, cell: RGBA color.
         glyf<void> gc;     // 8U, cell: Grapheme cluster.
         body       st;     // 4U, cell: Style attributes.
-        id_t       id = 0; // 4U, cell: Link ID.
+        id_t       id;     // 4U, cell: Link ID.
         id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2.
         id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2.
 
-        cell() = default;
+        cell()
+            : id{ 0 }
+        { }
 
         cell(char c)
-            : gc{ c }
+            : gc{ c },
+              id{ 0 }
         {
             // sizeof(glyf<void>);
             // sizeof(clrs);
@@ -1160,6 +1166,7 @@ namespace netxs
         }
 
         cell(view chr)
+            : id{ 0 }
         {
             gc.set(chr);
         }
@@ -1173,16 +1180,16 @@ namespace netxs
 
         cell(cell const& base, view cluster, size_t ucwidth)
             : uv{ base.uv },
+              gc{ base.gc, cluster, ucwidth },
               st{ base.st },
-              id{ base.id },
-              gc{ base.gc, cluster, ucwidth }
+              id{ base.id }
         { }
 
         cell(cell const& base, char c)
             : uv{ base.uv },
+              gc{ c       },
               st{ base.st },
-              id{ base.id },
-              gc{ c }
+              id{ base.id }
         { }
 
         auto operator == (cell const& c) const
@@ -1794,7 +1801,6 @@ namespace netxs
         };
     };
 
-    // Extern link statics.
     template<class T> std::hash<view>                cell::glyf<T>::coder;
     template<class T> text                           cell::glyf<T>::empty;
     template<class T> std::unordered_map<ui64, text> cell::glyf<T>::jumbo;

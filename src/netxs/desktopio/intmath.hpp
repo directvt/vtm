@@ -193,7 +193,7 @@ namespace netxs
     constexpr auto aligned(void const* ptr)
     {
         auto i = T{};
-        std::memcpy(&i, ptr, sizeof(T));
+        std::memcpy((void*)&i, ptr, sizeof(T));
         return letoh(i);
     };
     // intmath: LE type wrapper. T has an LE format in memory.

@@ -1348,8 +1348,8 @@ namespace netxs::directvt
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
-            //X(quit             ) /* Close and disconnect dtvt app.                */\
-            //X(focus            ) /* Request to set focus.                         */\
+            //X(quit             ) /* Close and disconnect dtvt app.                */
+            //X(focus            ) /* Request to set focus.                         */
 
             struct xs
             {

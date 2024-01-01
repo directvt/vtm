@@ -1369,8 +1369,8 @@ namespace netxs::ui
     {
         using iter = std::list<netxs::sptr<para>>::const_iterator;
         iter source;
-        iter finish;
         si32 prefix;
+        iter finish;
         si32 suffix;
         twod volume; // Rope must consist of text lines of the same height.
 
@@ -1389,8 +1389,8 @@ namespace netxs::ui
 
         rope(iter head, iter tail, twod size)
             : source{ head },
-              finish{ tail },
               prefix{ 0    },
+              finish{ tail },
               suffix{ 0    },
               volume{ size },
               style{ (**head).style }
@@ -1548,7 +1548,8 @@ namespace netxs::ui
         page(view utf8)               {          ansi::parse(utf8, this); reindex();               }
         page() = default;
         page(page&& p)
-            : index{ p.index },
+            : parser{        },
+              index{ p.index },
               batch{ std::move(p.batch) },
               parts{ std::move(p.parts) },
               stack{ std::move(p.stack) },
@@ -1556,8 +1557,9 @@ namespace netxs::ui
         {
             reindex();
         }
-        page (page const& p)
-            : index{ p.index },
+        page(page const& p)
+            : parser{        },
+              index{ p.index },
               batch{ p.batch },
               parts{ p.parts },
               stack{ p.stack },

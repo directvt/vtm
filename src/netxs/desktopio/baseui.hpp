@@ -722,7 +722,6 @@ namespace netxs::ui
         auto resize(twod new_size, bool apply = true)
         {
             auto anchored = base::anchor;
-            auto old_size = base::region.size;
             auto new_area = base::region;
             new_area.size = new_size;
             new_area += base::extpad;

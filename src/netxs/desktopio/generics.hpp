@@ -861,7 +861,7 @@ namespace netxs::generics
         void execute(size_t alonecmd, Out& story) const
         {
             auto& queue = In::fake();
-            if (alonecmd >= 0 && alonecmd < this->size())
+            if (alonecmd < this->size())
             {
                 if (auto const& next = this->at(alonecmd))
                 {

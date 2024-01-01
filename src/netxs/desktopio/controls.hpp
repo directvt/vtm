@@ -293,7 +293,7 @@ namespace netxs::ui
                 {
                     auto area = boss.base::area();
                     auto next = area + warp;
-                    auto step = boss.extend(next);
+                    boss.extend(next);
                 };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
@@ -568,7 +568,6 @@ namespace netxs::ui
                 {
                     if (!alive) return;
                     auto full = parent_canvas.full();
-                    auto view = parent_canvas.view();
                     auto mark = cell{}.bgc(0xFFffffff);
                     auto fill = [&](cell& c) { c.fuse(mark); };
                     items.foreach([&](sock& item)
@@ -1044,9 +1043,9 @@ namespace netxs::ui
                                                                 bool on_header = true,
                                                                 bool on_footer = true)
                 : skill{ boss },
-                  live{ visible },
                   head_live{ on_header },
-                  foot_live{ on_footer }
+                  foot_live{ on_footer },
+                  live{ visible }
             {
                 head_text = title;
                 foot_text = foots;
@@ -1217,10 +1216,10 @@ namespace netxs::ui
 
             struct config
             {
-                bool active{}; // focus: The chain is under the focus.
-                bool focused{}; // focus: Focused endpoint.
-                hook token; // focus: Cleanup token.
-                std::list<wptr> next; // focus: Focus event next hop.
+                bool            active{};  // focus: The chain is under the focus.
+                bool            focused{}; // focus: Focused endpoint.
+                hook            token;     // focus: Cleanup token.
+                std::list<wptr> next;      // focus: Focus event next hop.
 
                 template<class P>
                 auto foreach(P proc)

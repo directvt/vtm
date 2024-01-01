@@ -4061,8 +4061,8 @@ namespace netxs::os
             std::thread               stdinput;
             std::thread               stdwrite;
             std::thread               waitexit;
-            pidt                      proc_pid;
             fd_t                      prochndl;
+            pidt                      proc_pid;
             text                      writebuf;
             std::mutex                writemtx;
             std::condition_variable   writesyn;
@@ -4330,8 +4330,8 @@ namespace netxs::os
             {
                 vtty::sighup();
             }
-            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                        std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> /*input_hndl*/,
+                                                                        std::function<void(si32, view)> /*shutdown_hndl*/) override
             {
                 vtty::runapp(base_tty::terminal, cmd, cwd, env, win);
             }

@@ -927,20 +927,23 @@ namespace netxs::ansi
     {
         cell spare; // mark: Stored  brush.
         cell fresh; // mark: Initial brush.
+
         mark() = default;
         mark(mark&&) = default;
         mark(mark const&) = default;
+        mark(cell const& brush)
+            : cell{ brush },
+             spare{ brush },
+             fresh{ brush }
+        { }
+
         mark& operator = (mark const&) = default;
         mark& operator = (cell const& c)
         {
             cell::operator=(c);
             return *this;
         }
-        mark(cell const& brush)
-            :  cell{ brush },
-              fresh{ brush },
-              spare{ brush }
-        { }
+
         void reset()              { *this = spare = fresh;     }
         void reset(cell const& c) { *this = spare = fresh = c; }
         auto busy() const         { return  fresh != *this;    } // mark: Is the marker modified.
@@ -1481,7 +1484,7 @@ namespace netxs::ansi
             //      [--------------]
             // or
             // ESC ] n ; _text_ ST
-            // ESC ] n ; _text_ ESC \
+            // ESC ] n ; _text_ ESC \ ...
             //      [--------------]
             //
             // ESC ] I ; _text_ ST  Set icon to file.

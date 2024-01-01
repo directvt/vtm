@@ -76,6 +76,7 @@ namespace netxs::utf
               cpcount{attr.cpcount},
               cdpoint{attr.cdpoint}
         { }
+        constexpr prop& operator = (prop const&) = default;
 
         auto combine(prop const& next)
         {
