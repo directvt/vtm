@@ -317,12 +317,12 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text env, text cwd, text arg, xmls& config, text patch)
+        auto build = [](text /*env*/, text /*cwd*/, text /*arg*/, xmls& config, text /*patch*/)
         {
             auto highlight_color = skin::globals().highlight;
             auto label_color     = skin::globals().label;
             auto c3 = highlight_color;
-            auto x3 = cell{ c3 }.alpha(0x00);
+            //auto x3 = cell{ c3 }.alpha(0x00);
             auto c7 = label_color;
 
             auto [cellatix_rows, cellatix_cols, cellatix_text] = get_text();

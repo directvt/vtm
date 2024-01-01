@@ -7496,7 +7496,7 @@ namespace netxs::ui
                     }
                 });
             }
-            void handle(s11n::xs::expose              lock)
+            void handle(s11n::xs::expose            /*lock*/)
             {
                 netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
@@ -7579,7 +7579,7 @@ namespace netxs::ui
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            void handle(s11n::xs::vt_command          lock)
+            void handle(s11n::xs::vt_command        /*lock*/)
             {
                 //auto& w = lock.thing;
                 //todo implement
@@ -7622,12 +7622,12 @@ namespace netxs::ui
                     master.deface();
                 });
             }
-            void handle(s11n::xs::sysclose            lock)
+            void handle(s11n::xs::sysclose          /*lock*/)
             {
                 master.active.exchange(faux);
                 master.stop(true);
             }
-            void handle(s11n::xs::sysstart            lock)
+            void handle(s11n::xs::sysstart          /*lock*/)
             {
                 netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
@@ -7734,11 +7734,11 @@ namespace netxs::ui
 
         evnt stream; // dtvt: Event handler.
         flag active; // dtvt: Terminal lifetime.
+        si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         si32 nodata; // dtvt: Show splash "No signal".
         face splash; // dtvt: "No signal" splash.
         page errmsg; // dtvt: Overlay error message.
         span maxoff; // dtvt: Max delay before showing "No signal".
-        si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
 
         // dtvt: Proceed DirectVT output.

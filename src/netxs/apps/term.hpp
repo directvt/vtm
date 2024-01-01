@@ -175,8 +175,8 @@ namespace netxs::app::term
 
     const auto terminal_menu = [](xmls& config)
     {
-        auto highlight_color = skin::color(tone::highlight);
-        auto c3 = highlight_color;
+        //auto highlight_color = skin::color(tone::highlight);
+        //auto c3 = highlight_color;
 
         config.cd("/config/term/", "/config/defapp/");
         auto menudata = config.list("menu/item");
@@ -620,7 +620,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text env, text cwd, text arg, xmls& config, text patch)
+        auto build = [](text env, text cwd, text arg, xmls& config, text /*patch*/)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;

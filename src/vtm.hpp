@@ -626,8 +626,8 @@ namespace netxs::app::vtm
             using skill::boss,
                   skill::memo;
 
-            id_t under;
             bool drags;
+            id_t under;
             twod coord;
             wptr cover;
 

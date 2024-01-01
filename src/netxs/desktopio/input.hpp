@@ -1230,6 +1230,7 @@ namespace netxs::input
         }
 
         id_t        relay; // hids: Mouse routing call stack initiator.
+        base&       owner;
         core const& idmap; // hids: Area of the main form. Primary or relative region of the mouse coverage.
         bool        alive; // hids: Whether event processing is complete.
 
@@ -1245,7 +1246,6 @@ namespace netxs::input
         bool        tooltip_set  = faux; // hids: Tooltip has been set.
         testy<twod> tooltip_coor = {}; // hids: .
 
-        base& owner;
         si32 ctlstate = {};
 
         //todo unify
@@ -1262,11 +1262,11 @@ namespace netxs::input
         template<class T>
         hids(T& props, base& owner, core const& idmap)
             : relay{ 0 },
-            owner{ owner },
-            idmap{ idmap },
-            alive{ faux },
-            tooltip_timeout{   props.tooltip_timeout },
-            other_key{ build_other_key(key::Slash, key::Slash | (hids::anyShift << 8)) } // Defaults for US layout.
+              owner{ owner },
+              idmap{ idmap },
+              alive{ faux },
+              tooltip_timeout{   props.tooltip_timeout },
+              other_key{ build_other_key(key::Slash, key::Slash | (hids::anyShift << 8)) } // Defaults for US layout.
         {
             board::ghost = props.clip_preview_glow;
             board::brush = props.clip_preview_clrs;
@@ -1276,7 +1276,7 @@ namespace netxs::input
             mouse::coord = dot_mx;
             SIGNAL(tier::general, events::device::user::login, user_index);
         }
-       ~hids()
+        virtual ~hids()
         {
             mouse_leave(mouse::hover, mouse::start);
             SIGNAL(tier::general, events::halt, *this);

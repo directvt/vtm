@@ -85,7 +85,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
+        auto build_Strobe        = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -111,7 +111,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
+        auto build_Settings      = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -134,7 +134,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
+        auto build_Empty         = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -156,7 +156,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Truecolor     = [](text env, text cwd, text v,     xmls& config, text patch)
+        auto build_Truecolor     = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& config, text /*patch*/)
         {
             //todo put all ansi art into external files
             auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
@@ -300,7 +300,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Region        = [](text env, text cwd, text v,     xmls& /*config*/, text patch)
+        auto build_Region        = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -359,7 +359,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Headless      = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_Headless      = [](text env, text cwd, text param, xmls& config, text /*patch*/)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -627,15 +627,15 @@ namespace netxs::app::shared
             args += os::env::shell(param);
             return build_DirectVT(env, cwd, args, config, patch);
         };
-        auto build_Info          = [](text env, text cwd, text param, xmls& /*config*/, text patch)
+        auto build_Info          = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
         {
             using namespace app::shared;
 
             auto danger_color    = skin::color(tone::danger);
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto c1 = danger_color;
-            auto c3 = highlight_color;
-            auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
+            //auto c3 = highlight_color;
+            //auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto b1 = bluelt;
 
             auto notes = ansi::nil().mgl(2).mgr(2).wrp(wrap::off).fgc(whitedk).jet(bias::right)

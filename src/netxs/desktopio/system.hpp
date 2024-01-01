@@ -3171,7 +3171,7 @@ namespace netxs::os
                 return state;
             }
             template<role Role, bool Log = true>
-            static auto open(text name, bool& denied)
+            static auto open(text name, [[maybe_unused]] bool& denied)
             {
                 auto r = os::invalid_fd;
                 auto w = os::invalid_fd;
@@ -4387,14 +4387,16 @@ namespace netxs::os
             void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
             {
-                auto update = [](auto size, auto head, auto iter, auto tail)
-                {
-                    #if defined(_WIN32)
-                    auto offset = (si32)(iter - head);
-                    auto coor = twod{ offset % size.x, offset / size.x };
-                    nt::console::print<svga::vt16>(size, coor, iter, tail);
-                    #endif
-                };
+                #if defined(_WIN32)
+                    auto update = [](auto size, auto head, auto iter, auto tail)
+                    {
+                        auto offset = (si32)(iter - head);
+                        auto coor = twod{ offset % size.x, offset / size.x };
+                        nt::console::print<svga::vt16>(size, coor, iter, tail);
+                    };
+                #else
+                    auto update = noop{};
+                #endif
                 auto& bitmap = lock.thing;
                 bitmap.get(data, update);
             }
@@ -5365,7 +5367,7 @@ namespace netxs::os
             if constexpr (debugmode) log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             close(c);
         }
-        void clipbd(auto& alarm)
+        void clipbd([[maybe_unused]] auto& alarm)
         {
             using namespace os::clipboard;
 

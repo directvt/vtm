@@ -66,10 +66,10 @@ namespace netxs::datetime
         flag     alive;
         flag     letup;
         span     delay;
+        span     watch;
         span     pulse;
         work     fiber;
         cond     synch;
-        span     watch;
 
         void worker()
         {

@@ -3579,12 +3579,12 @@ namespace netxs::ui
         };
 
         wptr boss; // grip: .
-        hook memo; // grip: .
+        bool wide; // grip: Is the scrollbar active.
         si32 thin; // grip: Scrollbar thickness.
         si32 init; // grip: Handle base width.
-        math calc; // grip: Scrollbar calculator.
-        bool wide; // grip: Is the scrollbar active.
         si32 mult; // grip: Vertical bar width multiplier.
+        hook memo; // grip: .
+        math calc; // grip: Scrollbar calculator.
         bool on_pager = faux; // grip: .
 
         template<class Event>
@@ -3640,8 +3640,8 @@ namespace netxs::ui
     protected:
         gripfx(sptr boss, si32 thickness = 1, si32 multiplier = 2)
             : boss{ boss       },
-              thin{ thickness  },
               wide{ faux       },
+              thin{ thickness  },
               init{ thickness  },
               mult{ multiplier }
         {
@@ -4262,10 +4262,11 @@ namespace netxs::ui
 
     protected:
         stem_rate(text const& caption, si32 min_value, si32 max_value, view suffix)
-            : min_val{ min_value },
+            : coreface{ ptr::shared<face>() },
+              canvas{ *coreface },
+              min_val{ min_value },
               max_val{ max_value },
-              grip_suffix{ suffix },
-              canvas{*(coreface = ptr::shared<face>())}
+              grip_suffix{ suffix }
         {
             //todo cache specific
             canvas.link(bell::id);

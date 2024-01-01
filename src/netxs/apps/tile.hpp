@@ -367,9 +367,9 @@ namespace netxs::app::tile
         {
             auto menu_black = skin::color(tone::menu_black);
             auto cC = menu_black.fgc(whitedk);
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto c3 = highlight_color;
+            //auto c3 = highlight_color;
             auto c1 = danger_color;
 
             using namespace app::shared;
@@ -787,15 +787,15 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text env, text cwd, view param, xmls& config, text patch) -> sptr
+        auto build_inst = [](text /*env*/, text cwd, view param, xmls& config, text /*patch*/) -> sptr
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto warning_color   = skin::color(tone::warning);
-            auto c3 = highlight_color;
-            auto c2 = warning_color;
+            //auto warning_color   = skin::color(tone::warning);
+            //auto c3 = highlight_color;
+            //auto c2 = warning_color;
             auto c1 = danger_color;
 
             auto object = ui::fork::ctor(axis::Y)
