@@ -559,10 +559,10 @@ namespace netxs::ui
             }
             auto to_byte(char c)
             {
-                if (c >= '0' && c <= '9') return c - '0';
-                if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-                if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-                                          return 0;
+                     if (c >= '0' && c <= '9') return c - '0';
+                else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                else                           return 0;
             }
             std::optional<ui32> record(view& data) // ; rgb:00/00/00
             {
@@ -972,10 +972,10 @@ namespace netxs::ui
 
             bool  boxed; // bufferbase: Box selection mode.
             bool  grant; // bufferbase: Is it allowed to change box selection mode.
-            ui64  alive; // bufferbase: Selection is active (digest).
-            line  match; // bufferbase: Search pattern for highlighting.
             bool  uirev; // bufferbase: Prev button highlighted.
             bool  uifwd; // bufferbase: Next button highlighted.
+            ui64  alive; // bufferbase: Selection is active (digest).
+            line  match; // bufferbase: Search pattern for highlighting.
 
             bufferbase(term& master)
                 : owner{ master },

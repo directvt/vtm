@@ -491,10 +491,12 @@ namespace netxs::directvt
                 block += other.block;
                 other.reset();
             }
+
+            stream(stream const&) = default;
             stream(type kind)
                 : basis{ sizeof(basis) + sizeof(kind) },
-                  start{ basis },
-                  valid{ true  }
+                  start{ basis                        },
+                  valid{ true                         }
             {
                 add(basis, kind);
             }

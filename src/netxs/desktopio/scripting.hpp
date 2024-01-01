@@ -54,19 +54,19 @@ namespace netxs::scripting
                 token.clear();
             }
 
-            void handle(s11n::xs::fullscreen          lock)
+            void handle(s11n::xs::fullscreen        /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::focus_cut           lock)
+            void handle(s11n::xs::focus_cut         /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::focus_set           lock)
+            void handle(s11n::xs::focus_set         /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::keybd_event         lock)
+            void handle(s11n::xs::keybd_event       /*lock*/)
             {
                 //...
             };

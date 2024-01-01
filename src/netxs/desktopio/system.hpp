@@ -183,7 +183,8 @@ namespace netxs::os
     {
         if (h != os::invalid_fd)
         {
-            os::close((fd_t const)h);
+            auto const temp = h;
+            os::close(temp);
             h = os::invalid_fd;
         }
     }
@@ -1174,7 +1175,7 @@ namespace netxs::os
                     auto lowhalf_idx = 254;
                     auto tophalf_ptr = fdata.data + block_bytes * tophalf_idx;
                     auto lowhalf_ptr = fdata.data + block_bytes * lowhalf_idx;
-                    for (auto row = 0; row < fdata.height; row++)
+                    for (auto row = 0u; row < fdata.height; row++)
                     {
                         auto is_top = row < fdata.height / 2;
                        *tophalf_ptr = is_top ? 0xFF : 0x00;
@@ -1349,13 +1350,13 @@ namespace netxs::os
             fd_t h[2] = { os::invalid_fd, os::invalid_fd }; // fire: Descriptors for IO interrupt.
 
             operator auto () { return h[0]; }
-            fire(qiew name = {})
+            fire(qiew /*name*/ = {})
             {
                 ok(::pipe(h), "::pipe(2)", os::unexpected);
             }
            ~fire()           { for (auto& f : h) os::close(f); }
-            void reset()     { fired.exchange(true); auto c = ' '; auto rc = ::write(h[1], &c, sizeof(c)); }
-            void flush()     { fired.exchange(faux); auto c = ' '; auto rc = ::read(h[0], &c, sizeof(c)); }
+            void reset()     { fired.exchange(true); auto c = ' '; ::write(h[1], &c, sizeof(c)); }
+            void flush()     { fired.exchange(faux); auto c = ' '; ::read(h[0], &c, sizeof(c)); }
             auto wait(span timeout = {})
             {
                 using namespace std::chrono;
@@ -1479,7 +1480,7 @@ namespace netxs::os
                         auto signal = sigt{};
                         while (true)
                         {
-                            auto rc = ::sigwait(&signals::sigset, &signal);
+                            ::sigwait(&signals::sigset, &signal);
                             if (signal == SIGUSR1 && !active) break;
                             if (signal > 0) ok(::write(handle[1], &signal, sizeof(signal)), "::write(h[1])", os::unexpected);
                         }
@@ -1540,7 +1541,7 @@ namespace netxs::os
                 #else
                     auto count = ::write(fd, buffer, size);
                 #endif
-                if (count == size) return true;
+                if (std::cmp_equal(count, size)) return true;
                 if (count > 0)
                 {
                     buffer += count;
@@ -2117,7 +2118,7 @@ namespace netxs::os
 
         namespace memory
         {
-            auto get(text cfpath)
+            auto get([[maybe_unused]] text cfpath)
             {
                 auto utf8 = text{};
                 #if defined(_WIN32)
@@ -2135,7 +2136,7 @@ namespace netxs::os
                 #endif
                 return utf8;
             }
-            auto set(text cfpath, view data)
+            auto set([[maybe_unused]] text cfpath, [[maybe_unused]] view data)
             {
                 #if defined(_WIN32)
 
@@ -2430,7 +2431,7 @@ namespace netxs::os
 
             #endif
         }
-        auto fork(text prefix, view config)
+        auto fork([[maybe_unused]] text prefix, [[maybe_unused]] view config)
         {
             auto msg = [](auto& success)
             {
@@ -2625,7 +2626,7 @@ namespace netxs::os
 
             #endif
         }
-        auto getpaths(auto& file, auto& dest, bool check_arch = true)
+        auto getpaths(auto& file, auto& dest, [[maybe_unused]] bool check_arch = true)
         {
             if (!os::process::elevated)
             {
@@ -3836,7 +3837,7 @@ namespace netxs::os
             void create(auto& terminal, text cmd, text cwd, text env, twod win, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
-                                     log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
@@ -4381,10 +4382,10 @@ namespace netxs::os
         static auto clipboard = text{};
         struct proxy : s11n
         {
-            void direct(s11n::xs::bitmap_vt16      lock, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_vt256     lock, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_vtrgb     lock, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_dtvt      lock, view& data) // Decode for nt16 mode.
+            void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
+            void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
+            void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
+            void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
             {
                 auto update = [](auto size, auto head, auto iter, auto tail)
                 {
@@ -4397,12 +4398,12 @@ namespace netxs::os
                 auto& bitmap = lock.thing;
                 bitmap.get(data, update);
             }
-            void handle(s11n::xs::header_request   lock)
+            void handle(s11n::xs::header_request /*lock*/)
             {
                 auto item = s11n::header.freeze();
                 item.thing.sendby<faux, faux>(dtvt::client);
             }
-            void handle(s11n::xs::footer_request   lock)
+            void handle(s11n::xs::footer_request /*lock*/)
             {
                 auto item = s11n::footer.freeze();
                 item.thing.sendby<faux, faux>(dtvt::client);

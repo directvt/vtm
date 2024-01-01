@@ -513,10 +513,10 @@ namespace netxs::ansi
           public basevt<escx>
     {
     public:
+        escx(escx const&) = default;
         escx()
             : basevt{ *this }
         { }
-
         template<class T>
         escx(T&& data)
             : basevt{ *this }

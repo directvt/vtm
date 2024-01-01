@@ -5163,7 +5163,7 @@ struct consrv : ipc::stdcon
     {
         //todo win32-input-mode
         using type = decltype(winsize::ws_row);
-        auto size = winsize{ .ws_row = (type)new_size.y, .ws_col = (type)new_size.x };
+        auto size = winsize{ .ws_row = (type)new_size.y, .ws_col = (type)new_size.x, .ws_xpixel = {}, .ws_ypixel = {} };
         ok(::ioctl(stdcon::handle.w, TIOCSWINSZ, &size), "::ioctl(handle.w, TIOCSWINSZ)", os::unexpected);
     }
     template<class Term>
@@ -5258,27 +5258,27 @@ struct consrv : ipc::stdcon
     {
         //todo
     }
-    void focus(bool state)
+    void focus(bool /*state*/)
     {
         //todo win32-input-mode
     }
-    void mouse(input::hids& gear, bool moved, twod coord, input::mouse::prot encod, input::mouse::mode state)
+    void mouse(input::hids& /*gear*/, bool /*moved*/, twod /*coord*/, input::mouse::prot /*encod*/, input::mouse::mode /*state*/)
     {
         //todo win32-input-mode
     }
-    void keybd(input::hids& gear, bool decckm)
+    void keybd(input::hids& /*gear*/, bool /*decckm*/)
     {
         //todo win32-input-mode
     }
-    void paste(view block)
+    void paste(view /*block*/)
     {
         //todo win32-input-mode
     }
-    void style(si32 format)
+    void style(si32 /*format*/)
     {
         //todo win32-input-mode
     }
-    void undo(bool undoredo)
+    void undo(bool /*undoredo*/)
     {
         //todo
     }

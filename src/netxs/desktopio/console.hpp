@@ -793,18 +793,18 @@ namespace netxs::ui
 
     public:
         pipe&      canal; // gate: Channel to outside.
-        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
-        para       uname; // gate: Client name.
-        text       uname_txt; // gate: Client name (original).
         props_t    props; // gate: Application properties.
         input_t    input; // gate: Input event handler.
         debug_t    debug; // gate: Statistics monitor.
-        sptr       applet; // gate: Standalone application.
         diff       paint; // gate: Render.
         link       conio; // gate: Input data parser.
-        subs       tokens; // gate: Subscription tokens.
         bool       direct; // gate: .
         bool       local; // gate: .
+        bool       yield; // gate: Indicator that the current frame has been successfully STDOUT'd.
+        para       uname; // gate: Client name.
+        text       uname_txt; // gate: Client name (original).
+        sptr       applet; // gate: Standalone application.
+        subs       tokens; // gate: Subscription tokens.
         wptr       nexthop; // gate: .
         hook       oneoff_focus; // gate: .
 
@@ -1023,11 +1023,12 @@ namespace netxs::ui
             : canal{ *uplink },
               props{ canal, userid, vtmode, isvtm, session_id, config },
               input{ props, *this },
+              debug{*this },
               paint{ canal, props.vtmode },
               conio{ canal, *this  },
-              debug{*this },
               direct{ props.vtmode == svga::dtvt },
-              local{ true }
+              local{ true },
+              yield{ faux }
         {
             auto isolated = config.take("/config/isolated", faux); // DTVT proxy console case.
             config.set("/config/isolated", faux);

@@ -208,13 +208,13 @@ namespace netxs::app::shared
 
         static auto mini(bool autohide, bool menushow, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto action_color    = skin::color(tone::action);
-            auto warning_color   = skin::color(tone::warning);
-            auto c6 = action_color;
-            auto c3 = highlight_color;
-            auto c2 = warning_color;
+            //auto action_color    = skin::color(tone::action);
+            //auto warning_color   = skin::color(tone::warning);
+            //auto c6 = action_color;
+            //auto c3 = highlight_color;
+            //auto c2 = warning_color;
             auto c1 = danger_color;
             auto macstyle = skin::globals().macstyle;
             auto menuveer = ui::veer::ctor();
@@ -390,8 +390,8 @@ namespace netxs::app::shared
         };
         const auto demo = [](xmls& config)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto c3 = highlight_color;
+            //auto highlight_color = skin::color(tone::highlight);
+            //auto c3 = highlight_color;
             auto items = list
             {
                 { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
