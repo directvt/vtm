@@ -1682,7 +1682,7 @@ namespace netxs::os
             #if defined(_WIN32)
                 ::FlushConsoleInputBuffer(os::stdin_fd);
             #else
-                auto flush = text(os::pipebuf, 0);
+                auto flush = text(os::pipebuf, '\0');
                 while (true)
                 {
                     auto empty = true;
@@ -1741,7 +1741,7 @@ namespace netxs::os
             #if defined(_WIN32)
                 auto var = utf::to_utf(variable);
                 auto len = ::GetEnvironmentVariableW(var.c_str(), 0, 0);
-                auto val = wide(len, 0);
+                auto val = wide(len, '\0');
                 ::GetEnvironmentVariableW(var.c_str(), val.data(), len);
                 if (len && val.back() == 0) val.pop_back();
                 return utf::to_utf(val);
@@ -1825,7 +1825,7 @@ namespace netxs::os
 
             #else
 
-                auto chars = text(255, 0);
+                auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
                 auto pwuid = ::getpwuid(usrid);
@@ -2268,7 +2268,7 @@ namespace netxs::os
             #if defined(_WIN32)
 
                 auto handle = ::GetCurrentProcess();
-                auto buffer = wide(MAX_PATH, 0);
+                auto buffer = wide(MAX_PATH, '\0');
                 while (buffer.size() <= 32768)
                 {
                     auto length = ::GetModuleFileNameExW(handle,         // hProcess
@@ -2800,17 +2800,17 @@ namespace netxs::os
 
             stdcon()
                 : pipe{ faux },
-                  buffer(os::pipebuf, 0)
+                  buffer(os::pipebuf, '\0')
             { }
             stdcon(sock&& fd)
                 : pipe{ true },
                   handle{ std::move(fd) },
-                  buffer(os::pipebuf, 0)
+                  buffer(os::pipebuf, '\0')
             { }
             stdcon(fd_t r, fd_t w)
                 : pipe{ true },
                   handle{ r, w },
-                  buffer(os::pipebuf, 0)
+                  buffer(os::pipebuf, '\0')
             { }
 
             void start(fd_t fd)
@@ -3569,7 +3569,7 @@ namespace netxs::os
                                     | nt::console::outmode::vt };
                 ok(::SetConsoleMode(os::stdout_fd, outmode), "::SetConsoleMode(os::stdout_fd)", os::unexpected);
                 auto size = DWORD{ os::pipebuf };
-                auto wstr = wide(size, 0);
+                auto wstr = wide(size, '\0');
                 ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
                 dtvt::backup.title = wstr.data();
                 ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
@@ -4370,7 +4370,7 @@ namespace netxs::os
             if (!os::dtvt::active)
             {
                 auto size = DWORD{ os::pipebuf };
-                auto wstr = wide(size, 0);
+                auto wstr = wide(size, '\0');
                 ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(tty)", os::unexpected);
                 utf8 = utf::to_utf(wstr);
             }

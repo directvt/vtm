@@ -486,10 +486,10 @@ struct impl : consrv
                 nt::ioctl(nt::console::op::complete_io, condrv, *this);
             }
         }
-        auto interrupt(fd_t condrv)
+        auto interrupt(fd_t condrv_handle)
         {
             status = nt::status::invalid_handle;
-            auto rc = nt::ioctl(nt::console::op::complete_io, condrv, *this);
+            nt::ioctl(nt::console::op::complete_io, condrv_handle, *this);
             if constexpr (debugmode) log("\tPending operation aborted");
         }
     };
@@ -2027,7 +2027,7 @@ struct impl : consrv
 
     auto& langmap()
     {
-        static const auto langmap = std::unordered_map<ui32, ui16>
+        static const auto langmap = std::unordered_map<ui32, ui32>
         {
             { 932,   MAKELANGID(LANG_JAPANESE, SUBLANG_DEFAULT            ) },
             { 936,   MAKELANGID(LANG_CHINESE , SUBLANG_CHINESE_SIMPLIFIED ) },
@@ -2360,7 +2360,7 @@ struct impl : consrv
         auto winuicp = ::GetACP();
         if (winuicp != 65001 && langmap().contains(winuicp))
         {
-            packet.reply.langid = netxs::map_or(langmap(), outenc->codepage, 65001);
+            packet.reply.langid = (ui16)netxs::map_or(langmap(), outenc->codepage, 65001);
             log("\tlang id: ", utf::to_hex_0x(packet.reply.langid));
         }
         else
@@ -3825,7 +3825,7 @@ struct impl : consrv
                             }
                             dst.Attributes = attr;
                             auto utf8 = src.txt();
-                            auto wdt = src.wdt();
+                            //auto wdt = src.wdt();
                             //set_half(wdt, attr);
                             dst.Char.AsciiChar = utf8.size() ? utf8.front() : ' ';
                         });

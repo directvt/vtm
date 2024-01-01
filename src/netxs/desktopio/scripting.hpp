@@ -176,8 +176,14 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 auto win = os::ttysize;
-                if (tty) engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
-                else     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
+                if (tty)
+                {
+                    engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
+                }
+                else
+                {
+                    engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
+                }
                 runapp(cmd, cwd, env, win);
                 //todo run integration script
                 if (run.size()) write(run);

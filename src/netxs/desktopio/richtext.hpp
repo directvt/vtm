@@ -585,54 +585,55 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (dest != tail) fuse(*dest++, *data++);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            --tail; /* tail - 1: half of the wide char */;
-            while (dest < tail)
+            else
             {
-                auto c = *data++;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                --tail; /* tail - 1: half of the wide char */;
+                while (dest < tail)
                 {
-                    fuse(*dest++, c);
+                    auto c = *data++;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        fuse(*dest++, c);
+                    }
+                    else if (w == 2)
+                    {
+                        fuse(*dest++, c.wdt(2));
+                        fuse(*dest++, c.wdt(3));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        c.txt(utf::replacement);
+                        do fuse(*dest++, c);
+                        while (--w && dest != tail + 1);
+                    }
                 }
-                else if (w == 2)
+                if (dest == tail) // Last cell; tail - 1.
                 {
-                    fuse(*dest++, c.wdt(2));
-                    fuse(*dest++, c.wdt(3));
+                    auto c = *data;
+                    auto w = c.wdt();
+                         if (w == 1) fuse(*dest, c);
+                    else if (w == 2) fuse(*dest, c.wdt(3));
+                    else if (w >  2) fuse(*dest, c.txt(utf::replacement));
                 }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::replacement);
-                    do fuse(*dest++, c);
-                    while (--w && dest != tail + 1);
-                }
-            }
-            if (dest == tail) // Last cell; tail - 1.
-            {
-                auto c = *data;
-                auto w = c.wdt();
-                     if (w == 1) fuse(*dest, c);
-                else if (w == 2) fuse(*dest, c.wdt(3));
-                else if (w >  2) fuse(*dest, c.txt(utf::replacement));
             }
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -641,50 +642,51 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (size-- > 0) fuse(*dest++, *data++);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            auto set = [&](auto const& c)
+            else
             {
-                if (dest == tail) dest -= back;
-                fuse(*dest++, c);
-                --size;
-            };
-            while (size > 0)
-            {
-                auto c = *data++;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                auto set = [&](auto const& c)
                 {
-                    set(c);
-                }
-                else if (w == 2)
+                    if (dest == tail) dest -= back;
+                    fuse(*dest++, c);
+                    --size;
+                };
+                while (size > 0)
                 {
-                    set(c.wdt(2));
-                    set(c.wdt(3));
-                }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::replacement);
-                    //do set(c);
-                    //while (--w && size > 0);
+                    auto c = *data++;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        set(c);
+                    }
+                    else if (w == 2)
+                    {
+                        set(c.wdt(2));
+                        set(c.wdt(3));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        //c.txt(utf::replacement);
+                        //do set(c);
+                        //while (--w && size > 0);
+                    }
                 }
             }
         }
@@ -694,54 +696,55 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (dest != tail) fuse(*--dest, *--data);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            ++tail; /* tail + 1: half of the wide char */;
-            while (dest > tail)
+            else
             {
-                auto c = *--data;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                ++tail; /* tail + 1: half of the wide char */;
+                while (dest > tail)
                 {
-                    fuse(*--dest, c);
+                    auto c = *--data;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        fuse(*--dest, c);
+                    }
+                    else if (w == 2)
+                    {
+                        fuse(*--dest, c.wdt(3));
+                        fuse(*--dest, c.wdt(2));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        //c.txt(utf::replacement);
+                        //do *--dest = c;
+                        //while (--w && dest != tail - 1);
+                    }
                 }
-                else if (w == 2)
+                if (dest == tail) // Last cell; tail + 1.
                 {
-                    fuse(*--dest, c.wdt(3));
-                    fuse(*--dest, c.wdt(2));
+                    auto c = *--data;
+                    auto w = c.wdt();
+                         if (w == 1) fuse(*--dest, c);
+                    else if (w == 2) fuse(*--dest, c.wdt(3));
+                    else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
                 }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::replacement);
-                    //do *--dest = c;
-                    //while (--w && dest != tail - 1);
-                }
-            }
-            if (dest == tail) // Last cell; tail + 1.
-            {
-                auto c = *--data;
-                auto w = c.wdt();
-                     if (w == 1) fuse(*--dest, c);
-                else if (w == 2) fuse(*--dest, c.wdt(3));
-                else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
             }
         }
         // rich: Splice proto with auto grow.

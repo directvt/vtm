@@ -438,7 +438,7 @@ namespace netxs::directvt
             template<class T, class P>
             static auto read_block(T& object, P input)
             {
-                auto buff = text(sizeof(sz_t), 0);
+                auto buff = text(sizeof(sz_t), '\0');
                 auto shot = input(buff.data(), buff.size());
                 if (shot.size() != buff.size())
                 {
