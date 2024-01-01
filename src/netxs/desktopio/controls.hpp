@@ -1250,7 +1250,7 @@ namespace netxs::ui
                 }
                 boss.SIGNAL(tier::release, e2::form::state::keybd::focus::count, count);
             }
-            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux })
+            auto add_route(id_t gear_id, config cfg = { .active = faux, .focused = faux, .token = {}, .next = {} })
             {
                 auto iter = gears.emplace(gear_id, std::move(cfg)).first;
                 if (gear_id != id_t{})
@@ -1651,11 +1651,11 @@ namespace netxs::ui
                   skill::memo;
 
             sptr soul; // mouse: Boss cannot be removed while it has active gears.
+            list mice; // mouse: List of active mice.
+            bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 rent; // mouse: Active gears count.
             si32 full; // mouse: All gears count. Counting to keep the entire chain of links in the visual tree.
-            bool omni; // mouse: Ability to accept all hover events (true) or only directly over the object (faux).
             si32 drag; // mouse: Bitfield of buttons subscribed to mouse drag.
-            list mice; // mouse: List of active mice.
             std::map<si32, subs> dragmemo; // mouse: Draggable subs.
 
         public:
@@ -1755,7 +1755,8 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::draggable::any, enabled, memo)
                 {
-                    switch (auto deed = boss.bell::protos<tier::release>())
+                    auto deed = boss.bell::protos<tier::release>();
+                    switch (deed)
                     {
                         default:
                         case e2::form::draggable::left     .id: draggable<hids::buttons::left     >(enabled); break;
@@ -1893,12 +1894,12 @@ namespace netxs::ui
                   skill::memo;
 
             robot robo; // fader: .
-            span fade;
-            si32 transit;
-            cell c1;
-            cell c2;
-            cell c2_orig;
-            bool fake = faux;
+            span  fade;
+            cell  c1;
+            cell  c2;
+            cell  c2_orig;
+            si32  transit;
+            bool  fake = faux;
 
             //todo use lambda
             void work(si32 balance)
@@ -1915,11 +1916,11 @@ namespace netxs::ui
             fader(base&&) = delete;
             fader(base& boss, cell default_state, cell highlighted_state, span fade_out = 250ms, sptr tracking_object = {})
                 : skill{ boss },
-                robo{ boss },
-                fade{ fade_out },
-                c1 { default_state },
-                c2 { highlighted_state },
-                c2_orig { highlighted_state },
+                   robo{ boss },
+                   fade{ fade_out },
+                     c1{ default_state },
+                     c2{ highlighted_state },
+                c2_orig{ highlighted_state },
                 transit{ 0 }
             {
                 boss.base::color(c1);
@@ -1974,17 +1975,17 @@ namespace netxs::ui
                   skill::memo;
 
             netxs::sptr<face> coreface; //todo revise necessity
-            byte              lucidity; // cacheL .
-            bool              usecache; // cacheL .
             face&             bosscopy; // cache: Boss bitmap cache.
+            bool              usecache; // cacheL .
+            si32              lucidity; // cacheL .
 
         public:
             cache(base&&) = delete;
             cache(base& boss, bool rendered = true)
                 : skill{ boss },
                   bosscopy{*(coreface = ptr::shared<face>())},
-                  lucidity{ 0xFF },
-                  usecache{ true }
+                  usecache{ true },
+                  lucidity{ 0xFF }
             {
                 bosscopy.link(boss.bell::id);
                 bosscopy.size(boss.base::size());
@@ -1994,13 +1995,13 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, value, memo)
                 {
-                    if (value == -1)
+                    if (value < 0)
                     {
                         value = lucidity;
                     }
                     else
                     {
-                        lucidity = (byte)value;
+                        lucidity = value;
                     }
                 };
                 boss.LISTEN(tier::release, e2::area, new_area, memo)
@@ -3044,14 +3045,14 @@ namespace netxs::ui
 
         using upon = e2::form::upon;
 
-        twod strict; // rail: Don't allow overscroll.
-        twod manual; // rail: Manual scrolling (no auto align).
         twod permit; // rail: Allowed axes to scroll.
         twod siezed; // rail: Allowed axes to capture.
         twod oversc; // rail: Allow overscroll with auto correct.
+        twod strict; // rail: Don't allow overscroll.
+        twod manual; // rail: Manual scrolling (no auto align).
+        bool animat; // rail: Smooth scrolling.
         subs fasten; // rail: Subscriptions on masters to follow they state.
         rack scinfo; // rail: Scroll info.
-        bool animat; // rail: Smooth scrolling.
 
         si32 spd       = skin::globals().spd;
         si32 pls       = skin::globals().pls;
@@ -3551,9 +3552,18 @@ namespace netxs::ui
             }
             auto inside(si32 coor)
             {
-                if (coor >= scroll_pos + scroll_box) return 1; // Below the grip.
-                if (coor >= scroll_pos)              return 0; // Inside the grip.
-                                                     return-1; // Above the grip.
+                if (coor >= scroll_pos + scroll_box)
+                {
+                    return 1; // Below the grip.
+                }
+                if (coor >= scroll_pos)
+                {
+                    return 0; // Inside the grip.
+                }
+                else
+                {
+                    return-1; // Above the grip.
+                }
             }
             auto follow()
             {
@@ -4059,11 +4069,11 @@ namespace netxs::ui
         page topic; // stem_rate_grip: Text content.
 
         bool enabled;
+        twod box_len;
+        text pin_str;
         text sfx_str;
         si32 sfx_len;
-        text pin_str;
         si32 cur_val;
-        twod box_len;
 
         enum
         {
@@ -4108,7 +4118,9 @@ namespace netxs::ui
         }
 
         stem_rate_grip(view sfx_string)
-            : sfx_str{ sfx_string }, canvas{*(coreface = ptr::shared<face>())}
+            : coreface{ ptr::shared<face>() },
+                canvas{ *coreface           },
+               sfx_str{ sfx_string          }
         {
             //todo cache specific
             canvas.link(bell::id);

@@ -1624,7 +1624,7 @@ namespace netxs::os
             #else
 
                 template<class P, class ...Args>
-                auto _fd_set(fd_set& socks, fd_t handle, P&& proc, Args&&... args)
+                auto _fd_set(fd_set& socks, fd_t handle, P&& /*proc*/, Args&&... args)
                 {
                     if (handle != os::invalid_fd) FD_SET(handle, &socks);
                     if constexpr (sizeof...(args))

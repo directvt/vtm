@@ -662,13 +662,12 @@ namespace netxs
     {
         T r, g, b, a;
 
-        irgb() = default;
-
-        irgb(T r, T g, T b, T a = { -1 })
+        constexpr irgb() = default;
+        constexpr irgb(irgb const&) = default;
+        constexpr irgb(T r, T g, T b, T a = { -1 })
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
-
-        irgb(rgba c)
+        constexpr irgb(rgba c)
             : r{ c.chan.r },
               g{ c.chan.g },
               b{ c.chan.b },
