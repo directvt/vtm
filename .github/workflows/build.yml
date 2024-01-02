@@ -50,7 +50,7 @@ jobs:
             cxx: /bin/aarch64-linux-gnu-g++
 
           - os: ubuntu-latest
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG"'
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi"'
           - os: windows-latest
             flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /W4" -A '
 
