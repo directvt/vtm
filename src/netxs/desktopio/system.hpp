@@ -1825,16 +1825,12 @@ namespace netxs::os
 
             #else
 
-                //todo revise
                 auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
-                //auto pwuid = ::getpwuid(usrid);
-                auto pwuid = text(255, '\0');
-                auto rc = ::getlogin_r(pwuid.data(), pwuid.size());
+                auto cuser = ::cuserid(nullptr);
                 auto strid = utf::concat(usrid);
-                //auto login = pwuid ? pwuid->pw_name : strid;
-                auto login = rc && pwuid.front() ? text{ pwuid.data() } : strid;
+                auto login = cuser && cuser[0] ? text{ cuser } : strid;
                 if (!error) login += '@' + text{ chars.data() };
                 return std::pair{ login, strid };
 
@@ -4753,8 +4749,9 @@ namespace netxs::os
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
+                #if defined(__linux__)
                 auto ttynum = si32{ 0 };
-
+                #endif
                 auto get_kb_state = []
                 {
                     auto state = si32{ 0 };
@@ -4790,6 +4787,7 @@ namespace netxs::os
                 {
                     log(prompt::tty, "Pseudoterminal ", tty_name);
                 }
+                #if defined(__linux__)
                 else // Trying to get direct access to a PS/2 mouse.
                 {
                     log("%%Linux console %tty%", prompt::tty, tty_name);
@@ -4822,6 +4820,7 @@ namespace netxs::os
                         os::close(fd);
                     }
                 }
+                #endif
 
                 enum class type
                 {
