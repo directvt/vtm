@@ -13,6 +13,7 @@
 #include <bit>
 #include <atomic>
 #include <cstring> // std::memcpy
+#include <utility> // std::cmp_equal
 
 #ifndef faux
     #define faux (false)
