@@ -276,6 +276,7 @@ namespace netxs::unidata
         cntrls::type  control;
         unsigned char padding = {};
 
+        constexpr unidata(unidata const&) = default;
         constexpr unidata()
             : ucwidth{ widths::slim },
               brgroup{ gbreak::any },
@@ -292,7 +293,7 @@ namespace netxs::unidata
             : unidata{ select(cp) }
         { }
 
-        unidata(unidata const&) = default;
+        constexpr unidata& operator = (unidata const&) = default;
 
         bool is_cmd()
         {

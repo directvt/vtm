@@ -51,7 +51,6 @@
     #include <sys/types.h>
     #include <sys/stat.h>
     #include <fcntl.h>      // ::splice()
-    #include <pwd.h>        // ::getpwuid()
 
     #if defined(__linux__)
         #include <sys/vt.h> // ::console_ioctl()
@@ -1826,12 +1825,16 @@ namespace netxs::os
 
             #else
 
+                //todo revise
                 auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
-                auto pwuid = ::getpwuid(usrid);
+                //auto pwuid = ::getpwuid(usrid);
+                auto pwuid = text(255, '\0');
+                auto rc = ::getlogin_r(pwuid.data(), pwuid.size());
                 auto strid = utf::concat(usrid);
-                auto login = pwuid ? pwuid->pw_name : strid;
+                //auto login = pwuid ? pwuid->pw_name : strid;
+                auto login = rc && pwuid.front() ? text{ pwuid.data() } : strid;
                 if (!error) login += '@' + text{ chars.data() };
                 return std::pair{ login, strid };
 
