@@ -7538,7 +7538,7 @@ namespace netxs::ui
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = h.utf8](auto& /*boss*/) mutable
+                netxs::events::enqueue(master.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
@@ -7546,7 +7546,7 @@ namespace netxs::ui
             void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = f.utf8](auto& /*boss*/) mutable
+                netxs::events::enqueue(master.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -7574,7 +7574,7 @@ namespace netxs::ui
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& /*boss*/)
+                netxs::events::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);

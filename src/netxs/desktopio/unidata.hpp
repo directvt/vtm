@@ -271,10 +271,10 @@ namespace netxs::unidata
 
     struct unidata
     {
-        widths::type  ucwidth;
-        gbreak::type  brgroup;
-        cntrls::type  control;
-        unsigned char padding = {};
+        widths::type ucwidth;
+        gbreak::type brgroup;
+        cntrls::type control;
+        byte         padding{};
 
         constexpr unidata(unidata const&) = default;
         constexpr unidata()
@@ -282,13 +282,11 @@ namespace netxs::unidata
               brgroup{ gbreak::any },
               control{ cntrls::non_control }
         { }
-
         constexpr unidata(widths::type ucwidth, gbreak::type brgroup, cntrls::type control)
             : ucwidth{ ucwidth },
               brgroup{ brgroup },
               control{ control }
         { }
-
         unidata(ui32 cp)
             : unidata{ select(cp) }
         { }

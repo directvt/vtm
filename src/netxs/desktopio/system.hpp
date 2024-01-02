@@ -4049,6 +4049,7 @@ namespace netxs::os
             base_tty(Term& terminal)
                 : terminal{ terminal }
             { }
+            virtual ~base_tty() = default;
 
             virtual void write(view data) = 0;
             virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
@@ -4751,8 +4752,10 @@ namespace netxs::os
 
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
-                auto ttynum = si32{ 0 };
                 auto sig_fd = os::signals::fd{};
+                #if defined(__linux__)
+                auto ttynum = si32{ 0 };
+                #endif
 
                 auto get_kb_state = []
                 {

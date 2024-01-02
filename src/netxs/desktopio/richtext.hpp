@@ -1042,6 +1042,7 @@ namespace netxs::ui
             : parser{ style },
               index { newid }
         { }
+        virtual ~para() = default;
 
         para              (auto utf8) {              ansi::parse(utf8, this);               }
         auto& operator  = (auto utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }

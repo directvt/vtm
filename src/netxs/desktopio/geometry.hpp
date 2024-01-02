@@ -392,6 +392,7 @@ namespace netxs
             t = queue(0);
             b = queue(0);
         }
+        constexpr side& operator = (side const&) = default;
         bool operator == (side const&) const = default;
         // side: Unite the two rectangles.
         void operator |= (side s)
@@ -476,6 +477,7 @@ namespace netxs
             : l{ l }, r{ r }, t{ t }, b{ b }
         { }
         constexpr dent(dent const&) = default;
+        constexpr dent& operator = (dent const&) = default;
         constexpr bool operator == (dent const&) const = default;
         explicit operator bool () const { return l != 0
                                               || r != 0

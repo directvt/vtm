@@ -421,6 +421,7 @@ namespace netxs::utf
         };
 
         constexpr qiew() noexcept : view() { }
+        constexpr qiew(qiew const&) = default;
         constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }

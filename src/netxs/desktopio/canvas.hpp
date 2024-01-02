@@ -122,6 +122,7 @@ namespace netxs
             }
         }
 
+        constexpr rgba& operator = (rgba const&) = default;
         constexpr explicit operator bool () const
         {
             return token;

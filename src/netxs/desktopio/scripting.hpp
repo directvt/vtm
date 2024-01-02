@@ -75,11 +75,11 @@ namespace netxs::scripting
                 : s11n{ *this },
                  owner{ owner }
             {
-                owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
+                this->owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     //...
                 };
-                owner.LISTEN(tier::general, hids::events::die, gear, token)
+                this->owner.LISTEN(tier::general, hids::events::die, gear, token)
                 {
                     //...
                 };

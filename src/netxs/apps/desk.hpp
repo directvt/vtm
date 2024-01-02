@@ -680,11 +680,11 @@ namespace netxs::app::desk
                                    : menu_max_size = menu_min_size;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear, -, (size_config))
+                    boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear)
                     {
                         boss.SIGNAL(tier::release, events::ui::sync, true);
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear, -, (size_config))
+                    boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear)
                     {
                         boss.SIGNAL(tier::release, events::ui::sync, true);
                     };

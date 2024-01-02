@@ -500,6 +500,7 @@ namespace netxs::directvt
             {
                 add(basis, kind);
             }
+            stream& operator = (stream const&) = default;
         };
 
         template<class Base>

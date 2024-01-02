@@ -738,7 +738,7 @@ namespace netxs::events
                 else
                 {
                     lock.await = true;
-                    events::enqueue(object_sptr, [&](auto& boss)
+                    events::enqueue(object_sptr, [&](auto& /*boss*/)
                     {
                         auto lock = buffer.freeze();
                         lock.await = faux;
