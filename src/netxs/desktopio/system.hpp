@@ -3456,10 +3456,11 @@ namespace netxs::os
             else
             {
                 #if defined(_WIN32)
-                    if (nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
-                    {
-                        dtvt::mode |= ui::console::nt16;
-                    }
+                //todo revise
+                if (os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                {
+                    dtvt::mode |= ui::console::nt16;
+                }
                 #endif
                 dtvt::win_sz = dtvt::consize();
             }
