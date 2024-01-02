@@ -307,8 +307,8 @@ namespace netxs::ui
 
             void check_focus(hids& gear) // Set keybd focus on any click if it is not set.
             {
-                auto m = std::bitset<8>{ gear.m.buttons };
-                auto s = std::bitset<8>{ gear.s.buttons };
+                auto m = std::bitset<8>{ (ui32)gear.m_sys.buttons };
+                auto s = std::bitset<8>{ (ui32)gear.m_sav.buttons };
                 if (m[hids::buttons::right] && !s[hids::buttons::right])
                 {
                     owner.RISEUP(tier::request, e2::form::state::keybd::find, gear_test, (gear.id, 0));
@@ -342,15 +342,15 @@ namespace netxs::ui
                         {
                             if (gear.captured(owner.id))
                             {
-                                if (!gear.m.buttons) gear.setfree(true);
+                                if (!gear.m_sys.buttons) gear.setfree(true);
                             }
-                            else if (gear.m.buttons) gear.capture(owner.id);
+                            else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
-                            auto c = gear.m.coordxy;
+                            auto c = gear.m_sys.coordxy;
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
-                            if (gear.s.changed != gear.m.changed)
+                            if (gear.m_sav.changed != gear.m_sys.changed)
                             {
                                 owner.ipccon.mouse(gear, moved, coord, encod, state);
                             }
@@ -559,10 +559,10 @@ namespace netxs::ui
             }
             auto to_byte(char c)
             {
-                if (c >= '0' && c <= '9') return c - '0';
-                if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-                if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-                                          return 0;
+                     if (c >= '0' && c <= '9') return c - '0';
+                else if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+                else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+                else                           return 0;
             }
             std::optional<ui32> record(view& data) // ; rgb:00/00/00
             {
@@ -652,7 +652,7 @@ namespace netxs::ui
                     }
                     if (fails) notsupported(ansi::osc_set_palette, data);
                 };
-                procs[ansi::osc_linux_reset] = [&](view data) // ESC ] R
+                procs[ansi::osc_linux_reset] = [&](view /*data*/) // ESC ] R
                 {
                     reset();
                 };
@@ -672,11 +672,11 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_set_bgcolor, data);
                 };
-                procs[ansi::osc_reset_fgclr] = [&](view data)
+                procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
                     owner.target->brush.sfg(0);
                 };
-                procs[ansi::osc_reset_bgclr] = [&](view data)
+                procs[ansi::osc_reset_bgclr] = [&](view /*data*/ )
                 {
                     owner.target->brush.sbg(0);
                 };
@@ -701,7 +701,7 @@ namespace netxs::ui
         {
             static void set_autocr(bool autocr)
             {
-                #define V [](auto& q, auto& p)
+                #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 auto& parser = ansi::get_parser<bufferbase>();
                 autocr ? parser.intro[ansi::ctrl::eol] = V{ p->cr(); p->lf(q.pop_all(ansi::ctrl::eol)); }
                        : parser.intro[ansi::ctrl::eol] = V{          p->lf(q.pop_all(ansi::ctrl::eol)); };
@@ -711,7 +711,7 @@ namespace netxs::ui
             static void parser_config(T& vt)
             {
                 using namespace netxs::ansi;
-                #define V [](auto& q, auto& p)
+                #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
                 vt.csier.table_space[csi_spc_src] = V{ p->na("CSI n SP A  Shift right n columns(s)."); }; // CSI n SP A  Shift right n columns(s).
                 vt.csier.table_space[csi_spc_slc] = V{ p->na("CSI n SP @  Shift left  n columns(s)."); }; // CSI n SP @  Shift left n columns(s).
                 vt.csier.table_space[csi_spc_cst] = V{ p->owner.cursor.style(q(1)); }; // CSI n SP q  Set cursor style (DECSCUSR).
@@ -887,19 +887,19 @@ namespace netxs::ui
                       index{ l.index },
                       style{ l.style }
                 { }
-                line(id_t newid, deco const& style = {})
-                    : index{ newid },
-                      style{ style }
+                line(id_t line_id, deco const& line_style = {})
+                    : index{ line_id },
+                      style{ line_style }
                 { }
-                line(id_t newid, deco const& style, span dt, twod sz)
-                    : rich { dt,sz },
-                      index{ newid },
-                      style{ style }
+                line(id_t line_id, deco const& line_style, span dt, twod sz)
+                    : rich { dt, sz },
+                      index{ line_id },
+                      style{ line_style }
                 { }
-                line(id_t newid, deco const& style, cell const& blank, si32 length)
+                line(id_t line_id, deco const& line_style, cell const& blank, si32 length)
                     : rich { blank, length },
-                      index{ newid },
-                      style{ style }
+                      index{ line_id },
+                      style{ line_style }
                 { }
                 line(core&& s)
                     : rich{ std::forward<core>(s) }
@@ -972,10 +972,10 @@ namespace netxs::ui
 
             bool  boxed; // bufferbase: Box selection mode.
             bool  grant; // bufferbase: Is it allowed to change box selection mode.
-            ui64  alive; // bufferbase: Selection is active (digest).
-            line  match; // bufferbase: Search pattern for highlighting.
             bool  uirev; // bufferbase: Prev button highlighted.
             bool  uifwd; // bufferbase: Next button highlighted.
+            ui64  alive; // bufferbase: Selection is active (digest).
+            line  match; // bufferbase: Search pattern for highlighting.
 
             bufferbase(term& master)
                 : owner{ master },
@@ -1028,11 +1028,11 @@ namespace netxs::ui
                 }
                 return delta;
             }
-            virtual void selection_setjet(bias align)
+            virtual void selection_setjet(bias /*align*/)
             {
                 // Do nothing by default.
             }
-            virtual void selection_setwrp(wrap w = {})
+            virtual void selection_setwrp(wrap /*wrapping*/ = {})
             {
                 // Do nothing by default.
             }
@@ -1062,8 +1062,8 @@ namespace netxs::ui
             {
                 if (despace) // Exclude whitespce.
                 {
-                    auto empty = match.each([](auto& c) { return !c.isspc(); });
-                    if (empty) match = {};
+                    auto nothing = match.each([](auto& c) { return !c.isspc(); });
+                    if (nothing) match = {};
                 }
                 ++alive;
             }
@@ -1078,10 +1078,10 @@ namespace netxs::ui
                 return alive;
             }
             // bufferbase: Set selection mode (boxed = true).
-            void selection_selbox(bool state)
+            void selection_selbox(bool new_state)
             {
-                if (state) grant = true;
-                if (grant) boxed = state;
+                if (new_state) grant = true;
+                if (grant) boxed = new_state;
             }
             // bufferbase: Return selection mode.
             bool selection_selbox() const
@@ -1104,7 +1104,7 @@ namespace netxs::ui
                                                     selection_selbox() ? term_state::type::block:
                                                                          term_state::type::lines; }
             // bufferbase: Get viewport position.
-    virtual si32 get_origin(bool follow)
+    virtual si32 get_origin(bool /*follow*/)
             {
                 return 0;
             }
@@ -1124,7 +1124,7 @@ namespace netxs::ui
                 return true;
             }
             // bufferbase: Set left/right scrollback additional padding.
-    virtual void setpad(si32 new_value)
+    virtual void setpad(si32 /*new_value*/)
             { }
             // bufferbase: Get left/right scrollback additional padding.
     virtual si32 getpad()
@@ -1143,7 +1143,7 @@ namespace netxs::ui
                 y_top = std::clamp(sctop        , 0, y_end);
             }
             // bufferbase: Resize viewport.
-    virtual void resize_viewport(twod new_sz, bool forced = faux)
+    virtual void resize_viewport(twod new_sz, bool /*forced*/ = faux)
             {
                 panel = std::max(new_sz, dot_11);
                 resize_tabstops(panel.x);
@@ -1175,13 +1175,13 @@ namespace netxs::ui
                 coord = new_coord;
             }
             // bufferbase: Return current 0-based cursor position in the viewport.
-    virtual twod get_coord(twod origin)
+    virtual twod get_coord(twod /*origin*/)
             {
                 return coord;
             }
             // bufferbase: Base-CSI contract (see ansi::csi_t).
             //             task(...), meta(...), data(...)
-            void task(ansi::rule property)
+            void task(ansi::rule /*property*/)
             {
                 parser::flush();
                 log(prompt::term, "DirectVT extensions are not supported");
@@ -1199,16 +1199,16 @@ namespace netxs::ui
                 auto changed = faux;
                 if (parser::style.wrp() != old_style.wrp())
                 {
-                    auto status = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
-                                                                    : (si32)parser::style.wrp();
-                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, status);
+                    auto w = parser::style.wrp() == wrap::none ? (si32)owner.config.def_wrpmod
+                                                               : (si32)parser::style.wrp();
+                    owner.SIGNAL(tier::release, ui::term::events::layout::wrapln, w);
                     changed = true;
                 }
                 if (parser::style.jet() != old_style.jet())
                 {
-                    auto status = parser::style.jet() == bias::none ? (si32)bias::left
-                                                                    : (si32)parser::style.jet();
-                    owner.SIGNAL(tier::release, ui::term::events::layout::align, status);
+                    auto a = parser::style.jet() == bias::none ? (si32)bias::left
+                                                               : (si32)parser::style.jet();
+                    owner.SIGNAL(tier::release, ui::term::events::layout::align, a);
                     changed = true;
                 }
                 if (changed && owner.styled)
@@ -1382,19 +1382,19 @@ namespace netxs::ui
                         break;
                 }
             }
-            void msg(si32 c, qiew& q)
+            void msg(si32 cmd, qiew& q)
             {
                 parser::flush();
                 auto data = text{};
                 while (q)
                 {
-                    auto c = q.front();
+                    auto c = (char)q.front();
                     data.push_back(c);
                     q.pop_front();
                          if (c == ansi::c0_bel) break;
                     else if (c == ansi::c0_esc)
                     {
-                        auto c = q.front();
+                        c = (char)q.front();
                         if (q && c == '\\')
                         {
                             data.push_back(c);
@@ -1403,7 +1403,7 @@ namespace netxs::ui
                         }
                     }
                 }
-                log("%%Unsupported message/command: '\\e%char%%data%'", prompt::term, (char)c, utf::debase<faux>(data));
+                log("%%Unsupported message/command: '\\e%char%%data%'", prompt::term, (char)cmd, utf::debase<faux>(data));
             }
             // bufferbase: Clear buffer.
     virtual void clear_all()
@@ -1489,9 +1489,9 @@ namespace netxs::ui
                     last = coord.x;
                     while (head != tail)
                     {
-                        auto& last = (--tail)->first;
-                        if (last == base) last = coord.x;
-                        else              break;
+                        auto& tab = (--tail)->first;
+                        if (tab == base) tab = coord.x;
+                        else             break;
                     }
                     if (coord.x < size)
                     {
@@ -1502,9 +1502,9 @@ namespace netxs::ui
                         next = coord.x;
                         while (++head != tail)
                         {
-                            auto& next = head->second;
-                            if (next == prev) next = coord.x;
-                            else              break;
+                            auto& tab = head->second;
+                            if (tab == prev) tab = coord.x;
+                            else             break;
                         }
                     }
                 }
@@ -1528,9 +1528,9 @@ namespace netxs::ui
                 while (head != tail)
                 {
                     --tail;
-                    auto& item = tail->first;
-                    if (base == std::abs(item)) item = main;
-                    else                        break;
+                    auto& tab = tail->first;
+                    if (base == std::abs(tab)) tab = main;
+                    else                       break;
                 }
 
                 tail = stops.end();
@@ -1539,9 +1539,9 @@ namespace netxs::ui
                 stop.second = main;
                 while (++back != tail)
                 {
-                    auto& item = back->second;
-                    if (base == std::abs(item)) item = main;
-                    else                        break;
+                    auto& tab = back->second;
+                    if (base == std::abs(tab)) tab = main;
+                    else                       break;
                 }
             }
             // bufferbase: CSI ? W  Reset tabstops to defaults.
@@ -1592,9 +1592,9 @@ namespace netxs::ui
             void print_tabstops(text msg)
             {
                 log(msg, ":\n", "index size = ", stops.size());
-                auto i = 0;
+                auto i = 0u;
                 auto data = utf::adjust("coor:", 5, " ", faux);
-                for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(i++), 4, " ", true);
+                while (i < stops.size()) data += utf::adjust(std::to_string(i++), 4, " ", true);
                 data += '\n' + utf::adjust("fwd:", 5, " ", faux);
                 for (auto [fwd, rev] : stops) data += utf::adjust(std::to_string(fwd), 4, " ", true);
                 data += '\n' + utf::adjust("rev:", 5, " ", faux);
@@ -1631,9 +1631,7 @@ namespace netxs::ui
                     {
                         c.wdt(2);
                     }
-                    parser::proto.assign(n, c);
-                    data(n * c.wdt(), proto);
-                    parser::proto.clear();
+                    parser::assign(n, c);
                 }
             }
             // bufferbase: CSI Char ; Top ; Left ; Bottom ; Right $ x  Fill rectangular area (DECFRA).
@@ -1649,24 +1647,24 @@ namespace netxs::ui
                 if (l > r) l = r;
                 l -= 1;
                 t -= 1;
-                auto region = rect{{ l, t }, { r - l, b - t }};
-                region.trunc(panel);
+                auto area = rect{{ l, t }, { r - l, b - t }};
+                area.trunc(panel);
                 if (c < ' ') c = ' ';
                 auto sym = utf::to_utf_from_code(c);
                 auto tmp = parser::brush;
                 parser::brush.txt(sym);
                 if (parser::brush.wdt() != 1)
                 {
-                    region.size.x /= 2;
+                    area.size.x /= 2;
                 }
-                if (region)
+                if (area)
                 {
                     auto sav = coord;
-                    while (region.size.y--)
+                    while (area.size.y--)
                     {
-                        set_coord(region.coor);
-                        rep<faux>(region.size.x);
-                        region.coor.y++;
+                        set_coord(area.coor);
+                        rep<faux>(area.size.x);
+                        area.coor.y++;
                     }
                     set_coord(sav);
                 }
@@ -1881,8 +1879,8 @@ namespace netxs::ui
                 auto new_coord_y = coord.y + n;
                 if (new_coord_y > y_end && coord.y <= y_end)
                 {
-                    auto n = y_end - new_coord_y;
-                    scroll_region(y_top, y_end, n, true);
+                    auto dy = y_end - new_coord_y;
+                    scroll_region(y_top, y_end, dy, true);
                     coord.y = y_end;
                 }
                 else coord.y = std::clamp(new_coord_y, 0, panel.y - 1);
@@ -1957,7 +1955,7 @@ namespace netxs::ui
                 }
             }
             // bufferbase: Rasterize selection with grips.
-            void selection_raster(face& dest, auto curtop, auto curend, bool ontop = true, bool onend = true)
+            void selection_raster(face& dest, auto curtop, auto curend, bool /*ontop*/ = true, bool /*onend*/ = true)
             {
                 if (selection_active())
                 {
@@ -2070,7 +2068,7 @@ namespace netxs::ui
                                               : find(0, match.length(), uirev, uifwd);
             }
             // bufferbase: Return match navigation state.
-    virtual si32 selection_button(twod delta = {})
+    virtual si32 selection_button(twod /*delta*/ = {})
             {
                 auto forward_is_available = uifwd ? 1 << 0 : 0;
                 auto reverse_is_available = uirev ? 1 << 1 : 0;
@@ -2128,7 +2126,7 @@ namespace netxs::ui
             si32 get_step() const override { return 0;       }
 
             // alt_screen: Resize viewport.
-            void resize_viewport(twod new_sz, bool forced = faux) override
+            void resize_viewport(twod new_sz, bool /*forced*/ = faux) override
             {
                 bufferbase::resize_viewport(new_sz);
                 coord = std::clamp(coord, dot_00, panel - dot_11);
@@ -2140,15 +2138,15 @@ namespace netxs::ui
                 return panel.y;
             }
             // alt_screen: Recalc left and right oversize (Always 0 for altbuf).
-            bool recalc_pads(dent& oversz) override
+            bool recalc_pads(dent& new_oversz) override
             {
                 auto left = 0;
                 auto rght = 0;
-                if (oversz.r != rght
-                 || oversz.l != left)
+                if (new_oversz.r != rght
+                 || new_oversz.l != left)
                 {
-                    oversz.r = rght;
-                    oversz.l = left;
+                    new_oversz.r = rght;
+                    new_oversz.l = left;
                     return true;
                 }
                 else return faux;
@@ -2214,9 +2212,9 @@ namespace netxs::ui
             {
                 bufferbase::flush();
                 coord.x += n;
-                     if (coord.x < 0)       wrapup();
+                if      (coord.x < 0)       wrapup();
                 else if (coord.x > panel.x) wrapdn();
-                     if (coord.y < 0)        coord = dot_00;
+                if      (coord.y < 0)        coord = dot_00;
                 else if (coord.y >= panel.y) coord = panel - dot_01;
             }
             // alt_screen: CSI n X  Erase/put n chars after cursor. Don't change cursor pos.
@@ -2233,18 +2231,18 @@ namespace netxs::ui
             {
                 assert(coord.y >= 0 && coord.y < panel.y);
 
-                auto saved = coord;
+                auto start = coord;
                 coord.x += count;
                 //todo apply line adjusting (necessity is not clear)
                 if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                 {
-                    auto n = std::min(count, panel.x - std::max(0, saved.x));
-                    canvas.splice<Copy>(saved, n, proto, fuse);
+                    auto n = std::min(count, panel.x - std::max(0, start.x));
+                    canvas.splice<Copy>(start, n, proto, fuse);
                 }
                 else
                 {
                     wrapdn();
-                    if (saved.y < y_top)
+                    if (start.y < y_top)
                     {
                         if (coord.y >= y_top)
                         {
@@ -2254,12 +2252,12 @@ namespace netxs::ui
                             _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
-                    else if (saved.y <= y_end)
+                    else if (start.y <= y_end)
                     {
                         if (coord.y > y_end)
                         {
@@ -2283,7 +2281,7 @@ namespace netxs::ui
 
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = canvas.iter() + seek;
                         auto tail = canvas.iend();
                         auto back = panel.x;
@@ -2308,7 +2306,6 @@ namespace netxs::ui
             void output(face& dest) override
             {
                 auto full = dest.full();
-                auto view = dest.view();
                 auto find = selection_active()
                          && match.length()
                          && owner.selmod == mime::textonly;
@@ -2350,7 +2347,7 @@ namespace netxs::ui
                 coord.x = coorx;
             }
             // alt_screen: Shift by n the scroll region.
-            void scroll_region(si32 top, si32 end, si32 n, bool use_scrollback = faux) override
+            void scroll_region(si32 top, si32 end, si32 n, bool /*use_scrollback*/ = faux) override
             {
                 seltop.y += n;
                 selend.y += n;
@@ -2400,15 +2397,15 @@ namespace netxs::ui
             // alt_screen: Extend text selection.
             bool selection_extend(twod coor, bool mode) override
             {
-                auto state = selection_active();
-                if (state)
+                auto ok = selection_active();
+                if (ok)
                 {
                     auto limits = panel - dot_11;
                     selend = std::clamp(coor, dot_00, limits);
                     selection_selbox(mode);
                     selection_update();
                 }
-                return state;
+                return ok;
             }
             // alt_screen: Set selection orientation.
             void selection_follow(twod coor, bool lock) override
@@ -2421,8 +2418,8 @@ namespace netxs::ui
                     if (selection_selbox())
                     {
                         auto c = (selend + seltop) / 2;
-                        if (coor.x > c.x == seltop.x > selend.x) std::swap(seltop.x, selend.x);
-                        if (coor.y > c.y == seltop.y > selend.y) std::swap(seltop.y, selend.y);
+                        if ((coor.x > c.x) == (seltop.x > selend.x)) std::swap(seltop.x, selend.x);
+                        if ((coor.y > c.y) == (seltop.y > selend.y)) std::swap(seltop.y, selend.y);
                     }
                     else
                     {
@@ -2462,7 +2459,7 @@ namespace netxs::ui
                     bufferbase::selection_pickup(data, canvas, seltop, selend, selmod, selbox);
                     if (selbox && !data.empty()) data.eol();
                 }
-                return std::move(data);
+                return data;
             }
             // alt_screen: Highlight selection.
             void selection_render(face& dest) override
@@ -2603,16 +2600,16 @@ namespace netxs::ui
                 bool rolls{}; // buff: The scrollback buffer ring was scrolled.
 
                 // buff: Decrease height.
-                void dec_height(si32& vsize, type kind, si32 size)
+                void dec_height(si32& block_vsize, type line_kind, si32 line_size)
                 {
-                    if (size > width && kind == type::autowrap) vsize -= (size + width - 1) / width;
-                    else                                        vsize -= 1;
+                    if (line_size > width && line_kind == type::autowrap) block_vsize -= (line_size + width - 1) / width;
+                    else                                                  block_vsize -= 1;
                 }
                 // buff: Increase height.
-                void add_height(si32& vsize, type kind, si32 size)
+                void add_height(si32& block_vsize, type line_kind, si32 line_size)
                 {
-                    if (size > width && kind == type::autowrap) vsize += (size + width - 1) / width;
-                    else                                        vsize += 1;
+                    if (line_size > width && line_kind == type::autowrap) block_vsize += (line_size + width - 1) / width;
+                    else                                                  block_vsize += 1;
                 }
                 // buff: Return max line length of the specified type.
                 template<auto N>
@@ -2630,48 +2627,48 @@ namespace netxs::ui
                                        type::rghtside,
                                        type::centered })
                     {
-                        for (auto [size, pool] : sizes[kind])
+                        for (auto [line_size, pool] : sizes[kind])
                         {
                             assert(pool > 0);
                             vsize += pool;
                         }
                     }
                     auto kind = type::autowrap;
-                    for (auto [size, pool] : sizes[kind])
+                    for (auto [line_size, pool] : sizes[kind])
                     {
-                        if (size > width) vsize += pool * ((size + width - 1) / width);
-                        else              vsize += pool;
+                        if (line_size > width) vsize += pool * ((line_size + width - 1) / width);
+                        else                   vsize += pool;
                     }
                 }
                 // buff: Register a new line.
-                void invite(type& kind, si32& size, type new_kind, si32 new_size)
+                void invite(type& line_kind, si32& line_size, type new_kind, si32 new_size)
                 {
                     ++sizes[new_kind][new_size];
                     add_height(vsize, new_kind, new_size);
-                    size = new_size;
-                    kind = new_kind;
+                    line_size = new_size;
+                    line_kind = new_kind;
                 }
                 // buff: Refresh scrollback height.
-                void recalc(type& kind, si32& size, type new_kind, si32 new_size)
+                void recalc(type& line_kind, si32& line_size, type new_kind, si32 new_size)
                 {
-                    if (size != new_size
-                     || kind != new_kind)
+                    if (line_size != new_size
+                     || line_kind != new_kind)
                     {
-                        undock(kind, size);
+                        undock(line_kind, line_size);
                         ++sizes[new_kind][new_size];
                         add_height(vsize, new_kind, new_size);
-                        size = new_size;
-                        kind = new_kind;
+                        line_size = new_size;
+                        line_kind = new_kind;
                     }
                 }
                 // buff: Discard the specified metrics.
-                void undock(type kind, si32 size)
+                void undock(type line_kind, si32 line_size)
                 {
-                    auto& lens = sizes[kind];
-                    auto  iter = lens.find(size); assert(iter != lens.end());
+                    auto& lens = sizes[line_kind];
+                    auto  iter = lens.find(line_size); assert(iter != lens.end());
                     auto  pool = --(*iter).second;
                     if (pool == 0) lens.erase(iter);
-                    dec_height(vsize, kind, size);
+                    dec_height(vsize, line_kind, line_size);
                 }
                 // buff: Check buffer size.
                 bool check_size(twod new_size)
@@ -2709,11 +2706,11 @@ namespace netxs::ui
                 // buff: Remove specified line info from accounting and update metrics based on scroll height.
                 void undock_base_front(line& l) override
                 {
-                    auto kind = l._kind;
-                    auto size = l._size;
-                    undock(kind, size);
-                    dec_height(basis, kind, size);
-                    dec_height(slide, kind, size);
+                    auto line_kind = l._kind;
+                    auto line_size = l._size;
+                    undock(line_kind, line_size);
+                    dec_height(basis, line_kind, line_size);
+                    dec_height(slide, line_kind, line_size);
                     if (basis < 0)
                     {
                         basis = 0;
@@ -2729,21 +2726,21 @@ namespace netxs::ui
                 // buff: Remove information about the specified line from accounting.
                 void undock_base_back(line& l) override { undock(l._kind, l._size); }
                 // buff: Return the item position in the scrollback using its id.
-                auto index_by_id(ui32 id) const
+                auto index_by_id(ui32 item_id) const
                 {
                     //No need to disturb distant objects, it may already be in the swap.
-                    auto count = length();
-                    return static_cast<si32>(count - 1 - (back().index - id)); // ring buffer size is never larger than max_int32.
+                    auto total = length();
+                    return static_cast<si32>(total - 1 - (back().index - item_id)); // ring buffer size is never larger than max_int32.
                 }
                 // buff: Return an iterator pointing to the item with the specified id.
-                auto iter_by_id(ui32 id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
+                auto iter_by_id(ui32 line_id) -> ring::iter<ring> //todo MSVC 17.7.0 requires return type
                 {
-                    return begin() + index_by_id(id);
+                    return begin() + index_by_id(line_id);
                 }
                 // buff: Return the item reference using its id.
-                auto& item_by_id(ui32 id)
+                auto& item_by_id(ui32 line_id)
                 {
-                    return ring::at(index_by_id(id));
+                    return ring::at(index_by_id(line_id));
                 }
                 // buff: Refresh metrics due to modified line.
                 void recalc(line& l)
@@ -2754,22 +2751,22 @@ namespace netxs::ui
                 void reindex(si32 from)
                 {
                     assert(from >= 0);
-                    auto head = begin() + from;
-                    auto tail = end();
-                    auto indx = from == 0 ? 0
-                                          : (head - 1)->index + 1;
-                    while (head != tail)
+                    auto a = begin() + from;
+                    auto b = end();
+                    auto i = from == 0 ? 0
+                                       : (a - 1)->index + 1;
+                    while (a != b)
                     {
-                        head->index = indx++;
-                        ++head;
+                        a->index = i++;
+                        ++a;
                     }
                 }
                 // buff: Remove the specified number of lines at the specified position (inclusive).
-                auto remove(si32 at, si32 count)
+                auto remove(si32 at, si32 ammount)
                 {
-                    count = ring::remove(at, count);
+                    ammount = ring::remove(at, ammount);
                     reindex(at);
-                    return count;
+                    return ammount;
                 }
                 // buff: Clear scrollback, add one empty line, and reset all metrics.
                 void clear()
@@ -2823,9 +2820,9 @@ namespace netxs::ui
                 batch.set_width(1);
                 index_rebuild();
 
-                auto brush = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
-                boss.base::color(brush);
-                parser::brush.reset(brush);
+                auto c = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
+                boss.base::color(c);
+                parser::brush.reset(c);
             }
             si32 get_size() const override { return batch.size;     }
             si32 get_peak() const override { return batch.peak - 1; }
@@ -2866,13 +2863,14 @@ namespace netxs::ui
             }
             bool test_index()
             {
+                #if defined(DEBUG)
                 auto m = index.front().index;
                 for (auto& i : index)
                 {
-                    auto step = i.index - m;
-                    assert(step >= 0 && step < 2);
+                    assert(i.index >= m && i.index - m < 2);
                     m = i.index;
                 }
+                #endif
                 return true;
             }
             bool test_futures()
@@ -2889,13 +2887,14 @@ namespace netxs::ui
             }
             bool test_coord()
             {
-                auto wrapped_block = batch.caret - coord.x;
-                assert(coord.y < y_top || coord.y > y_end || wrapped_block % panel.x == 0);
+                assert(coord.y < y_top || coord.y > y_end || (batch.caret - coord.x/*wrapped_block*/) % panel.x == 0);
                 return true;
             }
             auto test_resize()
             {
+                #if defined(DEBUG)
                 auto c = batch.caret;
+                #endif
                 sync_coord();
                 assert(c == batch.caret);
                 return true;
@@ -3309,11 +3308,11 @@ namespace netxs::ui
                 auto unknown = true;
                 while (head != tail && (index.size < arena || unknown))
                 {
-                    auto& curln = *--head;
-                    auto  curid = curln.index;
-                    auto length = curln.length();
-                    auto active = curid == lnid;
-                    if (curln.wrapped())
+                    auto& line = *--head;
+                    auto lineid = line.index;
+                    auto length = line.length();
+                    auto active = lnid == lineid;
+                    if (line.wrapped())
                     {
                         auto offset = length;
                         auto remain = length ? (length - 1) % panel.x + 1
@@ -3321,7 +3320,7 @@ namespace netxs::ui
                         do
                         {
                             offset -= remain;
-                            push(curid, offset, remain);
+                            push(lineid, offset, remain);
                             if (unknown && active && offset <= batch.caret)
                             {
                                 auto eq = batch.caret && length == batch.caret;
@@ -3336,7 +3335,7 @@ namespace netxs::ui
                     }
                     else
                     {
-                        push(curid, 0, length);
+                        push(lineid, 0, length);
                         if (active)
                         {
                             unknown = faux;
@@ -3368,10 +3367,10 @@ namespace netxs::ui
                 {
                     assert(curit != batch.end() - 1);
 
-                    auto& curln = *++curit;
-                    width = curln.length();
-                    wraps = curln.wrapped();
-                    curid = curln.index;
+                    auto& line = *++curit;
+                    width = line.length();
+                    wraps = line.wrapped();
+                    curid = line.index;
                     start = 0;
                 }
                 else assert(mapln.width == panel.x);
@@ -3396,10 +3395,10 @@ namespace netxs::ui
                     if (avail == 0) break;
 
                     assert(curit != batch.end() - 1);
-                    auto& curln = *++curit;
-                    width = curln.length();
-                    wraps = curln.wrapped();
-                    curid = curln.index;
+                    auto& line = *++curit;
+                    width = line.length();
+                    wraps = line.wrapped();
+                    curid = line.index;
                     start = 0;
                 }
                 assert(test_index());
@@ -3413,8 +3412,8 @@ namespace netxs::ui
                 auto& mapln = index[y_pos];
                 auto  curit = batch.iter_by_id(mapln.index);
                 auto  avail = std::min(batch.vsize - batch.basis, arena) - y_pos - 1;
-                auto  count = index.size - y_pos - 1;
-                while (count-- > 0) index.pop_back();
+                auto  drops = index.size - y_pos - 1;
+                while (drops-- > 0) index.pop_back();
 
                 if (avail > 0) reindex(avail, curit, mapln);
             }
@@ -3463,7 +3462,7 @@ namespace netxs::ui
                 return batch.vsize;
             }
             // scroll_buf: Recalc left and right oversize.
-            bool recalc_pads(dent& oversz) override
+            bool recalc_pads(dent& oversz_ref) override
             {
                 auto coor = get_coord();
                 auto rght = std::max({0, batch.max<line::type::leftside>() - panel.x, coor.x - panel.x + 1 }); // Take into account the cursor position.
@@ -3473,13 +3472,13 @@ namespace netxs::ui
                 auto both = cntr >> 1;
                 left = shore + std::max(left, both + (cntr & 1));
                 rght = shore + std::max(rght, both);
-                if (oversz.r != rght
-                 || oversz.l != left
-                 || oversz.b != bttm)
+                if (oversz_ref.r != rght
+                 || oversz_ref.l != left
+                 || oversz_ref.b != bttm)
                 {
-                    oversz.r = rght;
-                    oversz.l = left;
-                    oversz.b = bttm;
+                    oversz_ref.r = rght;
+                    oversz_ref.l = left;
+                    oversz_ref.b = bttm;
                     return true;
                 }
                 else return faux;
@@ -3769,22 +3768,22 @@ namespace netxs::ui
             void add_lines(si32 amount)
             {
                 assert(amount >= 0);
-                auto newid = batch.back().index;
+                auto line_id = batch.back().index;
                 while (amount-- > 0)
                 {
-                    auto& l = batch.invite(++newid, parser::style);
-                    index.push_back(newid, 0, 0);
+                    batch.invite(++line_id, parser::style);
+                    index.push_back(line_id, 0, 0);
                 }
             }
             // scroll_buf: Push filled lines to the scrollback bottom.
             void add_lines(si32 amount, cell const& blank)
             {
                 assert(amount >= 0);
-                auto newid = batch.back().index;
+                auto line_id = batch.back().index;
                 while (amount-- > 0)
                 {
-                    auto& l = batch.invite(++newid, parser::style, blank, panel.x);
-                    index.push_back(newid, 0, panel.x);
+                    batch.invite(++line_id, parser::style, blank, panel.x);
+                    index.push_back(line_id, 0, panel.x);
                 }
             }
             // scroll_buf: .
@@ -3912,7 +3911,7 @@ namespace netxs::ui
                     else
                     {
                         auto& mapln = index[coord.y];
-                        auto  wraps = curln.wrapped();
+                        wraps = curln.wrapped();
                         mapln.start = 0;
                         mapln.width = wraps ? std::min(panel.x, width)
                                             : width;
@@ -4227,13 +4226,13 @@ namespace netxs::ui
 
                 if (coord.y < y_top)
                 {
-                    auto saved = coord;
+                    auto start = coord;
                     coord.x += count;
                     //todo apply line adjusting (necessity is not clear)
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        upbox.splice<Copy>(saved, n, proto, fuse);
+                        auto n = std::min(count, panel.x - std::max(0, start.x));
+                        upbox.splice<Copy>(start, n, proto, fuse);
                     }
                     else
                     {
@@ -4246,7 +4245,7 @@ namespace netxs::ui
                             _data<Copy>(n, proto, fuse); // Reversed fill using the last part of the proto.
                         }
                         auto data = proto.begin();
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = upbox.iter() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
@@ -4275,7 +4274,7 @@ namespace netxs::ui
                     else
                     {
                         auto max_y = arena - 1;
-                        auto saved = coord.y + batch.basis;
+                        auto cur_y = coord.y + batch.basis;
                         wrapdn();
 
                         auto query = coord.y - (index.size - 1);
@@ -4292,38 +4291,38 @@ namespace netxs::ui
                         {              // cursor overlaps some lines below and placed below the viewport.
                             curln.resize(batch.caret);
                             batch.recalc(curln);
-                            if (auto count = static_cast<si32>(batch.back().index - curid))
+                            if (auto n = static_cast<si32>(batch.back().index - curid))
                             {
-                                if constexpr (mixer) _merge(curln, oldsz, curid, count);
-                                assert(count > 0);
-                                while (count-- > 0) batch.pop_back();
+                                if constexpr (mixer) _merge(curln, oldsz, curid, n);
+                                assert(n > 0);
+                                while (n-- > 0) batch.pop_back();
                             }
 
-                            auto width = curln.length();
-                            auto trail = width - panel.x;
-                            auto start = panel.x;
+                            auto w = curln.length();
+                            auto a = panel.x;
+                            auto b = w - a;
 
-                            saved -= batch.basis;
-                            if (saved > 0)
+                            cur_y -= batch.basis;
+                            if (cur_y > 0)
                             {
-                                auto count = index.size - saved - 1;
-                                while (count-- > 0) index.pop_back();
+                                auto n = index.size - cur_y - 1;
+                                while (n-- > 0) index.pop_back();
                                 auto& mapln = index.back();
                                 mapln.width = panel.x;
-                                start += mapln.start;
+                                a += mapln.start;
                             }
-                            else // saved has scrolled out.
+                            else // cur_y has scrolled out.
                             {
                                 index.clear();
-                                start *= std::abs(saved);
+                                a *= std::abs(cur_y);
                             }
 
-                            while (start < trail)
+                            while (a < b)
                             {
-                                index.push_back(curid, start, panel.x);
-                                start += panel.x;
+                                index.push_back(curid, a, panel.x);
+                                a += panel.x;
                             }
-                            index.push_back(curid, start, width - start);
+                            index.push_back(curid, a, w - a);
 
                             if (coord.y > max_y)
                             {
@@ -4368,47 +4367,47 @@ namespace netxs::ui
                                 else                 curln.splice(batch.caret, shadow, cell::shaders::full);
 
                                 batch.recalc(curln);
-                                auto width = curln.length();
+                                auto w = curln.length();
                                 auto spoil = static_cast<si32>(mapln.index - curid);
                                 assert(spoil > 0);
 
                                 if constexpr (mixer) _merge(curln, oldsz, curid, spoil);
 
                                 auto after = batch.index() + 1;
-                                     spoil = batch.remove(after, spoil);
+                                spoil = batch.remove(after, spoil);
 
-                                if (saved < batch.basis)
+                                if (cur_y < batch.basis)
                                 {
                                     index_rebuild(); // Update index. (processing lines larger than viewport)
                                 }
                                 else
                                 {
-                                    saved -= batch.basis;
-                                    auto indit = index.begin() + saved;
-                                    auto endit = index.end();
-                                    auto start = indit->start;
-                                    auto trail = width - panel.x;
-                                    while (indit != endit && start < trail) // Update for current line.
+                                    cur_y -= batch.basis;
+                                    auto idx_a = index.begin() + cur_y;
+                                    auto idx_b = index.end();
+                                    auto a = idx_a->start;
+                                    auto b = w - panel.x;
+                                    while (idx_a != idx_b && a < b) // Update for current line.
                                     {
-                                        auto& i =*indit;
+                                        auto& i =*idx_a;
                                         i.index = curid;
-                                        i.start = start;
+                                        i.start = a;
                                         i.width = panel.x;
-                                        start  += panel.x;
-                                        ++indit;
+                                        a += panel.x;
+                                        ++idx_a;
                                     }
-                                    if (indit != endit)
+                                    if (idx_a != idx_b)
                                     {
-                                        auto& i =*indit;
+                                        auto& i = *idx_a;
                                         i.index = curid;
-                                        i.start = start;
-                                        i.width = width - start;
-                                        ++indit;
-                                        while (indit != endit) // Update the rest.
+                                        i.start = a;
+                                        i.width = w - a;
+                                        ++idx_a;
+                                        while (idx_a != idx_b) // Update the rest.
                                         {
-                                            auto& i = *indit;
-                                            i.index -= spoil;
-                                            ++indit;
+                                            auto& j = *idx_a;
+                                            j.index -= spoil;
+                                            ++idx_a;
                                         }
                                     }
                                     assert(test_index());
@@ -4424,20 +4423,20 @@ namespace netxs::ui
                 else
                 {
                     coord.y -= y_end + 1;
-                    auto saved = coord;
+                    auto start = coord;
                     coord.x += count;
                     //todo apply line adjusting
                     if (coord.x <= panel.x)//todo styles! || ! curln.wrapped())
                     {
-                        auto n = std::min(count, panel.x - std::max(0, saved.x));
-                        dnbox.splice<Copy>(saved, n, proto, fuse);
+                        auto n = std::min(count, panel.x - std::max(0, start.x));
+                        dnbox.splice<Copy>(start, n, proto, fuse);
                     }
                     else
                     {
                         wrapdn();
                         auto data = proto.begin();
                         auto size = count;
-                        auto seek = saved.x + saved.y * panel.x;
+                        auto seek = start.x + start.y * panel.x;
                         auto dest = dnbox.iter() + seek;
                         auto tail = dnbox.iend();
                         auto back = panel.x;
@@ -4657,8 +4656,7 @@ namespace netxs::ui
 
                     sync_coord();
 
-                    auto stash = batch.vsize - batch.basis - index.size;
-                    assert(stash == 0);
+                    assert(batch.vsize - batch.basis - index.size == 0); // stash
                     assert(test_futures());
                     dnbox.wipe(blank);
                 };
@@ -4894,14 +4892,14 @@ namespace netxs::ui
             }
 
             // scroll_buf: Calc grip position by coor.
-            auto selection_coor_to_grip(twod coord, grip::type state = grip::base)
+            auto selection_coor_to_grip(twod coor, grip::type role = grip::base)
             {
-                auto index = batch.front().index;
-                if (coord.y < 0)
+                auto link = batch.front().index;
+                if (coor.y < 0)
                 {
-                    return grip{ .link = index,
-                                 .coor = coord,
-                                 .role = state };
+                    return grip{ .link = link,
+                                 .coor = coor,
+                                 .role = role };
                 }
                 auto i_cur = batch.index_by_id(batch.ancid);
                 assert(i_cur < batch.size);
@@ -4913,17 +4911,17 @@ namespace netxs::ui
                 {
                     auto& curln = *start;
                     auto newpos = vtpos + curln.height(panel.x);
-                    if ((coord.y >= vtpos && coord.y < newpos) || ++start == limit)
+                    if ((coor.y >= vtpos && coor.y < newpos) || ++start == limit)
                     {
-                        index = curln.index;
+                        link = curln.index;
                         break;
                     }
                     vtpos = newpos;
                 }
-                coord.y -= vtpos;
-                return grip{ .link = index,
-                             .coor = coord,
-                             .role = state };
+                coor.y -= vtpos;
+                return grip{ .link = link,
+                             .coor = coor,
+                             .role = role };
             }
             // scroll_buf: Return scrollbuffer grips.
             auto selection_take_grips()
@@ -4959,24 +4957,24 @@ namespace netxs::ui
                             assert(head != limit);
                             while (true)
                             {
-                                auto& curln = *head;
-                                auto height = curln.height(panel.x);
-                                if (ypos < height || ++head == limit)
+                                auto& line = *head;
+                                auto line_height = line.height(panel.x);
+                                if (ypos < line_height || ++head == limit)
                                 {
-                                    grip.link = curln.index;
+                                    grip.link = line.index;
                                     grip.coor.y = ypos;
                                     break;
                                 }
-                                ypos -= height;
+                                ypos -= line_height;
                             }
                         }
                         coor.y = vtpos + grip.coor.y;
                     }
                 };
                 // Check the buffer ring.
-                     if (i_top < 0)           upmid.link = topid;
+                if      (i_top < 0)           upmid.link = topid;
                 else if (i_top >= batch.size) upmid.link = endid;
-                     if (i_end < 0)           dnmid.link = topid;
+                if      (i_end < 0)           dnmid.link = topid;
                 else if (i_end >= batch.size) dnmid.link = endid;
 
                 coor1.y = i_top < i_cur ? -dot_mx.y : dot_mx.y;
@@ -5057,15 +5055,14 @@ namespace netxs::ui
                 selection_update();
             }
             // scroll_buf: Extend text selection.
-            bool selection_extend(twod coord, bool mode) override
+            bool selection_extend(twod coor, bool mode) override
             {
-                auto x2 = coord.x;
-                auto state = selection_active();
-                if (state)
+                auto x2 = coor.x;
+                auto ok = selection_active();
+                if (ok)
                 {
                     selection_selbox(mode);
                     auto scrolling_margin = batch.slide + y_top;
-                    auto edge0 = dot_00;
                     auto edge1 = twod{ dot_mx.x, y_top - 1 };
                     auto edge2 = twod{-dot_mx.x, scrolling_margin };
                     auto edge3 = twod{ dot_mx.x, scrolling_margin + arena - 1 };
@@ -5074,9 +5071,9 @@ namespace netxs::ui
                     {
                         return grip{ .coor = c, .role = r };
                     };
-                    if (coord.y < scrolling_margin) // Hit the top margin.
+                    if (coor.y < scrolling_margin) // Hit the top margin.
                     {
-                        coord -= {-owner.origin.x, batch.slide };
+                        coor -= {-owner.origin.x, batch.slide };
                         if (place == part::mid)
                         {
                             if (uptop.role == grip::base)
@@ -5115,14 +5112,14 @@ namespace netxs::ui
                         {
                             dnmid = selection_coor_to_grip(edge2, grip::join);
                         }
-                        dntop.coor = coord; dntop.role = grip::base;
+                        dntop.coor = coor; dntop.role = grip::base;
                         place = part::top;
                     }
-                    else if (coord.y < scrolling_margin + arena) // Hit the scrolling region.
+                    else if (coor.y < scrolling_margin + arena) // Hit the scrolling region.
                     {
                         if (place == part::mid)
                         {
-                            dnmid = selection_coor_to_grip(coord, grip::base);
+                            dnmid = selection_coor_to_grip(coor, grip::base);
                         }
                         else if (place == part::top)
                         {
@@ -5130,13 +5127,13 @@ namespace netxs::ui
                             {
                                 dntop = set_grip_coor_and_role(edge1, grip::join);
                                 upmid = selection_coor_to_grip(edge2, grip::join);
-                                dnmid = selection_coor_to_grip(coord, grip::base);
+                                dnmid = selection_coor_to_grip(coor , grip::base);
                                 upend.role = dnend.role             = grip::idle;
                             }
                             else if (uptop.role == grip::join)
                             {
-                                uptop.role = dntop.role             = grip::idle;
-                                dnmid = selection_coor_to_grip(coord, grip::base);
+                                uptop.role = dntop.role            = grip::idle;
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                         }
                         else if (place == part::end)
@@ -5144,21 +5141,21 @@ namespace netxs::ui
                             if (upend.role == grip::base)
                             {
                                 uptop.role = dntop.role             = grip::idle;
-                                dnmid = selection_coor_to_grip(coord, grip::base);
+                                dnmid = selection_coor_to_grip(coor , grip::base);
                                 upmid = selection_coor_to_grip(edge3, grip::join);
                                 dnend = set_grip_coor_and_role(edge4, grip::join);
                             }
                             else if (upend.role == grip::join)
                             {
-                                upend.role = dnend.role             = grip::idle;
-                                dnmid = selection_coor_to_grip(coord, grip::base);
+                                upend.role = dnend.role            = grip::idle;
+                                dnmid = selection_coor_to_grip(coor, grip::base);
                             }
                         }
                         place = part::mid;
                     }
                     else // Hit the bottom margin.
                     {
-                        coord -= {-owner.origin.x, scrolling_margin + arena };
+                        coor -= {-owner.origin.x, scrolling_margin + arena };
                         if (place == part::mid)
                         {
                             if (upend.role == grip::base)
@@ -5197,7 +5194,7 @@ namespace netxs::ui
                         {
                             dnmid = selection_coor_to_grip(edge3, grip::join);
                         }
-                        dnend.coor = coord; dnend.role = grip::base;
+                        dnend.coor = coor; dnend.role = grip::base;
                         place = part::end;
                     }
 
@@ -5248,7 +5245,7 @@ namespace netxs::ui
 
                     selection_update();
                 }
-                return state;
+                return ok;
             }
             // scroll_buf: Set selection orientation.
             void selection_follow(twod coor, bool lock) override
@@ -5286,7 +5283,7 @@ namespace netxs::ui
                             auto order = idtop != idend ? idend > idtop
                                                         : dnmid.coor.y != upmid.coor.y ? dnmid.coor.y > upmid.coor.y
                                                                                        : dnmid.coor.x > upmid.coor.x;
-                            swap = coor.y < scrolling_margin == order;
+                            swap = (coor.y < scrolling_margin) == order;
                         }
                     }
                     else
@@ -5299,7 +5296,7 @@ namespace netxs::ui
                         if (idtop != idend)
                         {
                             auto cy = (idend + idtop) / 2;
-                            swap = idcur > cy == idtop > idend;
+                            swap = (idcur > cy) == (idtop > idend);
                         }
                         else // idend == idtop
                         {
@@ -5308,7 +5305,7 @@ namespace netxs::ui
                                 if (dnmid.coor.y != upmid.coor.y)
                                 {
                                     auto cy = (dnmid.coor.y + upmid.coor.y) / 2;
-                                    swap = check.coor.y > cy == upmid.coor.y > dnmid.coor.y;
+                                    swap = (check.coor.y > cy) == (upmid.coor.y > dnmid.coor.y);
                                 }
                                 else
                                 {
@@ -5316,7 +5313,7 @@ namespace netxs::ui
                                                                          : std::abs(dnmid.coor.y - check.coor.y) > std::abs(upmid.coor.y - check.coor.y));
                                 }
                             }
-                            else swap = idcur > idend == upmid.coor.y > dnmid.coor.y;
+                            else swap = (idcur > idend) == (upmid.coor.y > dnmid.coor.y);
                         }
                     }
 
@@ -5333,7 +5330,7 @@ namespace netxs::ui
                     {
                         auto x = coor.x + owner.origin.x;
                         auto c = (upmid.coor.x + dnmid.coor.x) / 2;
-                        if (x > c == upmid.coor.x > dnmid.coor.x)
+                        if ((x > c) == (upmid.coor.x > dnmid.coor.x))
                         {
                             std::swap(uptop.coor.x, dntop.coor.x);
                             std::swap(upmid.coor.x, dnmid.coor.x);
@@ -5534,16 +5531,16 @@ namespace netxs::ui
                     auto& mapln = index[vpos];
                     auto  ancid = mapln.index;
                     auto  ancdy = mapln.start / panel.x;
-                    auto  coord = twod{ 0, view.coor.y - ancdy };
                     auto  limit = view.coor.y + view.size.y;
                     auto head = batch.iter_by_id(ancid);
                     auto tail = batch.end();
-                    while (head != tail && coord.y < limit)
+                    auto coor = twod{ 0, view.coor.y - ancdy };
+                    while (head != tail && coor.y < limit)
                     {
                         auto& curln = *head++;
                         auto height = curln.height(panel.x);
-                        dest.output(curln, coord);
-                        coord.y += height;
+                        dest.output(curln, coor);
+                        coor.y += height;
                     }
                 }
                 upbox.move({ 0, y_top - sctop });
@@ -5595,8 +5592,7 @@ namespace netxs::ui
                 else
                 {
                     auto field = rect{ dot_00, dot_01 };
-                    auto state = cell{};
-                    auto style = deco{};
+                    auto accum = cell{};
                     auto build = [&](auto print)
                     {
                         if (i_top == i_end)
@@ -5628,23 +5624,24 @@ namespace netxs::ui
                         build([&](auto& curln)
                         {
                             auto block = escx{};
-                            block.s11n<faux, faux, faux>(curln, field, state);
+                            block.s11n<faux, faux, faux>(curln, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
                     }
                     else
                     {
+                        auto s = deco{};
                         build([&](auto& curln)
                         {
-                            if (style != curln.style)
+                            if (s != curln.style)
                             {
-                                if (auto wrp = curln.style.wrp(); style.wrp() != wrp) yield.wrp(wrp);
-                                if (auto jet = curln.style.jet(); style.jet() != jet) yield.jet(jet);
-                                style = curln.style;
+                                if (auto wrp = curln.style.wrp(); s.wrp() != wrp) yield.wrp(wrp);
+                                if (auto jet = curln.style.jet(); s.jet() != jet) yield.jet(jet);
+                                s = curln.style;
                             }
                             auto block = escx{};
-                            block.s11n<true, faux, faux>(curln, field, state);
+                            block.s11n<true, faux, faux>(curln, field, accum);
                             if (block.size() > 0) yield.add(block);
                             else                  yield.eol();
                         });
@@ -5658,7 +5655,7 @@ namespace netxs::ui
                 auto yield = escx{};
                 auto len = testy<si64>{};
                 auto selbox = selection_selbox();
-                if (!selection_active()) return std::move(yield);
+                if (!selection_active()) return yield;
                 if (selmod != mime::textonly
                  && selmod != mime::safetext) yield.nil();
                 len = yield.size();
@@ -5677,7 +5674,7 @@ namespace netxs::ui
                     bufferbase::selection_pickup(yield, dnbox, upend.coor, dnend.coor, selmod, selbox);
                 }
                 if (selbox && len(yield.size())) yield.eol();
-                return std::move(yield);
+                return yield;
             }
             // scroll_buf: Highlight selection.
             void selection_render(face& dest) override
@@ -5713,12 +5710,12 @@ namespace netxs::ui
                     auto grip_2 = rect{ curend, dot_11 };
                     if (selection_selbox())
                     {
-                        auto square = grip_1 | grip_2;
-                        auto filler = [&](auto fill)
+                        auto area = grip_1 | grip_2;
+                        auto proc = [&](auto fx)
                         {
-                            dest.fill(square.clip(view), fill);
+                            dest.fill(area.clip(view), fx);
                         };
-                        _shade_selection(mode, filler);
+                        _shade_selection(mode, proc);
                     }
                     else
                     {
@@ -5734,7 +5731,7 @@ namespace netxs::ui
                         auto tail = batch.end();
                         auto work = [&](auto fill)
                         {
-                            auto draw = [&](auto const& coord, auto const& subblock, auto isr_to_l)
+                            auto draw = [&](auto const& coord, auto const& subblock, auto /*isr_to_l*/)
                             {
                                      if (coord.y < curtop.y) return;
                                 else if (coord.y > curend.y) coor.y = stop;
@@ -5986,10 +5983,10 @@ namespace netxs::ui
                 return twod{ panel.x / 2 - owner.origin.x, arena / 2 + batch.ancdy };
             }
             // scroll_buf: Retrun distance to the center of viewport.
-            twod selection_center(id_t id, twod coor)
+            twod selection_center(id_t line_id, twod coor)
             {
                 auto base = selection_viewport_center();
-                auto dist = selection_outrun(id, coor, batch.ancid, base);
+                auto dist = selection_outrun(line_id, coor, batch.ancid, base);
                 return dist;
             }
             // scroll_buf: Search prev/next selection match and return distance to it.
@@ -6034,15 +6031,15 @@ namespace netxs::ui
                                                : si32{0};
                             while (head != tail)
                             {
-                                auto& curln = proc(head);
-                                from = ahead ? 0 : curln.length();
-                                if (resx(curln))
+                                auto& line = proc(head);
+                                from = ahead ? 0 : line.length();
+                                if (resx(line))
                                 {
                                     delta.y += ahead ?-accum
-                                                     : accum + curln.height(panel.x);
+                                                     : accum + line.height(panel.x);
                                     return true;
                                 }
-                                accum += curln.height(panel.x);
+                                accum += line.height(panel.x);
                             }
                             return faux;
                         };
@@ -6056,7 +6053,7 @@ namespace netxs::ui
                             }
                             else if (sctop)
                             {
-                                auto from = si32{ 0 };
+                                from = si32{ 0 };
                                 done = bufferbase::selection_search(dnbox, from, direction, upend.coor, dnend.coor);
                                 if (done)
                                 {
@@ -6069,14 +6066,14 @@ namespace netxs::ui
                         else
                         {
                             uifwd = faux;
-                            done = find(batch.begin(),   [](auto& head) -> auto& { return *--head; });
+                            done = find(batch.begin(), [](auto& head) -> auto& { return *--head; });
                             if (done)
                             {
                                 uifwd = true;
                             }
                             else if (scend)
                             {
-                                auto from = upbox.size().x * upbox.size().y;
+                                from = upbox.size().x * upbox.size().y;
                                 done = bufferbase::selection_search(upbox, from, direction, uptop.coor, dntop.coor);
                                 if (done)
                                 {
@@ -6193,37 +6190,37 @@ namespace netxs::ui
         using vtty = os::vt::vtty;
 
         termconfig config; // term: Terminal settings.
-        pro::timer worker; // term: Linear animation controller.
-        pro::robot dynamo; // term: Linear animation controller.
-        pro::caret cursor; // term: Text cursor controller.
-        term_state status; // term: Screen buffer status info.
-        w_tracking wtrack; // term: Terminal title tracking object.
-        f_tracking ftrack; // term: Keyboard focus tracking object.
-        m_tracking mtrack; // term: VT-style mouse tracking object.
-        c_tracking ctrack; // term: Custom terminal palette tracking object.
         scroll_buf normal; // term: Normal    screen buffer.
         alt_screen altbuf; // term: Alternate screen buffer.
         buffer_ptr target; // term: Current   screen buffer pointer.
-        escx       w32key; // term: win32-input-mode forward buffer.
-        text       envvar; // term: Environment block.
-        text       curdir; // term: Current working directory.
-        text       cmdarg; // term: Startup command line arguments.
-        os::fdrw   fdlink; // term: Optional DirectVT uplink.
-        hook       onerun; // term: One-shot token for restart session.
+        pro::caret cursor; // term: Text cursor controller.
+        pro::timer worker; // term: Linear animation controller.
+        pro::robot dynamo; // term: Linear animation controller.
+        m_tracking mtrack; // term: VT-style mouse tracking object.
+        f_tracking ftrack; // term: Keyboard focus tracking object.
+        w_tracking wtrack; // term: Terminal title tracking object.
+        c_tracking ctrack; // term: Custom terminal palette tracking object.
+        term_state status; // term: Screen buffer status info.
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
         bool       bpmode; // term: Bracketed paste mode.
         bool       unsync; // term: Viewport is out of sync.
         bool       invert; // term: Inverted rendering (DECSCNM).
-        bool       selalt; // term: Selection form (rectangular/linear).
-        bool       io_log; // term: Stdio logging.
         bool       styled; // term: Line style reporting.
+        bool       io_log; // term: Stdio logging.
+        bool       selalt; // term: Selection form (rectangular/linear).
         flag       resume; // term: Restart scheduled.
         flag       forced; // term: Forced shutdown.
-        prot       kbmode; // term: Keyboard input mode.
         si32       selmod; // term: Selection mode.
         si32       altscr; // term: Alternate scroll mode.
+        prot       kbmode; // term: Keyboard input mode.
+        escx       w32key; // term: win32-input-mode forward buffer.
+        text       envvar; // term: Environment block.
+        text       curdir; // term: Current working directory.
+        text       cmdarg; // term: Startup command line arguments.
+        os::fdrw   fdlink; // term: Optional DirectVT uplink.
+        hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
         // term: Forward clipboard data (OSC 52).
@@ -6501,7 +6498,7 @@ namespace netxs::ui
             }
         }
         // term: Reset viewport position.
-        void scroll(twod& origin)
+        void scroll(twod& origin_ref)
         {
             auto& console = *target;
             if (follow[axis::Y])
@@ -6510,16 +6507,16 @@ namespace netxs::ui
                 {
                     follow[axis::X] = faux;
                     auto pos = console.get_coord(dot_00).x;
-                    origin.x = bufferbase::reset_viewport(origin.x, pos, console.panel.x);
+                    origin_ref.x = bufferbase::reset_viewport(origin_ref.x, pos, console.panel.x);
                 }
             }
-            origin.y = console.get_origin(follow[axis::Y]);
+            origin_ref.y = console.get_origin(follow[axis::Y]);
         }
         // term: Proceed terminal changes.
         template<class P>
         void update(P proc)
         {
-            auto done = bell::trysync(true, [&]
+            bell::trysync(true, [&]
             {
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
@@ -6539,12 +6536,12 @@ namespace netxs::ui
             });
         }
         // term: Proceed terminal input.
-        void ondata(view data, bufferbase* target = {})
+        void ondata(view data, bufferbase* target_buffer = {})
         {
             update([&]
             {
                 if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                ansi::parse(data, target ? target : this->target);
+                ansi::parse(data, target_buffer ? target_buffer : this->target);
             });
         }
         // term: Reset to defaults.
@@ -6567,7 +6564,7 @@ namespace netxs::ui
             {
                 ansi::deco style;
                 ansi::mark brush;
-                void task(ansi::rule const& cmd) { }
+                void task(ansi::rule const& /*cmd*/) { }
             };
             static auto parser = ansi::csi_t<marker, true>{};
 
@@ -6647,7 +6644,7 @@ namespace netxs::ui
                 {
                     auto limit = delta.y;
                     delta.y = 0;
-                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto id) mutable // 0ms = current FPS ticks/sec.
+                    worker.actify(commands::ui::center, 0ms, [&, delta, shore, limit](auto /*id*/) mutable // 0ms = current FPS ticks/sec.
                     {
                         auto shift = scrollby(delta);
                         return shore-- && (origin.x != limit && !!shift);
@@ -6686,7 +6683,6 @@ namespace netxs::ui
         }
         auto paste(hids& gear)
         {
-            auto& console = *target;
             auto data = get_clipboard_text(gear);
             if (data.size())
             {
@@ -6850,7 +6846,7 @@ namespace netxs::ui
                 auto shift = scrollby(delta);
                 coord += delta - shift;
                 delta -= delta * 3 / 4; // Decrease scrolling speed.
-                worker.actify(0ms, [&, delta, coord, boxed](auto id) mutable // 0ms = current FPS ticks/sec.
+                worker.actify(0ms, [&, delta, coord, boxed](auto) mutable // 0ms = current FPS ticks/sec.
                                     {
                                         auto shift = scrollby(delta);
                                         coord -= shift;
@@ -6869,7 +6865,7 @@ namespace netxs::ui
                 base::deface();
             }
         }
-        void selection_finish(hids& gear)
+        void selection_finish(hids& /*gear*/)
         {
             //todo option: copy on select
             //...
@@ -7055,7 +7051,7 @@ namespace netxs::ui
         void onexit(si32 code, text msg = {}, bool exit_after_sighup = faux)
         {
             if (exit_after_sighup) close();
-            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& boss)
+            else netxs::events::enqueue<faux>(This(), [&, code, msg, backup = This()](auto& /*boss*/)
             {
                 ipccon.payoff(io_log);
                 auto lock = netxs::events::sync{};
@@ -7134,7 +7130,7 @@ namespace netxs::ui
             {
                 if (ipccon.sighup())
                 {
-                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+                    netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
                     {
                         ipccon.payoff(io_log); // Wait child process.
                         this->RISEUP(tier::release, e2::form::proceed::quit::one, forced); //todo VS2019 requires `this`
@@ -7200,12 +7196,12 @@ namespace netxs::ui
               bpmode{  faux },
               unsync{  faux },
               invert{  faux },
-              resume{  faux },
-              forced{  faux },
               styled{  faux },
               io_log{ config.def_io_log },
-              selmod{ config.def_selmod },
               selalt{ config.def_selalt },
+              resume{  faux },
+              forced{  faux },
+              selmod{ config.def_selmod },
               altscr{ config.def_altscr },
               kbmode{ prot::vt }
         {
@@ -7362,7 +7358,7 @@ namespace netxs::ui
                     list.thing.sendby(master);
                 }
                 lock.unlock();
-                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7370,7 +7366,7 @@ namespace netxs::ui
             void handle(s11n::xs::tooltips            lock)
             {
                 auto copy = lock.thing;
-                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [tooltips = std::move(copy)](auto& /*boss*/) mutable
                 {
                     for (auto& tooltip : tooltips)
                     {
@@ -7388,7 +7384,7 @@ namespace netxs::ui
                     cell::gc_set_data(jgc.token, jgc.cluster);
                     if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                 }
-                netxs::events::enqueue(master.This(), [&](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {
                     master.base::deface();
                 });
@@ -7492,7 +7488,7 @@ namespace netxs::ui
             void handle(s11n::xs::minimize            lock)
             {
                 auto& m = lock.thing;
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     if (auto gear_ptr = bell::getref<hids>(m.gear_id))
                     {
@@ -7501,9 +7497,9 @@ namespace netxs::ui
                     }
                 });
             }
-            void handle(s11n::xs::expose              lock)
+            void handle(s11n::xs::expose            /*lock*/)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::preview, e2::form::layout::expose, area, ());
                 });
@@ -7542,7 +7538,7 @@ namespace netxs::ui
             void handle(s11n::xs::header              lock)
             {
                 auto& h = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = h.window_id, header = h.utf8](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, /*id = h.window_id,*/ header = h.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::header, header);
                 });
@@ -7550,7 +7546,7 @@ namespace netxs::ui
             void handle(s11n::xs::footer              lock)
             {
                 auto& f = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = f.window_id, footer = f.utf8](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, /*id = f.window_id,*/ footer = f.utf8](auto& /*boss*/) mutable
                 {
                     master.RISEUP(tier::preview, e2::form::prop::ui::footer, footer);
                 });
@@ -7578,22 +7574,22 @@ namespace netxs::ui
             void handle(s11n::xs::warping             lock)
             {
                 auto& w = lock.thing;
-                netxs::events::enqueue(master.This(), [&, id = w.window_id, warp = w.warpdata](auto& boss)
+                netxs::events::enqueue(master.This(), [&, /*id = w.window_id,*/ warp = w.warpdata](auto& /*boss*/)
                 {
                     //todo use window_id
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            void handle(s11n::xs::vt_command          lock)
+            void handle(s11n::xs::vt_command        /*lock*/)
             {
-                auto& w = lock.thing;
+                //auto& w = lock.thing;
                 //todo implement
             }
             void handle(s11n::xs::fps                 lock)
             {
-                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& boss) mutable
+                netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
                 {
-                    boss.SIGNAL(tier::general, e2::config::fps, fps);
+                    master.SIGNAL(tier::general, e2::config::fps, fps);
                 });
             }
             void handle(s11n::xs::logs                lock)
@@ -7621,20 +7617,20 @@ namespace netxs::ui
             }
             void handle(s11n::xs::fatal               lock)
             {
-                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& boss)
+                netxs::events::enqueue(master.This(), [&, utf8 = lock.thing.err_msg](auto& /*boss*/)
                 {
                     master.errmsg = master.genmsg(utf8);
                     master.deface();
                 });
             }
-            void handle(s11n::xs::sysclose            lock)
+            void handle(s11n::xs::sysclose          /*lock*/)
             {
                 master.active.exchange(faux);
                 master.stop(true);
             }
-            void handle(s11n::xs::sysstart            lock)
+            void handle(s11n::xs::sysstart          /*lock*/)
             {
-                netxs::events::enqueue(master.This(), [&](auto& boss)
+                netxs::events::enqueue(master.This(), [&](auto& /*boss*/)
                 {
                     master.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
@@ -7647,31 +7643,31 @@ namespace netxs::ui
                 {
                     if (gear.captured(master.id))
                     {
-                        if (!gear.m.buttons) gear.setfree(true);
+                        if (!gear.m_sys.buttons) gear.setfree(true);
                     }
-                    else if (gear.m.buttons) gear.capture(master.id);
-                    gear.m.gear_id = gear.id;
-                    s11n::sysmouse.send(master, gear.m);
+                    else if (gear.m_sys.buttons) gear.capture(master.id);
+                    gear.m_sys.gear_id = gear.id;
+                    s11n::sysmouse.send(master, gear.m_sys);
                     gear.dismiss();
                 };
                 master.LISTEN(tier::general, hids::events::die, gear, tokens)
                 {
                     gear.setfree(true);
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::die;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::die;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::general, hids::events::halt, gear, tokens)
                 {
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::release, hids::events::notify::mouse::leave, gear, tokens)
                 {
-                    gear.m.gear_id = gear.id;
-                    gear.m.enabled = hids::stat::halt;
-                    s11n::sysmouse.send(master, gear.m);
+                    gear.m_sys.gear_id = gear.id;
+                    gear.m_sys.enabled = hids::stat::halt;
+                    s11n::sysmouse.send(master, gear.m_sys);
                 };
                 master.LISTEN(tier::release, hids::events::keybd::focus::bus::any, seed, tokens)
                 {
@@ -7739,11 +7735,11 @@ namespace netxs::ui
 
         evnt stream; // dtvt: Event handler.
         flag active; // dtvt: Terminal lifetime.
+        si32 opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         si32 nodata; // dtvt: Show splash "No signal".
         face splash; // dtvt: "No signal" splash.
         page errmsg; // dtvt: Overlay error message.
         span maxoff; // dtvt: Max delay before showing "No signal".
-        byte opaque; // dtvt: Object transparency on d_n_d (no pro::cache).
         vtty ipccon; // dtvt: IPC connector. Should be destroyed first.
 
         // dtvt: Proceed DirectVT output.
@@ -7771,7 +7767,7 @@ namespace netxs::ui
         void onexit()
         {
             if (!active.exchange(faux)) return;
-            netxs::events::enqueue(This(), [&](auto& boss) mutable // Unexpected disconnection.
+            netxs::events::enqueue(This(), [&](auto& /*boss*/) mutable // Unexpected disconnection.
             {
                 auto lock = stream.bitmap_dtvt.freeze();
                 auto& canvas = lock.thing.image;
@@ -7814,7 +7810,7 @@ namespace netxs::ui
                 stream.s11n::sysclose.send(*this, fast);
                 return;
             }
-            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& boss) mutable
+            netxs::events::enqueue<faux>(This(), [&, backup = This()](auto& /*boss*/) mutable
             {
                 ipccon.payoff();
                 this->RISEUP(tier::release, e2::form::proceed::quit::one, true); // MSVC2019

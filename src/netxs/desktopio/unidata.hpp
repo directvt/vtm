@@ -271,28 +271,27 @@ namespace netxs::unidata
 
     struct unidata
     {
-        widths::type  ucwidth;
-        gbreak::type  brgroup;
-        cntrls::type  control;
-        unsigned char padding = {};
+        widths::type ucwidth;
+        gbreak::type brgroup;
+        cntrls::type control;
+        byte         padding{};
 
+        constexpr unidata(unidata const&) = default;
         constexpr unidata()
             : ucwidth{ widths::slim },
               brgroup{ gbreak::any },
               control{ cntrls::non_control }
         { }
-
         constexpr unidata(widths::type ucwidth, gbreak::type brgroup, cntrls::type control)
             : ucwidth{ ucwidth },
               brgroup{ brgroup },
               control{ control }
         { }
-
         unidata(ui32 cp)
             : unidata{ select(cp) }
         { }
 
-        unidata(unidata const&) = default;
+        constexpr unidata& operator = (unidata const&) = default;
 
         bool is_cmd()
         {
@@ -810,8 +809,8 @@ namespace netxs::unidata
         while (iter != tail)
         {
             auto n = *iter++;
-            if (n < 0) data.insert(data.end(), -n, *iter++);
-            else       data.push_back(n);
+            if (n < 0) data.insert(data.end(), -n, static_cast<T>(*iter++));
+            else       data.push_back(static_cast<T>(n));
         }
         return data;
     }

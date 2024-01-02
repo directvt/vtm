@@ -649,17 +649,17 @@ namespace netxs::generics
             auto btm_block = max - n;
             if (btm_block > top_block)
             {
-                auto tail = begin() - 1;
-                auto head = tail + top_block;
-                netxs::swap_block<faux>(head, tail, head + n);
+                auto b = begin() - 1;
+                auto a = b + top_block;
+                netxs::swap_block<faux>(a, b, b + n);
                 static constexpr auto UseBack = true;
                 while (n-- > 0) pop_front<UseBack>();
             }
             else
             {
-                auto tail = end();
-                auto head = tail - btm_block;
-                netxs::swap_block<true>(head, tail, head - n);
+                auto b = end();
+                auto a = b - btm_block;
+                netxs::swap_block<true>(a, b, a - n);
                 while (n-- > 0) pop_back();
             }
             index(tmp); // Restore current item selector.
@@ -832,15 +832,15 @@ namespace netxs::generics
                         auto task = queue.front();
                         if (task >= 0 && (size_t)task < last->size())
                         {
-                            if (auto const& next = last->at(task))
+                            if (auto const& next_item = last->at(task))
                             {
                                 queue.pop_front();
-                                if (next.proc)
+                                if (next_item.proc)
                                 {
-                                    next.proc(queue, story);
+                                    next_item.proc(queue, story);
                                     break;
                                 }
-                                else last = &next;
+                                else last = &next_item;
                             }
                             else
                             {
@@ -861,7 +861,7 @@ namespace netxs::generics
         void execute(size_t alonecmd, Out& story) const
         {
             auto& queue = In::fake();
-            if (alonecmd >= 0 && alonecmd < this->size())
+            if (alonecmd < this->size())
             {
                 if (auto const& next = this->at(alonecmd))
                 {

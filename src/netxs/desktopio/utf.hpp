@@ -76,6 +76,7 @@ namespace netxs::utf
               cpcount{attr.cpcount},
               cdpoint{attr.cdpoint}
         { }
+        constexpr prop& operator = (prop const&) = default;
 
         auto combine(prop const& next)
         {
@@ -420,6 +421,7 @@ namespace netxs::utf
         };
 
         constexpr qiew() noexcept : view() { }
+        constexpr qiew(qiew const&) = default;
         constexpr qiew(span const& v) noexcept : view(v.data(), v.size()) { }
         constexpr qiew(view const& v) noexcept : view(v) { }
                   qiew(text const& v) noexcept : view(v) { }
@@ -759,26 +761,24 @@ namespace netxs::utf
     // utf: Check utf-8 integrity (last codepoint) and cut off the invalid bytes at the end.
     void purify(view& utf8)
     {
-        if (auto size = utf8.size())
+        auto head = utf8.rend();
+        auto tail = utf8.rbegin();
+        while (tail != head && (*tail & 0xc0) == 0x80) // Find first byte.
         {
-            auto is_first = [](auto c) { return (c & 0xc0) != 0x80; };
-            auto first = faux;
-
-            while (size && !(first = is_first(utf8[--size]))) // Find first byte.
-            { }
-
-            if (first) // Check codepoint.
+            ++tail;
+        }
+        if (tail != head) // Check codepoint.
+        {
+            auto p = head - tail - 1;
+            auto l = utf::letter(utf8.substr(p));
+            if (!l.attr.correct)
             {
-                auto l = utf::letter(utf8.substr(size));
-                if (!l.attr.correct)
-                {
-                    utf8 = utf8.substr(0, size);
-                }
+                utf8 = utf8.substr(0, p);
             }
-            else // Bad UTF-8 encoding (size == 0).
-            {
-                //Recycle all bad bytes (log?).
-            }
+        }
+        else // Bad UTF-8 encoding
+        {
+            //Recycle all bad bytes (log?).
         }
     }
     auto substr(qiew utf8, size_t start, size_t length = text::npos)
@@ -1158,11 +1158,13 @@ namespace netxs::utf
             while ((pos = utf8.find(mark, cur)) != V1::npos)
             {
                 auto frag = view{ utf8.data() + cur, pos - cur };
-                if (!SkipEmpty || !frag.empty()) crop.push_back(frag);
+                auto push = !SkipEmpty || !frag.empty();
+                if (push) crop.push_back(frag);
                 cur = pos + len;
             }
-            auto end = view{ utf8.data() + cur, utf8.size() - cur };
-            if (!SkipEmpty || !end.empty()) crop.push_back(end);
+            auto tail = view{ utf8.data() + cur, utf8.size() - cur };
+            auto push = !SkipEmpty || !tail.empty();
+            if (push) crop.push_back(tail);
         }
         return crop;
     }
@@ -1551,9 +1553,9 @@ namespace netxs::utf
         auto test = utf8.find('\033');
         return test == text::npos;
     }
-    auto to_low(unsigned char c)
+    auto to_low(char c)
     {
-        return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+        return c >= 'A' && c <= 'Z' ? (char)(c + ('a' - 'A')) : c;
     }
     auto& to_low(text& utf8, size_t size = text::npos)
     {
@@ -1570,7 +1572,7 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](unsigned char c) { return c >= 'a' && c <= 'z' ? c - ('a' - 'A') : c; });
+        std::transform(head, tail, head, [](char c) { return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c; });
         return utf8;
     }
     auto to_up(text&& utf8)

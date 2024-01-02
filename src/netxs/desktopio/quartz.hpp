@@ -66,10 +66,10 @@ namespace netxs::datetime
         flag     alive;
         flag     letup;
         span     delay;
+        span     watch;
         span     pulse;
         work     fiber;
         cond     synch;
-        span     watch;
 
         void worker()
         {
@@ -184,8 +184,8 @@ namespace netxs::datetime
         span minint; // tail: The minimal period of time between the records stored.
 
         tail(span period = 75ms, span minint = 4ms) //todo unify the minint=1/fps
-            : size{ 1 },
-              iter{ 0 },
+            : iter{ 0 },
+              size{ 1 },
               period{ period },
               minint{ minint }
         {

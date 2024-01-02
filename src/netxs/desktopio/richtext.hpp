@@ -17,21 +17,20 @@ namespace netxs::ui
 
     public:
         poly() = default;
-        poly(cell const& basis)
-            : basis{ basis }
+        poly(cell const& c)
+            : basis{ c }
         {
-            recalc(basis);
+            recalc(c);
         }
 
-        void recalc(cell const& basis)
+        void recalc(cell const& c)
         {
             for (auto k = 0; k < 256; k++)
             {
                 auto& b = grade[k];
-
-                b = basis;
-                b.bga(b.bga() * k >> 8);
-                b.fga(b.fga() * k >> 8);
+                b = c;
+                b.bga((byte)(b.bga() * k >> 8));
+                b.fga((byte)(b.fga() * k >> 8));
             }
         }
 
@@ -76,9 +75,9 @@ namespace netxs::ui
         static void exec_py(flow& f, si32 a) { f.py(a); }
         static void exec_tb(flow& f, si32 a) { f.tb(a); }
         static void exec_nl(flow& f, si32 a) { f.nl(a); }
-        static void exec_sc(flow& f, si32 a) { f.sc( ); }
-        static void exec_rc(flow& f, si32 a) { f.rc( ); }
-        static void exec_zz(flow& f, si32 a) { f.zz( ); }
+        static void exec_sc(flow& f, si32  ) { f.sc( ); }
+        static void exec_rc(flow& f, si32  ) { f.rc( ); }
+        static void exec_zz(flow& f, si32  ) { f.zz( ); }
 
         // flow: Draw commands (customizable).
         template<ansi::fn Cmd>
@@ -142,8 +141,8 @@ namespace netxs::ui
                     }
                     else // Cut on a widechar boundary (CJK/Emoji).
                     {
-                        auto p = curpoint + printout.size.x - 1;
-                        if (block.at(p).wdt() == 2)
+                        auto q = curpoint + printout.size.x - 1;
+                        if (block.at(q).wdt() == 2)
                         {
                             --printout.size.x;
                         }
@@ -294,13 +293,12 @@ namespace netxs::ui
             }
         }
         // flow: Execute specified locus instruction list.
-        auto forward(writ const& cmd)
+        auto forward(writ const& cmds)
         {
-            auto& inst = *this;
             //flow::up();
-            for (auto [cmd, arg] : cmd)
+            for (auto [cmd, arg] : cmds)
             {
-                flow::exec[cmd](inst, arg);
+                flow::exec[cmd](*this, arg);
             }
             return flow::up();
         }
@@ -587,54 +585,55 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (dest != tail) fuse(*dest++, *data++);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            --tail; /* tail - 1: half of the wide char */;
-            while (dest < tail)
+            else
             {
-                auto c = *data++;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                --tail; /* tail - 1: half of the wide char */;
+                while (dest < tail)
                 {
-                    fuse(*dest++, c);
+                    auto c = *data++;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        fuse(*dest++, c);
+                    }
+                    else if (w == 2)
+                    {
+                        fuse(*dest++, c.wdt(2));
+                        fuse(*dest++, c.wdt(3));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        c.txt(utf::replacement);
+                        do fuse(*dest++, c);
+                        while (--w && dest != tail + 1);
+                    }
                 }
-                else if (w == 2)
+                if (dest == tail) // Last cell; tail - 1.
                 {
-                    fuse(*dest++, c.wdt(2));
-                    fuse(*dest++, c.wdt(3));
+                    auto c = *data;
+                    auto w = c.wdt();
+                         if (w == 1) fuse(*dest, c);
+                    else if (w == 2) fuse(*dest, c.wdt(3));
+                    else if (w >  2) fuse(*dest, c.txt(utf::replacement));
                 }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    c.txt(utf::replacement);
-                    do fuse(*dest++, c);
-                    while (--w && dest != tail + 1);
-                }
-            }
-            if (dest == tail) // Last cell; tail - 1.
-            {
-                auto c = *data;
-                auto w = c.wdt();
-                     if (w == 1) fuse(*dest, c);
-                else if (w == 2) fuse(*dest, c.wdt(3));
-                else if (w >  2) fuse(*dest, c.txt(utf::replacement));
             }
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -643,50 +642,51 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (size-- > 0) fuse(*dest++, *data++);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            auto set = [&](auto const& c)
+            else
             {
-                if (dest == tail) dest -= back;
-                fuse(*dest++, c);
-                --size;
-            };
-            while (size > 0)
-            {
-                auto c = *data++;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                auto set = [&](auto const& c)
                 {
-                    set(c);
-                }
-                else if (w == 2)
+                    if (dest == tail) dest -= back;
+                    fuse(*dest++, c);
+                    --size;
+                };
+                while (size > 0)
                 {
-                    set(c.wdt(2));
-                    set(c.wdt(3));
-                }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::replacement);
-                    //do set(c);
-                    //while (--w && size > 0);
+                    auto c = *data++;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        set(c);
+                    }
+                    else if (w == 2)
+                    {
+                        set(c.wdt(2));
+                        set(c.wdt(3));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        //c.txt(utf::replacement);
+                        //do set(c);
+                        //while (--w && size > 0);
+                    }
                 }
             }
         }
@@ -696,54 +696,55 @@ namespace netxs::ui
             if constexpr (Copy)
             {
                 while (dest != tail) fuse(*--dest, *--data);
-                return;
             }
-
-            //  + evaluate TAB etc
-            //  + bidi
-            //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
-            //  + while (--wide)
-            //    {
-            //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
-            //        lyric.emplace_back(cluster, whitespace);
-            //    }
-            //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
-
-            ++tail; /* tail + 1: half of the wide char */;
-            while (dest > tail)
+            else
             {
-                auto c = *--data;
-                auto w = c.wdt();
-                if (w == 1)
+                //  + evaluate TAB etc
+                //  + bidi
+                //  + eliminate non-printable and with cwidth == 0 (\0, \t, \b, etc...)
+                //  + while (--wide)
+                //    {
+                //        /* IT IS UNSAFE IF REALLOCATION OCCURS. BOOK ALWAYS */
+                //        lyric.emplace_back(cluster, whitespace);
+                //    }
+                //  + convert front into the screen-like sequence (unfold, remmove zerospace chars)
+
+                ++tail; /* tail + 1: half of the wide char */;
+                while (dest > tail)
                 {
-                    fuse(*--dest, c);
+                    auto c = *--data;
+                    auto w = c.wdt();
+                    if (w == 1)
+                    {
+                        fuse(*--dest, c);
+                    }
+                    else if (w == 2)
+                    {
+                        fuse(*--dest, c.wdt(3));
+                        fuse(*--dest, c.wdt(2));
+                    }
+                    else if (w == 0)
+                    {
+                        //todo implemet controls/commands
+                        // winsrv2019's cmd.exe sets title with a zero at the end
+                        //*dst++ = cell{ c, whitespace };
+                    }
+                    else if (w > 2)
+                    {
+                        // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
+                        //c.txt(utf::replacement);
+                        //do *--dest = c;
+                        //while (--w && dest != tail - 1);
+                    }
                 }
-                else if (w == 2)
+                if (dest == tail) // Last cell; tail + 1.
                 {
-                    fuse(*--dest, c.wdt(3));
-                    fuse(*--dest, c.wdt(2));
+                    auto c = *--data;
+                    auto w = c.wdt();
+                         if (w == 1) fuse(*--dest, c);
+                    else if (w == 2) fuse(*--dest, c.wdt(3));
+                    else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
                 }
-                else if (w == 0)
-                {
-                    //todo implemet controls/commands
-                    // winsrv2019's cmd.exe sets title with a zero at the end
-                    //*dst++ = cell{ c, whitespace };
-                }
-                else if (w > 2)
-                {
-                    // Forbid using super wide characters until terminal emulators support the fragmentation attribute.
-                    //c.txt(utf::replacement);
-                    //do *--dest = c;
-                    //while (--w && dest != tail - 1);
-                }
-            }
-            if (dest == tail) // Last cell; tail + 1.
-            {
-                auto c = *--data;
-                auto w = c.wdt();
-                     if (w == 1) fuse(*--dest, c);
-                else if (w == 2) fuse(*--dest, c.wdt(3));
-                else if (w >  2) fuse(*--dest, c.txt(utf::replacement));
             }
         }
         // rich: Splice proto with auto grow.
@@ -827,8 +828,8 @@ namespace netxs::ui
             while (iter != tail)
             {
                 auto head = --iter;
-                auto tail = head + step;
-                while (head != tail)
+                auto stop = head + step;
+                while (head != stop)
                 {
                     auto& src = *head;
                     auto& dst = *++head;
@@ -1041,6 +1042,7 @@ namespace netxs::ui
             : parser{ style },
               index { newid }
         { }
+        virtual ~para() = default;
 
         para              (auto utf8) {              ansi::parse(utf8, this);               }
         auto& operator  = (auto utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
@@ -1059,17 +1061,15 @@ namespace netxs::ui
         bool   bare() const { return locus.bare();    } // para: Does the paragraph have no locator.
         auto length() const { return lyric->size().x; } // para: Return printable length.
         auto  empty() const { return !length();       } // para: Return true if empty.
-        auto   step() const { return count;           } // para: The next caret step.
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
-        bool   busy() const { return length() || !proto.empty() || brush.busy(); } // para: Is it filled.
+        bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
         void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
         void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
-            count = 0;
+            parser::reset(c);
             caret = 0;
-            brush.reset(c);
             //todo revise
             //style.rst();
             //proto.clear();
@@ -1370,8 +1370,8 @@ namespace netxs::ui
     {
         using iter = std::list<netxs::sptr<para>>::const_iterator;
         iter source;
-        iter finish;
         si32 prefix;
+        iter finish;
         si32 suffix;
         twod volume; // Rope must consist of text lines of the same height.
 
@@ -1390,8 +1390,8 @@ namespace netxs::ui
 
         rope(iter head, iter tail, twod size)
             : source{ head },
-              finish{ tail },
               prefix{ 0    },
+              finish{ tail },
               suffix{ 0    },
               volume{ size },
               style{ (**head).style }
@@ -1457,18 +1457,19 @@ namespace netxs::ui
                 auto refer = finish;
                 auto& item = **refer;
                 auto piece = item.size().x - suffix;
-
-                si32 start, width, yield;
+                auto start = 0;
+                auto width = 0;
+                auto yield = 0;
                 crop(piece, total, start, width);
                 yield = draw(item, start, width);
 
                 while (total -= yield)
                 {
-                    auto& item = **--refer;
-                    piece = item.size().x;
+                    auto& next = **--refer;
+                    piece = next.size().x;
 
                     crop(piece, total, start, width);
-                    yield = draw(item, start, width);
+                    yield = draw(next, start, width);
                 }
             }
             else
@@ -1479,8 +1480,8 @@ namespace netxs::ui
 
                 while (total -= yield)
                 {
-                    auto& item = **++refer;
-                    yield = draw(item, 0, total);
+                    auto& next = **++refer;
+                    yield = draw(next, 0, total);
                 }
             }
         }
@@ -1528,7 +1529,7 @@ namespace netxs::ui
         {
             using namespace netxs::ansi;
 
-            #define V [](auto& q, auto& p)
+            #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
             //vt.intro[ctrl::nul]             = V{ p->post(utf::frag{ emptyspace, utf::prop{ 0, 1 } }); };
             vt.intro[ctrl::cr ]              = V{ q.pop_if(ctrl::eol); p->task({ fn::nl,1 }); };
             vt.intro[ctrl::tab]              = V{ p->task({ fn::tb, q.pop_all(ctrl::tab) }); };
@@ -1548,7 +1549,8 @@ namespace netxs::ui
         page(view utf8)               {          ansi::parse(utf8, this); reindex();               }
         page() = default;
         page(page&& p)
-            : index{ p.index },
+            : parser{        },
+              index{ p.index },
               batch{ std::move(p.batch) },
               parts{ std::move(p.parts) },
               stack{ std::move(p.stack) },
@@ -1556,8 +1558,9 @@ namespace netxs::ui
         {
             reindex();
         }
-        page (page const& p)
-            : index{ p.index },
+        page(page const& p)
+            : parser{        },
+              index{ p.index },
               batch{ p.batch },
               parts{ p.parts },
               stack{ p.stack },
@@ -1695,7 +1698,7 @@ namespace netxs::ui
             auto& item = **layer;
             item.locus.push(cmd);
         }
-        void meta(deco const& old_style) override
+        void meta(deco const& /*old_style*/) override
         {
             auto& item = **layer;
             item.style = parser::style;
@@ -1857,8 +1860,8 @@ namespace netxs::ui
                 static constexpr auto off = "\\strike0 "sv;
                 data += b ? set : off;
             }
-            auto ovr(bool b) { } // not supported
-            auto blk(bool b) { } // not supported
+            auto ovr(bool) { } // not supported
+            auto blk(bool) { } // not supported
         };
 
         auto to_rich(text font = {}) const
@@ -2418,7 +2421,7 @@ namespace netxs::ui
 
             // Override vt-functionality.
             using namespace netxs::ansi;
-            #define V [](auto& q, auto& p)
+            #define V []([[maybe_unused]] auto& q, [[maybe_unused]] auto& p)
             vt.intro[ctrl::tab] = V{ p->tabs(q.pop_all(ctrl::tab)); };
             #undef V
         }

@@ -73,7 +73,7 @@ namespace netxs::app::desk
         {
             auto tall = si32{ skin::globals().menuwide };
             auto danger_color    = skin::globals().danger;
-            auto highlight_color = skin::globals().highlight;
+            //auto highlight_color = skin::globals().highlight;
             auto focused_color   = skin::globals().focused;
             auto active_color    = skin::globals().active;
             auto cE = active_color;
@@ -187,7 +187,7 @@ namespace netxs::app::desk
                 {
                     boss.base::hidden = true;
                     auto data_src_shadow = ptr::shadow(data_src);
-                    auto& item_area_inst = *item_area;
+                    //auto& item_area_inst = *item_area;
                     item_area->LISTEN(tier::release, e2::form::state::mouse, hover, -)
                     {
                         if (disabled) return;
@@ -228,12 +228,12 @@ namespace netxs::app::desk
         auto apps_template = [](auto& data_src, auto& apps_map_ptr)
         {
             auto tall = si32{ skin::globals().menuwide };
-            auto highlight_color = skin::globals().highlight;
+            //auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
             auto selected_color  = skin::globals().selected;
             auto danger_color    = skin::globals().danger;
             auto c1 = danger_color;
-            auto c3 = highlight_color;
+            //auto c3 = highlight_color;
             auto c9 = selected_color;
             auto cA = inactive_color;
 
@@ -455,15 +455,15 @@ namespace netxs::app::desk
                 });
         };
 
-        auto build = [](text env, text cwd, text v, xmls& config, text patch)
+        auto build = [](text /*env*/, text /*cwd*/, text v, xmls& config, text /*patch*/)
         {
             auto tall = si32{ skin::globals().menuwide };
-            auto highlight_color = skin::globals().highlight;
+            //auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
             auto warning_color   = skin::globals().warning;
             auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
-            auto c3 = highlight_color;
+            //auto c3 = highlight_color;
             auto c2 = warning_color;
             auto c1 = danger_color;
 
@@ -515,10 +515,10 @@ namespace netxs::app::desk
             auto user_template = [my_id](auto& data_src, auto const& utf8)
             {
                 auto tall = si32{ skin::globals().menuwide };
-                auto highlight_color = skin::color(tone::highlight);
+                //auto highlight_color = skin::color(tone::highlight);
                 auto active_color    = skin::globals().active;
                 auto cE = active_color;
-                auto c3 = highlight_color;
+                //auto c3 = highlight_color;
                 auto user = ui::item::ctor(escx(" &").nil().add(" ").wrp(wrap::off)
                         .fgx(data_src->id == my_id ? cE.fgc() : rgba{}).add(utf8).nil())
                     ->flexible()
@@ -528,7 +528,7 @@ namespace netxs::app::desk
                     ->template plugin<pro::notes>(" Connected user ");
                 return user;
             };
-            auto branch_template = [user_template](auto& data_src, auto& usr_list)
+            auto branch_template = [user_template](auto& /*data_src*/, auto& usr_list)
             {
                 auto tall = si32{ skin::globals().menuwide };
                 auto users = ui::list::ctor()
@@ -680,11 +680,11 @@ namespace netxs::app::desk
                                    : menu_max_size = menu_min_size;
                         }
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear, -, (size_config))
+                    boss.LISTEN(tier::release, e2::form::drag::cancel::_<hids::buttons::left>, gear)
                     {
                         boss.SIGNAL(tier::release, events::ui::sync, true);
                     };
-                    boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear, -, (size_config))
+                    boss.LISTEN(tier::release, e2::form::drag::stop::_<hids::buttons::left>, gear)
                     {
                         boss.SIGNAL(tier::release, events::ui::sync, true);
                     };

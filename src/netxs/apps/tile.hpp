@@ -367,9 +367,9 @@ namespace netxs::app::tile
         {
             auto menu_black = skin::color(tone::menu_black);
             auto cC = menu_black.fgc(whitedk);
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto c3 = highlight_color;
+            //auto c3 = highlight_color;
             auto c1 = danger_color;
 
             using namespace app::shared;
@@ -377,7 +377,7 @@ namespace netxs::app::tile
             menu::list
             {
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " New app " }}},
-                [](auto& boss, auto& item)
+                [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
@@ -386,7 +386,7 @@ namespace netxs::app::tile
                     };
                 }},
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "│", .notes = " Split horizontally " }}},
-                [](auto& boss, auto& item)
+                [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
@@ -395,7 +395,7 @@ namespace netxs::app::tile
                     };
                 }},
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split vertically " }}},
-                [](auto& boss, auto& item)
+                [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
@@ -404,7 +404,7 @@ namespace netxs::app::tile
                     };
                 }},
                 { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Delete pane ", .hover = c1 }}},
-                [](auto& boss, auto& item)
+                [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                     {
@@ -698,7 +698,7 @@ namespace netxs::app::tile
                         }
 
                         insts_count++; //todo unify, demo limits
-                        config.applet->LISTEN(tier::release, e2::dtor, id)
+                        config.applet->LISTEN(tier::release, e2::dtor, applet_id)
                         {
                             insts_count--;
                             if constexpr (debugmode) log(prompt::tile, "Instance detached: id:", id, "; left:", insts_count);
@@ -737,21 +737,21 @@ namespace netxs::app::tile
                 auto s1 = si32{ 1 };
                 auto s2 = si32{ 1 };
                 auto w  = si32{-1 };
-                if (auto v = utf::to_int(utf8)) // Left side ratio
+                if (auto l = utf::to_int(utf8)) // Left side ratio
                 {
-                    s1 = std::abs(v.value());
+                    s1 = std::abs(l.value());
                     if (utf8.empty() || utf8.front() != ':') return slot;
                     utf8.remove_prefix(1);
-                    if (auto v = utf::to_int(utf8)) // Right side ratio
+                    if (auto r = utf::to_int(utf8)) // Right side ratio
                     {
-                        s2 = std::abs(v.value());
+                        s2 = std::abs(r.value());
                         utf::trim_front(utf8, " ");
                         if (!utf8.empty() && utf8.front() == ':') // Grip width.
                         {
                             utf8.remove_prefix(1);
-                            if (auto v = utf::to_int(utf8))
+                            if (auto g = utf::to_int(utf8))
                             {
-                                w = std::abs(v.value());
+                                w = std::abs(g.value());
                                 utf::trim_front(utf8, " ");
                             }
                         }
@@ -787,15 +787,15 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text env, text cwd, view param, xmls& config, text patch) -> sptr
+        auto build_inst = [](text /*env*/, text cwd, view param, xmls& config, text /*patch*/) -> sptr
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto warning_color   = skin::color(tone::warning);
-            auto c3 = highlight_color;
-            auto c2 = warning_color;
+            //auto warning_color   = skin::color(tone::warning);
+            //auto c3 = highlight_color;
+            //auto c2 = warning_color;
             auto c1 = danger_color;
 
             auto object = ui::fork::ctor(axis::Y)
@@ -840,7 +840,7 @@ namespace netxs::app::tile
                         //    };
                         //}},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -849,7 +849,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ":::", .notes = " Select all panes " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -858,7 +858,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " │ ", .notes = " Split active panes horizontally " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -867,7 +867,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "──", .notes = " Split active panes vertically " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -876,7 +876,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "┌┘", .notes = " Change split orientation " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -885,7 +885,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "<->", .notes = " Swap two or more panes " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -894,7 +894,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = ">|<", .notes = " Equalize split ratio " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -903,7 +903,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "\"…\"", .notes = " Set tiling manager window title using clipboard data " }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -911,7 +911,7 @@ namespace netxs::app::tile
                             };
                         }},
                         { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close active app ", .hover = c1 }}},
-                        [](auto& boss, auto& item)
+                        [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                             {
@@ -999,7 +999,6 @@ namespace netxs::app::tile
                                 if (slots_count >= 2) // Swap selected panes cyclically.
                                 {
                                     log(prompt::tile, "Swap slots cyclically");
-                                    auto i = 0;
                                     auto emp_slot = sptr{};
                                     auto app_slot = sptr{};
                                     auto emp_next = sptr{};

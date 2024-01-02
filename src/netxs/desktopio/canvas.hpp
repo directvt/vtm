@@ -90,10 +90,10 @@ namespace netxs
                     case mode_RGB:
                     {
                         auto r = queue.subarg(-1); // Skip the case with color space: \x1b[38:2::255:255:255:::m.
-                        chan.r = r == -1 ? queue.subarg(0) : r;
-                        chan.g = queue.subarg(0);
-                        chan.b = queue.subarg(0);
-                        chan.a = queue.subarg(0xFF);
+                        chan.r = (byte)(r == -1 ? queue.subarg(0) : r);
+                        chan.g = (byte)(queue.subarg(0));
+                        chan.b = (byte)(queue.subarg(0));
+                        chan.a = (byte)(queue.subarg(0xFF));
                         break;
                     }
                     case mode_256:
@@ -108,9 +108,9 @@ namespace netxs
                 switch (mode)
                 {
                     case mode_RGB:
-                        chan.r = queue(0);
-                        chan.g = queue(0);
-                        chan.b = queue(0);
+                        chan.r = (byte)(queue(0));
+                        chan.g = (byte)(queue(0));
+                        chan.b = (byte)(queue(0));
                         chan.a = 0xFF;
                         break;
                     case mode_256:
@@ -122,6 +122,7 @@ namespace netxs
             }
         }
 
+        constexpr rgba& operator = (rgba const&) = default;
         constexpr explicit operator bool () const
         {
             return token;
@@ -152,9 +153,9 @@ namespace netxs
             return chan.a && chan.a != 0xFF;
         }
         // rgba: Set alpha channel.
-        void alpha(byte k)
+        void alpha(si32 k)
         {
-            chan.a = k;
+            chan.a = (byte)k;
         }
         // rgba: Return alpha channel.
         auto alpha() const
@@ -179,7 +180,7 @@ namespace netxs
         // rgba: Return 256-color 6x6x6 cube.
         auto to_256cube() const
         {
-            byte clr;
+            auto clr = 0;
             if (chan.r == chan.g
              && chan.r == chan.b)
             {
@@ -191,14 +192,14 @@ namespace netxs
                          +  6 * ((chan.g * 6) >> 8)
                               + ((chan.b * 6) >> 8);
             }
-            return clr;
+            return (byte)clr;
         }
         // rgba: Equal both to their average.
         void avg(rgba& c)
         {
-            chan.r = c.chan.r = (chan.r + c.chan.r) >> 1;
-            chan.g = c.chan.g = (chan.g + c.chan.g) >> 1;
-            chan.b = c.chan.b = (chan.b + c.chan.b) >> 1;
+            chan.r = c.chan.r = (byte)(((ui32)chan.r + c.chan.r) >> 1);
+            chan.g = c.chan.g = (byte)(((ui32)chan.g + c.chan.g) >> 1);
+            chan.b = c.chan.b = (byte)(((ui32)chan.b + c.chan.b) >> 1);
         }
         // rgba: One-side alpha blending RGBA colors.
         void inline mix_one(rgba c)
@@ -211,7 +212,7 @@ namespace netxs
             {
                 auto blend = [](auto c1, auto c2, auto alpha)
                 {
-                    return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
+                    return (byte)(((c1 << 8) + (c2 - c1) * alpha) >> 8);
                 };
                 chan.r = blend(chan.r, c.chan.r, c.chan.a);
                 chan.g = blend(chan.g, c.chan.g, c.chan.a);
@@ -230,20 +231,20 @@ namespace netxs
             else if (c.chan.a)
             {
                 //todo consider premultiplied alpha
-                auto a1 = chan.a;
-                auto a2 = c.chan.a;
-                unsigned const a = ((a2 + a1) << 8) - a1 * a2;
+                auto a1 = ui32{ chan.a };
+                auto a2 = ui32{ c.chan.a };
+                auto a = ((a2 + a1) << 8) - a1 * a2;
                 auto blend2 = [&](auto c1, auto c2)
                 {
                     auto t = c1 * a1;
-                    unsigned d = (((c2 * a2 + t) << 8) - t * a2);
-                    return d / a;
+                    auto d = ((c2 * a2 + t) << 8) - t * a2;
+                    return (byte)(d / a);
                     //return (((c2 * a2 + t) << 8) - t * a2) / a;
                 };
                 chan.r = blend2(chan.r, c.chan.r);
                 chan.g = blend2(chan.g, c.chan.g);
                 chan.b = blend2(chan.b, c.chan.b);
-                chan.a = a >> 8;
+                chan.a = (byte)(a >> 8);
             }
         }
         // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
@@ -256,7 +257,7 @@ namespace netxs
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
         // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c, byte alpha)
+        void inline mix(rgba c, si32 alpha)
         {
             if (alpha == 0xFF)
             {
@@ -265,10 +266,10 @@ namespace netxs
             else if (alpha)
             {
                 auto inverse = 256 - alpha;
-                chan.r = (c.chan.r * alpha + chan.r * inverse) >> 8;
-                chan.g = (c.chan.g * alpha + chan.g * inverse) >> 8;
-                chan.b = (c.chan.b * alpha + chan.b * inverse) >> 8;
-                chan.a = (c.chan.a * alpha + chan.a * inverse) >> 8;
+                chan.r = (byte)((c.chan.r * alpha + chan.r * inverse) >> 8);
+                chan.g = (byte)((c.chan.g * alpha + chan.g * inverse) >> 8);
+                chan.b = (byte)((c.chan.b * alpha + chan.b * inverse) >> 8);
+                chan.a = (byte)((c.chan.a * alpha + chan.a * inverse) >> 8);
             }
         }
         // rgba: Rough alpha blending RGBA colors.
@@ -662,17 +663,16 @@ namespace netxs
     {
         T r, g, b, a;
 
-        irgb() = default;
-
-        irgb(T r, T g, T b, T a = { -1 })
+        constexpr irgb() = default;
+        constexpr irgb(irgb const&) = default;
+        constexpr irgb(T r, T g, T b, T a = { -1 })
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
-
-        irgb(rgba c)
-            : r { c.chan.r },
-              g { c.chan.g },
-              b { c.chan.b },
-              a { c.chan.a }
+        constexpr irgb(rgba c)
+            : r{ c.chan.r },
+              g{ c.chan.g },
+              b{ c.chan.b },
+              a{ c.chan.a }
         { }
 
         operator rgba() const { return rgba{ r, g, b, a }; }
@@ -772,6 +772,7 @@ namespace netxs
                 set(utf8, width);
             }
 
+            constexpr glyf& operator = (glyf const&) = default;
             auto operator == (glyf const& c) const
             {
                 return token == c.token;
@@ -960,6 +961,7 @@ namespace netxs
                 : token{ b.token }
             { }
 
+            constexpr body& operator = (body const&) = default;
             bool operator == (body const& b) const
             {
                 return token == b.token;
@@ -1057,6 +1059,7 @@ namespace netxs
                   fg{ c.fg }
             { }
 
+            constexpr clrs& operator = (clrs const&) = default;
             constexpr bool operator == (clrs const& c) const
             {
                 return bg == c.bg
@@ -1142,14 +1145,17 @@ namespace netxs
         clrs       uv;     // 8U, cell: RGBA color.
         glyf<void> gc;     // 8U, cell: Grapheme cluster.
         body       st;     // 4U, cell: Style attributes.
-        id_t       id = 0; // 4U, cell: Link ID.
+        id_t       id;     // 4U, cell: Link ID.
         id_t       rsrvd0; // 4U, cell: pad, the size should be a power of 2.
         id_t       rsrvd1; // 4U, cell: pad, the size should be a power of 2.
 
-        cell() = default;
+        cell()
+            : id{ 0 }
+        { }
 
         cell(char c)
-            : gc{ c }
+            : gc{ c },
+              id{ 0 }
         {
             // sizeof(glyf<void>);
             // sizeof(clrs);
@@ -1160,6 +1166,7 @@ namespace netxs
         }
 
         cell(view chr)
+            : id{ 0 }
         {
             gc.set(chr);
         }
@@ -1173,16 +1180,16 @@ namespace netxs
 
         cell(cell const& base, view cluster, size_t ucwidth)
             : uv{ base.uv },
+              gc{ base.gc, cluster, ucwidth },
               st{ base.st },
-              id{ base.id },
-              gc{ base.gc, cluster, ucwidth }
+              id{ base.id }
         { }
 
         cell(cell const& base, char c)
             : uv{ base.uv },
+              gc{ c       },
               st{ base.st },
-              id{ base.id },
-              gc{ c }
+              id{ base.id }
         { }
 
         auto operator == (cell const& c) const
@@ -1263,7 +1270,7 @@ namespace netxs
             if (c.wdt()) gc = c.gc;
         }
         // cell: Mix colors using alpha.
-        void mixfull(cell const& c, byte alpha)
+        void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
             if (c.wdt())
@@ -1444,29 +1451,30 @@ namespace netxs
         // cell: Copy view of the cell (Preserve ID).
         auto& set(cell const& c)  { uv = c.uv;
                                     st = c.st;
-                                    gc = c.gc;          return *this; }
-        auto& bgc (rgba c)        { uv.bg = c;          return *this; } // cell: Set Background color.
-        auto& fgc (rgba c)        { uv.fg = c;          return *this; } // cell: Set Foreground color.
-        auto& bga (byte k)        { uv.bg.chan.a = k;   return *this; } // cell: Set Background alpha/transparency.
-        auto& fga (byte k)        { uv.fg.chan.a = k;   return *this; } // cell: Set Foreground alpha/transparency.
-        auto& alpha(byte k)       { uv.bg.chan.a = k;
-                                    uv.fg.chan.a = k;   return *this; } // cell: Set alpha/transparency (background and foreground).
-        auto& bld (bool b)        { st.bld(b);          return *this; } // cell: Set Bold attribute.
-        auto& itc (bool b)        { st.itc(b);          return *this; } // cell: Set Italic attribute.
-        auto& und (si32 n)        { st.und(n);          return *this; } // cell: Set Underline attribute.
-        auto& ovr (bool b)        { st.ovr(b);          return *this; } // cell: Set Overline attribute.
-        auto& inv (bool b)        { st.inv(b);          return *this; } // cell: Set Invert attribute.
-        auto& stk (bool b)        { st.stk(b);          return *this; } // cell: Set Strikethrough attribute.
-        auto& blk (bool b)        { st.blk(b);          return *this; } // cell: Set Blink attribute.
-        auto& rtl (bool b)        { st.rtl(b);          return *this; } // cell: Set Right-To-Left attribute.
-        auto& link(id_t oid)      { id = oid;           return *this; } // cell: Set link object ID.
-        auto& link(cell const& c) { id = c.id;          return *this; } // cell: Set link object ID.
-        auto& txt (view c)        { c.size() ? gc.set(c) : gc.wipe(); return *this; } // cell: Set Grapheme cluster.
-        auto& txt (view c, si32 w){ gc.set(c, w);       return *this; } // cell: Set Grapheme cluster.
-        auto& txt (char c)        { gc.set(c);          return *this; } // cell: Set Grapheme cluster from char.
-        auto& txt (cell const& c) { gc = c.gc;          return *this; } // cell: Set Grapheme cluster from cell.
-        auto& clr (cell const& c) { uv = c.uv;          return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt (si32 w)        { gc.state.width = w; return *this; } // cell: Return Grapheme cluster screen width.
+                                    gc = c.gc;              return *this; }
+        auto& bgc (rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
+        auto& fgc (rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
+        auto& bga (si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set Background alpha/transparency.
+        auto& fga (si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set Foreground alpha/transparency.
+        auto& alpha(si32 k)       { uv.bg.chan.a = (byte)k;
+                                    uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
+        auto& bld (bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
+        auto& itc (bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
+        auto& und (si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
+        auto& ovr (bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
+        auto& inv (bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
+        auto& stk (bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
+        auto& blk (bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
+        auto& rtl (bool b)        { st.rtl(b);              return *this; } // cell: Set Right-To-Left attribute.
+        auto& link(id_t oid)      { id = oid;               return *this; } // cell: Set link object ID.
+        auto& link(cell const& c) { id = c.id;              return *this; } // cell: Set link object ID.
+        auto& txt (view c)        { c.size() ? gc.set(c)
+                                             : gc.wipe();   return *this; } // cell: Set Grapheme cluster.
+        auto& txt (view c, si32 w){ gc.set(c, w);           return *this; } // cell: Set Grapheme cluster.
+        auto& txt (char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
+        auto& txt (cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
+        auto& clr (cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
+        auto& wdt (si32 w)        { gc.state.width = w;     return *this; } // cell: Return Grapheme cluster screen width.
         auto& rst () // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };
@@ -1692,7 +1700,7 @@ namespace netxs
             struct disabled_t
             {
                 template<class T>
-                inline auto operator [] (T param) const
+                inline auto operator [] (T /*param*/) const
                 {
                     return disabled_t{};
                 }
@@ -1700,8 +1708,8 @@ namespace netxs
             };
             struct transparent_t : public brush_t<transparent_t>
             {
-                byte alpha;
-                constexpr transparent_t(byte alpha)
+                si32 alpha;
+                constexpr transparent_t(si32 alpha)
                     : alpha{ alpha }
                 { }
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1709,8 +1717,8 @@ namespace netxs
             };
             struct xlucent_t
             {
-                byte alpha;
-                constexpr xlucent_t(byte alpha)
+                si32 alpha;
+                constexpr xlucent_t(si32 alpha)
                     : alpha{ alpha }
                 { }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fuse(src); dst.bga(alpha); }
@@ -1771,8 +1779,8 @@ namespace netxs
         public:
             template<class T>
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
-            static constexpr auto transparent(byte alpha) { return transparent_t{ alpha }; }
-            static constexpr auto     xlucent(byte alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto transparent(si32 alpha) { return transparent_t{ alpha }; }
+            static constexpr auto     xlucent(si32 alpha) { return     xlucent_t{ alpha }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
@@ -1793,7 +1801,6 @@ namespace netxs
         };
     };
 
-    // Extern link statics.
     template<class T> std::hash<view>                cell::glyf<T>::coder;
     template<class T> text                           cell::glyf<T>::empty;
     template<class T> std::unordered_map<ui64, text> cell::glyf<T>::jumbo;
@@ -2355,12 +2362,12 @@ namespace netxs
             auto new_sz = twod{ a_size.x + b_size.x, std::max(a_size.y, b_size.y) };
             auto block = core{ region.coor, new_sz, marker };
 
-            auto region = rect{ twod{ 0, new_sz.y - a_size.y }, a_size };
-            netxs::inbody<faux>(block, *this, region, dot_00, cell::shaders::full);
-            region.coor.x += a_size.x;
-            region.coor.y += new_sz.y - a_size.y;
-            region.size = b_size;
-            netxs::inbody<faux>(block, src, region, dot_00, cell::shaders::full);
+            auto r = rect{{ 0, new_sz.y - a_size.y }, a_size };
+            netxs::inbody<faux>(block, *this, r, dot_00, cell::shaders::full);
+            r.coor.x = a_size.x;
+            r.coor.y = new_sz.y - b_size.y;
+            r.size = b_size;
+            netxs::inbody<faux>(block, src, r, dot_00, cell::shaders::full);
 
             swap(block);
             digest++;

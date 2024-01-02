@@ -123,7 +123,7 @@ int main(int argc, char* argv[])
     os::dtvt::checkpoint();
 
     auto denied = faux;
-    auto direct = os::dtvt::active;
+    //auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
     auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
@@ -345,7 +345,7 @@ int main(int argc, char* argv[])
         {
             while (auto monitor = logger->meet())
             {
-                domain->run([&, monitor](auto session_id)
+                domain->run([&, monitor](auto /*task_id*/)
                 {
                     auto id = monitor->recv().str();
                     log("%%Monitor [%id%] connected", prompt::logs, id);
@@ -367,19 +367,19 @@ int main(int argc, char* argv[])
         auto settings = config.utf8();
         auto readline = os::tty::readline([&](auto line){ domain->SIGNAL(tier::release, e2::conio::readline, line); },
                                           [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
-        while (auto client = server->meet())
+        while (auto user = server->meet())
         {
-            if (client->auth(userid.second))
+            if (user->auth(userid.second))
             {
-                domain->run([&, client, settings](auto session_id)
+                domain->run([&, user, settings](auto session_id)
                 {
-                    if (auto packet = os::tty::stream.init.recv(client))
+                    if (auto packet = os::tty::stream.init.recv(user))
                     {
-                        auto id = utf::concat(*client);
+                        auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
                         auto config = xmls{ settings };
                         config.fuse(packet.config);
-                        domain->invite(client, packet.user, packet.mode, packet.winsz, config, session_id);
+                        domain->invite(user, packet.user, packet.mode, packet.winsz, config, session_id);
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
                 });

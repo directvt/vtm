@@ -239,18 +239,18 @@ namespace netxs::directvt
                 else if constexpr (std::is_same_v<D, time>)
                 {
                     using span = decltype(time{}.time_since_epoch());
-                    using type = decltype(span{}.count());
-                    if (data.size() < sizeof(type))
+                    using data_type = decltype(span{}.count());
+                    if (data.size() < sizeof(data_type))
                     {
                         log(prompt::dtvt, "Corrupted datetime data");
                         if constexpr (!PeekOnly) data.remove_prefix(data.size());
                         return D{};
                     }
-                    auto temp = netxs::aligned<type>(data.data());
+                    auto temp = netxs::aligned<data_type>(data.data());
                     auto crop = time{ span{ temp }};
                     if constexpr (!PeekOnly)
                     {
-                        data.remove_prefix(sizeof(type));
+                        data.remove_prefix(sizeof(data_type));
                     }
                     return crop;
                 }
@@ -438,7 +438,7 @@ namespace netxs::directvt
             template<class T, class P>
             static auto read_block(T& object, P input)
             {
-                auto buff = text(sizeof(sz_t), 0);
+                auto buff = text(sizeof(sz_t), '\0');
                 auto shot = input(buff.data(), buff.size());
                 if (shot.size() != buff.size())
                 {
@@ -491,13 +491,16 @@ namespace netxs::directvt
                 block += other.block;
                 other.reset();
             }
+
+            stream(stream const&) = default;
             stream(type kind)
                 : basis{ sizeof(basis) + sizeof(kind) },
-                  start{ basis },
-                  valid{ true  }
+                  start{ basis                        },
+                  valid{ true                         }
             {
                 add(basis, kind);
             }
+            stream& operator = (stream const&) = default;
         };
 
         template<class Base>
@@ -719,7 +722,7 @@ namespace netxs::directvt
                     stream::reset();                                                        \
                     stream::add(SEQ_NAME_macro(WRAP_macro(struct_members)) noop{});         \
                 }                                                                           \
-                void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int _tmp = {})          \
+                void set(SEQ_SIGN_macro(WRAP_macro(struct_members)) int /*_tmp*/ = {})      \
                 {                                                                           \
                     SEQ_INIT_macro(WRAP_macro(struct_members))                              \
                     set();                                                                  \
@@ -767,10 +770,10 @@ namespace netxs::directvt
                     : stream{ kind }                                              \
                 { }                                                               \
                 void set() {}                                                     \
-                void get(view& data) {}                                           \
+                void get(view& /*_data*/) {}                                      \
                                                                                   \
                 friend std::ostream& operator << (std::ostream& s,                \
-                                             CAT_macro(struct_name, _t) const& o) \
+                                         CAT_macro(struct_name, _t) const& /*o*/) \
                 {                                                                 \
                     return s << #struct_name " { }";                              \
                 }                                                                 \
@@ -778,14 +781,14 @@ namespace netxs::directvt
             using struct_name = wrapper<CAT_macro(struct_name, _t)>;
 
         //todo unify
-        static auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
-        static auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
+        auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
+        auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
 
         STRUCT_macro(frame_element,     (frag, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
-        STRUCT_macro(mouse_event,       (id_t, gear_id) (ui32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (ui32, buttons))
-        STRUCT_macro(keybd_event,       (id_t, gear_id) (ui32, ctlstat) (bool, extflag) (ui32, virtcod) (ui32, scancod) (bool, pressed) (text, cluster) (bool, handled))
+        STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (si32, buttons))
+        STRUCT_macro(keybd_event,       (id_t, gear_id) (si32, ctlstat) (bool, extflag) (si32, virtcod) (si32, scancod) (bool, pressed) (text, cluster) (bool, handled))
         //STRUCT_macro(focus,             (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(focus_cut,         (id_t, gear_id))
         STRUCT_macro(focus_set,         (id_t, gear_id) (si32, solo))
@@ -812,18 +815,18 @@ namespace netxs::directvt
         STRUCT_macro(sysfocus,          (id_t, gear_id) (bool, state) (bool, focus_combine) (bool, focus_force_group))
         STRUCT_macro(syswinsz,          (id_t, gear_id) (twod, winsize))
         STRUCT_macro(syskeybd,          (id_t, gear_id)  // syskeybd: Devide id.
-                                        (ui32, ctlstat)  // syskeybd: Keybd modifiers.
+                                        (si32, ctlstat)  // syskeybd: Keybd modifiers.
                                         (bool, extflag) //todo deprecated
-                                        (ui32, virtcod) //todo deprecated
-                                        (ui32, scancod)  // syskeybd: Scancode.
+                                        (si32, virtcod) //todo deprecated
+                                        (si32, scancod)  // syskeybd: Scancode.
                                         (bool, pressed)  // syskeybd: Key is pressed.
                                         (text, cluster)  // syskeybd: Generated string.
                                         (bool, handled)  // syskeybd: Key event is handled.
                                         (si32, keycode)) // syskeybd: Key id.
         STRUCT_macro(sysmouse,          (id_t, gear_id)  // sysmouse: Devide id.
-                                        (ui32, ctlstat)  // sysmouse: Keybd modifiers.
-                                        (ui32, enabled)  // sysmouse: Mouse device health status.
-                                        (ui32, buttons)  // sysmouse: Buttons bit state.
+                                        (si32, ctlstat)  // sysmouse: Keybd modifiers.
+                                        (si32, enabled)  // sysmouse: Mouse device health status.
+                                        (si32, buttons)  // sysmouse: Buttons bit state.
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
@@ -953,13 +956,13 @@ namespace netxs::directvt
                 };
                 while (src != mid && !abort)
                 {
-                    auto end = src + min.x;
-                    while (src != end) map(*src++, *dst++);
+                    auto stop = src + min.x;
+                    while (src != stop) map(*src++, *dst++);
                     if (dtx >= 0) dst += dtx;
                     else
                     {
-                        end += -dtx;
-                        while (src != end) map(*src++, pen);
+                        stop += -dtx;
+                        while (src != stop) map(*src++, pen);
                     }
                 }
                 if (csz.y > fsz.y)
@@ -1088,7 +1091,7 @@ namespace netxs::directvt
                 : stream{ Kind }
             { }
 
-            void set(id_t winid, twod winxy, core& cache, flag& abort, sz_t& delta)
+            void set(id_t /*winid*/, twod /*winxy*/, core& cache, flag& abort, sz_t& delta)
             {
                 auto coord = dot_00;
                 auto saved = state;
@@ -1120,12 +1123,12 @@ namespace netxs::directvt
                     temp.txt(cache.get_c0_right());
                     put(temp);
                 };
-                auto tie = [&](cell const& fore, cell const& next)
+                auto tie = [&](cell const& left, cell const& right)
                 {
-                    if (dif(fore, next))
+                    if (dif(left, right))
                     {
-                         left_half(fore);
-                        right_half(next);
+                        left_half(left);
+                        right_half(right);
                     }
                 };
                 if (image.hash() != cache.hash())
@@ -1152,12 +1155,12 @@ namespace netxs::directvt
                                 {
                                     if (src != end)
                                     {
-                                        auto& next = *src;
-                                        if (next.wdt() < 3) left_half(c);
+                                        auto& right = *src;
+                                        if (right.wdt() < 3) left_half(c);
                                         else
                                         {
-                                            if (dif(c, next)) left_half(c);
-                                            else              ++src;
+                                            if (dif(c, right)) left_half(c);
+                                            else               ++src;
                                         }
                                     }
                                     else left_half(c);
@@ -1197,20 +1200,20 @@ namespace netxs::directvt
                                     put(fore);
                                     while (src != end)
                                     {
-                                        auto& fore = *src++;
-                                        auto& back = *dst++;
-                                        auto w = fore.wdt();
-                                        if (w < 2)
+                                        auto& f = *src++;
+                                        auto& b = *dst++;
+                                        auto fw = f.wdt();
+                                        if (fw < 2)
                                         {
-                                            if (back == fore) break;
-                                            else              put(fore);
+                                            if (b == f) break;
+                                            else        put(f);
                                         }
-                                        else if (w == 2) // Check left part.
+                                        else if (fw == 2) // Check left part.
                                         {
                                             if (src != end)
                                             {
-                                                auto& next = *src;
-                                                if (back == fore && next == *dst)
+                                                auto& right = *src;
+                                                if (b == f && right == *dst)
                                                 {
                                                     ++src;
                                                     ++dst;
@@ -1218,18 +1221,18 @@ namespace netxs::directvt
                                                 }
                                                 else
                                                 {
-                                                    if (next.wdt() < 3) left_half(fore);
-                                                    else // next.wdt() == 3
+                                                    if (right.wdt() < 3) left_half(f);
+                                                    else // right.wdt() == 3
                                                     {
-                                                        tie(fore, next);
+                                                        tie(f, right);
                                                         ++src;
                                                         ++dst;
                                                     }
                                                 }
                                             }
-                                            else left_half(fore);
+                                            else left_half(f);
                                         }
-                                        else right_half(fore); // w == 3
+                                        else right_half(f); // fw == 3
                                     }
                                 }
                             }
@@ -1242,11 +1245,11 @@ namespace netxs::directvt
                                         mov(src - beg);
                                         if (src != end)
                                         {
-                                            auto& next = *src;
-                                            if (next.wdt() < 3) left_half(fore);
-                                            else // next.wdt() == 3
+                                            auto& right = *src;
+                                            if (right.wdt() < 3) left_half(fore);
+                                            else // right.wdt() == 3
                                             {
-                                                tie(fore, next);
+                                                tie(fore, right);
                                                 ++src;
                                                 ++dst;
                                             }
@@ -1257,14 +1260,14 @@ namespace netxs::directvt
                                     {
                                         if (src != end)
                                         {
-                                            auto& next = *src;
-                                            if (next.wdt() < 3) mov(src - beg), left_half(fore);
-                                            else // next.wdt() == 3
+                                            auto& right = *src;
+                                            if (right.wdt() < 3) mov(src - beg), left_half(fore);
+                                            else // right.wdt() == 3
                                             {
-                                                if (next != *dst)
+                                                if (right != *dst)
                                                 {
                                                     mov(src - beg);
-                                                    tie(fore, next);
+                                                    tie(fore, right);
                                                 }
                                                 ++src;
                                                 ++dst;
@@ -1282,7 +1285,7 @@ namespace netxs::directvt
                     delta = commit(true);
                 }
             }
-            void get(view& data) {}
+            void get(view& /*data*/) { }
         };
         struct bitmap_vtrgb_t : bitmap_a<svga::vtrgb, __COUNTER__ - _counter_base> { };
         struct bitmap_vt256_t : bitmap_a<svga::vt256, __COUNTER__ - _counter_base> { };
@@ -1348,8 +1351,8 @@ namespace netxs::directvt
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */
-            //X(quit             ) /* Close and disconnect dtvt app.                */\
-            //X(focus            ) /* Request to set focus.                         */\
+            //X(quit             ) /* Close and disconnect dtvt app.                */
+            //X(focus            ) /* Request to set focus.                         */
 
             struct xs
             {

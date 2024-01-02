@@ -160,10 +160,10 @@ namespace netxs
     static constexpr const auto dot_mx = twod{ si32max / 2,
                                                si32max / 2 };
 
-    static twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
-    static twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
-    static twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
-    static twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
+    twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
+    twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
+    twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
+    twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
 }
 
 namespace std
@@ -392,6 +392,7 @@ namespace netxs
             t = queue(0);
             b = queue(0);
         }
+        constexpr side& operator = (side const&) = default;
         bool operator == (side const&) const = default;
         // side: Unite the two rectangles.
         void operator |= (side s)
@@ -476,6 +477,7 @@ namespace netxs
             : l{ l }, r{ r }, t{ t }, b{ b }
         { }
         constexpr dent(dent const&) = default;
+        constexpr dent& operator = (dent const&) = default;
         constexpr bool operator == (dent const&) const = default;
         explicit operator bool () const { return l != 0
                                               || r != 0

@@ -13,6 +13,7 @@
 #include <bit>
 #include <atomic>
 #include <cstring> // std::memcpy
+#include <utility> // std::cmp_equal
 
 #ifndef faux
     #define faux (false)
@@ -193,7 +194,7 @@ namespace netxs
     constexpr auto aligned(void const* ptr)
     {
         auto i = T{};
-        std::memcpy(&i, ptr, sizeof(T));
+        std::memcpy((void*)&i, ptr, sizeof(T));
         return letoh(i);
     };
     // intmath: LE type wrapper. T has an LE format in memory.
@@ -250,9 +251,9 @@ namespace netxs
     template<class T1, class T2>
     constexpr bool sum_overflow(T1& accum, T2 delta)
     {
-        auto store = accum;
-        accum += delta;
-        return accum <= store ? true : faux;
+        auto prev = accum;
+        accum = (T1)(accum + delta);
+        return accum <= prev;
     }
 
     // intmath: Clamp a value in case it exceeds its numerical limits.
@@ -515,10 +516,10 @@ namespace netxs
         if (size1.x * size1.y == 0
          || size2.x * size2.y == 0) return;
 
-        auto dot_11 = size1 / size1;
-        auto msize0 = size1 - dot_11;
-        auto msize1 = max(dot_11, msize0);
-        auto msize2 = size2 - dot_11;
+        auto size11 = decltype(size1){ 1, 1 };
+        auto msize0 = size1 - size11;
+        auto msize1 = max(size11, msize0);
+        auto msize2 = size2 - size11;
 
         auto y = 0;
         auto h_line = [&]
@@ -594,8 +595,8 @@ namespace netxs
         auto limit = data1 + region.size.y * size1.x;
         while (limit != data1)
         {
-            auto limit = data1 + region.size.x;
-            while (limit != data1)
+            auto bound = data1 + region.size.x;
+            while (bound != data1)
             {
                 if constexpr (RtoL) handle(*data1++, *--data2);
                 else                handle(*data1++, *data2++);
@@ -657,13 +658,13 @@ namespace netxs
             auto limit = place.size.x * joint.size.y + frame;
             while (limit != frame)
             {
-                auto limit = frame + joint.size.x;
-                while (limit != frame)
+                auto bound = frame + joint.size.x;
+                while (bound != frame)
                 {
                     if constexpr (RtoL)
                     {
-                        if constexpr (Plain) handle(*--limit);
-                        else             if (handle(*--limit)) return;
+                        if constexpr (Plain) handle(*--bound);
+                        else             if (handle(*--bound)) return;
                     }
                     else
                     {
@@ -761,7 +762,13 @@ namespace netxs
         p0 -= coor;
         p1 -= coor;
 
-        auto set = [&](auto const& p, auto k) { if (size.inside(p)) pset(p + coor, k); };
+        auto set = [&](auto const& p, auto k)
+        {
+            if (size.inside(p))
+            {
+                pset(p + coor, k);
+            }
+        };
         auto draw = [&](auto set)
         {
             if (dx == 0)
@@ -844,7 +851,7 @@ namespace netxs
                     dirx ? oldx += error
                          : oldx -= error;
                     oldy = newy;
-                    return delta;
+                    return (ui16)delta;
                 };
 
                 p1.x = static_cast<type>(x2);

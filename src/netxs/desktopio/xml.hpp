@@ -40,7 +40,7 @@ namespace netxs::xml
             auto c = line.pop_front();
             if (c == '\\' && line)
             {
-                auto c = line.pop_front();
+                c = line.pop_front();
                 switch (c)
                 {
                     case 'e' : crop.push_back('\x1b'); break;
@@ -123,9 +123,9 @@ namespace netxs::xml
     {
         auto tobyte = [](auto c)
         {
-                 if (c >= '0' && c <= '9') return c - '0';
-            else if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-            else                           return 0;
+                 if (c >= '0' && c <= '9') return (byte)(c - '0');
+            else if (c >= 'a' && c <= 'f') return (byte)(c - 'a' + 10);
+            else                           return (byte)(0);
         };
 
         auto value = utf::to_low(utf8.str());
@@ -178,17 +178,17 @@ namespace netxs::xml
         {
             if (auto r = utf::to_int(shadow))
             {
-                result.chan.r = r.value();
+                result.chan.r = (byte)r.value();
                 utf::trim_front(shadow, ",./:;");
                 if (auto g = utf::to_int(shadow))
                 {
-                    result.chan.g = g.value();
+                    result.chan.g = (byte)g.value();
                     utf::trim_front(shadow, ",./:;");
                     if (auto b = utf::to_int(shadow))
                     {
-                        result.chan.b = b.value();
+                        result.chan.b = (byte)b.value();
                         utf::trim_front(shadow, ",./:;");
-                        if (auto a = utf::to_int(shadow)) result.chan.a = a.value();
+                        if (auto a = utf::to_int(shadow)) result.chan.a = (byte)a.value();
                         else                              result.chan.a = 0xff;
                         return result;
                     }
@@ -326,7 +326,7 @@ namespace netxs::xml
                 while (next)
                 {
                     auto& item = *next;
-                    auto& data = item.utf8;
+                    auto& utf8 = item.utf8;
                     auto  kind = item.kind;
                     next = next->next;
     
@@ -368,11 +368,11 @@ namespace netxs::xml
                     //test
                     //yield.bgc((tint)(clr % 8));
 
-                    if (data.size())                        
+                    if (utf8.size())
                     {
-                             if (bgc) yield.fgc(fgc).bgc(bgc).add(data).nil();
-                        else if (fgc) yield.fgc(fgc)         .add(data).nil();
-                        else          yield                  .add(data);
+                             if (bgc) yield.fgc(fgc).bgc(bgc).add(utf8).nil();
+                        else if (fgc) yield.fgc(fgc)         .add(utf8).nil();
+                        else          yield                  .add(utf8);
                     }
                 }
     
@@ -443,7 +443,7 @@ namespace netxs::xml
             auto list(qiew path_str)
             {
                 path_str = utf::trim(path_str, '/');
-                auto root = this;
+                auto anchor = this;
                 auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
                 auto temp = text{};
                 auto path = utf::divide(path_str, '/');
@@ -454,8 +454,8 @@ namespace netxs::xml
                     while (head != tail)
                     {
                         temp = *head++;
-                        if (auto iter = root->hive.find(temp);
-                                 iter!= root->hive.end())
+                        if (auto iter = anchor->hive.find(temp);
+                                 iter!= anchor->hive.end())
                         {
                             auto& i = iter->second;
                             crop.reserve(i.size());
@@ -469,7 +469,7 @@ namespace netxs::xml
                             }
                             else if (i.size() && i.front())
                             {
-                                root = &(*(i.front()));
+                                anchor = &(*(i.front()));
                             }
                             else break;
                         }
@@ -603,7 +603,6 @@ namespace netxs::xml
                 if (crop.starts_with('\n')
                  || crop.starts_with('\r'))
                 {
-                    auto size = crop.size();
                     auto temp = view{ crop };
                     auto dent = text{ utf::trim_front(temp, whitespaces) };
                     crop = temp;
@@ -836,9 +835,8 @@ namespace netxs::xml
         }
         auto diff(view& data, view& temp, type kind = type::spaces)
         {
-            auto delta = temp.size() - data.size();
-                 if (delta > 0) page.append(kind, temp.substr(0, delta));
-            else if (delta < 0) fail("Unexpected data");
+                 if (temp.size() > data.size()) page.append(kind, temp.substr(0, temp.size() - data.size()));
+            else if (temp.size() < data.size()) fail("Unexpected data");
         }
         auto pair(sptr& item, view& data, type& what, type& last, type kind)
         {
@@ -1066,7 +1064,6 @@ namespace netxs::xml
                             {
                                 auto skip_frag = skip(temp, what);
                                 auto trim_frag = utf::trim_front(temp, whitespaces);
-                                auto spaced = last == type::spaces;
                                 peek(temp, what, last);
                                 if (what == type::token)
                                 {
@@ -1076,9 +1073,9 @@ namespace netxs::xml
                                     {
                                         item->insB = spaced ? page.back
                                                             : page.append(type::spaces);
-                                                              page.append(type::close_tag, skip_frag);
-                                        if (trim_frag.size()) page.append(type::spaces, trim_frag);
-                                                              page.append(type::end_token, item->name->utf8);
+                                        page.append(                      type::close_tag, skip_frag);
+                                        if (trim_frag.size()) page.append(type::spaces,    trim_frag);
+                                        page.append(                      type::end_token, item->name->utf8);
                                         data = temp;
                                         auto tail = data.find('>');
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
@@ -1089,9 +1086,9 @@ namespace netxs::xml
                                     else
                                     {
                                         what = type::unknown;
-                                                              page.append(what, skip_frag);
+                                        page.append(                      what, skip_frag);
                                         if (trim_frag.size()) page.append(what, trim_frag);
-                                                              page.append(what, object);
+                                        page.append(                      what, object);
                                         data = temp;
                                         auto tail = data.find('>');
                                         if (tail != view::npos) data.remove_prefix(tail + 1);
@@ -1144,7 +1141,6 @@ namespace netxs::xml
             auto temp = data;
             auto what = type::na;
             auto last = type::na;
-            auto deep = si32{};
             auto idle = utf::trim_front(temp, whitespaces);
             peek(temp, what, last);
             while (what != type::begin_tag && what != type::eof) // Skip all non-xml data.
@@ -1294,7 +1290,7 @@ namespace netxs::xml
             auto t = take<true>(txt_path, ""s);
             auto a = take<true>(fba_path, -1);
             if (t.size()) crop.txt(t);
-            if (a != -1)  crop.alpha(std::clamp(a, 0, 255));
+            if (a != -1)  crop.alpha((byte)std::clamp(a, 0, 255));
             return crop;
         }
         template<bool WithTemplate = faux>

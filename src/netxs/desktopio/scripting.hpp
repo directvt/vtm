@@ -54,19 +54,19 @@ namespace netxs::scripting
                 token.clear();
             }
 
-            void handle(s11n::xs::fullscreen          lock)
+            void handle(s11n::xs::fullscreen        /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::focus_cut           lock)
+            void handle(s11n::xs::focus_cut         /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::focus_set           lock)
+            void handle(s11n::xs::focus_set         /*lock*/)
             {
                 //...
             }
-            void handle(s11n::xs::keybd_event         lock)
+            void handle(s11n::xs::keybd_event       /*lock*/)
             {
                 //...
             };
@@ -75,11 +75,11 @@ namespace netxs::scripting
                 : s11n{ *this },
                  owner{ owner }
             {
-                owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
+                this->owner.LISTEN(tier::release, hids::events::device::mouse::any, gear, token)
                 {
                     //...
                 };
-                owner.LISTEN(tier::general, hids::events::die, gear, token)
+                this->owner.LISTEN(tier::general, hids::events::die, gear, token)
                 {
                     //...
                 };
@@ -99,7 +99,7 @@ namespace netxs::scripting
             log<faux>(ansi::fgc(greenlt).add(data).nil());
         }
         // scripting::host: Cooked read input.
-        void data(rich& data)
+        void data(rich& /*data*/)
         {
             boss.bell::trysync(active, [&]
             {
@@ -108,7 +108,7 @@ namespace netxs::scripting
             });
         }
         // scripting::host: Shutdown callback handler.
-        void onexit(si32 code, view msg = {}, bool exit_after_sighup = faux)
+        void onexit(si32 /*code*/, view /*msg*/ = {}, bool /*exit_after_sighup*/ = faux)
         {
             //todo initiate global shutdown
 
@@ -176,8 +176,14 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 auto win = os::ttysize;
-                if (tty) engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
-                else     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
+                if (tty)
+                {
+                    engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
+                }
+                else
+                {
+                    engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
+                }
                 runapp(cmd, cwd, env, win);
                 //todo run integration script
                 if (run.size()) write(run);

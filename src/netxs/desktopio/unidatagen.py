@@ -358,28 +358,27 @@ namespace netxs::{module}
 
     struct {module}
     {{
-        {wclass}::type  ucwidth;
-        {bclass}::type  brgroup;
-        {cclass}::type  control;
-        unsigned char padding = {{}};
+        {wclass}::type ucwidth;
+        {bclass}::type brgroup;
+        {cclass}::type control;
+        byte         padding{{}};
 
+        {module}({module} const&) = default;
         constexpr {module}()
             : ucwidth{{ {ucwidth_0} }},
               brgroup{{ {brgroup_0} }},
               control{{ {control_0} }}
         {{ }}
-
         constexpr {module}({wclass}::type ucwidth, {bclass}::type brgroup, {cclass}::type control)
             : ucwidth{{ ucwidth }},
               brgroup{{ brgroup }},
               control{{ control }}
         {{ }}
-
         {module}(ui32 cp)
             : {module}{{ select(cp) }}
         {{ }}
 
-        {module}({module} const&) = default;
+        constexpr {module}& operator = ({module} const&) = default;
 
         bool is_cmd()
         {{
@@ -423,8 +422,8 @@ namespace netxs::{module}
         while (iter != tail)
         {{
             auto n = *iter++;
-            if (n < 0) data.insert(data.end(), -n, *iter++);
-            else       data.push_back(n);
+            if (n < 0) data.insert(data.end(), -n, static_cast<T>(*iter++));
+            else       data.push_back(static_cast<T>(n));
         }}
         return data;
     }}

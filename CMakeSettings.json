@@ -13,7 +13,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ],
@@ -35,7 +35,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-DDEBUG -g -O0 -pthread",
+          "value": "-DDEBUG -g -O0 -pthread -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         }
       ],
@@ -54,7 +54,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_DEBUG",
-          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8",
+          "value": "-DDEBUG /MTd /Zi /Ob0 /Od /RTC1 /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ]
@@ -73,7 +73,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-pthread -static -s",
+          "value": "-pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -99,7 +99,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ],
@@ -118,7 +118,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ],
@@ -137,7 +137,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ]
@@ -155,7 +155,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS_RELEASE",
-          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8",
+          "value": "/MT /O2 /DNDEBUG /EHsc /bigobj /utf-8 /W4",
           "type": "STRING"
         }
       ]
@@ -174,7 +174,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wno-psabi -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -202,7 +202,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -230,7 +230,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         },
         {
@@ -257,7 +257,7 @@
       "variables": [
         {
           "name": "CMAKE_CXX_FLAGS",
-          "value": "-O2 -DNDEBUG -pthread -static -s",
+          "value": "-O2 -DNDEBUG -pthread -static -s -Wall -Wextra -Wno-missing-field-initializers",
           "type": "STRING"
         }
       ],

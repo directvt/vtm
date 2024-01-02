@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.44";
+    static const auto version = "v0.9.45";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto ipc_prefix = "vtm";
     static const auto log_suffix = "_log";
@@ -54,11 +54,11 @@ namespace netxs::app::shared
     };
     const auto scroll_bars = [](auto master)
     {
-        auto scroll_bars = ui::fork::ctor();
-        auto scroll_bttm = scroll_bars->attach(slot::_1, ui::fork::ctor(axis::Y));
-        auto hz = scroll_bttm->attach(slot::_2, ui::grip<axis::X>::ctor(master));
-        auto vt = scroll_bars->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
-        return scroll_bars;
+        auto sb = ui::fork::ctor();
+        auto bt = sb->attach(slot::_1, ui::fork::ctor(axis::Y));
+        auto hz = bt->attach(slot::_2, ui::grip<axis::X>::ctor(master));
+        auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(master));
+        return sb;
     };
     const auto underlined_hz_scrollbar = [](auto scrlrail)
     {
@@ -208,13 +208,13 @@ namespace netxs::app::shared
 
         static auto mini(bool autohide, bool menushow, bool slimsize, si32 custom, list menu_items) // Menu bar (shrinkable on right-click).
         {
-            auto highlight_color = skin::color(tone::highlight);
+            //auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            auto action_color    = skin::color(tone::action);
-            auto warning_color   = skin::color(tone::warning);
-            auto c6 = action_color;
-            auto c3 = highlight_color;
-            auto c2 = warning_color;
+            //auto action_color    = skin::color(tone::action);
+            //auto warning_color   = skin::color(tone::warning);
+            //auto c6 = action_color;
+            //auto c3 = highlight_color;
+            //auto c2 = warning_color;
             auto c1 = danger_color;
             auto macstyle = skin::globals().macstyle;
             auto menuveer = ui::veer::ctor();
@@ -267,7 +267,7 @@ namespace netxs::app::shared
                 auto control = std::vector<link>
                 {
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "—", .notes = " Minimize " }}},//, .hover = c2 }}}, //toto too funky
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -276,7 +276,7 @@ namespace netxs::app::shared
                         };
                     }},
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "□", .notes = " Maximize " }}},//, .hover = c6 }}},
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -285,7 +285,7 @@ namespace netxs::app::shared
                         };
                     }},
                     { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "×", .notes = " Close ", .hover = c1 }}},
-                    [](auto& boss, auto& item)
+                    [](auto& boss, auto& /*item*/)
                     {
                         boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
                         {
@@ -390,15 +390,15 @@ namespace netxs::app::shared
         };
         const auto demo = [](xmls& config)
         {
-            auto highlight_color = skin::color(tone::highlight);
-            auto c3 = highlight_color;
+            //auto highlight_color = skin::color(tone::highlight);
+            //auto c3 = highlight_color;
             auto items = list
             {
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& boss, auto& item){ }},
-                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& boss, auto& item){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("F").nil().add("ile"), .notes = " File menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("E").nil().add("dit"), .notes = " Edit menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("V").nil().add("iew"), .notes = " View menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("D").nil().add("ata"), .notes = " Data menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
+                { item{ item::type::Command, true, 0, std::vector<item::look>{{ .label = ansi::und(true).add("H").nil().add("elp"), .notes = " Help menu item " }}}, [&](auto& /*boss*/, auto& /*item*/){ }},
             };
             config.cd("/config/defapp/");
             auto [menu, cover, menu_data] = create(config, items);
