@@ -3675,7 +3675,7 @@ namespace netxs::os
                         ::setsid(); // Dissociate from existing controlling terminal (create a new session without a controlling terminal).
                         ::dup2(fds->r, STDIN_FILENO);  os::stdin_fd  = STDIN_FILENO;
                         ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
-                        ::close(STDERR_FILENO);        os::stderr_fd = os::invalid_fd;
+                        ::dup2(fds->w, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         fds.reset();
                         if (cwd.size())
                         {
