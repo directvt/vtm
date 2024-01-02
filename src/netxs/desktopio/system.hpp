@@ -4753,9 +4753,7 @@ namespace netxs::os
                 auto micefd = os::invalid_fd;
                 auto buffer = text(os::pipebuf, '\0');
                 auto sig_fd = os::signals::fd{};
-                #if defined(__linux__)
                 auto ttynum = si32{ 0 };
-                #endif
 
                 auto get_kb_state = []
                 {
