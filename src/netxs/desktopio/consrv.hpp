@@ -4912,8 +4912,13 @@ struct impl : consrv
                 .lpfnWndProc   = wndproc,
                 .lpszClassName = wndname.c_str(),
             };
+            auto create_window = [&]
+            {
+                winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                return winhnd;
+            };
             if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()")
-               && (winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)))
+               && create_window())
             {
                 auto next = MSG{};
                 while (next.message != WM_QUIT)
