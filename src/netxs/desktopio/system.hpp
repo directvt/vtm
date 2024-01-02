@@ -1828,9 +1828,13 @@ namespace netxs::os
                 auto chars = text(255, '\0');
                 auto error = ::gethostname(chars.data(), chars.size());
                 auto usrid = ::geteuid();
-                auto cuser = ::cuserid(nullptr);
+                #if defined(__BSD__)
+                auto uname = ::getlogin(); // username associated with a session, even if it has no controlling terminal.
+                #else
+                auto uname = ::cuserid(nullptr);
+                #endif
                 auto strid = utf::concat(usrid);
-                auto login = cuser && cuser[0] ? text{ cuser } : strid;
+                auto login = uname && uname[0] ? text{ uname } : strid;
                 if (!error) login += '@' + text{ chars.data() };
                 return std::pair{ login, strid };
 
