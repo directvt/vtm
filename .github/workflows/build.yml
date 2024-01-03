@@ -24,13 +24,13 @@ jobs:
             cpu: universal
             arch: any
             cxx: c++
-            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers"'
+            flags: '-DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCMAKE_CXX_FLAGS_RELEASE="-O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Werror"'
           - os: windows-latest
             platform: windows
             cpu: Win32
             arch: x86
             cxx: cl
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /W4" -A '
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /W4 /warnaserror" -A '
           - os: windows-latest
             cxx: cl
           - os: ubuntu-latest
@@ -50,9 +50,9 @@ jobs:
             cxx: /bin/aarch64-linux-gnu-g++
 
           - os: ubuntu-latest
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi"'
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="-static -s -O2 -DNDEBUG -Wall -Wextra -Wno-missing-field-initializers -Wno-psabi -Werror"'
           - os: windows-latest
-            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /W4" -A '
+            flags: '-DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /DNDEBUG /W4 /warnaserror" -A '
 
           - os: ubuntu-latest
             platform: linux
