@@ -2347,7 +2347,6 @@ struct impl : consrv
     }
     auto api_system_langid_get               ()
     {
-        log(prompt, "GetConsoleLangId");
         struct payload : drvpacket<payload>
         {
             struct
@@ -2357,11 +2356,15 @@ struct impl : consrv
             reply;
         };
         auto& packet = payload::cast(upload);
+        auto& client = *(clnt*)packet.client;
+        log(prompt, "GetConsoleLangId",
+            "\n\tcurexe: ", client.detail.curexe,
+            "\n\tprocid: ", client.procid);
         auto winuicp = ::GetACP();
         if (winuicp != 65001 && langmap().contains(winuicp))
         {
             packet.reply.langid = (ui16)netxs::map_or(langmap(), outenc->codepage, 65001);
-            log("\tlang id: ", utf::to_hex_0x(packet.reply.langid));
+            log("\tlangid: ", utf::to_hex_0x(packet.reply.langid));
         }
         else
         {
