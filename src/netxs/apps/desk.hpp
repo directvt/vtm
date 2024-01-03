@@ -96,10 +96,12 @@ namespace netxs::app::desk
                         auto disabled = gear_id && gear_id != owner_id;
                         boss.SIGNAL(tier::release, e2::form::state::disabled, disabled);
                         auto& notes = boss.template plugins<pro::notes>();
-                        notes.update(disabled ? " Window is locked by another user "
-                                              : " Application window:              \n"
-                                                "   Left click to go to the window \n"
-                                                "   Right click to pull the window ");
+                        notes.update(disabled ? " Window is locked by another user      "
+                                              : " Application window:                   \n"
+                                                "   Left click to set exclusive focus   \n"
+                                                "   Ctrl+LeftClick to set group focus   \n"
+                                                "   DoubleLeftClick to go the window    \n"
+                                                "   Alt+DblLeftClick to pull the window ");
                         return disabled;
                     };
                     data_src->SIGNAL(tier::request, e2::form::state::maximized, gear_id, ());
