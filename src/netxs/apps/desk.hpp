@@ -716,7 +716,8 @@ namespace netxs::app::desk
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
-                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down ")
+                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down \n"
+                                     " Use LeftDrag to move desktop viewport          ")
                 ->active()
                 ->invoke([&](auto& boss)
                 {
