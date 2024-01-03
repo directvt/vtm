@@ -100,7 +100,7 @@ namespace netxs::app::desk
                                               : " Application window:                   \n"
                                                 "   Left click to set exclusive focus   \n"
                                                 "   Ctrl+LeftClick to set group focus   \n"
-                                                "   DoubleLeftClick to go the window    \n"
+                                                "   DoubleLeftClick to go to the window \n"
                                                 "   Alt+DblLeftClick to pull the window ");
                         return disabled;
                     };
