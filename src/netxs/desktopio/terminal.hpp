@@ -6521,18 +6521,20 @@ namespace netxs::ui
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
                 {
-                    proc();
+                    unsync = proc();
                 }
                 else
                 {
                     auto last_basis = target->get_basis();
                     auto last_slide = target->get_slide();
-                    proc();
-                    auto next_basis = target->get_basis();
-                    follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
-                                   || (next_basis <= last_slide && last_slide <= last_basis);
+                    unsync = proc();
+                    if (unsync)
+                    {
+                        auto next_basis = target->get_basis();
+                        follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
+                                       || (next_basis <= last_slide && last_slide <= last_basis);
+                    }
                 }
-                unsync = true;
             });
         }
         // term: Proceed terminal input.
@@ -6540,8 +6542,13 @@ namespace netxs::ui
         {
             update([&]
             {
-                if (io_log && data.size()) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                ansi::parse(data, target_buffer ? target_buffer : this->target);
+                if (data.size())
+                {
+                    if (io_log) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    ansi::parse(data, target_buffer ? target_buffer : this->target);
+                    return true;
+                }
+                else return faux;
             });
         }
         // term: Reset to defaults.

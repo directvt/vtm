@@ -1072,6 +1072,7 @@ struct impl : consrv
                     {
                         auto& term = server.uiterm;
                         term.ondata("(Ctrl+C = Y) ");
+                        return true;
                     });
                 }
                 lock.lock();
@@ -1314,6 +1315,7 @@ struct impl : consrv
                                 }
                             }
                             data.crop(size);
+                            return true;
                         });
                     }
                     else
@@ -2207,8 +2209,8 @@ struct impl : consrv
         {
             if (handle_ptr->link == &uiterm.target)
             {
-                     if (uiterm.target == &uiterm.normal) uiterm.update([&] { proc(uiterm.normal); });
-                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&] { proc(uiterm.altbuf); });
+                     if (uiterm.target == &uiterm.normal) uiterm.update([&] { proc(uiterm.normal); return faux; });
+                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&] { proc(uiterm.altbuf); return faux; });
                 return true;
             }
             else
@@ -2225,7 +2227,7 @@ struct impl : consrv
                         if (auto iter2 = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
                             iter2 != client.alters.end()) // Buffer exists.
                         {
-                            uiterm.update([&] { proc(*iter2); });
+                            uiterm.update([&] { proc(*iter2); return faux; });
                             return true;
                         }
                     }
@@ -2368,6 +2370,7 @@ struct impl : consrv
         }
         else
         {
+            //packet.reply.langid = MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US);
             answer.status = nt::status::not_supported;
             log("\tlang id not supported");
         }
@@ -3060,6 +3063,7 @@ struct impl : consrv
         }
         else log("\tunexpected: packet.packsz=%val1% answer.readoffset=%val2%", packet.packsz, answer.readoffset());
         answer.report = packet.reply.count;
+        if (packet.reply.count) unsync = true;
     }
     auto api_scrollback_write_data           ()
     {
@@ -3200,6 +3204,7 @@ struct impl : consrv
             }
             packet.reply.count = count;
         }
+        if (packet.reply.count) unsync = true;
     }
     auto api_scrollback_write_block          ()
     {
@@ -3384,6 +3389,7 @@ struct impl : consrv
           "\n\tinput.rect: ", view,
           "\n\treply.rect: ", crop,
           "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+        if (crop) unsync = true;
     }
     auto api_scrollback_attribute_set        ()
     {
@@ -3554,6 +3560,7 @@ struct impl : consrv
             }
         }
         packet.reply.count = count;
+        if (count) unsync = true;
     }
     auto api_scrollback_read_data            ()
     {
@@ -3905,6 +3912,7 @@ struct impl : consrv
                 }
             }
         }
+        unsync = true;
     }
     auto api_scrollback_cursor_coor_set      ()
     {
@@ -3927,6 +3935,7 @@ struct impl : consrv
                 console_ptr->cup0(caretpos);
             }
         }
+        unsync = true;
     }
     auto api_scrollback_cursor_info_get      ()
     {
@@ -4132,6 +4141,7 @@ struct impl : consrv
                 *head++ = rgbpalette[m] | 0xFF000000; // conhost crashed if alpha non zero.
             }
         }
+        unsync = true;
     }
     auto api_scrollback_size_set             ()
     {
@@ -4166,6 +4176,7 @@ struct impl : consrv
             packet.input.buffersz_x = (si16)(viewport.x);
             packet.input.buffersz_y = (si16)(viewport.y);
         }
+        unsync = true;
     }
     auto api_scrollback_viewport_get_max_size()
     {
@@ -4251,6 +4262,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         auto window_ptr = select_buffer(packet.target);
         if (!window_ptr) return;
+        unsync = true;
         if constexpr (isreal())
         {
             auto& window_inst = *window_ptr;
@@ -4887,6 +4899,7 @@ struct impl : consrv
     para        celler; // consrv: Buffer for converting raw text to cells.
     xlat        inpenc; // consrv: Current code page decoder for input stream.
     xlat        outenc; // consrv: Current code page decoder for output stream.
+    bool        unsync; // consrv: The terminal must be updated.
 
     auto& create_window()
     {
@@ -4980,6 +4993,12 @@ struct impl : consrv
                         {
                             auto lock = std::lock_guard{ events.locker };
                             (this->*proc)();
+                            if (unsync)
+                            {
+                                unsync = faux;
+                                return true;
+                            }
+                            else return faux;
                         });
                         break;
                     }
@@ -5076,7 +5095,8 @@ struct impl : consrv
           altmod{ faux                                           },
           prompt{ utf::concat(win32prompt)                       },
           inpenc{ std::make_shared<decoder>(*this, os::codepage) },
-          outenc{ inpenc                                         }
+          outenc{ inpenc                                         },
+          unsync{ faux                                           }
     {
         apimap.resize(0xFF, &impl::api_unsupported);
         apimap[0x38] = &impl::api_system_langid_get;

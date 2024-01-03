@@ -96,11 +96,11 @@
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="3"></td>
+    <td colspan="3">Move desktop viewport</td>
     <td colspan="3">Move window or Select text</td>
     <td colspan="1">Resize window</td>
     <td colspan="1">Move window</td>
-    <td>Panoramic workspace scrolling</td>
+    <td>Move desktop viewport</td>
   </tr>
   <tr>
     <th>RightDrag</th>
@@ -117,7 +117,7 @@
     <th>Left+RightDrag</th>
     <td colspan="3"></td>
     <td colspan="4">Move window / Restore maximized</td>
-    <td colspan="2">Panoramic workspace scrolling</td>
+    <td colspan="2">Move desktop viewport</td>
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
