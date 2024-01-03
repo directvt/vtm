@@ -3211,7 +3211,7 @@ namespace netxs::ui
             };
             LISTEN(tier::release, e2::form::animate::stop, task_id)
             {
-                switch (id)
+                switch (task_id)
                 {
                     case Y: manual[Y] = true; /*scroll<Y>();*/ break;
                     case X: manual[X] = true; /*scroll<X>();*/ break;
