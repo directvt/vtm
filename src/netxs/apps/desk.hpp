@@ -97,9 +97,12 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::release, e2::form::state::disabled, disabled);
                         auto& notes = boss.template plugins<pro::notes>();
                         notes.update(disabled ? " Window is locked by another user "
-                                              : " Application window:              \n"
-                                                "   Left click to go to the window \n"
-                                                "   Right click to pull the window ");
+                                              : " Application window:                     \n"
+                                                "   LeftClick to set exclusive focus      \n"
+                                                "   Ctrl+LeftClick to set group focus     \n"
+                                                "   DoubleLeftClick to go to the window   \n"
+                                                "   Alt+DblLeftClick to pull the window   \n"
+                                                "   Use LeftDrag to move desktop viewport ");
                         return disabled;
                     };
                     data_src->SIGNAL(tier::request, e2::form::state::maximized, gear_id, ());
@@ -117,52 +120,72 @@ namespace netxs::app::desk
                     {
                         disabled = check_id(boss, gear_id);
                     };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear, -, (data_src_shadow, disabled_ptr/*owns*/))
+                    {
+                        if (disabled) { gear.dismiss(true); return; }
+                        if (auto data_src = data_src_shadow.lock())
+                        {
+                            auto& window = *data_src;
+                            if (gear.meta(hids::anyAlt)) // Pull window.
+                            {
+                                window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                                gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                                window.SIGNAL(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
+                                if (window.hidden) // Restore if minimized.
+                                {
+                                    window.SIGNAL(tier::release, e2::form::size::minimize, gear);
+                                }
+                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                            }
+                            else // Jump to window.
+                            {
+                                gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, window);
+                            }
+                            gear.dismiss();
+                        }
+                    };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (data_src_shadow, disabled_ptr/*owns*/))
                     {
                         if (disabled) { gear.dismiss(true); return; }
                         if (auto data_src = data_src_shadow.lock())
                         {
                             auto& window = *data_src;
-                            auto  center = window.base::area().center();
-                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-
-                            if (viewport.hittest(center)        // Minimize if visible,
-                             && !window.hidden                  // not minimized,
-                             && pro::focus::test(window, gear)) // and focused.
+                            if (gear.meta(hids::anyCtrl)) // Toggle group focus.
                             {
-                                if (gear.meta(hids::anyCtrl)) pro::focus::off(data_src, gear.id); // Remove focus if Ctrl pressed.
-                                else                          window.SIGNAL(tier::release, e2::form::size::minimize, gear);
+                                if (pro::focus::test(window, gear))
+                                {
+                                    pro::focus::off(data_src, gear.id); // Remove focus if focused.
+                                }
+                                else // Expose and set group focus.
+                                {
+                                    window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
+                                    if (window.hidden) // Restore if minimized.
+                                    {
+                                        window.SIGNAL(tier::release, e2::form::size::minimize, gear);
+                                    }
+                                    pro::focus::set(data_src, gear.id, pro::focus::solo::off, pro::focus::flip::off);
+                                }
+                                gear.dismiss(true); // Suppress double click.
                             }
-                            else
+                            else if (gear.meta(hids::anyAlt)) // Skip it and wait for Alt+Dblclick.
+                            {
+                                gear.dismiss();
+                            }
+                            else // Set unique focus.
                             {
                                 window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
-                                gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, window);
-                                if (window.hidden) // Restore if hidden.
+                                if (window.hidden) // Restore if minimized.
                                 {
                                     window.SIGNAL(tier::release, e2::form::size::minimize, gear);
                                 }
-                                else pro::focus::set(data_src, gear.id, gear.meta(hids::anyCtrl) ? pro::focus::solo::off
-                                                                                                 : pro::focus::solo::on, pro::focus::flip::off);
+                                else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                                gear.dismiss();
                             }
-                            gear.dismiss(true);
                         }
                     };
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::right, gear, -, (data_src_shadow))
                     {
-                        if (disabled) { gear.dismiss(true); return; }
-                        if (auto data_src = data_src_shadow.lock())
-                        {
-                            auto& window = *data_src;
-                            window.RISEUP(tier::preview, e2::form::layout::expose, area, ());
-                            gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                            window.SIGNAL(tier::preview, e2::form::layout::appear, viewport.center()); // Pull window.
-                            if (window.hidden) // Restore if minimized.
-                            {
-                                window.SIGNAL(tier::release, e2::form::size::minimize, gear);
-                            }
-                            else pro::focus::set(data_src, gear.id, pro::focus::solo::on, pro::focus::flip::off);
-                            gear.dismiss();
-                        }
+                        // Reserved for context menu.
                     };
                     boss.LISTEN(tier::release, e2::form::state::mouse, state, -, (data_src_shadow))
                     {
@@ -250,9 +273,10 @@ namespace netxs::app::desk
                     };
                 });
 
-            auto def_note = text{" Application:                                   \n"
-                                 "   Left click to start the application instance \n"
-                                 "   Right click to set as default                "};
+            auto def_note = text{" Application:                                  \n"
+                                 "   LeftClick to start the application instance \n"
+                                 "   RightClick to set as default                \n"
+                                 "   Use LeftDrag to move desktop viewport       "};
             data_src->RISEUP(tier::request, desk::events::menu, conf_list_ptr, ());
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
@@ -694,7 +718,8 @@ namespace netxs::app::desk
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
-                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down ")
+                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down \n"
+                                     " Use LeftDrag to move desktop viewport          ")
                 ->active()
                 ->invoke([&](auto& boss)
                 {

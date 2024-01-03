@@ -36,19 +36,19 @@
   <tr>
     <th>LeftClick</th>
     <td>Run app</td>
-    <td>Minimize<br>Restore</td>
+    <td>Assign exclusive focus</td>
     <td></td>
     <td>Minimize<br>Maximize<br>Close</td>
-    <td colspan="3">Assign exclusive keyboard focus</td>
+    <td colspan="3">Assign exclusive focus</td>
     <td>Go to app</td>
     <td>Clear keyboard focus</td>
   </tr>
   <tr>
     <th>RightClick</th>
     <td>Set default app</td>
-    <td>Center app window</td>
+    <td>Toggle taskbar width</td>
     <td colspan="1"></td>
-    <td colspan="2">Assign exclusive keyboard focus</td>
+    <td colspan="2">Assign exclusive focus</td>
     <td colspan="1"></td>
     <td colspan="2">Center app window</td>
     <td></td>
@@ -72,10 +72,21 @@
     <td></td>
   </tr>
   <tr>
-    <th>double LeftClick</th>
-    <td colspan="3"></td>
+    <th>DblLeftClick</th>
+    <td colspan="1"></td>
+    <td colspan="1">Go to app window</td>
+    <td colspan="1"></td>
     <td></td>
     <td colspan="2">Maximize<br>Restore</td>
+    <td colspan="3"></td>
+  </tr>
+  <tr>
+    <th>Alt/Option+DblLeftClick</th>
+    <td colspan="1"></td>
+    <td colspan="1">Center app window</td>
+    <td colspan="1"></td>
+    <td></td>
+    <td colspan="2"></td>
     <td colspan="3"></td>
   </tr>
   <tr>
@@ -85,11 +96,11 @@
   </tr>
   <tr>
     <th>LeftDrag</th>
-    <td colspan="3"></td>
+    <td colspan="3">Move desktop viewport</td>
     <td colspan="3">Move window or Select text</td>
     <td colspan="1">Resize window</td>
     <td colspan="1">Move window</td>
-    <td>Panoramic workspace scrolling</td>
+    <td>Move desktop viewport</td>
   </tr>
   <tr>
     <th>RightDrag</th>
@@ -106,7 +117,7 @@
     <th>Left+RightDrag</th>
     <td colspan="3"></td>
     <td colspan="4">Move window / Restore maximized</td>
-    <td colspan="2">Panoramic workspace scrolling</td>
+    <td colspan="2">Move desktop viewport</td>
   </tr>
   <tr>
     <th>Ctrl+LeftDrag</th>
