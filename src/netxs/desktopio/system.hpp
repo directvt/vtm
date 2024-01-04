@@ -2101,6 +2101,9 @@ namespace netxs::os
         static const auto elevated = []
         {
             #if defined(_WIN32)
+                //todo Workaround for https://github.com/PowerShell/Win32-OpenSSH/issues/2037
+                os::env::unset("c28fc6f98a2c44abbbd89d6a3037d0d9_POSIX_FD_STATE");
+
                 auto issuer = SID_IDENTIFIER_AUTHORITY{ SECURITY_NT_AUTHORITY };
                 auto admins = PSID{};
                 auto member = BOOL{};
