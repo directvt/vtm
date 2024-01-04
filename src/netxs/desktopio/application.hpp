@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.47";
+    static const auto version = "v0.9.48";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto ipc_prefix = "vtm";
     static const auto log_suffix = "_log";
