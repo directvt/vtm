@@ -6521,14 +6521,15 @@ namespace netxs::ui
                 if (config.resetonout) follow[axis::Y] = true;
                 if (follow[axis::Y])
                 {
-                    unsync = proc();
+                    unsync |= proc();
                 }
                 else
                 {
                     auto last_basis = target->get_basis();
                     auto last_slide = target->get_slide();
-                    unsync = proc();
-                    if (unsync)
+                    auto is_changed = proc();
+                    unsync |= is_changed;
+                    if (is_changed)
                     {
                         auto next_basis = target->get_basis();
                         follow[axis::Y] = (last_basis <= last_slide && last_slide <= next_basis)
