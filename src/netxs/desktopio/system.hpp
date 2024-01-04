@@ -3628,19 +3628,21 @@ namespace netxs::os
                 auto procsinf = PROCESS_INFORMATION{};
                 auto attrbuff = std::vector<byte>{};
                 auto attrsize = SIZE_T{ 0 };
+                auto stderror = nt::console::handle(fds->w); // Not used, but handle must be filled in.
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                 attrbuff.resize(attrsize);
                 startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());
                 startinf.StartupInfo.dwFlags    = STARTF_USESTDHANDLES;
                 startinf.StartupInfo.hStdInput  = fds->r;
                 startinf.StartupInfo.hStdOutput = fds->w;
+                startinf.StartupInfo.hStdError  = stderror;
                 result = true
                 && ::InitializeProcThreadAttributeList(startinf.lpAttributeList, 1, 0, &attrsize)
                 && ::UpdateProcThreadAttribute(startinf.lpAttributeList,
                                                0,
                                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
                                               &startinf.StartupInfo.hStdInput,
-                                        sizeof(startinf.StartupInfo.hStdInput) * 2,
+                                        sizeof(startinf.StartupInfo.hStdInput) * 3,
                                                nullptr,
                                                nullptr)
                 && ::CreateProcessW(nullptr,                             // lpApplicationName
@@ -3656,6 +3658,7 @@ namespace netxs::os
                                                 : nullptr,
                                     &startinf.StartupInfo,               // lpStartupInfo (ptr to STARTUPINFO)
                                     &procsinf);                          // lpProcessInformation
+                os::close(stderror);
                 if (result)
                 {
                     os::close(procsinf.hThread);
