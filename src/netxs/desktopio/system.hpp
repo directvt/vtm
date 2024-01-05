@@ -1020,7 +1020,7 @@ namespace netxs::os
                 ::GetTokenInformation(token, TOKEN_INFORMATION_CLASS::TokenSessionId, &session_id, sizeof(session_id), &byte_count);
                 return session_id;
             }
-            auto runas(auto token, auto&& cmdarg)
+            auto runas(auto token, auto&& cmdarg, qiew envars = {})
             {
                 auto proinf = PROCESS_INFORMATION{};
                 auto upinfo = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -1048,6 +1048,7 @@ namespace netxs::os
                                                            nullptr,
                                                            nullptr);
                 }
+                auto wenv = utf::to_utf(envars);
                 auto result = ::CreateProcessAsUserW(token,
                                                      nullptr,                      // lpApplicationName
                                                      cmdarg.data(),                // lpCommandLine
@@ -1056,8 +1057,10 @@ namespace netxs::os
                                                      TRUE,                         // bInheritHandles
                                                      DETACHED_PROCESS |            // dwCreationFlags
                                                      EXTENDED_STARTUPINFO_PRESENT |// override startupInfo type
+                                                     CREATE_UNICODE_ENVIRONMENT |  // environment block in UTF-16
                                                      CREATE_BREAKAWAY_FROM_JOB,    // disassociate with the job
-                                                     nullptr,                      // lpEnvironment
+                                                     wenv.size() ? wenv.data()     // lpEnvironment
+                                                                 : nullptr,
                                                      nullptr,                      // lpCurrentDirectory
                                                      &upinfo.StartupInfo,          // lpStartupInfo
                                                      &proinf);                     // lpProcessInformation
@@ -1697,7 +1700,7 @@ namespace netxs::os
     namespace env
     {
         // os::env: Return the current environment block with additional records.
-        auto add(qiew additional_recs)
+        auto add(qiew additional_recs = {})
         {
             #if defined(_WIN32)
                 auto env_ptr = ::GetEnvironmentStringsW();
@@ -1727,7 +1730,7 @@ namespace netxs::os
                 });
             };
             combine(env_cur);
-            combine(additional_recs);
+            if (additional_recs) combine(additional_recs);
             env_cur.clear();
             for (auto& [key, val] : env_map)
             {
@@ -2451,8 +2454,9 @@ namespace netxs::os
                 auto svclink = os::invalid_fd;
                 if (nt::session() && nt::connect(os::path::ipcname, FILE_WRITE_DATA, svclink)) // Try vtm service to run server in Session 0.
                 {
-                    auto size = (ui32)(prefix.size() + config.size() + 1);
-                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\0', config);
+                    auto envars = os::env::add(); // Take current envvars block.
+                    auto size = (ui32)(prefix.size() + config.size() + envars.size() + 2);
+                    auto data = utf::concat(view{ (char*)&size, sizeof(size) }, prefix, '\xFF', config, '\xFF', envars);
                     io::send(svclink, data);
                     success.reset(svclink); // Do not close until confirmation from the server process is received.
                 }
@@ -2570,10 +2574,11 @@ namespace netxs::os
                                     else break;
                                 }
                                 if (size == 0)
-                                if (auto blocks = utf::divide(data, '\0'); blocks.size() == 2)
+                                if (auto blocks = utf::divide(data, '\xFF'); blocks.size() == 3)
                                 {
                                     auto prefix = blocks[0];
                                     auto config = blocks[1];
+                                    auto envars = blocks[2];
                                     auto cfpath = utf::concat(prefix, "_config");
                                     auto handle = process::memory::set(cfpath, config);
                                     auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
@@ -2585,7 +2590,7 @@ namespace netxs::os
                                     process && ::OpenProcessToken(process, TOKEN_ALL_ACCESS, &ostoken);
                                     ostoken && ::DuplicateTokenEx(ostoken, MAXIMUM_ALLOWED, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityIdentification, TOKEN_TYPE::TokenPrimary, &mytoken);
                                     mytoken && ::SetTokenInformation(mytoken, TOKEN_INFORMATION_CLASS::TokenSessionId, &session, sizeof(session));
-                                    mytoken && os::nt::runas(mytoken, cmdarg);
+                                    mytoken && os::nt::runas(mytoken, cmdarg, envars);
                                     os::close(mytoken);
                                     os::close(ostoken);
                                     os::close(process);
