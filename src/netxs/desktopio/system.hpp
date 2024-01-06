@@ -429,6 +429,18 @@ namespace netxs::os
                 }
                 else return hndl;
             }
+            auto duplicate(fd_t cloned_handle)
+            {
+                auto handle_clone = os::invalid_fd;
+                ::DuplicateHandle(::GetCurrentProcess(),
+                                  cloned_handle,
+                                  ::GetCurrentProcess(),
+                                 &handle_clone,
+                                  0,
+                                  TRUE,
+                                  DUPLICATE_SAME_ACCESS);
+                return handle_clone;
+            }
 
             namespace console
             {
@@ -498,18 +510,6 @@ namespace netxs::os
                                       OBJ_CASE_INSENSITIVE | (inheritable ? OBJ_INHERIT : 0),
                                       FILE_SYNCHRONOUS_IO_NONALERT,
                                       server);
-                }
-                auto handle(fd_t cloned_handle)
-                {
-                    auto handle_clone = os::invalid_fd;
-                    ::DuplicateHandle(::GetCurrentProcess(),
-                                      cloned_handle,
-                                      ::GetCurrentProcess(),
-                                     &handle_clone,
-                                      0,
-                                      TRUE,
-                                      DUPLICATE_SAME_ACCESS);
-                    return handle_clone;
                 }
                 template<svga Mode>
                 auto attr(cell const& c)
@@ -1034,7 +1034,7 @@ namespace netxs::os
                     profile_info.lpUserName = username.data();
                     profile_info.lpServerName = domain.data();
                     rc = rc && ::LoadUserProfileW(token, &profile_info);
-                    h_prof = nt::console::handle(profile_info.hProfile); // Make handle inheritable.
+                    h_prof = nt::duplicate(profile_info.hProfile); // Make handle inheritable.
                     os::close(profile_info.hProfile);
                     rc && ::InitializeProcThreadAttributeList(nullptr, 1, 0, &buflen);
                     buffer.resize(buflen);
@@ -3636,7 +3636,7 @@ namespace netxs::os
                 auto procsinf = PROCESS_INFORMATION{};
                 auto attrbuff = std::vector<byte>{};
                 auto attrsize = SIZE_T{ 0 };
-                auto stderror = nt::console::handle(fds->w); // Not used, but handle must be filled in.
+                auto stderror = nt::duplicate(fds->w); // Not used, but handle must be filled in.
                 ::InitializeProcThreadAttributeList(nullptr, 1, 0, &attrsize);
                 attrbuff.resize(attrsize);
                 startinf.lpAttributeList = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attrbuff.data());

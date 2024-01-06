@@ -75,9 +75,9 @@ struct consrv
         }
         else
         {
-            startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);        // Windows8's cmd.exe requires that handles.
-            startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);        //
-            startinf.StartupInfo.hStdError  = nt::console::handle(startinf.StartupInfo.hStdOutput); //
+            startinf.StartupInfo.hStdInput  = nt::console::handle(condrv, "\\Input",  true);  // Windows8's cmd.exe requires that handles.
+            startinf.StartupInfo.hStdOutput = nt::console::handle(condrv, "\\Output", true);  //
+            startinf.StartupInfo.hStdError  = nt::duplicate(startinf.StartupInfo.hStdOutput); //
         }
         startinf.StartupInfo.dwX = 0;
         startinf.StartupInfo.dwY = 0;
@@ -476,7 +476,7 @@ struct impl : consrv
             auto rc = nt::ioctl(nt::console::op::write_output, condrv, result);
             if (rc != ERROR_SUCCESS)
             {
-                if constexpr (debugmode) log("\tnt::console::op::write_output returns unexpected result ", utf::to_hex(rc));
+                if constexpr (debugmode) log("\tnt::console::op::write_output()", os::unexpected, " ", utf::to_hex(rc));
                 status = nt::status::unsuccessful;
                 result.length = 0;
             }
@@ -497,7 +497,6 @@ struct impl : consrv
     struct evnt
     {
         using jobs = generics::jobs<std::tuple<cdrw, Arch /*(hndl*)*/, bool>>;
-        using fire = netxs::os::fire;
         using lock = std::recursive_mutex;
         using sync = std::condition_variable_any;
         using vect = std::vector<INPUT_RECORD>;
@@ -531,7 +530,6 @@ struct impl : consrv
         evnt(impl& serv)
             :  server{ serv },
                closed{ faux },
-               ondata{ true },
                leader{      },
                ctrl_c{ faux },
                mstate{      }
@@ -3407,7 +3405,7 @@ struct impl : consrv
         {
             if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
             {
-                log("\tunexpected result");
+                log("\tdirect()", os::unexpected);
             }
             log("\tset default attributes: ", uiterm.target->brush);
         }
@@ -4871,7 +4869,6 @@ struct impl : consrv
     using apis = std::vector<void(impl::*)()>;
     using list = std::list<clnt>;
     using face = ui::face;
-    using fire = netxs::os::fire;
     using xlat = netxs::sptr<decoder>;
 
     Term&       uiterm; // consrv: Terminal reference.
@@ -4933,7 +4930,7 @@ struct impl : consrv
                 winhnd = ::CreateWindowExA(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
                 return winhnd;
             };
-            if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "unexpected result from ::RegisterClassExA()")
+            if (ok(::RegisterClassExA(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExA()", os::unexpected)
                && create_window())
             {
                 auto next = MSG{};
@@ -5004,7 +5001,7 @@ struct impl : consrv
                     }
                     case ERROR_IO_PENDING:         log(prompt, "Operation has not completed"); ::WaitForSingleObject(condrv, 0); break;
                     case ERROR_PIPE_NOT_CONNECTED: log(prompt, "Client disconnected"); return;
-                    default:                       log(prompt, "Unexpected nt::ioctl result ", rc); break;
+                    default:                       log(prompt, "nt::ioctl()", os::unexpected, " ", rc); break;
                 }
             }
             log(prompt, "Server thread ended");
