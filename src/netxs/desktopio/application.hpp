@@ -495,7 +495,7 @@ namespace netxs::app::shared
                 log("%%Loading settings from %path%...", prompt::apps, config_path_str);
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
-                if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+                if (!ec && (config_file.is_regular_file(ec) || config_file.is_symlink(ec)))
                 {
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
