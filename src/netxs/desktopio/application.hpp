@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.50";
+    static const auto version = "v0.9.51";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto ipc_prefix = "vtm";
     static const auto log_suffix = "_log";
@@ -495,7 +495,7 @@ namespace netxs::app::shared
                 log("%%Loading settings from %path%...", prompt::apps, config_path_str);
                 auto ec = std::error_code{};
                 auto config_file = fs::directory_entry(config_path, ec);
-                if (!ec && (config_file.is_regular_file() || config_file.is_symlink()))
+                if (!ec && (config_file.is_regular_file(ec) || config_file.is_symlink(ec)))
                 {
                     auto file = std::ifstream(config_file.path(), std::ios::binary | std::ios::in);
                     if (file.seekg(0, std::ios::end).fail())
