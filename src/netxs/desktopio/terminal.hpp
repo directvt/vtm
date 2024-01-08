@@ -2762,11 +2762,11 @@ namespace netxs::ui
                     }
                 }
                 // buff: Remove the specified number of lines at the specified position (inclusive).
-                auto remove(si32 at, si32 ammount)
+                auto remove(si32 at, si32 amount)
                 {
-                    ammount = ring::remove(at, ammount);
+                    amount = ring::remove(at, amount);
                     reindex(at);
-                    return ammount;
+                    return amount;
                 }
                 // buff: Clear scrollback, add one empty line, and reset all metrics.
                 void clear()
