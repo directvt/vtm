@@ -651,7 +651,7 @@ namespace netxs::generics
             {
                 auto b = begin() - 1;
                 auto a = b + top_block;
-                netxs::swap_block<faux>(a, b, b + n);
+                netxs::swap_block<faux>(a, b, a + n);
                 static constexpr auto UseBack = true;
                 while (n-- > 0) pop_front<UseBack>();
             }
