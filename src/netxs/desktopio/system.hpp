@@ -5167,7 +5167,7 @@ namespace netxs::os
                                 auto pos = accum.rfind('\033'); // Find the probable beginning of the closing sequence.
                                 if (pos != text::npos)
                                 {
-                                    pos += cache.size();
+                                    pos += cache.size() - accum.size();
                                     p.txtdata += cache.substr(0, pos);
                                     cache.remove_prefix(pos);
                                 }
