@@ -1126,36 +1126,35 @@ struct impl : consrv
                         if (c == 0x7f && v == 0) v = VK_BACK;
                         switch (v)
                         {
-                            case VK_CONTROL:
-                            case VK_SHIFT:
-                            case VK_MENU:/*Alt*/
-                            case VK_PAUSE:
-                            case VK_LWIN:
-                            case VK_RWIN:
-                            case VK_APPS:
-                            case VK_NUMLOCK:
-                            case VK_CAPITAL:
-                            case VK_SCROLL:
-                            case VK_CLEAR:/*NUMPAD 5*/
-                            case VK_F2:  //todo menu
-                            case VK_F4:  //todo menu
+                            case VK_CONTROL: break;
+                            case VK_SHIFT:   break;
+                            case VK_MENU:    break; /*Alt*/
+                            case VK_PAUSE:   break;
+                            case VK_LWIN:    break;
+                            case VK_RWIN:    break;
+                            case VK_APPS:    break;
+                            case VK_NUMLOCK: break;
+                            case VK_CAPITAL: break;
+                            case VK_SCROLL:  break;
+                            case VK_CLEAR:   break; /*NUMPAD 5*/
+                            case VK_F2:      break; //todo menu
+                            case VK_F4:      break; //todo menu
+                            case VK_F9:      break; //todo menu
+                            case VK_F11:     break;
+                            case VK_F12:     break;
                             case VK_F7:
-                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
-                            {
-                                hist = {};
-                                if (server.io_log) log("%%Cleared command history for process '%procname%'", prompt::cin, nameview);
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                                {
+                                    hist = {};
+                                    if (server.io_log) log("%%Cleared command history for process '%procname%'", prompt::cin, nameview);
+                                }
                                 break;
-                            }
-                            case VK_F9:  //todo menu
                             case VK_F10:
-                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
-                            {
-                                off_aliases(nameview);
-                                if (server.io_log) log("%%Removed DOSKEY aliases for process '%procname%'", prompt::cin, nameview);
-                                break;
-                            }
-                            case VK_F11:
-                            case VK_F12:
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED))
+                                {
+                                    off_aliases(nameview);
+                                    if (server.io_log) log("%%Removed DOSKEY aliases for process '%procname%'", prompt::cin, nameview);
+                                }
                                 break;
                             case VK_INSERT: burn(); mode(!mode);                                                                   break;
                             case VK_F6:     burn(); hist.save(line);               line.insert(cell{}.c0_to_txt('Z' - '@'), mode); break;
@@ -1186,11 +1185,11 @@ struct impl : consrv
                             case VK_NUMPAD7:
                             case VK_NUMPAD8:
                             case VK_NUMPAD9:
-                            if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
-                            {
-                                while (n--) nums = nums * 10 + v - VK_NUMPAD0;
-                                break;
-                            }
+                                if (cooked.ctrl & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) // Process Alt+Numpad input.
+                                {
+                                    while (n--) nums = nums * 10 + v - VK_NUMPAD0;
+                                    break;
+                                }
                             default:
                             {
                                 n--;
