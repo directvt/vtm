@@ -2756,7 +2756,6 @@ namespace netxs::os
                 {
                     log("Process image has been copied to '%path%'.", dest.string());
                     #if defined(_WIN32)
-
                         // Create service.
                         auto svcname = utf::to_utf(os::service::name);
                         auto svcdesc = utf::to_utf(os::service::desc);
@@ -2786,7 +2785,8 @@ namespace netxs::os
                         service && ::StartServiceW(service, 0, NULL);
                         ::CloseServiceHandle(service);
                         ::CloseServiceHandle(manager);
-
+                    #else
+                        ok(::chmod(dest.string().c_str(), 0755), "Failed to set a file's mode bits for '%path%'.", dest.string());
                     #endif
                 }
                 else log("Failed to copy process image to '%path%'.", dest.string());
