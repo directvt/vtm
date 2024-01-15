@@ -1866,7 +1866,7 @@ namespace netxs::os
         static const auto home = []
         {
             #if defined(_WIN32)
-                auto handle = ::GetCurrentProcessToken();
+                auto handle = ::GetCurrentProcessToken(); // Pseudo handle. No need to close.
                 auto length = DWORD{};
                 auto buffer = wide{};
                 ::GetUserProfileDirectoryW(handle, nullptr, &length);
