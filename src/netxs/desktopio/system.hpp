@@ -108,8 +108,6 @@ namespace netxs::os
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
         static const auto codepage   = ui32{ ::GetOEMCP() };
         static const auto invalid_fd = fd_t{ INVALID_HANDLE_VALUE };
-        //static const auto JKJKLJ1 = []{ ::AttachConsole(ATTACH_PARENT_PROCESS); return 0;}();
-        //static const auto JKJKLJ2 = []{ ::AllocConsole(); return 0;}();
         static       auto stdin_fd   = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
         static       auto stdout_fd  = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
         static       auto stderr_fd  = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
