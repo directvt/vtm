@@ -4,7 +4,9 @@
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
 </a>
 
-vtm is a self-hosted text-based desktop environment allowing both local and cross-platform remote access over tunneling protocols such as SSH. Along with classic console plain-text I/O, vtm uses DirectVT binary mode to maximize efficiency and minimize interplatform issues. For remote access between two hosts with vtm and ssh installed on both, all you need is the command: `vtm ssh user@host vtm`.
+---
+
+vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. Along with plain-text console I/O, vtm uses binary DirectVT I/O mode to maximize efficiency and minimize cross-platform issues. For remote desktop access between two hosts with vtm and ssh installed on both, all you need is the command: `vtm ssh user@host vtm`.
 
 # Supported Platforms
 
