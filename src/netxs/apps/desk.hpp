@@ -429,7 +429,7 @@ namespace netxs::app::desk
             auto highlight_color = skin::color(tone::highlight);
             auto c8 = cell{}.bgc(0x00).fgc(highlight_color.bgc());
             auto ver_label = ui::item::ctor(utf::concat(app::shared::version))
-                ->active()
+                ->active(cell{}.fgc(whitedk))
                 ->shader(c8, e2::form::state::hover)
                 ->limits({}, { -1, 1 })
                 ->alignment({ snap::tail, snap::tail });
