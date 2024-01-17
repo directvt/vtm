@@ -1013,7 +1013,11 @@ namespace netxs::app::vtm
                 {
                     //canvas[p].fuse(grade[k], obj_id, p - offset);
                     //canvas[p].fuse(grade[k], obj_id);
-                    canvas[p].link(obj_id).bgc().mix_one(grade[k & 0xFF].bgc());
+                    auto g = grade[k & 0xFF].bgc();
+                    auto& c = canvas[p];
+                    c.link(obj_id);
+                    c.bgc().mix_one(g);
+                    c.fgc().mix_one(g);
                 };
                 window.coor = dot_00;
                 netxs::online(window, origin, center, pset);
