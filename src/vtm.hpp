@@ -1807,6 +1807,31 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
+            LISTEN(tier::release, e2::conio::readline, utf8)
+            {
+                static auto vtm_run = "vtm.run("sv;
+                auto cmd = qiew{ utf8 };
+                if (cmd.starts_with(vtm_run))
+                {
+                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(utf8, "\n\r"))));
+                    cmd.remove_prefix(vtm_run.size());
+                    auto kind = utf::get_tail(cmd, "\t ,");
+                    auto param = utf::get_quote(cmd, "\"");
+                    auto& maker = app::shared::builder(kind);
+                    auto env = text{};
+                    auto cwd = text{};
+                    auto patch = text{};
+                    auto applet = maker(env, cwd, text{ param }, host::config, patch);
+                    auto what = link{ .header = "test", .footer = "test" };
+                    auto window_ptr = hall::window(what);
+                    window_ptr->extend({{ 10,5 }, { 80, 25+2 }});
+                    window_ptr->attach(applet);
+                    auto menuid = kind;
+                    this->branch(menuid, window_ptr, true);
+                    window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+                }
+                else log(prompt::repl, utf::debase<faux, faux>(utf8));
+            };
         }
 
     public:

@@ -191,8 +191,11 @@ namespace netxs::scripting
             }
             owner.LISTEN(tier::release, e2::conio::readline, utf8, skill::memo)
             {
-                if (engine) write(utf8);
-                else        log(prompt::repl, utf::debase<faux, faux>(utf8));
+                if (engine)
+                {
+                    write(utf8);
+                    owner.bell::template expire<tier::release>();
+                }
             };
         }
     };
