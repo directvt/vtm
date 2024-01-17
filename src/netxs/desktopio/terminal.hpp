@@ -6539,17 +6539,23 @@ namespace netxs::ui
             });
         }
         // term: Proceed terminal input.
-        void ondata(view data, bufferbase* target_buffer = {})
+        template<bool Forced = faux>
+        void ondata(view data = {}, bufferbase* target_buffer = {})
         {
             update([&]
             {
+                auto console_ptr = target_buffer ? target_buffer : this->target;
                 if (data.size())
                 {
                     if (io_log) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                    ansi::parse(data, target_buffer ? target_buffer : this->target);
+                    ansi::parse(data, console_ptr);
                     return true;
                 }
-                else return faux;
+                else
+                {
+                    console_ptr->parser::flush(); // Update line style, etc.
+                    return Forced;
+                }
             });
         }
         // term: Reset to defaults.
@@ -6616,7 +6622,7 @@ namespace netxs::ui
             if (mtrack && selmod == mime::disabled)
             {
                 follow[axis::Y] = true; // Reset viewport.
-                ondata("");             // Recalc trigger.
+                ondata<true>();
             }
         }
         // term: Set selection form.
@@ -6628,7 +6634,7 @@ namespace netxs::ui
             if (mtrack && selmod == mime::disabled)
             {
                 follow[axis::Y] = true; // Reset viewport.
-                ondata("");             // Recalc trigger.
+                ondata<true>();
             }
         }
         // term: Set the next selection mode.
@@ -6988,7 +6994,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata(""); // Recalc trigger.
+            ondata<true>();
         }
         void set_align(si32 align)
         {
@@ -7001,19 +7007,19 @@ namespace netxs::ui
                 target->style.jet((bias)align);
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata(""); // Recalc trigger.
+            ondata<true>();
         }
         void set_selmod(si32 mode)
         {
             selection_selmod(mode);
             if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
-            ondata(""); // Recalc trigger.
+            ondata<true>();
         }
         void set_selalt(bool boxed)
         {
             selection_selalt(boxed);
             if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
-            ondata(""); // Recalc trigger.
+            ondata<true>();
         }
         void set_log(bool state)
         {
@@ -7044,7 +7050,7 @@ namespace netxs::ui
             {
                 follow[axis::Y] = true; // Reset viewport.
             }
-            ondata(""); // Recalc trigger.
+            ondata<true>();
         }
         void data_in(view data)
         {
