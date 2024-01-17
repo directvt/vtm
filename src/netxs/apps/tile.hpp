@@ -376,7 +376,8 @@ namespace netxs::app::tile
             auto [menu_block, cover, menu_data] = menu::mini(true, true, faux, 1,
             menu::list
             {
-                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " New app " }}},
+                { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = "+", .notes = " Launch application instance.                            \n"
+                                                                                                                         " The app to run can be set by RightClick on the taskbar. " }}},
                 [](auto& boss, auto& /*item*/)
                 {
                     boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
@@ -839,7 +840,8 @@ namespace netxs::app::tile
                         //        gear.dismiss(true);
                         //    };
                         //}},
-                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Create and run a new app in active panes " }}},
+                        { menu::item{ menu::item::type::Command, true, 0, std::vector<menu::item::look>{{ .label = " + ", .notes = " Launch application instances in active empty slots.     \n"
+                                                                                                                                   " The app to run can be set by RightClick on the taskbar. " }}},
                         [](auto& boss, auto& /*item*/)
                         {
                             boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear)
