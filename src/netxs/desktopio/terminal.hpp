@@ -7847,7 +7847,7 @@ namespace netxs::ui
                         splash.fill(canvas, cell::shaders::onlyid(parent_id));
                     }
                 }
-                else splash.wipe(cell{}.link(parent_id).bgc(blacklt).bga(0x40));
+                else splash.wipe(cell{}.link(parent_id).fgc(blacklt).bgc(blacklt).alpha(0x40));
             }
         }
         // dtvt: Render next frame.
