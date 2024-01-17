@@ -328,6 +328,30 @@ namespace netxs
                 chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
             }
         }
+        // rgba: Shift color pair.
+        void xlight(si32 factor, rgba& second)
+        {
+            if (luma() > 140)
+            {
+                auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
+                chan.r = chan.r < k ? 0x00 : chan.r - k;
+                chan.g = chan.g < k ? 0x00 : chan.g - k;
+                chan.b = chan.b < k ? 0x00 : chan.b - k;
+                second.chan.r = second.chan.r < k ? 0x00 : second.chan.r - k;
+                second.chan.g = second.chan.g < k ? 0x00 : second.chan.g - k;
+                second.chan.b = second.chan.b < k ? 0x00 : second.chan.b - k;
+            }
+            else
+            {
+                auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
+                second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
+                second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
+            }
+        }
         // rgba: Darken the color.
         void shadow(byte k = 39)
         {
@@ -1405,8 +1429,7 @@ namespace netxs
         // cell: Delight both foreground and background.
         void xlight(si32 factor = 1)
         {
-            uv.fg.bright(factor);
-            uv.bg.xlight(factor);
+            uv.bg.xlight(factor, uv.fg);
         }
         // cell: Invert both foreground and background.
         void invert()
