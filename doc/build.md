@@ -1,6 +1,6 @@
-# Text Mode Desktop
+# Text-based desktop environment
 
-## Building from Source
+## Building from source
 
 ### Unix
 

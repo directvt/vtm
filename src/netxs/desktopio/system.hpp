@@ -1505,7 +1505,7 @@ namespace netxs::os
     namespace service
     {
         static auto name = "vtm"sv;
-        static auto desc = "Text mode desktop."sv;
+        static auto desc = "Text-based desktop environment."sv;
     }
 
     namespace io

@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\nText Mode Desktop " + text{ app::shared::version } +
+        log("\nText-based desktop environment " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"
@@ -177,10 +177,14 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Built-in applications:"
             "\n"
-            "\n    Term      Terminal emulator (default)"
-            "\n    Headless  Terminal emulator without UI"
-            "\n    DTVT      DirectVT Proxy Console"
-            "\n    XLVT      DTVT with controlling terminal (for OpenSSH interactivity)"
+            "\n    Term      Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
+            "\n    Headless  Terminal emulator without UI.                    'vtm -r headless [cli_application]'"
+            "\n    DTVT      DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
+            "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh [user@host dtvt_application]'"
+            "\n"
+            "\n  The following commands have a short form:"
+            "\n    'vtm -r xlvt ssh [user@host dtvt_application]' can be shortened to 'vtm ssh [user@host dtvt_application]'."
+            "\n    'vtm -r term [cli_application]' can be shortened to 'vtm -r [cli_application]'."
             "\n"
             );
     }

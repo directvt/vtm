@@ -1,4 +1,4 @@
-# Text Mode Desktop
+# Text-based desktop environment
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -6,9 +6,9 @@
 
 ---
 
-vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. Along with plain-text console I/O, vtm uses binary DirectVT I/O mode to maximize efficiency and minimize cross-platform issues. For remote desktop access between two hosts with vtm and ssh installed on both, all you need is the command: `vtm ssh user@host vtm`.
+vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. Along with plain-text console I/O, vtm uses binary DirectVT I/O mode to maximize efficiency and minimize cross-platform issues.
 
-# Supported Platforms
+# Supported platforms
 
 - Windows
   - Core/Desktop
@@ -23,7 +23,7 @@ vtm is a text-based desktop environment allowing remote access over tunneling pr
 
 [Tested Terminals](https://github.com/directvt/vtm/discussions/72)
 
-# Binary Downloads
+# Binary downloads
 
 ![Linux](.resources/status/linux.svg)     [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86_64.zip) [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_x86.zip) [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm64.zip) [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_linux_arm32.zip)  
 ![Windows](.resources/status/windows.svg) [![Intel 64-bit](.resources/status/arch_x86_64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86_64.zip)  [![Intel 32-bit](.resources/status/arch_x86.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_x86.zip)  [![ARM 64-bit](.resources/status/arch_arm64.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_arm64.zip)  [![ARM 32-bit](.resources/status/arch_arm32.svg)](https://github.com/directvt/vtm/releases/latest/download/vtm_windows_arm32.zip)  
