@@ -291,7 +291,8 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
-                os::tty::stream.init.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                auto userinit = directvt::binary::init{};
+                userinit.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }
@@ -376,7 +377,8 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, user, settings](auto session_id)
                 {
-                    if (auto packet = os::tty::stream.init.recv(user))
+                    auto userinit = directvt::binary::init{};
+                    if (auto packet = userinit.recv(user))
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
