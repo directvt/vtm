@@ -4483,10 +4483,10 @@ namespace netxs::os
                 if (utf8.empty()) return;
                 if (dtvt::active || dtvt::client)
                 {
-                    auto lock = tty::stream.logs.freeze();
-                    lock.thing.set(os::process::id.first, os::process::id.second, utf8);
-                    dtvt::active ? lock.thing.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
-                                 : lock.thing.sendby(dtvt::client); // Send logs to the dtvt-app.
+                    static auto logs = netxs::directvt::binary::logs_t{};
+                    logs.set(os::process::id.first, os::process::id.second, utf8);
+                    dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
+                                 : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
                 }
                 else if (os::is_daemon())
                 {
