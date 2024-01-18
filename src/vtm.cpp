@@ -220,15 +220,14 @@ int main(int argc, char* argv[])
         });
         while (online)
         {
-            stream = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
+            auto iolink = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
             if (denied) return failed(code::noaccess);
-            if (stream)
+            if (iolink)
             {
-                log("%%Connected", prompt::main);
-                stream->send(utf::concat(os::process::id.first));
                 {
                     auto sync = std::lock_guard{ locker };
-                    stream->send(std::move(buffer));
+                    std::swap(stream, iolink);
+                    stream->send(utf::concat(os::process::id.first, '\0', std::move(buffer)));
                     active.exchange(true);
                 }
                 while (online)
@@ -366,14 +365,17 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, monitor](auto /*task_id*/)
                 {
-                    auto id = monitor->recv().str();
-                    log("%%Monitor [%id%] connected", prompt::logs, id);
                     auto tokens = subs{};
                     auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
                     domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
-                    //todo send/receive dtvt events and signals
                     os::ipc::monitors++;
-                    while (auto line = monitor->recv())
+                    auto line = monitor->recv();
+                    auto id = utf::get_word(line, '\0').str();
+                    log("%%Monitor [%id%] connected", prompt::logs, id);
+                    //todo send/receive dtvt events and signals
+                    if (line) line.pop_front();
+                    if (line) domain->SIGNAL(tier::release, e2::conio::readline, line);
+                    while (line = monitor->recv())
                     {
                         domain->SIGNAL(tier::release, e2::conio::readline, line);
                     }
