@@ -201,15 +201,22 @@ int main(int argc, char* argv[])
         log("%%Waiting for server...", prompt::main);
         auto online = flag{ true };
         auto active = flag{ faux };
+        auto locker = std::mutex{};
+        auto buffer = text{};
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
+            auto sync = std::lock_guard{ locker };
             if (active) stream->send(line);
-            else log("%%No server connected", prompt::main);
+            else
+            {
+                log("%%No server connected", prompt::main);
+                buffer += line;
+            }
         }, [&]
         {
             online.exchange(faux);
-            if (active) stream->shut();
+            if (stream) stream->shut();
         });
         while (online)
         {
@@ -219,7 +226,11 @@ int main(int argc, char* argv[])
             {
                 log("%%Connected", prompt::main);
                 stream->send(utf::concat(os::process::id.first));
-                active.exchange(true);
+                {
+                    auto sync = std::lock_guard{ locker };
+                    stream->send(std::move(buffer));
+                    active.exchange(true);
+                }
                 while (online)
                 {
                     if (auto data = stream->recv()) log<faux>(data);
