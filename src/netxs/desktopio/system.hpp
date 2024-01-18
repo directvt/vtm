@@ -4371,32 +4371,7 @@ namespace netxs::os
             }
             else io::send(utf8);
         });
-        void title(view utf8)
-        {
-            #if defined(_WIN32)
-                ::SetConsoleTitleW(utf::to_utf(utf8).c_str());
-            #else
-                io::send(ansi::header(utf8));
-            #endif
-            if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(utf8)));
-        }
-        auto title()
-        {
-            auto utf8 = text{};
-            #if defined(_WIN32)
-            if (!os::dtvt::active)
-            {
-                auto size = DWORD{ os::pipebuf };
-                auto wstr = wide(size, '\0');
-                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(tty)", os::unexpected);
-                utf8 = utf::to_utf(wstr);
-            }
-            #else
-            #endif
-            return utf8;
-        }
-        static auto clipboard = text{};
-        struct proxy : s11n
+        struct adapter : s11n
         {
             void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
             void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
@@ -4436,7 +4411,12 @@ namespace netxs::os
                 if (item.utf8.length())
                 {
                     auto filtered = para{ item.utf8 }.lyric->utf8();
-                    tty::title(filtered);
+                    #if defined(_WIN32)
+                        ::SetConsoleTitleW(utf::to_utf(filtered).c_str());
+                    #else
+                        io::send(ansi::header(filtered));
+                    #endif
+                    if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(filtered)));
                 }
                 item.set();
             }
@@ -4467,14 +4447,10 @@ namespace netxs::os
                 }
             }
 
-            proxy()
+            adapter()
                 : s11n{ *this }
-            {
-                s11n::header.set(id_t{}, tty::title());
-                s11n::footer.set(id_t{}, ""s);
-            }
+            { }
         };
-        static auto stream = proxy{}; // tty: Serialization proxy.
         auto logger()
         {
             static auto dtvt_output = [](auto& data){ io::send(os::stdout_fd, data); };
@@ -5386,167 +5362,165 @@ namespace netxs::os
             if constexpr (debugmode) log(prompt::tty, "Reading thread ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
             close(c);
         }
-        void clipbd([[maybe_unused]] auto& alarm)
-        {
-            using namespace os::clipboard;
-
-            if (os::dtvt::active) return;
-            if constexpr (debugmode) log(prompt::tty, "Clipboard watcher started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
-
-            #if defined(_WIN32)
-
-                auto wndname = utf::to_utf("vtmWindowClass");
-                auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
-                {
-                    static auto alive = flag{ true };
-                    auto sync = [](qiew utf8, auto form)
-                    {
-                        auto meta = qiew{};
-                        if (form == mime::disabled)
-                        {
-                            auto step = utf8.find(';');
-                            if (step != view::npos)
-                            {
-                                meta = utf8.substr(0, step++);
-                                utf8.remove_prefix(step);
-                            }
-                        }
-                        auto clipdata = tty::stream.clipdata.freeze();
-                        input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::win_sz / 2, utf8, form, meta);
-                        auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
-                        tty::stream.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
-                    };
-                    switch (uMsg)
-                    {
-                        case WM_CREATE:
-                            ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected);
-                            // Continue processing the switch to initialize the clipboard state after startup.
-                        case WM_CLIPBOARDUPDATE:
-                        {
-                            auto lock = std::lock_guard{ os::clipboard::mutex };
-                            while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
-                            {
-                                if (os::error() != ERROR_ACCESS_DENIED)
-                                {
-                                    auto error = utf::concat("::OpenClipboard()", os::unexpected, " code ", os::error());
-                                    sync(error, mime::textonly);
-                                    return (LRESULT) NULL;
-                                }
-                                std::this_thread::yield();
-                            }
-                            if (auto seqno = ::GetClipboardSequenceNumber();
-                                     seqno != os::clipboard::sequence)
-                            {
-                                os::clipboard::sequence = seqno;
-                                if (auto format = ::EnumClipboardFormats(0))
-                                {
-                                    auto hidden = ::GetClipboardData(cf_sec1);
-                                    if (auto hglb = ::GetClipboardData(cf_ansi)) // Our clipboard format.
-                                    {
-                                        if (auto lptr = ::GlobalLock(hglb))
-                                        {
-                                            auto size = ::GlobalSize(hglb);
-                                            auto data = view((char*)lptr, size - 1/*trailing null*/);
-                                            sync(data, mime::disabled);
-                                            ::GlobalUnlock(hglb);
-                                        }
-                                        else
-                                        {
-                                            auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
-                                            sync(error, mime::textonly);
-                                        }
-                                    }
-                                    else do
-                                    {
-                                        if (format == cf_text)
-                                        {
-                                            hglb = ::GetClipboardData(format);
-                                            if (hglb)
-                                            if (auto lptr = ::GlobalLock(hglb))
-                                            {
-                                                auto type = hidden ? mime::safetext : mime::textonly;
-                                                auto size = ::GlobalSize(hglb);
-                                                sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
-                                                ::GlobalUnlock(hglb);
-                                                break;
-                                            }
-                                            auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
-                                            sync(error, mime::textonly);
-                                        }
-                                        else
-                                        {
-                                            //todo proceed other formats (rich/html/...)
-                                        }
-                                        format = ::EnumClipboardFormats(format);
-                                    }
-                                    while (format);
-                                }
-                                else sync(view{}, mime::textonly);
-                            }
-                            ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
-                            break;
-                        }
-                        case WM_DESTROY:
-                            ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
-                            ::PostQuitMessage(0);
-                            if (alive.exchange(faux))
-                            {
-                                os::signals::place(os::signals::close); // taskkill /pid nnn
-                            }
-                            break;
-                        case WM_ENDSESSION:
-                            if (wParam && alive.exchange(faux))
-                            {
-                                     if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
-                                else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
-                                else                                   os::signals::place(os::signals::shutdown);
-                            }
-                            break;
-                        default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
-                    }
-                    return (LRESULT) NULL;
-                };
-                auto wnddata = WNDCLASSEXW
-                {
-                    .cbSize        = sizeof(WNDCLASSEXW),
-                    .lpfnWndProc   = wndproc,
-                    .lpszClassName = wndname.c_str(),
-                };
-                if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
-                {
-                    os::clipboard::winhndl = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-                    auto stop = fd_t{ alarm };
-                    auto next = MSG{};
-                    while (next.message != WM_QUIT)
-                    {
-                        if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT);
-                                 yield == WAIT_OBJECT_0)
-                        {
-                            ::DestroyWindow(os::clipboard::winhndl);
-                            break;
-                        }
-                        while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
-                        {
-                            ::DispatchMessageW(&next);
-                        }
-                    }
-                }
-
-            #elif defined(__APPLE__)
-
-                //todo macOS clipboard watcher
-
-            #else
-
-                //todo X11 and Wayland clipboard watcher
-
-            #endif
-
-            if constexpr (debugmode) log(prompt::tty, "Clipboard watcher ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
-        }
         auto legacy()
         {
-            auto& intio = *dtvt::client;
+            static auto proxy = tty::adapter{}; // Serialization proxy.
+            auto clipbd = []([[maybe_unused]] auto& alarm)
+            {
+                if constexpr (debugmode) log(prompt::tty, "Clipboard sync started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+
+                #if defined(_WIN32)
+
+                    auto wndname = utf::to_utf("vtmWindowClass");
+                    auto wndproc = [](auto hwnd, auto uMsg, auto wParam, auto lParam)
+                    {
+                        static auto alive = flag{ true };
+                        auto sync = [](qiew utf8, auto form)
+                        {
+                            auto meta = qiew{};
+                            if (form == mime::disabled)
+                            {
+                                auto step = utf8.find(';');
+                                if (step != view::npos)
+                                {
+                                    meta = utf8.substr(0, step++);
+                                    utf8.remove_prefix(step);
+                                }
+                            }
+                            auto clipdata = proxy.clipdata.freeze();
+                            input::board::normalize(clipdata.thing, id_t{}, datetime::now(), dtvt::win_sz / 2, utf8, form, meta);
+                            auto crop = utf::trunc(clipdata.thing.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                            proxy.sysboard.send(dtvt::client, id_t{}, clipdata.thing.size, crop.str(), clipdata.thing.form);
+                        };
+                        switch (uMsg)
+                        {
+                            case WM_CREATE:
+                                ok(::AddClipboardFormatListener(hwnd), "::AddClipboardFormatListener()", os::unexpected);
+                                // Continue processing the switch to initialize the clipboard state after startup.
+                            case WM_CLIPBOARDUPDATE:
+                            {
+                                auto lock = std::lock_guard{ os::clipboard::mutex };
+                                while (!::OpenClipboard(hwnd)) // Waiting clipboard access.
+                                {
+                                    if (os::error() != ERROR_ACCESS_DENIED)
+                                    {
+                                        auto error = utf::concat("::OpenClipboard()", os::unexpected, " code ", os::error());
+                                        sync(error, mime::textonly);
+                                        return (LRESULT) NULL;
+                                    }
+                                    std::this_thread::yield();
+                                }
+                                if (auto seqno = ::GetClipboardSequenceNumber();
+                                         seqno != os::clipboard::sequence)
+                                {
+                                    os::clipboard::sequence = seqno;
+                                    if (auto format = ::EnumClipboardFormats(0))
+                                    {
+                                        auto hidden = ::GetClipboardData(os::clipboard::cf_sec1);
+                                        if (auto hglb = ::GetClipboardData(os::clipboard::cf_ansi)) // Our clipboard format.
+                                        {
+                                            if (auto lptr = ::GlobalLock(hglb))
+                                            {
+                                                auto size = ::GlobalSize(hglb);
+                                                auto data = view((char*)lptr, size - 1/*trailing null*/);
+                                                sync(data, mime::disabled);
+                                                ::GlobalUnlock(hglb);
+                                            }
+                                            else
+                                            {
+                                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
+                                                sync(error, mime::textonly);
+                                            }
+                                        }
+                                        else do
+                                        {
+                                            if (format == os::clipboard::cf_text)
+                                            {
+                                                hglb = ::GetClipboardData(format);
+                                                if (hglb)
+                                                if (auto lptr = ::GlobalLock(hglb))
+                                                {
+                                                    auto type = hidden ? mime::safetext : mime::textonly;
+                                                    auto size = ::GlobalSize(hglb);
+                                                    sync(utf::to_utf((wchr*)lptr, size / 2 - 1/*trailing null*/), type);
+                                                    ::GlobalUnlock(hglb);
+                                                    break;
+                                                }
+                                                auto error = utf::concat("::GlobalLock()", os::unexpected, " code ", os::error());
+                                                sync(error, mime::textonly);
+                                            }
+                                            else
+                                            {
+                                                //todo proceed other formats (rich/html/...)
+                                            }
+                                            format = ::EnumClipboardFormats(format);
+                                        }
+                                        while (format);
+                                    }
+                                    else sync(view{}, mime::textonly);
+                                }
+                                ok(::CloseClipboard(), "::CloseClipboard()", os::unexpected);
+                                break;
+                            }
+                            case WM_DESTROY:
+                                ok(::RemoveClipboardFormatListener(hwnd), "::RemoveClipboardFormatListener()", os::unexpected);
+                                ::PostQuitMessage(0);
+                                if (alive.exchange(faux))
+                                {
+                                    os::signals::place(os::signals::close); // taskkill /pid nnn
+                                }
+                                break;
+                            case WM_ENDSESSION:
+                                if (wParam && alive.exchange(faux))
+                                {
+                                         if (lParam & ENDSESSION_CLOSEAPP) os::signals::place(os::signals::close);
+                                    else if (lParam & ENDSESSION_LOGOFF)   os::signals::place(os::signals::logoff);
+                                    else                                   os::signals::place(os::signals::shutdown);
+                                }
+                                break;
+                            default: return DefWindowProc(hwnd, uMsg, wParam, lParam);
+                        }
+                        return (LRESULT) NULL;
+                    };
+                    auto wnddata = WNDCLASSEXW
+                    {
+                        .cbSize        = sizeof(WNDCLASSEXW),
+                        .lpfnWndProc   = wndproc,
+                        .lpszClassName = wndname.c_str(),
+                    };
+                    if (ok(::RegisterClassExW(&wnddata) || os::error() == ERROR_CLASS_ALREADY_EXISTS, "::RegisterClassExW()", os::unexpected))
+                    {
+                        auto hndl = ::CreateWindowExW(0, wndname.c_str(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        auto stop = fd_t{ alarm };
+                        auto next = MSG{};
+                        while (next.message != WM_QUIT)
+                        {
+                            if (auto yield = ::MsgWaitForMultipleObjects(1, &stop, FALSE, INFINITE, QS_ALLINPUT);
+                                     yield == WAIT_OBJECT_0)
+                            {
+                                ::DestroyWindow(hndl);
+                                break;
+                            }
+                            while (::PeekMessageW(&next, NULL, 0, 0, PM_REMOVE) && next.message != WM_QUIT)
+                            {
+                                ::DispatchMessageW(&next);
+                            }
+                        }
+                    }
+
+                #elif defined(__APPLE__)
+
+                    //todo macOS clipboard sync
+
+                #else
+
+                    //todo X11 and Wayland clipboard sync
+
+                #endif
+
+                if constexpr (debugmode) log(prompt::tty, "Clipboard sync ended", ' ', utf::to_hex_0x(std::this_thread::get_id()));
+            };
+
             #if defined(_WIN32)
                 auto inpmode = DWORD{};
                 ok(::GetConsoleMode(os::stdin_fd, &inpmode), "::GetConsoleMode()", os::unexpected);
@@ -5583,20 +5557,33 @@ namespace netxs::os
                 io::send(os::stdout_fd, vtrun);
             #endif
 
-            tty::stream.mousebar.send(intio, !!(dtvt::vtmode & ui::console::mouse));
+            auto& intio = *dtvt::client;
+            auto title = text{};
+            #if defined(_WIN32)
+            {
+                auto size = DWORD{ os::pipebuf };
+                auto wstr = wide(size, '\0');
+                ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(tty)", os::unexpected);
+                title = utf::to_utf(wstr);
+            }
+            #else
+            #endif
+            proxy.header.set(id_t{}, title);
+            proxy.footer.set(id_t{}, ""s);
+            proxy.mousebar.send(intio, !!(dtvt::vtmode & ui::console::mouse));
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            auto keybd = [&](auto& data) { if (alive)                tty::stream.syskeybd.send(intio, data); };
-            auto mouse = [&](auto& data) { if (alive)                tty::stream.sysmouse.send(intio, data); };
-            auto winsz = [&](auto& data) { if (alive)                tty::stream.syswinsz.send(intio, data); };
-            auto focus = [&](auto& data) { if (alive)                tty::stream.sysfocus.send(intio, data); };
-            auto paste = [&](auto& data) { if (alive)                tty::stream.syspaste.send(intio, data); };
-            auto close = [&](auto& data) { if (alive.exchange(faux)) tty::stream.sysclose.send(intio, data); };
+            auto keybd = [&](auto& data) { if (alive)                proxy.syskeybd.send(intio, data); };
+            auto mouse = [&](auto& data) { if (alive)                proxy.sysmouse.send(intio, data); };
+            auto winsz = [&](auto& data) { if (alive)                proxy.syswinsz.send(intio, data); };
+            auto focus = [&](auto& data) { if (alive)                proxy.sysfocus.send(intio, data); };
+            auto paste = [&](auto& data) { if (alive)                proxy.syspaste.send(intio, data); };
+            auto close = [&](auto& data) { if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
-            auto clips = std::thread{ [&]{ tty::clipbd(alarm); } };
-            directvt::binary::stream::reading_loop(intio, [&](view data){ tty::stream.s11n::sync(data); });
-            tty::stream.s11n::stop(); // Wake up waiting objects, if any.
+            auto clips = std::thread{ [&]{ clipbd(alarm); } };
+            directvt::binary::stream::reading_loop(intio, [&](view data){ proxy.sync(data); });
+            proxy.stop(); // Wake up waiting objects, if any.
             alarm.bell(); // Forced to call close().
             clips.join();
             input.join(); // Wait close() to complete.
@@ -5604,7 +5591,7 @@ namespace netxs::os
             //test: os::sleep(2000ms); // Uncomment to test for delayed input events.
 
             #if defined(_WIN32)
-                if (os::signals::leave) return; // Don't restore when closing the console. (deadlock on Windows 8).
+                if (os::signals::leave) return; // Don't restore closing console. (deadlock on Windows 8).
                 io::send(os::stdout_fd, ansi::altbuf(faux).cursor(true).bpmode(faux));
                 if (dtvt::vtmode & ui::console::nt16) // Restore pelette.
                 {
