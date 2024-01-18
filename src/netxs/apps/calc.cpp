@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
     auto defaults = 
     #include "calc.xml"
 
+    os::dtvt::initialize();
     auto syslog = os::tty::logger();
     auto banner = []{ log(app::calc::desc, ' ', app::shared::version); };
     auto cfonly = faux;

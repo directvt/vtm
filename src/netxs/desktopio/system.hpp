@@ -106,11 +106,10 @@ namespace netxs::os
         using pidt = DWORD;
         using fd_t = HANDLE;
         struct tios { DWORD omode, imode, opage, ipage; wide title; CONSOLE_CURSOR_INFO caret{}; };
-        static const auto codepage   = ui32{ ::GetOEMCP() };
         static const auto invalid_fd = fd_t{ INVALID_HANDLE_VALUE };
-        static       auto stdin_fd   = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
-        static       auto stdout_fd  = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
-        static       auto stderr_fd  = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+        static auto stdin_fd  = fd_t{};
+        static auto stdout_fd = fd_t{};
+        static auto stderr_fd = fd_t{};
 
     #else
 
@@ -119,24 +118,13 @@ namespace netxs::os
         using fd_t = int;
         using tios = ::termios;
         static const auto invalid_fd = fd_t{ -1            };
-        static       auto stdin_fd   = fd_t{ STDIN_FILENO  };
-        static       auto stdout_fd  = fd_t{ STDOUT_FILENO };
-        static       auto stderr_fd  = fd_t{ STDERR_FILENO };
-        static const auto linux_console = []
-        {
-            auto conmode = -1;
-            #if defined(__linux__)
-            ::ioctl(os::stdout_fd, KDGETMODE, &conmode);
-            #endif
-            return conmode != -1;
-        }();
+        static auto stdin_fd  = fd_t{ STDIN_FILENO  };
+        static auto stdout_fd = fd_t{ STDOUT_FILENO };
+        static auto stderr_fd = fd_t{ STDERR_FILENO };
+        static auto linux_console = faux;
 
     #endif
 
-    auto is_daemon()
-    {
-        return os::stdin_fd == os::invalid_fd;
-    }
     auto error()
     {
         #if defined(_WIN32)
@@ -3347,7 +3335,7 @@ namespace netxs::os
     namespace dtvt
     {
         static auto isolated = faux; // Standalone app in legacy console.
-        static auto mode = ui::console::vtrgb;
+        static auto vtmode = ui::console::vtrgb; // tty: VT-mode bit set.
         static auto scroll = faux; // Viewport/scrollback selector for windows console.
         auto consize()
         {
@@ -3383,9 +3371,24 @@ namespace netxs::os
         static auto header = text{}; // dtvt: Extra read block from stdin.
         static auto win_sz = twod{}; // dtvt: Initial window size.
         static auto client = xipc{}; // dtvt: Internal IO link.
-        static auto active = []      // dtvt: DirectVT mode is active.
+        static auto active = faux;   // dtvt: DirectVT mode is active.
+
+        auto initialize()
         {
-            auto result = faux;
+            #if defined(_WIN32)
+                os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+                os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+                os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+            #else
+            {
+                auto conmode = -1;
+                #if defined(__linux__)
+                ::ioctl(os::stdout_fd, KDGETMODE, &conmode);
+                #endif
+                os::linux_console = conmode != -1;
+            }
+            #endif
+
             auto cfsize = sz_t{};
             #if defined(_WIN32)
 
@@ -3398,8 +3401,8 @@ namespace netxs::os
                     if (::PeekNamedPipe(os::stdin_fd, buffer.data(), (DWORD)buffer.size(), &length, NULL, NULL)
                      && length)
                     {
-                        result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
-                        if (result)
+                        dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                        if (dtvt::active)
                         {
                             io::recv(os::stdin_fd, buffer);
                         }
@@ -3408,7 +3411,7 @@ namespace netxs::os
                 else
                 {
                     length = (DWORD)io::recv(os::stdin_fd, buffer).size();
-                    result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                    dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
                 }
 
             #else
@@ -3422,8 +3425,8 @@ namespace netxs::os
                         auto length = header.length();
                         if (length)
                         {
-                            result = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
-                            if (!result)
+                            dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                            if (!dtvt::active)
                             {
                                 dtvt::header = header; //todo use it when the reading thread starts
                             }
@@ -3450,55 +3453,41 @@ namespace netxs::os
                     }
                     else
                     {
-                        result = faux;
+                        dtvt::active = faux;
                         break;
                     }
                 }
             }
-            if (result) // If we in dtvt mode.
-            {
-                #if not defined(_WIN32)
-                fdscleanup(); // There are duplicated stdin/stdout handles among the leaked parent process handles, and this prevents them from being closed. Affected ssh, nc, ncat, socat.
-                #endif
-            }
-            else
-            {
-                #if defined(_WIN32)
-                //todo revise
-                if (os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041) // Windows Server 2019's conhost doesn't handle truecolor well enough.
-                {
-                    dtvt::mode |= ui::console::nt16;
-                }
-                #endif
-                dtvt::win_sz = dtvt::consize();
-            }
-            return result;
-        }();
-        static auto vtmode = []       // tty: VT mode bit set.
-        {
+
             if (os::process::elevated)
             {
                 log(prompt::os, ansi::clr(yellowlt, "Running with elevated privileges"));
             }
-            if (os::dtvt::active)
+
+            if (dtvt::active)
             {
                 log(prompt::os, "DirectVT mode");
-                dtvt::mode |= ui::console::direct;
+                #if not defined(_WIN32)
+                fdscleanup(); // There are duplicated stdin/stdout handles among the leaked parent process handles, and this prevents them from being closed. Affected ssh, nc, ncat, socat.
+                #endif
+                dtvt::vtmode |= ui::console::direct;
             }
             else
             {
+                dtvt::win_sz = dtvt::consize();
+                #if defined(_WIN32)
+                    //todo revise
+                    auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
+                    dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
+                                         : ui::console::nt;
+                #elif defined(__linux__)
+                    if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
+                #endif
                 auto colorterm = os::env::get("COLORTERM");
-                auto term = text{ dtvt::mode & ui::console::nt16 ? "Windows Console" : "" };
+                auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
                 if (term.empty()) term = os::env::get("TERM");
                 if (term.empty()) term = os::env::get("TERM_PROGRAM");
                 if (term.empty()) term = "VT";
-
-                #if defined(__linux__)
-                    if (os::linux_console) dtvt::mode |= ui::console::mouse;
-                #elif defined(_WIN32)
-                    dtvt::mode |= ui::console::nt; // Use win32 console api for input.
-                #endif
-
                 if (colorterm != "truecolor" && colorterm != "24bit")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
@@ -3514,7 +3503,7 @@ namespace netxs::os
 
                     if (term.ends_with("16color") || term.ends_with("16colour"))
                     {
-                        dtvt::mode |= ui::console::vt16;
+                        dtvt::vtmode |= ui::console::vt16;
                     }
                     else
                     {
@@ -3522,42 +3511,40 @@ namespace netxs::os
                         {
                             if (term == type)
                             {
-                                dtvt::mode |= ui::console::vt16;
+                                dtvt::vtmode |= ui::console::vt16;
                                 break;
                             }
                         }
-                        if (!(dtvt::mode & ui::console::vt16))
+                        if (!(dtvt::vtmode & ui::console::vt16))
                         {
                             for (auto& type : vt256colors)
                             {
                                 if (term == type)
                                 {
-                                    dtvt::mode |= ui::console::vt256;
+                                    dtvt::vtmode |= ui::console::vt256;
                                     break;
                                 }
                             }
                         }
                     }
                     #if defined(__APPLE__)
-                        if (!(dtvt::mode & ui::console::vt16)) // Apple terminal detection.
+                        if (!(dtvt::vtmode & ui::console::vt16)) // Apple terminal detection.
                         {
-                            dtvt::mode |= ui::console::vt256;
+                            dtvt::vtmode |= ui::console::vt256;
                         }
                     #endif
                 }
 
                 log(prompt::os, "Terminal type: ", term);
-                log(prompt::os, "Color mode: ", dtvt::mode & ui::console::vt16  ? "VT 16-color"
-                                              : dtvt::mode & ui::console::nt16  ? "Win32 Console API 16-color"
-                                              : dtvt::mode & ui::console::vt256 ? "VT 256-color"
-                                                                                : "VT truecolor");
-                log(prompt::os, "Mouse mode: ", dtvt::mode & ui::console::mouse ? "PS/2"
-                                              : dtvt::mode & ui::console::nt    ? "Win32 Console API"
-                                                                                : "VT-style");
+                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "VT 16-color"
+                                              : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
+                                              : dtvt::vtmode & ui::console::vt256 ? "VT 256-color"
+                                                                                  : "VT truecolor");
+                log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
+                                              : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
+                                                                                  : "VT-style");
             }
-            return dtvt::mode;
-        }();
-
+        }
         auto checkpoint()
         {
             if (dtvt::active) return;
@@ -3573,7 +3560,7 @@ namespace netxs::os
                                     | nt::console::inmode::winsize
                                     | nt::console::inmode::quickedit };
                 ok(::SetConsoleMode(os::stdin_fd, inpmode), "::SetConsoleMode(os::stdin_fd)", os::unexpected);
-                auto outmode = dtvt::mode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
+                auto outmode = dtvt::vtmode & ui::console::nt16 // nt::console::outmode::vt and ::no_auto_cr are not supported in legacy console.
                              ? DWORD{ nt::console::outmode::wrap_at_eol
                                     | nt::console::outmode::preprocess }
                              : DWORD{ nt::console::outmode::no_auto_cr
@@ -4464,17 +4451,7 @@ namespace netxs::os
                     dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
                                  : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
                 }
-                else if (os::is_daemon())
-                {
-                    #if defined(_WIN32)
-                        //todo implement
-                    #else
-                        //todo it's too chatty
-                        //auto copy = utf8.str();
-                        //::syslog(LOG_NOTICE, "%s", copy.c_str());
-                    #endif
-                }
-                else
+                else if (os::stdout_fd != os::invalid_fd)
                 {
                     tty::cout(utf8);
                 }

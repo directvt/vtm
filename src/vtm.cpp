@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-u", "--uninstall"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::uninstall();
@@ -78,6 +79,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-i", "--install"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::install();
@@ -100,6 +102,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             log(app::shared::version);
@@ -120,6 +123,7 @@ int main(int argc, char* argv[])
         }
     }
 
+    os::dtvt::initialize();
     os::dtvt::checkpoint();
 
     auto denied = faux;

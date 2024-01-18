@@ -5084,7 +5084,7 @@ struct impl : consrv
           outmod{                                                },
           altmod{ faux                                           },
           prompt{ utf::concat(win32prompt)                       },
-          inpenc{ std::make_shared<decoder>(*this, os::codepage) },
+          inpenc{ std::make_shared<decoder>(*this, ::GetOEMCP()) },
           outenc{ inpenc                                         },
           unsync{ faux                                           }
     {
