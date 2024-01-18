@@ -4897,12 +4897,8 @@ struct impl : consrv
     xlat        outenc; // consrv: Current code page decoder for output stream.
     bool        unsync; // consrv: The terminal must be updated.
 
-    auto& create_window()
+    auto create_window()
     {
-        if (os::dtvt::isolated)
-        {
-            return os::clipboard::winhndl;
-        }
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
@@ -4955,19 +4951,17 @@ struct impl : consrv
                 return;
             }
         }};
-        return winhnd;
+        while (!winhnd) // Waiting for a win32 window to be created.
+        {
+            std::this_thread::yield();
+        }
     }
     void start()
     {
         reset();
         events.reset();
         signal.flush();
-        auto& nominal_window = create_window();
-        while (!nominal_window) // Waiting for a win32 window to be created.
-        {
-            std::this_thread::yield();
-        }
-        winhnd = nominal_window;
+        create_window();
         server = std::thread{ [&]
         {
             while (condrv != os::invalid_fd)
