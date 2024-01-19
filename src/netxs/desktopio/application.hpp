@@ -548,8 +548,7 @@ namespace netxs::app::shared
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
-        os::dtvt::isolated = !direct;
-        auto applet = app::shared::builder(aclass)("", "", params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s));
+        auto applet = app::shared::builder(aclass)("", "", params, config, /*patch*/(direct ? ""s : "<config simple=1/>"s));
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();

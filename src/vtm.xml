@@ -10,7 +10,7 @@ R"==(<config>
             </run>
         </javascript>
     </scripting>
-    <isolated=0/>  <!-- For internal use only. -->
+    <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
                        Using an asterisk with the parameter name of the first element in the list without any other nested elements

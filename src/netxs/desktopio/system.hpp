@@ -3334,9 +3334,15 @@ namespace netxs::os
 
     namespace dtvt
     {
-        static auto isolated = faux; // Standalone app in legacy console.
-        static auto vtmode = ui::console::vtrgb; // tty: VT-mode bit set.
-        static auto scroll = faux; // Viewport/scrollback selector for windows console.
+        static auto vtmode = ui::console::vtrgb; // dtvt: VT-mode bit set.
+        static auto scroll = faux;   // dtvt: Viewport/scrollback selector for windows console.
+        static auto active = faux;   // dtvt: DirectVT mode is active.
+        static auto config = text{}; // dtvt: DirectVT configuration XML data.
+        static auto header = text{}; // dtvt: Extra read block from stdin.
+        static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
+        static auto win_sz = twod{}; // dtvt: Initial window size.
+        static auto client = xipc{}; // dtvt: Internal IO link.
+
         auto consize()
         {
             static constexpr auto winsz_fallback = twod{ 132, 60 };
@@ -3366,13 +3372,6 @@ namespace netxs::os
             }
             return winsz;
         }
-        static auto config = text{}; // dtvt: DirectVT configuration XML data.
-        static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
-        static auto header = text{}; // dtvt: Extra read block from stdin.
-        static auto win_sz = twod{}; // dtvt: Initial window size.
-        static auto client = xipc{}; // dtvt: Internal IO link.
-        static auto active = faux;   // dtvt: DirectVT mode is active.
-
         auto initialize()
         {
             #if defined(_WIN32)
@@ -4441,7 +4440,7 @@ namespace netxs::os
                 { }
             };
 
-            struct logger : public s11n
+            struct logger : s11n
             {
                 using func = std::function<void(text&)>;
                 func proc;
