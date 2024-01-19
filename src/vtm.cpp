@@ -199,16 +199,7 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
-        using s11n = directvt::binary::s11n;
-        struct evnt : public s11n
-        {
-            void handle(s11n::xs::command lock) { log<faux>("result: ", lock.thing.utf8); }
-            void handle(s11n::xs::logs    lock) { log<faux>(lock.thing.data); }
-            evnt() : s11n{ *this }
-            { }
-        };
-
-        auto events = evnt{};
+        auto events = os::tty::binary::logger{ [](auto& result){ log<faux>("result: ", result); }};
         auto online = flag{ true };
         auto active = flag{ faux };
         auto locker = std::mutex{};
@@ -245,7 +236,7 @@ int main(int argc, char* argv[])
                     buffer.clear();
                     active.exchange(true);
                 }
-                directvt::binary::stream::reading_loop(*stream, [&](view data){ events.s11n::sync(data); });
+                directvt::binary::stream::reading_loop(stream, [&](view data){ events.s11n::sync(data); });
                 break;
             }
             else os::sleep(500ms);
@@ -373,50 +364,30 @@ int main(int argc, char* argv[])
 
         auto stdlog = std::thread{ [&]
         {
-            using s11n = directvt::binary::s11n;
-            struct evnt : public s11n
-            {
-                using func = std::function<void(text&)>;
-                text id;
-                func proc;
-
-                void handle(s11n::xs::command lock)
-                {
-                    if (id.size())
-                    {
-                        auto& command = lock.thing.utf8;
-                        proc(command);
-                    }
-                    else
-                    {
-                        if (lock.thing.utf8.size())
-                        {
-                            id = lock.thing.utf8;
-                            log("%%Monitor [%id%] connected", prompt::logs, id);
-                        }
-                    }
-                }
-                evnt(func proc)
-                 : s11n{ *this },
-                   proc{  proc }
-                { }
-            };
-
             while (auto monitor = logger->meet())
             {
                 domain->run([&, monitor](auto /*task_id*/)
                 {
-                    auto events = evnt{ [&](auto& cmd){ domain->SIGNAL(tier::release, e2::conio::readline, cmd); }};
+                    auto id = text{};
                     auto tokens = subs{};
+                    auto events = os::tty::binary::logger{ [&](auto& cmd)
+                    {
+                        if (id.size()) domain->SIGNAL(tier::release, e2::conio::readline, cmd);
+                        else if (cmd.size())
+                        {
+                            id = cmd;
+                            log("%%Monitor [%id%] connected", prompt::logs, id);
+                        }
+                    }};
                     auto writer = netxs::logger::attach([&](auto utf8)
                     {
                         events.logs.send(monitor, ui32{}, datetime::now(), text{ utf8 });
                     });
                     domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
                     os::ipc::monitors++;
-                    directvt::binary::stream::reading_loop(*monitor, [&](view data){ events.s11n::sync(data); });
+                    directvt::binary::stream::reading_loop(monitor, [&](view data){ events.s11n::sync(data); });
                     os::ipc::monitors--;
-                    if (events.id.size()) log("%%Monitor [%id%] disconnected", prompt::logs, events.id);
+                    if (id.size()) log("%%Monitor [%id%] disconnected", prompt::logs, id);
                 });
             }
         }};

@@ -378,6 +378,12 @@ namespace netxs::directvt
                 }
             }
             // stream: .
+            template<class T, class P>
+            static void reading_loop(netxs::sptr<T> link_ptr, P&& proc)
+            {
+                reading_loop(*link_ptr, proc);
+            }
+            // stream: .
             auto length() const
             {
                 return static_cast<sz_t>(block.length());

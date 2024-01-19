@@ -4358,86 +4358,103 @@ namespace netxs::os
             }
             else io::send(utf8);
         });
-        struct adapter : s11n
+        namespace binary
         {
-            void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
-            void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
+            struct adapter : s11n
             {
-                #if defined(_WIN32)
-                    auto update = [](auto size, auto head, auto iter, auto tail)
-                    {
-                        auto offset = (si32)(iter - head);
-                        auto coor = twod{ offset % size.x, offset / size.x };
-                        nt::console::print<svga::vt16>(size, coor, iter, tail);
-                    };
-                #else
-                    auto update = noop{};
-                #endif
-                auto& bitmap = lock.thing;
-                bitmap.get(data, update);
-            }
-            void handle(s11n::xs::header_request /*lock*/)
-            {
-                auto item = s11n::header.freeze();
-                item.thing.sendby<faux, faux>(dtvt::client);
-            }
-            void handle(s11n::xs::footer_request /*lock*/)
-            {
-                auto item = s11n::footer.freeze();
-                item.thing.sendby<faux, faux>(dtvt::client);
-            }
-            void handle(s11n::xs::footer           lock)
-            {
-                lock.thing.set();
-            }
-            void handle(s11n::xs::header           lock)
-            {
-                auto& item = lock.thing;
-                if (item.utf8.length())
+                void direct(s11n::xs::bitmap_vt16    /*lock*/, view& data) { io::send(data); }
+                void direct(s11n::xs::bitmap_vt256   /*lock*/, view& data) { io::send(data); }
+                void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
+                void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
-                    auto filtered = para{ item.utf8 }.lyric->utf8();
                     #if defined(_WIN32)
-                        ::SetConsoleTitleW(utf::to_utf(filtered).c_str());
+                        auto update = [](auto size, auto head, auto iter, auto tail)
+                        {
+                            auto offset = (si32)(iter - head);
+                            auto coor = twod{ offset % size.x, offset / size.x };
+                            nt::console::print<svga::vt16>(size, coor, iter, tail);
+                        };
                     #else
-                        io::send(ansi::header(filtered));
+                        auto update = noop{};
                     #endif
-                    if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(filtered)));
+                    auto& bitmap = lock.thing;
+                    bitmap.get(data, update);
                 }
-                item.set();
-            }
-            void handle(s11n::xs::clipdata         lock)
-            {
-                auto& item = lock.thing;
-                if (item.form == mime::disabled) input::board::normalize(item);
-                else                             item.set();
-                os::clipboard::set(item);
-                auto crop = utf::trunc(item.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
-                s11n::sysboard.send(dtvt::client, id_t{}, item.size, crop.str(), item.form);
-            }
-            void handle(s11n::xs::clipdata_request lock)
-            {
-                auto& item = lock.thing;
-                auto data = s11n::clipdata.freeze();
-                if (data.thing.hash != item.hash)
+                void handle(s11n::xs::header_request /*lock*/)
                 {
-                    data.thing.sendby<faux, faux>(dtvt::client);
+                    auto item = s11n::header.freeze();
+                    item.thing.sendby<faux, faux>(dtvt::client);
                 }
-                else // Send without payload if hash the same.
+                void handle(s11n::xs::footer_request /*lock*/)
                 {
-                    auto temp = std::move(data.thing.utf8);
-                    data.thing.set();
-                    data.thing.sendby<faux, faux>(dtvt::client);
-                    data.thing.utf8 = std::move(temp);
-                    data.thing.set();
+                    auto item = s11n::footer.freeze();
+                    item.thing.sendby<faux, faux>(dtvt::client);
                 }
-            }
+                void handle(s11n::xs::footer           lock)
+                {
+                    lock.thing.set();
+                }
+                void handle(s11n::xs::header           lock)
+                {
+                    auto& item = lock.thing;
+                    if (item.utf8.length())
+                    {
+                        auto filtered = para{ item.utf8 }.lyric->utf8();
+                        #if defined(_WIN32)
+                            ::SetConsoleTitleW(utf::to_utf(filtered).c_str());
+                        #else
+                            io::send(ansi::header(filtered));
+                        #endif
+                        if constexpr (debugmode) log(prompt::tty, "Console title changed to ", ansi::hi(utf::debase<faux, faux>(filtered)));
+                    }
+                    item.set();
+                }
+                void handle(s11n::xs::clipdata         lock)
+                {
+                    auto& item = lock.thing;
+                    if (item.form == mime::disabled) input::board::normalize(item);
+                    else                             item.set();
+                    os::clipboard::set(item);
+                    auto crop = utf::trunc(item.utf8, dtvt::win_sz.y / 2); // Trim preview before sending.
+                    s11n::sysboard.send(dtvt::client, id_t{}, item.size, crop.str(), item.form);
+                }
+                void handle(s11n::xs::clipdata_request lock)
+                {
+                    auto& item = lock.thing;
+                    auto data = s11n::clipdata.freeze();
+                    if (data.thing.hash != item.hash)
+                    {
+                        data.thing.sendby<faux, faux>(dtvt::client);
+                    }
+                    else // Send without payload if hash the same.
+                    {
+                        auto temp = std::move(data.thing.utf8);
+                        data.thing.set();
+                        data.thing.sendby<faux, faux>(dtvt::client);
+                        data.thing.utf8 = std::move(temp);
+                        data.thing.set();
+                    }
+                }
 
-            adapter()
-                : s11n{ *this }
-            { }
-        };
+                adapter()
+                    : s11n{ *this }
+                { }
+            };
+
+            struct logger : public s11n
+            {
+                using func = std::function<void(text&)>;
+                func proc;
+
+                void handle(s11n::xs::command lock) { proc(lock.thing.utf8); }
+                void handle(s11n::xs::logs    lock) { log<faux>(lock.thing.data); }
+
+                logger(func proc)
+                    : s11n{ *this },
+                      proc{  proc }
+                { }
+            };
+        }
         auto logger()
         {
             static auto dtvt_output = [](auto& data){ io::send(os::stdout_fd, data); };
@@ -5341,7 +5358,7 @@ namespace netxs::os
         }
         auto legacy()
         {
-            static auto proxy = tty::adapter{}; // Serialization proxy.
+            static auto proxy = tty::binary::adapter{}; // Serialization proxy.
             auto clipbd = []([[maybe_unused]] auto& alarm)
             {
                 if constexpr (debugmode) log(prompt::tty, "Clipboard sync started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
