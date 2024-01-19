@@ -3338,7 +3338,7 @@ namespace netxs::os
         static auto scroll = faux;   // dtvt: Viewport/scrollback selector for windows console.
         static auto active = faux;   // dtvt: DirectVT mode is active.
         static auto config = text{}; // dtvt: DirectVT configuration XML data.
-        static auto header = text{}; // dtvt: Extra read block from stdin.
+        static auto leadin = text{}; // dtvt: The first block read from stdin.
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto win_sz = twod{}; // dtvt: Initial window size.
         static auto client = xipc{}; // dtvt: Internal IO link.
@@ -3389,11 +3389,12 @@ namespace netxs::os
             #endif
 
             auto cfsize = sz_t{};
+            auto haspty = faux;
             #if defined(_WIN32)
 
                 auto buffer = directvt::binary::marker{};
                 auto length = DWORD{ 0 };
-                auto haspty = FILE_TYPE_CHAR == ::GetFileType(os::stdin_fd);
+                haspty = FILE_TYPE_CHAR == ::GetFileType(os::stdin_fd);
                 if (haspty)
                 {
                     // ::WaitForMultipleObjects() does not work with pipes (DirectVT).
@@ -3409,8 +3410,13 @@ namespace netxs::os
                 }
                 else
                 {
-                    length = (DWORD)io::recv(os::stdin_fd, buffer).size();
+                    auto header = io::recv(os::stdin_fd, buffer);
+                    length = (DWORD)header.size();
                     dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
+                    if (!dtvt::active)
+                    {
+                        dtvt::leadin = header;
+                    }
                 }
 
             #else
@@ -3427,12 +3433,12 @@ namespace netxs::os
                             dtvt::active = buffer.size() == length && buffer.get(cfsize, dtvt::win_sz);
                             if (!dtvt::active)
                             {
-                                dtvt::header = header; //todo use it when the reading thread starts
+                                dtvt::leadin = header;
                             }
                         }
                     });
                 };
-                auto haspty = ::isatty(os::stdin_fd);
+                haspty = ::isatty(os::stdin_fd);
                 haspty ? proc([&](auto ...args){ return io::select<true>(args...); })
                        : proc([&](auto ...args){ return io::select<faux>(args...); });
 
@@ -3471,14 +3477,20 @@ namespace netxs::os
                 #endif
                 dtvt::vtmode |= ui::console::direct;
             }
+            else if (!haspty)
+            {
+                dtvt::vtmode |= ui::console::redirio;
+            }
             else
             {
                 dtvt::win_sz = dtvt::consize();
                 #if defined(_WIN32)
+                {
                     //todo revise
                     auto nt16 = os::env::get("VTM").empty() && nt::RtlGetVersion().dwBuildNumber < 19041; // Windows Server 2019's conhost doesn't handle truecolor well enough.
                     dtvt::vtmode |= nt16 ? ui::console::nt | ui::console::nt16
                                          : ui::console::nt;
+                }
                 #elif defined(__linux__)
                     if (os::linux_console) dtvt::vtmode |= ui::console::mouse;
                 #endif
@@ -3546,7 +3558,7 @@ namespace netxs::os
         }
         auto checkpoint()
         {
-            if (dtvt::active) return;
+            if (dtvt::active || dtvt::vtmode & ui::console::redirio) return;
             #if defined(_WIN32)
 
                 ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
@@ -4355,7 +4367,10 @@ namespace netxs::os
                 parser.cout(utf8);
                 #endif
             }
-            else io::send(utf8);
+            else if (!(dtvt::vtmode & ui::console::redirio))
+            {
+                io::send(utf8);
+            }
         });
         namespace binary
         {
@@ -5628,7 +5643,33 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                thread = std::thread{ [&, send, shut]
+                if (dtvt::vtmode & ui::console::redirio) thread = std::thread{ [&, send, shut]
+                {
+                    auto line = text{};
+                    auto buff = text(os::pipebuf, '\0');
+                    auto shot = std::move(dtvt::leadin);
+                    while (auto crop = io::recv(os::stdin_fd, buff))
+                    {
+                        shot += crop;
+                        auto shadow = qiew{ shot };
+                        while (shadow)
+                        {
+                            auto stop = shadow.find('\r');
+                            if (stop == text::npos) break;
+                            if (stop)
+                            {
+                                line = shadow.substr(0, stop);
+                                send(line);
+                            }
+                            shadow.remove_prefix(stop + 1);
+                        }
+                        shot = shadow;
+                    }
+                    //todo sync
+                    os::sleep(500ms);
+                    shut();
+                }};
+                else thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;
                     auto quiet = os::dtvt::vtmode & ui::console::onlylog;
