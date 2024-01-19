@@ -5648,25 +5648,29 @@ namespace netxs::os
                     auto line = text{};
                     auto buff = text(os::pipebuf, '\0');
                     auto shot = std::move(dtvt::leadin);
-                    while (auto crop = io::recv(os::stdin_fd, buff))
+                    auto proc = [&](qiew crop)
                     {
                         shot += crop;
                         auto shadow = qiew{ shot };
                         while (shadow)
                         {
-                            auto stop = shadow.find('\r');
+                            auto stop = shadow.find('\n');
                             if (stop == text::npos) break;
                             if (stop)
                             {
                                 line = shadow.substr(0, stop);
-                                send(line);
+                                if (line.size()) send(line);
                             }
                             shadow.remove_prefix(stop + 1);
                         }
                         shot = shadow;
+                    };
+                    if (shot.size()) proc({});
+                    while (auto crop = io::recv(os::stdin_fd, buff))
+                    {
+                        proc(crop);
                     }
-                    //todo sync
-                    os::sleep(500ms);
+                    if (shot.size()) send(shot);
                     shut();
                 }};
                 else thread = std::thread{ [&, send, shut]
