@@ -799,7 +799,7 @@ namespace netxs::directvt
         STRUCT_macro(header_request,    (id_t, window_id))
         STRUCT_macro(footer_request,    (id_t, window_id))
         STRUCT_macro(warping,           (id_t, window_id) (dent, warpdata))
-        STRUCT_macro(vt_command,        (text, command))
+        STRUCT_macro(command,           (text, utf8))
         STRUCT_macro(logs,              (ui32, id) (time, guid) (text, data))
         STRUCT_macro(fatal,             (text, err_msg))
         STRUCT_macro(minimize,          (id_t, gear_id))
@@ -1326,7 +1326,7 @@ namespace netxs::directvt
             X(warping          ) /* Warp resize.                                  */\
             X(minimize         ) /* Minimize window.                              */\
             X(expose           ) /* Bring window to the front.                    */\
-            X(vt_command       ) /* Parse following vt-sequences in UTF-8 format. */\
+            X(command          ) /* Interactive command/result in UTF-8 format.   */\
             X(frames           ) /* Received frames.                              */\
             X(tooltip_element  ) /* Tooltip text.                                 */\
             X(jgc_element      ) /* jumbo GC: gc.token + gc.view.                 */\

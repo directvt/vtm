@@ -199,19 +199,29 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
+        using s11n = directvt::binary::s11n;
+        struct evnt : public s11n
+        {
+            void handle(s11n::xs::command lock) { log<faux>("result: ", lock.thing.utf8); }
+            void handle(s11n::xs::logs    lock) { log<faux>(lock.thing.data); }
+            evnt() : s11n{ *this }
+            { }
+        };
+
+        auto events = evnt{};
         auto online = flag{ true };
         auto active = flag{ faux };
         auto locker = std::mutex{};
-        auto buffer = text{};
+        auto buffer = std::list<text>{};
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
             auto sync = std::lock_guard{ locker };
-            if (active) stream->send(line);
+            if (active) events.command.send(stream, line);
             else
             {
-                log("%%No server connected", prompt::main);
-                buffer += line;
+                log("%%No server connected: %cmd%", prompt::main, utf::debase<faux, faux>(line));
+                buffer.push_back(line);
             }
         }, [&]
         {
@@ -227,14 +237,16 @@ int main(int argc, char* argv[])
                 {
                     auto sync = std::lock_guard{ locker };
                     std::swap(stream, iolink);
-                    stream->send(utf::concat(os::process::id.first, '\0', std::move(buffer)));
+                    events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitoe name.
+                    for (auto& line : buffer)
+                    {
+                        events.command.send(stream, line);
+                    }
+                    buffer.clear();
                     active.exchange(true);
                 }
-                while (online)
-                {
-                    if (auto data = stream->recv()) log<faux>(data);
-                    else online.exchange(faux);
-                }
+                directvt::binary::stream::reading_loop(*stream, [&](view data){ events.s11n::sync(data); });
+                break;
             }
             else os::sleep(500ms);
         }
@@ -361,26 +373,50 @@ int main(int argc, char* argv[])
 
         auto stdlog = std::thread{ [&]
         {
+            using s11n = directvt::binary::s11n;
+            struct evnt : public s11n
+            {
+                using func = std::function<void(text&)>;
+                text id;
+                func proc;
+
+                void handle(s11n::xs::command lock)
+                {
+                    if (id.size())
+                    {
+                        auto& command = lock.thing.utf8;
+                        proc(command);
+                    }
+                    else
+                    {
+                        if (lock.thing.utf8.size())
+                        {
+                            id = lock.thing.utf8;
+                            log("%%Monitor [%id%] connected", prompt::logs, id);
+                        }
+                    }
+                }
+                evnt(func proc)
+                 : s11n{ *this },
+                   proc{  proc }
+                { }
+            };
+
             while (auto monitor = logger->meet())
             {
                 domain->run([&, monitor](auto /*task_id*/)
                 {
+                    auto events = evnt{ [&](auto& cmd){ domain->SIGNAL(tier::release, e2::conio::readline, cmd); }};
                     auto tokens = subs{};
-                    auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
+                    auto writer = netxs::logger::attach([&](auto utf8)
+                    {
+                        events.logs.send(monitor, ui32{}, datetime::now(), text{ utf8 });
+                    });
                     domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
                     os::ipc::monitors++;
-                    auto line = monitor->recv();
-                    auto id = utf::get_word(line, '\0').str();
-                    log("%%Monitor [%id%] connected", prompt::logs, id);
-                    //todo send/receive dtvt events and signals
-                    if (line) line.pop_front();
-                    if (line) domain->SIGNAL(tier::release, e2::conio::readline, line);
-                    while (line = monitor->recv())
-                    {
-                        domain->SIGNAL(tier::release, e2::conio::readline, line);
-                    }
-                    log("%%Monitor [%id%] disconnected", prompt::logs, id);
+                    directvt::binary::stream::reading_loop(*monitor, [&](view data){ events.s11n::sync(data); });
                     os::ipc::monitors--;
+                    if (events.id.size()) log("%%Monitor [%id%] disconnected", prompt::logs, events.id);
                 });
             }
         }};

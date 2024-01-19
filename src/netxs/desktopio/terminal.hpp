@@ -7594,11 +7594,6 @@ namespace netxs::ui
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
             }
-            void handle(s11n::xs::vt_command        /*lock*/)
-            {
-                //auto& w = lock.thing;
-                //todo implement
-            }
             void handle(s11n::xs::fps                 lock)
             {
                 netxs::events::enqueue(master.This(), [&, fps = lock.thing.frame_rate](auto& /*boss*/) mutable
