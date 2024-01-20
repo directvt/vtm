@@ -26,11 +26,8 @@ namespace netxs::app::desk
         bool slimmenu{};
         bool splitter{};
         text   hotkey{};
-        text      env{}; // Environment var list delimited by \0.
-        text      cwd{};
+        eccc   appcfg{};
         text     type{};
-        text    param{};
-        text    patch{};
         bool   folded{};
         bool notfound{};
     };
@@ -466,7 +463,6 @@ namespace netxs::app::desk
                         m.type = appid;
                         m.label = label;
                         m.title = title;
-                        m.param = {};
                         m.hidden = true;
                         menu_list[menuid];
 
@@ -479,7 +475,7 @@ namespace netxs::app::desk
                 });
         };
 
-        auto build = [](text /*env*/, text /*cwd*/, text v, text /*patch*/, xmls& config)
+        auto build = [](eccc appcfg, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
             //auto highlight_color = skin::globals().highlight;
@@ -505,16 +501,19 @@ namespace netxs::app::desk
             auto panel = window->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {
+                auto panel_cfg = eccc{ .env = panel_env,
+                                       .cwd = panel_cwd,
+                                       .cmd = panel_cmd };
                 panel_top = std::max(1, panel_top);
                 panel->limits({ -1, panel_top }, { -1, panel_top })
-                     ->attach(app::shared::builder(app::headless::id)(panel_env, panel_cwd, panel_cmd, ""s, config));
+                     ->attach(app::shared::builder(app::headless::id)(panel_cfg, config));
             }
             auto my_id = id_t{};
 
-            auto user_info = utf::divide(v, ";");
+            auto user_info = utf::divide(appcfg.cmd, ";");
             if (user_info.size() < 2)
             {
-                log(prompt::desk, "Bad window arguments: args=", utf::debase(v));
+                log(prompt::desk, "Bad window arguments: args=", utf::debase(appcfg.cmd));
                 return window;
             }
             auto& user_id__view = user_info[0];

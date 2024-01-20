@@ -73,6 +73,16 @@
 
 #endif
 
+namespace netxs
+{
+    struct eccc
+    {
+        text env; // eccc: Environment var list delimited by \0.
+        text cwd; // eccc: Current working directory.
+        text cmd; // eccc: Command line to run.
+        text cfg; // eccc: Configuration patch.
+    };
+}
 namespace netxs::os
 {
     namespace fs = std::filesystem;
@@ -1769,7 +1779,7 @@ namespace netxs::os
         // os::env: Get list of envvars using wildcard.
         auto list(text&& var)
         {
-            auto crop = txts{};
+            auto crop = std::vector<text>{};
             auto list = environ;
             while (*list)
             {

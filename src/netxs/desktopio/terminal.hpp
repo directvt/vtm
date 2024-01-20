@@ -405,10 +405,10 @@ namespace netxs::ui
         // term: Terminal title tracking functionality.
         struct w_tracking
         {
-            term&                owner; // w_tracking: Terminal object reference.
-            std::map<text, text> props;
-            std::map<text, txts> stack;
-            escx                 queue;
+            term&                             owner; // w_tracking: Terminal object reference.
+            std::map<text, text>              props;
+            std::map<text, std::vector<text>> stack;
+            escx                              queue;
 
             w_tracking(term& owner)
                 : owner{ owner }

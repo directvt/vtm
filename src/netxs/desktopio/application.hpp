@@ -19,18 +19,6 @@ namespace netxs::app
     namespace fs = std::filesystem;
     using namespace std::placeholders;
     using namespace netxs::ui;
-    
-    namespace arg
-    {
-        enum arg_list
-        {
-            env,
-            cwd,
-            cmd,
-            cfg,
-            count,
-        };
-    }
 }
 
 namespace netxs::app::shared
@@ -122,7 +110,7 @@ namespace netxs::app::shared
         gear.dismiss(true);
     };
 
-    using builder_t = std::function<ui::sptr(text, text, text, text, xmls&)>;
+    using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
     namespace winform
     {
@@ -426,7 +414,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, text, text, xmls&) -> ui::sptr
+        [&](eccc, xmls&) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -558,7 +546,9 @@ namespace netxs::app::shared
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
-        auto applet = app::shared::builder(aclass)("", "", params, /*patch*/(direct ? ""s : "<config simple=1/>"s), config);
+        auto appcfg = eccc{ .cmd = params,
+                            .cfg = direct ? ""s : "<config simple=1/>"s };
+        auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();

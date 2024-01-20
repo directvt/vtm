@@ -1552,65 +1552,65 @@ namespace netxs::app::vtm
                 auto alias = item.take(attr::alias, ""s);
                 auto merge = [&](auto& conf_rec, auto& fallback)
                 {
-                    conf_rec.splitter = splitter;
-                    conf_rec.alias    = alias;
-                    conf_rec.menuid   = menuid;
-                    conf_rec.label    = item.take(attr::label,    fallback.label   );
+                    conf_rec.splitter   = splitter;
+                    conf_rec.alias      = alias;
+                    conf_rec.menuid     = menuid;
+                    conf_rec.label      = item.take(attr::label,    fallback.label   );
                     if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
-                    conf_rec.hidden   = item.take(attr::hidden,   fallback.hidden  );
-                    conf_rec.notes    = item.take(attr::notes,    fallback.notes   );
-                    conf_rec.title    = item.take(attr::title,    fallback.title   );
-                    conf_rec.footer   = item.take(attr::footer,   fallback.footer  );
-                    conf_rec.bgc      = item.take(attr::bgc,      fallback.bgc     );
-                    conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
-                    conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
-                    conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
-                    conf_rec.winform  = item.take(attr::winform,  fallback.winform, shared::winform::options);
-                    conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
-                    conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
-                    conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
-                    conf_rec.param    = item.take(attr::param,    fallback.param   );
-                    conf_rec.type     = item.take(attr::type,     fallback.type    );
-                    auto patch        = item.list(attr::config);
+                    conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
+                    conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
+                    conf_rec.title      = item.take(attr::title,    fallback.title   );
+                    conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
+                    conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
+                    conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
+                    conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
+                    conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
+                    conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
+                    conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
+                    conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
+                    conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
+                    conf_rec.appcfg.cmd = item.take(attr::param,    fallback.appcfg.cmd);
+                    conf_rec.type       = item.take(attr::type,     fallback.type    );
+                    auto patch          = item.list(attr::config);
                     if (patch.size())
                     {
-                        if (fallback.patch.empty() && patch.size() == 1)
+                        if (fallback.appcfg.cfg.empty() && patch.size() == 1)
                         {
-                            conf_rec.patch = patch.front()->snapshot();
+                            conf_rec.appcfg.cfg = patch.front()->snapshot();
                         }
                         else // Merge new configurations with the previous one if it is.
                         {
                             auto head = patch.begin();
                             auto tail = patch.end();
-                            auto settings = xml::settings{ fallback.patch.size() ? fallback.patch
-                                                                                 : (*head++)->snapshot() };
+                            auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                                      : (*head++)->snapshot() };
                             while (head != tail)
                             {
                                 auto& p = *head++;
                                 settings.fuse(p->snapshot());
                             }
-                            conf_rec.patch = settings.utf8();
+                            conf_rec.appcfg.cfg = settings.utf8();
                         }
                     }
                     auto envar        = item.list(attr::env);
-                    if (envar.empty()) conf_rec.env = fallback.env;
+                    if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
                     else for (auto& v : envar)
                     {
                         auto value = v->value();
                         if (value.size())
                         {
-                            conf_rec.env += value + '\0';
+                            conf_rec.appcfg.env += value + '\0';
                         }
                     }
-                    if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
+                    if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
 
                     utf::to_low(conf_rec.type);
-                    utf::change(conf_rec.title,  "$0", current_module_file);
-                    utf::change(conf_rec.footer, "$0", current_module_file);
-                    utf::change(conf_rec.label,  "$0", current_module_file);
-                    utf::change(conf_rec.notes,  "$0", current_module_file);
-                    utf::change(conf_rec.param,  "$0", current_module_file);
-                    utf::change(conf_rec.env,    "$0", current_module_file);
+                    utf::change(conf_rec.title,      "$0", current_module_file);
+                    utf::change(conf_rec.footer,     "$0", current_module_file);
+                    utf::change(conf_rec.label,      "$0", current_module_file);
+                    utf::change(conf_rec.notes,      "$0", current_module_file);
+                    utf::change(conf_rec.appcfg.cmd, "$0", current_module_file);
+                    utf::change(conf_rec.appcfg.env, "$0", current_module_file);
                 };
 
                 auto& proto = find(menuid);
@@ -1665,7 +1665,7 @@ namespace netxs::app::vtm
             {
                 auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.env, setup.cwd, setup.param, setup.patch, host::config);
+                what.applet = maker(setup.appcfg, host::config);
                 what.header = setup.title;
                 what.footer = setup.footer;
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
@@ -1836,7 +1836,11 @@ namespace netxs::app::vtm
                     auto env = text{};
                     auto cwd = text{};
                     auto patch = text{};
-                    auto applet = maker(env, cwd, text{ param }, patch, host::config);
+                    auto appcfg = eccc{ .env = env,
+                                        .cwd = cwd,
+                                        .cmd = text{ param },
+                                        .cfg = patch };
+                    auto applet = maker(appcfg, host::config);
                     auto what = link{ .header = "test", .footer = "test" };
                     auto window_ptr = hall::window(what);
                     window_ptr->extend({{ 10,5 }, { 80, 25+2 }});
@@ -1930,9 +1934,8 @@ namespace netxs::app::vtm
             {
                 user->rebuild_scene(*this, true);
             };
-            //todo make it configurable
-            auto patch = ""s;
-            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), patch, app_config);
+            auto appcfg = eccc{ .cmd = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected) };
+            auto deskmenu = app::shared::builder(app::desk::id)(appcfg, app_config);
             user->attach(deskmenu);
             user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.

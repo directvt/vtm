@@ -75,7 +75,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
 
 )";
 
-        auto build = [](text /*env*/, text /*cwd*/, text /*arg*/, text /*patch*/, xmls& config)
+        auto build = [](eccc /*appcfg*/, xmls& config)
         {
             auto highlight_color = skin::color(tone::highlight);
 
