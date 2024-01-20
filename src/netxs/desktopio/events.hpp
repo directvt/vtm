@@ -451,12 +451,13 @@ namespace netxs::events
             static constexpr auto root_event = type_clue<root, si32, 0>{};
             EVENTPACK( root, root_event )
             {
-                EVENT_XS( dtor   , const id_t ),
-                EVENT_XS( cascade, ftor ),
-                EVENT_XS( base   , root ),
-                EVENT_XS( hids   , root ),
-                EVENT_XS( custom , root ),
-                EVENT_XS( cleanup, ref_count_t ), // Garbage collection.
+                EVENT_XS( dtor     , const id_t ),
+                EVENT_XS( cascade  , ftor ),
+                EVENT_XS( base     , root ),
+                EVENT_XS( hids     , root ),
+                EVENT_XS( scripting, root ),
+                EVENT_XS( custom   , root ),
+                EVENT_XS( cleanup  , ref_count_t ), // Garbage collection.
             };
         };
     }

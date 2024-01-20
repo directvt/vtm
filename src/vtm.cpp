@@ -377,19 +377,22 @@ int main(int argc, char* argv[])
                 {
                     auto id = text{};
                     auto active = faux;
-                    auto envars = text{};
-                    auto curdir = text{};
                     auto tokens = subs{};
+                    auto request = eccc{};
                     auto events = os::tty::binary::logger{ [&, init = 0](auto& cmd) mutable
                     {
-                        if (active) domain->SIGNAL(tier::release, e2::conio::readline, cmd);
+                        if (active)
+                        {
+                            request.cmd = cmd;
+                            domain->SIGNAL(tier::release, scripting::events::readline, request);
+                        }
                         else
                         {
                                  if (init == 0) id = cmd;
-                            else if (init == 1) envars = cmd;
+                            else if (init == 1) request.env = cmd;
                             else if (init == 2)
                             {
-                                curdir = cmd;
+                                request.cwd = cmd;
                                 active = true;
                                 log("%%Monitor [%id%] connected", prompt::logs, id);
                             }
@@ -410,7 +413,7 @@ int main(int argc, char* argv[])
         }};
 
         auto settings = config.utf8();
-        auto readline = os::tty::readline([&](auto line){ domain->SIGNAL(tier::release, e2::conio::readline, line); },
+        auto readline = os::tty::readline([&](auto line){ domain->SIGNAL(tier::release, scripting::events::readline, request, ({ .cmd = line })); },
                                           [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
         while (auto user = server->meet())
         {

@@ -8,6 +8,14 @@ namespace netxs::scripting
 {
     using namespace ui;
 
+    struct events
+    {
+        EVENTPACK( events, netxs::events::userland::root::scripting )
+        {
+            EVENT_XS( readline, eccc ), // Standard input (scripting).
+        };
+    };
+
     namespace path
     {
         static constexpr auto scripting = "/config/scripting/";
@@ -189,11 +197,11 @@ namespace netxs::scripting
                 if (run.size()) write(run);
                 config.popd();
             }
-            owner.LISTEN(tier::release, e2::conio::readline, utf8, skill::memo)
+            owner.LISTEN(tier::release, scripting::events::readline, request, skill::memo)
             {
                 if (engine)
                 {
-                    write(utf8);
+                    write(request.cmd);
                     owner.bell::template expire<tier::release>();
                 }
             };

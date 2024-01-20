@@ -1807,13 +1807,13 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
-            LISTEN(tier::release, e2::conio::readline, utf8)
+            LISTEN(tier::release, scripting::events::readline, request)
             {
                 static auto vtm_run = "vtm.run("sv;
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto cmd = utf::trim(view{ utf8 }, "\r\n\t ");
+                auto cmd = utf::trim(view{ request.cmd }, "\r\n\t ");
                 if (cmd.empty()) return;
                 if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
                 {
@@ -1827,19 +1827,15 @@ namespace netxs::app::vtm
                 }
                 else if (cmd.starts_with(vtm_run))
                 {
-                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(utf8, "\n\r"))));
+                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(request.cmd, "\n\r"))));
                     cmd.remove_prefix(vtm_run.size());
                     auto delims = " \t,"sv;
                     auto kind = utf::get_token(cmd, delims);
                     auto param = utf::get_token(cmd, delims);
                     auto& maker = app::shared::builder(text{ kind });
-                    auto env = text{};
-                    auto cwd = text{};
-                    auto patch = text{};
-                    auto appcfg = eccc{ .env = env,
-                                        .cwd = cwd,
-                                        .cmd = text{ param },
-                                        .cfg = patch };
+                    auto appcfg = eccc{ .env = request.env,
+                                        .cwd = request.cwd,
+                                        .cmd = text{ param } };
                     auto applet = maker(appcfg, host::config);
                     auto what = link{ .header = "test", .footer = "test" };
                     auto window_ptr = hall::window(what);
@@ -1849,7 +1845,7 @@ namespace netxs::app::vtm
                     this->branch(menuid, window_ptr, true);
                     window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 }
-                else log(prompt::repl, utf::debase<faux, faux>(utf8));
+                else log(prompt::repl, utf::debase<faux, faux>(request.cmd));
             };
         }
 
