@@ -1512,17 +1512,26 @@ namespace netxs::utf
         utf8.remove_prefix(str.size());
         return str;
     }
-    auto get_word(view& utf8, char delim = ' ')
+    auto get_word(view& utf8, view delims = " ")
     {
-        return get_tail<faux>(utf8, view{ &delim, 1 });
+        return get_tail<faux>(utf8, delims);
     }
-    auto get_token(view& utf8)
+    auto get_token(view& utf8) // Preserve quotes.
     {
         if (utf8.empty()) return utf8;
         auto c = utf8.front();
         auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8)
                                             : utf::get_word(utf8);
         utf::trim_front(utf8);
+        return item;
+    }
+    auto get_token(view& utf8, view delims) // Drop quotes.
+    {
+        if (utf8.empty()) return utf8;
+        auto c = utf8.front();
+        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8, view{ &c, 1 })
+                                            : utf::get_word(utf8, delims);
+        utf::trim_front(utf8, delims);
         return item;
     }
     auto eat_tail(view& utf8, view delims)

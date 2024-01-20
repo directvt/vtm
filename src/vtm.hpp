@@ -1813,7 +1813,12 @@ namespace netxs::app::vtm
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto cmd = qiew{ utf8 };
+                auto cmd = utf::trim(view{ utf8 }, "\r\n\t ");
+                if (cmd.empty()) return;
+                if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
+                {
+                    cmd = cmd.substr(1, cmd.size() - 2);
+                }
                 if (cmd.starts_with(vtm_exit)
                  || cmd.starts_with(vtm_close)
                  || cmd.starts_with(vtm_shutdown))
@@ -1824,9 +1829,10 @@ namespace netxs::app::vtm
                 {
                     log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(utf8, "\n\r"))));
                     cmd.remove_prefix(vtm_run.size());
-                    auto kind = utf::get_tail(cmd, "\t ,");
-                    auto param = utf::get_quote(cmd, "\"");
-                    auto& maker = app::shared::builder(kind);
+                    auto delims = " \t,"sv;
+                    auto kind = utf::get_token(cmd, delims);
+                    auto param = utf::get_token(cmd, delims);
+                    auto& maker = app::shared::builder(text{ kind });
                     auto env = text{};
                     auto cwd = text{};
                     auto patch = text{};
@@ -1835,7 +1841,7 @@ namespace netxs::app::vtm
                     auto window_ptr = hall::window(what);
                     window_ptr->extend({{ 10,5 }, { 80, 25+2 }});
                     window_ptr->attach(applet);
-                    auto menuid = kind;
+                    auto menuid = text{ kind };
                     this->branch(menuid, window_ptr, true);
                     window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 }
