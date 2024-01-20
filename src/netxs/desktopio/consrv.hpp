@@ -46,7 +46,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, eccc cfg, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, Proc trailer, fdrw fdlink)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -83,8 +83,8 @@ struct consrv
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
         startinf.StartupInfo.dwYCountChars = 0;
-        startinf.StartupInfo.dwXSize = win.x;
-        startinf.StartupInfo.dwYSize = win.y;
+        startinf.StartupInfo.dwXSize = cfg.win.x;
+        startinf.StartupInfo.dwYSize = cfg.win.y;
         startinf.StartupInfo.dwFillAttribute = 1;
         startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                      | STARTF_USESIZE
@@ -5209,7 +5209,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, eccc cfg, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, Proc trailer, fdrw fdlink)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -5226,7 +5226,7 @@ struct consrv : ipc::stdcon
             auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
             auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR | O_NOCTTY) }; // Open slave TTY via string ptsname(fdm) (BSD doesn't auto assign controlling terminal: we should assign it explicitly).
             auto rc4 = os::syscall{ ::ioctl(fds.value, TIOCSCTTY, 0) }; // Assign it as a controlling TTY (in order to receive WINCH and other signals).
-            winsz(win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
+            winsz(cfg.win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
             os::dtvt::active = faux; // Logger update.
             os::dtvt::client = {};   //
             if (fdlink)

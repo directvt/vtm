@@ -81,6 +81,7 @@ namespace netxs
         text cwd; // eccc: Current working directory.
         text cmd; // eccc: Command line to run.
         text cfg; // eccc: Configuration patch.
+        twod win; // eccc: Console window size.
     };
 }
 namespace netxs::os
@@ -3860,15 +3861,15 @@ namespace netxs::os
                 writebuf = {};
                 if (termlink) termlink->cleanup(io_log);
             }
-            void create(auto& terminal, eccc cfg, twod win, fdrw fds)
+            void create(auto& terminal, eccc cfg, fdrw fds)
             {
-                if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
+                if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, cfg.win);
                 log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
                 }
-                termsize(win);
+                termsize(cfg.win);
                 auto trailer = [&, cmd = cfg.cmd]
                 {
                     if (attached.exchange(faux))
@@ -3879,7 +3880,7 @@ namespace netxs::os
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
                 };
-                auto errcode = termlink->attach(terminal, cfg, win, trailer, fds);
+                auto errcode = termlink->attach(terminal, cfg, trailer, fds);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \r\n"s
@@ -3908,13 +3909,13 @@ namespace netxs::os
                     guard.lock();
                 }
             }
-            void runapp(auto& terminal, eccc cfg, twod win, fdrw fds = {})
+            void runapp(auto& terminal, eccc cfg, fdrw fds = {})
             {
                 signaled.exchange(faux);
                 stdwrite = std::thread{[&, cfg, fds]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    create(terminal, cfg, win, fds);
+                    create(terminal, cfg, fds);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
@@ -4075,8 +4076,8 @@ namespace netxs::os
             virtual ~base_tty() = default;
 
             virtual void write(view data) = 0;
-            virtual void runapp(eccc cfg, twod win, std::function<void(view)> input_hndl,
-                                                    std::function<void(si32, view)> shutdown_hndl) = 0;
+            virtual void runapp(eccc cfg, std::function<void(view)> input_hndl,
+                                          std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
         };
@@ -4156,8 +4157,8 @@ namespace netxs::os
                 auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual void runapp(eccc cfg, twod /*win*/, std::function<void(view)> input_hndl,
-                                                        std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(eccc cfg, std::function<void(view)> input_hndl,
+                                          std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
@@ -4358,10 +4359,10 @@ namespace netxs::os
             {
                 vtty::sighup();
             }
-            virtual void runapp(eccc appcfg, twod win, std::function<void(view)> /*input_hndl*/,
-                                                       std::function<void(si32, view)> /*shutdown_hndl*/) override
+            virtual void runapp(eccc appcfg, std::function<void(view)> /*input_hndl*/,
+                                             std::function<void(si32, view)> /*shutdown_hndl*/) override
             {
-                vtty::runapp(base_tty::terminal, appcfg, win);
+                vtty::runapp(base_tty::terminal, appcfg);
             }
             tty(Term& terminal)
                 : base_tty{ terminal }

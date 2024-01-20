@@ -7124,7 +7124,8 @@ namespace netxs::ui
             fdlink = fds;
             if (!ipccon)
             {
-                ipccon.runapp(*this, appcfg, target->panel, fdlink);
+                appcfg.win = target->panel;
+                ipccon.runapp(*this, appcfg, fdlink);
             }
         }
         void restart()
