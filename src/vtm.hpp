@@ -1569,7 +1569,11 @@ namespace netxs::app::vtm
                     conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
                     conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
                     conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-                    conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
+                    //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
+                    //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
+                    conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
+                    if (conf_rec.appcfg.cmd.empty()) conf_rec.appcfg.cmd = item.take("param", fallback.appcfg.cmd);
+
                     conf_rec.type       = item.take(attr::type,     fallback.type    );
                     auto patch          = item.list(attr::config);
                     if (patch.size())
