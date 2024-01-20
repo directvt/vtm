@@ -6542,15 +6542,15 @@ namespace netxs::ui
         {
             update([&]
             {
-                auto console_ptr = target_buffer ? target_buffer : this->target;
                 if (data.size())
                 {
                     if (io_log) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
-                    ansi::parse(data, console_ptr);
+                    ansi::parse(data, target_buffer ? target_buffer : this->target);
                     return true;
                 }
                 else
                 {
+                    auto console_ptr = target_buffer ? target_buffer : this->target;
                     console_ptr->parser::flush(); // Update line style, etc.
                     return Forced;
                 }
