@@ -1842,6 +1842,13 @@ namespace netxs::os
 
             #endif
         }
+        // os::env: Get current working directory.
+        auto cwd()
+        {
+            auto err = std::error_code{};
+            auto cwd = std::filesystem::current_path(err).string();
+            return cwd;
+        }
     }
 
     namespace path

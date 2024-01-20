@@ -233,7 +233,9 @@ int main(int argc, char* argv[])
                 {
                     auto sync = std::lock_guard{ locker };
                     std::swap(stream, iolink);
-                    events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitoe name.
+                    events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitor id.
+                    events.command.send(stream, os::env::add());
+                    events.command.send(stream, os::env::cwd());
                     for (auto& line : buffer)
                     {
                         events.command.send(stream, line);
@@ -374,14 +376,24 @@ int main(int argc, char* argv[])
                 domain->run([&, monitor](auto /*task_id*/)
                 {
                     auto id = text{};
+                    auto active = faux;
+                    auto envars = text{};
+                    auto curdir = text{};
                     auto tokens = subs{};
-                    auto events = os::tty::binary::logger{ [&](auto& cmd)
+                    auto events = os::tty::binary::logger{ [&, init = 0](auto& cmd) mutable
                     {
-                        if (id.size()) domain->SIGNAL(tier::release, e2::conio::readline, cmd);
-                        else if (cmd.size())
+                        if (active) domain->SIGNAL(tier::release, e2::conio::readline, cmd);
+                        else
                         {
-                            id = cmd;
-                            log("%%Monitor [%id%] connected", prompt::logs, id);
+                                 if (init == 0) id = cmd;
+                            else if (init == 1) envars = cmd;
+                            else if (init == 2)
+                            {
+                                curdir = cmd;
+                                active = true;
+                                log("%%Monitor [%id%] connected", prompt::logs, id);
+                            }
+                            init++;
                         }
                     }};
                     auto writer = netxs::logger::attach([&](auto utf8)
