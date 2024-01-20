@@ -234,7 +234,7 @@ int main(int argc, char* argv[])
                     auto sync = std::lock_guard{ locker };
                     std::swap(stream, iolink);
                     events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitor id.
-                    events.command.send(stream, os::env::add("VTM=1\0"));
+                    events.command.send(stream, os::env::add());
                     events.command.send(stream, os::env::cwd());
                     for (auto& line : buffer)
                     {
