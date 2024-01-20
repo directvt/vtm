@@ -1807,13 +1807,13 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
-            LISTEN(tier::release, scripting::events::readline, request)
+            LISTEN(tier::release, scripting::events::invoke, script)
             {
                 static auto vtm_run = "vtm.run("sv;
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto cmd = utf::trim(view{ request.cmd }, "\r\n\t ");
+                auto cmd = utf::trim(view{ script.cmd }, "\r\n\t ");
                 if (cmd.empty()) return;
                 if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
                 {
@@ -1827,14 +1827,14 @@ namespace netxs::app::vtm
                 }
                 else if (cmd.starts_with(vtm_run))
                 {
-                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(request.cmd, "\n\r"))));
+                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(script.cmd, "\n\r"))));
                     cmd.remove_prefix(vtm_run.size());
                     auto delims = " \t,"sv;
                     auto kind = utf::get_token(cmd, delims);
                     auto param = utf::get_token(cmd, delims);
                     auto& maker = app::shared::builder(text{ kind });
-                    auto appcfg = eccc{ .env = request.env,
-                                        .cwd = request.cwd,
+                    auto appcfg = eccc{ .env = script.env,
+                                        .cwd = script.cwd,
                                         .cmd = text{ param } };
                     auto applet = maker(appcfg, host::config);
                     auto what = link{ .header = "test", .footer = "test" };
@@ -1845,7 +1845,7 @@ namespace netxs::app::vtm
                     this->branch(menuid, window_ptr, true);
                     window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
                 }
-                else log(prompt::repl, utf::debase<faux, faux>(request.cmd));
+                else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
             };
         }
 

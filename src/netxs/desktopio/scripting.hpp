@@ -12,7 +12,7 @@ namespace netxs::scripting
     {
         EVENTPACK( events, netxs::events::userland::root::scripting )
         {
-            EVENT_XS( readline, eccc ), // Standard input (scripting).
+            EVENT_XS( invoke, eccc ), // Invoke script.
         };
     };
 
@@ -197,11 +197,11 @@ namespace netxs::scripting
                 if (run.size()) write(run);
                 config.popd();
             }
-            owner.LISTEN(tier::release, scripting::events::readline, request, skill::memo)
+            owner.LISTEN(tier::release, scripting::events::invoke, script, skill::memo)
             {
                 if (engine)
                 {
-                    write(request.cmd);
+                    write(script.cmd);
                     owner.bell::template expire<tier::release>();
                 }
             };
