@@ -426,7 +426,7 @@ namespace netxs::ui
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
-                if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
+                if (txt.empty()) txt = owner.appcfg.cmd; // Deny empty titles.
                 owner.target->flush();
                 if (property == ansi::osc_label_title)
                 {
@@ -6216,9 +6216,7 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
-        text       envvar; // term: Environment block.
-        text       curdir; // term: Current working directory.
-        text       cmdarg; // term: Startup command line arguments.
+        eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
@@ -7120,15 +7118,13 @@ namespace netxs::ui
         {
             RISEUP(tier::release, e2::form::upon::started, This());
         }
-        void start(text cmd, text cwd, text env, os::fdrw fds = {})
+        void start(eccc cfg, os::fdrw fds = {})
         {
-            cmdarg = cmd;
-            curdir = cwd;
-            envvar = env;
+            appcfg = cfg;
             fdlink = fds;
             if (!ipccon)
             {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
+                ipccon.runapp(*this, appcfg, target->panel, fdlink);
             }
         }
         void restart()

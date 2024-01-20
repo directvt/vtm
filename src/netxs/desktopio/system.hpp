@@ -3628,21 +3628,21 @@ namespace netxs::os
             };
             std::atexit(repair);
         }
-        auto connect(text cmd, text cwd, text env, fdrw fds)
+        auto connect(eccc cfg, fdrw fds)
         {
-            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+            log("%%New process '%cmd%' at the %path%", prompt::dtvt, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
             auto result = true;
             auto onerror = [&]()
             {
                 log(prompt::dtvt, ansi::err("Process creation error", ' ', utf::to_hex_0x(os::error())),
-                    "\r\n\tcwd: '", cwd, "'",
-                    "\r\n\tcmd: '", cmd, "'");
+                    "\r\n\tcwd: '", cfg.cwd, "'",
+                    "\r\n\tcmd: '", cfg.cmd, "'");
             };
             #if defined(_WIN32)
 
-                auto wcmd = utf::to_utf(cmd);
-                auto wcwd = utf::to_utf(cwd);
-                auto wenv = utf::to_utf(os::env::add(env));
+                auto wcmd = utf::to_utf(cfg.cmd);
+                auto wcwd = utf::to_utf(cfg.cwd);
+                auto wenv = utf::to_utf(os::env::add(cfg.env));
                 auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
                 auto procsinf = PROCESS_INFORMATION{};
                 auto attrbuff = std::vector<byte>{};
@@ -3700,17 +3700,17 @@ namespace netxs::os
                         ::dup2(fds->w, STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                         ::dup2(fds->w, STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         fds.reset();
-                        if (cwd.size())
+                        if (cfg.cwd.size())
                         {
                             auto err = std::error_code{};
-                            fs::current_path(cwd, err);
-                            if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cwd, utf::to_hex_0x(err.value()), ansi::nil());
-                            else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cwd);
+                            fs::current_path(cfg.cwd, err);
+                            if (err) log("%%%err%Failed to change current directory to '%cwd%', error code: %code%%nil%", prompt::dtvt, ansi::err(), cfg.cwd, utf::to_hex_0x(err.value()), ansi::nil());
+                            else     log("%%Change current directory to '%cwd%'", prompt::dtvt, cfg.cwd);
                         }
                         os::fdscleanup();
-                        env = os::env::add(env);
+                        cfg.env = os::env::add(cfg.env);
                         os::signals::listener.reset();
-                        os::process::execvpe(cmd, env);
+                        os::process::execvpe(cfg.cmd, cfg.env);
                         onerror();
                         os::process::exit<true>(0);
                     }
@@ -3860,16 +3860,16 @@ namespace netxs::os
                 writebuf = {};
                 if (termlink) termlink->cleanup(io_log);
             }
-            void create(auto& terminal, text cmd, text cwd, text env, twod win, fdrw fds)
+            void create(auto& terminal, eccc cfg, twod win, fdrw fds)
             {
                 if (terminal.io_log) log("%%New TTY of size %win_size%", prompt::vtty, win);
-                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cmd), cwd.empty() ? "current directory"s : "'" + cwd + "'");
+                log("%%New process '%cmd%' at the %path%", prompt::vtty, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s : "'" + cfg.cwd + "'");
                 if (!termlink)
                 {
                     termlink = consrv::create(terminal);
                 }
                 termsize(win);
-                auto trailer = [&, cmd]
+                auto trailer = [&, cmd = cfg.cmd]
                 {
                     if (attached.exchange(faux))
                     {
@@ -3879,12 +3879,12 @@ namespace netxs::os
                         terminal.onexit(exitcode, "", signaled.exchange(true)); // Only if the process terminates on its own (not forced by sighup).
                     }
                 };
-                auto errcode = termlink->attach(terminal, cmd, cwd, env, win, trailer, fds);
+                auto errcode = termlink->attach(terminal, cfg, win, trailer, fds);
                 if (errcode)
                 {
                     terminal.onexit(errcode, "Process creation error \r\n"s
-                                             " cwd: "s + (cwd.empty() ? "not specified"s : cwd) + " \r\n"s
-                                             " cmd: "s + cmd + " "s);
+                                             " cwd: "s + (cfg.cwd.empty() ? "not specified"s : cfg.cwd) + " \r\n"s
+                                             " cmd: "s + cfg.cmd + " "s);
                 }
                 attached.exchange(!errcode);
                 writesyn.notify_one(); // Flush temp buffer.
@@ -3908,13 +3908,13 @@ namespace netxs::os
                     guard.lock();
                 }
             }
-            void runapp(auto& terminal, text cmd, text cwd, text env, twod win, fdrw fds = {})
+            void runapp(auto& terminal, eccc cfg, twod win, fdrw fds = {})
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{[&, cmd, cwd, env, win, fds]
+                stdwrite = std::thread{[&, cfg, fds]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
-                    create(terminal, cmd, cwd, env, win, fds);
+                    create(terminal, cfg, win, fds);
                     writer(terminal);
                     if (terminal.io_log) log(prompt::vtty, "Writing thread ended", ' ', utf::to_hex_0x(stdwrite.get_id()));
                 }};
@@ -4075,8 +4075,8 @@ namespace netxs::os
             virtual ~base_tty() = default;
 
             virtual void write(view data) = 0;
-            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> input_hndl,
-                                                                        std::function<void(si32, view)> shutdown_hndl) = 0;
+            virtual void runapp(eccc cfg, twod win, std::function<void(view)> input_hndl,
+                                                    std::function<void(si32, view)> shutdown_hndl) = 0;
             virtual void shut() = 0;
             virtual bool connected() = 0;
         };
@@ -4156,13 +4156,13 @@ namespace netxs::os
                 auto exit_code = 0;// os::process::wait(prompt::task, proc_pid, prochndl);
                 return exit_code;
             }
-            virtual void runapp(text cmd, text cwd, text env, twod /*win*/, std::function<void(view)> input_hndl,
-                                                                            std::function<void(si32, view)> shutdown_hndl) override
+            virtual void runapp(eccc cfg, twod /*win*/, std::function<void(view)> input_hndl,
+                                                        std::function<void(si32, view)> shutdown_hndl) override
             {
                 receiver = input_hndl;
                 shutdown = shutdown_hndl;
-                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cmd), cwd.empty() ? "current directory"s
-                                                                                                      : "'" + cwd + "'");
+                log("%%New process '%cmd%' at the %cwd%", prompt::task, utf::debase(cfg.cmd), cfg.cwd.empty() ? "current directory"s
+                                                                                                              : "'" + cfg.cwd + "'");
                 #if defined(_WIN32)
 
                     auto s_pipe_r = os::invalid_fd;
@@ -4222,9 +4222,9 @@ namespace netxs::os
                     };
                     auto create = [&]
                     {
-                        auto wcmd = utf::to_utf(cmd);
-                        auto wcwd = utf::to_utf(cwd);
-                        auto wenv = utf::to_utf(os::env::add(env));
+                        auto wcmd = utf::to_utf(cfg.cmd);
+                        auto wcwd = utf::to_utf(cfg.cwd);
+                        auto wenv = utf::to_utf(os::env::add(cfg.env));
                         return ::CreateProcessW(nullptr,                             // lpApplicationName
                                                 wcmd.data(),                         // lpCommandLine
                                                 nullptr,                             // lpProcessAttributes
@@ -4270,9 +4270,9 @@ namespace netxs::os
                         ::dup2(to_server[1], STDOUT_FILENO); os::stdout_fd = STDOUT_FILENO;
                         ::dup2(to_server[1], STDERR_FILENO); os::stderr_fd = STDERR_FILENO;
                         os::fdscleanup();
-                        env = os::env::add(env);
+                        cfg.env = os::env::add(cfg.env);
                         os::signals::listener.reset();
-                        os::process::spawn(cmd, cwd, env);
+                        os::process::spawn(cfg.cmd, cfg.cwd, cfg.env);
                     }
                     // Parent branch.
                     os::close(to_client[0]);
@@ -4358,10 +4358,10 @@ namespace netxs::os
             {
                 vtty::sighup();
             }
-            virtual void runapp(text cmd, text cwd, text env, twod win, std::function<void(view)> /*input_hndl*/,
-                                                                        std::function<void(si32, view)> /*shutdown_hndl*/) override
+            virtual void runapp(eccc appcfg, twod win, std::function<void(view)> /*input_hndl*/,
+                                                       std::function<void(si32, view)> /*shutdown_hndl*/) override
             {
-                vtty::runapp(base_tty::terminal, cmd, cwd, env, win);
+                vtty::runapp(base_tty::terminal, appcfg, win);
             }
             tty(Term& terminal)
                 : base_tty{ terminal }

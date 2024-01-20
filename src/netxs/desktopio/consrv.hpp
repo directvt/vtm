@@ -46,7 +46,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, twod win, Proc trailer, fdrw fdlink)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -109,9 +109,9 @@ struct consrv
                              sizeof(refdrv),
                                     nullptr,
                                     nullptr);
-        auto wcmd = utf::to_utf(cmd);
-        auto wcwd = utf::to_utf(cwd);
-        auto wenv = utf::to_utf(os::env::add(env += "VTM=1\0"sv));
+        auto wcmd = utf::to_utf(cfg.cmd);
+        auto wcwd = utf::to_utf(cfg.cwd);
+        auto wenv = utf::to_utf(os::env::add(cfg.env += "VTM=1\0"sv));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
@@ -5209,7 +5209,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, twod win, Proc trailer, fdrw fdlink)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -5253,11 +5253,11 @@ struct consrv : ipc::stdcon
                     "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
-            env +=  "VTM=1\0"
-                    "TERM=xterm-256color\0"
-                    "COLORTERM=truecolor\0"sv;
-            env = os::env::add(env);
-            os::process::spawn(cmd, cwd, env);
+            cfg.env += "VTM=1\0"
+                       "TERM=xterm-256color\0"
+                       "COLORTERM=truecolor\0"sv;
+            cfg.env = os::env::add(cfg.env);
+            os::process::spawn(cfg.cmd, cfg.cwd, cfg.env);
         }
         // Parent branch.
         auto err_code = 0;

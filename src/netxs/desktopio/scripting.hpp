@@ -87,9 +87,7 @@ namespace netxs::scripting
         };
 
         xlat stream; // scripting::host: Event tracker.
-        text curdir; // scripting::host: Current working directory.
-        text cmdarg; // scripting::host: Startup command line arguments.
-        text envvar; // scripting::host: Environment block.
+        eccc appcfg; // scripting::host: Application startup config.
         flag active; // scripting::host: Scripting engine lifetime.
         vtty engine; // scripting::host: Scripting engine instance.
 
@@ -140,16 +138,14 @@ namespace netxs::scripting
             engine->write(data + '\n');
         }
         // scripting::host: Start a new process.
-        void runapp(text cmd, text cwd, text env, twod win)
+        void runapp(eccc cfg, twod win)
         {
             if (!engine) return;
-            cmdarg = cmd;
-            curdir = cwd;
-            envvar = env;
+            appcfg = cfg;
             if (!engine->connected())
             {
-                engine->runapp(cmd, cwd, env, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                   [&](auto code, auto msg) { onexit(code, msg); });
+                engine->runapp(appcfg, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                            [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -176,6 +172,9 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 auto win = os::ttysize;
+                auto cfg = eccc{ .env = env,
+                                 .cwd = cwd,
+                                 .cmd = cmd };
                 if (tty)
                 {
                     engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
@@ -184,7 +183,7 @@ namespace netxs::scripting
                 {
                     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
                 }
-                runapp(cmd, cwd, env, win);
+                runapp(cfg, win);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();

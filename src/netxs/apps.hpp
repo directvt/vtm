@@ -445,7 +445,7 @@ namespace netxs::app::shared
                                             {
                                                 if (root) // root is empty when d_n_d.
                                                 {
-                                                    boss.start(appcfg.cmd, appcfg.cwd, appcfg.env);
+                                                    boss.start(appcfg);
                                                 }
                                             };
                                             boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -481,7 +481,7 @@ namespace netxs::app::shared
                         {
                             boss.start(appcfg.cfg, [appcfg](auto fds)
                             {
-                                os::dtvt::connect(appcfg.cmd, appcfg.cwd, appcfg.env, fds);
+                                os::dtvt::connect(appcfg, fds);
                                 return appcfg.cmd;
                             });
                         }
@@ -572,7 +572,7 @@ namespace netxs::app::shared
                         {
                             dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
                             {
-                                term_inst.start(appcfg.cmd, appcfg.cwd, appcfg.env, fds);
+                                term_inst.start(appcfg, fds);
                                 return appcfg.cmd;
                             });
                         }

@@ -836,7 +836,7 @@ namespace netxs::app::term
                     };
                     boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
                     {
-                        boss.start(appcfg.cmd, appcfg.cwd, appcfg.env);
+                        boss.start(appcfg);
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {
