@@ -1769,7 +1769,7 @@ namespace netxs::os
         // os::env: Get list of envvars using wildcard.
         auto list(text&& var)
         {
-            auto crop = std::vector<text>{};
+            auto crop = txts{};
             auto list = environ;
             while (*list)
             {

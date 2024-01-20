@@ -21,6 +21,7 @@ namespace netxs
 {
     using view = std::string_view;
     using text = std::string;
+    using txts = std::vector<text>;
     using wide = std::wstring;
     using wiew = std::wstring_view;
     using wchr = wchar_t;

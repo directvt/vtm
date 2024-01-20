@@ -479,7 +479,7 @@ namespace netxs::app::desk
                 });
         };
 
-        auto build = [](text /*env*/, text /*cwd*/, text v, xmls& config, text /*patch*/)
+        auto build = [](text /*env*/, text /*cwd*/, text v, text /*patch*/, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
             //auto highlight_color = skin::globals().highlight;
@@ -507,7 +507,7 @@ namespace netxs::app::desk
             {
                 panel_top = std::max(1, panel_top);
                 panel->limits({ -1, panel_top }, { -1, panel_top })
-                     ->attach(app::shared::builder(app::headless::id)(panel_env, panel_cwd, panel_cmd, config, ""s));
+                     ->attach(app::shared::builder(app::headless::id)(panel_env, panel_cwd, panel_cmd, ""s, config));
             }
             auto my_id = id_t{};
 

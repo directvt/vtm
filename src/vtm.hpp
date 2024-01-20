@@ -1665,7 +1665,7 @@ namespace netxs::app::vtm
             {
                 auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.env, setup.cwd, setup.param, host::config, setup.patch);
+                what.applet = maker(setup.env, setup.cwd, setup.param, setup.patch, host::config);
                 what.header = setup.title;
                 what.footer = setup.footer;
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
@@ -1836,7 +1836,7 @@ namespace netxs::app::vtm
                     auto env = text{};
                     auto cwd = text{};
                     auto patch = text{};
-                    auto applet = maker(env, cwd, text{ param }, host::config, patch);
+                    auto applet = maker(env, cwd, text{ param }, patch, host::config);
                     auto what = link{ .header = "test", .footer = "test" };
                     auto window_ptr = hall::window(what);
                     window_ptr->extend({{ 10,5 }, { 80, 25+2 }});
@@ -1932,7 +1932,7 @@ namespace netxs::app::vtm
             };
             //todo make it configurable
             auto patch = ""s;
-            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), app_config, patch);
+            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), patch, app_config);
             user->attach(deskmenu);
             user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.
