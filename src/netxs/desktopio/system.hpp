@@ -1835,11 +1835,14 @@ namespace netxs::os
 
     namespace path
     {
+        static const auto ipc_prefix = "vtm";
+        static const auto log_suffix = "-log";
+        static const auto cfg_suffix = "-config";
         #if defined(_WIN32)
             static const auto pipe_ns = "\\\\.\\pipe\\";
-            auto wr_pipe(text name) { return pipe_ns + name + "_w"; }
-            auto rd_pipe(text name) { return pipe_ns + name + "_r"; }
-            auto ipcname = utf::to_utf(utf::concat(pipe_ns, os::service::name, "_svclink"));
+            auto wr_pipe(text name) { return pipe_ns + name + "-w"; }
+            auto rd_pipe(text name) { return pipe_ns + name + "-r"; }
+            auto ipcname = utf::to_utf(utf::concat(pipe_ns, os::service::name, "-svclink"));
         #endif
         // os::path: OS settings path.
         static const auto etc = []
@@ -2450,7 +2453,7 @@ namespace netxs::os
                 }
                 else
                 {
-                    auto cfpath = utf::concat(prefix, "_config");
+                    auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
                     auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
                     if (os::nt::runas(cmdarg))
@@ -2567,7 +2570,7 @@ namespace netxs::os
                                     auto prefix = blocks[0];
                                     auto config = blocks[1];
                                     auto envars = blocks[2];
-                                    auto cfpath = utf::concat(prefix, "_config");
+                                    auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                                     auto handle = process::memory::set(cfpath, config);
                                     auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
                                     // Run server process.
@@ -5643,7 +5646,9 @@ namespace netxs::os
             readline(auto send, auto shut)
                 : alive{ true }
             {
-                if (dtvt::vtmode & ui::console::redirio) thread = std::thread{ [&, send, shut]
+                auto redirected = dtvt::vtmode & ui::console::redirio
+                               && os::stdin_fd != os::invalid_fd;
+                if (redirected) thread = std::thread{ [&, send, shut]
                 {
                     auto line = text{};
                     auto buff = text(os::pipebuf, '\0');

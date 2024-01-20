@@ -126,11 +126,16 @@ int main(int argc, char* argv[])
     os::dtvt::initialize();
     os::dtvt::checkpoint();
 
+    if (os::dtvt::vtmode & ui::console::redirio
+     && (whoami == type::runapp || whoami == type::client))
+    {
+        whoami = type::logger;
+    }
     auto denied = faux;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
-    auto prefix_log = prefix + app::shared::log_suffix;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(os::path::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
+    auto prefix_log = prefix + os::path::log_suffix;
     auto failed = [&](auto cause)
     {
         os::fail(cause == code::noaccess ? "Access denied"

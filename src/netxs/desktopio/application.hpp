@@ -25,8 +25,6 @@ namespace netxs::app::shared
 {
     static const auto version = "v0.9.55";
     static const auto repository = "https://github.com/directvt/vtm";
-    static const auto ipc_prefix = "vtm";
-    static const auto log_suffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
 

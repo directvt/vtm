@@ -1810,8 +1810,17 @@ namespace netxs::app::vtm
             LISTEN(tier::release, e2::conio::readline, utf8)
             {
                 static auto vtm_run = "vtm.run("sv;
+                static auto vtm_exit = "vtm.exit("sv;
+                static auto vtm_close = "vtm.close("sv;
+                static auto vtm_shutdown = "vtm.shutdown("sv;
                 auto cmd = qiew{ utf8 };
-                if (cmd.starts_with(vtm_run))
+                if (cmd.starts_with(vtm_exit)
+                 || cmd.starts_with(vtm_close)
+                 || cmd.starts_with(vtm_shutdown))
+                {
+                    this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
+                }
+                else if (cmd.starts_with(vtm_run))
                 {
                     log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(utf8, "\n\r"))));
                     cmd.remove_prefix(vtm_run.size());
