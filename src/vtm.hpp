@@ -41,9 +41,9 @@ namespace netxs::app::vtm
         static constexpr auto slimmenu = "slimmenu";
         static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
-        static constexpr auto cwd      = "cwd";
         static constexpr auto env      = "env";
-        static constexpr auto param    = "param";
+        static constexpr auto cwd      = "cwd";
+        static constexpr auto cmd      = "cmd";
         static constexpr auto splitter = "splitter";
         static constexpr auto config   = "config";
     }
@@ -1569,7 +1569,7 @@ namespace netxs::app::vtm
                     conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
                     conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
                     conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-                    conf_rec.appcfg.cmd = item.take(attr::param,    fallback.appcfg.cmd);
+                    conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
                     conf_rec.type       = item.take(attr::type,     fallback.type    );
                     auto patch          = item.list(attr::config);
                     if (patch.size())
@@ -1829,7 +1829,7 @@ namespace netxs::app::vtm
                 {
                     log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(script.cmd, "\n\r"))));
                     cmd.remove_prefix(vtm_run.size());
-                    auto delims = " \t,"sv;
+                    auto delims = " \t,)"sv;
                     auto kind = utf::get_token(cmd, delims);
                     auto param = utf::get_token(cmd, delims);
                     auto& maker = app::shared::builder(text{ kind });

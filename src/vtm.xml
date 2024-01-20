@@ -25,11 +25,11 @@ R"==(<config>
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" Windows Command Prompt " param="$0 -r term">
+        <item id=Term label="cmd" type=DirectVT title="Command Prompt" notes=" Windows Command Prompt " cmd="$0 -r term">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " param="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
 )=="
 #endif
 R"==(
@@ -63,13 +63,13 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"    cmd="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
 )=="
 #endif
 R"==(
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized           notes=" Desktop region marker "/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  param="$0 -q -r term $0 -m" notes=" Log monitor ">
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor ">
             <config>
                 <term>
                     <logs=off/>

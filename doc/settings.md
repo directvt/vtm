@@ -31,7 +31,7 @@ graph LR
     <config>
         <menu>
             ...
-            <item ... type=DirectVT ... param="$0 ...">
+            <item ... type=DirectVT ... cmd="$0 ...">
                 <config> <!-- item's `<config>` subsection -->
                     ...
                 </config>
@@ -202,8 +202,8 @@ Attribute  | Description                                       | Value type | Ma
 `slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
 `env`      |  Environment variable in "var=val" format         | `string`   |           |
 `cwd`      |  Current working directory                        | `string`   |           |
+`cmd`      |  App constructor arguments                        | `string`   |           | empty
 `type`     |  App type                                         | `string`   |           | `SHELL`
-`param`    |  App constructor arguments                        | `string`   |           | empty
 `config`   |  Configuration patch for DirectVT apps            | `xml-node` |           | empty
 
 #### Value literals
@@ -219,19 +219,19 @@ Type     | Format
 
 Type              | Parameter        | Description
 ------------------|------------------|-----------
-`DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT param="_command line_"`.
-`XLVT`\|`XLinkVT` | `_command line_` | Run `_command line_` using DirectVT protocol with controlling terminal attached for OpenSSH interactivity. Usage example `type=XLVT param="_command line_"`.
-`ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT param="_command line_"`. Same as `type=DirectVT param="$0 -r term _command line_"`.
-`SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL param="_command line_"`. Same as `type=DirectVT param="$0 -r term _shell_ -c _command line_"`.
-`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `param`. Usage example `type=Group param="h1:1(Term, Term)"`.
-`Region`          | | The `param` attribute is not used, use attribute `title=_view_title_` to set region name.
+`DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT cmd="_command line_"`.
+`XLVT`\|`XLinkVT` | `_command line_` | Run `_command line_` using DirectVT protocol with controlling terminal attached for OpenSSH interactivity. Usage example `type=XLVT cmd="_command line_"`.
+`ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _command line_"`.
+`SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _shell_ -c _command line_"`.
+`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=Group cmd="h1:1(Term, Term)"`.
+`Region`          | | The `cmd` attribute is not used, use attribute `title=_view_title_` to set region name.
 
 The following configuration items produce the same final result:
 ```
-<item …. param=‘mc’/>
-<item …. type=SHELL param=‘mc’/>
-<item …. type=ANSIVT param=‘bash -c mc’/>
-<item …. type=DirectVT param=‘$0 -r term bash -c mc’/>
+<item …. cmd=‘mc’/>
+<item …. type=SHELL cmd=‘mc’/>
+<item …. type=ANSIVT cmd=‘bash -c mc’/>
+<item …. type=DirectVT cmd=‘$0 -r term bash -c mc’/>
 ```
 
 ### Configuration Example
@@ -245,7 +245,7 @@ Note: The following configuration sections are not implemented yet:
 ```xml
 <config>
     <menu selected=Term item*>  <!-- Use asterisk to remove previous/existing items from the list. -->
-        <item id=Term/>  <!-- title=id type=SHELL param=os_default_shell -->
+        <item id=Term/>  <!-- title=id type=SHELL cmd=os_default_shell -->
     </menu>
 </config>
 ```
@@ -267,7 +267,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " param="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -293,13 +293,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          param="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
-   <!-- <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" param="$0 -r term wsl"                              notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 param="far"                                         notes=" Far Manager in its own window "/> -->
-   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    param="mc"               notes=" Midnight Commander in its own window "/> -->
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" param="h1:1(Term, Term)" notes=" Tiling window manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized        notes=" Desktop region marker "/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"            param="$0 -q -r term $0 -m" notes=" Log monitor "/>
+        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          cmd="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
+   <!-- <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                              notes=" Default WSL profile session "/> -->
+   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 cmd="far"                                         notes=" Far Manager in its own window "/> -->
+   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
+        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
+        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->

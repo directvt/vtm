@@ -534,7 +534,7 @@ namespace netxs::app::shared
         }
     };
 
-    void start(text params, text aclass, si32 vtmode, twod winsz, xmls& config)
+    void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
         auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
@@ -546,7 +546,7 @@ namespace netxs::app::shared
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
-        auto appcfg = eccc{ .cmd = params,
+        auto appcfg = eccc{ .cmd = cmd,
                             .cfg = direct ? ""s : "<config simple=1/>"s };
         auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, vtmode, winsz);
