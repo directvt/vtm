@@ -204,10 +204,10 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
-        auto result = std::atomic<int>{};
+        auto result = std::atomic<int>{ 3 /*id, env, cwd*/};
         auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
         {
-            os::io::send(utf::concat(reply, "\n"));
+            if (reply.size()) os::io::send(utf::concat(reply, "\n"));
             --result;
         }};
         auto online = flag{ true };
@@ -231,7 +231,7 @@ int main(int argc, char* argv[])
         }, [&]
         {
             online.exchange(faux);
-            while (result != 0) std::this_thread::yield();
+            while (result) std::this_thread::yield();
             if (stream) stream->shut();
         });
         while (online)
@@ -396,7 +396,6 @@ int main(int argc, char* argv[])
                         {
                             script.cmd = cmd;
                             domain->SIGNAL(tier::release, scripting::events::invoke, script);
-                            events.command.send(monitor, script.cmd);
                         }
                         else
                         {
@@ -410,6 +409,7 @@ int main(int argc, char* argv[])
                             }
                             init++;
                         }
+                        events.command.send(monitor, script.cmd);
                     }};
                     auto writer = netxs::logger::attach([&](auto utf8)
                     {
