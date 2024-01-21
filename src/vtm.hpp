@@ -44,6 +44,7 @@ namespace netxs::app::vtm
         static constexpr auto env      = "env";
         static constexpr auto cwd      = "cwd";
         static constexpr auto cmd      = "cmd";
+        static constexpr auto cfg      = "cfg";
         static constexpr auto splitter = "splitter";
         static constexpr auto config   = "config";
     }
@@ -52,6 +53,7 @@ namespace netxs::app::vtm
         static constexpr auto item     = "/config/menu/item";
         static constexpr auto autorun  = "/config/menu/autorun/item";
         static constexpr auto viewport = "/config/menu/viewport/coor";
+        static constexpr auto menuslim = "/config/defapp/menu/slim";
     }
 
     struct events
@@ -1510,6 +1512,70 @@ namespace netxs::app::vtm
             window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return window_ptr;
         }
+        auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, text alias = {}, bool splitter = {})
+        {
+            conf_rec.splitter   = splitter;
+            conf_rec.menuid     = menuid;
+            conf_rec.alias      = alias;
+            conf_rec.label      = item.take(attr::label,    fallback.label   );
+            if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
+            conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
+            conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
+            conf_rec.title      = item.take(attr::title,    fallback.title   );
+            conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
+            conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
+            conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
+            conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
+            conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
+            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
+            conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
+            conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
+            conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
+            conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
+
+            //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
+            //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
+            conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
+            if (conf_rec.appcfg.cmd.empty()) conf_rec.appcfg.cmd = item.take("param", fallback.appcfg.cmd);
+
+            conf_rec.type       = item.take(attr::type,     fallback.type    );
+            utf::to_low(conf_rec.type);
+            auto envar          = item.list(attr::env);
+            if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
+            else for (auto& v : envar)
+            {
+                auto value = v->value();
+                if (value.size())
+                {
+                    conf_rec.appcfg.env += value + '\0';
+                }
+            }
+            if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
+            if (conf_rec.appcfg.cfg.empty())
+            {
+                auto patch = item.list(attr::config);
+                if (patch.size())
+                {
+                    if (fallback.appcfg.cfg.empty() && patch.size() == 1)
+                    {
+                        conf_rec.appcfg.cfg = patch.front()->snapshot();
+                    }
+                    else // Merge new configurations with the previous one if it is.
+                    {
+                        auto head = patch.begin();
+                        auto tail = patch.end();
+                        auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                                    : (*head++)->snapshot() };
+                        while (head != tail)
+                        {
+                            auto& p = *head++;
+                            settings.fuse(p->snapshot());
+                        }
+                        conf_rec.appcfg.cfg = settings.utf8();
+                    }
+                }
+            }
+        }
 
     protected:
         hall(xipc server, xmls& config, text defapp)
@@ -1520,14 +1586,11 @@ namespace netxs::app::vtm
             auto& menu_list = dbase.menu;
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
-            auto  dflt_spec = desk::spec
-            {
-                .hidden   = faux,
-                .winform  = shared::winform::undefined,
-                .slimmenu = faux,
-                .type     = defapp,
-                .notfound = true,
-            };
+            auto  dflt_spec = desk::spec{ .hidden   = faux,
+                                          .winform  = shared::winform::undefined,
+                                          .slimmenu = faux,
+                                          .type     = defapp,
+                                          .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
             {
                 auto test = [&](auto& p) { return p.first == menuid; };
@@ -1543,6 +1606,15 @@ namespace netxs::app::vtm
 
             auto splitter_count = 0;
             auto auto_id = 0;
+            auto expand = [&](auto& conf_rec)
+            {
+                utf::change(conf_rec.title,      "$0", current_module_file);
+                utf::change(conf_rec.footer,     "$0", current_module_file);
+                utf::change(conf_rec.label,      "$0", current_module_file);
+                utf::change(conf_rec.notes,      "$0", current_module_file);
+                utf::change(conf_rec.appcfg.cmd, "$0", current_module_file);
+                utf::change(conf_rec.appcfg.env, "$0", current_module_file);
+            };
             for (auto item_ptr : host::config.list(path::item))
             {
                 auto& item = *item_ptr;
@@ -1551,85 +1623,21 @@ namespace netxs::app::vtm
                                        : item.take(attr::id, ""s);
                 if (menuid.empty()) menuid = "App" + std::to_string(auto_id++);
                 auto alias = item.take(attr::alias, ""s);
-                auto merge = [&](auto& conf_rec, auto& fallback)
-                {
-                    conf_rec.splitter   = splitter;
-                    conf_rec.alias      = alias;
-                    conf_rec.menuid     = menuid;
-                    conf_rec.label      = item.take(attr::label,    fallback.label   );
-                    if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
-                    conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
-                    conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
-                    conf_rec.title      = item.take(attr::title,    fallback.title   );
-                    conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
-                    conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
-                    conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
-                    conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
-                    conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
-                    conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
-                    conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
-                    conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
-                    conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
-                    //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
-                    //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
-                    conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
-                    if (conf_rec.appcfg.cmd.empty()) conf_rec.appcfg.cmd = item.take("param", fallback.appcfg.cmd);
-
-                    conf_rec.type       = item.take(attr::type,     fallback.type    );
-                    auto patch          = item.list(attr::config);
-                    if (patch.size())
-                    {
-                        if (fallback.appcfg.cfg.empty() && patch.size() == 1)
-                        {
-                            conf_rec.appcfg.cfg = patch.front()->snapshot();
-                        }
-                        else // Merge new configurations with the previous one if it is.
-                        {
-                            auto head = patch.begin();
-                            auto tail = patch.end();
-                            auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
-                                                                                      : (*head++)->snapshot() };
-                            while (head != tail)
-                            {
-                                auto& p = *head++;
-                                settings.fuse(p->snapshot());
-                            }
-                            conf_rec.appcfg.cfg = settings.utf8();
-                        }
-                    }
-                    auto envar        = item.list(attr::env);
-                    if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
-                    else for (auto& v : envar)
-                    {
-                        auto value = v->value();
-                        if (value.size())
-                        {
-                            conf_rec.appcfg.env += value + '\0';
-                        }
-                    }
-                    if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
-
-                    utf::to_low(conf_rec.type);
-                    utf::change(conf_rec.title,      "$0", current_module_file);
-                    utf::change(conf_rec.footer,     "$0", current_module_file);
-                    utf::change(conf_rec.label,      "$0", current_module_file);
-                    utf::change(conf_rec.notes,      "$0", current_module_file);
-                    utf::change(conf_rec.appcfg.cmd, "$0", current_module_file);
-                    utf::change(conf_rec.appcfg.env, "$0", current_module_file);
-                };
 
                 auto& proto = find(menuid);
                 if (!proto.notfound) // Update existing record.
                 {
                     auto& conf_rec = proto;
-                    merge(conf_rec, conf_rec);
+                    hall::loadspec(conf_rec, conf_rec, item, menuid, alias, splitter);
+                    expand(conf_rec);
                 }
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
                     auto& dflt = alias.size() ? find(alias) // New based on alias_id.
                                               : dflt_spec;  // New item.
-                    merge(conf_rec, dflt);
+                    hall::loadspec(conf_rec, dflt, item, menuid, alias, splitter);
+                    expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
@@ -1750,20 +1758,14 @@ namespace netxs::app::vtm
                 auto& gear = *gear_ptr;
                 auto& gate = gear.owner;
 
-                if (appspec.winsize == dot_00)
+                gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                if (appspec.wincoor == dot_00)
                 {
-                    gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                     offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
                     gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                    gear.slot.size = viewport.size * 3 / 4;
-                    gear.slot_forced = faux;
                 }
-                else
-                {
-                    gear.slot.coor = appspec.wincoor;
-                    gear.slot.size = appspec.winsize;
-                    gear.slot_forced = true;
-                }
+                gear.slot.size = appspec.winsize ? appspec.winsize : viewport.size * 3 / 4;
+                gear.slot_forced = true;
 
                 auto& apps_list = dbase.apps;
                 auto& menu_list = dbase.menu;
@@ -1864,17 +1866,19 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, scripting::events::invoke, script)
             {
+                //todo unify
                 static auto vtm_run = "vtm.run("sv;
                 static auto vtm_dtvt = "vtm.dtvt("sv;
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto cmd = utf::trim(view{ script.cmd }, "\r\n\t ");
+                auto shadow = utf::trim(view{ script.cmd }, "\r\n\t ");
+                auto cmd = shadow;
                 auto expression = [](auto prefix, auto& cmd)
                 {
                     if (cmd.starts_with(prefix) && cmd.back() == ')')
                     {
-                        log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(cmd, "\n\r"))));
+                        log(ansi::clr(yellowlt, utf::debase<faux, faux>(cmd)));
                         cmd = cmd.substr(prefix.size(), cmd.size() - prefix.size() - 1/*)*/);
                         return true;
                     }
@@ -1905,21 +1909,24 @@ namespace netxs::app::vtm
                 }
                 else if (expression(vtm_run, cmd))
                 {
-                    auto delims = " \t,)"sv;
-                    auto kind = utf::get_token(cmd, delims);
-                    auto param = utf::get_token(cmd, delims);
-                    auto& maker = app::shared::builder(text{ kind });
-                    auto appcfg = eccc{ .env = script.env,
-                                        .cwd = script.cwd,
-                                        .cmd = text{ param } };
-                    auto applet = maker(appcfg, host::config);
-                    auto what = link{ .header = "test", .footer = "test" };
-                    auto window_ptr = hall::window(what);
-                    window_ptr->extend({{ 10,5 }, { 80, 25+2 }});
-                    window_ptr->attach(applet);
-                    auto menuid = text{ kind };
-                    this->branch(menuid, window_ptr, true);
-                    window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
+                    auto menu_id = text{ shadow };
+                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                    auto itemptr = appconf.homelist.front();
+                    auto appspec = desk::spec{ .hidden   = true,
+                                               .winform  = shared::winform::undefined,
+                                               .slimmenu = host::config.take(path::menuslim, true),
+                                               .type     = app::shell::id };
+                    hall::loadspec(appspec, appspec, *itemptr, menu_id);
+                    appspec.gearid = hall::focus;
+                    appspec.appcfg.env += script.env;
+                    if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                    auto title = appspec.title.empty() && appspec.label.empty() ? menu_id
+                               : appspec.title.empty() ? appspec.label
+                               : appspec.label.empty() ? appspec.title : ""s;
+                    if (appspec.title.empty()) appspec.title = title;
+                    if (appspec.label.empty()) appspec.label = title;
+                    if (appspec.notes.empty()) appspec.notes = menu_id;
+                    this->SIGNAL(tier::request, desk::events::exec, appspec);
                 }
                 else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
             };
