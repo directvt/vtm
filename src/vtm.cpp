@@ -204,7 +204,12 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
-        auto events = os::tty::binary::logger{ [](auto& result){ log<faux>("result: ", result); }};
+        auto result = std::atomic<int>{};
+        auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
+        {
+            os::io::send(utf::concat(reply, "\n"));
+            --result;
+        }};
         auto online = flag{ true };
         auto active = flag{ faux };
         auto locker = std::mutex{};
@@ -213,7 +218,11 @@ int main(int argc, char* argv[])
         auto readln = os::tty::readline([&](auto line)
         {
             auto sync = std::lock_guard{ locker };
-            if (active) events.command.send(stream, line);
+            if (active)
+            {
+                ++result;
+                events.command.send(stream, line);
+            }
             else
             {
                 log("%%No server connected: %cmd%", prompt::main, utf::debase<faux, faux>(line));
@@ -222,6 +231,7 @@ int main(int argc, char* argv[])
         }, [&]
         {
             online.exchange(faux);
+            while (result != 0) std::this_thread::yield();
             if (stream) stream->shut();
         });
         while (online)
@@ -238,6 +248,7 @@ int main(int argc, char* argv[])
                     events.command.send(stream, os::env::cwd());
                     for (auto& line : buffer)
                     {
+                        ++result;
                         events.command.send(stream, line);
                     }
                     buffer.clear();
@@ -379,12 +390,13 @@ int main(int argc, char* argv[])
                     auto active = faux;
                     auto tokens = subs{};
                     auto script = eccc{};
-                    auto events = os::tty::binary::logger{ [&, init = 0](auto& cmd) mutable
+                    auto events = os::tty::binary::logger{ [&, init = 0](auto& events, auto& cmd) mutable
                     {
                         if (active)
                         {
                             script.cmd = cmd;
                             domain->SIGNAL(tier::release, scripting::events::invoke, script);
+                            events.command.send(monitor, script.cmd);
                         }
                         else
                         {

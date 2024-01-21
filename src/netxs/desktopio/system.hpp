@@ -4478,10 +4478,10 @@ namespace netxs::os
 
             struct logger : s11n
             {
-                using func = std::function<void(text&)>;
+                using func = std::function<void(logger&, text&)>;
                 func proc;
 
-                void handle(s11n::xs::command lock) { proc(lock.thing.utf8); }
+                void handle(s11n::xs::command lock) { proc(*this, lock.thing.utf8); }
                 void handle(s11n::xs::logs    lock) { log<faux>(lock.thing.data); }
 
                 logger(func proc)

@@ -513,8 +513,8 @@ namespace netxs::directvt
         class wrapper
         {
             friend struct access;
-            using utex = std::mutex;
-            using cond = std::condition_variable;
+            using utex = std::recursive_mutex;
+            using cond = std::condition_variable_any;
             using Lock = std::unique_lock<utex>;
 
             utex mutex; // wrapper: Accesss mutex.

@@ -1813,6 +1813,7 @@ namespace netxs::app::vtm
                         auto& cfg = dbase.menu[what.menuid];
                              if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
                         else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
                     }
                 }
                 else
@@ -1823,6 +1824,7 @@ namespace netxs::app::vtm
                     if (auto window = create(what))
                     {
                         pro::focus::set(window, id_t{}, pro::focus::solo::on, pro::focus::flip::off);
+                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
                     }
                 }
             };
@@ -1942,6 +1944,7 @@ namespace netxs::app::vtm
                     appspec.label = cmd;
                     appspec.notes = cmd;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
+                    script.cmd = appspec.appcfg.cmd;
                 }
                 else if (expression(vtm_run, cmd))
                 {
@@ -1962,6 +1965,7 @@ namespace netxs::app::vtm
                     if (appspec.label.empty()) appspec.label = title;
                     if (appspec.notes.empty()) appspec.notes = menu_id;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
+                    script.cmd = appspec.appcfg.cmd;
                 }
                 else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
             };
