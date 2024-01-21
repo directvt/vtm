@@ -1579,7 +1579,8 @@ namespace netxs::app::vtm
 
     protected:
         hall(xipc server, xmls& config, text defapp)
-            : host{ server, config, pro::focus::mode::focusable }
+            : host{ server, config, pro::focus::mode::focusable },
+              focus{ id_t{} }
         {
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
@@ -1752,24 +1753,32 @@ namespace netxs::app::vtm
             LISTEN(tier::request, desk::events::exec, appspec)
             {
                 static auto offset = dot_00;
-                auto gear_ptr = bell::getref<hids>(appspec.gearid);
-                //todo make offline app exec (like autorun)
-                if (!gear_ptr) return;
-                auto& gear = *gear_ptr;
-                auto& gate = gear.owner;
-
-                gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                if (appspec.wincoor == dot_00)
+                auto gear_ptr = netxs::sptr<hids>{};
+                if (appspec.gearid == id_t{})
                 {
-                    offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                    gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                    //todo revise
+                    if (hall::focus) // Take last active keybard.
+                    {
+                        gear_ptr = bell::getref<hids>(hall::focus);
+                        if (gear_ptr)
+                        {
+                            appspec.gearid = hall::focus;
+                        }
+                    }
+                    if (!gear_ptr && users.size()) // Take any existing.
+                    {
+                        auto gate_ptr = bell::getref<gate>(users.back()->id);
+                        auto& gears = gate_ptr->input.gears;
+                        if (gears.size())
+                        {
+                            gear_ptr = gears.begin()->second;
+                        }
+                    }
                 }
-                gear.slot.size = appspec.winsize ? appspec.winsize : viewport.size * 3 / 4;
-                gear.slot_forced = true;
+                else gear_ptr = bell::getref<hids>(appspec.gearid);
 
                 auto& apps_list = dbase.apps;
                 auto& menu_list = dbase.menu;
-                
                 auto menuid = appspec.menuid;
                 if (menu_list.contains(menuid)
                 && !menu_list[menuid].hidden
@@ -1784,10 +1793,38 @@ namespace netxs::app::vtm
                 menu_list[menuid] = appspec;
                 apps_list[menuid];
 
-                gate.SIGNAL(tier::request, e2::data::changed, lastid, ());
-                gate.SIGNAL(tier::release, e2::data::changed, menuid);
-                gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                auto what = link{ .menuid = menuid, .forced = true };
+                if (gear_ptr)
+                {
+                    auto& gear = *gear_ptr;
+                    auto& gate = gear.owner;
+                    gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                    if (appspec.wincoor == dot_00)
+                    {
+                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        appspec.wincoor = viewport.coor + offset + viewport.size * 1 / 32;
+                    }
+                    what.square.coor = appspec.wincoor;
+                    what.square.size = appspec.winsize ? appspec.winsize : viewport.size * 3 / 4;
+                    if (auto window = create(what))
+                    {
+                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                        auto& cfg = dbase.menu[what.menuid];
+                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                    }
+                }
+                else
+                {
+                    if (appspec.winsize == dot_00) appspec.winsize = { 80, 27 };
+                    what.square.coor = appspec.wincoor;
+                    what.square.size = appspec.winsize;
+                    if (auto window = create(what))
+                    {
+                        pro::focus::set(window, id_t{}, pro::focus::solo::on, pro::focus::flip::off);
+                    }
+                }
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
@@ -1898,7 +1935,6 @@ namespace netxs::app::vtm
                 else if (expression(vtm_dtvt, cmd))
                 {
                     auto appspec = desk::spec{ .hidden = true, .type = app::dtvt::id };
-                    appspec.gearid = hall::focus;
                     appspec.appcfg.env = script.env;
                     appspec.appcfg.cwd = script.cwd;
                     appspec.appcfg.cmd = cmd;
@@ -1917,7 +1953,6 @@ namespace netxs::app::vtm
                                                .slimmenu = host::config.take(path::menuslim, true),
                                                .type     = app::shell::id };
                     hall::loadspec(appspec, appspec, *itemptr, menu_id);
-                    appspec.gearid = hall::focus;
                     appspec.appcfg.env += script.env;
                     if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
                     auto title = appspec.title.empty() && appspec.label.empty() ? menu_id
@@ -1948,7 +1983,7 @@ namespace netxs::app::vtm
                 {
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
-                                    app.take(attr::winsize, twod{ 80,25 }) };
+                                    app.take(attr::winsize, twod{ 80,27 }) };
                     auto winform =  app.take(attr::winform, shared::winform::undefined, shared::winform::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
