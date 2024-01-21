@@ -204,7 +204,7 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
-        auto result = std::atomic<int>{ 3 /*id, env, cwd*/};
+        auto result = std::atomic<int>{};
         auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
         {
             if (reply.size()) os::io::send(utf::concat(reply, "\n"));
@@ -213,6 +213,7 @@ int main(int argc, char* argv[])
         auto online = flag{ true };
         auto active = flag{ faux };
         auto locker = std::mutex{};
+        auto syncio = std::unique_lock{ locker };
         auto buffer = std::list<text>{};
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
@@ -230,35 +231,46 @@ int main(int argc, char* argv[])
             }
         }, [&]
         {
+            auto sync = std::lock_guard{ locker };
             online.exchange(faux);
-            while (result) std::this_thread::yield();
+            if (active) while (result) std::this_thread::yield();
             if (stream) stream->shut();
         });
         while (online)
         {
             auto iolink = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
-            if (denied) return failed(code::noaccess);
+            if (denied)
+            {
+                syncio.unlock();
+                return failed(code::noaccess);
+            }
             if (iolink)
             {
+                std::swap(stream, iolink);
+                result += 3;
+                events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitor id.
+                events.command.send(stream, os::env::add());
+                events.command.send(stream, os::env::cwd());
+                for (auto& line : buffer)
                 {
-                    auto sync = std::lock_guard{ locker };
-                    std::swap(stream, iolink);
-                    events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitor id.
-                    events.command.send(stream, os::env::add());
-                    events.command.send(stream, os::env::cwd());
-                    for (auto& line : buffer)
-                    {
-                        ++result;
-                        events.command.send(stream, line);
-                    }
-                    buffer.clear();
-                    active.exchange(true);
+                    ++result;
+                    events.command.send(stream, line);
                 }
+                buffer.clear();
+                active.exchange(true);
+                syncio.unlock();
                 directvt::binary::stream::reading_loop(stream, [&](view data){ events.s11n::sync(data); });
+                syncio.lock();
                 break;
             }
-            else os::sleep(500ms);
+            else
+            {
+                syncio.unlock();
+                os::sleep(500ms);
+                syncio.lock();
+            }
         }
+        syncio.unlock();
     }
     else if (whoami == type::runapp)
     {
