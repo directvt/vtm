@@ -1239,6 +1239,7 @@ namespace netxs::app::vtm
         depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
+        id_t focus; // hall: Last active gear id.
 
         static auto window(link& what)
         {
@@ -1736,6 +1737,56 @@ namespace netxs::app::vtm
             {
                 if (items) item = items.back();
             };
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
+            {
+                hall::focus = gear.id;
+            };
+            LISTEN(tier::request, desk::events::exec, appspec)
+            {
+                static auto offset = dot_00;
+                auto gear_ptr = bell::getref<hids>(appspec.gearid);
+                //todo make offline app exec (like autorun)
+                if (!gear_ptr) return;
+                auto& gear = *gear_ptr;
+                auto& gate = gear.owner;
+
+                if (appspec.winsize == dot_00)
+                {
+                    gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                    offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                    gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
+                    gear.slot.size = viewport.size * 3 / 4;
+                    gear.slot_forced = faux;
+                }
+                else
+                {
+                    gear.slot.coor = appspec.wincoor;
+                    gear.slot.size = appspec.winsize;
+                    gear.slot_forced = true;
+                }
+
+                auto& apps_list = dbase.apps;
+                auto& menu_list = dbase.menu;
+                
+                auto menuid = appspec.menuid;
+                if (menu_list.contains(menuid)
+                && !menu_list[menuid].hidden
+                && appspec.hidden) // Check for id availability.
+                {
+                    auto i = 1;
+                    auto testid = text{};
+                    do testid = menuid + " (" + std::to_string(++i) + ")";
+                    while (menu_list.contains(testid) && !menu_list[testid].hidden);
+                    std::swap(testid, menuid);
+                }
+                menu_list[menuid] = appspec;
+                apps_list[menuid];
+
+                gate.SIGNAL(tier::request, e2::data::changed, lastid, ());
+                gate.SIGNAL(tier::release, e2::data::changed, menuid);
+                gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
+                gate.SIGNAL(tier::release, e2::data::changed, lastid);
+            };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
                 auto& gate = gear.owner;
@@ -1814,25 +1865,46 @@ namespace netxs::app::vtm
             LISTEN(tier::release, scripting::events::invoke, script)
             {
                 static auto vtm_run = "vtm.run("sv;
+                static auto vtm_dtvt = "vtm.dtvt("sv;
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
                 auto cmd = utf::trim(view{ script.cmd }, "\r\n\t ");
+                auto expression = [](auto prefix, auto& cmd)
+                {
+                    if (cmd.starts_with(prefix) && cmd.back() == ')')
+                    {
+                        log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(cmd, "\n\r"))));
+                        cmd = cmd.substr(prefix.size(), cmd.size() - prefix.size() - 1/*)*/);
+                        return true;
+                    }
+                    else return faux;
+                };
                 if (cmd.empty()) return;
                 if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
                 {
                     cmd = cmd.substr(1, cmd.size() - 2);
                 }
-                if (cmd.starts_with(vtm_exit)
-                 || cmd.starts_with(vtm_close)
-                 || cmd.starts_with(vtm_shutdown))
+                if (expression(vtm_exit, cmd)
+                 || expression(vtm_close, cmd)
+                 || expression(vtm_shutdown, cmd))
                 {
                     this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
                 }
-                else if (cmd.starts_with(vtm_run))
+                else if (expression(vtm_dtvt, cmd))
                 {
-                    log(ansi::clr(yellowlt, utf::debase<faux, faux>(utf::trim(script.cmd, "\n\r"))));
-                    cmd.remove_prefix(vtm_run.size());
+                    auto appspec = desk::spec{ .hidden = true, .type = app::dtvt::id };
+                    appspec.gearid = hall::focus;
+                    appspec.appcfg.env = script.env;
+                    appspec.appcfg.cwd = script.cwd;
+                    appspec.appcfg.cmd = cmd;
+                    appspec.title = cmd;
+                    appspec.label = cmd;
+                    appspec.notes = cmd;
+                    this->SIGNAL(tier::request, desk::events::exec, appspec);
+                }
+                else if (expression(vtm_run, cmd))
+                {
                     auto delims = " \t,)"sv;
                     auto kind = utf::get_token(cmd, delims);
                     auto param = utf::get_token(cmd, delims);
