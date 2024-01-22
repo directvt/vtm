@@ -1542,7 +1542,7 @@ namespace netxs::app::vtm
                 if (test.size())
                 {
                     conf_rec.appcfg.cmd = test;
-                    log(ansi::clr(yellowlt, "settings: The 'param' attribute is deprecated, please use 'cmd' instead:"), " <... param=", test, " .../>");
+                    log(ansi::clr(yellowlt, "settings: The 'param=' attribute is deprecated, please use 'cmd=' instead:"), " <... param=", test, " .../>");
                 }
                 else conf_rec.appcfg.cmd = fallback.appcfg.cmd;
 
