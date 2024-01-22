@@ -46,7 +46,7 @@ struct consrv
         return inst;
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, Proc trailer, fdrw fdlink)
     {
         auto err_code = 0;
         auto startinf = STARTUPINFOEXW{ sizeof(STARTUPINFOEXW) };
@@ -83,8 +83,8 @@ struct consrv
         startinf.StartupInfo.dwY = 0;
         startinf.StartupInfo.dwXCountChars = 0;
         startinf.StartupInfo.dwYCountChars = 0;
-        startinf.StartupInfo.dwXSize = win.x;
-        startinf.StartupInfo.dwYSize = win.y;
+        startinf.StartupInfo.dwXSize = cfg.win.x;
+        startinf.StartupInfo.dwYSize = cfg.win.y;
         startinf.StartupInfo.dwFillAttribute = 1;
         startinf.StartupInfo.dwFlags = STARTF_USESTDHANDLES
                                      | STARTF_USESIZE
@@ -109,9 +109,9 @@ struct consrv
                              sizeof(refdrv),
                                     nullptr,
                                     nullptr);
-        auto wcmd = utf::to_utf(cmd);
-        auto wcwd = utf::to_utf(cwd);
-        auto wenv = utf::to_utf(os::env::add(env += "VTM=1\0"sv));
+        auto wcmd = utf::to_utf(cfg.cmd);
+        auto wcwd = utf::to_utf(cfg.cwd);
+        auto wenv = utf::to_utf(os::env::add(cfg.env += "VTM=1\0"sv));
         auto ret = ::CreateProcessW(nullptr,                             // lpApplicationName
                                     wcmd.data(),                         // lpCommandLine
                                     nullptr,                             // lpProcessAttributes
@@ -4897,12 +4897,8 @@ struct impl : consrv
     xlat        outenc; // consrv: Current code page decoder for output stream.
     bool        unsync; // consrv: The terminal must be updated.
 
-    auto& create_window()
+    auto create_window()
     {
-        if (os::dtvt::isolated)
-        {
-            return os::clipboard::winhndl;
-        }
         window = std::thread{ [&]
         {
             auto wndname = text{ "vtmConsoleWindowClass" };
@@ -4955,19 +4951,17 @@ struct impl : consrv
                 return;
             }
         }};
-        return winhnd;
+        while (!winhnd) // Waiting for a win32 window to be created.
+        {
+            std::this_thread::yield();
+        }
     }
     void start()
     {
         reset();
         events.reset();
         signal.flush();
-        auto& nominal_window = create_window();
-        while (!nominal_window) // Waiting for a win32 window to be created.
-        {
-            std::this_thread::yield();
-        }
-        winhnd = nominal_window;
+        create_window();
         server = std::thread{ [&]
         {
             while (condrv != os::invalid_fd)
@@ -5090,7 +5084,7 @@ struct impl : consrv
           outmod{                                                },
           altmod{ faux                                           },
           prompt{ utf::concat(win32prompt)                       },
-          inpenc{ std::make_shared<decoder>(*this, os::codepage) },
+          inpenc{ std::make_shared<decoder>(*this, ::GetOEMCP()) },
           outenc{ inpenc                                         },
           unsync{ faux                                           }
     {
@@ -5215,7 +5209,7 @@ struct consrv : ipc::stdcon
         return ptr::shared<consrv>(terminal);
     }
     template<class Term, class Proc>
-    auto attach(Term& terminal, text cmd, text cwd, text env, twod win, Proc trailer, fdrw fdlink)
+    auto attach(Term& terminal, eccc cfg, Proc trailer, fdrw fdlink)
     {
         auto fdm = os::syscall{ ::posix_openpt(O_RDWR | O_NOCTTY) }; // Get master TTY.
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
@@ -5232,7 +5226,7 @@ struct consrv : ipc::stdcon
             auto rc3 = os::syscall{ ::setsid() }; // Open new session and new process group in it.
             auto fds = os::syscall{ ::open(::ptsname(fdm.value), O_RDWR | O_NOCTTY) }; // Open slave TTY via string ptsname(fdm) (BSD doesn't auto assign controlling terminal: we should assign it explicitly).
             auto rc4 = os::syscall{ ::ioctl(fds.value, TIOCSCTTY, 0) }; // Assign it as a controlling TTY (in order to receive WINCH and other signals).
-            winsz(win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
+            winsz(cfg.win); // TTY resize can be done only after assigning a controlling TTY (BSD-requirement).
             os::dtvt::active = faux; // Logger update.
             os::dtvt::client = {};   //
             if (fdlink)
@@ -5259,11 +5253,11 @@ struct consrv : ipc::stdcon
                     "rc4: ", rc4.value, " errcode: ", rc4.error, "\n"
                     "fds: ", fds.value, " errcode: ", fds.error);
             }
-            env +=  "VTM=1\0"
-                    "TERM=xterm-256color\0"
-                    "COLORTERM=truecolor\0"sv;
-            env = os::env::add(env);
-            os::process::spawn(cmd, cwd, env);
+            cfg.env += "VTM=1\0"
+                       "TERM=xterm-256color\0"
+                       "COLORTERM=truecolor\0"sv;
+            cfg.env = os::env::add(cfg.env);
+            os::process::spawn(cfg.cmd, cfg.cwd, cfg.env);
         }
         // Parent branch.
         auto err_code = 0;

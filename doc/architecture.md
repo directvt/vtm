@@ -1,6 +1,6 @@
-# Text Mode Desktop Architecture
+# Text-based desktop environment architecture
 
-## Process Model
+## Process model
 
 ```mermaid
 graph TB
@@ -89,7 +89,7 @@ graph TB
 - The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
-## Interprocess Communication
+## Interprocess communication
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
 - Keyboard event channel
@@ -168,9 +168,9 @@ The binary render received for output from the server side is converted by the c
 
 vtm renders itself at a constant frame rate into internal buffers and outputs to the console only when the console is ready to accept the next frame.
 
-# Usage Scenarios
+# Usage scenarios
 
-## Local Usage
+## Local usage
 
 ### Running vtm desktop
 
@@ -212,7 +212,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r headless` option means to run the built-in terminal without menu and bottom bar.
     ```
 
-## Remote Access
+## Remote access
 
 In general, the local and remote platforms may be different.
 
@@ -310,7 +310,7 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `ncat` is installed.
     ```
 
-### Local Standard I/O Redirection (POSIX only)
+### Local standard I/O redirection (POSIX only)
 
 - Host side
     - Run commands
@@ -326,9 +326,9 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `socat` is installed.
     ```
 
-## More Tips
+## More tips
 
-## Desktop Taskbar Menu Customization
+## Desktop taskbar menu customization
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\\.config\\vtm\\settings.xml`):
 ```xml
@@ -337,39 +337,39 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <!-- <item*/> --> <!-- Clear default item list -->
         <item splitter label="Built-in apps"/>
 
-        <item id="Text Editor demo" type=dtvt param="vtm -r text"/>
-        <item id="Calculator demo"  type=dtvt param="vtm -r calc"/>
-        <item id="Truecolor test"   type=dtvt param="vtm -r truecolor"/>
+        <item id="Text Editor demo" type=dtvt cmd="vtm -r text"/>
+        <item id="Calculator demo"  type=dtvt cmd="vtm -r calc"/>
+        <item id="Truecolor test"   type=dtvt cmd="vtm -r truecolor"/>
 
         <item splitter label="Remote Access"/>
 
-        <item id="Run vtm in DirectVT mode remotely via SSH"    type=xlvt param="ssh user@server vtm"/>
-        <item id="Run a standalone console application via ssh" type=xlvt param="ssh user@server vtm -r /path/to/console/app"/>
-        <item id="Run application via ssh w/o extra UI"         type=xlvt param="ssh user@server vtm -r headless /path/to/console/app"/>
+        <item id="Run vtm in DirectVT mode remotely via SSH"    type=xlvt cmd="ssh user@server vtm"/>
+        <item id="Run a standalone console application via ssh" type=xlvt cmd="ssh user@server vtm -r /path/to/console/app"/>
+        <item id="Run application via ssh w/o extra UI"         type=xlvt cmd="ssh user@server vtm -r headless /path/to/console/app"/>
 
         <item splitter label="Another Examples"/>
 
-        <item id="Far Manager"             type=headless param="far"/>
-        <item id="Far Manager in terminal" type=dtvt     param="$0 -r far"/>
+        <item id="Far Manager"             type=headless cmd="far"/>
+        <item id="Far Manager in terminal" type=dtvt     cmd="$0 -r far"/>
 
-        <item id="Midnight Commander"             type=headless param="mc"/>
-        <item id="Midnight Commander in terminal" type=dtvt     param="$0 -r mc"/>
+        <item id="Midnight Commander"             type=headless cmd="mc"/>
+        <item id="Midnight Commander in terminal" type=dtvt     cmd="$0 -r mc"/>
 
-        <item id="Far Manager via ssh"     type=xlvt param="ssh user@server vtm -r headless far"/>
-        <item id="cmd in terminal via ssh" type=xlvt param="ssh user@server vtm -r term cmd"/>
-        <item id="cmd via ssh"             type=xlvt param="ssh user@server vtm -r headless cmd"/>
-        <item id="wsl via ssh"             type=xlvt param="ssh user@server vtm -r headless  wsl"/>
-        <item id="mc via ssh"              type=xlvt param="ssh user@server vtm -r headless mc"/>
-        <item id="wsl mc via ssh"          type=xlvt param="ssh user@server vtm -r headless wsl mc"/>
+        <item id="Far Manager via ssh"     type=xlvt cmd="ssh user@server vtm -r headless far"/>
+        <item id="cmd in terminal via ssh" type=xlvt cmd="ssh user@server vtm -r term cmd"/>
+        <item id="cmd via ssh"             type=xlvt cmd="ssh user@server vtm -r headless cmd"/>
+        <item id="wsl via ssh"             type=xlvt cmd="ssh user@server vtm -r headless wsl"/>
+        <item id="mc via ssh"              type=xlvt cmd="ssh user@server vtm -r headless mc"/>
+        <item id="wsl mc via ssh"          type=xlvt cmd="ssh user@server vtm -r headless wsl mc"/>
     </menu>
 </config>
 ```
 
-### Tiling Window Manager
+### Tiling window manager
 
 Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `Group`](settings.md#app-type) for details.
 
-### VT Logging for Developers
+### VT logging for developers
 
 vtm allows developers to visualize standard input/output streams. Launched with the `vtm -m` option, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 

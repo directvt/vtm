@@ -1,13 +1,13 @@
-# Text Mode Desktop
+# Text-based desktop environment
 
-## Built-in Applications
-- `▀▄ Term`     Terminal Emulator
-- `▀▄ DirectVT` DirectVT Proxy Console
-- `▀▄ XLinkVT`  DirectVT Proxy Console with controlling terminal onboard
-- `▀▄ View`     Workspace Navigation Helper
-- `▀▄ Tile`     Tiling Window anager
+## Built-in applications
+- `▀▄ Term`     Terminal emulator
+- `▀▄ DirectVT` DirectVT proxy
+- `▀▄ XLinkVT`  DirectVT proxy with controlling terminal onboard
+- `▀▄ View`     Workspace navigation helper
+- `▀▄ Tile`     Tiling window manager
 
-## Terminal Emulator
+## Terminal emulator
 
 ### Features
 
@@ -233,7 +233,7 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 </config>
 ```
 
-## DirectVT Proxy Console
+## DirectVT proxy
 
 ...
 
@@ -244,7 +244,7 @@ Example (running `vtm -r term` in dtvt-mode):
 vtm -r dtvt vtm -r term
 ```
 
-## DirectVT Proxy Console with controlling terminal onboard
+## DirectVT proxy with controlling terminal onboard
 
 This console mode is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
 
@@ -264,7 +264,7 @@ vtm ssh user@host vtm
 
 - Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
 
-## Tiling Window Manager
+## Tiling window manager
 
 ### Features
 

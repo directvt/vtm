@@ -70,6 +70,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-u", "--uninstall"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::uninstall();
@@ -78,6 +79,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-i", "--install"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             auto ok = os::process::install();
@@ -100,6 +102,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-v", "--version"))
         {
+            os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
             log(app::shared::version);
@@ -120,14 +123,19 @@ int main(int argc, char* argv[])
         }
     }
 
+    os::dtvt::initialize();
     os::dtvt::checkpoint();
 
+    if (os::dtvt::vtmode & ui::console::redirio
+     && (whoami == type::runapp || whoami == type::client))
+    {
+        whoami = type::logger;
+    }
     auto denied = faux;
-    //auto direct = os::dtvt::active;
     auto syslog = os::tty::logger();
     auto userid = os::env::user();
-    auto prefix = vtpipe.length() ? vtpipe : utf::concat(app::shared::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
-    auto prefix_log = prefix + app::shared::log_suffix;
+    auto prefix = vtpipe.length() ? vtpipe : utf::concat(os::path::ipc_prefix, os::process::elevated ? "!-" : "-", userid.second);;
+    auto prefix_log = prefix + os::path::log_suffix;
     auto failed = [&](auto cause)
     {
         os::fail(cause == code::noaccess ? "Access denied"
@@ -144,7 +152,7 @@ int main(int argc, char* argv[])
     if (errmsg.size())
     {
         failed(code::errormsg);
-        log("\nText Mode Desktop " + text{ app::shared::version } +
+        log("\nText-based desktop environment " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"
@@ -178,10 +186,14 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Built-in applications:"
             "\n"
-            "\n    Term      Terminal emulator (default)"
-            "\n    Headless  Terminal emulator without UI"
-            "\n    DTVT      DirectVT Proxy Console"
-            "\n    XLVT      DTVT with controlling terminal (for OpenSSH interactivity)"
+            "\n    Term      Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
+            "\n    Headless  Terminal emulator without UI.                    'vtm -r headless [cli_application]'"
+            "\n    DTVT      DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
+            "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh [user@host dtvt_application]'"
+            "\n"
+            "\n  The following commands have a short form:"
+            "\n    'vtm -r xlvt ssh [user@host dtvt_application]' can be shortened to 'vtm ssh [user@host dtvt_application]'."
+            "\n    'vtm -r term [cli_application]' can be shortened to 'vtm -r [cli_application]'."
             "\n"
             );
     }
@@ -192,35 +204,73 @@ int main(int argc, char* argv[])
     else if (whoami == type::logger)
     {
         log("%%Waiting for server...", prompt::main);
+        auto result = std::atomic<int>{};
+        auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
+        {
+            if (reply.size()) os::io::send(utf::concat(reply, "\n"));
+            --result;
+        }};
         auto online = flag{ true };
         auto active = flag{ faux };
+        auto locker = std::mutex{};
+        auto syncio = std::unique_lock{ locker };
+        auto buffer = std::list<text>{};
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
-            if (active) stream->send(line);
-            else log("%%No server connected", prompt::main);
+            auto sync = std::lock_guard{ locker };
+            if (active)
+            {
+                ++result;
+                events.command.send(stream, line);
+            }
+            else
+            {
+                log("%%No server connected: %cmd%", prompt::main, utf::debase<faux, faux>(line));
+                buffer.push_back(line);
+            }
         }, [&]
         {
+            auto sync = std::lock_guard{ locker };
             online.exchange(faux);
-            if (active) stream->shut();
+            if (active) while (result) std::this_thread::yield();
+            if (stream) stream->shut();
         });
         while (online)
         {
-            stream = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
-            if (denied) return failed(code::noaccess);
-            if (stream)
+            auto iolink = os::ipc::socket::open<os::role::client, faux>(prefix_log, denied);
+            if (denied)
             {
-                log("%%Connected", prompt::main);
-                stream->send(utf::concat(os::process::id.first));
-                active.exchange(true);
-                while (online)
-                {
-                    if (auto data = stream->recv()) log<faux>(data);
-                    else online.exchange(faux);
-                }
+                syncio.unlock();
+                return failed(code::noaccess);
             }
-            else os::sleep(500ms);
+            if (iolink)
+            {
+                std::swap(stream, iolink);
+                result += 3;
+                events.command.send(stream, utf::concat(os::process::id.first)); // First command is the monitor id.
+                events.command.send(stream, os::env::add());
+                events.command.send(stream, os::env::cwd());
+                for (auto& line : buffer)
+                {
+                    ++result;
+                    events.command.send(stream, line);
+                }
+                buffer.clear();
+                active.exchange(true);
+                syncio.unlock();
+                directvt::binary::stream::reading_loop(stream, [&](view data){ events.s11n::sync(data); });
+                syncio.lock();
+                break;
+            }
+            else
+            {
+                syncio.unlock();
+                os::sleep(500ms);
+                syncio.lock();
+            }
         }
+        syncio.unlock();
     }
     else if (whoami == type::runapp)
     {
@@ -288,7 +338,8 @@ int main(int argc, char* argv[])
             signal.reset();
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
-                os::tty::stream.init.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                auto userinit = directvt::binary::init{};
+                userinit.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
                 os::tty::splice(client);
                 return 0;
             }
@@ -347,25 +398,46 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, monitor](auto /*task_id*/)
                 {
-                    auto id = monitor->recv().str();
-                    log("%%Monitor [%id%] connected", prompt::logs, id);
+                    auto id = text{};
+                    auto active = faux;
                     auto tokens = subs{};
-                    auto writer = netxs::logger::attach([&](auto utf8) { monitor->send(utf8); });
-                    domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
-                    //todo send/receive dtvt events and signals
-                    os::ipc::monitors++;
-                    while (auto line = monitor->recv())
+                    auto script = eccc{};
+                    auto events = os::tty::binary::logger{ [&, init = 0](auto& events, auto& cmd) mutable
                     {
-                        domain->SIGNAL(tier::release, e2::conio::readline, line);
-                    }
-                    log("%%Monitor [%id%] disconnected", prompt::logs, id);
+                        if (active)
+                        {
+                            script.cmd = cmd;
+                            domain->SIGNAL(tier::release, scripting::events::invoke, script);
+                        }
+                        else
+                        {
+                                 if (init == 0) id = cmd;
+                            else if (init == 1) script.env = cmd;
+                            else if (init == 2)
+                            {
+                                active = true;
+                                script.cwd = cmd;
+                                log("%%Monitor [%id%] connected", prompt::logs, id);
+                            }
+                            init++;
+                        }
+                        events.command.send(monitor, script.cmd);
+                    }};
+                    auto writer = netxs::logger::attach([&](auto utf8)
+                    {
+                        events.logs.send(monitor, ui32{}, datetime::now(), text{ utf8 });
+                    });
+                    domain->LISTEN(tier::general, e2::conio::quit, deal, tokens) { monitor->shut(); };
+                    os::ipc::monitors++;
+                    directvt::binary::stream::reading_loop(monitor, [&](view data){ events.s11n::sync(data); });
                     os::ipc::monitors--;
+                    if (id.size()) log("%%Monitor [%id%] disconnected", prompt::logs, id);
                 });
             }
         }};
 
         auto settings = config.utf8();
-        auto readline = os::tty::readline([&](auto line){ domain->SIGNAL(tier::release, e2::conio::readline, line); },
+        auto readline = os::tty::readline([&](auto cmd){ domain->SIGNAL(tier::release, scripting::events::invoke, script, ({ .cmd = cmd })); },
                                           [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
         while (auto user = server->meet())
         {
@@ -373,7 +445,8 @@ int main(int argc, char* argv[])
             {
                 domain->run([&, user, settings](auto session_id)
                 {
-                    if (auto packet = os::tty::stream.init.recv(user))
+                    auto userinit = directvt::binary::init{};
+                    if (auto packet = userinit.recv(user))
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);

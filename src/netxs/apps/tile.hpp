@@ -788,8 +788,9 @@ namespace netxs::app::tile
             }
             return slot;
         };
-        auto build_inst = [](text /*env*/, text cwd, view param, xmls& config, text /*patch*/) -> sptr
+        auto build_inst = [](eccc appcfg, xmls& config) -> sptr
         {
+            auto param = view{ appcfg.cmd };
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
             //auto highlight_color = skin::color(tone::highlight);
@@ -944,12 +945,12 @@ namespace netxs::app::tile
                     parent_canvas.fill([&](cell& c) { c.fgc(fgc).txt(bar).link(bar); });
                 };
             });
-            if (cwd.size())
+            if (appcfg.cwd.size())
             {
                 auto err = std::error_code{};
-                fs::current_path(cwd, err);
-                if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, cwd, err.value());
-                else     log("%%Change current directory to '%cwd%'", prompt::tile, cwd);
+                fs::current_path(appcfg.cwd, err);
+                if (err) log("%%Failed to change current directory to '%cwd%', error code: %error%", prompt::tile, appcfg.cwd, err.value());
+                else     log("%%Change current directory to '%cwd%'", prompt::tile, appcfg.cwd);
             }
 
             object->attach(slot::_2, parse_data(parse_data, param, ui::fork::min_ratio))

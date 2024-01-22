@@ -317,7 +317,7 @@ namespace netxs::app::calc
             }
             return std::tuple{ cellatix_rows, cellatix_cols, cellatix_text };
         };
-        auto build = [](text /*env*/, text /*cwd*/, text /*arg*/, xmls& config, text /*patch*/)
+        auto build = [](eccc /*appcfg*/, xmls& config)
         {
             auto highlight_color = skin::globals().highlight;
             auto label_color     = skin::globals().label;

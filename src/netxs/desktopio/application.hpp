@@ -23,10 +23,8 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.55";
+    static const auto version = "v0.9.56";
     static const auto repository = "https://github.com/directvt/vtm";
-    static const auto ipc_prefix = "vtm";
-    static const auto log_suffix = "_log";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
 
@@ -112,7 +110,7 @@ namespace netxs::app::shared
         gear.dismiss(true);
     };
 
-    using builder_t = std::function<ui::sptr(text, text, text, xmls&, text)>;
+    using builder_t = std::function<ui::sptr(eccc, xmls&)>;
 
     namespace winform
     {
@@ -416,7 +414,7 @@ namespace netxs::app::shared
     auto& builder(text app_typename)
     {
         static builder_t empty =
-        [&](text, text, text, xmls&, text) -> ui::sptr
+        [&](eccc, xmls&) -> ui::sptr
         {
             auto window = ui::cake::ctor()
                 ->plugin<pro::focus>()
@@ -536,7 +534,7 @@ namespace netxs::app::shared
         }
     };
 
-    void start(text params, text aclass, si32 vtmode, twod winsz, xmls& config)
+    void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
         auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
@@ -548,8 +546,9 @@ namespace netxs::app::shared
         auto domain = ui::host::ctor(server, config)
             ->plugin<scripting::host>();
         auto direct = os::dtvt::active;
-        os::dtvt::isolated = !direct;
-        auto applet = app::shared::builder(aclass)("", "", params, config, /*patch*/(direct ? ""s : "<config isolated=1/>"s));
+        auto appcfg = eccc{ .cmd = cmd,
+                            .cfg = direct ? ""s : "<config simple=1/>"s };
+        auto applet = app::shared::builder(aclass)(appcfg, config);
         domain->invite(server, applet, vtmode, winsz);
         domain->stop();
         server->shut();

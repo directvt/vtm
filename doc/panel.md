@@ -1,4 +1,4 @@
-# Text Mode Desktop Live Panel
+# Live Panel
 
 In release [v0.9.9v](https://github.com/directvt/vtm/releases/tag/v0.9.9v) a slot for the desktop live panel was introduced. 
 

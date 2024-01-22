@@ -10,6 +10,7 @@ int main(int argc, char* argv[])
     auto defaults = 
     #include "term.xml"
 
+    os::dtvt::initialize();
     auto syslog = os::tty::logger();
     auto banner = []{ log(app::term::desc, ' ', app::shared::version); };
     auto cfonly = faux;

@@ -620,7 +620,7 @@ namespace netxs::app::term
 
     namespace
     {
-        auto build = [](text env, text cwd, text arg, xmls& config, text /*patch*/)
+        auto build = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -681,8 +681,7 @@ namespace netxs::app::term
                     };
                 });
 
-            auto shell = os::env::shell() + " -i";
-            auto cmd = arg.empty() ? shell : arg;
+            if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
             auto inst = scroll->attach(ui::term::ctor(config))
                               ->plugin<pro::focus>(pro::focus::mode::focused);
             auto sb = layers->attach(ui::fork::ctor());
@@ -835,9 +834,9 @@ namespace netxs::app::term
                     {
                         boss.set_align(align);
                     };
-                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env))
+                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
                     {
-                        boss.start(cmd, cwd, env);
+                        boss.start(appcfg);
                     };
                     boss.LISTEN(tier::anycast, e2::form::upon::started, root)
                     {

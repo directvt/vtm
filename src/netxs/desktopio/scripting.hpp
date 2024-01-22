@@ -8,6 +8,14 @@ namespace netxs::scripting
 {
     using namespace ui;
 
+    struct events
+    {
+        EVENTPACK( events, netxs::events::userland::root::scripting )
+        {
+            EVENT_XS( invoke, eccc ), // Invoke script.
+        };
+    };
+
     namespace path
     {
         static constexpr auto scripting = "/config/scripting/";
@@ -87,9 +95,7 @@ namespace netxs::scripting
         };
 
         xlat stream; // scripting::host: Event tracker.
-        text curdir; // scripting::host: Current working directory.
-        text cmdarg; // scripting::host: Startup command line arguments.
-        text envvar; // scripting::host: Environment block.
+        eccc appcfg; // scripting::host: Application startup config.
         flag active; // scripting::host: Scripting engine lifetime.
         vtty engine; // scripting::host: Scripting engine instance.
 
@@ -140,16 +146,14 @@ namespace netxs::scripting
             engine->write(data + '\n');
         }
         // scripting::host: Start a new process.
-        void runapp(text cmd, text cwd, text env, twod win)
+        void runapp(eccc cfg)
         {
             if (!engine) return;
-            cmdarg = cmd;
-            curdir = cwd;
-            envvar = env;
+            appcfg = cfg;
             if (!engine->connected())
             {
-                engine->runapp(cmd, cwd, env, win, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                                   [&](auto code, auto msg) { onexit(code, msg); });
+                engine->runapp(appcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
+                                       [&](auto code, auto msg) { onexit(code, msg); });
             }
         }
         void shut()
@@ -176,6 +180,10 @@ namespace netxs::scripting
                 auto run = config.take(attr::run, ""s);
                 auto tty = config.take(attr::tty, faux);
                 auto win = os::ttysize;
+                auto cfg = eccc{ .env = env,
+                                 .cwd = cwd,
+                                 .cmd = cmd,
+                                 .win = win };
                 if (tty)
                 {
                     engine = ptr::shared<os::runspace::tty<scripting::host>>(*this);
@@ -184,15 +192,18 @@ namespace netxs::scripting
                 {
                     engine = ptr::shared<os::runspace::raw<scripting::host>>(*this);
                 }
-                runapp(cmd, cwd, env, win);
+                runapp(cfg);
                 //todo run integration script
                 if (run.size()) write(run);
                 config.popd();
             }
-            owner.LISTEN(tier::release, e2::conio::readline, utf8, skill::memo)
+            owner.LISTEN(tier::release, scripting::events::invoke, script, skill::memo)
             {
-                if (engine) write(utf8);
-                else        log(prompt::repl, utf::debase<faux, faux>(utf8));
+                if (engine)
+                {
+                    write(script.cmd);
+                    owner.bell::template expire<tier::release>();
+                }
             };
         }
     };

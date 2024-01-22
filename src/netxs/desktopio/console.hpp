@@ -11,8 +11,9 @@ namespace netxs::ui
     {
         static auto id = std::pair<ui32, time>{};
         static constexpr auto mouse   = 1 << 0;
-        static constexpr auto nt      = 1 << 5;
+        static constexpr auto nt      = 1 << 5; // Use win32 console api for input.
         static constexpr auto onlylog = 1 << 6;
+        static constexpr auto redirio = 1 << 7;
         //todo make 3-bit field for color mode
         static constexpr auto vtrgb   = 0;
         static constexpr auto nt16    = 1 << 1;
@@ -1030,8 +1031,8 @@ namespace netxs::ui
               local{ true },
               yield{ faux }
         {
-            auto isolated = config.take("/config/isolated", faux); // DTVT proxy console case.
-            config.set("/config/isolated", faux);
+            auto simple = config.take("/config/simple", faux); // DTVT proxy console case.
+            config.set("/config/simple", faux);
 
             base::root(true);
             base::limits(dot_11);
@@ -1327,7 +1328,7 @@ namespace netxs::ui
                     check_tooltips(now);
                 };
             }
-            if (direct && !isolated) // Forward unhandled events outside.
+            if (direct && !simple) // Forward unhandled events outside.
             {
                 LISTEN(tier::release, e2::form::size::minimize, gear, tokens)
                 {

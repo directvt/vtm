@@ -426,7 +426,7 @@ namespace netxs::ui
             // w_tracking: Set terminal window property.
             void set(text const& property, qiew txt)
             {
-                if (txt.empty()) txt = owner.cmdarg; // Deny empty titles.
+                if (txt.empty()) txt = owner.appcfg.cmd; // Deny empty titles.
                 owner.target->flush();
                 if (property == ansi::osc_label_title)
                 {
@@ -6216,9 +6216,7 @@ namespace netxs::ui
         si32       altscr; // term: Alternate scroll mode.
         prot       kbmode; // term: Keyboard input mode.
         escx       w32key; // term: win32-input-mode forward buffer.
-        text       envvar; // term: Environment block.
-        text       curdir; // term: Current working directory.
-        text       cmdarg; // term: Startup command line arguments.
+        eccc       appcfg; // term: Application startup config.
         os::fdrw   fdlink; // term: Optional DirectVT uplink.
         hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
@@ -6544,7 +6542,7 @@ namespace netxs::ui
         {
             update([&]
             {
-                auto console_ptr = target_buffer ? target_buffer : this->target;
+                auto& console_ptr = target_buffer ? target_buffer : this->target;
                 if (data.size())
                 {
                     if (io_log) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
@@ -7120,15 +7118,14 @@ namespace netxs::ui
         {
             RISEUP(tier::release, e2::form::upon::started, This());
         }
-        void start(text cmd, text cwd, text env, os::fdrw fds = {})
+        void start(eccc cfg, os::fdrw fds = {})
         {
-            cmdarg = cmd;
-            curdir = cwd;
-            envvar = env;
+            appcfg = cfg;
             fdlink = fds;
             if (!ipccon)
             {
-                ipccon.runapp(*this, cmdarg, curdir, envvar, target->panel, fdlink);
+                appcfg.win = target->panel;
+                ipccon.runapp(*this, appcfg, fdlink);
             }
         }
         void restart()
@@ -7593,11 +7590,6 @@ namespace netxs::ui
                     //todo use window_id
                     master.RISEUP(tier::preview, e2::form::layout::swarp, warp);
                 });
-            }
-            void handle(s11n::xs::vt_command        /*lock*/)
-            {
-                //auto& w = lock.thing;
-                //todo implement
             }
             void handle(s11n::xs::fps                 lock)
             {

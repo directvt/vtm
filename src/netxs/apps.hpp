@@ -85,7 +85,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
+        auto build_Strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -111,7 +111,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
+        auto build_Settings      = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -134,7 +134,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
+        auto build_Empty         = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -156,7 +156,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Truecolor     = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& config, text /*patch*/)
+        auto build_Truecolor     = [](eccc /*appcfg*/, xmls& config)
         {
             //todo put all ansi art into external files
             auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
@@ -300,7 +300,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Region        = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
+        auto build_Region        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -359,7 +359,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Headless      = [](text env, text cwd, text param, xmls& config, text /*patch*/)
+        auto build_Headless      = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -383,8 +383,7 @@ namespace netxs::app::shared
                                 ->limits(dot_11, { 400,200 });
                     auto scroll = layers->attach(ui::rail::ctor())
                                         ->limits({ 10,1 }); // mc crashes when window is too small
-                    auto cmd = param.empty() ? os::env::shell() + " -i"
-                                             : param;
+                    if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
                     auto inst = scroll->attach(ui::term::ctor(config))
                                       ->plugin<pro::focus>(pro::focus::mode::focused)
                                       ->colors(whitelt, blackdk) //todo apply settings
@@ -442,11 +441,11 @@ namespace netxs::app::shared
                                             {
                                                 boss.set_align(align);
                                             };
-                                            boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env))
+                                            boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
                                             {
                                                 if (root) // root is empty when d_n_d.
                                                 {
-                                                    boss.start(cmd, cwd, env);
+                                                    boss.start(appcfg);
                                                 }
                                             };
                                             boss.LISTEN(tier::anycast, e2::form::upon::started, root)
@@ -469,21 +468,21 @@ namespace netxs::app::shared
                 layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](text env, text cwd, text cmd,   xmls& /*config*/, text patch)
+        auto build_DirectVT      = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
                 ->limits(dot_11)
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root, -, (appcfg))
                     {
                         if (root) // root is empty when d_n_d.
                         {
-                            boss.start(patch, [cmd, cwd, env](auto fds)
+                            boss.start(appcfg.cfg, [appcfg](auto fds)
                             {
-                                os::dtvt::connect(cmd, cwd, env, fds);
-                                return cmd;
+                                os::dtvt::connect(appcfg, fds);
+                                return appcfg.cmd;
                             });
                         }
                     };
@@ -501,7 +500,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_XLinkVT       = [](text env, text cwd, text cmd,   xmls& config, text patch)
+        auto build_XLinkVT       = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -567,14 +566,14 @@ namespace netxs::app::shared
                 {
                     auto& dtvt_inst = *dtvt;
                     auto& term_inst = *inst;
-                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (cmd, cwd, env, patch))
+                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
                     {
                         if (root) // root is empty when d_n_d.
                         {
-                            dtvt_inst.start(patch, [&, cmd, cwd, env](auto fds)
+                            dtvt_inst.start(appcfg.cfg, [&, appcfg](auto fds)
                             {
-                                term_inst.start(cmd, cwd, env, fds);
-                                return cmd;
+                                term_inst.start(appcfg, fds);
+                                return appcfg.cmd;
                             });
                         }
                     };
@@ -609,25 +608,20 @@ namespace netxs::app::shared
                 });
             return window;
         };
-        auto build_ANSIVT        = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_ANSIVT        = [](eccc appcfg, xmls& config)
         {
-            if (param.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
-
-            auto args = os::process::binary();
-            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
-            args += " -r term ";
-            args += param;
-            return build_DirectVT(env, cwd, args, config, patch);
+            if (appcfg.cmd.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
+            auto args = os::process::binary() + " -r term " + appcfg.cmd;
+            appcfg.cmd = args;
+            return build_DirectVT(appcfg, config);
         };
-        auto build_SHELL         = [](text env, text cwd, text param, xmls& config, text patch)
+        auto build_SHELL         = [](eccc appcfg, xmls& config)
         {
-            auto args = os::process::binary();
-            if (args.find(' ') != text::npos) args = "\"" + args + "\"";
-            args += " -r term ";
-            args += os::env::shell(param);
-            return build_DirectVT(env, cwd, args, config, patch);
+            auto args = os::process::binary() + " -r term " + os::env::shell(appcfg.cmd);
+            appcfg.cmd = args;
+            return build_DirectVT(appcfg, config);
         };
-        auto build_Info          = [](text /*env*/, text /*cwd*/, text /*v*/, xmls& /*config*/, text /*patch*/)
+        auto build_Info          = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             using namespace app::shared;
 
@@ -679,7 +673,7 @@ namespace netxs::app::shared
                                 ->active()
                                 ->colors(whitedk, 0xFF0f0f0f)
                                 ->limits({ -1,-1 }, { -1,-1 });
-            static auto data = []
+            static const auto data = []
             {
                 auto [days, hours, mins, secs] = datetime::breakdown(datetime::now() - os::process::id.second);
                 auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
@@ -718,7 +712,7 @@ namespace netxs::app::shared
                         os::process::elevated ? "Yes" : "No"),
                 };
             };
-            static auto update = [](auto& boss)
+            auto update = [](auto& boss)
             {
                 auto body = data();
                 auto iter = body.begin();
@@ -741,9 +735,9 @@ namespace netxs::app::shared
                     ->shader(cell::shaders::xlight, e2::form::state::hover);
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
             }
-            items->invoke([](auto& boss)
+            items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
                     update(boss);
                 };
@@ -751,7 +745,7 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
-                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear)
+                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
                     if (!gear.keybd::pressed) return;
                     if (gear.chord(input::key::F10)

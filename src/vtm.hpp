@@ -41,9 +41,10 @@ namespace netxs::app::vtm
         static constexpr auto slimmenu = "slimmenu";
         static constexpr auto hotkey   = "hotkey";
         static constexpr auto type     = "type";
-        static constexpr auto cwd      = "cwd";
         static constexpr auto env      = "env";
-        static constexpr auto param    = "param";
+        static constexpr auto cwd      = "cwd";
+        static constexpr auto cmd      = "cmd";
+        static constexpr auto cfg      = "cfg";
         static constexpr auto splitter = "splitter";
         static constexpr auto config   = "config";
     }
@@ -52,6 +53,7 @@ namespace netxs::app::vtm
         static constexpr auto item     = "/config/menu/item";
         static constexpr auto autorun  = "/config/menu/autorun/item";
         static constexpr auto viewport = "/config/menu/viewport/coor";
+        static constexpr auto menuslim = "/config/defapp/menu/slim";
     }
 
     struct events
@@ -1239,6 +1241,7 @@ namespace netxs::app::vtm
         depo dbase; // hall: Actors registry.
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
+        id_t focus; // hall: Last active gear id.
 
         static auto window(link& what)
         {
@@ -1509,24 +1512,96 @@ namespace netxs::app::vtm
             window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return window_ptr;
         }
+        auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, text alias = {}, bool splitter = {})
+        {
+            conf_rec.splitter   = splitter;
+            conf_rec.menuid     = menuid;
+            conf_rec.alias      = alias;
+            conf_rec.label      = item.take(attr::label,    fallback.label   );
+            if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
+            conf_rec.hidden     = item.take(attr::hidden,   fallback.hidden  );
+            conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
+            conf_rec.title      = item.take(attr::title,    fallback.title   );
+            conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
+            conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
+            conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
+            conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
+            conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
+            conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
+            conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
+            conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
+            conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
+            conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
+
+            //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
+            //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
+            conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
+            if (conf_rec.appcfg.cmd.empty())
+            {
+                auto test = item.take("param", ""s);
+                if (test.size())
+                {
+                    conf_rec.appcfg.cmd = test;
+                    log(ansi::clr(yellowlt, "settings: The 'param=' attribute is deprecated, please use 'cmd=' instead:"), " <... param=", test, " .../>");
+                }
+                else conf_rec.appcfg.cmd = fallback.appcfg.cmd;
+
+            }
+
+            conf_rec.type       = item.take(attr::type,     fallback.type    );
+            utf::to_low(conf_rec.type);
+            auto envar          = item.list(attr::env);
+            if (envar.empty()) conf_rec.appcfg.env = fallback.appcfg.env;
+            else for (auto& v : envar)
+            {
+                auto value = v->value();
+                if (value.size())
+                {
+                    conf_rec.appcfg.env += value + '\0';
+                }
+            }
+            if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.appcfg.cmd.empty() ? ""s : ": " + conf_rec.appcfg.cmd);
+            if (conf_rec.appcfg.cfg.empty())
+            {
+                auto patch = item.list(attr::config);
+                if (patch.size())
+                {
+                    if (fallback.appcfg.cfg.empty() && patch.size() == 1)
+                    {
+                        conf_rec.appcfg.cfg = patch.front()->snapshot();
+                    }
+                    else // Merge new configurations with the previous one if it is.
+                    {
+                        auto head = patch.begin();
+                        auto tail = patch.end();
+                        auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
+                                                                                    : (*head++)->snapshot() };
+                        while (head != tail)
+                        {
+                            auto& p = *head++;
+                            settings.fuse(p->snapshot());
+                        }
+                        conf_rec.appcfg.cfg = settings.utf8();
+                    }
+                }
+            }
+        }
 
     protected:
         hall(xipc server, xmls& config, text defapp)
-            : host{ server, config, pro::focus::mode::focusable }
+            : host{ server, config, pro::focus::mode::focusable },
+              focus{ id_t{} }
         {
             auto current_module_file = os::process::binary();
             auto& apps_list = dbase.apps;
             auto& menu_list = dbase.menu;
             auto  free_list = std::list<std::pair<text, desk::spec>>{};
             auto  temp_list = free_list;
-            auto  dflt_spec = desk::spec
-            {
-                .hidden   = faux,
-                .winform  = shared::winform::undefined,
-                .slimmenu = faux,
-                .type     = defapp,
-                .notfound = true,
-            };
+            auto  dflt_spec = desk::spec{ .hidden   = faux,
+                                          .winform  = shared::winform::undefined,
+                                          .slimmenu = faux,
+                                          .type     = defapp,
+                                          .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
             {
                 auto test = [&](auto& p) { return p.first == menuid; };
@@ -1542,6 +1617,15 @@ namespace netxs::app::vtm
 
             auto splitter_count = 0;
             auto auto_id = 0;
+            auto expand = [&](auto& conf_rec)
+            {
+                utf::change(conf_rec.title,      "$0", current_module_file);
+                utf::change(conf_rec.footer,     "$0", current_module_file);
+                utf::change(conf_rec.label,      "$0", current_module_file);
+                utf::change(conf_rec.notes,      "$0", current_module_file);
+                utf::change(conf_rec.appcfg.cmd, "$0", current_module_file);
+                utf::change(conf_rec.appcfg.env, "$0", current_module_file);
+            };
             for (auto item_ptr : host::config.list(path::item))
             {
                 auto& item = *item_ptr;
@@ -1550,81 +1634,21 @@ namespace netxs::app::vtm
                                        : item.take(attr::id, ""s);
                 if (menuid.empty()) menuid = "App" + std::to_string(auto_id++);
                 auto alias = item.take(attr::alias, ""s);
-                auto merge = [&](auto& conf_rec, auto& fallback)
-                {
-                    conf_rec.splitter = splitter;
-                    conf_rec.alias    = alias;
-                    conf_rec.menuid   = menuid;
-                    conf_rec.label    = item.take(attr::label,    fallback.label   );
-                    if (conf_rec.label.empty()) conf_rec.label = conf_rec.menuid;
-                    conf_rec.hidden   = item.take(attr::hidden,   fallback.hidden  );
-                    conf_rec.notes    = item.take(attr::notes,    fallback.notes   );
-                    conf_rec.title    = item.take(attr::title,    fallback.title   );
-                    conf_rec.footer   = item.take(attr::footer,   fallback.footer  );
-                    conf_rec.bgc      = item.take(attr::bgc,      fallback.bgc     );
-                    conf_rec.fgc      = item.take(attr::fgc,      fallback.fgc     );
-                    conf_rec.winsize  = item.take(attr::winsize,  fallback.winsize );
-                    conf_rec.wincoor  = item.take(attr::wincoor,  fallback.wincoor );
-                    conf_rec.winform  = item.take(attr::winform,  fallback.winform, shared::winform::options);
-                    conf_rec.slimmenu = item.take(attr::slimmenu, fallback.slimmenu);
-                    conf_rec.hotkey   = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
-                    conf_rec.cwd      = item.take(attr::cwd,      fallback.cwd     );
-                    conf_rec.param    = item.take(attr::param,    fallback.param   );
-                    conf_rec.type     = item.take(attr::type,     fallback.type    );
-                    auto patch        = item.list(attr::config);
-                    if (patch.size())
-                    {
-                        if (fallback.patch.empty() && patch.size() == 1)
-                        {
-                            conf_rec.patch = patch.front()->snapshot();
-                        }
-                        else // Merge new configurations with the previous one if it is.
-                        {
-                            auto head = patch.begin();
-                            auto tail = patch.end();
-                            auto settings = xml::settings{ fallback.patch.size() ? fallback.patch
-                                                                                 : (*head++)->snapshot() };
-                            while (head != tail)
-                            {
-                                auto& p = *head++;
-                                settings.fuse(p->snapshot());
-                            }
-                            conf_rec.patch = settings.utf8();
-                        }
-                    }
-                    auto envar        = item.list(attr::env);
-                    if (envar.empty()) conf_rec.env = fallback.env;
-                    else for (auto& v : envar)
-                    {
-                        auto value = v->value();
-                        if (value.size())
-                        {
-                            conf_rec.env += value + '\0';
-                        }
-                    }
-                    if (conf_rec.title.empty()) conf_rec.title = conf_rec.menuid + (conf_rec.param.empty() ? ""s : ": " + conf_rec.param);
-
-                    utf::to_low(conf_rec.type);
-                    utf::change(conf_rec.title,  "$0", current_module_file);
-                    utf::change(conf_rec.footer, "$0", current_module_file);
-                    utf::change(conf_rec.label,  "$0", current_module_file);
-                    utf::change(conf_rec.notes,  "$0", current_module_file);
-                    utf::change(conf_rec.param,  "$0", current_module_file);
-                    utf::change(conf_rec.env,    "$0", current_module_file);
-                };
 
                 auto& proto = find(menuid);
                 if (!proto.notfound) // Update existing record.
                 {
                     auto& conf_rec = proto;
-                    merge(conf_rec, conf_rec);
+                    hall::loadspec(conf_rec, conf_rec, item, menuid, alias, splitter);
+                    expand(conf_rec);
                 }
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
                     auto& dflt = alias.size() ? find(alias) // New based on alias_id.
                                               : dflt_spec;  // New item.
-                    merge(conf_rec, dflt);
+                    hall::loadspec(conf_rec, dflt, item, menuid, alias, splitter);
+                    expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                 }
@@ -1665,7 +1689,7 @@ namespace netxs::app::vtm
             {
                 auto& setup = dbase.menu[what.menuid];
                 auto& maker = app::shared::builder(setup.type);
-                what.applet = maker(setup.env, setup.cwd, setup.param, host::config, setup.patch);
+                what.applet = maker(setup.appcfg, host::config);
                 what.header = setup.title;
                 what.footer = setup.footer;
                 if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
@@ -1731,6 +1755,88 @@ namespace netxs::app::vtm
             LISTEN(tier::request, e2::form::layout::go::item, item)
             {
                 if (items) item = items.back();
+            };
+            LISTEN(tier::preview, hids::events::keybd::key::post, gear) // Track last active gear.
+            {
+                hall::focus = gear.id;
+            };
+            LISTEN(tier::request, desk::events::exec, appspec)
+            {
+                static auto offset = dot_00;
+                auto gear_ptr = netxs::sptr<hids>{};
+                if (appspec.gearid == id_t{})
+                {
+                    //todo revise
+                    if (hall::focus) // Take last active keybard.
+                    {
+                        gear_ptr = bell::getref<hids>(hall::focus);
+                        if (gear_ptr)
+                        {
+                            appspec.gearid = hall::focus;
+                        }
+                    }
+                    if (!gear_ptr && users.size()) // Take any existing.
+                    {
+                        auto gate_ptr = bell::getref<gate>(users.back()->id);
+                        auto& gears = gate_ptr->input.gears;
+                        if (gears.size())
+                        {
+                            gear_ptr = gears.begin()->second;
+                        }
+                    }
+                }
+                else gear_ptr = bell::getref<hids>(appspec.gearid);
+
+                auto& apps_list = dbase.apps;
+                auto& menu_list = dbase.menu;
+                auto menuid = appspec.menuid;
+                if (menu_list.contains(menuid)
+                && !menu_list[menuid].hidden
+                && appspec.hidden) // Check for id availability.
+                {
+                    auto i = 1;
+                    auto testid = text{};
+                    do testid = menuid + " (" + std::to_string(++i) + ")";
+                    while (menu_list.contains(testid) && !menu_list[testid].hidden);
+                    std::swap(testid, menuid);
+                }
+                menu_list[menuid] = appspec;
+                apps_list[menuid];
+
+                auto what = link{ .menuid = menuid, .forced = true };
+                if (gear_ptr)
+                {
+                    auto& gear = *gear_ptr;
+                    auto& gate = gear.owner;
+                    gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                    if (appspec.wincoor == dot_00)
+                    {
+                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
+                        appspec.wincoor = viewport.coor + offset + viewport.size * 1 / 32;
+                    }
+                    what.square.coor = appspec.wincoor;
+                    what.square.size = appspec.winsize ? appspec.winsize : viewport.size * 3 / 4;
+                    if (auto window = create(what))
+                    {
+                        pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
+                        window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
+                        auto& cfg = dbase.menu[what.menuid];
+                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
+                    }
+                }
+                else
+                {
+                    if (appspec.winsize == dot_00) appspec.winsize = { 80, 27 };
+                    what.square.coor = appspec.wincoor;
+                    what.square.size = appspec.winsize;
+                    if (auto window = create(what))
+                    {
+                        pro::focus::set(window, id_t{}, pro::focus::solo::on, pro::focus::flip::off);
+                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
+                    }
+                }
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
@@ -1807,6 +1913,72 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
+            LISTEN(tier::release, scripting::events::invoke, script)
+            {
+                //todo unify
+                static auto vtm_run = "vtm.run("sv;
+                static auto vtm_dtvt = "vtm.dtvt("sv;
+                static auto vtm_exit = "vtm.exit("sv;
+                static auto vtm_close = "vtm.close("sv;
+                static auto vtm_shutdown = "vtm.shutdown("sv;
+                auto shadow = utf::trim(view{ script.cmd }, "\r\n\t ");
+                auto cmd = shadow;
+                auto expression = [](auto prefix, auto& cmd)
+                {
+                    if (cmd.starts_with(prefix) && cmd.back() == ')')
+                    {
+                        log(ansi::clr(yellowlt, utf::debase<faux, faux>(cmd)));
+                        cmd = cmd.substr(prefix.size(), cmd.size() - prefix.size() - 1/*)*/);
+                        return true;
+                    }
+                    else return faux;
+                };
+                if (cmd.empty()) return;
+                if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
+                {
+                    cmd = cmd.substr(1, cmd.size() - 2);
+                }
+                if (expression(vtm_exit, cmd)
+                 || expression(vtm_close, cmd)
+                 || expression(vtm_shutdown, cmd))
+                {
+                    this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
+                }
+                else if (expression(vtm_dtvt, cmd))
+                {
+                    auto appspec = desk::spec{ .hidden = true, .type = app::dtvt::id };
+                    appspec.appcfg.env = script.env;
+                    appspec.appcfg.cwd = script.cwd;
+                    appspec.appcfg.cmd = cmd;
+                    appspec.title = cmd;
+                    appspec.label = cmd;
+                    appspec.notes = cmd;
+                    this->SIGNAL(tier::request, desk::events::exec, appspec);
+                    script.cmd = appspec.appcfg.cmd;
+                }
+                else if (expression(vtm_run, cmd))
+                {
+                    auto menu_id = text{ shadow };
+                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                    auto itemptr = appconf.homelist.front();
+                    auto appspec = desk::spec{ .hidden   = true,
+                                               .winform  = shared::winform::undefined,
+                                               .slimmenu = host::config.take(path::menuslim, true),
+                                               .type     = app::shell::id };
+                    hall::loadspec(appspec, appspec, *itemptr, menu_id);
+                    appspec.appcfg.env += script.env;
+                    if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                    auto title = appspec.title.empty() && appspec.label.empty() ? menu_id
+                               : appspec.title.empty() ? appspec.label
+                               : appspec.label.empty() ? appspec.title : ""s;
+                    if (appspec.title.empty()) appspec.title = title;
+                    if (appspec.label.empty()) appspec.label = title;
+                    if (appspec.notes.empty()) appspec.notes = menu_id;
+                    this->SIGNAL(tier::request, desk::events::exec, appspec);
+                    script.cmd = appspec.appcfg.cmd;
+                }
+                else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
+            };
         }
 
     public:
@@ -1825,7 +1997,7 @@ namespace netxs::app::vtm
                 {
                     what.menuid =   app.take(attr::id, ""s);
                     what.square = { app.take(attr::wincoor, dot_00),
-                                    app.take(attr::winsize, twod{ 80,25 }) };
+                                    app.take(attr::winsize, twod{ 80,27 }) };
                     auto winform =  app.take(attr::winform, shared::winform::undefined, shared::winform::options);
                     auto focused =  app.take(attr::focused, faux);
                     what.forced = !!what.square.size;
@@ -1890,9 +2062,8 @@ namespace netxs::app::vtm
             {
                 user->rebuild_scene(*this, true);
             };
-            //todo make it configurable
-            auto patch = ""s;
-            auto deskmenu = app::shared::builder(app::desk::id)("", "", utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected), app_config, patch);
+            auto appcfg = eccc{ .cmd = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected) };
+            auto deskmenu = app::shared::builder(app::desk::id)(appcfg, app_config);
             user->attach(deskmenu);
             user->base::resize(winsz);
             if (vport) user->base::moveto(vport); // Restore user's last position.

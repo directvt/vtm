@@ -26,13 +26,11 @@ namespace netxs::app::desk
         bool slimmenu{};
         bool splitter{};
         text   hotkey{};
-        text      env{}; // Environment var list delimited by \0.
-        text      cwd{};
+        eccc   appcfg{};
         text     type{};
-        text    param{};
-        text    patch{};
         bool   folded{};
         bool notfound{};
+        id_t   gearid{};
     };
 
     using menu = std::unordered_map<text, spec>;
@@ -43,10 +41,11 @@ namespace netxs::app::desk
     {
         EVENTPACK( events, ui::e2::extra::slot2 )
         {
-            EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // list of connected users.
-            EVENT_XS( apps, netxs::sptr<desk::apps> ), // list of running apps.
-            EVENT_XS( menu, netxs::sptr<desk::menu> ), // list of registered apps.
-            EVENT_XS( quit, bool                    ), // request to close all instances.
+            EVENT_XS( usrs, netxs::sptr<desk::usrs> ), // List of connected users.
+            EVENT_XS( apps, netxs::sptr<desk::apps> ), // List of running apps.
+            EVENT_XS( menu, netxs::sptr<desk::menu> ), // List of registered apps.
+            EVENT_XS( exec, spec                    ), // Request to run app.
+            EVENT_XS( quit, bool                    ), // Request to close all instances.
             GROUP_XS( ui  , text                    ),
 
             SUBSET_XS( ui )
@@ -438,48 +437,17 @@ namespace netxs::app::desk
                 ->template plugin<pro::notes>(" Info ")
                 ->invoke([&](auto& boss)
                 {
-                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (appid, label, title))
+                    auto infospec = spec{ .hidden = true, .label = label, .title = title, .type = appid };
+                    boss.LISTEN(tier::release, hids::events::mouse::button::click::left, gear, -, (infospec))
                     {
-                        static auto offset = dot_00;
-                        auto& gate = gear.owner;
-                        gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                        gear.slot.coor = viewport.coor + offset + viewport.size * 1 / 32;
-                        gear.slot.size = viewport.size * 3 / 4;
-                        gear.slot_forced = faux;
-
-                        gate.RISEUP(tier::request, desk::events::apps, menu_list_ptr, ());
-                        gate.RISEUP(tier::request, desk::events::menu, conf_list_ptr, ());
-                        auto& menu_list = *menu_list_ptr;
-                        auto& conf_list = *conf_list_ptr;
-
-                        auto menuid = label;
-                        if (conf_list.contains(menuid) && !conf_list[menuid].hidden) // Check for id availability.
-                        {
-                            auto i = 1;
-                            auto testid = text{};
-                            do testid = menuid + " (" + std::to_string(++i) + ")";
-                            while (conf_list.contains(testid) && !conf_list[menuid].hidden);
-                            std::swap(testid, menuid);
-                        }
-                        auto& m = conf_list[menuid];
-                        m.type = appid;
-                        m.label = label;
-                        m.title = title;
-                        m.param = {};
-                        m.hidden = true;
-                        menu_list[menuid];
-
-                        gate.SIGNAL(tier::request, e2::data::changed, lastid, ());
-                        gate.SIGNAL(tier::release, e2::data::changed, menuid);
-                        gate.RISEUP(tier::request, e2::form::proceed::createby, gear);
-                        gate.SIGNAL(tier::release, e2::data::changed, lastid);
+                        infospec.gearid = gear.id;
+                        gear.owner.RISEUP(tier::request, desk::events::exec, infospec);
                         gear.dismiss(true);
                     };
                 });
         };
 
-        auto build = [](text /*env*/, text /*cwd*/, text v, xmls& config, text /*patch*/)
+        auto build = [](eccc appcfg, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
             //auto highlight_color = skin::globals().highlight;
@@ -505,16 +473,19 @@ namespace netxs::app::desk
             auto panel = window->attach(slot::_1, ui::cake::ctor());
             if (panel_cmd.size())
             {
+                auto panel_cfg = eccc{ .env = panel_env,
+                                       .cwd = panel_cwd,
+                                       .cmd = panel_cmd };
                 panel_top = std::max(1, panel_top);
                 panel->limits({ -1, panel_top }, { -1, panel_top })
-                     ->attach(app::shared::builder(app::headless::id)(panel_env, panel_cwd, panel_cmd, config, ""s));
+                     ->attach(app::shared::builder(app::headless::id)(panel_cfg, config));
             }
             auto my_id = id_t{};
 
-            auto user_info = utf::divide(v, ";");
+            auto user_info = utf::divide(appcfg.cmd, ";");
             if (user_info.size() < 2)
             {
-                log(prompt::desk, "Bad window arguments: args=", utf::debase(v));
+                log(prompt::desk, "Bad window arguments: args=", utf::debase(appcfg.cmd));
                 return window;
             }
             auto& user_id__view = user_info[0];

@@ -165,7 +165,6 @@ namespace netxs::events::userland
                 EVENT_XS( quit    , const si32      ), // release: quit, arg: si32 - quit reason.
                 EVENT_XS( pointer , const bool      ), // release: mouse pointer visibility.
                 EVENT_XS( logs    , const text      ), // logs output.
-                EVENT_XS( readline, text            ), // Standard input (scripting).
                 //EVENT_XS( menu  , si32 ),
             };
             SUBSET_XS( data )
