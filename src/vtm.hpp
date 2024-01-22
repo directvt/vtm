@@ -1536,7 +1536,17 @@ namespace netxs::app::vtm
             //todo Soft transition (period 01/21/2024) from 'param' to 'cmd'
             //conf_rec.appcfg.cmd = item.take(attr::cmd,      fallback.appcfg.cmd);
             conf_rec.appcfg.cmd = item.take(attr::cmd, ""s);
-            if (conf_rec.appcfg.cmd.empty()) conf_rec.appcfg.cmd = item.take("param", fallback.appcfg.cmd);
+            if (conf_rec.appcfg.cmd.empty())
+            {
+                auto test = item.take("param", ""s);
+                if (test.size())
+                {
+                    conf_rec.appcfg.cmd = test;
+                    log(ansi::clr(yellowlt, "settings: The 'param' attribute is deprecated, please use 'cmd' instead:"), " <... param=", test, " .../>");
+                }
+                else conf_rec.appcfg.cmd = fallback.appcfg.cmd;
+
+            }
 
             conf_rec.type       = item.take(attr::type,     fallback.type    );
             utf::to_low(conf_rec.type);
