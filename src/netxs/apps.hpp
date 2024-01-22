@@ -673,7 +673,7 @@ namespace netxs::app::shared
                                 ->active()
                                 ->colors(whitedk, 0xFF0f0f0f)
                                 ->limits({ -1,-1 }, { -1,-1 });
-            static auto data = []
+            static const auto data = []
             {
                 auto [days, hours, mins, secs] = datetime::breakdown(datetime::now() - os::process::id.second);
                 auto uptime = (days  ? std::to_string(days)  + "d " : ""s)
@@ -712,7 +712,7 @@ namespace netxs::app::shared
                         os::process::elevated ? "Yes" : "No"),
                 };
             };
-            static auto update = [](auto& boss)
+            auto update = [](auto& boss)
             {
                 auto body = data();
                 auto iter = body.begin();
@@ -735,9 +735,9 @@ namespace netxs::app::shared
                     ->shader(cell::shaders::xlight, e2::form::state::hover);
                     //->shader(cell::shaders::color(c3), e2::form::state::keybd::focus::count);
             }
-            items->invoke([](auto& boss)
+            items->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear)
+                boss.LISTEN(tier::release, hids::events::mouse::button::down::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
                     update(boss);
                 };
@@ -745,7 +745,7 @@ namespace netxs::app::shared
             window->invoke([&](auto& boss)
             {
                 auto& items_inst = *items;
-                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear)
+                boss.LISTEN(tier::release, hids::events::keybd::key::any, gear, -, (update)) //todo MS VS2019 can't capture static 'auto update =...'.
                 {
                     if (!gear.keybd::pressed) return;
                     if (gear.chord(input::key::F10)
