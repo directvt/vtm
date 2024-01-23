@@ -143,13 +143,13 @@ struct consrv
             os::close( procsinf.hThread );
             prochndl = procsinf.hProcess;
             proc_pid = procsinf.dwProcessId;
-            waitexit = std::thread([&, trailer]
+            waitexit = std::thread{ [&, trailer]
             {
                 auto pid = proc_pid; // MSVC don't capture it.
                 io::select(prochndl, [&terminal, pid]{ if (terminal.io_log) log("%%Process %pid% terminated", prompt::vtty, pid); });
                 trailer();
                 if (terminal.io_log) log("%%Process %pid% waiter ended", prompt::vtty, pid);
-            });
+            }};
         }
         return err_code;
     }
@@ -727,7 +727,7 @@ struct impl : consrv
             static auto index = 0;
             if (server.io_log) log(server.prompt, "ConsoleTask event index ", ++index);
             if (ostask.joinable()) ostask.join();
-            ostask = std::thread{[what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
+            ostask = std::thread{ [what, pgroup, io_log = server.io_log, joined = server.joined, prompt = escx{ server.prompt }]() mutable
             {
                 if (io_log) prompt.add(what == os::signals::ctrl_c     ? "Ctrl+C"
                                      : what == os::signals::ctrl_break ? "Ctrl+Break"
@@ -2206,8 +2206,8 @@ struct impl : consrv
         {
             if (handle_ptr->link == &uiterm.target)
             {
-                     if (uiterm.target == &uiterm.normal) uiterm.update([&] { proc(uiterm.normal); return faux; });
-                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&] { proc(uiterm.altbuf); return faux; });
+                     if (uiterm.target == &uiterm.normal) uiterm.update([&]{ proc(uiterm.normal); return faux; });
+                else if (uiterm.target == &uiterm.altbuf) uiterm.update([&]{ proc(uiterm.altbuf); return faux; });
                 return true;
             }
             else
@@ -2224,7 +2224,7 @@ struct impl : consrv
                         if (auto iter2 = std::find_if(client.alters.begin(), client.alters.end(), [&](auto& altbuf){ return link == &altbuf; });
                             iter2 != client.alters.end()) // Buffer exists.
                         {
-                            uiterm.update([&] { proc(*iter2); return faux; });
+                            uiterm.update([&]{ proc(*iter2); return faux; });
                             return true;
                         }
                     }
@@ -2424,7 +2424,7 @@ struct impl : consrv
         details.header_size = std::min<ui16>(details.header_size, sizeof(details.header_data));
         details.curdir_size = std::min<ui16>(details.curdir_size, sizeof(details.curdir_data));
 
-        auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client) { return client.procid == packet.procid; });
+        auto iter = std::find_if(joined.begin(), joined.end(), [&](auto& client){ return client.procid == packet.procid; });
         auto& client = iter != joined.end() ? *iter
                                             : joined.emplace_front();
         auto& inphndl = client.tokens.emplace_front(client, inpmod, hndl::type::events, &events);
@@ -3037,7 +3037,7 @@ struct impl : consrv
                 if constexpr (isreal())
                 {
                     auto active = scroll_handle.link == &uiterm.target || scroll_handle.link == uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
-                    if (!direct(packet.target, [&](auto& scrollback) { active ? uiterm.ondata(crop)
+                    if (!direct(packet.target, [&](auto& scrollback){ active ? uiterm.ondata(crop)
                                                                               : uiterm.ondata(crop, &scrollback); }))
                     {
                         datasize = 0;
@@ -3402,7 +3402,7 @@ struct impl : consrv
         auto& packet = payload::cast(upload);
         if constexpr (isreal())
         {
-            if (!direct(packet.target, [&](auto& scrollback) { scrollback.brush = attr_to_brush(packet.input.color); }))
+            if (!direct(packet.target, [&](auto& scrollback){ scrollback.brush = attr_to_brush(packet.input.color); }))
             {
                 log("\tdirect()", os::unexpected);
             }
@@ -3470,7 +3470,7 @@ struct impl : consrv
                     if (count > maxsz) count = std::max(0, maxsz);
                     filler.kill();
                     filler.size(count, c);
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::meta); }))
+                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::meta); }))
                     {
                         count = 0;
                     }
@@ -3518,7 +3518,7 @@ struct impl : consrv
                             (++head);
                         }
                     }
-                    if (!direct(packet.target, [&](auto& scrollback) { scrollback._data(count, filler.pick(), cell::shaders::text); }))
+                    if (!direct(packet.target, [&](auto& scrollback){ scrollback._data(count, filler.pick(), cell::shaders::text); }))
                     {
                         count = 0;
                     }
@@ -5215,11 +5215,11 @@ struct consrv : ipc::stdcon
         auto rc1 = os::syscall{ ::grantpt(fdm.value)              }; // Grant master TTY file access.
         auto rc2 = os::syscall{ ::unlockpt(fdm.value)             }; // Unlock master TTY.
         stdcon::start(fdm.value);
-        stdinput = std::thread([&, trailer]
+        stdinput = std::thread{ [&, trailer]
         {
             read_socket_thread(terminal);
             trailer();
-        });
+        }};
         auto pid = os::syscall{ os::process::sysfork() };
         if (pid.value == 0) // Child branch.
         {

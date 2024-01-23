@@ -197,7 +197,7 @@ namespace netxs::generics
         T pop()
         {
             auto lock = std::unique_lock{ d_mutex };
-            d_condition.wait(lock, [this] { return !d_queue.empty(); });
+            d_condition.wait(lock, [this]{ return !d_queue.empty(); });
             T rc(std::move(d_queue.back()));
             d_queue.pop_back();
             return rc;
@@ -205,7 +205,7 @@ namespace netxs::generics
         bool try_pop(T& v, std::chrono::milliseconds timeout)
         {
             auto lock = std::unique_lock{ d_mutex };
-            if (!d_condition.wait_for(lock, timeout, [this] { return !d_queue.empty(); }))
+            if (!d_condition.wait_for(lock, timeout, [this]{ return !d_queue.empty(); }))
             {
                 return !true;
             }
@@ -378,11 +378,11 @@ namespace netxs::generics
             auto guard = std::lock_guard{ mutex };
             if (!alive) return;
             auto next_id = count++;
-            auto session = std::thread([&, process, next_id]
+            auto session = std::thread{ [&, process, next_id]
             {
                 process(next_id);
                 checkout();
-            });
+            }};
             auto session_id = session.get_id();
             index[session_id] = { true, std::move(session) };
         }

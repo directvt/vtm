@@ -1084,15 +1084,15 @@ namespace netxs::ansi
         changer	setter = {};
         marker()
         {
-            setter[ctrl::alm                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::rlm                 ] = [](cell& p) { p.rtl(true);    };
-            setter[ctrl::lrm                 ] = [](cell& p) { p.rtl(faux);    };
-            setter[ctrl::shy                 ] = [](cell& p) { p.hyphen(true); };
-            setter[ctrl::function_application] = [](cell& p) { p.fnappl(true); };
-            setter[ctrl::invisible_times     ] = [](cell& p) { p.itimes(true); };
-            setter[ctrl::invisible_separator ] = [](cell& p) { p.isepar(true); };
-            setter[ctrl::invisible_plus      ] = [](cell& p) { p.inplus(true); };
-            setter[ctrl::zwnbsp              ] = [](cell& p) { p.zwnbsp(true); };
+            setter[ctrl::alm                 ] = [](cell& p){ p.rtl(true);    };
+            setter[ctrl::rlm                 ] = [](cell& p){ p.rtl(true);    };
+            setter[ctrl::lrm                 ] = [](cell& p){ p.rtl(faux);    };
+            setter[ctrl::shy                 ] = [](cell& p){ p.hyphen(true); };
+            setter[ctrl::function_application] = [](cell& p){ p.fnappl(true); };
+            setter[ctrl::invisible_times     ] = [](cell& p){ p.itimes(true); };
+            setter[ctrl::invisible_separator ] = [](cell& p){ p.isepar(true); };
+            setter[ctrl::invisible_plus      ] = [](cell& p){ p.inplus(true); };
+            setter[ctrl::zwnbsp              ] = [](cell& p){ p.zwnbsp(true); };
         }
     };
 
@@ -1353,7 +1353,7 @@ namespace netxs::ansi
                 intro.execute(traits.control, utf8, client); // Make one iteration using firstcmd and return.
                 return utf8;
             };
-            auto y = [&](auto const& cluster) { client->post(cluster); };
+            auto y = [&](auto const& cluster){ client->post(cluster); };
 
             utf::decode(s, y, utf8, decsg);
             client->flush();
@@ -1379,10 +1379,10 @@ namespace netxs::ansi
             if (ascii.length())
             {
                 auto b = 0;
-                auto ints = [](auto cmd) { return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
-                auto pars = [](auto cmd) { return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
-                auto cmds = [](auto cmd) { return cmd >= 0x40 && cmd <= 0x7E; };
-                auto isC0 = [](auto cmd) { return cmd <= 0x1F; };
+                auto ints = [](auto cmd){ return cmd >= 0x20 && cmd <= 0x2f; }; // "intermediate bytes" in the range 0x20–0x2F
+                auto pars = [](auto cmd){ return cmd >= 0x3C && cmd <= 0x3f; }; // "parameter bytes" in the range 0x30–0x3F
+                auto cmds = [](auto cmd){ return cmd >= 0x40 && cmd <= 0x7E; };
+                auto isC0 = [](auto cmd){ return cmd <= 0x1F; };
                 auto trap = [&](auto& c) // Catch and execute C0.
                 {
                     if (isC0(c))

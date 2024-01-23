@@ -326,7 +326,7 @@ namespace netxs::app::shared
                             auto area = parent_canvas.full();
                             auto mark = skin::color(tone::shadower);
                             mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c) { c.fusefull(mark); };
+                            auto fill = [&](cell& c){ c.fusefull(mark); };
                             parent_canvas.cage(area, dot_21, fill);
                         };
                         boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)

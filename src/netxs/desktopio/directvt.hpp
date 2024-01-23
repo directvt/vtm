@@ -1400,12 +1400,12 @@ namespace netxs::directvt
             s11n(T& boss, id_t boss_id = {})
             {
                 #define X(_object) \
-                    if constexpr (requires(view data) { boss.direct(_object.freeze(), data); }) \
-                        exec[binary::_object::kind] = [&](auto& data) { boss.direct(_object.freeze(), data); }; \
-                    else if constexpr (requires(view data) { boss.handle(_object.sync(data)); }) \
-                        exec[binary::_object::kind] = [&](auto& data) { boss.handle(_object.sync(data)); }; \
+                    if constexpr (requires(view data){ boss.direct(_object.freeze(), data); }) \
+                        exec[binary::_object::kind] = [&](auto& data){ boss.direct(_object.freeze(), data); }; \
+                    else if constexpr (requires(view data){ boss.handle(_object.sync(data)); }) \
+                        exec[binary::_object::kind] = [&](auto& data){ boss.handle(_object.sync(data)); }; \
                     else \
-                        exec[binary::_object::kind] = [&](auto& data) { _object.sync(data); }; // Notify on receiving.
+                        exec[binary::_object::kind] = [&](auto& data){ _object.sync(data); }; // Notify on receiving.
                 object_list
                 #undef X
                 auto lock = bitmap_dtvt.freeze();

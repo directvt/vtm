@@ -190,7 +190,7 @@ namespace netxs::events
             for (auto& [event, subs] : stock)
             {
                 auto refs = subs.size();
-                subs.remove_if([](auto&& a) { return a.expired(); });
+                subs.remove_if([](auto&& a){ return a.expired(); });
                 auto size = subs.size();
                 lref += size;
                 ldel += refs - size;
@@ -218,7 +218,7 @@ namespace netxs::events
         }
         inline void _refreshandcopy(list& target)
         {
-            target.remove_if([&](auto&& a) { return a.expired() ? true : (qcopy.emplace_back(a), faux); });
+            target.remove_if([&](auto&& a){ return a.expired() ? true : (qcopy.emplace_back(a), faux); });
         }
         // reactor: Calling delegates. Returns the number of active ones.
         template<class F>

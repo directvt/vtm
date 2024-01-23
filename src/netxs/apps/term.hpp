@@ -699,20 +699,20 @@ namespace netxs::app::term
                     if (wide) // Draw full scrollbar on mouse hover
                     {
                         static auto box = ' ';
-                        canvas.fill([&](cell& c) { c.txt(box).link(boss.bell::id).xlight(); });
-                        canvas.fill(handle, [&](cell& c) { c.bgc().mix(brighter_bgc); });
+                        canvas.fill([&](cell& c){ c.txt(box).link(boss.bell::id).xlight(); });
+                        canvas.fill(handle, [&](cell& c){ c.bgc().mix(brighter_bgc); });
                     }
                     else
                     {
                         static auto box = "▄"sv; //"▀"sv;
-                        canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).bgc().mix(brighter_bgc); });
-                        canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(boss_bgc); });
+                        canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).bgc().mix(brighter_bgc); });
+                        canvas.fill([&](cell& c){ c.inv(true).txt(box).fgc(boss_bgc); });
                     }
                 }
                 else
                 {
                     static auto box = "▄"sv;
-                    canvas.fill([&](cell& c) { c.inv(true).txt(box).fgc(boss_bgc); });
+                    canvas.fill([&](cell& c){ c.inv(true).txt(box).fgc(boss_bgc); });
                 }
             };
             auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
@@ -760,11 +760,11 @@ namespace netxs::app::term
                     if (winsz->y != 1)
                     {
                         auto& b = *brush;
-                        parent_canvas.fill([&](cell& c) { c.fusefull(b); });
+                        parent_canvas.fill([&](cell& c){ c.fusefull(b); });
                     }
                     else
                     {
-                        parent_canvas.fill([&](cell& c) { c.fgc(c.bgc()).fga(0xff).bgc(0).txt(bar).link(bar); });
+                        parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).fga(0xff).bgc(0).txt(bar).link(bar); });
                     }
                 };
             });

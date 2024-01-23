@@ -360,7 +360,7 @@ namespace netxs::app::vtm
                 auto func = constlinearAtoB<twod>(path, time, init);
 
                 robo.pacify();
-                robo.actify(func, [&](twod& x) { boss.base::moveby(x); boss.strike(); });
+                robo.actify(func, [&](twod& x){ boss.base::moveby(x); boss.strike(); });
             }
             /*
             // pro::frame: Search for a non-overlapping form position in
@@ -586,7 +586,7 @@ namespace netxs::app::vtm
                                 area.coor -= dot_11;
                                 area.size += dot_22;
                                 auto mark = skin::color(tone::kb_focus);
-                                auto fill = [&](cell& c) { c.fuse(mark); };
+                                auto fill = [&](cell& c){ c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
                                 coder.wrp(wrap::off).add("capture area: ", slot);
                                 //todo optimize para
@@ -602,7 +602,7 @@ namespace netxs::app::vtm
                             {
                                 auto temp = canvas.view();
                                 canvas.view(area);
-                                canvas.fill(area, [&](cell& c) { c.fuse(mark); c.und(faux); });
+                                canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
                                 canvas.blur(10);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
@@ -1034,7 +1034,7 @@ namespace netxs::app::vtm
             {
                 if (items.size())
                 {
-                    auto test = [id](auto& a) { return a->object->id == id; };
+                    auto test = [id](auto& a){ return a->object->id == id; };
                     return std::find_if(head, tail, test);
                 }
                 return tail;
@@ -1203,7 +1203,7 @@ namespace netxs::app::vtm
                     auto& [fixed, app_list] = fxd_app_list;
                     auto head = app_list.begin();
                     auto tail = app_list.end();
-                    auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
+                    auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
                     if (iter != tail)
                     {
                         app_list.erase(iter);
@@ -1604,7 +1604,7 @@ namespace netxs::app::vtm
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
             {
-                auto test = [&](auto& p) { return p.first == menuid; };
+                auto test = [&](auto& p){ return p.first == menuid; };
 
                 auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
                 if (iter_free != free_list.end()) return iter_free->second;

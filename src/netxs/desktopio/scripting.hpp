@@ -152,8 +152,8 @@ namespace netxs::scripting
             appcfg = cfg;
             if (!engine->connected())
             {
-                engine->runapp(appcfg, [&](auto utf8_shadow) { ondata(utf8_shadow); },
-                                       [&](auto code, auto msg) { onexit(code, msg); });
+                engine->runapp(appcfg, [&](auto utf8_shadow){ ondata(utf8_shadow); },
+                                       [&](auto code, auto msg){ onexit(code, msg); });
             }
         }
         void shut()

@@ -1064,8 +1064,8 @@ namespace netxs::ui
         auto   size() const { return lyric->size();   } // para: Return 2D volume size.
         auto&  back() const { return brush;           } // para: Return current brush.
         bool   busy() const { return length() || !parser::empty() || brush.busy(); } // para: Is it filled.
-        void   ease()   { brush.nil(); lyric->each([&](auto& c) { c.clr(brush); });  } // para: Reset color for all text.
-        void   link(id_t id)         { lyric->each([&](auto& c) { c.link(id);   });  } // para: Set object ID for each cell.
+        void   ease()   { brush.nil(); lyric->each([&](auto& c){ c.clr(brush); });  } // para: Reset color for all text.
+        void   link(id_t id)         { lyric->each([&](auto& c){ c.link(id);   });  } // para: Set object ID for each cell.
         void   wipe(cell c = cell{}) // para: Clear the text and locus, and reset SGR attributes.
         {
             parser::reset(c);
@@ -1767,7 +1767,7 @@ namespace netxs::ui
                 ui32 id;
                 twod coor;
             };
-            auto bound = [](auto& r) { return r.coord.y; };
+            auto bound = [](auto& r){ return r.coord.y; };
             auto found = std::ranges::lower_bound(ropes, anker.y, {}, bound);
             if (found != ropes.end()) return entry{ found->id(), found->coord };
             else                      return entry{ 0,     twod{ 0, si32max } };

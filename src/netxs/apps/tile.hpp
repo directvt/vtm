@@ -422,7 +422,7 @@ namespace netxs::app::tile
             {
                 boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (menu_id))
                 {
-                    parent_canvas.fill([&](cell& c) { c.txt(whitespace).link(menu_id); });
+                    parent_canvas.fill([&](cell& c){ c.txt(whitespace).link(menu_id); });
                 };
             });
 
@@ -942,7 +942,7 @@ namespace netxs::app::tile
                 {
                     auto menu_white = skin::color(tone::menu_white);
                     auto fgc = menu_white.bgc();
-                    parent_canvas.fill([&](cell& c) { c.fgc(fgc).txt(bar).link(bar); });
+                    parent_canvas.fill([&](cell& c){ c.fgc(fgc).txt(bar).link(bar); });
                 };
             });
             if (appcfg.cwd.size())

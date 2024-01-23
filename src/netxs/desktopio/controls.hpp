@@ -537,21 +537,21 @@ namespace netxs::ui
                     };
                     if (normal.bgc().alpha())
                     {
-                        auto fuse_bright = [&](cell& c) { c.fuse(normal); c.fuse(bright); };
-                        //auto fuse_shadow = [&](cell& c) { c.fuse(normal); c.fuse(shadow); };
+                        auto fuse_bright = [&](cell& c){ c.fuse(normal); c.fuse(bright); };
+                        //auto fuse_shadow = [&](cell& c){ c.fuse(normal); c.fuse(shadow); };
                         fillup(fuse_bright);
                     }
                     else
                     {
-                        auto only_bright = [&](cell& c) { c.fuse(bright); };
-                        //auto only_shadow = [&](cell& c) { c.fuse(shadow); };
+                        auto only_bright = [&](cell& c){ c.fuse(bright); };
+                        //auto only_shadow = [&](cell& c){ c.fuse(shadow); };
                         fillup(only_bright);
                     }
                     // Draw the border around
                     auto area = parent_canvas.full();
                     auto mark = skin::color(tone::kb_focus);
                     mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c) { c.fuse(mark); };
+                    auto fill = [&](cell& c){ c.fuse(mark); };
                     parent_canvas.cage(area, dot_21, fill);
                 };
                 boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
@@ -569,7 +569,7 @@ namespace netxs::ui
                     if (!alive) return;
                     auto full = parent_canvas.full();
                     auto mark = cell{}.bgc(0xFFffffff);
-                    auto fill = [&](cell& c) { c.fuse(mark); };
+                    auto fill = [&](cell& c){ c.fuse(mark); };
                     items.foreach([&](sock& item)
                     {
                         auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
@@ -921,7 +921,7 @@ namespace netxs::ui
                                         else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
                                     });
                                 }
-                                else canvas.fill(area, [](cell& c) { c.und() ? c.und(0) : c.und(1); });
+                                else canvas.fill(area, [](cell& c){ c.und() ? c.und(0) : c.und(1); });
                             }
                             else if (area.size.y)
                             {
@@ -1620,7 +1620,7 @@ namespace netxs::ui
                         auto& route = iter->second;
                         if (route.active)
                         {
-                            route.foreach([&](auto& /*nexthop*/) { gear_test.second++; });
+                            route.foreach([&](auto& /*nexthop*/){ gear_test.second++; });
                         }
                     }
                 };
@@ -1876,8 +1876,8 @@ namespace netxs::ui
                         bright.alpha(i * step);
                         shadow.alpha(i * step);
 
-                        parent_canvas.core::fill(head, [&](cell& c) { c.bgc().mix(bright); });
-                        parent_canvas.core::fill(foot, [&](cell& c) { c.bgc().mix(shadow); });
+                        parent_canvas.core::fill(head, [&](cell& c){ c.bgc().mix(bright); });
+                        parent_canvas.core::fill(foot, [&](cell& c){ c.bgc().mix(shadow); });
 
                         head.coor.y--;
                         foot.coor.y++;
@@ -2065,7 +2065,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive || boss.base::filler.bga() == 0xFF) return;
-                    parent_canvas.blur(width, [&](cell& c) { c.alpha(0xFF); });
+                    parent_canvas.blur(width, [&](cell& c){ c.alpha(0xFF); });
                 };
             }
         };
@@ -2946,7 +2946,7 @@ namespace netxs::ui
                 output(parent_canvas);
                 //auto mark = rect{ base::anchor + base::coor(), {10,5} };
                 //mark.coor += parent_canvas.view().coor; // Set client's basis
-                //parent_canvas.fill(mark, [](cell& c) { c.alpha(0x80).bgc().chan.r = 0xff; });
+                //parent_canvas.fill(mark, [](cell& c){ c.alpha(0x80).bgc().chan.r = 0xff; });
             };
         }
         // post: .
@@ -3854,18 +3854,18 @@ namespace netxs::ui
 
                 if (wide) // Draw full scrollbar on mouse hover
                 {
-                    canvas.fill([&](cell& c) { c.link(boss.bell::id).xlight(); });
+                    canvas.fill([&](cell& c){ c.link(boss.bell::id).xlight(); });
                 }
-                //canvas.fill(handle, [&](cell& c) { c.fusefull(bright); });
-                canvas.fill(handle, [&](cell& c) { c.link(boss.bell::id).xlight(); });
+                //canvas.fill(handle, [&](cell& c){ c.fusefull(bright); });
+                canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).xlight(); });
             }
         };
         static constexpr auto underline = [](auto& /*boss*/, auto& canvas, auto handle, auto object_len, auto handle_len, auto region_len, auto /*wide*/)
         {
             if (object_len && handle_len != region_len) // Show only if it is oversized.
             {
-                //canvas.fill(handle, [](cell& c) { c.und(!c.und()); });
-                canvas.fill(handle, [](cell& c) { c.und(true); });
+                //canvas.fill(handle, [](cell& c){ c.und(!c.und()); });
+                canvas.fill(handle, [](cell& c){ c.und(true); });
             }
         };
     }
