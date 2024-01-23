@@ -207,7 +207,10 @@ int main(int argc, char* argv[])
         auto result = std::atomic<int>{};
         auto events = os::tty::binary::logger{ [&](auto&, auto& reply)
         {
-            if (reply.size()) os::io::send(utf::concat(reply, "\n"));
+            if (reply.size() && os::dtvt::vtmode & ui::console::redirio)
+            {
+                os::io::send(utf::concat(reply, "\n"));
+            }
             --result;
         }};
         auto online = flag{ true };
@@ -233,8 +236,8 @@ int main(int argc, char* argv[])
         {
             auto sync = std::lock_guard{ locker };
             online.exchange(faux);
-            if (active) while (result) std::this_thread::yield();
-            if (stream) stream->shut();
+            if (active) while (result && active) std::this_thread::yield();
+            if (active && stream) stream->shut();
         });
         while (online)
         {
@@ -261,6 +264,7 @@ int main(int argc, char* argv[])
                 syncio.unlock();
                 directvt::binary::stream::reading_loop(stream, [&](view data){ events.s11n::sync(data); });
                 syncio.lock();
+                active.exchange(faux);
                 break;
             }
             else
