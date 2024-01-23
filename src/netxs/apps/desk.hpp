@@ -13,7 +13,8 @@ namespace netxs::app::desk
     {
         text   menuid{};
         text    alias{};
-        bool   hidden{};
+        bool   hidden{}; // Hide existing item on taskbar.
+        bool    fixed{}; // Item can't be updated by the new instance (see desk::events::exec).
         text    label{};
         text    notes{};
         text    title{};
