@@ -1240,10 +1240,10 @@ namespace netxs::utf
     auto unbase64(view bs64, text& data)
     {
         auto code = base64code;
-        auto is64 = [](auto c) { return (c > 0x2E && c < 0x3A) // '/' and digits
-                                     || (c > 0x40 && c < 0x5B) // Uppercase letters
-                                     || (c > 0x60 && c < 0x7B) // Lowercase letters
-                                     || (c == 0x2B); };        // '+'
+        auto is64 = [](auto c){ return (c > 0x2E && c < 0x3A) // '/' and digits
+                                    || (c > 0x40 && c < 0x5B) // Uppercase letters
+                                    || (c > 0x60 && c < 0x7B) // Lowercase letters
+                                    || (c == 0x2B); };        // '+'
         auto look = view{ code };
         //todo reserv data
         if (auto size = bs64.size())
@@ -1570,7 +1570,7 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](auto c) { return to_low(c); });
+        std::transform(head, tail, head, [](auto c){ return to_low(c); });
         return utf8;
     }
     auto to_low(text&& utf8)
@@ -1581,7 +1581,7 @@ namespace netxs::utf
     {
         auto head = utf8.begin();
         auto tail = head + std::min(utf8.size(), size);
-        std::transform(head, tail, head, [](char c) { return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c; });
+        std::transform(head, tail, head, [](char c){ return c >= 'a' && c <= 'z' ? (char)(c - ('a' - 'A')) : c; });
         return utf8;
     }
     auto to_up(text&& utf8)

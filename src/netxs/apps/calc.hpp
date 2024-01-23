@@ -99,7 +99,7 @@ namespace netxs::ui
                     auto full = parent_canvas.full();
                     auto view = parent_canvas.view();
                     auto mark = cell{}.bgc(bluelt).bga(0x40);
-                    auto fill = [&](cell& c) { c.fuse(mark); };
+                    auto fill = [&](cell& c){ c.fuse(mark); };
                     auto step = twod{ 5, 1 };
                     auto area = full;
                     area.size.x += boss.base::oversz.r;

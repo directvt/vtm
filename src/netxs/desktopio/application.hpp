@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.56";
+    static const auto version = "v0.9.57";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -537,7 +537,7 @@ namespace netxs::app::shared
     void start(text cmd, text aclass, si32 vtmode, twod winsz, xmls& config)
     {
         auto [client, server] = os::ipc::xlink();
-        auto thread = std::thread{[&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
+        auto thread = std::thread{ [&, &client = client] //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             os::tty::splice(client);
         }};

@@ -1460,7 +1460,7 @@ namespace netxs::os
             }();
             static auto atexit = []
             {
-                auto deleter = [](auto*) { os::release(); };
+                auto deleter = [](auto*){ os::release(); };
                 return std::unique_ptr<decltype(backup), decltype(deleter)>(&backup);
             }();
 
@@ -1476,7 +1476,7 @@ namespace netxs::os
                 {
                     ok(::pipe(handle), "::pipe(h)", os::unexpected); // ::pipe2() is not available on macOS.
                     ok(::fcntl(handle[1], F_SETFL, ::fcntl(handle[1], F_GETFL) | O_NONBLOCK), "::fcntl(h, O_NONBLOCK)", os::unexpected);
-                    thread = std::thread{[&]
+                    thread = std::thread{ [&]
                     {
                         auto signal = sigt{};
                         while (true)
@@ -3757,9 +3757,16 @@ namespace netxs::os
             text                    writebuf{};
             std::mutex              writemtx{};
             std::condition_variable writesyn{};
+            fd_t                    serverfd{};
+            fd_t                    clientfd{};
 
             operator bool () { return attached; }
 
+            void abort()
+            {
+                os::close(serverfd); // Hard terminate connection.
+                os::close(clientfd); //
+            }
             void payoff()
             {
                 if constexpr (debugmode) log(prompt::dtvt, "Destructor started");
@@ -3797,7 +3804,7 @@ namespace netxs::os
             }
             void runapp(text config, twod initsize, auto connect, auto receiver, auto shutdown)
             {
-                stdinput = std::thread{[&, config, initsize, connect, receiver, shutdown]
+                stdinput = std::thread{ [&, config, initsize, connect, receiver, shutdown]
                 {
                     auto [s_pipe_r, m_pipe_w] = os::ipc::newpipe();
                     auto [m_pipe_r, s_pipe_w] = os::ipc::newpipe();
@@ -3814,9 +3821,11 @@ namespace netxs::os
                     attached.exchange(!!termlink);
                     if (attached)
                     {
+                        serverfd = s_pipe_w;
+                        clientfd = m_pipe_w;
                         if constexpr (debugmode) log("%%DirectVT console created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
                         writesyn.notify_one(); // Flush temp buffer.
-                        auto stdwrite = std::thread{[&] { writer(); }};
+                        auto stdwrite = std::thread{ [&]{ writer(); } };
 
                         if constexpr (debugmode) log(prompt::dtvt, "Reading thread started", ' ', utf::to_hex_0x(std::this_thread::get_id()));
                         directvt::binary::stream::reading_loop(termlink, receiver);
@@ -3919,7 +3928,7 @@ namespace netxs::os
             void runapp(auto& terminal, eccc cfg, fdrw fds = {})
             {
                 signaled.exchange(faux);
-                stdwrite = std::thread{[&, cfg, fds]
+                stdwrite = std::thread{ [&, cfg, fds]
                 {
                     if (terminal.io_log) log(prompt::vtty, "Writing thread started", ' ', utf::to_hex_0x(stdwrite.get_id()));
                     create(terminal, cfg, fds);
@@ -4288,8 +4297,8 @@ namespace netxs::os
 
                 #endif
 
-                stdinput = std::thread([&] { read_socket_thread(); });
-                stdwrite = std::thread([&] { send_socket_thread(); });
+                stdinput = std::thread{ [&]{ read_socket_thread(); } };
+                stdwrite = std::thread{ [&]{ send_socket_thread(); } };
 
                 if (termlink) log(prompt::task, "Standard I/O has been redirected for process ", proc_pid);
             }
@@ -5207,7 +5216,7 @@ namespace netxs::os
 
                                 auto timecode = datetime::now();
                                 auto ispressed = s.back() == 'M';
-                                auto clamp = [](auto a) { return std::clamp(a, si32min / 2, si32max / 2); };
+                                auto clamp = [](auto a){ return std::clamp(a, si32min / 2, si32max / 2); };
                                 auto x = clamp(pos_x.value() - 1);
                                 auto y = clamp(pos_y.value() - 1);
                                 auto ctl = ctrl.value();
@@ -5603,12 +5612,12 @@ namespace netxs::os
 
             auto alarm = fire{};
             auto alive = flag{ true };
-            auto keybd = [&](auto& data) { if (alive)                proxy.syskeybd.send(intio, data); };
-            auto mouse = [&](auto& data) { if (alive)                proxy.sysmouse.send(intio, data); };
-            auto winsz = [&](auto& data) { if (alive)                proxy.syswinsz.send(intio, data); };
-            auto focus = [&](auto& data) { if (alive)                proxy.sysfocus.send(intio, data); };
-            auto paste = [&](auto& data) { if (alive)                proxy.syspaste.send(intio, data); };
-            auto close = [&](auto& data) { if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
+            auto keybd = [&](auto& data){ if (alive)                proxy.syskeybd.send(intio, data); };
+            auto mouse = [&](auto& data){ if (alive)                proxy.sysmouse.send(intio, data); };
+            auto winsz = [&](auto& data){ if (alive)                proxy.syswinsz.send(intio, data); };
+            auto focus = [&](auto& data){ if (alive)                proxy.sysfocus.send(intio, data); };
+            auto paste = [&](auto& data){ if (alive)                proxy.syspaste.send(intio, data); };
+            auto close = [&](auto& data){ if (alive.exchange(faux)) proxy.sysclose.send(intio, data); };
             auto input = std::thread{ [&]{ tty::reader(alarm, keybd, mouse, winsz, focus, paste, close, noop{}); }};
             auto clips = std::thread{ [&]{ clipbd(alarm); } };
             directvt::binary::stream::reading_loop(intio, [&](view data){ proxy.sync(data); });
@@ -5800,14 +5809,14 @@ namespace netxs::os
                                 break;
                         }
                     };
-                    auto mouse = [&](auto& /*data*/) { if (!alive) return; }; // Not used.
+                    auto mouse = [&](auto& /*data*/){ if (!alive) return; }; // Not used.
                     auto winsz = [&](auto& data)
                     {
                         if (!alive) return;
                         auto guard = std::lock_guard{ mutex };
                         panel = data.winsize;
                     };
-                    auto focus = [&](auto& /*data*/) { if (!alive) return;/*if (data.state) log<faux>('-');*/ };
+                    auto focus = [&](auto& /*data*/){ if (!alive) return;/*if (data.state) log<faux>('-');*/ };
                     auto paste = [&](auto& data)
                     {
                         auto guard = std::lock_guard{ mutex };

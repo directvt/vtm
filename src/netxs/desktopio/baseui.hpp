@@ -1010,11 +1010,11 @@ namespace netxs::ui
             {
                 if (base::filler.wdt())
                 {
-                    parent_canvas.fill([&](cell& c) { c.fusefull(base::filler); });
+                    parent_canvas.fill([&](cell& c){ c.fusefull(base::filler); });
                 }
                 else if (base::filler.link())
                 {
-                    parent_canvas.fill([&](cell& c) { c.link(bell::id); });
+                    parent_canvas.fill([&](cell& c){ c.link(bell::id); });
                 }
             };
         }

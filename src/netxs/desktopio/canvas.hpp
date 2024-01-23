@@ -2035,13 +2035,13 @@ namespace netxs
         }
         void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
         {
-            each([&](cell& c) { c.scan(crop); });
+            each([&](cell& c){ c.scan(crop); });
         }
         auto utf8() // core: Convert to raw utf-8 text. Ignore right halves.
         {
             auto crop = netxs::text{};
             crop.reserve(canvas.size());
-            each([&](cell& c) { c.scan(crop); });
+            each([&](cell& c){ c.scan(crop); });
             return crop;
         }
         auto copy(grid& target) const // core: Copy only grid of the canvas to the specified grid bitmap.

@@ -360,7 +360,7 @@ namespace netxs::app::vtm
                 auto func = constlinearAtoB<twod>(path, time, init);
 
                 robo.pacify();
-                robo.actify(func, [&](twod& x) { boss.base::moveby(x); boss.strike(); });
+                robo.actify(func, [&](twod& x){ boss.base::moveby(x); boss.strike(); });
             }
             /*
             // pro::frame: Search for a non-overlapping form position in
@@ -586,7 +586,7 @@ namespace netxs::app::vtm
                                 area.coor -= dot_11;
                                 area.size += dot_22;
                                 auto mark = skin::color(tone::kb_focus);
-                                auto fill = [&](cell& c) { c.fuse(mark); };
+                                auto fill = [&](cell& c){ c.fuse(mark); };
                                 canvas.cage(area, dot_11, fill);
                                 coder.wrp(wrap::off).add("capture area: ", slot);
                                 //todo optimize para
@@ -602,7 +602,7 @@ namespace netxs::app::vtm
                             {
                                 auto temp = canvas.view();
                                 canvas.view(area);
-                                canvas.fill(area, [&](cell& c) { c.fuse(mark); c.und(faux); });
+                                canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
                                 canvas.blur(10);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
@@ -1034,7 +1034,7 @@ namespace netxs::app::vtm
             {
                 if (items.size())
                 {
-                    auto test = [id](auto& a) { return a->object->id == id; };
+                    auto test = [id](auto& a){ return a->object->id == id; };
                     return std::find_if(head, tail, test);
                 }
                 return tail;
@@ -1203,7 +1203,7 @@ namespace netxs::app::vtm
                     auto& [fixed, app_list] = fxd_app_list;
                     auto head = app_list.begin();
                     auto tail = app_list.end();
-                    auto iter = std::find_if(head, tail, [&](auto& c) { return c == item_ptr; });
+                    auto iter = std::find_if(head, tail, [&](auto& c){ return c == item_ptr; });
                     if (iter != tail)
                     {
                         app_list.erase(iter);
@@ -1575,7 +1575,7 @@ namespace netxs::app::vtm
                         auto head = patch.begin();
                         auto tail = patch.end();
                         auto settings = xml::settings{ fallback.appcfg.cfg.size() ? fallback.appcfg.cfg
-                                                                                    : (*head++)->snapshot() };
+                                                                                  : (*head++)->snapshot() };
                         while (head != tail)
                         {
                             auto& p = *head++;
@@ -1604,7 +1604,7 @@ namespace netxs::app::vtm
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
             {
-                auto test = [&](auto& p) { return p.first == menuid; };
+                auto test = [&](auto& p){ return p.first == menuid; };
 
                 auto iter_free = std::find_if(free_list.begin(), free_list.end(), test);
                 if (iter_free != free_list.end()) return iter_free->second;
@@ -1639,12 +1639,14 @@ namespace netxs::app::vtm
                 if (!proto.notfound) // Update existing record.
                 {
                     auto& conf_rec = proto;
+                    conf_rec.fixed = true;
                     hall::loadspec(conf_rec, conf_rec, item, menuid, alias, splitter);
                     expand(conf_rec);
                 }
                 else // New item.
                 {
                     auto conf_rec = desk::spec{};
+                    conf_rec.fixed = true;
                     auto& dflt = alias.size() ? find(alias) // New based on alias_id.
                                               : dflt_spec;  // New item.
                     hall::loadspec(conf_rec, dflt, item, menuid, alias, splitter);
@@ -1787,56 +1789,51 @@ namespace netxs::app::vtm
                 }
                 else gear_ptr = bell::getref<hids>(appspec.gearid);
 
-                auto& apps_list = dbase.apps;
-                auto& menu_list = dbase.menu;
-                auto menuid = appspec.menuid;
-                if (menu_list.contains(menuid)
-                && !menu_list[menuid].hidden
-                && appspec.hidden) // Check for id availability.
-                {
-                    auto i = 1;
-                    auto testid = text{};
-                    do testid = menuid + " (" + std::to_string(++i) + ")";
-                    while (menu_list.contains(testid) && !menu_list[testid].hidden);
-                    std::swap(testid, menuid);
-                }
-                menu_list[menuid] = appspec;
-                apps_list[menuid];
+                auto menu_id = appspec.menuid;
+                auto wincoor = appspec.wincoor;
+                auto winsize = appspec.winsize;
 
-                auto what = link{ .menuid = menuid, .forced = true };
+                dbase.apps[menu_id];
+                auto& appbase = dbase.menu[menu_id];
+                auto fixed = appbase.fixed && !appspec.fixed;
+                if (fixed) std::swap(appbase, appspec); // Don't modify the base menuitem by the temp appspec.
+                else       appbase = appspec;
+
+                auto what = link{ .menuid = menu_id, .forced = true };
+                auto yield = text{};
                 if (gear_ptr)
                 {
                     auto& gear = *gear_ptr;
-                    auto& gate = gear.owner;
-                    gate.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                    if (appspec.wincoor == dot_00)
+                    gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
+                    if (wincoor == dot_00)
                     {
                         offset = (offset + dot_21 * 2) % (viewport.size * 7 / 32);
-                        appspec.wincoor = viewport.coor + offset + viewport.size * 1 / 32;
+                        wincoor = viewport.coor + offset + viewport.size * 1 / 32;
                     }
-                    what.square.coor = appspec.wincoor;
-                    what.square.size = appspec.winsize ? appspec.winsize : viewport.size * 3 / 4;
+                    what.square.coor = wincoor;
+                    what.square.size = winsize ? winsize : viewport.size * 3 / 4;
                     if (auto window = create(what))
                     {
                         pro::focus::set(window, gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         window->SIGNAL(tier::anycast, e2::form::upon::created, gear); // Tile should change the menu item.
-                        auto& cfg = dbase.menu[what.menuid];
-                             if (cfg.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
-                        else if (cfg.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
-                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
+                             if (appbase.winform == shared::winform::maximized) window->SIGNAL(tier::preview, e2::form::size::enlarge::maximize, gear);
+                        else if (appbase.winform == shared::winform::minimized) window->SIGNAL(tier::preview, e2::form::size::minimize, gear);
+                        yield = utf::concat(window->id);
                     }
                 }
                 else
                 {
-                    if (appspec.winsize == dot_00) appspec.winsize = { 80, 27 };
-                    what.square.coor = appspec.wincoor;
-                    what.square.size = appspec.winsize;
+                    if (winsize == dot_00) winsize = { 80, 27 };
+                    what.square.coor = wincoor;
+                    what.square.size = winsize;
                     if (auto window = create(what))
                     {
                         pro::focus::set(window, id_t{}, pro::focus::solo::on, pro::focus::flip::off);
-                        appspec.appcfg.cmd = utf::concat("object.id: ", window->id);
+                        yield = utf::concat(window->id);
                     }
                 }
+                if (fixed) std::swap(appbase, appspec);
+                if (yield.size()) appspec.appcfg.cmd = yield;
             };
             LISTEN(tier::request, e2::form::proceed::createby, gear)
             {
@@ -1958,22 +1955,32 @@ namespace netxs::app::vtm
                 }
                 else if (expression(vtm_run, cmd))
                 {
-                    auto menu_id = text{ shadow };
                     auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
                     auto itemptr = appconf.homelist.front();
                     auto appspec = desk::spec{ .hidden   = true,
                                                .winform  = shared::winform::undefined,
                                                .slimmenu = host::config.take(path::menuslim, true),
                                                .type     = app::shell::id };
-                    hall::loadspec(appspec, appspec, *itemptr, menu_id);
+                    auto menuid = itemptr->take(attr::id, ""s);
+                    if (dbase.menu.contains(menuid))
+                    {
+                        auto& appbase = dbase.menu[menuid];
+                        if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
+                        else               hall::loadspec(appspec, appspec, *itemptr, menuid);
+                    }
+                    else
+                    {
+                        if (menuid.empty()) menuid = shadow;
+                        hall::loadspec(appspec, appspec, *itemptr, menuid);
+                    }
                     appspec.appcfg.env += script.env;
                     if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
-                    auto title = appspec.title.empty() && appspec.label.empty() ? menu_id
+                    auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                : appspec.title.empty() ? appspec.label
                                : appspec.label.empty() ? appspec.title : ""s;
                     if (appspec.title.empty()) appspec.title = title;
                     if (appspec.label.empty()) appspec.label = title;
-                    if (appspec.notes.empty()) appspec.notes = menu_id;
+                    if (appspec.notes.empty()) appspec.notes = appspec.menuid;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
                     script.cmd = appspec.appcfg.cmd;
                 }

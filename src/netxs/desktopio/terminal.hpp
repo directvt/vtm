@@ -848,7 +848,7 @@ namespace netxs::ui
                     auto& proc = vt.csier.table[i];
                     if (!proc)
                     {
-                        proc = [i](auto& q, auto& p) { p->not_implemented_CSI(i, q); };
+                        proc = [i](auto& q, auto& p){ p->not_implemented_CSI(i, q); };
                     }
                 }
                 auto& esc_lookup = vt.intro[ctrl::esc];
@@ -858,7 +858,7 @@ namespace netxs::ui
                     auto& proc = esc_lookup[i];
                     if (!proc)
                     {
-                        proc = [i](auto& q, auto& p) { p->not_implemented_ESC(i, q); };
+                        proc = [i](auto& q, auto& p){ p->not_implemented_ESC(i, q); };
                     }
                 }
             }
@@ -1062,7 +1062,7 @@ namespace netxs::ui
             {
                 if (despace) // Exclude whitespce.
                 {
-                    auto nothing = match.each([](auto& c) { return !c.isspc(); });
+                    auto nothing = match.each([](auto& c){ return !c.isspc(); });
                     if (nothing) match = {};
                 }
                 ++alive;
@@ -7168,7 +7168,7 @@ namespace netxs::ui
                 auto& proto = cooked.pick();
                 auto& brush = target == &normal ? normal.parser::brush
                                                 : altbuf.parser::brush;
-                cooked.each([&](cell& c) { c.meta(brush); });
+                cooked.each([&](cell& c){ c.meta(brush); });
                 if (target == &normal) normal._data(count, proto, fx);
                 else                   altbuf._data(count, proto, fx);
             }
@@ -7800,14 +7800,24 @@ namespace netxs::ui
             nodata = {};
             stream.s11n::syswinsz.freeze().thing.winsize = {};
             active.exchange(true);
-            ipccon.runapp(config, base::size(), connect, [&](view utf8) { ondata(utf8); },
-                                                         [&]            { onexit();     });
+            ipccon.runapp(config, base::size(), connect, [&](view utf8){ ondata(utf8); },
+                                                         [&]{ onexit(); });
         }
         // dtvt: Close dtvt-object.
         void stop(bool fast, bool notify = true)
         {
             if (notify) this->SIGNAL(tier::request, e2::form::proceed::quit::one, fast);
-            if (fast && active.exchange(faux) && ipccon) // Notify and queue closing immediately.
+            auto nodtvt = [&]
+            {
+                auto lock = stream.bitmap_dtvt.freeze();
+                auto& canvas = lock.thing.image;
+                return !canvas.hash(); // Canvas never resized/received.
+            }();
+            if (nodtvt) // Terminate a non-dtvt-aware application that has never sent its canvas.
+            {
+                ipccon.abort();
+            }
+            else if (fast && active.exchange(faux) && ipccon) // Notify and queue closing immediately.
             {
                 stream.s11n::sysclose.send(*this, fast);
             }
@@ -7837,7 +7847,7 @@ namespace netxs::ui
                     {
                         splash.zoom(canvas, cell::shaders::onlyid(parent_id));
                         splash.output(errmsg);
-                        splash.blur(2, [](cell& c) { c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.blur(2, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                         splash.output(errmsg);
                     }
                     else
