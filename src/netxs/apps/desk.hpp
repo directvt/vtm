@@ -286,7 +286,15 @@ namespace netxs::app::desk
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id = class_id;
-                auto& conf = conf_list[class_id];
+                auto conf_it = conf_list.find(class_id);
+                if (conf_it == conf_list.end()) conf_it = conf_list.insert({ class_id, { .menuid = class_id }}).first; // Empty menu case (vtm.del()).
+                if (conf_it->second.label.empty()) // Avoid using empty groups.
+                {
+                    auto& conf = conf_it->second;
+                    conf.label = ansi::err(ansi::stk(1), class_id, ansi::stk(0));
+                    conf.hidden = true;
+                }
+                auto& conf = conf_it->second;
                 auto& obj_desc = conf.label;
                 auto& obj_note = conf.notes;
                 if (conf.splitter)

@@ -1242,6 +1242,7 @@ namespace netxs::app::vtm
         twod vport; // hall: Last user's viewport position.
         pool async; // hall: Thread pool for parallel task execution.
         id_t focus; // hall: Last active gear id.
+        text selected_item; // hall: Override default menu item (if not empty).
 
         static auto window(link& what)
         {
@@ -1913,6 +1914,9 @@ namespace netxs::app::vtm
             LISTEN(tier::release, scripting::events::invoke, script)
             {
                 //todo unify
+                static auto vtm_selected = "vtm.selected("sv;
+                static auto vtm_set = "vtm.set("sv;
+                static auto vtm_del = "vtm.del("sv;
                 static auto vtm_run = "vtm.run("sv;
                 static auto vtm_dtvt = "vtm.dtvt("sv;
                 static auto vtm_exit = "vtm.exit("sv;
@@ -1953,6 +1957,70 @@ namespace netxs::app::vtm
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
                     script.cmd = appspec.appcfg.cmd;
                 }
+                else if (expression(vtm_set, cmd))
+                {
+                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                    auto itemptr = appconf.homelist.front();
+                    auto appspec = desk::spec{ .fixed    = true,
+                                               .winform  = shared::winform::undefined,
+                                               .slimmenu = host::config.take(path::menuslim, true),
+                                               .type     = app::shell::id };
+                    auto menuid = itemptr->take(attr::id, ""s);
+                    if (menuid.empty())
+                    {
+                        script.cmd = "skip: 'id=' not specified.";
+                    }
+                    else
+                    {
+                        hall::loadspec(appspec, appspec, *itemptr, menuid);
+                        if (!appspec.hidden)
+                        {
+                            auto& [stat, list] = dbase.apps[menuid];
+                            stat = true;
+                        }
+                        dbase.menu[menuid] = appspec;
+                        script.cmd = "ok";
+                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                    }
+                }
+                else if (expression(vtm_del, cmd))
+                {
+                    if (cmd.empty())
+                    {
+                        for (auto& [menuid, config] : dbase.menu)
+                        {
+                            if (dbase.apps.contains(menuid))
+                            {
+                                auto& [stat, list] = dbase.apps[menuid];
+                                if (list.empty()) dbase.apps.erase(menuid);
+                                else              stat = faux;
+                            }
+                        }
+                        dbase.menu.clear();
+                        script.cmd = "ok";
+                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                    }
+                    else
+                    {
+                        auto menuid = text{ cmd };
+                        if (dbase.menu.contains(menuid))
+                        {
+                            if (dbase.apps.contains(menuid))
+                            {
+                                auto& [stat, list] = dbase.apps[menuid];
+                                if (list.empty()) dbase.apps.erase(menuid);
+                                else              stat = faux;
+                            }
+                            dbase.menu.erase(menuid);
+                            script.cmd = "ok";
+                            this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                        }
+                        else
+                        {
+                            script.cmd = "skip: 'id=" + menuid + "' not found.";
+                        }
+                    }
+                }
                 else if (expression(vtm_run, cmd))
                 {
                     auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
@@ -1983,6 +2051,23 @@ namespace netxs::app::vtm
                     if (appspec.notes.empty()) appspec.notes = appspec.menuid;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
                     script.cmd = appspec.appcfg.cmd;
+                }
+                else if (expression(vtm_selected, cmd))
+                {
+                    auto menuid = text{ cmd };
+                    if (menuid.empty())
+                    {
+                        script.cmd = "skip: id required.";
+                    }
+                    else
+                    {
+                        script.cmd = menuid;
+                        selected_item = menuid;
+                        for (auto user : dbase.usrs)
+                        {
+                            user->SIGNAL(tier::release, e2::data::changed, menuid);
+                        }
+                    }
                 }
                 else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
             };
@@ -2058,6 +2143,7 @@ namespace netxs::app::vtm
         // hall: Create a new user gate.
         auto invite(xipc client, view userid, si32 vtmode, twod winsz, xmls app_config, si32 session_id)
         {
+            if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
             auto lock = netxs::events::unique_lock();
             auto user = base::create<gate>(client, userid, vtmode, app_config, session_id);
             users.append(user);
