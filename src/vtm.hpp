@@ -1513,7 +1513,7 @@ namespace netxs::app::vtm
             window_ptr->SIGNAL(tier::anycast, e2::form::upon::started, this->This());
             return window_ptr;
         }
-        auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, text alias = {}, bool splitter = {})
+        auto loadspec(auto& conf_rec, auto& fallback, auto& item, text menuid, bool splitter = {}, text alias = {})
         {
             conf_rec.splitter   = splitter;
             conf_rec.menuid     = menuid;
@@ -1641,7 +1641,7 @@ namespace netxs::app::vtm
                 {
                     auto& conf_rec = proto;
                     conf_rec.fixed = true;
-                    hall::loadspec(conf_rec, conf_rec, item, menuid, alias, splitter);
+                    hall::loadspec(conf_rec, conf_rec, item, menuid, splitter, alias);
                     expand(conf_rec);
                 }
                 else // New item.
@@ -1650,7 +1650,7 @@ namespace netxs::app::vtm
                     conf_rec.fixed = true;
                     auto& dflt = alias.size() ? find(alias) // New based on alias_id.
                                               : dflt_spec;  // New item.
-                    hall::loadspec(conf_rec, dflt, item, menuid, alias, splitter);
+                    hall::loadspec(conf_rec, dflt, item, menuid, splitter, alias);
                     expand(conf_rec);
                     if (conf_rec.hidden) temp_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
                     else                 free_list.emplace_back(std::move(conf_rec.menuid), std::move(conf_rec));
@@ -1972,7 +1972,8 @@ namespace netxs::app::vtm
                     }
                     else
                     {
-                        hall::loadspec(appspec, appspec, *itemptr, menuid);
+                        auto splitter = itemptr->take(attr::splitter, faux);
+                        hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
                         if (!appspec.hidden)
                         {
                             auto& [stat, list] = dbase.apps[menuid];
