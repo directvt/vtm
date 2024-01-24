@@ -1983,28 +1983,46 @@ namespace netxs::app::vtm
                 }
                 else if (expression(vtm_del, cmd))
                 {
-                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
-                    auto itemptr = appconf.homelist.front();
-                    auto menuid = itemptr->take(attr::id, ""s);
-                    if (menuid.empty())
+                    if (cmd.empty())
                     {
-                        script.cmd = "skip: 'id=' not specified.";
-                    }
-                    else if (dbase.menu.contains(menuid))
-                    {
-                        if (dbase.apps.contains(menuid))
+                        for (auto& [menuid, config] : dbase.menu)
                         {
-                            auto& [stat, list] = dbase.apps[menuid];
-                            if (list.empty()) dbase.apps.erase(menuid);
-                            else              stat = faux;
+                            if (dbase.apps.contains(menuid))
+                            {
+                                auto& [stat, list] = dbase.apps[menuid];
+                                if (list.empty()) dbase.apps.erase(menuid);
+                                else              stat = faux;
+                            }
                         }
-                        dbase.menu.erase(menuid);
+                        dbase.menu.clear();
                         script.cmd = "ok";
                         this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
                     }
                     else
                     {
-                        script.cmd = "skip: 'id=" + menuid + "' not found.";
+                        auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                        auto itemptr = appconf.homelist.front();
+                        auto menuid = itemptr->take(attr::id, ""s);
+                        if (menuid.empty())
+                        {
+                            script.cmd = "skip: 'id=' not specified.";
+                        }
+                        else if (dbase.menu.contains(menuid))
+                        {
+                            if (dbase.apps.contains(menuid))
+                            {
+                                auto& [stat, list] = dbase.apps[menuid];
+                                if (list.empty()) dbase.apps.erase(menuid);
+                                else              stat = faux;
+                            }
+                            dbase.menu.erase(menuid);
+                            script.cmd = "ok";
+                            this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                        }
+                        else
+                        {
+                            script.cmd = "skip: 'id=" + menuid + "' not found.";
+                        }
                     }
                 }
                 else if (expression(vtm_run, cmd))
