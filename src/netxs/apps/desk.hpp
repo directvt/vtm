@@ -286,6 +286,12 @@ namespace netxs::app::desk
             {
                 auto& [state, inst_ptr_list] = stat_inst_ptr_list;
                 auto inst_id = class_id;
+                if (!conf_list.contains(class_id))
+                {
+                    auto& conf = conf_list[class_id];
+                    conf.label = ansi::err(ansi::stk(1), class_id, ansi::stk(0));
+                    conf.hidden = true;
+                }
                 auto& conf = conf_list[class_id];
                 auto& obj_desc = conf.label;
                 auto& obj_note = conf.notes;

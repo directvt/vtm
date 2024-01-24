@@ -1913,6 +1913,8 @@ namespace netxs::app::vtm
             LISTEN(tier::release, scripting::events::invoke, script)
             {
                 //todo unify
+                static auto vtm_set = "vtm.set("sv;
+                static auto vtm_del = "vtm.del("sv;
                 static auto vtm_run = "vtm.run("sv;
                 static auto vtm_dtvt = "vtm.dtvt("sv;
                 static auto vtm_exit = "vtm.exit("sv;
@@ -1952,6 +1954,58 @@ namespace netxs::app::vtm
                     appspec.notes = cmd;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
                     script.cmd = appspec.appcfg.cmd;
+                }
+                else if (expression(vtm_set, cmd))
+                {
+                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                    auto itemptr = appconf.homelist.front();
+                    auto appspec = desk::spec{ .fixed    = true,
+                                               .winform  = shared::winform::undefined,
+                                               .slimmenu = host::config.take(path::menuslim, true),
+                                               .type     = app::shell::id };
+                    auto menuid = itemptr->take(attr::id, ""s);
+                    if (menuid.empty())
+                    {
+                        script.cmd = "skip: 'id=' not specified.";
+                    }
+                    else
+                    {
+                        hall::loadspec(appspec, appspec, *itemptr, menuid);
+                        if (!appspec.hidden)
+                        {
+                            auto& [stat, list] = dbase.apps[menuid];
+                            stat = true;
+                        }
+                        dbase.menu[menuid] = appspec;
+                        script.cmd = "ok";
+                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                    }
+                }
+                else if (expression(vtm_del, cmd))
+                {
+                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
+                    auto itemptr = appconf.homelist.front();
+                    auto menuid = itemptr->take(attr::id, ""s);
+                    if (menuid.empty())
+                    {
+                        script.cmd = "skip: 'id=' not specified.";
+                    }
+                    else if (dbase.menu.contains(menuid))
+                    {
+                        if (dbase.apps.contains(menuid))
+                        {
+                            auto& [stat, list] = dbase.apps[menuid];
+                            if (list.empty()) dbase.apps.erase(menuid);
+                            else              stat = faux;
+                        }
+                        dbase.menu.erase(menuid);
+                        script.cmd = "ok";
+                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                    }
+                    else
+                    {
+                        script.cmd = "skip: 'id=" + menuid + "' not found.";
+                    }
                 }
                 else if (expression(vtm_run, cmd))
                 {
