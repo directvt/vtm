@@ -293,13 +293,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=PowerShell label="PowerShell" type=DirectVT title="Windows PowerShell"          cmd="$0 -r term powershell" fgc=15 bgc=0xFF562401 notes=" Windows PowerShell "/>
-   <!-- <item id=WSL        label="WSL"        type=DirectVT title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                              notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far        label="Far"        type=SHELL    title="Far Manager"                 cmd="far"                                         notes=" Far Manager in its own window "/> -->
-   <!-- <item id=mc         label="mc"         type=SHELL    title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
-        <item id=Tile       label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=View       label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
-        <item id=Logs       label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
+        <item id=pwsh label="PowerShell" type=DirectVT title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+   <!-- <item id=WSL  label="WSL"        type=DirectVT title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
+   <!-- <item id=Far  label="Far"        type=SHELL    title="Far Manager"                 cmd="far"                             notes=" Far Manager in its own window "/> -->
+   <!-- <item id=mc   label="mc"         type=SHELL    title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
+        <item id=Tile label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=View label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
+        <item id=Logs label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->
