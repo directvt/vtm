@@ -358,7 +358,7 @@ int main(int argc, char* argv[])
 
         if (whoami == type::daemon)
         {
-            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            auto [success, successor] = os::process::fork(prefix, config.utf8(), script);
             if (successor)
             {
                 os::dtvt::vtmode |= ui::console::onlylog;
@@ -447,8 +447,10 @@ int main(int argc, char* argv[])
         }};
 
         auto settings = config.utf8();
-        auto readline = os::tty::readline([&](auto cmd){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = cmd })); },
-                                          [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
+        auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
+        auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
+        utf::split<true>(script, '\n', execline);
+        auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
         {
             if (user->auth(userid.second))

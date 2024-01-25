@@ -1101,7 +1101,7 @@ namespace netxs::utf
             return crop;
         }
     }
-    template<feed Direction = feed::fwd, bool SkipEmpty = faux, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
+    template<bool SkipEmpty = faux, feed Direction = feed::fwd, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
     auto split(view utf8, char delimiter, P proc)
     {
         if constexpr (Direction == feed::fwd)
@@ -1117,7 +1117,14 @@ namespace netxs::utf
                 cur = pos + 1;
             }
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
-            if constexpr (SkipEmpty) if (end.empty()) return true;
+            if constexpr (SkipEmpty)
+            {
+                if (end.empty())
+                {
+                    if constexpr (Plain) return;
+                    else                 return true;
+                }
+            }
             return proc(end);
         }
         else
@@ -1134,7 +1141,14 @@ namespace netxs::utf
                 cur = pos;
             }
             auto end = view{ utf8.data(), cur };
-            if constexpr (SkipEmpty) if (end.empty()) return true;
+            if constexpr (SkipEmpty)
+            {
+                if (end.empty())
+                {
+                    if constexpr (Plain) return;
+                    else                 return true;
+                }
+            }
             return proc(end);
         }
     }
