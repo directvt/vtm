@@ -491,7 +491,7 @@ namespace netxs::app::desk
             }
             auto my_id = id_t{};
 
-            auto user_info = utf::divide(appcfg.cmd, ";");
+            auto user_info = utf::split(appcfg.cmd, ";");
             if (user_info.size() < 2)
             {
                 log(prompt::desk, "Bad window arguments: args=", utf::debase(appcfg.cmd));

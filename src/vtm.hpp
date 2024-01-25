@@ -1911,7 +1911,7 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
-            LISTEN(tier::release, scripting::events::invoke, script)
+            LISTEN(tier::release, scripting::events::invoke, onecmd)
             {
                 //todo unify
                 static auto vtm_selected = "vtm.selected("sv;
@@ -1922,7 +1922,7 @@ namespace netxs::app::vtm
                 static auto vtm_exit = "vtm.exit("sv;
                 static auto vtm_close = "vtm.close("sv;
                 static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto shadow = utf::trim(view{ script.cmd }, "\r\n\t ");
+                auto shadow = utf::trim(view{ onecmd.cmd }, "\r\n\t ");
                 auto cmd = shadow;
                 auto expression = [](auto prefix, auto& cmd)
                 {
@@ -1948,14 +1948,14 @@ namespace netxs::app::vtm
                 else if (expression(vtm_dtvt, cmd))
                 {
                     auto appspec = desk::spec{ .hidden = true, .type = app::dtvt::id };
-                    appspec.appcfg.env = script.env;
-                    appspec.appcfg.cwd = script.cwd;
+                    appspec.appcfg.env = onecmd.env;
+                    appspec.appcfg.cwd = onecmd.cwd;
                     appspec.appcfg.cmd = cmd;
                     appspec.title = cmd;
                     appspec.label = cmd;
                     appspec.notes = cmd;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
-                    script.cmd = appspec.appcfg.cmd;
+                    onecmd.cmd = appspec.appcfg.cmd;
                 }
                 else if (expression(vtm_set, cmd))
                 {
@@ -1968,7 +1968,7 @@ namespace netxs::app::vtm
                     auto menuid = itemptr->take(attr::id, ""s);
                     if (menuid.empty())
                     {
-                        script.cmd = "skip: 'id=' not specified.";
+                        onecmd.cmd = "skip: 'id=' not specified.";
                     }
                     else
                     {
@@ -1980,7 +1980,7 @@ namespace netxs::app::vtm
                             stat = true;
                         }
                         dbase.menu[menuid] = appspec;
-                        script.cmd = "ok";
+                        onecmd.cmd = "ok";
                         this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
                     }
                 }
@@ -1998,7 +1998,7 @@ namespace netxs::app::vtm
                             }
                         }
                         dbase.menu.clear();
-                        script.cmd = "ok";
+                        onecmd.cmd = "ok";
                         this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
                     }
                     else
@@ -2013,12 +2013,12 @@ namespace netxs::app::vtm
                                 else              stat = faux;
                             }
                             dbase.menu.erase(menuid);
-                            script.cmd = "ok";
+                            onecmd.cmd = "ok";
                             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
                         }
                         else
                         {
-                            script.cmd = "skip: 'id=" + menuid + "' not found.";
+                            onecmd.cmd = "skip: 'id=" + menuid + "' not found.";
                         }
                     }
                 }
@@ -2042,8 +2042,8 @@ namespace netxs::app::vtm
                         if (menuid.empty()) menuid = shadow;
                         hall::loadspec(appspec, appspec, *itemptr, menuid);
                     }
-                    appspec.appcfg.env += script.env;
-                    if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                    appspec.appcfg.env += onecmd.env;
+                    if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = onecmd.cwd;
                     auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
                                : appspec.title.empty() ? appspec.label
                                : appspec.label.empty() ? appspec.title : ""s;
@@ -2051,18 +2051,18 @@ namespace netxs::app::vtm
                     if (appspec.label.empty()) appspec.label = title;
                     if (appspec.notes.empty()) appspec.notes = appspec.menuid;
                     this->SIGNAL(tier::request, desk::events::exec, appspec);
-                    script.cmd = appspec.appcfg.cmd;
+                    onecmd.cmd = appspec.appcfg.cmd;
                 }
                 else if (expression(vtm_selected, cmd))
                 {
                     auto menuid = text{ cmd };
                     if (menuid.empty())
                     {
-                        script.cmd = "skip: id required.";
+                        onecmd.cmd = "skip: id required.";
                     }
                     else
                     {
-                        script.cmd = menuid;
+                        onecmd.cmd = menuid;
                         selected_item = menuid;
                         for (auto user : dbase.usrs)
                         {
@@ -2070,7 +2070,7 @@ namespace netxs::app::vtm
                         }
                     }
                 }
-                else log(prompt::repl, utf::debase<faux, faux>(script.cmd));
+                else log(prompt::repl, utf::debase<faux, faux>(onecmd.cmd));
             };
         }
 

@@ -654,7 +654,7 @@ struct impl : consrv
             if (iter == src_map.end()) return;
 
             auto tail = utf::trim_back(rest, "\r\n");
-            auto args = utf::divide<feed::fwd, true>(rest, ' ');
+            auto args = utf::split<true>(rest, ' ');
             auto data = qiew{ iter->second };
             auto result = text{};
             while (data)

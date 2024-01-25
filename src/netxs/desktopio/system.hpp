@@ -1720,7 +1720,7 @@ namespace netxs::os
             auto env_map = std::map<text, text>{};
             auto combine = [&](auto subset)
             {
-                utf::divide(subset, '\0', [&](qiew rec)
+                utf::split(subset, '\0', [&](qiew rec)
                 {
                     if (rec.empty()) return;
                     auto var = utf::cutoff(rec, '=', true, 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
@@ -2257,11 +2257,15 @@ namespace netxs::os
                 return result;
             }
             // args: Return current argument and step forward.
-            template<class ...Args>
-            auto next()
+            auto next(bool dequote = faux)
             {
-                return iter != data.end() ? qiew{ *iter++ }
-                                          : qiew{};
+                auto item = qiew{};
+                if (iter != data.end())
+                {
+                    item = { *iter++ };
+                    if (dequote) utf::dequote(item);
+                }
+                return item;
             }
             // args: Return the rest of the command line arguments.
             auto rest()
@@ -2436,7 +2440,7 @@ namespace netxs::os
                     }
                     argv.push_back(nullptr);
                     auto envp = std::vector<char*>{};
-                    for (auto& c : utf::divide<feed::fwd, true>(env, '\0'))
+                    for (auto& c : utf::split<true>(env, '\0'))
                     {
                         envp.push_back((char*)c.data());
                     }
@@ -2583,7 +2587,7 @@ namespace netxs::os
                                     else break;
                                 }
                                 if (size == 0)
-                                if (auto blocks = utf::divide(data, '\xFF'); blocks.size() == 3)
+                                if (auto blocks = utf::split(data, '\xFF'); blocks.size() == 3)
                                 {
                                     auto prefix = blocks[0];
                                     auto config = blocks[1];

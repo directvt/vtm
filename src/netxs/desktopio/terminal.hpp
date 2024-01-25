@@ -7611,7 +7611,7 @@ namespace netxs::ui
                     else
                     {
                         prompt.add(netxs::prompt::pads, lock.thing.id, ": "); // Local host pid and remote host pid can be different. It is different if sshed.
-                        utf::divide(utf8, '\n', [&](auto line)
+                        utf::split(utf8, '\n', [&](auto line)
                         {
                             output.add(prompt, line, '\n');
                         });

@@ -8,7 +8,7 @@ Option                       | Description
 -----------------------------|-------------------------------------------------------
 No arguments                 | Connect to the desktop (autostart new if not running).
 ` -c `, ` --config <file> `  | Load the specified settings file.
-` -p `, ` --pipe <pipe> `    | Specify the desktop session connection point."
+` -p `, ` --pipe <name> `    | Specify the desktop session connection point."
 ` -q `, ` --quiet `          | Disable logging.
 ` -l `, ` --listconfig `     | Print configuration.
 ` -m `, ` --monitor `        | Desktop session log.
@@ -19,7 +19,8 @@ No arguments                 | Connect to the desktop (autostart new if not runn
 ` -u `, ` --uninstall `      | System-wide deinstallation.
 ` -v `, ` --version `        | Print version.
 ` -? `, ` -h `, ` --help `   | Print command-line options.
-` --onlylog  `               | Disable interactive user input for desktop server.
+` --onlylog `                | Disable interactive user input for desktop server.
+` --script <body> `          | Run the specified script on ready.
 
 ### Built-in applications
 

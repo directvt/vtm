@@ -446,7 +446,7 @@ namespace netxs::xml
                 auto anchor = this;
                 auto crop = vect{}; //auto& items = config.root->hive["menu"][0]->hive["item"]...;
                 auto temp = text{};
-                auto path = utf::divide(path_str, '/');
+                auto path = utf::split(path_str, '/');
                 if (path.size())
                 {
                     auto head = path.begin();

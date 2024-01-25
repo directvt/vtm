@@ -1101,14 +1101,14 @@ namespace netxs::utf
             return crop;
         }
     }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
-    auto divide(V1 const& utf8, char delimiter, P proc)
+    template<feed Direction = feed::fwd, bool SkipEmpty = faux, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
+    auto split(view utf8, char delimiter, P proc)
     {
-        if constexpr (Dir == feed::fwd)
+        if constexpr (Direction == feed::fwd)
         {
             auto cur = 0_sz;
             auto pos = 0_sz;
-            while ((pos = utf8.find(delimiter, cur)) != V1::npos)
+            while ((pos = utf8.find(delimiter, cur)) != text::npos)
             {
                 auto frag = view{ utf8.data() + cur, pos - cur };
                 if constexpr (SkipEmpty) if (frag.empty()) { cur = pos + 1; continue; }
@@ -1124,7 +1124,7 @@ namespace netxs::utf
         {
             auto cur = utf8.size();
             auto pos = utf8.size();
-            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != V1::npos)
+            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != text::npos)
             {
                 auto next = pos + 1;
                 auto frag = view{ utf8.data() + next, cur - next };
@@ -1138,41 +1138,38 @@ namespace netxs::utf
             return proc(end);
         }
     }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2, class Vector_qiew>
-    auto divide(V1 const& utf8, V2 const& delimiter, Vector_qiew& crop)
+    template<bool SkipEmpty = faux, class Container = std::vector<qiew>, class T>
+    auto split(view utf8, T const& delimiter)
     {
+        auto crop = Container{};
         auto mark = qiew(delimiter);
         if (auto len = mark.size())
         {
-            auto num = 0_sz;
             auto cur = 0_sz;
             auto pos = 0_sz;
-            while ((pos = utf8.find(mark, cur)) != V1::npos)
+            if constexpr (requires{ crop.reserve(1); })
             {
-                ++num;
-                cur = pos + len;
+                auto num = 0_sz;
+                while ((pos = utf8.find(mark, cur)) != text::npos)
+                {
+                    ++num;
+                    cur = pos + len;
+                }
+                crop.reserve(++num);
+                cur = 0_sz;
+                pos = 0_sz;
             }
-            crop.reserve(++num);
-            cur = 0_sz;
-            pos = 0_sz;
-            while ((pos = utf8.find(mark, cur)) != V1::npos)
+            while ((pos = utf8.find(mark, cur)) != text::npos)
             {
-                auto frag = view{ utf8.data() + cur, pos - cur };
+                auto frag = qiew{ utf8.data() + cur, pos - cur };
                 auto push = !SkipEmpty || !frag.empty();
                 if (push) crop.push_back(frag);
                 cur = pos + len;
             }
-            auto tail = view{ utf8.data() + cur, utf8.size() - cur };
+            auto tail = qiew{ utf8.data() + cur, utf8.size() - cur };
             auto push = !SkipEmpty || !tail.empty();
             if (push) crop.push_back(tail);
         }
-        return crop;
-    }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
-    auto divide(V1 const& utf8, V2 const& delimiter)
-    {
-        auto crop = std::vector<qiew>{};
-        divide<Dir, SkipEmpty>(utf8, delimiter, crop);
         return crop;
     }
     template<class Container>
@@ -1533,6 +1530,18 @@ namespace netxs::utf
                                             : utf::get_word(utf8, delims);
         utf::trim_front(utf8, delims);
         return item;
+    }
+    void dequote(view& utf8)
+    {
+        if (utf8.size() > 1) 
+        {
+            auto c = utf8.front();
+            if ((c == '\'' || c == '"') && utf8.back() == c)
+            {
+                utf8.remove_prefix(1);
+                utf8.remove_suffix(1);
+            }
+        }
     }
     auto eat_tail(view& utf8, view delims)
     {
