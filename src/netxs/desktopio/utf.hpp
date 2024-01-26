@@ -1596,11 +1596,21 @@ namespace netxs::utf
     auto tokenize(view line, auto&& args, bool dequote = faux)
     {
         line = utf::trim(line);
-        while (line.size())
+        if (dequote)
         {
-            auto item = dequote ? utf::get_token(line, " ")
-                                : utf::get_token(line);
-            if (item.size()) args.emplace_back(item);
+            while (line.size())
+            {
+                auto item = utf::get_token(line, " ");
+                args.emplace_back(item);
+            }
+        }
+        else
+        {
+            while (line.size())
+            {
+                auto item = utf::get_token(line);
+                if (item.size()) args.emplace_back(item);
+            }
         }
         return args;
     }
