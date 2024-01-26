@@ -609,9 +609,10 @@ namespace netxs::app::desk
                         owner_id = parent.id;
                     };
                     auto oneshot = ptr::shared(hook{});
-                    parent.LISTEN(tier::release, e2::conio::focus, f, *oneshot, (oneshot, usrcfg))
+                    parent.LISTEN(tier::release, hids::events::focus::any, gear, *oneshot, (oneshot, usrcfg))
                     {
                         usrcfg.win = {};
+                        usrcfg.hid = gear.id;
                         auto script = std::move(usrcfg.cmd);
                         utf::split<true>(utf::dequote(script), '\n', [&](auto onecmd)
                         {

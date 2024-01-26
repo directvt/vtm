@@ -1946,7 +1946,9 @@ namespace netxs::app::vtm
                 }
                 else if (expression(vtm_dtvt, cmd))
                 {
-                    auto appspec = desk::spec{ .hidden = true, .type = app::dtvt::id };
+                    auto appspec = desk::spec{ .hidden = true,
+                                               .type   = app::dtvt::id,
+                                               .gearid = onecmd.hid };
                     appspec.appcfg.env = onecmd.env;
                     appspec.appcfg.cwd = onecmd.cwd;
                     appspec.appcfg.cmd = cmd;
@@ -2028,7 +2030,8 @@ namespace netxs::app::vtm
                     auto appspec = desk::spec{ .hidden   = true,
                                                .winform  = shared::winform::undefined,
                                                .slimmenu = host::config.take(path::menuslim, true),
-                                               .type     = app::shell::id };
+                                               .type     = app::shell::id,
+                                               .gearid   = onecmd.hid };
                     auto menuid = itemptr->take(attr::id, ""s);
                     if (dbase.menu.contains(menuid))
                     {

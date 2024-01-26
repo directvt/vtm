@@ -77,11 +77,12 @@ namespace netxs
 {
     struct eccc
     {
-        text env; // eccc: Environment var list delimited by \0.
-        text cwd; // eccc: Current working directory.
-        text cmd; // eccc: Command line to run.
-        text cfg; // eccc: Configuration patch.
-        twod win; // eccc: Console window size.
+        text env{}; // eccc: Environment var list delimited by \0.
+        text cwd{}; // eccc: Current working directory.
+        text cmd{}; // eccc: Command line to run.
+        text cfg{}; // eccc: Configuration patch.
+        twod win{}; // eccc: Console window size.
+        id_t hid{}; // eccc: Gear id.
     };
 }
 namespace netxs::os
