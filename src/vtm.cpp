@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("--script"))
         {
-            script = getopt.next();
+            script = xml::unescape(getopt.next());
         }
         else if (getopt.match("--"))
         {
@@ -336,6 +336,7 @@ int main(int argc, char* argv[])
             {
                 os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
+                script = {};
             }
             else
             {
