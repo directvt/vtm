@@ -77,11 +77,12 @@ namespace netxs
 {
     struct eccc
     {
-        text env; // eccc: Environment var list delimited by \0.
-        text cwd; // eccc: Current working directory.
-        text cmd; // eccc: Command line to run.
-        text cfg; // eccc: Configuration patch.
-        twod win; // eccc: Console window size.
+        text env{}; // eccc: Environment var list delimited by \0.
+        text cwd{}; // eccc: Current working directory.
+        text cmd{}; // eccc: Command line to run.
+        text cfg{}; // eccc: Configuration patch.
+        twod win{}; // eccc: Console window size.
+        id_t hid{}; // eccc: Gear id.
     };
 }
 namespace netxs::os
@@ -1720,7 +1721,7 @@ namespace netxs::os
             auto env_map = std::map<text, text>{};
             auto combine = [&](auto subset)
             {
-                utf::divide(subset, '\0', [&](qiew rec)
+                utf::split(subset, '\0', [&](qiew rec)
                 {
                     if (rec.empty()) return;
                     auto var = utf::cutoff(rec, '=', true, 1); // 1: Skip the first char to support cmd.exe's strange subdirs like =A:=A:\Dir.
@@ -2181,9 +2182,9 @@ namespace netxs::os
         }
         static auto id = process::getid();
         static auto arg0 = text{};
-        struct args
+
+        class args
         {
-        private:
             using list = std::list<text>;
             using it_t = list::iterator;
 
@@ -2205,13 +2206,14 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
                     auto line = utf::to_utf(::GetCommandLineW());
-                    data.splice(data.end(), split(line));
+                    utf::tokenize(line, data);
+                    if constexpr (debugmode) log(prompt::args, ansi::hi(utf::debase<faux, faux>(line)));
                 #else
                     auto head = argv;
                     auto tail = argv + argc;
                     while (head != tail)
                     {
-                        data.splice(data.end(), split(*head++));
+                        data.push_back(utf::quote(*head++));
                     }
                 #endif
                 if (data.size())
@@ -2221,18 +2223,15 @@ namespace netxs::os
                 }
                 reset();
             }
-            // args: Split command line options into tokens.
-            template<class T = list>
-            static T split(view line)
+            // args: Log args.
+            auto show()
             {
-                auto args = T{};
-                line = utf::trim(line);
-                while (line.size())
-                {
-                    auto item = utf::get_token(line);
-                    if (item.size()) args.emplace_back(item);
-                }
-                return args;
+                auto crop = ansi::add(prompt::args);
+                auto line = [&](auto& arg){ crop.hi(utf::debase<faux, faux>(arg)).add(' '); };
+                if (process::arg0.size()) line(process::arg0);
+                for (auto& arg : data) line(arg);
+                if (crop.size()) crop.pop_back(); // Pop last space.
+                return crop;
             }
             // args: Reset arg iterator to begin.
             void reset()
@@ -2257,11 +2256,10 @@ namespace netxs::os
                 return result;
             }
             // args: Return current argument and step forward.
-            template<class ...Args>
             auto next()
             {
-                return iter != data.end() ? qiew{ *iter++ }
-                                          : qiew{};
+                return iter == data.end() ? qiew{}
+                                          : qiew{ *iter++ };
             }
             // args: Return the rest of the command line arguments.
             auto rest()
@@ -2417,39 +2415,26 @@ namespace netxs::os
         {
             #if defined(_WIN32)
             #else
-
-                if (auto args = os::process::args::split(cmd); args.size())
+                auto argv = std::vector<char*>{};
+                auto args = utf::tokenize(cmd, std::vector<text>{}, true);
+                for (auto& arg : args)
                 {
-                    auto& binary = args.front();
-                    if (binary.size() > 2) // Remove quotes,
-                    {
-                        auto c = binary.front();
-                        if (binary.back() == c && (c == '\"' || c == '\''))
-                        {
-                            binary = binary.substr(1, binary.size() - 2);
-                        }
-                    }
-                    auto argv = std::vector<char*>{};
-                    for (auto& c : args)
-                    {
-                        argv.push_back(c.data());
-                    }
-                    argv.push_back(nullptr);
-                    auto envp = std::vector<char*>{};
-                    for (auto& c : utf::divide<feed::fwd, true>(env, '\0'))
-                    {
-                        envp.push_back((char*)c.data());
-                    }
-                    envp.push_back(nullptr);
-                    auto backup = environ;
-                    environ = envp.data();
-                    ::execvp(argv.front(), argv.data());
-                    environ = backup;
+                    argv.push_back(arg.data());
                 }
-
+                argv.push_back(nullptr);
+                auto envp = std::vector<char*>{};
+                utf::split<true>(env, '\0', [&](auto rec)
+                {
+                    envp.push_back((char*)rec.data());
+                });
+                envp.push_back(nullptr);
+                auto backup = environ;
+                environ = envp.data();
+                ::execvp(argv.front(), argv.data());
+                environ = backup;
             #endif
         }
-        auto fork([[maybe_unused]] text prefix, [[maybe_unused]] view config)
+        auto fork([[maybe_unused]] text prefix, [[maybe_unused]] view config, [[maybe_unused]] view script = {})
         {
             auto msg = [](auto& success)
             {
@@ -2473,7 +2458,7 @@ namespace netxs::os
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" --script ", script) : ""s));
                     if (os::nt::runas(cmdarg))
                     {
                         success.reset(handle); // Do not close until confirmation from the server process is received.
@@ -2583,7 +2568,7 @@ namespace netxs::os
                                     else break;
                                 }
                                 if (size == 0)
-                                if (auto blocks = utf::divide(data, '\xFF'); blocks.size() == 3)
+                                if (auto blocks = utf::split(data, '\xFF'); blocks.size() == 3)
                                 {
                                     auto prefix = blocks[0];
                                     auto config = blocks[1];

@@ -1101,14 +1101,14 @@ namespace netxs::utf
             return crop;
         }
     }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
-    auto divide(V1 const& utf8, char delimiter, P proc)
+    template<bool SkipEmpty = faux, feed Direction = feed::fwd, class P, bool Plain = std::is_same_v<void, std::invoke_result_t<P, view>>>
+    auto split(view utf8, char delimiter, P proc)
     {
-        if constexpr (Dir == feed::fwd)
+        if constexpr (Direction == feed::fwd)
         {
             auto cur = 0_sz;
             auto pos = 0_sz;
-            while ((pos = utf8.find(delimiter, cur)) != V1::npos)
+            while ((pos = utf8.find(delimiter, cur)) != text::npos)
             {
                 auto frag = view{ utf8.data() + cur, pos - cur };
                 if constexpr (SkipEmpty) if (frag.empty()) { cur = pos + 1; continue; }
@@ -1117,14 +1117,21 @@ namespace netxs::utf
                 cur = pos + 1;
             }
             auto end = view{ utf8.data() + cur, utf8.size() - cur };
-            if constexpr (SkipEmpty) if (end.empty()) return true;
+            if constexpr (SkipEmpty)
+            {
+                if (end.empty())
+                {
+                    if constexpr (Plain) return;
+                    else                 return true;
+                }
+            }
             return proc(end);
         }
         else
         {
             auto cur = utf8.size();
             auto pos = utf8.size();
-            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != V1::npos)
+            while (cur && (pos = utf8.rfind(delimiter, cur - 1)) != text::npos)
             {
                 auto next = pos + 1;
                 auto frag = view{ utf8.data() + next, cur - next };
@@ -1134,45 +1141,49 @@ namespace netxs::utf
                 cur = pos;
             }
             auto end = view{ utf8.data(), cur };
-            if constexpr (SkipEmpty) if (end.empty()) return true;
+            if constexpr (SkipEmpty)
+            {
+                if (end.empty())
+                {
+                    if constexpr (Plain) return;
+                    else                 return true;
+                }
+            }
             return proc(end);
         }
     }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2, class Vector_qiew>
-    auto divide(V1 const& utf8, V2 const& delimiter, Vector_qiew& crop)
+    template<bool SkipEmpty = faux, class Container = std::vector<qiew>, class T>
+    auto split(view utf8, T const& delimiter)
     {
+        auto crop = Container{};
         auto mark = qiew(delimiter);
         if (auto len = mark.size())
         {
-            auto num = 0_sz;
             auto cur = 0_sz;
             auto pos = 0_sz;
-            while ((pos = utf8.find(mark, cur)) != V1::npos)
+            if constexpr (requires{ crop.reserve(1); })
             {
-                ++num;
-                cur = pos + len;
+                auto num = 0_sz;
+                while ((pos = utf8.find(mark, cur)) != text::npos)
+                {
+                    ++num;
+                    cur = pos + len;
+                }
+                crop.reserve(++num);
+                cur = 0_sz;
+                pos = 0_sz;
             }
-            crop.reserve(++num);
-            cur = 0_sz;
-            pos = 0_sz;
-            while ((pos = utf8.find(mark, cur)) != V1::npos)
+            while ((pos = utf8.find(mark, cur)) != text::npos)
             {
-                auto frag = view{ utf8.data() + cur, pos - cur };
+                auto frag = qiew{ utf8.data() + cur, pos - cur };
                 auto push = !SkipEmpty || !frag.empty();
                 if (push) crop.push_back(frag);
                 cur = pos + len;
             }
-            auto tail = view{ utf8.data() + cur, utf8.size() - cur };
+            auto tail = qiew{ utf8.data() + cur, utf8.size() - cur };
             auto push = !SkipEmpty || !tail.empty();
             if (push) crop.push_back(tail);
         }
-        return crop;
-    }
-    template<feed Dir = feed::fwd, bool SkipEmpty = faux, class V1, class V2>
-    auto divide(V1 const& utf8, V2 const& delimiter)
-    {
-        auto crop = std::vector<qiew>{};
-        divide<Dir, SkipEmpty>(utf8, delimiter, crop);
         return crop;
     }
     template<class Container>
@@ -1516,23 +1527,69 @@ namespace netxs::utf
     {
         return get_tail<faux>(utf8, delims);
     }
-    auto get_token(view& utf8) // Preserve quotes.
+    auto quote(text utf8)
     {
-        if (utf8.empty()) return utf8;
-        auto c = utf8.front();
-        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8)
-                                            : utf::get_word(utf8);
-        utf::trim_front(utf8);
-        return item;
+        if (utf8.empty() || utf8.find(' ') != text::npos)
+        {
+                 if (utf8.find('\"') == text::npos) utf8 = '\"' + utf8 + '\"';
+            else if (utf8.find('\'') == text::npos) utf8 = '\'' + utf8 + '\'';
+            else
+            {
+                auto crop = text{};
+                auto head = utf8.begin();
+                auto tail = utf8.end();
+                crop.reserve(utf8.capacity());
+                crop.push_back('\"');
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c == '\\')
+                    {
+                        crop.push_back(c);
+                        if (head != tail) crop.push_back(*head++);
+                    }
+                    else if (c == '\"')
+                    {
+                        crop.push_back('\\');
+                        crop.push_back(c);
+                    }
+                    else crop.push_back(c);
+                }
+                crop.push_back('\"');
+                std::swap(crop, utf8);
+            }
+        }
+        return utf8;
     }
-    auto get_token(view& utf8, view delims) // Drop quotes.
+    auto dequote(view utf8)
     {
-        if (utf8.empty()) return utf8;
-        auto c = utf8.front();
-        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8, view{ &c, 1 })
-                                            : utf::get_word(utf8, delims);
-        utf::trim_front(utf8, delims);
-        return item;
+        if (utf8.size() > 1) 
+        {
+            auto c = utf8.front();
+            if ((c == '\'' || c == '"') && utf8.back() == c)
+            {
+                utf8.remove_prefix(1);
+                utf8.remove_suffix(1);
+            }
+        }
+        return utf8;
+    }
+    // utf: Split text line into quoted tokens.
+    auto tokenize(view utf8, auto&& args, bool dequote = faux)
+    {
+        utf8 = utf::trim(utf8);
+        while (utf8.size())
+        {
+            auto c = utf8.front();
+            if (c == '\'' || c == '"')
+            {
+                args.emplace_back(dequote ? utf::get_quote(utf8, view{ &c, 1 })
+                                          : utf::get_quote(utf8));
+            }
+            else args.emplace_back(utf::get_word(utf8));
+            utf::trim_front(utf8);
+        }
+        return args;
     }
     auto eat_tail(view& utf8, view delims)
     {

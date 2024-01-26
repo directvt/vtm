@@ -183,7 +183,7 @@ namespace netxs::ui
                     if (item.data.size())
                     {
                         auto data = escx{};
-                        utf::divide(item.data, '\n', [&](auto line)
+                        utf::split(item.data, '\n', [&](auto line)
                         {
                             data.add(netxs::prompt::pads, item.id, ": ", line, '\n');
                         });

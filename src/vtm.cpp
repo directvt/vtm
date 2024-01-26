@@ -21,6 +21,7 @@ int main(int argc, char* argv[])
     auto cfpath = text{};
     auto errmsg = text{};
     auto vtpipe = text{};
+    auto script = text{};
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts(app::ssh::id))
     {
@@ -112,6 +113,10 @@ int main(int argc, char* argv[])
         {
             os::dtvt::vtmode |= ui::console::onlylog;
         }
+        else if (getopt.match("--script"))
+        {
+            script = getopt.next();
+        }
         else if (getopt.match("--"))
         {
             break;
@@ -149,6 +154,7 @@ int main(int argc, char* argv[])
     };
 
     log(prompt::vtm, app::shared::version);
+    log(getopt.show());
     if (errmsg.size())
     {
         failed(code::errormsg);
@@ -160,20 +166,21 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Options:"
             "\n"
-            "\n    No arguments       Connect to the desktop (autostart new if not running)."
-            "\n    -c, --config <..>  Load the specified settings file."
-            "\n    -p, --pipe   <..>  Specify the desktop session connection point."
-            "\n    -q, --quiet        Disable logging."
-            "\n    -l, --listconfig   Print configuration."
-            "\n    -m, --monitor      Desktop session log."
-            "\n    -d, --daemon       Run desktop server in background."
-            "\n    -s, --server       Run desktop server in interactive mode."
-            "\n    -r, --runapp <..>  Run the specified application in standalone mode."
-            "\n    -i, --install      System-wide installation."
-            "\n    -u, --uninstall    System-wide deinstallation."
-            "\n    -v, --version      Print version."
-            "\n    -?, -h, --help     Print command-line options."
-            "\n    --onlylog          Disable interactive user input for desktop server."
+            "\n    No arguments         Connect to the desktop (autostart new if not running)."
+            "\n    -c, --config <file>  Load the specified settings file."
+            "\n    -p, --pipe <name>    Specify the desktop session connection point."
+            "\n    -q, --quiet          Disable logging."
+            "\n    -l, --listconfig     Print configuration."
+            "\n    -m, --monitor        Desktop session log."
+            "\n    -d, --daemon         Run desktop server in background."
+            "\n    -s, --server         Run desktop server in interactive mode."
+            "\n    -r, --runapp <args>  Run the specified application in standalone mode."
+            "\n    -i, --install        System-wide installation."
+            "\n    -u, --uninstall      System-wide deinstallation."
+            "\n    -v, --version        Print version."
+            "\n    -?, -h, --help       Print command-line options."
+            "\n    --onlylog            Disable interactive user input for desktop server."
+            "\n    --script <body>      Run the specified script on ready."
             "\n"
             "\n  Settings loading order:"
             "\n"
@@ -217,7 +224,7 @@ int main(int argc, char* argv[])
         auto active = flag{ faux };
         auto locker = std::mutex{};
         auto syncio = std::unique_lock{ locker };
-        auto buffer = std::list<text>{};
+        auto buffer = utf::split<true, std::list<text>>(utf::dequote(script), '\n');
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
@@ -343,7 +350,12 @@ int main(int argc, char* argv[])
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
                 auto userinit = directvt::binary::init{};
-                userinit.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                auto env = os::env::add();
+                auto cwd = os::env::cwd();
+                auto cmd = script;
+                auto cfg = config.utf8();
+                auto win = os::dtvt::win_sz;
+                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
                 os::tty::splice(client);
                 return 0;
             }
@@ -352,7 +364,7 @@ int main(int argc, char* argv[])
 
         if (whoami == type::daemon)
         {
-            auto [success, successor] = os::process::fork(prefix, config.utf8());
+            auto [success, successor] = os::process::fork(prefix, config.utf8(), script);
             if (successor)
             {
                 os::dtvt::vtmode |= ui::console::onlylog;
@@ -405,27 +417,27 @@ int main(int argc, char* argv[])
                     auto id = text{};
                     auto active = faux;
                     auto tokens = subs{};
-                    auto script = eccc{};
+                    auto onecmd = eccc{};
                     auto events = os::tty::binary::logger{ [&, init = 0](auto& events, auto& cmd) mutable
                     {
                         if (active)
                         {
-                            script.cmd = cmd;
-                            domain->SIGNAL(tier::release, scripting::events::invoke, script);
+                            onecmd.cmd = cmd;
+                            domain->SIGNAL(tier::release, scripting::events::invoke, onecmd);
                         }
                         else
                         {
                                  if (init == 0) id = cmd;
-                            else if (init == 1) script.env = cmd;
+                            else if (init == 1) onecmd.env = cmd;
                             else if (init == 2)
                             {
                                 active = true;
-                                script.cwd = cmd;
+                                onecmd.cwd = cmd;
                                 log("%%Monitor [%id%] connected", prompt::logs, id);
                             }
                             init++;
                         }
-                        events.command.send(monitor, script.cmd);
+                        events.command.send(monitor, onecmd.cmd);
                     }};
                     auto writer = netxs::logger::attach([&](auto utf8)
                     {
@@ -441,8 +453,10 @@ int main(int argc, char* argv[])
         }};
 
         auto settings = config.utf8();
-        auto readline = os::tty::readline([&](auto cmd){ domain->SIGNAL(tier::release, scripting::events::invoke, script, ({ .cmd = cmd })); },
-                                          [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); });
+        auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
+        auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
+        utf::split<true>(utf::dequote(script), '\n', execline);
+        auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
         {
             if (user->auth(userid.second))
@@ -454,9 +468,10 @@ int main(int argc, char* argv[])
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
+                        auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
                         auto config = xmls{ settings };
-                        config.fuse(packet.config);
-                        domain->invite(user, packet.user, packet.mode, packet.winsz, config, session_id);
+                        config.fuse(packet.cfg);
+                        domain->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
                 });
