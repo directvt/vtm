@@ -456,7 +456,7 @@ namespace netxs::app::desk
                 });
         };
 
-        auto build = [](eccc appcfg, xmls& config)
+        auto build = [](eccc usrcfg, xmls& config)
         {
             auto tall = si32{ skin::globals().menuwide };
             //auto highlight_color = skin::globals().highlight;
@@ -491,10 +491,10 @@ namespace netxs::app::desk
             }
             auto my_id = id_t{};
 
-            auto user_info = utf::split(appcfg.cmd, ";");
+            auto user_info = utf::split(usrcfg.cfg, ";");
             if (user_info.size() < 2)
             {
-                log(prompt::desk, "Bad window arguments: args=", utf::debase(appcfg.cmd));
+                log(prompt::desk, "Bad window arguments: args=", utf::debase(usrcfg.cfg));
                 return window;
             }
             auto& user_id__view = user_info[0];
@@ -555,7 +555,7 @@ namespace netxs::app::desk
                 auto label = "Info"s;
                 auto title = ansi::jet(bias::right).add(label);
                 auto ground = background(appid, label, title); // It can't be a child - it has exclusive rendering (first of all).
-                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }))
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (size_config_ptr/*owns ptr*/, ground, current_default = text{}, previous_default = text{}, selected = text{ menu_selected }, usrcfg))
                 {
                     if (!parent_ptr) return;
                     auto& parent = *parent_ptr;
@@ -607,6 +607,18 @@ namespace netxs::app::desk
                     boss.LISTEN(tier::request, events::ui::id, owner_id, boss.relyon)
                     {
                         owner_id = parent.id;
+                    };
+                    auto oneshot = ptr::shared(hook{});
+                    parent.LISTEN(tier::release, e2::conio::focus, f, *oneshot, (oneshot, usrcfg))
+                    {
+                        usrcfg.win = {};
+                        auto script = std::move(usrcfg.cmd);
+                        utf::split<true>(utf::dequote(script), '\n', [&](auto onecmd)
+                        {
+                            usrcfg.cmd = onecmd;
+                            boss.RISEUP(tier::release, scripting::events::invoke, usrcfg);
+                        });
+                        oneshot->reset();
                     };
                 };
             });

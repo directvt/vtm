@@ -1546,7 +1546,6 @@ namespace netxs::app::vtm
                     log(ansi::clr(yellowlt, "settings: The 'param=' attribute is deprecated, please use 'cmd=' instead:"), " <... param=", test, " .../>");
                 }
                 else conf_rec.appcfg.cmd = fallback.appcfg.cmd;
-
             }
 
             conf_rec.type       = item.take(attr::type,     fallback.type    );
@@ -2142,7 +2141,7 @@ namespace netxs::app::vtm
             this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
         }
         // hall: Create a new user gate.
-        auto invite(xipc client, view userid, si32 vtmode, twod winsz, xmls app_config, si32 session_id)
+        auto invite(xipc client, view userid, si32 vtmode, eccc usrcfg, xmls app_config, si32 session_id)
         {
             if (selected_item.size()) app_config.set("/config/menu/selected", selected_item);
             auto lock = netxs::events::unique_lock();
@@ -2156,10 +2155,10 @@ namespace netxs::app::vtm
             {
                 user->rebuild_scene(*this, true);
             };
-            auto appcfg = eccc{ .cmd = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected) };
-            auto deskmenu = app::shared::builder(app::desk::id)(appcfg, app_config);
+            usrcfg.cfg = utf::concat(user->id, ";", user->props.os_user_id, ";", user->props.selected);
+            auto deskmenu = app::shared::builder(app::desk::id)(usrcfg, app_config);
             user->attach(deskmenu);
-            user->base::resize(winsz);
+            user->base::resize(usrcfg.win);
             if (vport) user->base::moveto(vport); // Restore user's last position.
             lock.unlock();
             user->launch();

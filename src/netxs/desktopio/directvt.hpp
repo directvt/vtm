@@ -846,7 +846,7 @@ namespace netxs::directvt
         STRUCT_macro(bgc,               (rgba, color))
         STRUCT_macro(fgc,               (rgba, color))
         STRUCT_macro(slimmenu,          (bool, menusize))
-        STRUCT_macro(init,              (text, user) (si32, mode) (twod, winsz) (text, config))
+        STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite

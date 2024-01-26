@@ -350,7 +350,12 @@ int main(int argc, char* argv[])
             if (client || (client = os::ipc::socket::open<os::role::client>(prefix, denied)))
             {
                 auto userinit = directvt::binary::init{};
-                userinit.send(client, userid.first, os::dtvt::vtmode, os::dtvt::win_sz, config.utf8());
+                auto env = os::env::add();
+                auto cwd = os::env::cwd();
+                auto cmd = script;
+                auto cfg = config.utf8();
+                auto win = os::dtvt::win_sz;
+                userinit.send(client, userid.first, os::dtvt::vtmode, env, cwd, cmd, cfg, win);
                 os::tty::splice(client);
                 return 0;
             }
@@ -463,9 +468,10 @@ int main(int argc, char* argv[])
                     {
                         auto id = utf::concat(*user);
                         if constexpr (debugmode) log("%%Client connected %id%", prompt::user, id);
+                        auto usrcfg = eccc{ .env = packet.env, .cwd = packet.cwd, .cmd = packet.cmd, .win = packet.win };
                         auto config = xmls{ settings };
-                        config.fuse(packet.config);
-                        domain->invite(user, packet.user, packet.mode, packet.winsz, config, session_id);
+                        config.fuse(packet.cfg);
+                        domain->invite(user, packet.user, packet.mode, usrcfg, config, session_id);
                         if constexpr (debugmode) log("%%Client disconnected %id%", prompt::user, id);
                     }
                 });
