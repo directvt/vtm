@@ -2181,9 +2181,9 @@ namespace netxs::os
         }
         static auto id = process::getid();
         static auto arg0 = text{};
-        struct args
+
+        class args
         {
-        private:
             using list = std::list<text>;
             using it_t = list::iterator;
 
@@ -2205,13 +2205,14 @@ namespace netxs::os
             {
                 #if defined(_WIN32)
                     auto line = utf::to_utf(::GetCommandLineW());
-                    data.splice(data.end(), split(line));
+                    utf::tokenize(line, data);
+                    if constexpr (debugmode) log(prompt::args, ansi::hi(utf::debase<faux, faux>(line)));
                 #else
                     auto head = argv;
                     auto tail = argv + argc;
                     while (head != tail)
                     {
-                        data.splice(data.end(), split(*head++));
+                        data.push_back(utf::quote(*head++));
                     }
                 #endif
                 if (data.size())
@@ -2221,18 +2222,15 @@ namespace netxs::os
                 }
                 reset();
             }
-            // args: Split command line options into tokens.
-            template<class T = list>
-            static T split(view line)
+            // args: Log args.
+            auto show()
             {
-                auto args = T{};
-                line = utf::trim(line);
-                while (line.size())
-                {
-                    auto item = utf::get_token(line);
-                    if (item.size()) args.emplace_back(item);
-                }
-                return args;
+                auto crop = ansi::add(prompt::args);
+                auto line = [&](auto& arg){ crop.hi(utf::debase<faux, faux>(arg)).add(' '); };
+                if (process::arg0.size()) line(process::arg0);
+                for (auto& arg : data) line(arg);
+                if (crop.size()) crop.pop_back(); // Pop last space.
+                return crop;
             }
             // args: Reset arg iterator to begin.
             void reset()
@@ -2257,15 +2255,10 @@ namespace netxs::os
                 return result;
             }
             // args: Return current argument and step forward.
-            auto next(bool dequote = faux)
+            auto next()
             {
-                auto item = qiew{};
-                if (iter != data.end())
-                {
-                    item = { *iter++ };
-                    if (dequote) utf::dequote(item);
-                }
-                return item;
+                return iter == data.end() ? qiew{}
+                                          : qiew{ *iter++ };
             }
             // args: Return the rest of the command line arguments.
             auto rest()
@@ -2421,36 +2414,23 @@ namespace netxs::os
         {
             #if defined(_WIN32)
             #else
-
-                if (auto args = os::process::args::split(cmd); args.size())
+                auto argv = std::vector<char*>{};
+                auto args = utf::tokenize(cmd, std::vector<text>{}, true);
+                for (auto& arg : args)
                 {
-                    auto& binary = args.front();
-                    if (binary.size() > 2) // Remove quotes,
-                    {
-                        auto c = binary.front();
-                        if (binary.back() == c && (c == '\"' || c == '\''))
-                        {
-                            binary = binary.substr(1, binary.size() - 2);
-                        }
-                    }
-                    auto argv = std::vector<char*>{};
-                    for (auto& c : args)
-                    {
-                        argv.push_back(c.data());
-                    }
-                    argv.push_back(nullptr);
-                    auto envp = std::vector<char*>{};
-                    for (auto& c : utf::split<true>(env, '\0'))
-                    {
-                        envp.push_back((char*)c.data());
-                    }
-                    envp.push_back(nullptr);
-                    auto backup = environ;
-                    environ = envp.data();
-                    ::execvp(argv.front(), argv.data());
-                    environ = backup;
+                    argv.push_back(arg.data());
                 }
-
+                argv.push_back(nullptr);
+                auto envp = std::vector<char*>{};
+                utf::split<true>(env, '\0', [&](auto rec)
+                {
+                    envp.push_back((char*)rec.data());
+                });
+                envp.push_back(nullptr);
+                auto backup = environ;
+                environ = envp.data();
+                ::execvp(argv.front(), argv.data());
+                environ = backup;
             #endif
         }
         auto fork([[maybe_unused]] text prefix, [[maybe_unused]] view config, [[maybe_unused]] view script = {})

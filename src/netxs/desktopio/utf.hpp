@@ -1545,7 +1545,41 @@ namespace netxs::utf
         utf::trim_front(utf8, delims);
         return item;
     }
-    void dequote(view& utf8)
+    auto quote(text utf8)
+    {
+        if (utf8.empty() || utf8.find(' ') != text::npos)
+        {
+                 if (utf8.find('\"') == text::npos) utf8 = '\"' + utf8 + '\"';
+            else if (utf8.find('\'') == text::npos) utf8 = '\'' + utf8 + '\'';
+            else
+            {
+                auto crop = text{};
+                auto head = utf8.begin();
+                auto tail = utf8.end();
+                crop.reserve(utf8.capacity());
+                crop.push_back('\"');
+                while (head != tail)
+                {
+                    auto c = *head++;
+                    if (c == '\\')
+                    {
+                        crop.push_back(c);
+                        if (head != tail) crop.push_back(*head++);
+                    }
+                    else if (c == '\"')
+                    {
+                        crop.push_back('\\');
+                        crop.push_back(c);
+                    }
+                    else crop.push_back(c);
+                }
+                crop.push_back('\"');
+                std::swap(crop, utf8);
+            }
+        }
+        return utf8;
+    }
+    auto dequote(view utf8)
     {
         if (utf8.size() > 1) 
         {
@@ -1556,6 +1590,19 @@ namespace netxs::utf
                 utf8.remove_suffix(1);
             }
         }
+        return utf8;
+    }
+    // utf: Split text line into quoted tokens.
+    auto tokenize(view line, auto&& args, bool dequote = faux)
+    {
+        line = utf::trim(line);
+        while (line.size())
+        {
+            auto item = dequote ? utf::get_token(line, " ")
+                                : utf::get_token(line);
+            if (item.size()) args.emplace_back(item);
+        }
+        return args;
     }
     auto eat_tail(view& utf8, view delims)
     {

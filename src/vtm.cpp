@@ -115,7 +115,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("--script"))
         {
-            script = getopt.next(true);
+            script = getopt.next();
         }
         else if (getopt.match("--"))
         {
@@ -154,6 +154,7 @@ int main(int argc, char* argv[])
     };
 
     log(prompt::vtm, app::shared::version);
+    log(getopt.show());
     if (errmsg.size())
     {
         failed(code::errormsg);
@@ -223,7 +224,7 @@ int main(int argc, char* argv[])
         auto active = flag{ faux };
         auto locker = std::mutex{};
         auto syncio = std::unique_lock{ locker };
-        auto buffer = utf::split<true, std::list<text>>(script, '\n');
+        auto buffer = utf::split<true, std::list<text>>(utf::dequote(script), '\n');
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
@@ -449,7 +450,7 @@ int main(int argc, char* argv[])
         auto settings = config.utf8();
         auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
         auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
-        utf::split<true>(script, '\n', execline);
+        utf::split<true>(utf::dequote(script), '\n', execline);
         auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
         {
