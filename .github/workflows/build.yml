@@ -69,7 +69,7 @@ jobs:
             arch: arm32
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@main
 
     - name: Set reusable strings
       id: strings
