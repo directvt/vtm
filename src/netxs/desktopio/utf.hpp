@@ -1527,24 +1527,6 @@ namespace netxs::utf
     {
         return get_tail<faux>(utf8, delims);
     }
-    auto get_token(view& utf8) // Preserve quotes.
-    {
-        if (utf8.empty()) return utf8;
-        auto c = utf8.front();
-        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8)
-                                            : utf::get_word(utf8);
-        utf::trim_front(utf8);
-        return item;
-    }
-    auto get_token(view& utf8, view delims) // Drop quotes.
-    {
-        if (utf8.empty()) return utf8;
-        auto c = utf8.front();
-        auto item = (c == '\'' || c == '"') ? utf::get_quote(utf8, view{ &c, 1 })
-                                            : utf::get_word(utf8, delims);
-        utf::trim_front(utf8, delims);
-        return item;
-    }
     auto quote(text utf8)
     {
         if (utf8.empty() || utf8.find(' ') != text::npos)
@@ -1593,24 +1575,19 @@ namespace netxs::utf
         return utf8;
     }
     // utf: Split text line into quoted tokens.
-    auto tokenize(view line, auto&& args, bool dequote = faux)
+    auto tokenize(view utf8, auto&& args, bool dequote = faux)
     {
-        line = utf::trim(line);
-        if (dequote)
+        utf8 = utf::trim(utf8);
+        while (utf8.size())
         {
-            while (line.size())
+            auto c = utf8.front();
+            if (c == '\'' || c == '"')
             {
-                auto item = utf::get_token(line, " ");
-                args.emplace_back(item);
+                args.emplace_back(dequote ? utf::get_quote(utf8, view{ &c, 1 })
+                                          : utf::get_quote(utf8));
             }
-        }
-        else
-        {
-            while (line.size())
-            {
-                auto item = utf::get_token(line);
-                if (item.size()) args.emplace_back(item);
-            }
+            else args.emplace_back(utf::get_word(utf8));
+            utf::trim_front(utf8);
         }
         return args;
     }
