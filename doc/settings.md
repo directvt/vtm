@@ -277,7 +277,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                     <color>
                         <color4  = bluedk     /> <!-- See /config/set/* for the color name reference. -->
                         <color15 = whitelt    />
-                        <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+                        <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
                     </color>
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
@@ -422,7 +422,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <reset onkey="on" onoutput="off" />   <!-- Scrollback viewport reset triggers. -->
         </scrollback>
         <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
+            <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -438,7 +438,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->

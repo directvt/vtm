@@ -103,7 +103,7 @@ R"==(
             <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
+            <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -119,7 +119,7 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
