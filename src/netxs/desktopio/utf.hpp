@@ -1561,7 +1561,7 @@ namespace netxs::utf
         }
         return utf8;
     }
-    auto dequote(view utf8)
+    auto dequote(qiew utf8)
     {
         if (utf8.size() > 1) 
         {

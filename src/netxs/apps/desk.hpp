@@ -613,12 +613,7 @@ namespace netxs::app::desk
                     {
                         usrcfg.win = {};
                         usrcfg.hid = gear.id;
-                        auto script = std::move(usrcfg.cmd);
-                        utf::split<true>(utf::dequote(script), '\n', [&](auto onecmd)
-                        {
-                            usrcfg.cmd = onecmd;
-                            boss.RISEUP(tier::release, scripting::events::invoke, usrcfg);
-                        });
+                        boss.RISEUP(tier::release, scripting::events::invoke, usrcfg);
                         oneshot->reset();
                     };
                 };
