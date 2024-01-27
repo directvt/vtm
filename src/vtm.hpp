@@ -1586,6 +1586,135 @@ namespace netxs::app::vtm
                 }
             }
         }
+        auto vtm_selected(eccc& /*script*/, qiew args)
+        {
+            if (args)
+            {
+                selected_item = args;
+                for (auto user : dbase.usrs)
+                {
+                    user->SIGNAL(tier::release, e2::data::changed, selected_item);
+                }
+                return "ok"s;
+            }
+            else return "skip: id required"s;
+        }
+        auto vtm_set(eccc& /*script*/, qiew args)
+        {
+            auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+            auto itemptr = appconf.homelist.front();
+            auto appspec = desk::spec{ .fixed    = true,
+                                       .winform  = shared::winform::undefined,
+                                       .slimmenu = host::config.take(path::menuslim, true),
+                                       .type     = app::shell::id };
+            auto menuid = itemptr->take(attr::id, ""s);
+            if (menuid.empty())
+            {
+                return "skip: 'id=' not specified"s;
+            }
+            else
+            {
+                auto splitter = itemptr->take(attr::splitter, faux);
+                hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
+                if (!appspec.hidden)
+                {
+                    auto& [stat, list] = dbase.apps[menuid];
+                    stat = true;
+                }
+                dbase.menu[menuid] = appspec;
+                SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                return "ok"s;
+            }
+        }
+        auto vtm_del(eccc& /*script*/, qiew args)
+        {
+            if (args.empty())
+            {
+                for (auto& [menuid, conf] : dbase.menu)
+                {
+                    if (dbase.apps.contains(menuid))
+                    {
+                        auto& [stat, list] = dbase.apps[menuid];
+                        if (list.empty()) dbase.apps.erase(menuid);
+                        else              stat = faux;
+                    }
+                }
+                dbase.menu.clear();
+                SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                return "ok"s;
+            }
+            else
+            {
+                auto menuid = text{ args };
+                if (dbase.menu.contains(menuid))
+                {
+                    if (dbase.apps.contains(menuid))
+                    {
+                        auto& [stat, list] = dbase.apps[menuid];
+                        if (list.empty()) dbase.apps.erase(menuid);
+                        else              stat = faux;
+                    }
+                    dbase.menu.erase(menuid);
+                    SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                    return "ok"s;
+                }
+                else
+                {
+                    return "skip: 'id=" + menuid + "' not found";
+                }
+            }
+        }
+        auto vtm_run(eccc& script, qiew args)
+        {
+            auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+            auto itemptr = appconf.homelist.front();
+            auto appspec = desk::spec{ .hidden   = true,
+                                       .winform  = shared::winform::undefined,
+                                       .slimmenu = host::config.take(path::menuslim, true),
+                                       .type     = app::shell::id,
+                                       .gearid   = script.hid };
+            auto menuid = itemptr->take(attr::id, ""s);
+            if (dbase.menu.contains(menuid))
+            {
+                auto& appbase = dbase.menu[menuid];
+                if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
+                else               hall::loadspec(appspec, appspec, *itemptr, menuid);
+            }
+            else
+            {
+                if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
+                hall::loadspec(appspec, appspec, *itemptr, menuid);
+            }
+            appspec.appcfg.env += script.env;
+            if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+            auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
+                       : appspec.title.empty() ? appspec.label
+                       : appspec.label.empty() ? appspec.title : ""s;
+            if (appspec.title.empty()) appspec.title = title;
+            if (appspec.label.empty()) appspec.label = title;
+            if (appspec.notes.empty()) appspec.notes = appspec.menuid;
+            SIGNAL(tier::request, desk::events::exec, appspec);
+            return "ok " + appspec.appcfg.cmd;
+        }
+        auto vtm_dtvt(eccc& script, qiew args)
+        {
+            auto appspec = desk::spec{ .hidden = true,
+                                       .type   = app::dtvt::id,
+                                       .gearid = script.hid };
+            appspec.appcfg.env = script.env;
+            appspec.appcfg.cwd = script.cwd;
+            appspec.appcfg.cmd = args;
+            appspec.title = args;
+            appspec.label = args;
+            appspec.notes = args;
+            SIGNAL(tier::request, desk::events::exec, appspec);
+            return "ok " + appspec.appcfg.cmd;
+        }
+        auto vtm_shutdown(eccc& /*script*/, qiew /*args*/)
+        {
+            SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
+            return "ok"s;
+        }
 
     protected:
         hall(xipc server, xmls& config, text defapp)
@@ -1912,142 +2041,18 @@ namespace netxs::app::vtm
             };
             LISTEN(tier::release, scripting::events::invoke, script)
             {
-                static auto delims = "\r\n\t ;.,\"\'"sv;
-                static auto fx = std::unordered_map<text, std::function<text(hall&, eccc&, qiew)>, qiew::hash, qiew::equal>
-                //static auto fx = std::unordered_map<text, text(hall::*, eccc&, qiew)()>, qiew::hash, qiew::equal>
+                static auto fx = std::unordered_map<text, text(hall::*)(eccc&, qiew), qiew::hash, qiew::equal>
                 {
-                    { "vtm.selected", [](hall& boss, eccc& script, qiew args)
-                    {
-                        if (args)
-                        {
-                            boss.selected_item = args;
-                            for (auto user : boss.dbase.usrs)
-                            {
-                                user->SIGNAL(tier::release, e2::data::changed, boss.selected_item);
-                            }
-                            return "ok"s;
-                        }
-                        else return "skip: id required"s;
-                    }},
-                    { "vtm.set", [](hall& boss, eccc& script, qiew args)
-                    {
-                        auto appconf = xml::settings{ "<item " + text{ args } + " />" };
-                        auto itemptr = appconf.homelist.front();
-                        auto appspec = desk::spec{ .fixed    = true,
-                                                   .winform  = shared::winform::undefined,
-                                                   .slimmenu = boss.host::config.take(path::menuslim, true),
-                                                   .type     = app::shell::id };
-                        auto menuid = itemptr->take(attr::id, ""s);
-                        if (menuid.empty())
-                        {
-                            return "skip: 'id=' not specified"s;
-                        }
-                        else
-                        {
-                            auto splitter = itemptr->take(attr::splitter, faux);
-                            boss.hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
-                            if (!appspec.hidden)
-                            {
-                                auto& [stat, list] = boss.dbase.apps[menuid];
-                                stat = true;
-                            }
-                            boss.dbase.menu[menuid] = appspec;
-                            boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
-                            return "ok"s;
-                        }
-                    }},
-                    { "vtm.del", [](hall& boss, eccc& script, qiew args)
-                    {
-                        if (args.empty())
-                        {
-                            for (auto& [menuid, config] : boss.dbase.menu)
-                            {
-                                if (boss.dbase.apps.contains(menuid))
-                                {
-                                    auto& [stat, list] = boss.dbase.apps[menuid];
-                                    if (list.empty()) boss.dbase.apps.erase(menuid);
-                                    else              stat = faux;
-                                }
-                            }
-                            boss.dbase.menu.clear();
-                            boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
-                            return "ok"s;
-                        }
-                        else
-                        {
-                            auto menuid = text{ args };
-                            if (boss.dbase.menu.contains(menuid))
-                            {
-                                if (boss.dbase.apps.contains(menuid))
-                                {
-                                    auto& [stat, list] = boss.dbase.apps[menuid];
-                                    if (list.empty()) boss.dbase.apps.erase(menuid);
-                                    else              stat = faux;
-                                }
-                                boss.dbase.menu.erase(menuid);
-                                boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
-                                return "ok"s;
-                            }
-                            else
-                            {
-                                return "skip: 'id=" + menuid + "' not found";
-                            }
-                        }
-                    }},
-                    { "vtm.run", [](hall& boss, eccc& script, qiew args)
-                    {
-                        auto appconf = xml::settings{ "<item " + text{ args } + " />" };
-                        auto itemptr = appconf.homelist.front();
-                        auto appspec = desk::spec{ .hidden   = true,
-                                                   .winform  = shared::winform::undefined,
-                                                   .slimmenu = boss.host::config.take(path::menuslim, true),
-                                                   .type     = app::shell::id,
-                                                   .gearid   = script.hid };
-                        auto menuid = itemptr->take(attr::id, ""s);
-                        if (boss.dbase.menu.contains(menuid))
-                        {
-                            auto& appbase = boss.dbase.menu[menuid];
-                            if (appbase.fixed) boss.hall::loadspec(appspec, appbase, *itemptr, menuid);
-                            else               boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
-                        }
-                        else
-                        {
-                            if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
-                            boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
-                        }
-                        appspec.appcfg.env += script.env;
-                        if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
-                        auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
-                                   : appspec.title.empty() ? appspec.label
-                                   : appspec.label.empty() ? appspec.title : ""s;
-                        if (appspec.title.empty()) appspec.title = title;
-                        if (appspec.label.empty()) appspec.label = title;
-                        if (appspec.notes.empty()) appspec.notes = appspec.menuid;
-                        boss.SIGNAL(tier::request, desk::events::exec, appspec);
-                        return "ok " + appspec.appcfg.cmd;
-                    }},
-                    { "vtm.dtvt", [](hall& boss, eccc& script, qiew args)
-                    {
-                        auto appspec = desk::spec{ .hidden = true,
-                                                   .type   = app::dtvt::id,
-                                                   .gearid = script.hid };
-                        appspec.appcfg.env = script.env;
-                        appspec.appcfg.cwd = script.cwd;
-                        appspec.appcfg.cmd = args;
-                        appspec.title = args;
-                        appspec.label = args;
-                        appspec.notes = args;
-                        boss.SIGNAL(tier::request, desk::events::exec, appspec);
-                        return "ok " + appspec.appcfg.cmd;
-                    }},
-                    //{ "vtm.exit"     , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
-                    //{ "vtm.close"    , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
-                    { "vtm.shutdown" , [](hall& boss, eccc& script, qiew args)
-                    {
-                        boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
-                        return "ok"s;
-                    }},
+                    { "vtm.selected" , &hall::vtm_selected },
+                    { "vtm.set"      , &hall::vtm_set      },
+                    { "vtm.del"      , &hall::vtm_del      },
+                    { "vtm.run"      , &hall::vtm_run      },
+                    { "vtm.dtvt"     , &hall::vtm_dtvt     },
+                    { "vtm.exit"     , &hall::vtm_shutdown },
+                    { "vtm.close"    , &hall::vtm_shutdown },
+                    { "vtm.shutdown" , &hall::vtm_shutdown },
                 };
+                static auto delims = "\r\n\t ;.,\"\'"sv;
                 static auto expression = [](auto& shadow)
                 {
                     auto func = qiew{};
@@ -2096,7 +2101,7 @@ namespace netxs::app::vtm
                         auto iter = fx.find(func);
                         if (iter != fx.end())
                         {
-                            auto result = iter->second(*this, script, args);
+                            auto result = (this->*(iter->second))(script, args);
                             log(ansi::clr(yellowlt, expr, ": "), result);
                             script.cmd += expr + ": " + result + '\n';
                         }
