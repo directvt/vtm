@@ -1913,20 +1913,21 @@ namespace netxs::app::vtm
             LISTEN(tier::release, scripting::events::invoke, script)
             {
                 static auto delims = "\r\n\t ;.,\"\'"sv;
-                static auto fx = std::unordered_map<text, std::function<void(hall&, eccc&, qiew)>, qiew::hash, qiew::equal>
+                static auto fx = std::unordered_map<text, std::function<text(hall&, eccc&, qiew)>, qiew::hash, qiew::equal>
+                //static auto fx = std::unordered_map<text, text(hall::*, eccc&, qiew)()>, qiew::hash, qiew::equal>
                 {
                     { "vtm.selected", [](hall& boss, eccc& script, qiew args)
                     {
                         if (args)
                         {
                             boss.selected_item = args;
-                            script.cmd += "vtm.selected(" + boss.selected_item + "): ok\n";;
                             for (auto user : boss.dbase.usrs)
                             {
                                 user->SIGNAL(tier::release, e2::data::changed, boss.selected_item);
                             }
+                            return "ok"s;
                         }
-                        else script.cmd += "vtm.selected: skip: id required\n";
+                        else return "skip: id required"s;
                     }},
                     { "vtm.set", [](hall& boss, eccc& script, qiew args)
                     {
@@ -1939,7 +1940,7 @@ namespace netxs::app::vtm
                         auto menuid = itemptr->take(attr::id, ""s);
                         if (menuid.empty())
                         {
-                            script.cmd += "vtm.set: skip: 'id=' not specified\n";
+                            return "skip: 'id=' not specified"s;
                         }
                         else
                         {
@@ -1951,8 +1952,8 @@ namespace netxs::app::vtm
                                 stat = true;
                             }
                             boss.dbase.menu[menuid] = appspec;
-                            script.cmd += "vtm.set(" + menuid + "): ok\n";
                             boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
+                            return "ok"s;
                         }
                     }},
                     { "vtm.del", [](hall& boss, eccc& script, qiew args)
@@ -1969,8 +1970,8 @@ namespace netxs::app::vtm
                                 }
                             }
                             boss.dbase.menu.clear();
-                            script.cmd += "vtm.del(): ok\n";
                             boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
+                            return "ok"s;
                         }
                         else
                         {
@@ -1984,12 +1985,12 @@ namespace netxs::app::vtm
                                     else              stat = faux;
                                 }
                                 boss.dbase.menu.erase(menuid);
-                                script.cmd += "vtm.del(" + menuid + "): ok\n";
                                 boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
+                                return "ok"s;
                             }
                             else
                             {
-                                script.cmd += "vtm.del: skip: 'id=" + menuid + "' not found\n";
+                                return "skip: 'id=" + menuid + "' not found";
                             }
                         }
                     }},
@@ -2023,7 +2024,7 @@ namespace netxs::app::vtm
                         if (appspec.label.empty()) appspec.label = title;
                         if (appspec.notes.empty()) appspec.notes = appspec.menuid;
                         boss.SIGNAL(tier::request, desk::events::exec, appspec);
-                        script.cmd += "vtm.run(" + text{ args } + "): " + appspec.appcfg.cmd + ": ok\n";
+                        return "ok " + appspec.appcfg.cmd;
                     }},
                     { "vtm.dtvt", [](hall& boss, eccc& script, qiew args)
                     {
@@ -2037,14 +2038,14 @@ namespace netxs::app::vtm
                         appspec.label = args;
                         appspec.notes = args;
                         boss.SIGNAL(tier::request, desk::events::exec, appspec);
-                        script.cmd += "vtm.dtvt(" + text{ args } + "): " + appspec.appcfg.cmd + ": ok\n";
+                        return "ok " + appspec.appcfg.cmd;
                     }},
-                    { "vtm.exit"     , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
-                    { "vtm.close"    , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
+                    //{ "vtm.exit"     , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
+                    //{ "vtm.close"    , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
                     { "vtm.shutdown" , [](hall& boss, eccc& script, qiew args)
                     {
-                        script.cmd += "vtm.shutdown: ok\n";
                         boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
+                        return "ok"s;
                     }},
                 };
                 static auto expression = [](auto& shadow)
@@ -2081,7 +2082,6 @@ namespace netxs::app::vtm
                         }
                         utf::trim_front(shadow, delims);
                     }
-                    else shadow.clear();
                     return std::pair{ func, args };
                 };
                 auto backup = std::move(script.cmd);
@@ -2092,18 +2092,25 @@ namespace netxs::app::vtm
                     auto [func, args] = expression(shadow);
                     if (func)
                     {
-                        auto expr = utf::concat(func, '(', args, ')');
+                        auto expr = utf::debase<faux, faux>(utf::concat(func, '(', args, ')'));
                         auto iter = fx.find(func);
                         if (iter != fx.end())
                         {
-                            log(ansi::clr(yellowlt, utf::debase<faux, faux>(expr)));
-                            iter->second(*this, script, args);
+                            auto result = iter->second(*this, script, args);
+                            log(ansi::clr(yellowlt, expr, ": "), result);
+                            script.cmd += expr + ": " + result + '\n';
                         }
-                        else log(prompt::repl, utf::debase<faux, faux>(expr));
+                        else 
+                        {
+                            log(prompt::repl, "Function not found: ", expr);
+                            script.cmd += "Function not found: " + expr + '\n';
+                        }
                     }
                     else
                     {
-                        log(prompt::repl, "Bad syntax: ", utf::debase<faux, faux>(shadow));
+                        auto expr = utf::debase<faux, faux>(shadow);
+                        log(prompt::repl, "Check syntax: ", ansi::clr(redlt, expr));
+                        script.cmd += "Check syntax: " + expr + '\n';
                         break;
                     }
                 }
