@@ -378,94 +378,97 @@ namespace netxs::app::shared
             //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
             //    auto layers = object->attach(slot::_2, ui::cake::ctor())
             //                        ->limits(dot_11, { 400,200 });
+            config.cd("/config/term/color/default/");
+            auto def_fcolor = config.take("fgc", rgba{ whitelt });
+            auto def_bcolor = config.take("bgc", rgba{ blackdk });
             auto layers = window->attach(ui::cake::ctor())
                                 ->colors(cB)
                                 ->limits(dot_11, { 400,200 });
-                    auto scroll = layers->attach(ui::rail::ctor())
-                                        ->limits({ 10,1 }); // mc crashes when window is too small
-                    if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
-                    auto inst = scroll->attach(ui::term::ctor(config))
-                                      ->plugin<pro::focus>(pro::focus::mode::focused)
-                                      ->colors(whitelt, blackdk) //todo apply settings
-                                      ->invoke([&](auto& boss)
-                                      {
-                                            //todo unify: Same as in app::term (term.hpp).
-                                            boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                                            {
-                                                boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
-                                            };
-                                            boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
-                                            {
-                                                boss.close(fast);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
-                                            {
-                                                boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::data::in, data)
-                                            {
-                                                boss.data_in(data);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::data::out, data)
-                                            {
-                                                boss.data_out(data);
-                                            };
-                                            //todo add color picker to the menu
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::colors::bg, bg)
-                                            {
-                                                boss.set_bg_color(bg);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::colors::fg, fg)
-                                            {
-                                                boss.set_fg_color(fg);
-                                            };
-                                            boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
-                                            {
-                                                auto deed = boss.bell::template protos<tier::anycast>();
-                                                     if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
-                                                else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::selection::mode, selmod)
-                                            {
-                                                boss.set_selmod(selmod);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::selection::box, selalt)
-                                            {
-                                                boss.set_selalt(selalt);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
-                                            {
-                                                boss.set_wrapln(wrapln);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
-                                            {
-                                                boss.set_align(align);
-                                            };
-                                            boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
-                                            {
-                                                if (root) // root is empty when d_n_d.
-                                                {
-                                                    boss.start(appcfg);
-                                                }
-                                            };
-                                            boss.LISTEN(tier::anycast, e2::form::upon::started, root)
-                                            {
-                                                boss.SIGNAL(tier::release, e2::form::upon::started, root);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
-                                            {
-                                                boss.search(gear, feed::fwd);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::search::reverse, gear)
-                                            {
-                                                boss.search(gear, feed::rev);
-                                            };
-                                            boss.LISTEN(tier::anycast, app::term::events::data::prnscrn, gear)
-                                            {
-                                                boss.prnscrn(gear);
-                                            };
-                                      });
-                layers->attach(app::shared::scroll_bars(scroll));
+            auto scroll = layers->attach(ui::rail::ctor())
+                                ->limits({ 10,1 }); // mc crashes when window is too small
+            if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
+            auto inst = scroll->attach(ui::term::ctor(config))
+                ->plugin<pro::focus>(pro::focus::mode::focused)
+                ->colors(def_fcolor, def_bcolor)
+                ->invoke([&](auto& boss)
+                {
+                    //todo unify: Same as in app::term (term.hpp).
+                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+                    {
+                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+                    };
+                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+                    {
+                        boss.close(fast);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
+                    {
+                        boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::data::in, data)
+                    {
+                        boss.data_in(data);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::data::out, data)
+                    {
+                        boss.data_out(data);
+                    };
+                    //todo add color picker to the menu
+                    boss.LISTEN(tier::anycast, app::term::events::preview::colors::bg, bg)
+                    {
+                        boss.set_bg_color(bg);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::colors::fg, fg)
+                    {
+                        boss.set_fg_color(fg);
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
+                    {
+                        auto deed = boss.bell::template protos<tier::anycast>();
+                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
+                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::selection::mode, selmod)
+                    {
+                        boss.set_selmod(selmod);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::selection::box, selalt)
+                    {
+                        boss.set_selalt(selalt);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
+                    {
+                        boss.set_wrapln(wrapln);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
+                    {
+                        boss.set_align(align);
+                    };
+                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
+                    {
+                        if (root) // root is empty when d_n_d.
+                        {
+                            boss.start(appcfg);
+                        }
+                    };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+                    {
+                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
+                    {
+                        boss.search(gear, feed::fwd);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::search::reverse, gear)
+                    {
+                        boss.search(gear, feed::rev);
+                    };
+                    boss.LISTEN(tier::anycast, app::term::events::data::prnscrn, gear)
+                    {
+                        boss.prnscrn(gear);
+                    };
+                });
+            layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
         auto build_DirectVT      = [](eccc appcfg, xmls& /*config*/)
@@ -512,9 +515,12 @@ namespace netxs::app::shared
                 ->active(cB);
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
+            config.cd("/config/term/color/default/");
+            auto def_fcolor = config.take("fgc", rgba{ whitelt });
+            auto def_bcolor = config.take("bgc", rgba{ blackdk });
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(whitelt, blackdk)
+                ->colors(def_fcolor, def_bcolor)
                 ->invoke([&](auto& boss)
                 {
                     auto& dtvt_inst = *dtvt;

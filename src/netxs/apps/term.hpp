@@ -626,15 +626,10 @@ namespace netxs::app::term
             auto cB = menu_white;
 
             auto window = ui::cake::ctor();
-            if (os::dtvt::active)
-            {
-                //todo revise focus
-                window->plugin<pro::focus>()
-                      ->plugin<pro::track>()
-                      ->plugin<pro::acryl>()
-                      ->plugin<pro::cache>();
-            }
-            else window->plugin<pro::focus>(pro::focus::mode::focusable);
+            window->plugin<pro::focus>(os::dtvt::active ? pro::focus::mode::hub : pro::focus::mode::focusable)
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB);
