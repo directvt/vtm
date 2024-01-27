@@ -216,7 +216,7 @@ int main(int argc, char* argv[])
         {
             if (reply.size() && os::dtvt::vtmode & ui::console::redirio)
             {
-                os::io::send(utf::concat(reply, "\n"));
+                os::io::send(reply);
             }
             --result;
         }};
@@ -224,7 +224,7 @@ int main(int argc, char* argv[])
         auto active = flag{ faux };
         auto locker = std::mutex{};
         auto syncio = std::unique_lock{ locker };
-        auto buffer = utf::split<true, std::list<text>>(utf::dequote(script), '\n');
+        auto buffer = std::list{ script };
         auto stream = sptr<os::ipc::socket>{};
         auto readln = os::tty::readline([&](auto line)
         {
@@ -456,7 +456,7 @@ int main(int argc, char* argv[])
         auto settings = config.utf8();
         auto execline = [&](qiew line){ domain->SIGNAL(tier::release, scripting::events::invoke, onecmd, ({ .cmd = line })); };
         auto shutdown = [&]{ domain->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::main, "Shutdown on signal"))); };
-        utf::split<true>(utf::dequote(script), '\n', execline);
+        execline(script);
         auto readline = os::tty::readline(execline, shutdown);
         while (auto user = server->meet())
         {

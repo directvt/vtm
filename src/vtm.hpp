@@ -1910,169 +1910,203 @@ namespace netxs::app::vtm
                     gear.owner.SIGNAL(tier::preview, hids::events::keybd::focus::set, seed);
                 }
             };
-            LISTEN(tier::release, scripting::events::invoke, onecmd)
+            LISTEN(tier::release, scripting::events::invoke, script)
             {
-                //todo unify
-                static auto vtm_selected = "vtm.selected("sv;
-                static auto vtm_set = "vtm.set("sv;
-                static auto vtm_del = "vtm.del("sv;
-                static auto vtm_run = "vtm.run("sv;
-                static auto vtm_dtvt = "vtm.dtvt("sv;
-                static auto vtm_exit = "vtm.exit("sv;
-                static auto vtm_close = "vtm.close("sv;
-                static auto vtm_shutdown = "vtm.shutdown("sv;
-                auto shadow = utf::trim(view{ onecmd.cmd }, "\r\n\t ");
-                auto cmd = shadow;
-                auto expression = [](auto prefix, auto& cmd)
+                static auto delims = "\r\n\t ;.,\"\'"sv;
+                static auto fx = std::unordered_map<text, std::function<void(hall&, eccc&, qiew)>, qiew::hash, qiew::equal>
                 {
-                    if (cmd.starts_with(prefix) && cmd.back() == ')')
+                    { "vtm.selected", [](hall& boss, eccc& script, qiew args)
                     {
-                        log(ansi::clr(yellowlt, utf::debase<faux, faux>(cmd)));
-                        cmd = cmd.substr(prefix.size(), cmd.size() - prefix.size() - 1/*)*/);
-                        return true;
-                    }
-                    else return faux;
-                };
-                if (cmd.empty()) return;
-                if (cmd.size() > 2 && cmd.front() == '\"' && cmd.back() == '\"')
-                {
-                    cmd = cmd.substr(1, cmd.size() - 2);
-                }
-                if (expression(vtm_exit, cmd)
-                 || expression(vtm_close, cmd)
-                 || expression(vtm_shutdown, cmd))
-                {
-                    this->SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
-                }
-                else if (expression(vtm_dtvt, cmd))
-                {
-                    auto appspec = desk::spec{ .hidden = true,
-                                               .type   = app::dtvt::id,
-                                               .gearid = onecmd.hid };
-                    appspec.appcfg.env = onecmd.env;
-                    appspec.appcfg.cwd = onecmd.cwd;
-                    appspec.appcfg.cmd = cmd;
-                    appspec.title = cmd;
-                    appspec.label = cmd;
-                    appspec.notes = cmd;
-                    this->SIGNAL(tier::request, desk::events::exec, appspec);
-                    onecmd.cmd = appspec.appcfg.cmd;
-                }
-                else if (expression(vtm_set, cmd))
-                {
-                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
-                    auto itemptr = appconf.homelist.front();
-                    auto appspec = desk::spec{ .fixed    = true,
-                                               .winform  = shared::winform::undefined,
-                                               .slimmenu = host::config.take(path::menuslim, true),
-                                               .type     = app::shell::id };
-                    auto menuid = itemptr->take(attr::id, ""s);
-                    if (menuid.empty())
-                    {
-                        onecmd.cmd = "skip: 'id=' not specified.";
-                    }
-                    else
-                    {
-                        auto splitter = itemptr->take(attr::splitter, faux);
-                        hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
-                        if (!appspec.hidden)
+                        if (args)
                         {
-                            auto& [stat, list] = dbase.apps[menuid];
-                            stat = true;
-                        }
-                        dbase.menu[menuid] = appspec;
-                        onecmd.cmd = "ok";
-                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
-                    }
-                }
-                else if (expression(vtm_del, cmd))
-                {
-                    if (cmd.empty())
-                    {
-                        for (auto& [menuid, config] : dbase.menu)
-                        {
-                            if (dbase.apps.contains(menuid))
+                            boss.selected_item = args;
+                            script.cmd += "vtm.selected(" + boss.selected_item + "): ok\n";;
+                            for (auto user : boss.dbase.usrs)
                             {
-                                auto& [stat, list] = dbase.apps[menuid];
-                                if (list.empty()) dbase.apps.erase(menuid);
-                                else              stat = faux;
+                                user->SIGNAL(tier::release, e2::data::changed, boss.selected_item);
                             }
                         }
-                        dbase.menu.clear();
-                        onecmd.cmd = "ok";
-                        this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
-                    }
-                    else
+                        else script.cmd += "vtm.selected: skip: id required\n";
+                    }},
+                    { "vtm.set", [](hall& boss, eccc& script, qiew args)
                     {
-                        auto menuid = text{ cmd };
-                        if (dbase.menu.contains(menuid))
+                        auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+                        auto itemptr = appconf.homelist.front();
+                        auto appspec = desk::spec{ .fixed    = true,
+                                                   .winform  = shared::winform::undefined,
+                                                   .slimmenu = boss.host::config.take(path::menuslim, true),
+                                                   .type     = app::shell::id };
+                        auto menuid = itemptr->take(attr::id, ""s);
+                        if (menuid.empty())
                         {
-                            if (dbase.apps.contains(menuid))
-                            {
-                                auto& [stat, list] = dbase.apps[menuid];
-                                if (list.empty()) dbase.apps.erase(menuid);
-                                else              stat = faux;
-                            }
-                            dbase.menu.erase(menuid);
-                            onecmd.cmd = "ok";
-                            this->SIGNAL(tier::release, desk::events::apps, dbase.apps_ptr);
+                            script.cmd += "vtm.set: skip: 'id=' not specified\n";
                         }
                         else
                         {
-                            onecmd.cmd = "skip: 'id=" + menuid + "' not found.";
+                            auto splitter = itemptr->take(attr::splitter, faux);
+                            boss.hall::loadspec(appspec, appspec, *itemptr, menuid, splitter);
+                            if (!appspec.hidden)
+                            {
+                                auto& [stat, list] = boss.dbase.apps[menuid];
+                                stat = true;
+                            }
+                            boss.dbase.menu[menuid] = appspec;
+                            script.cmd += "vtm.set(" + menuid + "): ok\n";
+                            boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
                         }
-                    }
-                }
-                else if (expression(vtm_run, cmd))
-                {
-                    auto appconf = xml::settings{ "<item " + text{ cmd } + " />" };
-                    auto itemptr = appconf.homelist.front();
-                    auto appspec = desk::spec{ .hidden   = true,
-                                               .winform  = shared::winform::undefined,
-                                               .slimmenu = host::config.take(path::menuslim, true),
-                                               .type     = app::shell::id,
-                                               .gearid   = onecmd.hid };
-                    auto menuid = itemptr->take(attr::id, ""s);
-                    if (dbase.menu.contains(menuid))
+                    }},
+                    { "vtm.del", [](hall& boss, eccc& script, qiew args)
                     {
-                        auto& appbase = dbase.menu[menuid];
-                        if (appbase.fixed) hall::loadspec(appspec, appbase, *itemptr, menuid);
-                        else               hall::loadspec(appspec, appspec, *itemptr, menuid);
-                    }
-                    else
-                    {
-                        if (menuid.empty()) menuid = shadow;
-                        hall::loadspec(appspec, appspec, *itemptr, menuid);
-                    }
-                    appspec.appcfg.env += onecmd.env;
-                    if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = onecmd.cwd;
-                    auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
-                               : appspec.title.empty() ? appspec.label
-                               : appspec.label.empty() ? appspec.title : ""s;
-                    if (appspec.title.empty()) appspec.title = title;
-                    if (appspec.label.empty()) appspec.label = title;
-                    if (appspec.notes.empty()) appspec.notes = appspec.menuid;
-                    this->SIGNAL(tier::request, desk::events::exec, appspec);
-                    onecmd.cmd = appspec.appcfg.cmd;
-                }
-                else if (expression(vtm_selected, cmd))
-                {
-                    auto menuid = text{ cmd };
-                    if (menuid.empty())
-                    {
-                        onecmd.cmd = "skip: id required.";
-                    }
-                    else
-                    {
-                        onecmd.cmd = menuid;
-                        selected_item = menuid;
-                        for (auto user : dbase.usrs)
+                        if (args.empty())
                         {
-                            user->SIGNAL(tier::release, e2::data::changed, menuid);
+                            for (auto& [menuid, config] : boss.dbase.menu)
+                            {
+                                if (boss.dbase.apps.contains(menuid))
+                                {
+                                    auto& [stat, list] = boss.dbase.apps[menuid];
+                                    if (list.empty()) boss.dbase.apps.erase(menuid);
+                                    else              stat = faux;
+                                }
+                            }
+                            boss.dbase.menu.clear();
+                            script.cmd += "vtm.del(): ok\n";
+                            boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
                         }
+                        else
+                        {
+                            auto menuid = text{ args };
+                            if (boss.dbase.menu.contains(menuid))
+                            {
+                                if (boss.dbase.apps.contains(menuid))
+                                {
+                                    auto& [stat, list] = boss.dbase.apps[menuid];
+                                    if (list.empty()) boss.dbase.apps.erase(menuid);
+                                    else              stat = faux;
+                                }
+                                boss.dbase.menu.erase(menuid);
+                                script.cmd += "vtm.del(" + menuid + "): ok\n";
+                                boss.SIGNAL(tier::release, desk::events::apps, boss.dbase.apps_ptr);
+                            }
+                            else
+                            {
+                                script.cmd += "vtm.del: skip: 'id=" + menuid + "' not found\n";
+                            }
+                        }
+                    }},
+                    { "vtm.run", [](hall& boss, eccc& script, qiew args)
+                    {
+                        auto appconf = xml::settings{ "<item " + text{ args } + " />" };
+                        auto itemptr = appconf.homelist.front();
+                        auto appspec = desk::spec{ .hidden   = true,
+                                                   .winform  = shared::winform::undefined,
+                                                   .slimmenu = boss.host::config.take(path::menuslim, true),
+                                                   .type     = app::shell::id,
+                                                   .gearid   = script.hid };
+                        auto menuid = itemptr->take(attr::id, ""s);
+                        if (boss.dbase.menu.contains(menuid))
+                        {
+                            auto& appbase = boss.dbase.menu[menuid];
+                            if (appbase.fixed) boss.hall::loadspec(appspec, appbase, *itemptr, menuid);
+                            else               boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                        }
+                        else
+                        {
+                            if (menuid.empty()) menuid = "vtm.run(" + text{ args } + ")";
+                            boss.hall::loadspec(appspec, appspec, *itemptr, menuid);
+                        }
+                        appspec.appcfg.env += script.env;
+                        if (appspec.appcfg.cwd.empty()) appspec.appcfg.cwd = script.cwd;
+                        auto title = appspec.title.empty() && appspec.label.empty() ? appspec.menuid
+                                   : appspec.title.empty() ? appspec.label
+                                   : appspec.label.empty() ? appspec.title : ""s;
+                        if (appspec.title.empty()) appspec.title = title;
+                        if (appspec.label.empty()) appspec.label = title;
+                        if (appspec.notes.empty()) appspec.notes = appspec.menuid;
+                        boss.SIGNAL(tier::request, desk::events::exec, appspec);
+                        script.cmd += "vtm.run(" + text{ args } + "): " + appspec.appcfg.cmd + ": ok\n";
+                    }},
+                    { "vtm.dtvt", [](hall& boss, eccc& script, qiew args)
+                    {
+                        auto appspec = desk::spec{ .hidden = true,
+                                                   .type   = app::dtvt::id,
+                                                   .gearid = script.hid };
+                        appspec.appcfg.env = script.env;
+                        appspec.appcfg.cwd = script.cwd;
+                        appspec.appcfg.cmd = args;
+                        appspec.title = args;
+                        appspec.label = args;
+                        appspec.notes = args;
+                        boss.SIGNAL(tier::request, desk::events::exec, appspec);
+                        script.cmd += "vtm.dtvt(" + text{ args } + "): " + appspec.appcfg.cmd + ": ok\n";
+                    }},
+                    { "vtm.exit"     , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
+                    { "vtm.close"    , [](hall& boss, eccc& script, qiew args){ boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown"))); } },
+                    { "vtm.shutdown" , [](hall& boss, eccc& script, qiew args)
+                    {
+                        script.cmd += "vtm.shutdown: ok\n";
+                        boss.SIGNAL(tier::general, e2::shutdown, msg, (utf::concat(prompt::repl, "Server shutdown")));
+                    }},
+                };
+                static auto expression = [](auto& shadow)
+                {
+                    auto func = qiew{};
+                    auto args = qiew{};
+                    auto fend = shadow.find('(');
+                    if (fend < shadow.size() - 1)
+                    {
+                        auto para = 1;
+                        auto quot = '\0';
+                        auto head = shadow.begin() + fend + 1;
+                        auto tail = shadow.end();
+                        while (head != tail)
+                        {
+                            auto c = *head;
+                            if (c == '\\' && head + 1 != tail) head++;
+                            else if (quot)
+                            {
+                                if (c == quot) quot = 0;
+                            }
+                            else if (c == '\"') quot = c;
+                            else if (c == '\'') quot = c;
+                            else if (c == '(') para++;
+                            else if (c == ')' && --para == 0) break;
+                            head++;
+                        }
+                        if (head != tail)
+                        {
+                            auto aend = std::distance(shadow.begin(), head);
+                            func = shadow.substr(0, fend);
+                            args = shadow.substr(fend + 1, aend - (fend + 1));
+                            shadow.remove_prefix(aend + 1);
+                        }
+                        utf::trim_front(shadow, delims);
+                    }
+                    else shadow.clear();
+                    return std::pair{ func, args };
+                };
+                auto backup = std::move(script.cmd);
+                auto shadow = utf::dequote(backup);
+                utf::trim_front(shadow, delims);
+                while (shadow)
+                {
+                    auto [func, args] = expression(shadow);
+                    if (func)
+                    {
+                        auto expr = utf::concat(func, '(', args, ')');
+                        auto iter = fx.find(func);
+                        if (iter != fx.end())
+                        {
+                            log(ansi::clr(yellowlt, utf::debase<faux, faux>(expr)));
+                            iter->second(*this, script, args);
+                        }
+                        else log(prompt::repl, utf::debase<faux, faux>(expr));
+                    }
+                    else
+                    {
+                        log(prompt::repl, "Bad syntax: ", utf::debase<faux, faux>(shadow));
+                        break;
                     }
                 }
-                else log(prompt::repl, utf::debase<faux, faux>(onecmd.cmd));
             };
         }
 
