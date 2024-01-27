@@ -33,4 +33,4 @@ Application | Description                                                 | Usag
 
 The following commands have a short form:"
   - `vtm -r xlvt ssh [user@host dtvt_application]` can be shortened to `vtm ssh [user@host dtvt_application]`.
-  - `vtm -r term [cli_application]` can be shortened to `vtm -r [cli_application]`.
+  - `vtm -r headless [cli_application]` can be shortened to `vtm -r [cli_application]`.

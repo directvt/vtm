@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
         else if (getopt.match("-r", "--runapp"))
         {
             whoami = type::runapp;
-            params = getopt ? getopt.rest() : text{ app::term::id };
+            if (getopt) params = getopt.rest();
         }
         else if (getopt.match("-s", "--server"))
         {
@@ -200,7 +200,7 @@ int main(int argc, char* argv[])
             "\n"
             "\n  The following commands have a short form:"
             "\n    'vtm -r xlvt ssh [user@host dtvt_application]' can be shortened to 'vtm ssh [user@host dtvt_application]'."
-            "\n    'vtm -r term [cli_application]' can be shortened to 'vtm -r [cli_application]'."
+            "\n    'vtm -r headless [cli_application]' can be shortened to 'vtm -r [cli_application]'."
             "\n"
             );
     }
@@ -313,8 +313,10 @@ int main(int argc, char* argv[])
         else
         {
             params = " "s + params;
-            aclass = app::term::id;
-            apname = app::term::desc;
+            //aclass = app::term::id;
+            //apname = app::term::desc;
+            aclass = app::headless::id;
+            apname = app::headless::desc;
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
