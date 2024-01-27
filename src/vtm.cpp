@@ -313,8 +313,6 @@ int main(int argc, char* argv[])
         else
         {
             params = " "s + params;
-            //aclass = app::term::id;
-            //apname = app::term::desc;
             aclass = app::headless::id;
             apname = app::headless::desc;
         }
