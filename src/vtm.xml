@@ -173,7 +173,7 @@ R"==(
             <active     fgc=whitelt                   />
             <selected   fgc=whitelt                   /> <!-- SGR attributes (boolean): itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink -->
             <warning    fgc=whitelt   bgc=yellowdk    />
-            <danger     fgc=whitelt   bgc=redlt       />
+            <danger     fgc=whitelt   bgc=purered     />
             <action     fgc=whitelt   bgc=greenlt     />
             <label      fgc=blackdk   bgc=whitedk     />
             <inactive   fgc=blacklt   bgc=transparent />
@@ -230,7 +230,7 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF100400>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF180800>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>

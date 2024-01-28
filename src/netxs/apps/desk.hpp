@@ -461,11 +461,11 @@ namespace netxs::app::desk
             auto tall = si32{ skin::globals().menuwide };
             //auto highlight_color = skin::globals().highlight;
             auto inactive_color  = skin::globals().inactive;
-            auto warning_color   = skin::globals().warning;
+            //auto warning_color   = skin::globals().warning;
             auto danger_color    = skin::globals().danger;
             auto cA = inactive_color;
             //auto c3 = highlight_color;
-            auto c2 = warning_color;
+            //auto c2 = warning_color;
             auto c1 = danger_color;
 
             auto menu_bg_color = config.take("/config/menu/color", cell{}.fgc(whitedk).bgc(0x60202020));
@@ -783,7 +783,7 @@ namespace netxs::app::desk
                 ->limits(bttn_min_size, bttn_max_size);
             auto disconnect_park = bttns->attach(slot::_1, ui::cake::ctor())
                 ->active()
-                ->shader(c2, e2::form::state::hover)
+                ->shader(cell::shaders::xlight, e2::form::state::hover)
                 ->plugin<pro::notes>(" Leave current session ")
                 ->invoke([&, name = text{ username_view }](auto& boss)
                 {
