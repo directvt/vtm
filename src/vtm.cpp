@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
             "\n    'vtm -r xlvt ssh <user@host dtvt_application>' can be shortened to 'vtm ssh <user@host dtvt_application>'."
             "\n    'vtm -r headless [cli_application]' can be shortened to 'vtm -r [cli_application]'."
             "\n"
-            "\n  Usage examples"
+            "\n  Usage Examples"
             "\n"
             "\n    Run vtm desktop inside the current console:"
             "\n"
