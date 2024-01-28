@@ -188,7 +188,7 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     or
     ```bash
     vtm -r
-    # The `vtm -r` option is auto converted to the `vtm -r headless`.
+    # The `vtm -r` option is auto converted to the `vtm -r noui`.
     ```
 
 ### Running a standalone console application
@@ -203,13 +203,13 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 - Run command
     ```bash
-    vtm -r headless /path/to/console/app
-    # The `vtm -r headless` option means to run the built-in terminal without menu and bottom bar.
+    vtm -r noui /path/to/console/app
+    # The `vtm -r noui` option means to run the built-in terminal without menu and bottom bar.
     ```
     or
     ```bash
     vtm -r /path/to/console/app
-    # The `vtm -r ...` option is auto converted to the `vtm -r headless ...`.
+    # The `vtm -r ...` option is auto converted to the `vtm -r noui ...`.
     ```
 
 ## Remote access
@@ -227,14 +227,14 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command
     ```bash
-    vtm -r xlvt ssh user@server vtm -r headless /path/to/console/app
+    vtm -r xlvt ssh user@server vtm -r noui /path/to/console/app
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm -r headless` statement means to connect via ssh and run the built-in terminal on the remote host.
+    # The `ssh user@server vtm -r noui` statement means to connect via ssh and run the built-in terminal on the remote host.
     ```
     or
     ```bash
     vtm ssh user@server vtm -r /path/to/console/app
-    # The `vtm -r ...` option is auto converted to the `vtm -r headless ...`.
+    # The `vtm -r ...` option is auto converted to the `vtm -r noui ...`.
     ```
 
 ### Running vtm in DirectVT mode remotely via SSH
@@ -339,22 +339,22 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
 
         <item id="Run vtm in DirectVT mode remotely via SSH"    type=xlvt cmd="ssh user@server vtm"/>
         <item id="Run a standalone console application via ssh" type=xlvt cmd="ssh user@server vtm -r term /path/to/console/app"/>
-        <item id="Run application via ssh w/o extra UI"         type=xlvt cmd="ssh user@server vtm -r headless /path/to/console/app"/>
+        <item id="Run application via ssh w/o extra UI"         type=xlvt cmd="ssh user@server vtm -r noui /path/to/console/app"/>
 
         <item splitter label="Another Examples"/>
 
-        <item id="Far Manager"             type=headless cmd="far"/>
-        <item id="Far Manager in terminal" type=dtvt     cmd="$0 -r term far"/>
+        <item id="Far Manager"             type=noui cmd="far"/>
+        <item id="Far Manager in terminal" type=dtvt cmd="$0 -r term far"/>
 
-        <item id="Midnight Commander"             type=headless cmd="mc"/>
-        <item id="Midnight Commander in terminal" type=dtvt     cmd="$0 -r term mc"/>
+        <item id="Midnight Commander"             type=noui cmd="mc"/>
+        <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
 
-        <item id="Far Manager via ssh"     type=xlvt cmd="ssh user@server vtm -r headless far"/>
+        <item id="Far Manager via ssh"     type=xlvt cmd="ssh user@server vtm -r noui far"/>
         <item id="cmd in terminal via ssh" type=xlvt cmd="ssh user@server vtm -r term cmd"/>
-        <item id="cmd via ssh"             type=xlvt cmd="ssh user@server vtm -r headless cmd"/>
-        <item id="wsl via ssh"             type=xlvt cmd="ssh user@server vtm -r headless wsl"/>
-        <item id="mc via ssh"              type=xlvt cmd="ssh user@server vtm -r headless mc"/>
-        <item id="wsl mc via ssh"          type=xlvt cmd="ssh user@server vtm -r headless wsl mc"/>
+        <item id="cmd via ssh"             type=xlvt cmd="ssh user@server vtm -r noui cmd"/>
+        <item id="wsl via ssh"             type=xlvt cmd="ssh user@server vtm -r noui wsl"/>
+        <item id="mc via ssh"              type=xlvt cmd="ssh user@server vtm -r noui mc"/>
+        <item id="wsl mc via ssh"          type=xlvt cmd="ssh user@server vtm -r noui wsl mc"/>
     </menu>
 </config>
 ```

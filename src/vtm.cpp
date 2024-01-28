@@ -136,15 +136,15 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Built-in applications:"
                 "\n"
-                "\n    Term      Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
-                "\n    Headless  Terminal emulator without UI.                    'vtm -r headless [cli_application]'"
-                "\n    DTVT      DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
-                "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh <user@host dtvt_application>'"
+                "\n    Term  Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
+                "\n    NoUI  Terminal emulator without UI.                    'vtm -r noui [cli_application]'"
+                "\n    DTVT  DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
+                "\n    XLVT  DTVT with controlling terminal.                  'vtm -r xlvt ssh <user@host dtvt_application>'"
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
                 "\n    'vtm -r xlvt ssh <user@host dtvt_application>' can be shortened to 'vtm ssh <user@host dtvt_application>'."
-                "\n    'vtm -r headless [cli_application]' can be shortened to 'vtm -r [cli_application]'."
+                "\n    'vtm -r noui [cli_application]' can be shortened to 'vtm -r [cli_application]'."
                 "\n"
                 "\n  Usage Examples"
                 "\n"
@@ -348,6 +348,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::xlinkvt::id))   { aclass = app::xlinkvt::id;   apname = app::xlinkvt::desc;   }
         else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
         else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
+        else if (shadow.starts_with(app::noui::id))      { aclass = app::headless::id;  apname = app::headless::desc;  }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aclass = app::calc::id;      apname = app::calc::desc;      }
         else if (shadow.starts_with(app::shop::id))      { aclass = app::shop::id;      apname = app::shop::desc;      }

@@ -27,10 +27,10 @@ No arguments                 | Connect to the desktop (autostart new if not runn
 Application | Description                                                 | Usage
 ------------|-------------------------------------------------------------|------------------------------------
 `Term`      | Terminal emulator to run cli applications.                  | `vtm -r term [cli_application]`
-`Headless`  | Terminal emulator without extra UI.                         | `vtm -r headless [cli_application]`
+`noui`      | Terminal emulator without extra UI.                         | `vtm -r noui [cli_application]`
 `DTVT`      | DirectVT proxy to run dtvt-apps in text console.            | `vtm -r dtvt [dtvt_application]`
 `XLVT`      | DirectVT proxy with controlling terminal (Cross-linked VT), | `vtm -r xlvt ssh <user@host dtvt_application>`
 
 The following commands have a short form:"
   - `vtm -r xlvt ssh <user@host dtvt_application>` can be shortened to `vtm ssh <user@host dtvt_application>`.
-  - `vtm -r headless [cli_application]` can be shortened to `vtm -r [cli_application]`.
+  - `vtm -r noui [cli_application]` can be shortened to `vtm -r [cli_application]`.

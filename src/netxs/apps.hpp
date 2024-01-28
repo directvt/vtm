@@ -16,6 +16,11 @@ namespace netxs::app::headless
     static constexpr auto id = "headless";
     static constexpr auto desc = "Headless Terminal Emulator";
 }
+namespace netxs::app::noui
+{
+    static constexpr auto id = "noui";
+    static constexpr auto desc = "Headless Terminal Emulator";
+}
 namespace netxs::app::ansivt
 {
     static constexpr auto id = "ansivt";
@@ -699,6 +704,7 @@ namespace netxs::app::shared
 
         app::shared::initialize builder_Region    { app::region::id   , build_Region     };
         app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
+        app::shared::initialize builder_NoUI      { app::noui::id     , build_Headless   };
         app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
         app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
         app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
