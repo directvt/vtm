@@ -196,10 +196,11 @@ int main(int argc, char* argv[])
             "\n    Term      Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
             "\n    Headless  Terminal emulator without UI.                    'vtm -r headless [cli_application]'"
             "\n    DTVT      DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
-            "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh [user@host dtvt_application]'"
+            "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh <user@host dtvt_application>'"
             "\n"
             "\n  The following commands have a short form:"
-            "\n    'vtm -r xlvt ssh [user@host dtvt_application]' can be shortened to 'vtm ssh [user@host dtvt_application]'."
+            "\n"
+            "\n    'vtm -r xlvt ssh <user@host dtvt_application>' can be shortened to 'vtm ssh <user@host dtvt_application>'."
             "\n    'vtm -r headless [cli_application]' can be shortened to 'vtm -r [cli_application]'."
             "\n"
             );

@@ -97,12 +97,12 @@ namespace netxs::app::desk
                         boss.SIGNAL(tier::release, e2::form::state::disabled, disabled);
                         auto& notes = boss.template plugins<pro::notes>();
                         notes.update(disabled ? " Window is locked by another user "
-                                              : " Application window:                     \n"
-                                                "   LeftClick to set exclusive focus      \n"
-                                                "   Ctrl+LeftClick to set group focus     \n"
-                                                "   DoubleLeftClick to go to the window   \n"
-                                                "   Alt+DblLeftClick to pull the window   \n"
-                                                "   Use LeftDrag to move desktop viewport ");
+                                              : " Application window:                   \n"
+                                                "   LeftClick to set exclusive focus    \n"
+                                                "   Ctrl+LeftClick to set group focus   \n"
+                                                "   DoubleLeftClick to go to the window \n"
+                                                "   Alt+DblLeftClick to pull the window \n"
+                                                "   LeftDrag to move desktop viewport   ");
                         return disabled;
                     };
                     data_src->SIGNAL(tier::request, e2::form::state::maximized, gear_id, ());
@@ -275,8 +275,8 @@ namespace netxs::app::desk
 
             auto def_note = text{" Application:                                  \n"
                                  "   LeftClick to start the application instance \n"
-                                 "   RightClick to set as default                \n"
-                                 "   Use LeftDrag to move desktop viewport       "};
+                                 "   RightClick to set it as default             \n"
+                                 "   LeftDrag to move desktop viewport           "};
             data_src->RISEUP(tier::request, desk::events::menu, conf_list_ptr, ());
             if (!conf_list_ptr || !apps_map_ptr) return apps;
             auto& conf_list = *conf_list_ptr;
@@ -382,8 +382,9 @@ namespace netxs::app::desk
                         ->setpad({ 2, 2, tall, tall })
                         ->active()
                         ->shader(cell::shaders::xlight, e2::form::state::hover)
-                        ->template plugin<pro::notes>(" Hide active window list.               \n"
-                                                      " Use mouse wheel to switch it to close. ")
+                        ->template plugin<pro::notes>(" Window list disclosure toggle                  \n"
+                                                      "   LeftClick to expand/collapse the window list \n"
+                                                      "   MouseWheel to switch to list closing mode    ")
                         ->invoke([&](auto& boss)
                         {
                             insts->base::hidden = isfolded;
@@ -665,7 +666,7 @@ namespace netxs::app::desk
                 });
             auto grips = taskbar_grips->attach(slot::_2, ui::mock::ctor())
                 ->limits({ 1, -1 }, { 1, -1 })
-                ->template plugin<pro::notes>(" Use LeftDrag to adjust taskbar width ")
+                ->template plugin<pro::notes>(" LeftDrag to adjust taskbar width ")
                 //->template plugin<pro::focus>(pro::focus::mode::focusable)
                 //->shader(c3, e2::form::state::keybd::focus::count)
                 ->shader(cell::shaders::xlight, e2::form::state::hover)
@@ -706,8 +707,9 @@ namespace netxs::app::desk
             auto apps_users = taskbar->attach(slot::_1, ui::fork::ctor(axis::Y, 0, 100));
             auto applist_area = apps_users->attach(slot::_1, ui::cake::ctor());
             auto tasks_scrl = applist_area->attach(ui::rail::ctor(axes::Y_only))
-                ->plugin<pro::notes>(" Use RightDrag or scroll wheel to slide up/down \n"
-                                     " Use LeftDrag to move desktop viewport          ")
+                ->plugin<pro::notes>(" Desktop Taskbar                     \n"
+                                     "   RightDrag to scroll menu up/down  \n"
+                                     "   LeftDrag to move desktop viewport ")
                 ->active()
                 ->invoke([&](auto& boss)
                 {

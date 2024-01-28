@@ -155,16 +155,16 @@ TerminalStdioLog             | Stdin/stdout log toggle.
           <label="\e[38:2:0:255:0m<\e[m"/>
           <notes>
               " Previous match                                \n"
-              " - Clipboard data will be used if no selection \n"
-              " - Scroll one page up if clipboard is empty    "
+              "   Clipboard data will be used if no selection \n"
+              "   Scroll one page up if clipboard is empty    "
           </notes>
       </item>
       <item label=">" action=TerminalFindNext>
           <label="\e[38:2:0:255:0m>\e[m"/>
           <notes>
               " Next match                                    \n"
-              " - Clipboard data will be used if no selection \n"
-              " - Scroll one page down if clipboard is empty  "
+              "   Clipboard data will be used if no selection \n"
+              "   Scroll one page down if clipboard is empty  "
           </notes>
       </item>
       <item label="Wrap" type=Option action=TerminalWrapMode data="off">

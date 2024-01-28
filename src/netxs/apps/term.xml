@@ -149,25 +149,25 @@ R"==(
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
                     " Previous match                                \n"
-                    " - Jump to previous match with selection       \n"
-                    " - Clipboard data will be used if no selection \n"
-                    " - Scroll one page up if clipboard is empty    "
+                    "   Jump to previous match with selection       \n"
+                    "   Clipboard data will be used if no selection \n"
+                    "   Scroll one page up if clipboard is empty    "
                 </notes>
             </item>
             <item label=">" action=TerminalFindNext>
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
                     " Next match                                    \n"
-                    " - Jump to next match with selection           \n"
-                    " - Clipboard data will be used if no selection \n"
-                    " - Scroll one page down if clipboard is empty  "
+                    "   Jump to next match with selection           \n"
+                    "   Clipboard data will be used if no selection \n"
+                    "   Scroll one page down if clipboard is empty  "
                 </notes>
             </item>
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
-                    " - Applied to selection if it is "
+                    "   Applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
@@ -192,7 +192,7 @@ R"==(
             </item>
             <item label="Clear" notes=" Clear TTY viewport "                  action=TerminalOutput data="\e[2J"/>
             <item label="Reset" notes=" Clear scrollback and SGR-attributes " action=TerminalOutput data="\e[!p"/>
-            <!-- <item label="Hello, World!" notes=" Simulating keypresses "       action=TerminalSendKey data="Hello World!"/> -->
+            <!-- <item label="Hello, World!" notes=" Simulating keypresses "  action=TerminalSendKey data="Hello World!"/> -->
         </menu>
         <selection>
             <mode="text"/> <!-- text | ansi | rich | html | protected | none -->
