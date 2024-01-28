@@ -490,17 +490,21 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
-                    " Previous match                    \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
+                    " Previous match                                  \n"
+                    "   LeftClick to jump to previous match or scroll \n"
+                    "             one page up if nothing to search    \n"
+                    "   Match clipboard data if no selection          \n"
+                    "   Left+RightClick to clear clipboard            "
                 </notes>
             </item>
             <item label=">" action=TerminalFindNext>
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
-                    " Next match                        \n"
-                    " - using clipboard if no selection \n"
-                    " - page up if no clipboard data    "
+                    " Next match                                     \n"
+                    "   LeftClick to jump to next match or scroll    \n"
+                    "             one page down if nothing to search \n"
+                    "   Match clipboard data if no selection         \n"
+                    "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
             <item label="  "    notes=" ...empty menu block/splitter for safety "/>
