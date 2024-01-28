@@ -419,8 +419,9 @@ namespace netxs::events::userland
 
                     SUBSET_XS( window )
                     {
-                        EVENT_XS( size    , twod ), // set window size.
-                        EVENT_XS( fullsize, rect ), // request window size with titles and borders.
+                        EVENT_XS( size    , twod     ), // set window size.
+                        EVENT_XS( fullsize, rect     ), // request window size with titles and borders.
+                        EVENT_XS( instance, ui::sptr ), // request window instance.
                     };
                     SUBSET_XS( ui )
                     {

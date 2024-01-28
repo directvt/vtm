@@ -101,8 +101,9 @@ int main(int argc, char* argv[])
             os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
-            log("\nText-based ██   https://github.com/directvt/vtm"
-                "\n             ██ Desktop Environment " + text{ app::shared::version } +
+            log("\nText-based Desktop Environment " + text{ app::shared::version } +
+                "\nhttps://github.com/directvt/vtm"
+                "\n"
                 "\n  Syntax:"
                 "\n"
                 "\n    " + os::process::binary<true>() + " [ -i | -u ] | [ -v ] | [ -? ]"

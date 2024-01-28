@@ -582,10 +582,19 @@ namespace netxs::app::shared
                     {
                         boss.RISEUP(tier::release, e2::form::proceed::quit::one, fast);
                     };
+                    boss.LISTEN(tier::anycast, e2::form::upon::started, window_ptr2)
+                    {
+                        boss.RISEUP(tier::request, e2::form::prop::window::instance, window_ptr, ());
+                        //todo too hacky
+                        if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(window_ptr))
+                        {
+                            form_ptr->plugins<pro::title>().live = faux;
+                        }
+                    };
                 });
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(whitelt, 0);
-            auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  vtm");
+            auto ver = ansi::fgc(b1).add("▀▄").fgc().add("  Text-based Desktop Environment");
             auto [menu_block, cover, menu_data] = menu::mini(faux, true, faux, 1,
             menu::list
             {

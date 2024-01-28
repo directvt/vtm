@@ -1343,6 +1343,10 @@ namespace netxs::app::vtm
                         boss.RISEUP(tier::preview, e2::form::size::enlarge::maximize, gear);
                         gear.dismiss();
                     };
+                    boss.LISTEN(tier::request, e2::form::prop::window::instance, window_ptr)
+                    {
+                        window_ptr = boss.This();
+                    };
                     boss.LISTEN(tier::request, e2::form::prop::window::fullsize, object_area)
                     {
                         auto& title = boss.template plugins<pro::title>();
@@ -1429,11 +1433,15 @@ namespace netxs::app::vtm
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
                         auto recalc = [](auto& boss, auto viewport)
                         {
+                            auto new_area = viewport;
                             auto& title = boss.template plugins<pro::title>();
-                            title.recalc(viewport.size);
-                            auto t = title.head_size.y;
-                            auto b = title.foot_size.y;
-                            auto new_area = viewport - dent{ 0, 0, t, b };
+                            if (title.live)
+                            {
+                                title.recalc(viewport.size);
+                                auto t = title.head_size.y;
+                                auto b = title.foot_size.y;
+                                new_area -= dent{ 0, 0, t, b };
+                            }
                             if (boss.base::area() != new_area)
                             {
                                 boss.base::extend(new_area);
