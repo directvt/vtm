@@ -35,10 +35,10 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--runapp"))
+        else if (getopt.match("-r", "--", "--runapp"))
         {
             whoami = type::runapp;
-            if (getopt) params = getopt.rest();
+            params = getopt.rest();
         }
         else if (getopt.match("-s", "--server"))
         {
@@ -101,13 +101,18 @@ int main(int argc, char* argv[])
             os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
+            auto vtm = os::process::binary<true>();
+            auto pad = text(os::process::binary<true>().size(), ' ');
             log("\nText-based desktop environment " + text{ app::shared::version } +
-                "\n" + text{ app::shared::repository } +
                 "\n"
                 "\n  Syntax:"
                 "\n"
-                "\n    " + os::process::binary<true>() + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
-                "\n    " + os::process::binary<true>() + " [ --script <body> ][ -p <name> ][ -c <file> ][ -q ][ -m | -d | -s | -r [<app> [<args...>]] ]"
+                "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
+                "\n"
+                "\n    " + vtm + " [ --script <commands> ] [ -p <name> ] [ -c <file> ]"
+                "\n    " + pad + " [ -q ] [ -m | -d | -s | -r [<type>] ] [<cliapp...>]"
+                "\n"
+                "\n    <run commands via piped redirection> | " + os::process::binary<true>() + " [options...]"
                 "\n"
                 "\n  Options:"
                 "\n"
@@ -118,34 +123,59 @@ int main(int argc, char* argv[])
                 "\n    -i, --install        Perform system-wide installation."
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
                 "\n    -c, --config <file>  Specifies the settings file to load."
-                "\n    -p, --pipe <name>    Specifies the desktop session connection point."
+                "\n    -p, --pipe <name>    Specifies the desktop session connection point (case sensitive)."
                 "\n    -m, --monitor        Run desktop session log monitor."
                 "\n    -d, --daemon         Run desktop server in background."
                 "\n    -s, --server         Run desktop server in interactive mode."
-                "\n    -r, --runapp [args]  Run the specified application in standalone mode."
+                "\n    -r, --, --runapp     Run the specified built-in terminal type in standalone mode."
                 "\n    -q, --quiet          Disable logging."
-                "\n    --script <body>      Specifies a script to run when ready."
+                "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
+                "\n    <type>               Built-in terminal type to use to run a console application (case insensitive)."
+                "\n    <cliapp...>          Console application with arguments to run."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
                 "\n    - Initialize hardcoded settings."
-                "\n    - Merge with explicitly specified settings from --config <file>."
-                "\n    - If the --config option is not used or <file> cannot be loaded:"
+                "\n    - Merge with explicitly specified settings from '--config <file>'."
+                "\n    - If the '--config' option is not used or <file> cannot be loaded:"
                 "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Built-in applications:"
+                "\n  Built-in terminal types:"
                 "\n"
-                "\n    Term  Terminal emulator to run cli applications.                'vtm -r term [cli_app ...]'"
-                "\n    NoUI  Terminal emulator without UI.                             'vtm -r noui [cli_app ...]'"
-                "\n    DTVT  DirectVT proxy to run dtvt-apps in text console.          'vtm -r dtvt [dtvt_app ...]'"
-                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app ...>'"
+                "\n    Term  Terminal emulator to run cli applications.                'vtm -r term [cli_app...]'"
+                "\n    NoUI  Terminal emulator without UI (scrollback only).           'vtm -r noui [cli_app...]'"
+                "\n    DTVT  DirectVT proxy to run dtvt-apps in text console.          'vtm -r dtvt [dtvt_app...]'"
+                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app...>'"
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
-                "\n    'vtm -r xlvt ssh <user@host dtvt_app ...>' can be shortened to 'vtm ssh <user@host dtvt_app ...>'."
-                "\n    'vtm -r noui [cli_app ...]' can be shortened to 'vtm -r [cli_app ...]'."
+                "\n    'vtm -r xlvt ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
+                "\n    'vtm -r noui [cli_app...]' can be shortened to 'vtm [cli_app...]'."
+                "\n"
+                "\n  Scripting"
+                "\n"
+                "\n    Syntax: \"command1([args...])[; command2([args...]); ... commandN([args...])]\""
+                "\n"
+                "\n    The following characters in the script body will be de-escaped: \\e \\t \\r \\n \\a \\\" \\' \\\\"
+                "\n"
+                "\n    Commands:"
+                "\n"
+                "\n      vtm.run([<attrs>...]) Create and run a menu item constructed using"
+                "\n                            a space-separated list of attribute=<value>."
+                "\n                            Create and run temporary menu item constructed"
+                "\n                            using default attributes if no arguments specified."
+                "\n"
+                "\n      vtm.set(id=<id> [<attrs>...]) Create or override a menu item using a space-separated"
+                "\n                                    list of attribute=<value>."
+                "\n"
+                "\n      vtm.del([<id>]) Delete the taskbar menu item by <id>."
+                "\n                      Delete all menu items if no <id> specified."
+                "\n"
+                "\n      vtm.dtvt(<dtvt_app...>) Create a temporary menu item and run the specified dtvt-app."
+                "\n      vtm.selected(<id>)      Set selected menu item using specified <id>."
+                "\n      vtm.shutdown()          Terminate the running desktop session."
                 "\n"
                 "\n  Usage Examples"
                 "\n"
@@ -163,11 +193,11 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    Run an application inside the built-in terminal:"
                 "\n"
-                "\n        vtm -r [term] </path/to/console/app>"
+                "\n        vtm [-r [term]] </path/to/console/app>"
                 "\n"
                 "\n    Run an application remotely over SSH:"
                 "\n"
-                "\n        vtm ssh <user@server> vtm -r [term] </path/to/console/app>"
+                "\n        vtm ssh <user@server> vtm [-r [term]] </path/to/console/app>"
                 "\n"
                 "\n    Run vtm desktop and reconfigure the taskbar menu:"
                 "\n"
@@ -211,14 +241,11 @@ int main(int argc, char* argv[])
         {
             script = xml::unescape(getopt.next());
         }
-        else if (getopt.match("--"))
-        {
-            break;
-        }
         else
         {
-            errmsg = utf::concat("Unknown option '", getopt.next(), "'");
-            break;
+            params = getopt.rest(); // params can't be empty at this point (see utf::quote()).
+            if (params.front() == '-') errmsg = utf::concat("Unknown option '", params, "'");
+            else                       whoami = type::runapp;
         }
     }
 
