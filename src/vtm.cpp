@@ -101,13 +101,13 @@ int main(int argc, char* argv[])
             os::dtvt::initialize();
             netxs::logger::wipe();
             auto syslog = os::tty::logger();
-            log("\nText-based Desktop Environment " + text{ app::shared::version } +
-                "\nhttps://github.com/directvt/vtm"
+            log("\nText-based desktop environment " + text{ app::shared::version } +
+                "\n" + text{ app::shared::repository } +
                 "\n"
                 "\n  Syntax:"
                 "\n"
                 "\n    " + os::process::binary<true>() + " [ -i | -u ] | [ -v ] | [ -? ]"
-                "\n    " + os::process::binary<true>() + " [ -l | -m | -d | -s | -r [<app> [<args...>]] ][ --script <body> ][ -c <file> ][ -p <name> ][ -q ]"
+                "\n    " + os::process::binary<true>() + " [ --script <body> ][ -c <file> ][ -p <name> ][ -q ][ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
                 "\n"
                 "\n  Options:"
                 "\n"
@@ -115,8 +115,8 @@ int main(int argc, char* argv[])
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
                 "\n    -l, --listconfig     Print configuration."
-                "\n    -i, --install        Run system-wide installation."
-                "\n    -u, --uninstall      Run system-wide deinstallation."
+                "\n    -i, --install        Perform system-wide installation."
+                "\n    -u, --uninstall      Perform system-wide deinstallation."
                 "\n    -c, --config <file>  Specifies the settings file to load."
                 "\n    -p, --pipe <name>    Specifies the desktop session connection point."
                 "\n    -m, --monitor        Run desktop session log monitor."
@@ -128,12 +128,12 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
-                "\n    - Initialize hardcoded settings"
-                "\n    - Merge with explicitly specified settings from --config <file>"
+                "\n    - Initialize hardcoded settings."
+                "\n    - Merge with explicitly specified settings from --config <file>."
                 "\n    - If the --config option is not used or <file> cannot be loaded:"
-                "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
-                "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
-                "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)"
+                "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
+                "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
+                "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
                 "\n  Built-in applications:"
                 "\n"

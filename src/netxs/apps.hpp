@@ -629,7 +629,7 @@ namespace netxs::app::shared
                 return std::list<text>
                 {
                     utf::fprint("%%"
-                        "\nDesktop"
+                        "\nStatus"
                         "\n"
                         "\n     Owner: %user@host%"
                         "\n   Session: %pipe%"
