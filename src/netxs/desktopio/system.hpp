@@ -145,6 +145,14 @@ namespace netxs::os
             return errno;
         #endif
     }
+    auto exitcode(si32 code)
+    {
+        #if defined(_WIN32)
+            return utf::to_hex_0x(code);
+        #else
+            return std::to_string(code);
+        #endif
+    }
     template<class ...Args>
     auto fail(Args&&... msg)
     {
