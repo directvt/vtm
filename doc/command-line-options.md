@@ -9,22 +9,22 @@
      [ -m | -d | -s | -r [<app> [<args...>]] ]
 ```
 
-Option                       | Description
------------------------------|-------------------------------------------------------
-No arguments                 | Connect to the desktop (autostart new if not running).
-` -h `, ` -? `, ` --help `   | Print command-line options.
-` -v `, ` --version `        | Print version.
-` -l `, ` --listconfig `     | Print configuration.
-` -i `, ` --install `        | Perform system-wide installation.
-` -u `, ` --uninstall `      | Perform system-wide deinstallation.
-` -c `, ` --config <file> `  | Specifies the settings file to load.
-` -p `, ` --pipe <name> `    | Specifies the desktop session connection point.
-` -m `, ` --monitor `        | Run desktop session log monitor.
-` -d `, ` --daemon `         | Run desktop server in background.
-` -s `, ` --server `         | Run desktop server in interactive mode.
-` -r `, ` --runapp [args] `  | Run the specified application in standalone mode.
-` -q `, ` --quiet `          | Disable logging.
-` --script <body> `          | Specifies a script to run when ready.
+Option                  | Description
+------------------------|-------------------------------------------------------
+No arguments            | Connect to the desktop (autostart new if not running).
+`-h`, `-?`, `--help`    | Print command-line options.
+`-v`, `--version`       | Print version.
+`-l`, `--listconfig`    | Print configuration.
+`-i`, `--install`       | Perform system-wide installation.
+`-u`, `--uninstall`     | Perform system-wide deinstallation.
+`-c`, `--config <file>` | Specifies the settings file to load.
+`-p`, `--pipe <name>`   | Specifies the desktop session connection point.
+`-m`, `--monitor`       | Run desktop session log monitor.
+`-d`, `--daemon`        | Run desktop server in background.
+`-s`, `--server`        | Run desktop server in interactive mode.
+`-r`, `--runapp [args]` | Run the specified application in standalone mode.
+`-q`, `--quiet`         | Disable logging.
+`--script <body>`       | Specifies a script to run when ready.
 
 ### Settings loading order
 
