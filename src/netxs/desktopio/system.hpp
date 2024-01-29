@@ -5763,7 +5763,7 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!alive || quiet || !data.pressed || data.cluster.empty()) return;
+                        if (!alive || !data.pressed || data.cluster.empty()) return;
                         switch (data.cluster.front()) 
                         {
                             case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
@@ -5771,7 +5771,7 @@ namespace netxs::os
                             case 0x1A: enter(ansi::err("Ctrl+Z\r\n")); alarm.bell(); break;
                             case 0x08: // Backspace
                             case 0x7F: //
-                                if (block.size())
+                                if (!quiet && block.size())
                                 {
                                     block.pop_back();
                                     print(true);
@@ -5779,18 +5779,22 @@ namespace netxs::os
                                 break;
                             case '\n':
                             case '\r': // Enter
-                            {
-                                auto line = block + '\n';
-                                block.clear();
-                                clear();
-                                print(faux);
-                                guard.unlock(); // Allow to use log() inside send().
-                                send(line);
+                                if (!quiet)
+                                {
+                                    auto line = block + '\n';
+                                    block.clear();
+                                    clear();
+                                    print(faux);
+                                    guard.unlock(); // Allow to use log() inside send().
+                                    send(line);
+                                }
                                 break;
-                            }
                             default:
-                                block += data.cluster;
-                                print(true);
+                                if (!quiet)
+                                {
+                                    block += data.cluster;
+                                    print(true);
+                                }
                                 break;
                         }
                     };
