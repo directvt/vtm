@@ -124,7 +124,6 @@ int main(int argc, char* argv[])
                 "\n    -s, --server         Run desktop server in interactive mode."
                 "\n    -r, --runapp [args]  Run the specified application in standalone mode."
                 "\n    -q, --quiet          Disable logging."
-                "\n    --onlylog            Disable interactive user input for desktop server."
                 "\n    --script <body>      Specifies a script to run when ready."
                 "\n"
                 "\n  Settings loading order:"
@@ -207,10 +206,6 @@ int main(int argc, char* argv[])
             auto syslog = os::tty::logger();
             log(app::shared::version);
             return 0;
-        }
-        else if (getopt.match("--onlylog"))
-        {
-            os::dtvt::vtmode |= ui::console::onlylog;
         }
         else if (getopt.match("--script"))
         {
@@ -389,7 +384,6 @@ int main(int argc, char* argv[])
             auto [success, successor] = os::process::fork(prefix, config.utf8());
             if (successor)
             {
-                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
                 script = {};
             }
@@ -423,7 +417,6 @@ int main(int argc, char* argv[])
             auto [success, successor] = os::process::fork(prefix, config.utf8(), script);
             if (successor)
             {
-                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
             }
             else 

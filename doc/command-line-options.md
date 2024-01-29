@@ -19,7 +19,6 @@ No arguments                 | Connect to the desktop (autostart new if not runn
 ` -u `, ` --uninstall `      | System-wide deinstallation.
 ` -v `, ` --version `        | Print version.
 ` -? `, ` -h `, ` --help `   | Print command-line options.
-` --onlylog `                | Disable interactive user input for desktop server.
 ` --script <body> `          | Run the specified script on ready.
 
 ### Built-in applications
