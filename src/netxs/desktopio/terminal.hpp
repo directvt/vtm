@@ -7072,7 +7072,7 @@ namespace netxs::ui
                     auto byemsg = escx{};
                     if (target != &normal) byemsg.locate({ 0, target->panel.y - 1 });
                     byemsg.bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
-                          .add("\r\nProcess exited with code ", utf::to_hex_0x(code)).nil()
+                          .add("\r\nProcess exited with code ", os::exitcode(code)).nil()
                           .add("\r\n\n");
                     return byemsg;
                 };

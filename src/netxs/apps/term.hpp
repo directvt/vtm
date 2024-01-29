@@ -618,6 +618,104 @@ namespace netxs::app::term
         return menu::create(config, list);
     };
 
+    const auto terminal_subs = [](ui::term& boss, eccc& appcfg)
+    {
+        boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
+        {
+            boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
+        };
+        boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
+        {
+            boss.close(fast);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
+        {
+            boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
+        };
+        boss.LISTEN(tier::anycast, app::term::events::data::in, data)
+        {
+            boss.data_in(data);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::data::out, data)
+        {
+            boss.data_out(data);
+        };
+        //todo add color picker to the menu
+        boss.LISTEN(tier::anycast, app::term::events::preview::colors::bg, bg)
+        {
+            boss.set_bg_color(bg);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::colors::fg, fg)
+        {
+            boss.set_fg_color(fg);
+        };
+        boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
+        {
+            auto deed = boss.bell::template protos<tier::anycast>();
+                 if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
+            else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::selection::mode, selmod)
+        {
+            boss.set_selmod(selmod);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::selection::box, selbox)
+        {
+            boss.set_selalt(selbox);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
+        {
+            boss.set_wrapln(wrapln);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::io_log, state)
+        {
+            boss.set_log(state);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
+        {
+            boss.set_align(align);
+        };
+        boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
+        {
+            if (root) // root is empty when d_n_d.
+            {
+                boss.start(appcfg);
+            }
+        };
+        boss.LISTEN(tier::anycast, e2::form::upon::started, root)
+        {
+            boss.SIGNAL(tier::release, e2::form::upon::started, root);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
+        {
+            boss.search(gear, feed::fwd);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::search::reverse, gear)
+        {
+            boss.search(gear, feed::rev);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::data::paste, gear)
+        {
+            boss.paste(gear);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::data::copy, gear)
+        {
+            boss.copy(gear);
+        };
+        boss.LISTEN(tier::anycast, app::term::events::data::prnscrn, gear)
+        {
+            boss.prnscrn(gear);
+        };
+        boss.LISTEN(tier::anycast, e2::form::upon::scroll::any, i)
+        {
+            auto info = e2::form::upon::scroll::bypage::y.param();
+            auto deed = boss.bell::template protos<tier::anycast>();
+            boss.base::template raw_riseup<tier::request>(e2::form::upon::scroll::any.id, info);
+            info.vector = i.vector;
+            boss.base::template raw_riseup<tier::preview>(deed, info);
+        };
+    };
+
     namespace
     {
         auto build = [](eccc appcfg, xmls& config)
@@ -626,15 +724,10 @@ namespace netxs::app::term
             auto cB = menu_white;
 
             auto window = ui::cake::ctor();
-            if (os::dtvt::active)
-            {
-                //todo revise focus
-                window->plugin<pro::focus>()
-                      ->plugin<pro::track>()
-                      ->plugin<pro::acryl>()
-                      ->plugin<pro::cache>();
-            }
-            else window->plugin<pro::focus>(pro::focus::mode::focusable);
+            window->plugin<pro::focus>(os::dtvt::active ? pro::focus::mode::hub : pro::focus::mode::focusable)
+                  ->plugin<pro::track>()
+                  ->plugin<pro::acryl>()
+                  ->plugin<pro::cache>();
 
             auto object = window->attach(ui::fork::ctor(axis::Y))
                                 ->colors(cB);
@@ -777,100 +870,7 @@ namespace netxs::app::term
                 ->attach_property(ui::term::events::layout::wrapln,  app::term::events::release::wrapln)
                 ->attach_property(ui::term::events::layout::align,   app::term::events::release::align)
                 ->attach_property(ui::term::events::search::status,  app::term::events::search::status)
-                ->invoke([&](auto& boss)
-                {
-                    boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
-                    {
-                        boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
-                    };
-                    boss.LISTEN(tier::preview, e2::form::proceed::quit::one, fast)
-                    {
-                        boss.close(fast);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::cmd, cmd)
-                    {
-                        boss.exec_cmd(static_cast<ui::term::commands::ui::commands>(cmd));
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::data::in, data)
-                    {
-                        boss.data_in(data);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::data::out, data)
-                    {
-                        boss.data_out(data);
-                    };
-                    //todo add color picker to the menu
-                    boss.LISTEN(tier::anycast, app::term::events::preview::colors::bg, bg)
-                    {
-                        boss.set_bg_color(bg);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::colors::fg, fg)
-                    {
-                        boss.set_fg_color(fg);
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
-                    {
-                        auto deed = boss.bell::template protos<tier::anycast>();
-                             if (deed == e2::form::prop::colors::bg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::bg, clr);
-                        else if (deed == e2::form::prop::colors::fg.id) boss.SIGNAL(tier::anycast, app::term::events::preview::colors::fg, clr);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::selection::mode, selmod)
-                    {
-                        boss.set_selmod(selmod);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::selection::box, selbox)
-                    {
-                        boss.set_selalt(selbox);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::wrapln, wrapln)
-                    {
-                        boss.set_wrapln(wrapln);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::io_log, state)
-                    {
-                        boss.set_log(state);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::preview::align, align)
-                    {
-                        boss.set_align(align);
-                    };
-                    boss.LISTEN(tier::release, e2::form::upon::started, root, -, (appcfg))
-                    {
-                        boss.start(appcfg);
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::upon::started, root)
-                    {
-                        boss.SIGNAL(tier::release, e2::form::upon::started, root);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::search::forward, gear)
-                    {
-                        boss.search(gear, feed::fwd);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::search::reverse, gear)
-                    {
-                        boss.search(gear, feed::rev);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::data::paste, gear)
-                    {
-                        boss.paste(gear);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::data::copy, gear)
-                    {
-                        boss.copy(gear);
-                    };
-                    boss.LISTEN(tier::anycast, app::term::events::data::prnscrn, gear)
-                    {
-                        boss.prnscrn(gear);
-                    };
-                    boss.LISTEN(tier::anycast, e2::form::upon::scroll::any, i)
-                    {
-                        auto info = e2::form::upon::scroll::bypage::y.param();
-                        auto deed = boss.bell::template protos<tier::anycast>();
-                        boss.base::template raw_riseup<tier::request>(e2::form::upon::scroll::any.id, info);
-                        info.vector = i.vector;
-                        boss.base::template raw_riseup<tier::preview>(deed, info);
-                    };
-                });
+                ->invoke([&](auto& boss){ terminal_subs(boss, appcfg); });
             return window;
         };
     }

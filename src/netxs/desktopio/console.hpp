@@ -12,8 +12,7 @@ namespace netxs::ui
         static auto id = std::pair<ui32, time>{};
         static constexpr auto mouse   = 1 << 0;
         static constexpr auto nt      = 1 << 5; // Use win32 console api for input.
-        static constexpr auto onlylog = 1 << 6;
-        static constexpr auto redirio = 1 << 7;
+        static constexpr auto redirio = 1 << 6;
         //todo make 3-bit field for color mode
         static constexpr auto vtrgb   = 0;
         static constexpr auto nt16    = 1 << 1;
@@ -32,7 +31,6 @@ namespace netxs::ui
                 if (mode & vt16   ) result += "vt16 ";
                 if (mode & vt256  ) result += "vt256 ";
                 if (mode & direct ) result += "direct ";
-                if (mode & onlylog) result += "onlylog ";
                 if (result.size()) result.pop_back();
             }
             else result = "vtrgb";

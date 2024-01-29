@@ -462,8 +462,11 @@ namespace netxs::app::tile
                 {
                     auto highlight = [](auto& boss, auto state)
                     {
-                        auto c = state ? cell{ skin::color(tone::highlight) }.alpha(0x70)
-                                       : cell{ skin::color(tone::menu_black) };
+                        auto menu_black = skin::color(tone::menu_black);
+                        auto highlight_color = skin::color(tone::highlight);
+                        auto cC = menu_black.fgc(whitedk);
+                        auto c3 = highlight_color.alpha(0x70);
+                        auto c = state ? c3 : cC;
                         boss.front()->color(c.fgc(), c.bgc());
                         boss.deface();
                     };

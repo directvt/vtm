@@ -35,10 +35,10 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--runapp"))
+        else if (getopt.match("-r", "--", "--runapp"))
         {
             whoami = type::runapp;
-            params = getopt ? getopt.rest() : text{ app::term::id };
+            params = getopt.rest();
         }
         else if (getopt.match("-s", "--server"))
         {
@@ -98,8 +98,136 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            errmsg = ansi::nil().add("Print command-line options");
-            break;
+            os::dtvt::initialize();
+            netxs::logger::wipe();
+            auto syslog = os::tty::logger();
+            auto vtm = os::process::binary<true>();
+            auto pad = text(os::process::binary<true>().size(), ' ');
+            log("\nText-based desktop environment " + text{ app::shared::version } +
+                "\n"
+                "\n  Syntax:"
+                "\n"
+                "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
+                "\n"
+                "\n    " + vtm + " [ --script <commands> ] [ -p <name> ] [ -c <file> ]"
+                "\n    " + pad + " [ -q ] [ -m | -d | -s | -r [<type>] ] [<cliapp...>]"
+                "\n"
+                "\n    <run commands via piped redirection> | " + os::process::binary<true>() + " [options...]"
+                "\n"
+                "\n  Options:"
+                "\n"
+                "\n    No arguments         Connect to the desktop (autostart new if not running)."
+                "\n    -h, -?, --help       Print command-line options."
+                "\n    -v, --version        Print version."
+                "\n    -l, --listconfig     Print configuration."
+                "\n    -i, --install        Perform system-wide installation."
+                "\n    -u, --uninstall      Perform system-wide deinstallation."
+                "\n    -c, --config <file>  Specifies the settings file to load."
+                "\n    -p, --pipe <name>    Specifies the desktop session connection point (case sensitive)."
+                "\n    -m, --monitor        Run desktop session log monitor."
+                "\n    -d, --daemon         Run desktop server in background."
+                "\n    -s, --server         Run desktop server in interactive mode."
+                "\n    -r, --, --runapp     Run the specified built-in terminal type in standalone mode."
+                "\n    -q, --quiet          Disable logging."
+                "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
+                "\n    <type>               Built-in terminal type to use to run a console application (case insensitive)."
+                "\n    <cliapp...>          Console application with arguments to run."
+                "\n"
+                "\n  Settings loading order:"
+                "\n"
+                "\n    - Initialize hardcoded settings."
+                "\n    - Merge with explicitly specified settings from '--config <file>'."
+                "\n    - If the '--config' option is not used or <file> cannot be loaded:"
+                "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
+                "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
+                "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
+                "\n"
+                "\n  Built-in terminal types:"
+                "\n"
+                "\n    Term  Terminal emulator to run cli applications.                'vtm -r term [cli_app...]'"
+                "\n    NoUI  Terminal emulator without UI (scrollback only).           'vtm -r noui [cli_app...]'"
+                "\n    DTVT  DirectVT proxy to run dtvt-apps in text console.          'vtm -r dtvt [dtvt_app...]'"
+                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app...>'"
+                "\n"
+                "\n  The following commands have a short form:"
+                "\n"
+                "\n    'vtm -r xlvt ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
+                "\n    'vtm -r noui [cli_app...]' can be shortened to 'vtm [cli_app...]'."
+                "\n"
+                "\n  Scripting"
+                "\n"
+                "\n    Syntax: \"command1([args...])[; command2([args...]); ... commandN([args...])]\""
+                "\n"
+                "\n    The following characters in the script body will be de-escaped: \\e \\t \\r \\n \\a \\\" \\' \\\\"
+                "\n"
+                "\n    Commands:"
+                "\n"
+                "\n      vtm.run([<attrs>...]) Create and run a menu item constructed using"
+                "\n                            a space-separated list of attribute=<value>."
+                "\n                            Create and run temporary menu item constructed"
+                "\n                            using default attributes if no arguments specified."
+                "\n"
+                "\n      vtm.set(id=<id> [<attrs>...]) Create or override a menu item using a space-separated"
+                "\n                                    list of attribute=<value>."
+                "\n"
+                "\n      vtm.del([<id>]) Delete the taskbar menu item by <id>."
+                "\n                      Delete all menu items if no <id> specified."
+                "\n"
+                "\n      vtm.dtvt(<dtvt_app...>) Create a temporary menu item and run the specified dtvt-app."
+                "\n      vtm.selected(<id>)      Set selected menu item using specified <id>."
+                "\n      vtm.shutdown()          Terminate the running desktop session."
+                "\n"
+                "\n  Usage Examples"
+                "\n"
+                "\n    Run vtm desktop inside the current console:"
+                "\n"
+                "\n        vtm"
+                "\n"
+                "\n    Run remote vtm desktop inside the current console over SSH:"
+                "\n"
+                "\n        vtm ssh <user@server> vtm"
+                "\n"
+                "\n    Run the built-in terminal inside the current console:"
+                "\n"
+                "\n        vtm -r [term]"
+                "\n"
+                "\n    Run an application inside the built-in terminal:"
+                "\n"
+                "\n        vtm [-r [term]] </path/to/console/app>"
+                "\n"
+                "\n    Run an application remotely over SSH:"
+                "\n"
+                "\n        vtm ssh <user@server> vtm [-r [term]] </path/to/console/app>"
+                "\n"
+                "\n    Run vtm desktop and reconfigure the taskbar menu:"
+                "\n"
+                "\n        vtm --script \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\""
+                "\n"
+                "\n    Reconfigure the taskbar menu of the running desktop:"
+                "\n"
+                "\n        echo \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\" | vtm"
+                "\n        echo \"vtm.set(id=user@server type=xlvt cmd='ssh <user@server> vtm')\" | vtm"
+                "\n"
+                "\n    Run a terminal window on the running desktop:"
+                "\n"
+                "\n        echo \"vtm.run()\" | vtm"
+                "\n        echo \"vtm.run(id=Term)\" | vtm"
+                "\n        echo \"vtm.dtvt(vtm -r term)\" | vtm"
+                "\n"
+                "\n    Run an application window on the running desktop:"
+                "\n"
+                "\n        echo \"vtm.run(title='Console \\nApplication' cmd=</path/to/app>)\" | vtm"
+                "\n"
+                "\n    Run tiling window manager with three terminals attached:"
+                "\n"
+                "\n        echo \"vtm.run(type=group title=Terminals cmd='v(h(Term,Term),Term)')\" | vtm"
+                "\n"
+                "\n    Terminate the running desktop session:"
+                "\n"
+                "\n        echo \"vtm.shutdown()\" | vtm"
+                "\n"
+                );
+            return 0;
         }
         else if (getopt.match("-v", "--version"))
         {
@@ -109,22 +237,15 @@ int main(int argc, char* argv[])
             log(app::shared::version);
             return 0;
         }
-        else if (getopt.match("--onlylog"))
-        {
-            os::dtvt::vtmode |= ui::console::onlylog;
-        }
         else if (getopt.match("--script"))
         {
             script = xml::unescape(getopt.next());
         }
-        else if (getopt.match("--"))
-        {
-            break;
-        }
         else
         {
-            errmsg = utf::concat("Unknown option '", getopt.next(), "'");
-            break;
+            params = getopt.rest(); // params can't be empty at this point (see utf::quote()).
+            if (params.front() == '-') errmsg = utf::concat("Unknown option '", params, "'");
+            else                       whoami = type::runapp;
         }
     }
 
@@ -157,52 +278,7 @@ int main(int argc, char* argv[])
     log(getopt.show());
     if (errmsg.size())
     {
-        failed(code::errormsg);
-        log("\nText-based desktop environment " + text{ app::shared::version } +
-            "\n"
-            "\n  Syntax:"
-            "\n"
-            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -p <pipe> ] [ -i | -u ] [ -q ] [ -l | -m | -d | -s | -r [<app> [<args...>]] ]"
-            "\n"
-            "\n  Options:"
-            "\n"
-            "\n    No arguments         Connect to the desktop (autostart new if not running)."
-            "\n    -c, --config <file>  Load the specified settings file."
-            "\n    -p, --pipe <name>    Specify the desktop session connection point."
-            "\n    -q, --quiet          Disable logging."
-            "\n    -l, --listconfig     Print configuration."
-            "\n    -m, --monitor        Desktop session log."
-            "\n    -d, --daemon         Run desktop server in background."
-            "\n    -s, --server         Run desktop server in interactive mode."
-            "\n    -r, --runapp <args>  Run the specified application in standalone mode."
-            "\n    -i, --install        System-wide installation."
-            "\n    -u, --uninstall      System-wide deinstallation."
-            "\n    -v, --version        Print version."
-            "\n    -?, -h, --help       Print command-line options."
-            "\n    --onlylog            Disable interactive user input for desktop server."
-            "\n    --script <body>      Run the specified script on ready."
-            "\n"
-            "\n  Settings loading order:"
-            "\n"
-            "\n    - Initialize hardcoded settings"
-            "\n    - Merge with explicitly specified settings from --config <file>"
-            "\n    - If the --config option is not used or <file> cannot be loaded:"
-            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
-            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
-            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)"
-            "\n"
-            "\n  Built-in applications:"
-            "\n"
-            "\n    Term      Terminal emulator to run cli applications.       'vtm -r term [cli_application]'"
-            "\n    Headless  Terminal emulator without UI.                    'vtm -r headless [cli_application]'"
-            "\n    DTVT      DirectVT proxy to run dtvt-apps in text console. 'vtm -r dtvt [dtvt_application]'"
-            "\n    XLVT      DTVT with controlling terminal.                  'vtm -r xlvt ssh [user@host dtvt_application]'"
-            "\n"
-            "\n  The following commands have a short form:"
-            "\n    'vtm -r xlvt ssh [user@host dtvt_application]' can be shortened to 'vtm ssh [user@host dtvt_application]'."
-            "\n    'vtm -r term [cli_application]' can be shortened to 'vtm -r [cli_application]'."
-            "\n"
-            );
+        return failed(code::errormsg);
     }
     else if (whoami == type::config)
     {
@@ -296,6 +372,7 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::xlinkvt::id))   { aclass = app::xlinkvt::id;   apname = app::xlinkvt::desc;   }
         else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
         else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
+        else if (shadow.starts_with(app::noui::id))      { aclass = app::headless::id;  apname = app::headless::desc;  }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aclass = app::calc::id;      apname = app::calc::desc;      }
         else if (shadow.starts_with(app::shop::id))      { aclass = app::shop::id;      apname = app::shop::desc;      }
@@ -313,8 +390,8 @@ int main(int argc, char* argv[])
         else
         {
             params = " "s + params;
-            aclass = app::term::id;
-            apname = app::term::desc;
+            aclass = app::headless::id;
+            apname = app::headless::desc;
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
@@ -334,7 +411,6 @@ int main(int argc, char* argv[])
             auto [success, successor] = os::process::fork(prefix, config.utf8());
             if (successor)
             {
-                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
                 script = {};
             }
@@ -368,7 +444,6 @@ int main(int argc, char* argv[])
             auto [success, successor] = os::process::fork(prefix, config.utf8(), script);
             if (successor)
             {
-                os::dtvt::vtmode |= ui::console::onlylog;
                 whoami = type::server;
             }
             else 

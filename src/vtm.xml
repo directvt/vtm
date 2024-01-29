@@ -1,8 +1,8 @@
 R"==(<config>
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
-        <python     cwd="" usetty=no  cmd="python -i"                  run="print(\"Hello World!\")"/>
-        <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive"       run="\"Hello World!\""/>
-        <lua        cwd="" usetty=no  cmd="lua -i"                     run="print \"Hello World!\""/>
+        <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
+        <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive" run="\"Hello World!\""/>
+        <lua        cwd="" usetty=no  cmd="lua -i"               run="print \"Hello World!\""/>
         <javascript cwd="" usetty=no  cmd="node -i">
             <run>
                 console.log("Hello, World!");
@@ -24,11 +24,11 @@ R"==(<config>
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Command Prompt" notes=" Windows Command Prompt " cmd="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Command Prompt" cmd="$0 -r term" notes=" Windows Command Prompt            \n   LeftClick to start an instance  \n   RightClick to set it as default ">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
+        <item id=Term label="Term" type=DirectVT title="Terminal emulator" cmd="$0 -r term" notes=" Terminal emulator                 \n   LeftClick to start an instance  \n   RightClick to set it as default ">
 )=="
 #endif
 R"==(
@@ -63,13 +63,13 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=pwsh label="pwsh" type=DirectVT title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core "/>
+        <item id=pwsh label="pwsh" type=DirectVT title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                   \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
 )=="
 #endif
 R"==(
-        <item id=Tile label="Tile" type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=View label="View" type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
-        <item id=Logs label="Logs" type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor ">
+        <item id=Tile label="Tile" type=Group    title="Tiling window manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=View label="View" type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=Logs label="Logs" type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor                       \n   LeftClick to start an instance  \n   RightClick to set it as default ">
             <config>
                 <term>
                     <logs=off/>
@@ -85,24 +85,28 @@ R"==(
                         <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                             <label="\e[38:2:0:255:0m<\e[m"/>
                             <notes>
-                                " Previous match                                \n"
-                                " - Clipboard data will be used if no selection \n"
-                                " - Scroll one page up if clipboard is empty    "
+                                " Previous match                                  \n"
+                                "   LeftClick to jump to previous match or scroll \n"
+                                "             one page up if nothing to search    \n"
+                                "   Match clipboard data if no selection          \n"
+                                "   Left+RightClick to clear clipboard            "
                             </notes>
                         </item>
                         <item label=">" action=TerminalFindNext>
                             <label="\e[38:2:0:255:0m>\e[m"/>
                             <notes>
-                                " Next match                                    \n"
-                                " - Clipboard data will be used if no selection \n"
-                                " - Scroll one page down if clipboard is empty  "
+                                " Next match                                     \n"
+                                "   LeftClick to jump to next match or scroll    \n"
+                                "             one page down if nothing to search \n"
+                                "   Match clipboard data if no selection         \n"
+                                "   Left+RightClick to clear clipboard           "
                             </notes>
                         </item>
                         <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                             <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                             <notes>
                                 " Wrapping text lines on/off      \n"
-                                " - Applied to selection if it is "
+                                "   Applied to selection if it is "
                             </notes>
                         </item>
                         <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->
@@ -173,7 +177,7 @@ R"==(
             <active     fgc=whitelt                   />
             <selected   fgc=whitelt                   /> <!-- SGR attributes (boolean): itc: italic, bld: bold, und: underline, inv: reverse, ovr: overline, blk: blink -->
             <warning    fgc=whitelt   bgc=yellowdk    />
-            <danger     fgc=whitelt   bgc=redlt       />
+            <danger     fgc=whitelt   bgc=purered     />
             <action     fgc=whitelt   bgc=greenlt     />
             <label      fgc=blackdk   bgc=whitedk     />
             <inactive   fgc=blacklt   bgc=transparent />
@@ -230,7 +234,7 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF000000>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF180800>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
@@ -260,7 +264,7 @@ R"==(
             <altscroll enabled="yes" step=1 />   <!-- Alternate scroll mode settings. -->
         </scrollback>
         <color>
-            <color0  = blackdk    /> <!-- See /config/set/* for the color name reference. -->
+            <color0  = pureblack  /> <!-- See /config/set/* for the color name reference. -->
             <color1  = reddk      />
             <color2  = greendk    />
             <color3  = yellowdk   />
@@ -276,7 +280,7 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=0 fgc=15 />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -305,26 +309,28 @@ R"==(
             <item label="<" action=TerminalFindPrev>  <!-- type=Command is a default item's attribute. -->
                 <label="\e[38:2:0:255:0m<\e[m"/>
                 <notes>
-                    " Previous match                                \n"
-                    " - Jump to previous match with selection       \n"
-                    " - Clipboard data will be used if no selection \n"
-                    " - Scroll one page up if clipboard is empty    "
+                    " Previous match                                  \n"
+                    "   LeftClick to jump to previous match or scroll \n"
+                    "             one page up if nothing to search    \n"
+                    "   Match clipboard data if no selection          \n"
+                    "   Left+RightClick to clear clipboard            "
                 </notes>
             </item>
             <item label=">" action=TerminalFindNext>
                 <label="\e[38:2:0:255:0m>\e[m"/>
                 <notes>
-                    " Next match                                    \n"
-                    " - Jump to next match with selection           \n"
-                    " - Clipboard data will be used if no selection \n"
-                    " - Scroll one page down if clipboard is empty  "
+                    " Next match                                     \n"
+                    "   LeftClick to jump to next match or scroll    \n"
+                    "             one page down if nothing to search \n"
+                    "   Match clipboard data if no selection         \n"
+                    "   Left+RightClick to clear clipboard           "
                 </notes>
             </item>
             <item label="Wrap" type=Option action=TerminalWrapMode data="off">
                 <label="\e[38:2:0:255:0mWrap\e[m" data="on"/>
                 <notes>
                     " Wrapping text lines on/off      \n"
-                    " - Applied to selection if it is "
+                    "   Applied to selection if it is "
                 </notes>
             </item>
             <item label="Selection" notes=" Text selection mode " type=Option action=TerminalSelectionMode data="none">  <!-- type=Option means that the тext label will be selected when clicked.  -->

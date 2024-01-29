@@ -145,6 +145,14 @@ namespace netxs::os
             return errno;
         #endif
     }
+    auto exitcode(si32 code)
+    {
+        #if defined(_WIN32)
+            return utf::to_hex_0x(code);
+        #else
+            return std::to_string(code);
+        #endif
+    }
     template<class ...Args>
     auto fail(Args&&... msg)
     {
@@ -2458,7 +2466,7 @@ namespace netxs::os
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" --script ", script) : ""s));
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" --script ", script) : ""s));
                     if (os::nt::runas(cmdarg))
                     {
                         success.reset(handle); // Do not close until confirmation from the server process is received.
@@ -2575,7 +2583,7 @@ namespace netxs::os
                                     auto envars = blocks[2];
                                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                                     auto handle = process::memory::set(cfpath, config);
-                                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s --onlylog -p ", prefix, " -c :", cfpath));
+                                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath));
                                     // Run server process.
                                     auto ostoken = fd_t{};
                                     auto mytoken = fd_t{};
@@ -5693,7 +5701,6 @@ namespace netxs::os
                 else thread = std::thread{ [&, send, shut]
                 {
                     dtvt::scroll = true;
-                    auto quiet = os::dtvt::vtmode & ui::console::onlylog;
                     auto osout = tty::cout;
                     auto width = si32{};
                     auto block = escx{};
@@ -5763,7 +5770,7 @@ namespace netxs::os
                     auto keybd = [&](auto& data)
                     {
                         auto guard = std::unique_lock{ mutex };
-                        if (!alive || quiet || !data.pressed || data.cluster.empty()) return;
+                        if (!alive || !data.pressed || data.cluster.empty()) return;
                         switch (data.cluster.front()) 
                         {
                             case 0x03: enter(ansi::err("Ctrl+C\r\n")); alarm.bell(); break;
@@ -5779,18 +5786,20 @@ namespace netxs::os
                                 break;
                             case '\n':
                             case '\r': // Enter
-                            {
-                                auto line = block + '\n';
-                                block.clear();
-                                clear();
-                                print(faux);
-                                guard.unlock(); // Allow to use log() inside send().
-                                send(line);
+                                {
+                                    auto line = block + '\n';
+                                    block.clear();
+                                    clear();
+                                    print(faux);
+                                    guard.unlock(); // Allow to use log() inside send().
+                                    send(line);
+                                }
                                 break;
-                            }
                             default:
-                                block += data.cluster;
-                                print(true);
+                                {
+                                    block += data.cluster;
+                                    print(true);
+                                }
                                 break;
                         }
                     };
@@ -5805,7 +5814,7 @@ namespace netxs::os
                     auto paste = [&](auto& data)
                     {
                         auto guard = std::lock_guard{ mutex };
-                        if (!alive || quiet || data.txtdata.empty()) return;
+                        if (!alive || data.txtdata.empty()) return;
                         block += data.txtdata;
                         print(true);
                     };
