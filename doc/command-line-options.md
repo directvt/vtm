@@ -3,10 +3,10 @@
 ### Command-line options
 
 ```
- vtm [ -i | -u ] | [ -v ] | [ -? ]
+ vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
 
- vtm [ --script <body> ][ -c <file> ][ -p <name> ][ -q ]
-     [ -l | -m | -d | -s | -r [<app> [<args...>]] ]
+ vtm [ --script <body> ][ -p <name> ][ -c <file> ][ -q ]
+     [ -m | -d | -s | -r [<app> [<args...>]] ]
 ```
 
 Option                       | Description
