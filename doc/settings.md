@@ -26,12 +26,12 @@ graph LR
   - on posix: `~/.config/vtm/settings.xml`
   - on win32: `%userprofile%/.config/vtm/settings.xml`
 - DirectVT packet with configuration payload
-  - The `cfg` or `<config>` menu item sub-attribute passed to the dtvt application on launch:
+  - The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the dtvt application on launch:
     ```xml
         ...
         <menu>
             ...
-            <item ... type=DirectVT ... cmd="$0 ..." cfg="xml data as alternative to <config> subsection">
+            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection">
                 <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
                     ...
                 </config>
