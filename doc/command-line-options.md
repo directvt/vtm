@@ -47,8 +47,8 @@ No arguments            | Connect to the desktop (autostart new if not running).
 -------|---------------------------------------------------|------------------------------------
 `Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cli_app ...]`
 `NoUI` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r noui [cli_app ...]`
-`DTVT` | DirectVT proxy to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
-`XLVT` | DirectVT proxy with controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
+`DTVT` | DirectVT proxy console to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
+`XLVT` | DirectVT proxy console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
@@ -62,7 +62,7 @@ The following characters in the script body will be de-escaped: `\e` `\t` `\r` `
 
  Command                                 | Description
 -----------------------------------------|-------------------------------------------
-`vtm.run([<attr_list>...])`              | Create and run a menu item constructed using a space-separated list of `attribute=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.
+`vtm.run([<attr_list>...])`              | Create and run a menu item constructed using a space-separated list of `attribute=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.<br>See [Settings/Taskbar menu item attributes](settings.md#Taskbar-menu-item-attributes) for details.
 `vtm.set(id=<item_id> [<attr_list>...])` | Create or override a menu item using a space-separated list of `attribute=<value>`.
 `vtm.del([<item_id>])`                   | Delete the taskbar menu item by `<id>`.<br>Delete all menu items if no `<id>` specified.
 `vtm.dtvt(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.

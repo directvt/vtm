@@ -378,7 +378,7 @@ echo "vtm.run(id=Tile)" | vtm
 
 ### Tiling window manager
 
-Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-type) for details.
+Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-window-types) for details.
 
 ### VT logging for developers
 
