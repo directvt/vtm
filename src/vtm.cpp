@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--", "--runapp"))
+        else if (getopt.match("-r", "--", "--run", "--runapp"))
         {
             whoami = type::runapp;
             params = getopt.rest();
@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
                 "\n    -m, --monitor        Run desktop session log monitor."
                 "\n    -d, --daemon         Run desktop server in background."
                 "\n    -s, --server         Run desktop server in interactive mode."
-                "\n    -r, --, --runapp     Run the specified built-in terminal type in standalone mode."
+                "\n    -r, --, --run        Run the specified built-in terminal type in standalone mode."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
                 "\n    <type>               Built-in terminal type to use to run a console application (case insensitive)."

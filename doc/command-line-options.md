@@ -26,7 +26,7 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-m`, `--monitor`       | Run desktop session log monitor.
 `-d`, `--daemon`        | Run desktop server in background.
 `-s`, `--server`        | Run desktop server in interactive mode.
-`-r`, `--`, `--runapp`  | Run the specified built-in terminal type in standalone mode.
+`-r`, `--`, `--run`     | Run the specified built-in terminal type in standalone mode.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
 `<type>`                | Built-in terminal type to use to run a console application (case insensitive).
