@@ -221,8 +221,8 @@ Type (case insensitive) | Parameter        | Description
 ------------------------|------------------|------------
 `dtvt`\|`DirectVT`      | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
 `xlvt`\|`XLinkVT`       | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
-`ANSIVT`                | `cli_app ...`    | Run `cli_app ...` inside the built-in terminal of term type. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term cli_app ..."`.
-`SHELL` (default)       | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside the built-in terminal. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term your_system_shell -c cli_app ..."`.
+`ANSIVT`                | `cli_app ...`    | Run `cli_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term cli_app ..."`.
+`SHELL` (default)       | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term your_system_shell -c cli_app ..."`.
 `Group`                 | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=group cmd="v(h1:1(Term, Term),Term)"`.
 `Region`                |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
 
