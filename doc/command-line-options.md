@@ -43,11 +43,11 @@ No arguments            | Connect to the desktop (autostart new if not running).
 
 ### Built-in terminal types
 
- Type  | Description                                      | Syntax
--------|--------------------------------------------------|------------------------------------
-`Term` | Terminal emulator to run cli applications.       | `vtm [options ...] -r term [cliapp ...]`
-`NoUI` | Terminal emulator without UI (scrollback only).  | `vtm [options ...] -r noui [cliapp ...]`
-`DTVT` | DirectVT proxy to run dtvt-apps in text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
+ Type  | Description                                       | Syntax
+-------|---------------------------------------------------|------------------------------------
+`Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cliapp ...]`
+`NoUI` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r noui [cliapp ...]`
+`DTVT` | DirectVT proxy to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
 `XLVT` | DirectVT proxy with controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:

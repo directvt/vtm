@@ -186,25 +186,26 @@ The content of the `<config>` subelement is passed to the application upon start
 
 #### Taskbar menu item attributes
 
-Attribute  | Description                                       | Value type | Mandatory | Default value
------------|---------------------------------------------------|------------|-----------|---------------
-`id`       |  Item textual identifier                          | `string`   | required  |
-`alias`    |  Use existing item specified by `id` as template  | `string`   |           |
-`hidden`   |  Item visibility                                  | `boolean`  |           | `no`
-`label`    |  Item label text                                  | `string`   |           | =`id`
-`notes`    |  Item tooltip text                                | `string`   |           | empty
-`title`    |  App window title                                 | `string`   |           | empty
-`footer`   |  App window footer                                | `string`   |           | empty
-`bgc`      |  App window background color                      | `RGBA`     |           |
-`fgc`      |  App window foreground color                      | `RGBA`     |           |
-`winsize`  |  App window 2D size                               | `x;y`      |           |
-`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |           |
-`slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
-`env`      |  Environment variable in "var=val" format         | `string`   |           |
-`cwd`      |  Current working directory                        | `string`   |           |
-`cmd`      |  App constructor arguments                        | `string`   |           | empty
-`type`     |  App type                                         | `string`   |           | `SHELL`
-`config`   |  Configuration patch for DirectVT apps            | `xml-node` |           | empty
+Attribute  | Description                                       | Value type | Default value
+-----------|---------------------------------------------------|------------|---------------
+`id`       |  Item id                                          | `string`   |
+`alias`    |  Item template `id` reference                     | `string`   |
+`hidden`   |  Item visibility on taskbar                       | `boolean`  | `no`
+`label`    |  Item label text                                  | `string`   | =`id`
+`notes`    |  Item tooltip text                                | `string`   | empty
+`title`    |  App window title                                 | `string`   | empty
+`footer`   |  App window footer                                | `string`   | empty
+`bgc`      |  App window background color                      | `RGBA`     |
+`fgc`      |  App window foreground color                      | `RGBA`     |
+`winsize`  |  App window 2D size                               | `x;y`      |
+`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
+`slimmenu` |  App window menu vertical size                    | `boolean`  | `no`
+`type`     |  App window type                                  | `string`   | `SHELL`
+`env`      |  Environment variable in "var=val" format         | `string`   |
+`cwd`      |  Current working directory                        | `string`   |
+`cmd`      |  App constructor arguments                        | `string`   | empty
+`cfg`      |  App configuration in XML-format                  | `string`   | empty
+`config`   |  Configuration patch for DirectVT apps            | `xml-node` | empty
 
 #### Value literals
 
@@ -215,7 +216,7 @@ Type     | Format
 `string` |  _UTF-8 text string_
 `x;y`    |  _integer_ <any_delimeter> _integer_
 
-#### App type
+#### App window types
 
 Type (case insensitive) | Parameter        | Description
 ------------------------|------------------|------------
