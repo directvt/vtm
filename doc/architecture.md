@@ -331,7 +331,7 @@ The following examples assume that vtm is installed on both the local and remote
 
 ## Desktop taskbar menu customization
 
-The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\\.config\\vtm\\settings.xml`):
+The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
 ```xml
 <config>
     <menu>
@@ -365,11 +365,11 @@ The taskbar menu of the running desktop can be configured using shell piped redi
 # Delete existing menu items
 echo "vtm.del()" | vtm
 # Add new menu items
-echo "vtm.set('id=Term label=\"Terminal\" type=dtvt cmd=\"vtm -r term\")" | vtm
-echo "vtm.set('id=Huge label=\"Huge Terminal\" type=dtvt cmd=\"vtm -r term\" cfg=\"<config><term><scrollback size=500000/></term></config>\")" | vtm
-echo "vtm.set('id=Tile label=\"Three Terminals\" type=group cmd=\"v(h(Term, Term), Huge)\")" | vtm
-echo "vtm.set('id=cmd label=\"Remote cmd over SSH\" type=xlvt cmd=\"ssh user@server vtm cmd\")" | vtm
-echo "vtm.set('id=cmd label=\"Remote cmd over SSH\" type=xlvt cmd=\"ssh user@server vtm cmd\")" | vtm
+echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
+echo "vtm.set(id=White label='White Terminal' type=dtvt fgc=0xFF000000 bgc=0xFFffffff cmd='vtm -r term')" | vtm
+echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
+echo "vtm.set(id=Tile label='Three Terminals' type=group cmd='v(h(Term, Term), Huge)')" | vtm
+echo "vtm.set(id=cmd label='Remote cmd over SSH' type=xlvt cmd='ssh user@server vtm cmd')" | vtm
 # Set default menu item
 echo "vtm.selected(Term)" | vtm
 # Run window with terminals
