@@ -180,7 +180,7 @@ Top-level element `<config>` contains the following base elements:
 
 #### Application Configuration
 
-The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal for now.
+The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement OR `cfg="xml-text-data"` attribute. The `<config>` subelement will be ignored if `cfg="xml-text-data"` attribute is specified. This type is only supported by built-in terminal for now.
 
 The content of the `<config>` subelement is passed to the application upon startup.
 
@@ -217,21 +217,21 @@ Type     | Format
 
 #### App type
 
-Type              | Parameter        | Description
-------------------|------------------|-----------
-`DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT cmd="_command line_"`.
-`XLVT`\|`XLinkVT` | `_command line_` | Run `_command line_` using DirectVT protocol with controlling terminal attached for OpenSSH interactivity. Usage example `type=XLVT cmd="_command line_"`.
-`ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _command line_"`.
-`SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _shell_ -c _command line_"`.
-`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=Group cmd="h1:1(Term, Term)"`.
-`Region`          | | The `cmd` attribute is not used, use attribute `title=_view_title_` to set region name.
+Type (case insensitive) | Parameter        | Description
+------------------------|------------------|------------
+`dtvt`\|`DirectVT`      | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`xlvt`\|`XLinkVT`       | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
+`ANSIVT`                | `cli_app ...`    | Run `cli_app ...` inside the built-in terminal of term type. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term cli_app ..."`.
+`SHELL` (default)       | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside the built-in terminal. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term your_system_shell -c cli_app ..."`.
+`Group`                 | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=Group cmd="h1:1(Term, Term)"`.
+`Region`                |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
 
 The following configuration items produce the same final result:
 ```
-<item …. cmd=‘mc’/>
-<item …. type=SHELL cmd=‘mc’/>
-<item …. type=ANSIVT cmd=‘bash -c mc’/>
-<item …. type=DirectVT cmd=‘$0 -r term bash -c mc’/>
+<item ... cmd=mc/>
+<item ... type=SHELL cmd=mc/>
+<item ... type=ANSIVT cmd='bash -c mc'/>
+<item ... type=DirectVT cmd='$0 -r term bash -c mc'/>
 ```
 
 ### Configuration Example
@@ -328,7 +328,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
-            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
+            <macstyle = no   /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
