@@ -108,7 +108,7 @@ The DirectVT client-server channel can be wrapped in any transport layer protoco
 
 ## DirectVT mode
 
-In DirectVT mode, the client side receives the event stream and renders directly in binary form (with platform endianness correction), avoiding any expensive parsing and cross-platform issues.
+In DirectVT mode, the client side receives the event stream, and renders itself directly in a binary endianness-aware form, avoiding any expensive parsing and cross-platform issues.
 
 ## ANSI/VT mode
 
@@ -123,20 +123,20 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
     - SGR mouse reporting sequences `\x1b[<s;x;yM/m` are redirected to the mouse event channel.
     - Terminal window focus reporting sequences `\x1b[I`/`\x1b[O` are redirected to the focus event channel.
     - Line style reporting sequences `\x1b[33:STYLEp` are redirected to the style event channel (current/selected line wrapping on/off, left/right/center alignment).
-    - All incoming text flow that does not fall into the above categories is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel.
+    - All incoming text flow that does not fall into the above categories is clusterized, forming a key pressed stream forwarded to the keyboard event channel.
 - Operating system signals
-    - SIGWINCH: Event is forwarded to the window size event channel.
-    - SIGINT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
-    - SIGHUP: Event is forwarded to the shutdown event channel (going to graceful shutdown).
-    - SIGTERM: Event is forwarded to the shutdown event channel (going to graceful shutdown).
+    - SIGWINCH events are forwarded to the window size event channel.
+    - SIGINT events are forwarded to the shutdown event channel to perform graceful exit.
+    - SIGHUP events are forwarded to the shutdown event channel to perform graceful exit.
+    - SIGTERM events are forwarded to the shutdown event channel to perform graceful exit.
 - PS/2 Mouse device (Linux VGA Console only)
-    - `/dev/input/mice`: Interpreted ImPS/2 mouse protocol events are forwarded to the mouse event channel.
+    - `/dev/input/mice`: Received ImPS/2 mouse protocol events are decoded and forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
 #### Windows input sources
 
 - ReadConsoleInput events (Win32 Console API)
-    - The KEY_EVENT stream is clusterized, tied to the keys pressed, and forwarded to the keyboard event channel (excluding repeat modifier keys).
+    - The KEY_EVENT stream is clusterized, forming a key pressed stream forwarded to the keyboard event channel (excluding repeat modifier keys).
     - The MOUSE_EVENT stream is forwarded to the mouse event channel (excluding double clicks and idle events).
     - The FOCUS_EVENT stream is forwarded to the focus event channel.
     - The WINDOW_BUFFER_SIZE_EVENT stream is forwarded to the window size event channel.
@@ -145,22 +145,22 @@ In ANSI/VT mode, the client side parses input from multiple standard sources, an
         - 0x8001: Clipboard-paste block start (INPUT_RECORD begin mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD end mark appears, and then a whole block of chars is forwarded to the clipboard event channel.
         - 0x8002: Clipboard-paste block end (INPUT_RECORD end mark).
 - Window system-defined messages
-    - WM_CREATE: Event is forwarded to the clipboard event channel.
-    - WM_CLIPBOARDUPDATE: Event is forwarded to the clipboard event channel.
-    - WM_ENDSESSION
+    - WM_CREATE event is forwarded to the clipboard event channel.
+    - WM_CLIPBOARDUPDATE events are forwarded to the clipboard event channel.
+    - WM_ENDSESSION event is interpreted using its sub-parameter's value:
         - ENDSESSION_CLOSEAPP: Register CTRL_CLOSE_EVENT signal.
         - ENDSESSION_LOGOFF: Register CTRL_LOGOFF_EVENT signal.
         - any other non-zero: Register CTRL_SHUTDOWN_EVENT signal.
 - Operating system signals
-    - CTRL_C_EVENT: Event is tied to the `Ctrl+C` keys pressed, and forwarded to the keyboard event channel.
-    - CTRL_BREAK_EVENT: Event is tied to the `Ctrl+Break` keys pressed, and forwarded to the keyboard event channel.
-    - CTRL_CLOSE_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
-    - CTRL_LOGOFF_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
-    - CTRL_SHUTDOWN_EVENT: Event is forwarded to the shutdown event channel (going to graceful shutdown).
+    - CTRL_C_EVENT events are form the `Ctrl+C` key pressed event stream forwarded to the keyboard event channel.
+    - CTRL_BREAK_EVENT events are form the `Ctrl+Break` key pressed event stream forwarded to the keyboard event channel.
+    - CTRL_CLOSE_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
+    - CTRL_LOGOFF_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
+    - CTRL_SHUTDOWN_EVENT event is forwarded to the shutdown event channel to perform graceful exit.
 
 ### Output
 
-The binary render received for output from the server side is converted by the client side into a format suitable for the type of console being used. The console type is detected at startup and can be one of the following:
+The binary render stream received from the server side to output by the client side is converted to the format suitable for the console being used to output. The console type is detected at startup and can be one of the following:
 - VT Terminal with truecolor support
 - VT Terminal with 256-color support (Apple Terminal)
 - VT Terminal with 16-color support (Linux VGA Console, 16-color terminals)
@@ -172,16 +172,16 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
 
 ## Local usage
 
-### Running vtm desktop
+### Run vtm desktop
 
-- Run command
+- Run command:
     ```bash
     vtm
     ```
 
-### Running built-in terminal with default shell
+### Run built-in terminal with default shell
 
-- Run command
+- Run command:
     ```bash
     vtm -r term
     ```
@@ -191,75 +191,79 @@ vtm renders itself at a constant frame rate into internal buffers and outputs to
     # The `vtm -r` option is auto converted to the `vtm -r noui`.
     ```
 
-### Running a standalone console application
+### Run a standalone console application
 
-- Run command
+- Run command:
     ```bash
     vtm -r term /path/to/console/app
     # The `vtm -r term` option means to run the built-in terminal to host the console application.
     ```
 
-### Running a standalone console application without extra UI
+### Run a standalone console application without extra UI
 
-- Run command
+- Run command:
     ```bash
     vtm -r noui /path/to/console/app
-    # The `vtm -r noui` option means to run the built-in terminal without menu and bottom bar.
+    # The `vtm -r noui` option means to run the built-in terminal without menu and bottom bar (NoUI built-in terminal type).
     ```
     or
     ```bash
     vtm -r /path/to/console/app
     # The `vtm -r ...` option is auto converted to the `vtm -r noui ...`.
     ```
+    or
+    ```bash
+    vtm /path/to/console/app
+    # The `vtm -r noui ...` option is used by default.
+    ```
 
 ## Remote access
 
 In general, the local and remote platforms may be different.
 
-When DirectVT mode is enabled, all keyboard, mouse and other input events are transmitted between hosts in binary form.
+When DirectVT mode is enabled, all keyboard, mouse and other input events are transmitted between hosts in a binary endianness-aware form.
 
 The following examples assume that vtm is installed on both the local and remote sides.
 
-### Running a standalone console application remotely via SSH
+### Run a standalone console application remotely over SSH
 
 - Remote side
-    - Running SSH-server
+    - Run SSH-server if it is not running.
 - Local side
-    - Run command
+    - Run command:
     ```bash
     vtm -r xlvt ssh user@server vtm -r noui /path/to/console/app
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm -r noui` statement means to connect via ssh and run the built-in terminal on the remote host.
+    # The `ssh user@server vtm -r noui` statement means to connect via ssh and run the built-in terminal of NoUI type on the remote host.
     ```
     or
     ```bash
-    vtm ssh user@server vtm -r /path/to/console/app
-    # The `vtm -r ...` option is auto converted to the `vtm -r noui ...`.
+    vtm ssh user@server vtm /path/to/console/app
     ```
 
-### Running vtm in DirectVT mode remotely via SSH
+### Run remote vtm desktop in DirectVT mode over SSH
 
 - Remote side
-    - Running SSH-server
+    - Run SSH-server if it is not running.
 - Local side
-    - Run command
+    - Run command:
     ```bash
     vtm -r xlvt ssh user@server vtm
     # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm` statement means to connect via ssh and run vtm on the remote host.
+    # The `ssh user@server vtm` statement means to connect via ssh and run the vtm desktop on the remote host.
     ```
     or
     ```bash
     vtm ssh user@server vtm
-    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh ...`.
+    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh` keyword.
     ```
 
-### Running vtm in ANSI/VT mode remotely via SSH
+### Run remote vtm desktop in ANSI/VT mode over SSH
 
 - Remote side
-    - Running SSH-server
+    - Run SSH-server if it is not running.
 - Local side
-    - Run commands
+    - Run commands:
     ```bash
     ssh user@server
     vtm
@@ -267,62 +271,59 @@ The following examples assume that vtm is installed on both the local and remote
     or
     ```bash
     ssh -t user@server vtm
-    # The `ssh -t ...` option is required to allocate TTY on remote host.
+    # The ssh's `ssh -t ...` option is required to allocate TTY on remote host.
     ```
 
-### Running vtm in DirectVT mode remotely via `netcat` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT mode using `netcat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
-    - Run command
+    - Run command:
     ```bash
     ncat -l tcp_port -k -e vtm
-    # `-l tcp_port`: specify tcp port to listen.
-    # `-k`: order to keep connection open for multiple clients.
-    # `-e`: order to run vtm for every connected client.
+    # ncat's option `-l tcp_port` specifies tcp port to listen.
+    # ncat's option `-k` to keep connection open for multiple clients.
+    # ncat's option `-e` to run vtm for every connected client.
     ```
 - Local side
-    - Run command
+    - Run command:
     ```bash
     vtm -r dtvt ncat remote_ip remote_tcp_port
-    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm environment).
+    # The `vtm -r dtvt` option means to run the built-in terminal of dtvt type (DirectVT proxy) to host ncat.
     # Note: Make sure `ncat` is installed.
     ```
 
-### Running vtm in DirectVT mode remotely using `inetd` (POSIX only, unencrypted, for private use only)
+### Run remote vtm desktop in DirectVT mode using `inetd + ncat` (POSIX only, unencrypted, for private use only)
 
 - Remote side
-    - Install `inetd`
+    - Install `inetd`.
     - Add the following line to the `/etc/inetd.conf`:
         ```bash
         tcp_port stream tcp nowait user_name /remote/side/path/to/vtm  vtm
         # `tcp_port`: tcp port to listen.
         # `user_name`: user login name.
         ```
-    - Launch `inetd`
+    - Launch `inetd`:
         ```
         inetd
         ```
 - Local side
-    - Run command
+    - Run command:
     ```bash
     vtm -r dtvt ncat remote_ip remote_tcp_port
-    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
-    # Note: Make sure `ncat` is installed.
     ```
 
-### Local standard I/O redirection (POSIX only)
+### Local standard I/O redirection using `socat` (POSIX only)
 
 - Host side
-    - Run commands
+    - Run commands:
     ```bash
     mkfifo in && mkfifo out
     vtm >out <in
     ```
 - User side
-    - Run command
+    - Run command:
     ```bash
     vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
-    # The `vtm -r dtvt` option means to run DirectVT proxy (not required inside vtm desktop environment).
     # Note: Make sure `socat` is installed.
     ```
 
@@ -337,9 +338,9 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <!-- <item*/> --> <!-- Clear default item list -->
         <item splitter label="Remote Access"/>
 
-        <item id="Run vtm in DirectVT mode remotely via SSH"    type=xlvt cmd="ssh user@server vtm"/>
-        <item id="Run a standalone console application via ssh" type=xlvt cmd="ssh user@server vtm -r term /path/to/console/app"/>
-        <item id="Run application via ssh w/o extra UI"         type=xlvt cmd="ssh user@server vtm -r noui /path/to/console/app"/>
+        <item id="Run remote vtm desktop in DirectVT mode over SSH" type=xlvt cmd="ssh user@server vtm"/>
+        <item id="Run console app in remote terminal over SSH"      type=xlvt cmd="ssh user@server vtm -r term /path/to/console/app"/>
+        <item id="Run console app remotely over SSH w/o extra UI"   type=xlvt cmd="ssh user@server vtm /path/to/console/app"/>
 
         <item splitter label="Another Examples"/>
 
@@ -349,19 +350,35 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <item id="Midnight Commander"             type=noui cmd="mc"/>
         <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
 
-        <item id="Far Manager via ssh"     type=xlvt cmd="ssh user@server vtm -r noui far"/>
-        <item id="cmd in terminal via ssh" type=xlvt cmd="ssh user@server vtm -r term cmd"/>
-        <item id="cmd via ssh"             type=xlvt cmd="ssh user@server vtm -r noui cmd"/>
-        <item id="wsl via ssh"             type=xlvt cmd="ssh user@server vtm -r noui wsl"/>
-        <item id="mc via ssh"              type=xlvt cmd="ssh user@server vtm -r noui mc"/>
-        <item id="wsl mc via ssh"          type=xlvt cmd="ssh user@server vtm -r noui wsl mc"/>
+        <item id="Remote cmd in terminal over SSH" type=xlvt cmd="ssh user@server vtm -r term cmd"/>
+        <item id="Remote cmd over SSH"             type=xlvt cmd="ssh user@server vtm cmd"/>
+        <item id="Remote Far Manager over SSH"     type=xlvt cmd="ssh user@server vtm far"/>
+        <item id="Remote wsl over SSH"             type=xlvt cmd="ssh user@server vtm wsl"/>
+        <item id="Remote mc over SSH"              type=xlvt cmd="ssh user@server vtm mc"/>
+        <item id="Remote wsl mc over SSH"          type=xlvt cmd="ssh user@server vtm wsl mc"/>
     </menu>
 </config>
 ```
 
+The taskbar menu of the running desktop can be configured using shell piped redirection by sending script commands to the running vtm desktop:
+```
+# Delete existing menu items
+echo "vtm.del()" | vtm
+# Add new menu items
+echo "vtm.set('id=Term label=\"Terminal\" type=dtvt cmd=\"vtm -r term\")" | vtm
+echo "vtm.set('id=Huge label=\"Huge Terminal\" type=dtvt cmd=\"vtm -r term\" cfg=\"<config><term><scrollback size=500000/></term></config>\")" | vtm
+echo "vtm.set('id=Tile label=\"Three Terminals\" type=group cmd=\"v(h(Term, Term), Huge)\")" | vtm
+echo "vtm.set('id=cmd label=\"Remote cmd over SSH\" type=xlvt cmd=\"ssh user@server vtm cmd\")" | vtm
+echo "vtm.set('id=cmd label=\"Remote cmd over SSH\" type=xlvt cmd=\"ssh user@server vtm cmd\")" | vtm
+# Set default menu item
+echo "vtm.selected(Term)" | vtm
+# Run window with terminals
+echo "vtm.run(id=Tile)" | vtm
+```
+
 ### Tiling window manager
 
-Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `Group`](settings.md#app-type) for details.
+Terminal windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-type) for details.
 
 ### VT logging for developers
 
