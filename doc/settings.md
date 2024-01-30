@@ -25,21 +25,20 @@ graph LR
 - User wise settings
   - on posix: `~/.config/vtm/settings.xml`
   - on win32: `%userprofile%/.config/vtm/settings.xml`
-- DirectVT packet (built-in terminal only for now)
-  - The `<config>` menu item subsection passed to the dtvt application upon startup:
+- DirectVT packet with configuration payload
+  - The `cfg` or `<config>` menu item sub-attribute passed to the dtvt application on launch:
     ```xml
-    <config>
+        ...
         <menu>
             ...
-            <item ... type=DirectVT ... cmd="$0 ...">
-                <config> <!-- item's `<config>` subsection -->
+            <item ... type=DirectVT ... cmd="$0 ..." cfg="xml data as alternative to <config> subsection">
+                <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
                     ...
                 </config>
             </item>
             ...
         </menu>
         ...
-    </config>
     ```
 
 ## Configuration file Format (settings.xml)
@@ -180,9 +179,9 @@ Top-level element `<config>` contains the following base elements:
 
 #### Application Configuration
 
-The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement OR `cfg="xml-text-data"` attribute. The `<config>` subelement will be ignored if `cfg="xml-text-data"` attribute is specified. This type is only supported by built-in terminal for now.
+The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
-The content of the `<config>` subelement is passed to the application upon startup.
+The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
 #### Taskbar menu item attributes
 
@@ -206,8 +205,6 @@ Attribute  | Description                                       | Value type | De
 `cmd`      |  App constructor arguments                        | `string`   | empty
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
-
-The `config` attribute is ignored if the `cfg` attribute contains a non-empty value.
 
 #### Value literals
 
