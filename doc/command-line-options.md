@@ -7,10 +7,10 @@
 ```
 vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
 
-vtm [ --script <commands> ] [ -p <name> ] [ -c <file> ]
-    [ -q ] [ -m | -d | -s | -r [<type>] ] [<cliapp...>]
+vtm [ --script <commands> ] [ -p <name> ] [ -c <file> ] [ -q ]
+         [ -m | -d | -s | [ -r [ <type> ] ][ <cli_app ...> ] ]
 
-<run commands via piped redirection> | vtm [options...]
+<run commands via piped redirection> | vtm [options ...]
 ```
 
 Option                  | Description
@@ -26,11 +26,11 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-m`, `--monitor`       | Run desktop session log monitor.
 `-d`, `--daemon`        | Run desktop server in background.
 `-s`, `--server`        | Run desktop server in interactive mode.
-`-r`, `--`, `--runapp`  | Run the specified built-in terminal type in standalone mode.
+`-r`, `--`, `--run`     | Run the specified built-in terminal type in standalone mode.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
 `<type>`                | Built-in terminal type to use to run a console application (case insensitive).
-`<cliapp...>`           | Console application with arguments to run.
+`<cli_app ...>`         | Console application with arguments to run.
 
 ### Settings loading order
 
@@ -43,16 +43,16 @@ No arguments            | Connect to the desktop (autostart new if not running).
 
 ### Built-in terminal types
 
- Type  | Description                                      | Syntax
--------|--------------------------------------------------|------------------------------------
-`Term` | Terminal emulator to run cli applications.       | `vtm [options ...] -r term [cliapp ...]`
-`NoUI` | Terminal emulator without UI (scrollback only).  | `vtm [options ...] -r noui [cliapp ...]`
-`DTVT` | DirectVT proxy to run dtvt-apps in text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
+ Type  | Description                                       | Syntax
+-------|---------------------------------------------------|------------------------------------
+`Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cli_app ...]`
+`NoUI` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r noui [cli_app ...]`
+`DTVT` | DirectVT proxy to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
 `XLVT` | DirectVT proxy with controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
-  - `vtm -r noui [cliapp ...]` can be shortened to `vtm [cliapp ...]`.
+  - `vtm -r noui [cli_app ...]` can be shortened to `vtm [cli_app ...]`.
 
 ### Scripting
 

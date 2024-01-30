@@ -25,21 +25,20 @@ graph LR
 - User wise settings
   - on posix: `~/.config/vtm/settings.xml`
   - on win32: `%userprofile%/.config/vtm/settings.xml`
-- DirectVT packet (built-in terminal only for now)
-  - The `<config>` menu item subsection passed to the dtvt application upon startup:
+- DirectVT packet with configuration payload
+  - The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the dtvt application on launch:
     ```xml
-    <config>
+        ...
         <menu>
             ...
-            <item ... type=DirectVT ... cmd="$0 ...">
-                <config> <!-- item's `<config>` subsection -->
+            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection">
+                <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
                     ...
                 </config>
             </item>
             ...
         </menu>
         ...
-    </config>
     ```
 
 ## Configuration file Format (settings.xml)
@@ -180,58 +179,61 @@ Top-level element `<config>` contains the following base elements:
 
 #### Application Configuration
 
-The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using `<config>` subelement. This type is only supported by built-in terminal for now.
+The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
-The content of the `<config>` subelement is passed to the application upon startup.
+The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
 #### Taskbar menu item attributes
 
-Attribute  | Description                                       | Value type | Mandatory | Default value
------------|---------------------------------------------------|------------|-----------|---------------
-`id`       |  Item textual identifier                          | `string`   | required  |
-`alias`    |  Use existing item specified by `id` as template  | `string`   |           |
-`hidden`   |  Item visibility                                  | `boolean`  |           | `no`
-`label`    |  Item label text                                  | `string`   |           | =`id`
-`notes`    |  Item tooltip text                                | `string`   |           | empty
-`title`    |  App window title                                 | `string`   |           | empty
-`footer`   |  App window footer                                | `string`   |           | empty
-`bgc`      |  App window background color                      | `RGBA`     |           |
-`fgc`      |  App window foreground color                      | `RGBA`     |           |
-`winsize`  |  App window 2D size                               | `x;y`      |           |
-`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |           |
-`slimmenu` |  App window menu vertical size                    | `boolean`  |           | `no`
-`env`      |  Environment variable in "var=val" format         | `string`   |           |
-`cwd`      |  Current working directory                        | `string`   |           |
-`cmd`      |  App constructor arguments                        | `string`   |           | empty
-`type`     |  App type                                         | `string`   |           | `SHELL`
-`config`   |  Configuration patch for DirectVT apps            | `xml-node` |           | empty
+Attribute  | Description                                       | Value type | Default value
+-----------|---------------------------------------------------|------------|---------------
+`id`       |  Item id                                          | `string`   |
+`alias`    |  Item template `id` reference                     | `string`   |
+`hidden`   |  Item visibility on taskbar                       | `boolean`  | `no`
+`label`    |  Item label text                                  | `string`   | =`id`
+`notes`    |  Item tooltip text                                | `string`   | empty
+`title`    |  App window title                                 | `string`   | empty
+`footer`   |  App window footer                                | `string`   | empty
+`bgc`      |  App window background color                      | `RGBA`     |
+`fgc`      |  App window foreground color                      | `RGBA`     |
+`winsize`  |  App window size                                  | `x;y`      |
+`winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
+`slimmenu` |  App window menu vertical size                    | `boolean`  | `true`
+`type`     |  App window type                                  | `string`   | `SHELL`
+`env`      |  Environment variable in "var=val" format         | `string`   |
+`cwd`      |  Current working directory                        | `string`   |
+`cmd`      |  App constructor arguments                        | `string`   | empty
+`cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
+`config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
 #### Value literals
 
-Type     | Format
----------|-----------------
-`RGBA`   |  `#rrggbbaa` \| `0xaabbggrr` \| `rrr,ggg,bbb,aaa` \| 256-color index
-`boolean`|  `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
-`string` |  _UTF-8 text string_
-`x;y`    |  _integer_ <any_delimeter> _integer_
+All value literals containing spaces must be enclosed in double or single quotes.
 
-#### App type
+Value type | Format
+-----------|-----------------
+`RGBA`     | `#rrggbbaa` \| `0xaabbggrr` \| `rrr,ggg,bbb,aaa` \| 256-color index
+`boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
+`string`   | _UTF-8 text string_
+`x;y`      | _integer_ <any_delimeter> _integer_
 
-Type              | Parameter        | Description
-------------------|------------------|-----------
-`DirectVT`        | `_command line_` | Run `_command line_` using DirectVT protocol. Usage example `type=DirectVT cmd="_command line_"`.
-`XLVT`\|`XLinkVT` | `_command line_` | Run `_command line_` using DirectVT protocol with controlling terminal attached for OpenSSH interactivity. Usage example `type=XLVT cmd="_command line_"`.
-`ANSIVT`          | `_command line_` | Run `_command line_` inside the built-in terminal. Usage example `type=ANSIVT cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _command line_"`.
-`SHELL` (default) | `_command line_` | Run `_command line_` on top of a system shell that runs inside the built-in terminal. Usage example `type=SHELL cmd="_command line_"`. Same as `type=DirectVT cmd="$0 -r term _shell_ -c _command line_"`.
-`Group`           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=Group cmd="h1:1(Term, Term)"`.
-`Region`          | | The `cmd` attribute is not used, use attribute `title=_view_title_` to set region name.
+#### App window types
+
+Window type<br>(case insensitive) | Parameter        | Description
+----------------------------------|------------------|------------
+`dtvt`\|`DirectVT`                | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`xlvt`\|`XLinkVT`                 | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
+`ANSIVT`                          | `cli_app ...`    | Run `cli_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term cli_app ..."`.
+`SHELL` (default)                 | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term your_system_shell -c cli_app ..."`.
+`Group`                           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=group cmd="v(h1:1(Term, Term),Term)"`.
+`Region`                          |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
 
 The following configuration items produce the same final result:
 ```
-<item …. cmd=‘mc’/>
-<item …. type=SHELL cmd=‘mc’/>
-<item …. type=ANSIVT cmd=‘bash -c mc’/>
-<item …. type=DirectVT cmd=‘$0 -r term bash -c mc’/>
+<item ... cmd=mc/>
+<item ... type=SHELL cmd=mc/>
+<item ... type=ANSIVT cmd='bash -c mc'/>
+<item ... type=DirectVT cmd='$0 -r term bash -c mc'/>
 ```
 
 ### Configuration Example
@@ -328,7 +330,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             <bordersz = 1,1  />
             <lucidity = 0xff /> <!-- not implemented -->
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
-            <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
+            <macstyle = no   /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->

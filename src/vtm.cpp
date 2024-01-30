@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--", "--runapp"))
+        else if (getopt.match("-r", "--", "--run", "--runapp"))
         {
             whoami = type::runapp;
             params = getopt.rest();
@@ -109,10 +109,10 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
                 "\n"
-                "\n    " + vtm + " [ --script <commands> ] [ -p <name> ] [ -c <file> ]"
-                "\n    " + pad + " [ -q ] [ -m | -d | -s | -r [<type>] ] [<cliapp...>]"
+                "\n    " + vtm + " [ --script <commands> ] [ -p <name> ] [ -c <file> ] [ -q ]"
+                "\n    " + pad + "      [ -m | -d | -s | [ -r [ <type> ] ][ <cli_app ...> ] ]"
                 "\n"
-                "\n    <run commands via piped redirection> | " + os::process::binary<true>() + " [options...]"
+                "\n    <run commands via piped redirection> | " + os::process::binary<true>() + " [options ...]"
                 "\n"
                 "\n  Options:"
                 "\n"
@@ -127,11 +127,11 @@ int main(int argc, char* argv[])
                 "\n    -m, --monitor        Run desktop session log monitor."
                 "\n    -d, --daemon         Run desktop server in background."
                 "\n    -s, --server         Run desktop server in interactive mode."
-                "\n    -r, --, --runapp     Run the specified built-in terminal type in standalone mode."
+                "\n    -r, --, --run        Run the specified built-in terminal type in standalone mode."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
                 "\n    <type>               Built-in terminal type to use to run a console application (case insensitive)."
-                "\n    <cliapp...>          Console application with arguments to run."
+                "\n    <cli_app ...>        Console application with arguments to run."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,15 +144,15 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Built-in terminal types:"
                 "\n"
-                "\n    Term  Terminal emulator to run cli applications.                'vtm -r term [cli_app...]'"
-                "\n    NoUI  Terminal emulator without UI (scrollback only).           'vtm -r noui [cli_app...]'"
-                "\n    DTVT  DirectVT proxy to run dtvt-apps in text console.          'vtm -r dtvt [dtvt_app...]'"
-                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app...>'"
+                "\n    Term  Terminal emulator to run common cli applications.         'vtm -r term [cli_app ...]'"
+                "\n    NoUI  Terminal emulator without UI (scrollback only).           'vtm -r noui [cli_app ...]'"
+                "\n    DTVT  DirectVT proxy to run dtvt-apps in generic text consoles. 'vtm -r dtvt [dtvt_app ...]'"
+                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app ...>'"
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
-                "\n    'vtm -r xlvt ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
-                "\n    'vtm -r noui [cli_app...]' can be shortened to 'vtm [cli_app...]'."
+                "\n    'vtm -r xlvt ssh <user@host dtvt_app ...>' can be shortened to 'vtm ssh <user@host dtvt_app ...>'."
+                "\n    'vtm -r noui [cli_app ...]' can be shortened to 'vtm [cli_app ...]'."
                 "\n"
                 "\n  Scripting"
                 "\n"

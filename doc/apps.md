@@ -1,13 +1,18 @@
 # Text-based desktop environment
 
-## Built-in applications
-- `▀▄ Term`     Terminal emulator
-- `▀▄ DirectVT` DirectVT proxy
-- `▀▄ XLinkVT`  DirectVT proxy with controlling terminal onboard
-- `▀▄ View`     Workspace navigation helper
-- `▀▄ Tile`     Tiling window manager
+## Desktop window types
 
-## Terminal emulator
+ Name      | Function                                                                  | Implementation
+-----------|---------------------------------------------------------------------------|-----------------------------
+`Term`     | Terminal emulator to run common cli applications.                         | Built-in terminal of type `term`.
+`DirectVT` | DirectVT proxy console to run dtvt-apps inside the generic text console.  | Built-in terminal of type `dtvt`.
+`XLinkVT`  | DirectVT proxy with controlling terminal to run dtvt-apps over SSH.       | Built-in terminal of type `xlvt`.
+`View`     | Workspace navigation helper.                                              | Window object of type `region`.
+`Tile`     | Tiling window manager.                                                    | Window object of type `group`.
+
+## Built-in terminal emulator of type `term`
+
+Used to run console applications...
 
 ### Features
 
@@ -237,22 +242,20 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 </config>
 ```
 
-## DirectVT proxy
+## DirectVT proxy: Built-in terminal emulator of type `dtvt`
 
-...
+This built-in terminal type is used to run DirectVT-aware applications. It is activated by the `-r dtvt` option.
 
-This console mode is activated by the `-r dtvt` option.
-
-Example (running `vtm -r term` in dtvt-mode):
+Example (running `vtm -r term` command in DirectVT mode on top of built-in terminal of `dtvt` type):
 ```
 vtm -r dtvt vtm -r term
 ```
 
-## DirectVT proxy with controlling terminal onboard
+## DirectVT proxy with controlling terminal
 
-This console mode is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
+This built-in terminal type is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
 
-This mode is enabled automatically if the first command line argument begins with `ssh` literal.
+This terminal type is used automatically if the first command line argument begins with `ssh` keyword.
 
 The following commands are identical:
 ```
@@ -264,17 +267,15 @@ vtm ssh user@host vtm
 
 ## Workspace Navigation Helper
 
-### Features
-
-- Serves for quick navigation through the workspace using cyclic selection (left click on group title) in the `View` group on the taskbar. Right click to set clipboard data as region title (swap clipboard text and title).
+The Workspace Navigation Helper (`View`) is used to quickly navigate the desktop by double-left-clicking on an instance in the taskbar. The region title can be set using the clipboard text data by right-clicking once on the region frame (swap clipboard text with title text).
 
 ## Tiling window manager
 
 ### Features
 
 - Supports Drag and Drop for panes (like tabs in a browser).
-- Use any modifier (`Ctrl` or `Alt`) while pane dragging to disable drag&drop mode.
-- List of panes (outside the right side of the window)
+- Use any modifier (`Ctrl` or `Alt`) while pane dragging to deactivate drag&drop mode.
+- List of panes (outside the right side of the `Tile` window)
   - `LeftClick` -- Set exclusive focus
   - `Ctrl+LeftClick` -- Set/Unset group focus
   - `double LeftClick` -- Maxixmize/restore
