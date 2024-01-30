@@ -368,7 +368,7 @@ echo "vtm.del()" | vtm
 echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
 echo "vtm.set(id=White label='White Terminal' type=dtvt fgc=0xFF000000 bgc=0xFFffffff cmd='vtm -r term')" | vtm
 echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
-echo "vtm.set(id=Tile label='Three Terminals' type=group cmd='v(h(Term, Term), Huge)')" | vtm
+echo "vtm.set(id=Tile label='Three Terminals' type=group cmd='v(h(Term, White), Huge)')" | vtm
 echo "vtm.set(id=cmd label='Remote cmd over SSH' type=xlvt cmd='ssh user@server vtm cmd')" | vtm
 # Set default menu item
 echo "vtm.selected(Term)" | vtm
