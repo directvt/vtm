@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
     auto vtpipe = text{};
     auto script = text{};
     auto getopt = os::process::args{ argc, argv };
-    if (getopt.starts(app::ssh::id))
+    if (getopt.starts("ssh"))//app::ssh::id))
     {
         whoami = type::runapp;
         params = getopt.rest();
@@ -110,7 +110,7 @@ int main(int argc, char* argv[])
                 "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
                 "\n"
                 "\n    " + vtm + " [ --script <commands> ] [ -p <name> ] [ -c <file> ] [ -q ]"
-                "\n    " + pad + "      [ -m | -d | -s | [ -r [ <type> ] ][ <cli_app ...> ] ]"
+                "\n    " + pad + "      [ -m | -d | -s | [ -r [ <type> ] ][ <cui_app ...> ] ]"
                 "\n"
                 "\n    <run commands via piped redirection> | " + os::process::binary<true>() + " [options ...]"
                 "\n"
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
                 "\n    <type>               Built-in terminal type to use to run a console application (case insensitive)."
-                "\n    <cli_app ...>        Console application with arguments to run."
+                "\n    <cui_app ...>        Console application with arguments to run."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,15 +144,15 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Built-in terminal types:"
                 "\n"
-                "\n    Term  Terminal emulator to run common cli applications.         'vtm -r term [cli_app ...]'"
-                "\n    NoUI  Terminal emulator without UI (scrollback only).           'vtm -r noui [cli_app ...]'"
-                "\n    DTVT  DirectVT proxy to run dtvt-apps in generic text consoles. 'vtm -r dtvt [dtvt_app ...]'"
-                "\n    XLVT  DTVT with controlling terminal to run dtvt-apps over SSH. 'vtm -r xlvt ssh <user@host dtvt_app ...>'"
+                "\n    vtty  Teletype Console.           'vtm -r vtty [cui_app ...]'"
+                "\n    term  Desktop Terminal.           'vtm -r term [cui_app ...]'"
+                "\n    dtvt  DirectVT Console.           'vtm -r dtvt [dtvt_app ...]'"
+                "\n    xlvt  DirectVT Console with TTY.  'vtm -r xlvt ssh <user@host dtvt_app ...>'"
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
                 "\n    'vtm -r xlvt ssh <user@host dtvt_app ...>' can be shortened to 'vtm ssh <user@host dtvt_app ...>'."
-                "\n    'vtm -r noui [cli_app ...]' can be shortened to 'vtm [cli_app ...]'."
+                "\n    'vtm -r vtty [cui_app ...]' can be shortened to 'vtm [cui_app ...]'."
                 "\n"
                 "\n  Scripting"
                 "\n"
@@ -162,68 +162,65 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    Commands:"
                 "\n"
-                "\n      vtm.run([<attrs>...]) Create and run a menu item constructed using"
-                "\n                            a space-separated list of attribute=<value>."
-                "\n                            Create and run temporary menu item constructed"
-                "\n                            using default attributes if no arguments specified."
+                "\n      vtm.run([<attrs>...])"
+                "\n        Create and run a menu item constructed using a space-separated"
+                "\n        list of attribute=<value>."
+                "\n        Create and run temporary menu item constructed using default"
+                "\n        attributes if no arguments specified."
                 "\n"
-                "\n      vtm.set(id=<id> [<attrs>...]) Create or override a menu item using a space-separated"
-                "\n                                    list of attribute=<value>."
+                "\n      vtm.set(id=<id> [<attrs>...])"
+                "\n        Create or override a menu item using a space-separated"
+                "\n        list of attribute=<value>."
                 "\n"
-                "\n      vtm.del([<id>]) Delete the taskbar menu item by <id>."
-                "\n                      Delete all menu items if no <id> specified."
+                "\n      vtm.del([<id>])"
+                "\n        Delete the taskbar menu item by <id>."
+                "\n        Delete all menu items if no <id> specified."
                 "\n"
-                "\n      vtm.dtvt(<dtvt_app...>) Create a temporary menu item and run the specified dtvt-app."
-                "\n      vtm.selected(<id>)      Set selected menu item using specified <id>."
-                "\n      vtm.shutdown()          Terminate the running desktop session."
+                "\n      vtm.dtvt(<dtvt_app...>)"
+                "\n        Create a temporary menu item and run the specified dtvt-app."
+                "\n"
+                "\n      vtm.selected(<id>)"
+                "\n        Set selected menu item using specified <id>."
+                "\n"
+                "\n      vtm.shutdown()"
+                "\n        Terminate the running desktop session."
                 "\n"
                 "\n  Usage Examples"
                 "\n"
                 "\n    Run vtm desktop inside the current console:"
-                "\n"
                 "\n        vtm"
                 "\n"
                 "\n    Run remote vtm desktop inside the current console over SSH:"
-                "\n"
                 "\n        vtm ssh <user@server> vtm"
                 "\n"
                 "\n    Run the built-in terminal inside the current console:"
-                "\n"
                 "\n        vtm -r [term]"
                 "\n"
                 "\n    Run an application inside the built-in terminal:"
-                "\n"
                 "\n        vtm [-r [term]] </path/to/console/app>"
                 "\n"
                 "\n    Run an application remotely over SSH:"
-                "\n"
                 "\n        vtm ssh <user@server> vtm [-r [term]] </path/to/console/app>"
                 "\n"
                 "\n    Run vtm desktop and reconfigure the taskbar menu:"
-                "\n"
                 "\n        vtm --script \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\""
                 "\n"
                 "\n    Reconfigure the taskbar menu of the running desktop:"
-                "\n"
                 "\n        echo \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\" | vtm"
                 "\n        echo \"vtm.set(id=user@server type=xlvt cmd='ssh <user@server> vtm')\" | vtm"
                 "\n"
                 "\n    Run a terminal window on the running desktop:"
-                "\n"
                 "\n        echo \"vtm.run()\" | vtm"
                 "\n        echo \"vtm.run(id=Term)\" | vtm"
                 "\n        echo \"vtm.dtvt(vtm -r term)\" | vtm"
                 "\n"
                 "\n    Run an application window on the running desktop:"
-                "\n"
                 "\n        echo \"vtm.run(title='Console \\nApplication' cmd=</path/to/app>)\" | vtm"
                 "\n"
                 "\n    Run tiling window manager with three terminals attached:"
-                "\n"
                 "\n        echo \"vtm.run(type=group title=Terminals cmd='v(h(Term,Term),Term)')\" | vtm"
                 "\n"
                 "\n    Terminate the running desktop session:"
-                "\n"
                 "\n        echo \"vtm.shutdown()\" | vtm"
                 "\n"
                 );
@@ -364,38 +361,35 @@ int main(int argc, char* argv[])
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto shadow = params;
         auto apname = view{};
-        auto aclass = text{};
+        auto aptype = text{};
         utf::to_low(shadow);
-             if (shadow.starts_with(app::term::id))      { aclass = app::term::id;      apname = app::term::desc;      }
-        else if (shadow.starts_with(app::dtvt::id))      { aclass = app::dtvt::id;      apname = app::dtvt::desc;      }
-        else if (shadow.starts_with(app::xlvt::id))      { aclass = app::xlvt::id;      apname = app::xlvt::desc;      }
-        else if (shadow.starts_with(app::xlinkvt::id))   { aclass = app::xlinkvt::id;   apname = app::xlinkvt::desc;   }
-        else if (shadow.starts_with(app::directvt::id))  { aclass = app::directvt::id;  apname = app::directvt::desc;  }
-        else if (shadow.starts_with(app::headless::id))  { aclass = app::headless::id;  apname = app::headless::desc;  }
-        else if (shadow.starts_with(app::noui::id))      { aclass = app::headless::id;  apname = app::headless::desc;  }
+             if (shadow.starts_with(app::term::id))      { aptype = app::term::id;      apname = app::term::name;      }
+        else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
+        else if (shadow.starts_with(app::xlvt::id))      { aptype = app::xlvt::id;      apname = app::xlvt::name;      }
+        else if (shadow.starts_with(app::vtty::id))      { aptype = app::vtty::id;      apname = app::vtty::name;      }
         #if defined(DEBUG)
-        else if (shadow.starts_with(app::calc::id))      { aclass = app::calc::id;      apname = app::calc::desc;      }
-        else if (shadow.starts_with(app::shop::id))      { aclass = app::shop::id;      apname = app::shop::desc;      }
-        else if (shadow.starts_with(app::test::id))      { aclass = app::test::id;      apname = app::test::desc;      }
-        else if (shadow.starts_with(app::textancy::id))  { aclass = app::textancy::id;  apname = app::textancy::desc;  }
-        else if (shadow.starts_with(app::settings::id))  { aclass = app::settings::id;  apname = app::settings::desc;  }
-        else if (shadow.starts_with(app::truecolor::id)) { aclass = app::truecolor::id; apname = app::truecolor::desc; }
+        else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
+        else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
+        else if (shadow.starts_with(app::test::id))      { aptype = app::test::id;      apname = app::test::name;      }
+        else if (shadow.starts_with(app::textancy::id))  { aptype = app::textancy::id;  apname = app::textancy::name;  }
+        else if (shadow.starts_with(app::settings::id))  { aptype = app::settings::id;  apname = app::settings::name;  }
+        else if (shadow.starts_with(app::truecolor::id)) { aptype = app::truecolor::id; apname = app::truecolor::name; }
         #endif
-        else if (shadow.starts_with(app::ssh::id))
+        else if (shadow.starts_with("ssh"))//app::ssh::id))
         {
             params = " "s + params;
-            aclass = app::xlvt::id;
-            apname = app::xlvt::desc;
+            aptype = app::xlvt::id;
+            apname = app::xlvt::name;
         }
         else
         {
             params = " "s + params;
-            aclass = app::headless::id;
-            apname = app::headless::desc;
+            aptype = app::vtty::id;
+            apname = app::vtty::name;
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
-        app::shared::start(params, aclass, os::dtvt::vtmode, os::dtvt::win_sz, config);
+        app::shared::start(params, aptype, os::dtvt::vtmode, os::dtvt::win_sz, config);
     }
     else
     {

@@ -239,7 +239,7 @@ namespace netxs::ui
 namespace netxs::app::calc
 {
     static constexpr auto id = "calc";
-    static constexpr auto desc = "Spreadsheet calculator (DEMO)";
+    static constexpr auto name = "Spreadsheet calculator (DEMO)";
 
     using events = ::netxs::events::userland::calc;
 

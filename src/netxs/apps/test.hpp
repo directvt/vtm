@@ -29,7 +29,7 @@ namespace netxs::events::userland
 namespace netxs::app::test
 {
     static constexpr auto id = "test";
-    static constexpr auto desc = "Text Layout Test (DEMO)";
+    static constexpr auto name = "Text Layout Test (DEMO)";
 
     using events = netxs::events::userland::test;
 

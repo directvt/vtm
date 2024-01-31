@@ -73,11 +73,12 @@ namespace netxs::events::userland
         };
     };
 }
-// term: Terminal Emulator.
+
+// term: Desktop Terminal.
 namespace netxs::app::term
 {
     static constexpr auto id = "term";
-    static constexpr auto desc = "Terminal Emulator";
+    static constexpr auto name = "Desktop Terminal";
 
     using events = netxs::events::userland::term;
 

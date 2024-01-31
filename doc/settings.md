@@ -221,10 +221,10 @@ Value type | Format
 
 Window type<br>(case insensitive) | Parameter        | Description
 ----------------------------------|------------------|------------
-`dtvt`\|`DirectVT`                | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`xlvt`\|`XLinkVT`                 | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
-`ANSIVT`                          | `cli_app ...`    | Run `cli_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="vtm -r term cli_app ..."`.
-`SHELL` (default)                 | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="vtm -r term your_system_shell -c cli_app ..."`.
+`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`xlvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
+`ANSIVT`                          | `cui_app ...`    | Run `cui_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cui_app ..."`. It is same as `type=dtvt cmd="vtm -r term cui_app ..."`.
+`SHELL` (default)                 | `cui_app ...`    | Run `cui_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cui_app ..."`. It is same as `type=dtvt cmd="vtm -r term your_system_shell -c cui_app ..."`.
 `Group`                           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=group cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
 `Region`                          |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
 

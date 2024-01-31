@@ -8,7 +8,7 @@
 vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
 
 vtm [ --script <commands> ] [ -p <name> ] [ -c <file> ] [ -q ]
-         [ -m | -d | -s | [ -r [ <type> ] ][ <cli_app ...> ] ]
+         [ -m | -d | -s | [ -r [ <type> ] ][ <cui_app ...> ] ]
 
 <run commands via piped redirection> | vtm [options ...]
 ```
@@ -30,7 +30,7 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
 `<type>`                | Built-in terminal type to use to run a console application (case insensitive).
-`<cli_app ...>`         | Console application with arguments to run.
+`<cui_app ...>`         | Console application with arguments to run.
 
 ### Settings loading order
 
@@ -45,14 +45,14 @@ No arguments            | Connect to the desktop (autostart new if not running).
 
  Type  | Description                                       | Syntax
 -------|---------------------------------------------------|------------------------------------
-`Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cli_app ...]`
-`NoUI` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r noui [cli_app ...]`
+`Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cui_app ...]`
+`vtty` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r vtty [cui_app ...]`
 `DTVT` | DirectVT proxy console to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
 `XLVT` | DirectVT proxy console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
-  - `vtm -r noui [cli_app ...]` can be shortened to `vtm [cli_app ...]`.
+  - `vtm -r vtty [cui_app ...]` can be shortened to `vtm [cui_app ...]`.
 
 ### Scripting
 

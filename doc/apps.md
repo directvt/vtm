@@ -2,13 +2,13 @@
 
 ## Desktop window types
 
- Name      | Function                                                                  | Implementation
------------|---------------------------------------------------------------------------|-----------------------------
-`Term`     | Terminal emulator to run common cli applications.                         | Built-in terminal of type `term`.
-`DirectVT` | DirectVT proxy console to run dtvt-apps inside the generic text console.  | Built-in terminal of type `dtvt`.
-`XLinkVT`  | DirectVT proxy with controlling terminal to run dtvt-apps over SSH.       | Built-in terminal of type `xlvt`.
-`View`     | Workspace navigation helper.                                              | Window object of type `region`.
-`Tile`     | Tiling window manager.                                                    | Window object of type `group`.
+ Name      | Function                                                                    | Implementation
+-----------|-----------------------------------------------------------------------------|-----------------------------
+`Term`     | Terminal emulator to run common cli applications.                           | Built-in terminal of type `term`.
+`DTVT`     | DirectVT proxy console to run dtvt-apps inside the generic text console.    | Built-in terminal of type `dtvt`.
+`XLVT`     | DirectVT proxy console with controlling terminal to run dtvt-apps over SSH. | Built-in terminal of type `xlvt`.
+`View`     | Workspace navigation helper.                                                | Window object of type `region`.
+`Tile`     | Tiling window manager.                                                      | Window object of type `group`.
 
 ## Built-in terminal emulator of type `term`
 

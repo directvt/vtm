@@ -439,12 +439,13 @@ namespace netxs::app::shared
                     "\n" + ansi::nil().wrp(wrap::on) +
                     "\nOnly the following application types are supported"
                     "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
-                    "\n   type = DirectVT(dtvt)"
-                    "\n   type = XLinkVT(xlvt)"
-                    "\n   type = ANSIVT"
-                    "\n   type = SHELL"
-                    "\n   type = Group"
-                    "\n   type = Region"
+                    "\n   type = vtty"
+                    "\n   type = term"
+                    "\n   type = dtvt"
+                    "\n   type = xlvt"
+                    "\n   type = shell"
+                    "\n   type = tile"
+                    "\n   type = site"
                     "\n"
                     "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
                     .add(prompt::apps, "See logs for details."));

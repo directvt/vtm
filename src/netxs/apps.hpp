@@ -3,58 +3,40 @@
 
 #pragma once
 
-namespace netxs::app::info
+namespace netxs::app::vtty
 {
-    static constexpr auto id = "info";
+    static constexpr auto id = "vtty";
+    static constexpr auto name = "Teletype Console";
 }
-namespace netxs::app::ssh
+namespace netxs::app::terminal
 {
-    static constexpr auto id = "ssh";
-}
-namespace netxs::app::headless
-{
-    static constexpr auto id = "headless";
-    static constexpr auto desc = "Headless Terminal Emulator";
-}
-namespace netxs::app::noui
-{
-    static constexpr auto id = "noui";
-    static constexpr auto desc = "Headless Terminal Emulator";
-}
-namespace netxs::app::ansivt
-{
-    static constexpr auto id = "ansivt";
-    static constexpr auto desc = "ansivt";
-}
-namespace netxs::app::directvt
-{
-    static constexpr auto id = "directvt";
-    static constexpr auto desc = "DirectVT Proxy Console";
+    static constexpr auto id = "terminal";
+    static constexpr auto name = "Desktop Terminal";
 }
 namespace netxs::app::dtvt
 {
     static constexpr auto id = "dtvt";
-    static constexpr auto desc = "DirectVT Proxy Console";
-}
-namespace netxs::app::xlinkvt
-{
-    static constexpr auto id = "xlinkvt";
-    static constexpr auto desc = "XLinkVT";
+    static constexpr auto name = "DirectVT Console";
 }
 namespace netxs::app::xlvt
 {
     static constexpr auto id = "xlvt";
-    static constexpr auto desc = "XLinkVT";
+    static constexpr auto name = "DirectVT Console with TTY";
 }
 namespace netxs::app::shell
 {
     static constexpr auto id = "shell";
-    static constexpr auto desc = "shell";
+    static constexpr auto name = "Desktop Terminal with Command-line shell";
 }
-namespace netxs::app::region
+namespace netxs::app::site
 {
-    static constexpr auto id = "region";
-    static constexpr auto desc = "region";
+    static constexpr auto id = "site";
+    static constexpr auto name = "Desktop Region Marker";
+}
+namespace netxs::app::info
+{
+    static constexpr auto id = "info";
+    static constexpr auto name = "Desktop Status";
 }
 
 #include "apps/term.hpp"
@@ -68,29 +50,29 @@ namespace netxs::app::region
 namespace netxs::app::strobe
 {
     static constexpr auto id = "strobe";
-    static constexpr auto desc = "strobe";
+    static constexpr auto name = "strobe";
 }
 namespace netxs::app::settings
 {
     static constexpr auto id = "settings";
-    static constexpr auto desc = "Desktop Settings";
+    static constexpr auto name = "Desktop Settings";
 }
 namespace netxs::app::empty
 {
     static constexpr auto id = "empty";
-    static constexpr auto desc = "empty";
+    static constexpr auto name = "empty";
 }
 namespace netxs::app::truecolor
 {
     static constexpr auto id = "truecolor";
-    static constexpr auto desc = "ANSI Art Test";
+    static constexpr auto name = "ANSI Art Test";
 }
 
 namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -116,7 +98,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_settings      = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -139,7 +121,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -161,7 +143,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Truecolor     = [](eccc /*appcfg*/, xmls& config)
+        auto build_truecolor     = [](eccc /*appcfg*/, xmls& config)
         {
             //todo put all ansi art into external files
             auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
@@ -293,10 +275,10 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
-        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
-        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
-        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
+        app::shared::initialize builder_strobe    { app::strobe::id   , build_strobe     };
+        app::shared::initialize builder_settings  { app::settings::id , build_settings   };
+        app::shared::initialize builder_empty     { app::empty::id    , build_empty      };
+        app::shared::initialize builder_truecolor { app::truecolor::id, build_truecolor  };
     }
 }
 #endif
@@ -305,7 +287,7 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Region        = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_site = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
@@ -346,7 +328,7 @@ namespace netxs::app::shared
                             }
 
                             static auto i = 0; i++;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
+                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("Site ", i)));
                             boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
                             boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
                             boss.RISEUP(tier::release, e2::config::plugins::align, faux);
@@ -364,7 +346,7 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_Headless      = [](eccc appcfg, xmls& config)
+        auto build_vtty = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -402,7 +384,7 @@ namespace netxs::app::shared
             layers->attach(app::shared::scroll_bars(scroll));
             return window;
         };
-        auto build_DirectVT      = [](eccc appcfg, xmls& /*config*/)
+        auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
@@ -434,7 +416,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_XLinkVT       = [](eccc appcfg, xmls& config)
+        auto build_xlvt = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -545,20 +527,20 @@ namespace netxs::app::shared
                 });
             return window;
         };
-        auto build_ANSIVT        = [](eccc appcfg, xmls& config)
+        auto build_term = [](eccc appcfg, xmls& config)
         {
             if (appcfg.cmd.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
             auto args = os::process::binary() + " -r term " + appcfg.cmd;
             appcfg.cmd = args;
-            return build_DirectVT(appcfg, config);
+            return build_dtvt(appcfg, config);
         };
-        auto build_SHELL         = [](eccc appcfg, xmls& config)
+        auto build_shell = [](eccc appcfg, xmls& config)
         {
             auto args = os::process::binary() + " -r term " + os::env::shell(appcfg.cmd);
             appcfg.cmd = args;
-            return build_DirectVT(appcfg, config);
+            return build_dtvt(appcfg, config);
         };
-        auto build_Info          = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_info = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             using namespace app::shared;
 
@@ -711,15 +693,11 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_Region    { app::region::id   , build_Region     };
-        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
-        app::shared::initialize builder_NoUI      { app::noui::id     , build_Headless   };
-        app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
-        app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
-        app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
-        app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
-        app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
-        app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
-        app::shared::initialize builder_Info      { app::info::id     , build_Info       };
+        app::shared::initialize builder_site { app::site::id, build_site };
+        app::shared::initialize builder_vtty { app::vtty::id, build_vtty };
+        app::shared::initialize builder_dtvt { app::dtvt::id, build_dtvt };
+        app::shared::initialize builder_xlvt { app::xlvt::id, build_xlvt };
+        app::shared::initialize builder_shell { app::shell::id, build_shell };
+        app::shared::initialize builder_info { app::info::id, build_info };
     }
 }

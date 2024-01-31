@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 
     os::dtvt::initialize();
     auto syslog = os::tty::logger();
-    auto banner = []{ log(app::calc::desc, ' ', app::shared::version); };
+    auto banner = []{ log(app::calc::name, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};

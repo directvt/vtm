@@ -29,7 +29,7 @@ namespace netxs::events::userland
 namespace netxs::app::shop
 {
     static constexpr auto id = "gems";
-    static constexpr auto desc = "Application Distribution Hub (DEMO)";
+    static constexpr auto name = "Application Distribution Hub (DEMO)";
 
     using events = netxs::events::userland::shop;
 

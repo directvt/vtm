@@ -29,7 +29,7 @@ namespace netxs::events::userland
 namespace netxs::app::textancy
 {
     static constexpr auto id = "text";
-    static constexpr auto desc = "Text Editor (DEMO)";
+    static constexpr auto name = "Text Editor (DEMO)";
 
     using events = netxs::events::userland::textancy;
 

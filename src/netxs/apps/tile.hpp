@@ -43,8 +43,8 @@ namespace netxs::events::userland
 // tile: Tiling window manager.
 namespace netxs::app::tile
 {
-    static constexpr auto id = "group";
-    static constexpr auto desc = "Tiling Window Manager";
+    static constexpr auto id = "tile";
+    static constexpr auto name = "Tiling Window Manager";
     static constexpr auto inheritance_limit = 30; // Tiling limits.
 
     using events = netxs::events::userland::tile;
@@ -690,7 +690,7 @@ namespace netxs::app::tile
                         auto& gate = gear.owner;
                         gate.SIGNAL(tier::request, e2::data::changed, current_default, ());
                         gate.RISEUP(tier::request, vtm::events::apptype, config, ({ .menuid = current_default }));
-                        if (config.kindid == netxs::app::region::id) return; // Deny any view regions inside the tiling manager.
+                        if (config.kindid == netxs::app::site::id) return; // Deny any view regions inside the tiling manager.
 
                         gate.RISEUP(tier::request, vtm::events::newapp, config);
                         auto app = app_window(config);

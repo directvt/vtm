@@ -24,11 +24,11 @@ R"==(<config>
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Command Prompt" cmd="$0 -r term" notes=" Windows Command Prompt            \n   LeftClick to start an instance  \n   RightClick to set it as default ">
+        <item id=Term label="Term" type=dtvt title="Command Prompt" cmd="$0 -r term" notes=" Windows Command Prompt            \n   LeftClick to start an instance  \n   RightClick to set it as default ">
 )=="
 #else
 R"==(
-        <item id=Term label="Term" type=DirectVT title="Terminal emulator" cmd="$0 -r term" notes=" Terminal emulator                 \n   LeftClick to start an instance  \n   RightClick to set it as default ">
+        <item id=Term label="Term" type=dtvt title="Desktop Terminal" cmd="$0 -r term" notes=" Desktop Terminal                  \n   LeftClick to start an instance  \n   RightClick to set it as default ">
 )=="
 #endif
 R"==(
@@ -63,13 +63,13 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=pwsh label="pwsh" type=DirectVT title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                   \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=pwsh label="pwsh" type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                   \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
 )=="
 #endif
 R"==(
-        <item id=Tile label="Tile" type=Group    title="Tiling window manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
-        <item id=View label="View" type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
-        <item id=Logs label="Logs" type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor                       \n   LeftClick to start an instance  \n   RightClick to set it as default ">
+        <item id=Tile label="Tile" type=tile title="Tiling window manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=Site label="Site" type=site title="\e[11:3pSite: Region"  winform=maximized         notes=" Desktop Region Marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                       \n   LeftClick to start an instance  \n   RightClick to set it as default ">
             <config>
                 <term>
                     <logs=off/>
