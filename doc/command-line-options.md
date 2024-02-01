@@ -29,7 +29,7 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-r`, `--`, `--run`     | Run the specified built-in terminal type in standalone mode.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<type>`                | Built-in terminal type to use to run a console application (case insensitive).
+`<type>`                | Built-in terminal type to use to run a cui-application (case insensitive).
 `<cui_app ...>`         | Console application with arguments to run.
 
 ### Settings loading order
