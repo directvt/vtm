@@ -1598,7 +1598,7 @@ struct impl : consrv
                         {
                             auto& next = src.Event.KeyEvent.uChar.UnicodeChar;
                             auto& copy = code ? left : src;
-                            if (utf::tocode(next, code)) // BMP or the second part of surrogate pair.
+                            if (utf::to_code(next, code)) // BMP or the second part of surrogate pair.
                             {
                                 toANSI.clear();
                                 codec_proc(code, toANSI);
@@ -3325,7 +3325,7 @@ struct impl : consrv
                         }
                         skip = {};
                     }
-                    if (utf::tocode((wchr)src.Char.UnicodeChar, code))
+                    if (utf::to_code((wchr)src.Char.UnicodeChar, code))
                     {
                         toUTF8.clear();
                         utf::to_utf_from_code(code, toUTF8);

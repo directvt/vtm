@@ -4655,7 +4655,7 @@ namespace netxs::os
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
-                            if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
+                            if (utf::to_code(r.Event.KeyEvent.uChar.UnicodeChar, point))
                             {
                                 if (point) utf::to_utf_from_code(point, toutf);
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
@@ -4678,7 +4678,7 @@ namespace netxs::os
                                 auto& up_2 = *(head + 2);
                                 if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
                                  && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
-                                 && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
+                                 && utf::to_code(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
                                 {
                                     head += 3;
                                     utf::to_utf_from_code(point, toutf);

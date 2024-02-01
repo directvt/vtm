@@ -502,7 +502,7 @@ namespace netxs::utf
     };
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of<view, View>::value == true, View>>
-    inline std::optional<A> to_int(View& ascii)
+    std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
         auto top = ascii.data();
@@ -516,13 +516,13 @@ namespace netxs::utf
         else return std::nullopt;
     }
     template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
-    inline auto to_int(T&& utf8)
+    auto to_int(T&& utf8)
     {
         auto shadow = view{ std::forward<T>(utf8) };
         return to_int<A, Base>(shadow);
     }
     template<si32 Base = 10, class T, class A>
-    inline auto to_int(T&& utf8, A fallback)
+    auto to_int(T&& utf8, A fallback)
     {
         auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
@@ -589,7 +589,7 @@ namespace netxs::utf
         to_utf(utf8, size, wide_text);
         return wide_text;
     }
-    inline utfx tocode(wchr c)
+    utfx to_code(wchr c)
     {
         utfx code;
         if (c >= 0xd800 && c <= 0xdbff)
@@ -604,7 +604,7 @@ namespace netxs::utf
         return code;
     }
     // Return faux only on first part of surrogate pair.
-    inline bool tocode(wchr c, utfx& code)
+    bool to_code(wchr c, utfx& code)
     {
         auto first_part = c >= 0xd800 && c <= 0xdbff;
         if (first_part) // First part of surrogate pair.
@@ -622,10 +622,9 @@ namespace netxs::utf
         }
         return !first_part;
     }
-
     namespace
     {
-        inline void _to_utf(text& utf8, utfx code)
+        void _to_utf(text& utf8, utfx code)
         {
             if (code <= 0x007f)
             {
@@ -902,21 +901,6 @@ namespace netxs::utf
         replace_all(crop, from, to);
         return crop;
     }
-    struct filler
-    {
-        std::map<text, text> dict;
-
-        auto& operator [] (text const& s)
-        {
-            return dict[s];
-        }
-        auto operator () (text s)
-        {
-            for (auto& var : dict) utf::replace_all(s, var.first, var.second);
-            for (auto& var : dict) utf::replace_all(s, var.first, var.second);
-            return s;
-        }
-    };
     template<class TextOrView, class T>
     auto remain(TextOrView&& utf8, T const& delimiter, bool lazy = true)
     {
@@ -947,7 +931,7 @@ namespace netxs::utf
         return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
     }
     template<class T>
-    inline T domain(T const& txt)
+    T domain(T const& txt)
     {
         return remain(txt);
     }
@@ -1604,8 +1588,7 @@ namespace netxs::utf
         line.remove_suffix(size);
         return crop;
     }
-    template<class TextOrView>
-    auto is_plain(TextOrView&& utf8)
+    auto is_plain(auto&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;
@@ -1653,8 +1636,7 @@ namespace netxs::utf
             spot += what_sz;
         }
     }
-    template<class V>
-    auto to_hex_0x(V const& n)
+    auto to_hex_0x(auto const& n)
     {
         auto result = (flux{} << std::showbase << std::hex << n).str();
         return result;
