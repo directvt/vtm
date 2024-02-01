@@ -363,10 +363,10 @@ int main(int argc, char* argv[])
         auto apname = view{};
         auto aptype = text{};
         utf::to_low(shadow);
-             if (shadow.starts_with(app::term::id))      { aptype = app::term::id;      apname = app::term::name;      }
+             if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;      }
+        else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;      }
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
         else if (shadow.starts_with(app::xlvt::id))      { aptype = app::xlvt::id;      apname = app::xlvt::name;      }
-        else if (shadow.starts_with(app::vtty::id))      { aptype = app::vtty::id;      apname = app::vtty::name;      }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
@@ -470,7 +470,7 @@ int main(int argc, char* argv[])
 
         using e2 = netxs::ui::e2;
         config.cd("/config/appearance/defaults/");
-        auto domain = ui::base::create<app::vtm::hall>(server, config, app::shell::id);
+        auto domain = ui::base::create<app::vtm::hall>(server, config);
         domain->plugin<scripting::host>();
         domain->autorun();
 

@@ -8,9 +8,9 @@ namespace netxs::app::vtty
     static constexpr auto id = "vtty";
     static constexpr auto name = "Teletype Console";
 }
-namespace netxs::app::terminal
+namespace netxs::app::term
 {
-    static constexpr auto id = "terminal";
+    static constexpr auto id = "term";
     static constexpr auto name = "Desktop Terminal";
 }
 namespace netxs::app::dtvt
@@ -22,11 +22,6 @@ namespace netxs::app::xlvt
 {
     static constexpr auto id = "xlvt";
     static constexpr auto name = "DirectVT Console with TTY";
-}
-namespace netxs::app::shell
-{
-    static constexpr auto id = "shell";
-    static constexpr auto name = "Desktop Terminal with Command-line shell";
 }
 namespace netxs::app::site
 {
@@ -346,44 +341,6 @@ namespace netxs::app::shared
                     });
             return window;
         };
-        auto build_vtty = [](eccc appcfg, xmls& config)
-        {
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
-
-            auto window = ui::cake::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::active)
-                ->invoke([&](auto& boss)
-                {
-                    closing_on_quit(boss);
-                });
-            window->plugin<pro::track>()
-                ->plugin<pro::acryl>()
-                ->plugin<pro::cache>();
-            //auto object = window->attach(ui::fork::ctor(axis::Y))
-            //                    ->colors(cB.fgc(), cB.bgc());
-            //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
-            //    auto layers = object->attach(slot::_2, ui::cake::ctor())
-            //                        ->limits(dot_11, { 400,200 });
-            config.cd("/config/term/color/default/");
-            auto def_fcolor = config.take("fgc", rgba{ whitelt });
-            auto def_bcolor = config.take("bgc", rgba{ blackdk });
-            auto layers = window->attach(ui::cake::ctor())
-                                ->colors(cB)
-                                ->limits(dot_11, { 400,200 });
-            auto scroll = layers->attach(ui::rail::ctor())
-                                ->limits({ 10,1 }); // mc crashes when window is too small
-            if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
-            auto inst = scroll->attach(ui::term::ctor(config))
-                ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(def_fcolor, def_bcolor)
-                ->invoke([&](auto& boss)
-                {
-                    app::term::terminal_subs(boss, appcfg);
-                });
-            layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
         auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
@@ -527,17 +484,16 @@ namespace netxs::app::shared
                 });
             return window;
         };
-        auto build_term = [](eccc appcfg, xmls& config)
+        auto build_vtty = [](eccc appcfg, xmls& config)
         {
-            if (appcfg.cmd.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
-            auto args = os::process::binary() + " -r term " + appcfg.cmd;
-            appcfg.cmd = args;
+            auto args = os::process::binary() + " -r vtty " + appcfg.cmd;
+            std::swap(appcfg.cmd, args);
             return build_dtvt(appcfg, config);
         };
-        auto build_shell = [](eccc appcfg, xmls& config)
+        auto build_term = [](eccc appcfg, xmls& config)
         {
-            auto args = os::process::binary() + " -r term " + os::env::shell(appcfg.cmd);
-            appcfg.cmd = args;
+            auto args = os::process::binary() + " -r term " + appcfg.cmd;
+            std::swap(appcfg.cmd, args);
             return build_dtvt(appcfg, config);
         };
         auto build_info = [](eccc /*appcfg*/, xmls& /*config*/)
@@ -693,11 +649,11 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_site { app::site::id, build_site };
-        app::shared::initialize builder_vtty { app::vtty::id, build_vtty };
-        app::shared::initialize builder_dtvt { app::dtvt::id, build_dtvt };
-        app::shared::initialize builder_xlvt { app::xlvt::id, build_xlvt };
-        app::shared::initialize builder_shell { app::shell::id, build_shell };
-        app::shared::initialize builder_info { app::info::id, build_info };
+        app::shared::initialize site_builder{ app::site::id, build_site };
+        app::shared::initialize vtty_builder{ app::vtty::id, build_vtty };
+        app::shared::initialize term_builder{ app::term::id, build_term };
+        app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
+        app::shared::initialize xlvt_builder{ app::xlvt::id, build_xlvt };
+        app::shared::initialize info_builder{ app::info::id, build_info };
     }
 }

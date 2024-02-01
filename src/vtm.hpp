@@ -1614,7 +1614,7 @@ namespace netxs::app::vtm
             auto appspec = desk::spec{ .fixed    = true,
                                        .winform  = shared::winform::undefined,
                                        .slimmenu = host::config.take(path::menuslim, true),
-                                       .type     = app::shell::id };
+                                       .type     = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
             {
@@ -1679,7 +1679,7 @@ namespace netxs::app::vtm
             auto appspec = desk::spec{ .hidden   = true,
                                        .winform  = shared::winform::undefined,
                                        .slimmenu = host::config.take(path::menuslim, true),
-                                       .type     = app::shell::id,
+                                       .type     = app::vtty::id,
                                        .gearid   = script.hid };
             auto menuid = itemptr->take(attr::id, ""s);
             if (dbase.menu.contains(menuid))
@@ -1725,7 +1725,7 @@ namespace netxs::app::vtm
         }
 
     protected:
-        hall(xipc server, xmls& config, text defapp)
+        hall(xipc server, xmls& config)
             : host{ server, config, pro::focus::mode::focusable },
               focus{ id_t{} }
         {
@@ -1737,7 +1737,7 @@ namespace netxs::app::vtm
             auto  dflt_spec = desk::spec{ .hidden   = faux,
                                           .winform  = shared::winform::undefined,
                                           .slimmenu = faux,
-                                          .type     = defapp,
+                                          .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
             {

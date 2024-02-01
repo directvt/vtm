@@ -1803,27 +1803,18 @@ namespace netxs::os
             return crop;
         }
         // os::env: Get user shell.
-        auto shell(qiew param = {})
+        auto shell()
         {
-            #if defined(_WIN32)
-            auto shell = "cmd"s;
-            if (param.size())
-            {
-                shell += " /c ";
-                shell += param;
-            }
-            #else
             auto shell = os::env::get("SHELL");
-            if (shell.empty() || shell.ends_with("vtm"))
-            {
-                shell = "bash"; //todo request it from user if empty; or make it configurable
-                log("%%Using '%shell%' as a fallback login shell", prompt::os, shell);
-            }
-            if (param.size())
-            {
-                shell += " -c ";
-                shell += param;
-            }
+            #if defined(_WIN32)
+                if (shell.empty()) shell = os::env::get("ComSpec");
+                if (shell.empty()) shell = "cmd";
+            #else
+                if (shell.empty() || shell.ends_with("vtm"))
+                {
+                    shell = "bash"; //todo request it from user if empty; or make it configurable
+                    log("%%Using '%shell%' as a fallback login shell", prompt::os, shell);
+                }
             #endif
             return shell;
         }

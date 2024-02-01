@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 
     os::dtvt::initialize();
     auto syslog = os::tty::logger();
-    auto banner = []{ log(app::term::name, ' ', app::shared::version); };
+    auto banner = []{ log(app::terminal::name, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
@@ -87,6 +87,6 @@ int main(int argc, char* argv[])
     else
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
-        app::shared::start(params, app::term::id, os::dtvt::vtmode, os::dtvt::win_sz, config);
+        app::shared::start(params, app::terminal::id, os::dtvt::vtmode, os::dtvt::win_sz, config);
     }
 }
