@@ -5,10 +5,10 @@
 ### Syntax
 
 ```
-vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
+vtm [ -i | -u ] | [ -v ] | [ -? ]  |  [ -c <file>][ -l ]
 
-vtm [ --script <commands> ] [ -p <name> ] [ -c <file> ] [ -q ]
-         [ -m | -d | -s | [ -r [ <type> ] ][ <cui_app ...> ] ]
+vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
+    [ -m | -d | -s | [ -r [<console>]][ <cui_app ...>] ]
 
 <run commands via piped redirection> | vtm [options ...]
 ```
@@ -22,15 +22,15 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-i`, `--install`       | Perform system-wide installation.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-c`, `--config <file>` | Specifies the settings file to load.
-`-p`, `--pipe <name>`   | Specifies the desktop session connection point (case sensitive).
+`-p`, `--pipe <name>`   | Specifies the desktop session connection point.
 `-m`, `--monitor`       | Run desktop session log monitor.
 `-d`, `--daemon`        | Run desktop server in background.
 `-s`, `--server`        | Run desktop server in interactive mode.
-`-r`, `--`, `--run`     | Run the specified built-in terminal type in standalone mode.
+`-r`, `--`, `--run`     | Run the specified built-in console in standalone mode.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<type>`                | Built-in terminal type to use to run a cui-application (case insensitive).
-`<cui_app ...>`         | Console application with arguments to run.
+`<console>`             | Built-in console to host a running CUI application..
+`<cui_app ...>`         | Console UI application with arguments to run..
 
 ### Settings loading order
 
@@ -41,14 +41,14 @@ No arguments            | Connect to the desktop (autostart new if not running).
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent process (dtvt-mode).
 
-### Built-in terminal types
+### Built-in consoles
 
- Type  | Description                                       | Syntax
--------|---------------------------------------------------|------------------------------------
-`Term` | Terminal emulator to run common cli applications. | `vtm [options ...] -r term [cui_app ...]`
-`vtty` | Terminal emulator without UI (scrollback only).   | `vtm [options ...] -r vtty [cui_app ...]`
-`DTVT` | DirectVT proxy console to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
-`XLVT` | DirectVT proxy console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
+ Type  | Name                        | Description                          | Syntax
+-------|-----------------------------|--------------------------------------|------------------------------------
+`vtty` | `Teletype Console`          | Used to run common CUI applications. | `vtm [options ...] -r vtty [cui_app ...]`
+`term` | `Desktop Terminal`          | Used to run common CUI applications. | `vtm [options ...] -r term [cui_app ...]`
+`dtvt` | `DirectVT Console`          | Used to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
+`xlvt` | `DirectVT Console with TTY` | The DirectVT Console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
@@ -71,16 +71,16 @@ The following characters in the script body will be de-escaped: `\e` `\t` `\r` `
 
 ### Usage Examples
 
-Command                                  | Description
------------------------------------------|--------------------------------------------
-`vtm`                                    | Run vtm desktop inside the current console.
-`vtm ssh <user@server> vtm`              | Run remote vtm desktop inside the current console over SSH.
-`vtm -r [term]`                          | Run the built-in terminal inside the current console.
-`vtm [-r [term]] </path/to/console/app>` | Run an application inside the built-in terminal.
-`vtm ssh <user@server> vtm [-r [term]] </path/to/console/app>` | Run an application remotely over SSH.
+Command                                            | Description
+---------------------------------------------------|--------------------------------------------
+`vtm`                                              | Run vtm desktop inside the current console.
+`vtm ssh <user@server> vtm`                        | Run remote vtm desktop inside the current console over SSH.
+`vtm -r term`                                      | Run Desktop Terminal inside the current console.
+`vtm -r term </path/to/console/app>`               | Run a CUI application inside the Desktop Terminal.
+`vtm ssh <user@server> vtm </path/to/console/app>` | Run a CUI application remotely over SSH.
 `vtm --script "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run vtm desktop and reconfigure the taskbar menu.
 `echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=xlvt cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
-`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run a terminal window on the running desktop.
-`echo "vtm.run(title='Console \nApplication' cmd=</path/to/app>)" \| vtm` | Run an application window on the running desktop.
-`echo "vtm.run(type=group title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run tiling window manager with three terminals attached.
-`echo "vtm.shutdown()" \| vtm`           | Terminate the running desktop session.
+`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run a Desktop Terminal window on the running desktop.
+`echo "vtm.run(title='Console \nApplication' cmd=</path/to/app>)" \| vtm` | Run a CUI application window on the running desktop.
+`echo "vtm.run(type=tile title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run tiling window manager with three terminals attached.
+`echo "vtm.shutdown()" \| vtm`                     | Terminate the running desktop session.
