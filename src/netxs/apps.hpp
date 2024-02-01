@@ -282,63 +282,68 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_site = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_site = [](eccc appcfg, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
+            {
+                //todo reimplement (tiling/window)
+                //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                //{
+                //    auto outer = e2::config::plugins::sizer::outer.param();
+                //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
+                //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                //    if (actual_rect.hittest(gear.coord))
+                //    {
+                //        rect viewport;
+                //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                //        boss.base::extend(viewport);
+                //        gear.dismiss();
+                //    }
+                //};
+                closing_on_quit(boss);
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
+                {
+                    auto title_fg_color = rgba{ 0xFFffffff };
+                    auto area = parent_canvas.full();
+                    auto mark = skin::color(tone::shadower);
+                    mark.fgc(title_fg_color).link(boss.bell::id);
+                    auto fill = [&](cell& c){ c.fusefull(mark); };
+                    parent_canvas.cage(area, dot_21, fill);
+                };
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (cmd = appcfg.cmd))
+                {
+                    auto& parent = *parent_ptr;
+                    closing_by_gesture(parent);
+
+                    //todo too hacky
+                    if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
                     {
-                        //todo reimplement (tiling/window)
-                        //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        //{
-                        //    auto outer = e2::config::plugins::sizer::outer.param();
-                        //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
-                        //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                        //    if (actual_rect.hittest(gear.coord))
-                        //    {
-                        //        rect viewport;
-                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                        //        boss.base::extend(viewport);
-                        //        gear.dismiss();
-                        //    }
-                        //};
-                        closing_on_quit(boss);
-                        boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
-                        {
-                            auto title_fg_color = rgba{ 0xFFffffff };
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::shadower);
-                            mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c){ c.fusefull(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        };
-                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-                        {
-                            auto& parent = *parent_ptr;
-                            closing_by_gesture(parent);
+                        form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
+                    }
 
-                            //todo too hacky
-                            if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
-                            {
-                                form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
-                            }
-
-                            static auto i = 0; i++;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("Site ", i)));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
-                            parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                            {
-                                auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
-                                if (area.hittest(gear.coord))
-                                {
-                                    app::shared::set_title(boss, gear, bias::center);
-                                    gear.dismiss(true);
-                                }
-                            };
-                        };
-                    });
+                    if (cmd.starts_with("@"))
+                    {
+                        static auto title_map = std::unordered_map<text, si32>{};
+                        boss.RISEUP(tier::request, e2::form::prop::ui::header, title, ());
+                        title += std::to_string(++title_map[title]);
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                    }
+                    boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
+                    boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
+                    boss.RISEUP(tier::release, e2::config::plugins::align, faux);
+                    boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
+                    parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                    {
+                        auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
+                        if (area.hittest(gear.coord))
+                        {
+                            app::shared::set_title(boss, gear, bias::center);
+                            gear.dismiss(true);
+                        }
+                    };
+                };
+            });
             return window;
         };
         auto build_dtvt = [](eccc appcfg, xmls& /*config*/)

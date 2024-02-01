@@ -68,7 +68,7 @@ R"==(
 #endif
 R"==(
         <item id=Tile label="Tile" type=tile title="Tiling window manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
-        <item id=Site label="Site" type=site title="\e[11:3pSite: Region"  winform=maximized         notes=" Desktop Region Marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=Site label="Site" type=site title="\e[11:3pSite: Region " cmd="@" winform=maximized notes=" Desktop Region Marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
         <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                       \n   LeftClick to start an instance  \n   RightClick to set it as default ">
             <config>
                 <term>

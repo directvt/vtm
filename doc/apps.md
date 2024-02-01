@@ -1,16 +1,22 @@
 # Text-based desktop environment
 
-## Desktop window types
+## Desktop window object types
 
  Name      | Function                                                                    | Implementation
 -----------|-----------------------------------------------------------------------------|-----------------------------
-`Term`     | Terminal emulator to run common cli applications.                           | Built-in terminal of type `term`.
-`DTVT`     | DirectVT proxy console to run dtvt-apps inside the generic text console.    | Built-in terminal of type `dtvt`.
-`XLVT`     | DirectVT proxy console with controlling terminal to run dtvt-apps over SSH. | Built-in terminal of type `xlvt`.
-`View`     | Workspace navigation helper.                                                | Window object of type `region`.
-`Tile`     | Tiling window manager.                                                      | Window object of type `group`.
+`vtty`     | Teletype Console to run common cui applications.                            | Window object of type `vtty`.
+`term`     | Desktop Terminal to run common cui applications.                            | Window object of type `term`.
+`dtvt`     | DirectVT Console to run dtvt-applications inside the generic text console.  | Window object of type `dtvt`.
+`xlvt`     | DirectVT Console with TTY to run dtvt-applications over SSH.                | Window object of type `xlvt`.
+`site`     | Desktop Region Marker.                                                      | Window object of type `site`.
+`tile`     | Tiling Window Manager.                                                      | Window object of type `tile`.
 
-## Built-in terminal emulator of type `term`
+## Teletype Console
+
+Used to run console applications...
+...
+
+## Desktop Terminal
 
 Used to run console applications...
 
@@ -242,20 +248,20 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 </config>
 ```
 
-## DirectVT proxy: Built-in terminal emulator of type `dtvt`
+## DirectVT Console
 
-This built-in terminal type is used to run DirectVT-aware applications. It is activated by the `-r dtvt` option.
+DirectVT Console is used to run DirectVT-aware applications. It is activated by the `-r dtvt` option.
 
 Example (running `vtm -r term` command in DirectVT mode on top of built-in terminal of `dtvt` type):
 ```
 vtm -r dtvt vtm -r term
 ```
 
-## DirectVT proxy with controlling terminal
+## DirectVT Console with TTY
 
-This built-in terminal type is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
+DirectVT Console with TTY is used when there is a need for interactive interaction with the user through the controlling terminal. For example, this is required when connecting via SSH with keyboard-interactive authentication or requesting a private key passphrase.
 
-This terminal type is used automatically if the first command line argument begins with `ssh` keyword.
+In case of running in standalone mode this window object type is used automatically if the first command line argument begins with `ssh` keyword.
 
 The following commands are identical:
 ```
@@ -265,11 +271,11 @@ vtm -r xlvt ssh user@host vtm
 vtm ssh user@host vtm
 ```
 
-## Workspace Navigation Helper
+## Desktop Region Marker
 
-The Workspace Navigation Helper (`View`) is used to quickly navigate the desktop by double-left-clicking on an instance in the taskbar. The region title can be set using the clipboard text data by right-clicking once on the region frame (swap clipboard text with title text).
+The Desktop Region Marker is used to quickly navigate the desktop by double-left-clicking on an instance in the taskbar. The region title can be set using the clipboard text data by right-clicking once on the region frame (swap clipboard text with title text).
 
-## Tiling window manager
+## Tiling Window Manager
 
 ### Features
 

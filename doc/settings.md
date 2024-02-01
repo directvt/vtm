@@ -219,21 +219,20 @@ Value type | Format
 
 #### App window types
 
-Window type<br>(case insensitive) | Parameter        | Description
+Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`xlvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
-`ANSIVT`                          | `cui_app ...`    | Run `cui_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cui_app ..."`. It is same as `type=dtvt cmd="vtm -r term cui_app ..."`.
-`SHELL` (default)                 | `cui_app ...`    | Run `cui_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cui_app ..."`. It is same as `type=dtvt cmd="vtm -r term your_system_shell -c cui_app ..."`.
-`Group`                           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=group cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
-`Region`                          |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
+`vtty` (default)                  | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
+`term`                            | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`xlvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
+`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
+`site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
 The following configuration items produce the same final result:
 ```
 <item ... cmd=mc/>
-<item ... type=SHELL cmd=mc/>
-<item ... type=ANSIVT cmd='bash -c mc'/>
-<item ... type=DirectVT cmd='vtm -r term bash -c mc'/>
+<item ... type=vtty cmd=mc/>
+<item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
 ### Configuration Example
@@ -269,7 +268,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
+        <item id=Term label="Term" type=dtvt title="Desktop Terminal" notes=" Desktop Terminal " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -295,13 +294,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=pwsh label="PowerShell" type=DirectVT title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
-   <!-- <item id=WSL  label="WSL"        type=DirectVT title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far  label="Far"        type=SHELL    title="Far Manager"                 cmd="far"                             notes=" Far Manager in its own window "/> -->
-   <!-- <item id=mc   label="mc"         type=SHELL    title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
-        <item id=Tile label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=View label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
-        <item id=Logs label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
+        <item id=pwsh label=PowerShell   type=dtvt title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+   <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
+   <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"                 cmd="far"                             notes=" Far Manager in its own window "/> -->
+   <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
+        <item id=Tile label=Tile         type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=Site label=Site         type=site title="\e[11:3pView: Region"  cmd=@ winform=maximized   notes=" Desktop region marker "/>
+        <item id=Logs label=Logs         type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->
