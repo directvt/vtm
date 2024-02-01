@@ -6545,7 +6545,7 @@ namespace netxs::ui
                 auto& console_ptr = target_buffer ? target_buffer : this->target;
                 if (data.size())
                 {
-                    if (io_log) log(prompt::cout, "\n\t", utf::change(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    if (io_log) log(prompt::cout, "\n\t", utf::replace_all(ansi::hi(utf::debase(data)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     ansi::parse(data, console_ptr);
                     return true;
                 }

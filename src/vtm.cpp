@@ -13,9 +13,9 @@ enum class code { noaccess, noserver, nodaemon, nologger, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
-    auto defaults = 
-    #include "vtm.xml"
-
+    auto defaults = utf::replace_all(
+        #include "vtm.xml"
+        , "\n\n", "\n");
     auto whoami = type::client;
     auto params = text{};
     auto cfpath = text{};

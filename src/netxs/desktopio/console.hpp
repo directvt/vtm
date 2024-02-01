@@ -771,13 +771,14 @@ namespace netxs::ui
 
                     if (k.cluster.length())
                     {
-                        auto t = k.cluster;
-                        for (auto i = 0; i < 0x20; i++)
+                        auto t = text{};
+                        for (byte c : k.cluster)
                         {
-                            utf::change(t, text{ (char)i }, "^" + utf::to_utf_from_code(i + 0x40));
+                                 if (c <  0x20) t += "^" + utf::to_utf_from_code(c + 0x40);
+                            else if (c == 0x7F) t += "\\x7F";
+                            else if (c == 0x20) t += "\\x20";
+                            else                t.push_back(c);
                         }
-                        utf::change(t, text{ (char)0x7f }, "\\x7F");
-                        utf::change(t, text{ (char)0x20 }, "\\x20");
                         status[prop::key_character].set(stress) = t;
                     }
                 };

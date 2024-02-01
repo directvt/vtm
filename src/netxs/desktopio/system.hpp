@@ -1903,7 +1903,7 @@ namespace netxs::os
                       : path.starts_with("/etc/") ? os::path::etc  / path.substr(5 /* trim "/etc" */)
                                                   : fs::path{ path };
             auto crop_str = "'" + utf::to_utf(crop.wstring()) + "'";
-            utf::change(crop_str, "\\", "/");
+            utf::replace_all(crop_str, "\\", "/");
             return std::pair{ crop, crop_str };
         }
     }
@@ -3898,7 +3898,7 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::replace_all(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache)) cache.clear();
                     else
                     {
@@ -5721,7 +5721,7 @@ namespace netxs::os
                             if (wraps && width >= panel.x) yield.cuu(width / panel.x);
                             yield.add("\r");
                         }
-                        utf::change(block, "\n", "\r\n"); // Disabled post-processing.
+                        utf::replace_all(block, "\n", "\r\n"); // Disabled post-processing.
                         yield.pushsgr().nil().fgc(yellowlt);
                         width = utf::debase<faux, faux>(block, yield);
                         yield.nil().popsgr();

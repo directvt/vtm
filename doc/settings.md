@@ -296,10 +296,10 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
         </item>
         <item id=pwsh label=PowerShell   type=dtvt title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
    <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"                 cmd="far"                             notes=" Far Manager in its own window "/> -->
+   <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
    <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
         <item id=Tile label=Tile         type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=Site label=Site         type=site title="\e[11:3pView: Region"  cmd=@ winform=maximized   notes=" Desktop region marker "/>
+        <item id=Site label=Site         type=site title="\e[11:3pSite "         cmd=@ winform=maximized   notes=" Desktop region marker "/>
         <item id=Logs label=Logs         type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->

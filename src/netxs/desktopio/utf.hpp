@@ -838,43 +838,39 @@ namespace netxs::utf
         }
         return from.substr(0, s_size);
     }
-    template<class W, class R>
-    void change(text& utf8, W const& what, R const& replace)
+    void replace_all(text& utf8, auto const& from, auto const& to)
     {
-        auto frag = view{ what };
-        auto fill = view{ replace };
+        auto frag = view{ from };
+        auto fill = view{ to };
         auto spot = 0_sz;
         auto line_sz = utf8.length();
-        auto what_sz = frag.length();
+        auto from_sz = frag.length();
         auto repl_sz = fill.length();
-
-        if (!what_sz || line_sz < what_sz) return;
-
-        if (what_sz == repl_sz)
+        if (!from_sz || line_sz < from_sz) return;
+        if (from_sz == repl_sz)
         {
             while ((spot = utf8.find(frag, spot)) != text::npos)
             {
-                utf8.replace(spot, what_sz, fill);
-                spot += what_sz;
+                utf8.replace(spot, from_sz, fill);
+                spot += from_sz;
             }
         }
         else
         {
             auto last = 0_sz;
-            if (what_sz < repl_sz)
+            if (from_sz < repl_sz)
             {
                 auto temp = text{};
-                temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid reallocations.
+                temp.reserve((line_sz / from_sz + 1) * repl_sz); // In order to avoid reallocations.
                 auto shadow = view{ utf8 };
                 while ((spot = utf8.find(frag, last)) != text::npos)
                 {
                     temp += shadow.substr(last, spot - last);
                     temp += fill;
-                    spot += what_sz;
+                    spot += from_sz;
                     last  = spot;
                 }
                 temp += shadow.substr(last);
-
                 utf8 = temp; // Assign to perform simultaneous shrinking and copying.
             }
             else
@@ -891,24 +887,19 @@ namespace netxs::utf
                 {
                     if (last) copy(base + last, dest, spot - last);
                     else      dest += spot;
-
                     copy(repl, dest, repl_sz);
-
-                    spot += what_sz;
+                    spot += from_sz;
                     last  = spot;
                 }
-
                 copy(base + last, dest, line_sz - last);
-
                 utf8.resize(dest - base);
             }
         }
     }
-    template<class W, class R>
-    auto change(qiew utf8, W const& what, R const& replace)
+    auto replace_all(qiew utf8, auto const& from, auto const& to)
     {
-        auto crop = utf8.str();
-        change(crop, what, replace);
+        auto crop = utf8.str(); //todo avoid allocation
+        replace_all(crop, from, to);
         return crop;
     }
     struct filler
@@ -921,8 +912,8 @@ namespace netxs::utf
         }
         auto operator () (text s)
         {
-            for (auto& var : dict) utf::change(s, var.first, var.second);
-            for (auto& var : dict) utf::change(s, var.first, var.second);
+            for (auto& var : dict) utf::replace_all(s, var.first, var.second);
+            for (auto& var : dict) utf::replace_all(s, var.first, var.second);
             return s;
         }
     };

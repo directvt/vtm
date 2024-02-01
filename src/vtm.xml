@@ -1,4 +1,7 @@
 R"==(<config>
+)=="
+#if defined(DEBUG)
+R"==(
     <scripting=off engine="python">  <!-- Not implemented, see gh-393 for details -->
         <python     cwd="" usetty=no  cmd="python -i"            run="print(\"Hello World!\")"/>
         <pwsh       cwd="" usetty=yes cmd="pwsh -NonInteractive" run="\"Hello World!\""/>
@@ -9,6 +12,9 @@ R"==(<config>
             </run>
         </javascript>
     </scripting>
+)=="
+#endif
+R"==(
     <simple=0/>  <!-- For internal use only. -->
     <menu wide=off selected=Term>  <!-- wide: Set wide or compact menu layout; selected: Set selected menu item id. -->
         <item*/>  <!-- Use asterisk at the end of the element name to set defaults.
@@ -21,17 +27,12 @@ R"==(<config>
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-)=="
-#if defined(_WIN32)
-R"==(
-        <item id=Term label="Term" type=dtvt title="Command Prompt" cmd="$0 -r term" notes=" Windows Command Prompt            \n   LeftClick to start an instance  \n   RightClick to set it as default ">
-)=="
-#else
-R"==(
-        <item id=Term label="Term" type=dtvt title="Desktop Terminal" cmd="$0 -r term" notes=" Desktop Terminal                  \n   LeftClick to start an instance  \n   RightClick to set it as default ">
-)=="
-#endif
-R"==(
+        <item id=Term label="Term" type=dtvt title="Desktop Terminal" cmd="$0 -r term">
+            <notes>
+                " Desktop Terminal               \n"
+                "   LeftClick to launch instance \n"
+                "   RightClick to set as default "
+            </notes>
             <hotkeys key*>    <!-- not implemented -->
                 <key="Ctrl+'t'" action=Start/>
             </hotkeys>
@@ -59,17 +60,16 @@ R"==(
                 </term>
             </config>
         </item>
-
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=pwsh label="pwsh" type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                   \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
+        <item id=pwsh label="pwsh" type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                 \n   LeftClick to launch instance  \n   RightClick to set as default "/>
 )=="
 #endif
 R"==(
-        <item id=Tile label="Tile" type=tile title="Tiling window manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
-        <item id=Site label="Site" type=site title="\e[11:3pSite: Region " cmd="@" winform=maximized notes=" Desktop Region Marker             \n   LeftClick to start an instance  \n   RightClick to set it as default "/>
-        <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                       \n   LeftClick to start an instance  \n   RightClick to set it as default ">
+        <item id=Tile label="Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+        <item id=Site label="Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/> <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
+        <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
             <config>
                 <term>
                     <logs=off/>
@@ -385,16 +385,22 @@ R"==(
             <slim=true/>
         </menu>
     </tile>
+)=="
+#if defined(DEBUG)
+R"==(
     <text>      <!-- Base configuration for the Text app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </text>
     <calc>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </calc>
-    <gems>      <!-- Base configuration for the Calc app. It can be overridden by param's subargs. -->
+    <gems>      <!-- Base configuration for the Gems app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </gems>
     <settings>      <!-- Base configuration for the Settings app. It can be overridden by param's subargs. -->
         <!-- not implemented -->
     </settings>
-</config>)==";
+)=="
+#endif
+R"==(
+</config>)=="

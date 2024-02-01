@@ -1756,12 +1756,12 @@ namespace netxs::app::vtm
             auto auto_id = 0;
             auto expand = [&](auto& conf_rec)
             {
-                utf::change(conf_rec.title,      "$0", current_module_file);
-                utf::change(conf_rec.footer,     "$0", current_module_file);
-                utf::change(conf_rec.label,      "$0", current_module_file);
-                utf::change(conf_rec.notes,      "$0", current_module_file);
-                utf::change(conf_rec.appcfg.cmd, "$0", current_module_file);
-                utf::change(conf_rec.appcfg.env, "$0", current_module_file);
+                utf::replace_all(conf_rec.title,      "$0", current_module_file);
+                utf::replace_all(conf_rec.footer,     "$0", current_module_file);
+                utf::replace_all(conf_rec.label,      "$0", current_module_file);
+                utf::replace_all(conf_rec.notes,      "$0", current_module_file);
+                utf::replace_all(conf_rec.appcfg.cmd, "$0", current_module_file);
+                utf::replace_all(conf_rec.appcfg.env, "$0", current_module_file);
             };
             for (auto item_ptr : host::config.list(path::item))
             {
