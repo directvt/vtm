@@ -31,7 +31,7 @@ vtm is a text-based desktop environment allowing remote access over tunneling pr
 
 # Documentation
 
-- [Architecture and usage](doc/architecture.md)
+- [Architecture](doc/architecture.md)
 - [Building from source](doc/build.md)
 - [Command-line options](doc/command-line-options.md)
 - [User interface](doc/user-interface.md)
