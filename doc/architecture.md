@@ -1,4 +1,4 @@
-# Text-based desktop environment architecture
+# Text-based Desktop Environment Architecture
 
 ## Process model
 
