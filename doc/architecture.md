@@ -134,7 +134,7 @@ Desktop object types:
 `tile`     | `Tiling Window Manager`        | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
 `site`     | `Desktop Region Marker`        | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
 
-The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event to update users taskbars.
+The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
 ## Interprocess communication
 
