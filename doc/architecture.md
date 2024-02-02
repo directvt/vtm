@@ -12,9 +12,7 @@ Interprocess communication modes:
 
 vtm can operate in any combination of internal and interprocess modes.
 
-## Internal operating modes
-
-### Terms
+## Terms
 
  Term               | Meaning
 --------------------|---------------
@@ -23,6 +21,8 @@ vtm can operate in any combination of internal and interprocess modes.
 `text cell`         | A text console cell containing a colored monospaced character or its fragment.
 `bitmap`            | A rectangular block of text cells.
 `canvas`            | A rectangular buffer for text cells output.
+
+## Internal operating modes
 
 ### Standalone Application mode
 
