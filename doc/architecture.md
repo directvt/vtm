@@ -34,7 +34,7 @@ Console types:
 
 `<console>` value | Object type to run standalone      | Description
 ------------------|------------------------------------|----------------------
-`dtvt`            | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware application.
+`dtvt`            | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
 `vtty`            | `teletype`/`Teletype Console`      | Used to run CUI applications.
 `term`            | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
 `xlvt`            | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
