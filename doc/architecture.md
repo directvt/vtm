@@ -362,9 +362,7 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `socat` is installed.
     ```
 
-## More tips
-
-## Desktop taskbar menu customization
+# Desktop Taskbar
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
 ```xml
@@ -399,23 +397,29 @@ The taskbar menu of the running desktop can be configured using shell piped redi
 ```
 # Delete existing menu items
 echo "vtm.del()" | vtm
+```
+```
 # Add new menu items
 echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
 echo "vtm.set(id=White label='White Terminal' type=dtvt fgc=0xFF000000 bgc=0xFFffffff cmd='vtm -r term')" | vtm
 echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
 echo "vtm.set(id=Tile label='Three Terminals' type=group cmd='v(h(Term, White), Huge)')" | vtm
 echo "vtm.set(id=cmd label='Remote cmd over SSH' type=xlvt cmd='ssh user@server vtm cmd')" | vtm
+```
+```
 # Set default menu item
 echo "vtm.selected(Term)" | vtm
+```
+```
 # Run window with terminals
 echo "vtm.run(id=Tile)" | vtm
 ```
 
-### Tiling Window Manager
+# Tiling Window Manager
 
 Desktop windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-window-types) for details.
 
-### VT logging for developers
+# VT logging for developers
 
 vtm allows developers to visualize standard input/output streams. Launched with the `vtm -m` option, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 
