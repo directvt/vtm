@@ -4,7 +4,7 @@
 
 ```mermaid
 graph TB
-    subgraph IE10[Text Console 1]
+    subgraph IE10[Generic Text Console 1]
         subgraph IE1[Input]
             direction LR
             C1[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
@@ -19,7 +19,7 @@ graph TB
         TC1 --- CS1
     end
 
-    subgraph IE20[Text Console 2]
+    subgraph IE20[Generic Text Console 2]
         subgraph IE2[Input]
             direction LR
             C2[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
@@ -34,7 +34,7 @@ graph TB
         TC2 --- CS2
     end
 
-    subgraph IE30[Text Console 3]
+    subgraph IE30[Generic Text Console 3]
         subgraph IE3[Input]
             direction LR
             C3[keybd, mouse, focus\nwinsize, clipboard,\nos signals]
@@ -42,7 +42,7 @@ graph TB
         subgraph OU3[Output]
             TC3[scrollback\nbuffer]
         end
-        subgraph CS3[DirectVT Proxy]
+        subgraph CS3[DirectVT Console]
             VTM3[vtm\nprocess 3]
         end
         C3 --> CS3
@@ -60,7 +60,7 @@ graph TB
     subgraph SS[Desktop Server]
         VTMs[vtm\nprocess 0]
         subgraph SE[Desktop Session]
-            DS1["DirectVT Application Manager"]
+            DS1["Desktop Window Manager"]
             subgraph APPx[Running Applications]
                 APP1[DirectVT App1\napp: process 4]
                 APP2["App2 (Terminal+App2)\nvtm: process 5\napp: process 6"]
