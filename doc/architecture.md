@@ -95,7 +95,7 @@ graph TB
 - The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
-## Desktop server
+## Desktop Server
 
 ### Terms
 
