@@ -39,7 +39,7 @@ Console types:
 `term`            | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
 `xlvt`            | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in standalone mode to optimize desktop resource consumption.
+Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally: `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in standalone mode to optimize desktop resource consumption.
 
 ### Desktop Environment mode
 
