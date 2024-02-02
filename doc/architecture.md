@@ -130,7 +130,7 @@ Desktop object types:
 `dtvt`     | `DirectVT Console`             | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
 `vtty`     | `Teletype Console dtvt-bridge` | A `DirectVT Console` hosting an external standalone `Teletype Console` process. It is designed to run a heavy `Teletype Console` object in the external process's address space to optimize desktop resource consumption.
 `term`     | `Desktop Terminal dtvt-bridge` | A `DirectVT Console` hosting an external standalone `Desktop Terminal` process. It is designed to run a heavy `Desktop Terminal` object in the external process's address space to optimize desktop resource consumption.
-`xlvt`     | `DirectVT Console with TTY`    | A derivative of `DirectVT Console` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via the platform's TTY. Depending on activity the corresponding console became active for the user.
+`xlvt`     | `DirectVT Console with TTY`    | A derivative of `DirectVT Console` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
 `tile`     | `Tiling Window Manager`        | A window container with an organization of the parent window area into mutually non-overlapping panes for nested windows.
 `site`     | `Desktop Region Marker`        | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
 
