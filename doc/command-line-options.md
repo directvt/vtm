@@ -45,9 +45,9 @@ No arguments            | Connect to the desktop (autostart new if not running).
 
  Type  | Name                        | Description                          | Syntax
 -------|-----------------------------|--------------------------------------|------------------------------------
-`vtty` | `Teletype Console`          | Used to run common CUI applications. | `vtm [options ...] -r vtty [cui_app ...]`
-`term` | `Desktop Terminal`          | Used to run common CUI applications. | `vtm [options ...] -r term [cui_app ...]`
-`dtvt` | `DirectVT Console`          | Used to run dtvt-apps in a generic text console. | `vtm [options ...] -r dtvt [dtvt_app ...]`
+`vtty` | `Teletype Console`          | Used to run CUI applications.        | `vtm [options ...] -r vtty [cui_app ...]`
+`term` | `Desktop Terminal`          | Used to run CUI applications.        | `vtm [options ...] -r term [cui_app ...]`
+`dtvt` | `DirectVT Console`          | Used to run dtvt-aware applications. | `vtm [options ...] -r dtvt [dtvt_app ...]`
 `xlvt` | `DirectVT Console with TTY` | The DirectVT Console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
 
 The following commands have a short form:
