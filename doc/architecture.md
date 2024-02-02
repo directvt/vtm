@@ -12,16 +12,6 @@ Interprocess communication modes:
 
 vtm can operate in any combination of internal and interprocess modes.
 
-## Terms
-
- Term               | Meaning
---------------------|---------------
-`colored character` | A character depicted with rendition attributes such as background and foreground color.
-`text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
-`text cell`         | A text console cell containing a colored monospaced character or its fragment.
-`bitmap`            | A rectangular block of text cells.
-`canvas`            | A rectangular buffer for text cells output.
-
 ## Internal operating modes
 
 ### Standalone Application mode
@@ -457,3 +447,13 @@ vtm allows developers to visualize standard input/output streams. Launched with 
 Important: Avoid enabling the `Logs` switch in the terminal window with the `vtm -m` process running, this may lead to recursive event logging of event logging with unpredictable results.
 
 Important: Be careful with enabling the `Logs` switch when working with sensitive information, since all IO events, including keypresses, are logged in this mode.
+
+# Terms
+
+ Term               | Meaning
+--------------------|---------------
+`colored character` | A character depicted with rendition attributes such as background and foreground color.
+`text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
+`text cell`         | A text console cell containing a colored monospaced character or its fragment.
+`bitmap`            | A rectangular block of text cells.
+`canvas`            | A rectangular buffer for text cells output.
