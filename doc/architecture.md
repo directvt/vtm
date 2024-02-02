@@ -60,12 +60,18 @@ graph TB
     subgraph SS[Desktop Server]
         VTMs[vtm\nprocess 0]
         subgraph SE[Desktop Session]
-            DS1["Desktop Window Manager"]
-            subgraph APPx[Running Applications]
+            subgraph APPx[running application windows]
                 APP1[DirectVT App1\napp: process 4]
                 APP2["App2 (Terminal+App2)\nvtm: process 5\napp: process 6"]
                 APP3["App3 (Terminal+App3)\nvtm: process 7\napp: process 8"]
             end
+            subgraph APPu[connected users]
+                USR1["Desktop Client 1\nViewport\nTaskbar"]
+                USR2["Desktop Client 2\nViewport\nTaskbar"]
+            end
+            USR1 --->|keyboard focus| APP1
+            USR2 --->|keyboard focus| APP2
+            USR2 --->|keyboard focus| APP3
         end
         VTMs === SE
    end
