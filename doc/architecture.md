@@ -11,7 +11,7 @@ Internal operating modes:
 Interprocess communication modes:
 - DirectVT
 - Text/VT
-- Command line input
+- Command line
 
 vtm can operate in the following combination of internal and interprocess modes:
 
