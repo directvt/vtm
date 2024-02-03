@@ -15,7 +15,7 @@ vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
-No arguments            | Connect to the desktop (autostart new if not running).
+                        | By default, run desktop client console in detached window mode and autorun desktop server daemon if it is not running.
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
@@ -23,14 +23,14 @@ No arguments            | Connect to the desktop (autostart new if not running).
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pipe <name>`   | Specifies the desktop session connection point.
-`-m`, `--monitor`       | Run desktop session log monitor.
-`-d`, `--daemon`        | Run desktop server in background.
-`-s`, `--server`        | Run desktop server in interactive mode.
-`-r`, `--`, `--run`     | Run the specified built-in console in standalone mode.
+`-m`, `--monitor`       | Run desktop session monitor.
+`-d`, `--daemon`        | Run desktop server daemon.
+`-s`, `--server`        | Run desktop server.
+`-r`, `--`, `--run`     | Run the specified desktop console in detached window mode.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Built-in console to host a running CUI application..
-`<cui_app ...>`         | Console UI application with arguments to run..
+`<console>`             | Desktop console to host a running CUI application.
+`<cui_app ...>`         | Console UI application with arguments to run.
 
 ### Settings loading order
 
@@ -41,14 +41,17 @@ No arguments            | Connect to the desktop (autostart new if not running).
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent process (dtvt-mode).
 
-### Built-in consoles
+### Desktop consoles available to run in detached window mode
 
- Type  | Name                        | Description                          | Syntax
--------|-----------------------------|--------------------------------------|------------------------------------
-`vtty` | `Teletype Console`          | Used to run CUI applications.        | `vtm [options ...] -r vtty [cui_app ...]`
-`term` | `Desktop Terminal`          | Used to run CUI applications.        | `vtm [options ...] -r term [cui_app ...]`
-`dtvt` | `DirectVT Console`          | Used to run dtvt-aware applications. | `vtm [options ...] -r dtvt [dtvt_app ...]`
-`xlvt` | `DirectVT Console with TTY` | The DirectVT Console with an additional controlling terminal to run dtvt-apps over SSH.<br>`XLVT` stands for Cross-linked VT. | `vtm [options ...] -r xlvt ssh <user@host dtvt_app ...>`
+`<console>` value                | Object type to run detached        | Description
+---------------------------------|------------------------------------|----------------------
+`vtm`                            | `desk`/`Desktop Client`            | Used to run Desktop Client.
+`vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r dtvt dtvt_app ...`       | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
+`vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
+`vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.

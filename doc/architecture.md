@@ -1,39 +1,41 @@
 # Text-based Desktop Environment Architecture
 
-vtm has a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
+There are a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
 
 Internal operating modes:
 - Desktop Server
-- Standalone Application
-- Console logging/monitoring
-- Redirected standard input
+- Detached Window
+- Desktop Session Monitor
+- Redirected Input Processor
 
 Interprocess communication modes:
 - DirectVT
 - Text/VT
 - Command line
 
-vtm can operate in the following combination of internal and interprocess modes:
+The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Standalone Application     | auto     | auto    |
+Detached Window            | auto     | auto    |
 Desktop Server             |          |         | auto
-Console logging/monitoring |          |         | auto
-Redirected standard input  |          |         | auto
+Desktop Session Monitor    |          |         | auto
+Redirected Input Processor |          |         |
 
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is running in `Detached Window` mode.
+In the `Detached Window` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Standalone Application mode
+### Detached Window mode
 
-Standalone Application mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+Detached Window mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
-Standalone Application mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the type of the object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object.
+Detached Window mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object.
 
-Console types:
+Desktop consoles available to run in detached window mode
 
-`<console>` value                | Object type to run standalone      | Description
+`<console>` value                | Object type to run detached        | Description
 ---------------------------------|------------------------------------|----------------------
 `vtm`                            | `desk`/`Desktop Client`            | Used to run Desktop Client.
 `vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications.
@@ -43,13 +45,13 @@ Console types:
 `vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
 `vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally: `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in standalone mode to optimize desktop resource consumption.
+Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally: `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
 
 ### Desktop Environment mode
 
 #### Desktop structure
 
-Internally the desktop is represented by the parent-child object tree with a single root object. The root object broadcasts 60 ticks every second to update the tree state and to do something else in sync.
+Internally the desktop is represented by the parent-child object tree with a single root object. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
 The desktop root maintains a desktop-wide configuration, a list of connected users, and a list of running windows.
 
@@ -170,8 +172,8 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
-- Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running as standalone terminal in DirectVT mode. Terminating this process will automatically close the application.
+- Non-DirectVT application runs a pair of operating system processes: terminal process + application process (terminal process is a vtm's ).
+- The terminal process is a fork of the original desktop server process, running `Desktop Terminal` or `Teletype Console` in `Detached Window` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -183,9 +185,9 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side (desktop client) can operate in two modes, either in Text/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
+The vtm client side (desktop client console in detached window mode) can operate in two modes, either in Text/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
 
-The vtm server side (desktop server) is always operate in DirectVT mode.
+The vtm server side (desktop server) receives inbound connections only in DirectVT mode.
 
 The DirectVT client-server channel can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
@@ -266,7 +268,7 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Desktop Terminal in standalone mode
+### Run Desktop Terminal in Detached Window mode
 
 - Run command:
     ```bash
@@ -285,7 +287,7 @@ The client side outputs the received render to the console only when the console
 - Run command:
     ```bash
     vtm -r term /path/to/console/app
-    # The `vtm -r term` option means to run the built-in Desktop Terminal in standalone mode to host a CUI application.
+    # The `vtm -r term` option means to run the Desktop Terminal console in Detached Window mode to host a CUI application.
     ```
 
 ## Remote access
