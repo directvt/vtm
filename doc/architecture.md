@@ -1,16 +1,27 @@
 # Text-based Desktop Environment Architecture
 
-vtm has two mutually exclusive internal operating modes and two mutually exclusive interprocess communication modes.
+vtm has a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
 
 Internal operating modes:
+- Desktop Server
 - Standalone Application
-- Desktop Environment
+- Console logging/monitoring
+- Redirected standard input
 
 Interprocess communication modes:
 - DirectVT
 - Text/VT
+- Command line input
 
-vtm can operate in any combination of internal and interprocess modes.
+vtm can operate in the following combination of internal and interprocess modes:
+
+|                          | DirectVT | Text/VT | Command line
+---------------------------|----------|---------|-------------
+Standalone Application     | auto     | auto    |
+Desktop Server             |          |         | auto
+Console logging/monitoring |          |         | auto
+Redirected standard input  |          |         | auto
+
 
 ## Internal operating modes
 
@@ -22,12 +33,15 @@ Standalone Application mode is enabled by the `vtm [--run [<console>]] [<cui_app
 
 Console types:
 
-`<console>` value | Object type to run standalone      | Description
-------------------|------------------------------------|----------------------
-`dtvt`            | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
-`vtty`            | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`term`            | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
-`xlvt`            | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+`<console>` value                | Object type to run standalone      | Description
+---------------------------------|------------------------------------|----------------------
+`vtm`                            | `desk`/`Desktop Client`            | Used to run Desktop Client.
+`vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r dtvt dtvt_app ...`       | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
+`vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
+`vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
 Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally: `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in standalone mode to optimize desktop resource consumption.
 
@@ -59,6 +73,7 @@ Desktop object types:
 `xlvt`     | `DirectVT Console with TTY`    | A derivative of `DirectVT Console` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
 `tile`     | `Tiling Window Manager`        | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
 `site`     | `Desktop Region Marker`        | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
+`desk`     | `Desktop Client`               | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
