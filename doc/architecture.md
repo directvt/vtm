@@ -22,7 +22,7 @@ Desktop Server             |          |         | auto
 Desktop Session Monitor    |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and is running in `Detached Window` mode.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Detached Window` mode.
 In the `Detached Window` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
