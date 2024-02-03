@@ -1,6 +1,6 @@
 # Text-based Desktop Environment Architecture
 
-There are a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
+vtm has a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
 
 Internal operating modes:
 - Desktop Server
