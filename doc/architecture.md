@@ -180,7 +180,7 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
-- Non-DirectVT application runs a pair of operating system processes: terminal process + application process (terminal process is a vtm's ).
+- Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
 - The terminal process is a fork of the original desktop server process, running `Desktop Terminal` or `Teletype Console` in `Detached Window` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
