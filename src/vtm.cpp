@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
                 "\n    -c, --config <file>  Specifies the settings file to load."
                 "\n    -p, --pipe <name>    Specifies the desktop session connection point."
                 "\n    -m, --monitor        Run desktop session monitor."
-                "\n    -d, --daemon         Run desktop server daemon."
+                "\n    -d, --daemon         Run desktop server as daemon."
                 "\n    -s, --server         Run desktop server."
                 "\n    -r, --, --run        Run the specified desktop console in detached window mode."
                 "\n    -q, --quiet          Disable logging."

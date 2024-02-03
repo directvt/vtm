@@ -24,7 +24,7 @@ Option                  | Description
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pipe <name>`   | Specifies the desktop session connection point.
 `-m`, `--monitor`       | Run desktop session monitor.
-`-d`, `--daemon`        | Run desktop server daemon.
+`-d`, `--daemon`        | Run desktop server as daemon.
 `-s`, `--server`        | Run desktop server.
 `-r`, `--`, `--run`     | Run the specified desktop console in detached window mode.
 `-q`, `--quiet`         | Disable logging.
