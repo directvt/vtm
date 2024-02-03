@@ -31,23 +31,23 @@ In the `Detached Window` operating mode the interprocess communication mode is a
 
 Detached Window mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
-Detached Window mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object.
+Detached Window mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
 
-Desktop consoles available to run in detached window mode
+#### Desktop consoles
 
-`<console>` value                | Object type to run detached        | Description
+`<console>` value with context   | Object type to run detached        | Description
 ---------------------------------|------------------------------------|----------------------
 `vtm`                            | `desk`/`Desktop Client`            | Used to run Desktop Client.
-`vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`vtm -r dtvt dtvt_app ...`       | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
-`vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
+`vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r dtvt dtvt_app ...`       | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications inside `DirectVT Console`.
+`vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications inside `Desktop Terminal`.
 `vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally: `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
+Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
 
-### Desktop Environment mode
+### Desktop Server mode
 
 #### Desktop structure
 
@@ -78,6 +78,14 @@ Desktop object types:
 `desk`     | `Desktop Client`               | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
+
+### Desktop Session Monitor mode
+
+...
+
+### Redirected Input Processor mode
+
+...
 
 ## Interprocess communication modes
 
