@@ -4,7 +4,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 
 Internal operating modes:
 - Desktop Server
-- Detached Window
+- Detached Visual Branch
 - Desktop Session Monitor
 - Redirected Input Processor
 
@@ -17,23 +17,28 @@ The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Detached Window            | auto     | auto    |
+Detached Visual Branch     | auto     | auto    |
 Desktop Server             |          |         | auto
 Desktop Session Monitor    |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Detached Window` mode.
-In the `Detached Window` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Detached Visual Branch` mode.
+In the `Detached Visual Branch` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Detached Window mode
+### Detached Visual Branch mode
 
-Detached Window mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+Detached Visual Branch mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
-Detached Window mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+//todo
+...By default, run Detached Visual Branch with Desktop Client console as a root and autorun Desktop Server daemon if it is not running.
 
-#### Desktop consoles
+...Detached Visual Branch can be seamlesly attached to the desktop via dtvt-gate.
+
+...Detached Visual Branch mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+
+#### Available detached visual branch roots
 
 `<console>` value with context   | Object type to run detached        | Description
 ---------------------------------|------------------------------------|----------------------
@@ -181,7 +186,7 @@ graph TB
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Desktop Terminal` or `Teletype Console` in `Detached Window` mode. Terminating this process will automatically close the application.
+- The terminal process is a fork of the original desktop server process, running `Desktop Terminal` or `Teletype Console` in `Detached Visual Branch` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -276,7 +281,7 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Desktop Terminal in Detached Window mode
+### Run Desktop Terminal in Detached Visual Branch mode
 
 - Run command:
     ```bash
@@ -295,7 +300,7 @@ The client side outputs the received render to the console only when the console
 - Run command:
     ```bash
     vtm -r term /path/to/console/app
-    # The `vtm -r term` option means to run the Desktop Terminal console in Detached Window mode to host a CUI application.
+    # The `vtm -r term` option means to run the Desktop Terminal console in Detached Visual Branch mode to host a CUI application.
     ```
 
 ## Remote access

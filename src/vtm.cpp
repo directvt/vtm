@@ -8,7 +8,7 @@
 
 using namespace netxs;
 
-enum class type { client, server, daemon, logger, runapp, config };
+enum class type { client, server, daemon, logger, branch, config };
 enum class code { noaccess, noserver, nodaemon, nologger, interfer, errormsg };
 
 int main(int argc, char* argv[])
@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))//app::ssh::id))
     {
-        whoami = type::runapp;
+        whoami = type::branch;
         params = getopt.rest();
     }
     else while (getopt)
@@ -35,9 +35,9 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--", "--run", "--runapp"))
+        else if (getopt.match("-b", "--", "--branch"))
         {
-            whoami = type::runapp;
+            whoami = type::branch;
             params = getopt.rest();
         }
         else if (getopt.match("-s", "--server"))
@@ -110,14 +110,16 @@ int main(int argc, char* argv[])
                 "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ]  |  [ -c <file>][ -l ]"
                 "\n"
                 "\n    " + vtm + " [ --script <commands>][ -p <name>][ -c <file>][ -q ]"
-                "\n    " + pad + " [ -m | -d | -s | [ -r [<console>]][ <cui_app ...>] ]"
+                "\n    " + pad + " [ -m | -d | -s | [ -b [ <root>]][ <arguments ...>] ]"
                 "\n"
                 "\n    <run commands via piped redirection> | " + vtm + " [options ...]"
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, run desktop client console in detached window mode and"
-                "\n    autorun desktop server daemon if it is not running."
+                "\n    By default, run Detached Visual Branch with Desktop Client console as a root"
+                "\n    and autorun Desktop Server daemon if it is not running."
+                "\n"
+                "\n    Detached Visual Branch can be seamlesly attached to the desktop via dtvt-gate."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -129,11 +131,11 @@ int main(int argc, char* argv[])
                 "\n    -m, --monitor        Run desktop session monitor."
                 "\n    -d, --daemon         Run desktop server as daemon."
                 "\n    -s, --server         Run desktop server."
-                "\n    -r, --, --run        Run the specified desktop console in detached window mode."
+                "\n    -b, --, --branch     Run detached visual branch."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
-                "\n    <console>            Desktop console to host a running CUI application."
-                "\n    <cui_app ...>        Console UI application with arguments to run."
+                "\n    <root>               Detached visual branch root."
+                "\n    <arguments ...>      Detached visual branch root arguments."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,12 +146,14 @@ int main(int argc, char* argv[])
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Desktop consoles available to run in detached window mode:"
+                "\n  Available detached visual branch roots:"
                 "\n"
                 "\n    vtty   Teletype Console.           'vtm -r vtty [cui_app ...]'"
                 "\n    term   Desktop Terminal.           'vtm -r term [cui_app ...]'"
                 "\n    dtvt   DirectVT Console.           'vtm -r dtvt [dtvt_app ...]'"
                 "\n    xlvt   DirectVT Console with TTY.  'vtm -r xlvt ssh <user@host dtvt_app ...>'"
+                "\n"
+                "\n    The <root> value defaults to 'vtty' if <arguments ...> is specified without <root>."
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
@@ -243,7 +247,7 @@ int main(int argc, char* argv[])
         {
             params = getopt.rest(); // params can't be empty at this point (see utf::quote()).
             if (params.front() == '-') errmsg = utf::concat("Unknown option '", params, "'");
-            else                       whoami = type::runapp;
+            else                       whoami = type::branch;
         }
     }
 
@@ -251,7 +255,7 @@ int main(int argc, char* argv[])
     os::dtvt::checkpoint();
 
     if (os::dtvt::vtmode & ui::console::redirio
-     && (whoami == type::runapp || whoami == type::client))
+     && (whoami == type::branch || whoami == type::client))
     {
         whoami = type::logger;
     }
@@ -357,7 +361,7 @@ int main(int argc, char* argv[])
         }
         syncio.unlock();
     }
-    else if (whoami == type::runapp)
+    else if (whoami == type::branch)
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto shadow = params;

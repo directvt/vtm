@@ -8,14 +8,14 @@
 vtm [ -i | -u ] | [ -v ] | [ -? ]  |  [ -c <file>][ -l ]
 
 vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
-    [ -m | -d | -s | [ -r [<console>]][ <cui_app ...>] ]
+    [ -m | -d | -s | [ -b [ <root>]][ <arguments ...>] ]
 
 <run commands via piped redirection> | vtm [options ...]
 ```
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
-                        | By default, run desktop client console in detached window mode and autorun desktop server daemon if it is not running.
+                        | By default, run Detached Visual Branch with Desktop Client console as a root and autorun Desktop Server daemon if it is not running. Detached Visual Branch can be seamlesly attached to the desktop via dtvt-gate.
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
@@ -26,11 +26,11 @@ Option                  | Description
 `-m`, `--monitor`       | Run desktop session monitor.
 `-d`, `--daemon`        | Run desktop server as daemon.
 `-s`, `--server`        | Run desktop server.
-`-r`, `--`, `--run`     | Run the specified desktop console in detached window mode.
+`-r`, `--`, `--branch   | Run detached visual branch.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Desktop console to host a running CUI application.
-`<cui_app ...>`         | Console UI application with arguments to run.
+`<console>`             | Detached visual branch root.
+`<cui_app ...>`         | Detached visual branch root arguments.
 
 ### Settings loading order
 
@@ -41,7 +41,7 @@ Option                  | Description
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent process (dtvt-mode).
 
-### Desktop consoles available to run in detached window mode
+### Available detached visual branch roots
 
 `<console>` value                | Object type to run detached        | Description
 ---------------------------------|------------------------------------|----------------------
