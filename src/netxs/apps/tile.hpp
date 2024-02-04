@@ -493,7 +493,7 @@ namespace netxs::app::tile
                     };
                     boss.LISTEN(tier::release, e2::config::plugins::sizer::alive, state)
                     {
-                        // Block rising up this event: DTVT object fires this event on exit.
+                        // Block rising up this event: dtvt object fires this event on exit.
                     };
                     boss.LISTEN(tier::release, vtm::events::d_n_d::abort, target)
                     {

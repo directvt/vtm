@@ -27,7 +27,7 @@ R"==(
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=dtvt title="Desktop Terminal" cmd="$0 -r term">
+        <item id=Term label="Term" type=gate title="Desktop Terminal" cmd="$0 -r term">
             <notes>
                 " Desktop Terminal               \n"
                 "   LeftClick to launch instance \n"
@@ -63,13 +63,13 @@ R"==(
 )=="
 #if defined(_WIN32)
 R"==(
-        <item id=pwsh label="pwsh" type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                 \n   LeftClick to launch instance  \n   RightClick to set as default "/>
+        <item id=pwsh label="pwsh" type=gate title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core                 \n   LeftClick to launch instance  \n   RightClick to set as default "/>
 )=="
 #endif
 R"==(
         <item id=Tile label="Tile" type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling Window Manager           \n   LeftClick to launch instance  \n   RightClick to set as default "/>
         <item id=Site label="Site" type=site title="\e[11:3pSite "         cmd="@" winform=maximized notes=" Desktop Region Marker           \n   LeftClick to launch instance  \n   RightClick to set as default "/> <!-- "\e[11:3p" for center alignment, cmd="@" for instance numbering -->
-        <item id=Logs label="Logs" type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
+        <item id=Logs label="Logs" type=gate title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log Monitor                     \n   LeftClick to launch instance  \n   RightClick to set as default ">
             <config>
                 <term>
                     <logs=off/>

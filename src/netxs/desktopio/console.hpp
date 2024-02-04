@@ -1030,7 +1030,7 @@ namespace netxs::ui
               local{ true },
               yield{ faux }
         {
-            auto simple = config.take("/config/simple", faux); // DTVT proxy console case.
+            auto simple = config.take("/config/simple", faux); // DirectVT Gateway console case.
             config.set("/config/simple", faux);
 
             base::root(true);

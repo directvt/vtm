@@ -13,15 +13,15 @@ namespace netxs::app::term
     static constexpr auto id = "term";
     static constexpr auto name = "Desktop Terminal";
 }
-namespace netxs::app::dtvt
+namespace netxs::app::gate
 {
-    static constexpr auto id = "dtvt";
-    static constexpr auto name = "DirectVT Console";
+    static constexpr auto id = "gate";
+    static constexpr auto name = "DirectVT Gateway";
 }
 namespace netxs::app::xlvt
 {
     static constexpr auto id = "xlvt";
-    static constexpr auto name = "DirectVT Console with TTY";
+    static constexpr auto name = "DirectVT Gateway with TTY";
 }
 namespace netxs::app::site
 {
@@ -346,7 +346,7 @@ namespace netxs::app::shared
             });
             return window;
         };
-        auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
+        auto build_gate = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
@@ -493,13 +493,13 @@ namespace netxs::app::shared
         {
             auto args = os::process::binary() + " -r vtty " + appcfg.cmd;
             std::swap(appcfg.cmd, args);
-            return build_dtvt(appcfg, config);
+            return build_gate(appcfg, config);
         };
         auto build_term = [](eccc appcfg, xmls& config)
         {
             auto args = os::process::binary() + " -r term " + appcfg.cmd;
             std::swap(appcfg.cmd, args);
-            return build_dtvt(appcfg, config);
+            return build_gate(appcfg, config);
         };
         auto build_info = [](eccc /*appcfg*/, xmls& /*config*/)
         {
@@ -657,7 +657,7 @@ namespace netxs::app::shared
         app::shared::initialize site_builder{ app::site::id, build_site };
         app::shared::initialize vtty_builder{ app::vtty::id, build_vtty };
         app::shared::initialize term_builder{ app::term::id, build_term };
-        app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
+        app::shared::initialize gate_builder{ app::gate::id, build_gate };
         app::shared::initialize xlvt_builder{ app::xlvt::id, build_xlvt };
         app::shared::initialize info_builder{ app::info::id, build_info };
     }

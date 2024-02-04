@@ -15,7 +15,7 @@ vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
-                        | By default, run Detached Visual Branch with Desktop Client console as a root and autorun Desktop Server daemon if it is not running. Detached Visual Branch can be seamlesly attached to the desktop via dtvt-gate.
+                        | By default, run Detached Visual Branch with Desktop Client console as a root and autorun Desktop Server daemon if it is not running. Detached Visual Branch can be seamlesly attached to the desktop using DirectVT Gateway.
 `-h`, `-?`, `--help`    | Print command-line options.
 `-v`, `--version`       | Print version.
 `-l`, `--listconfig`    | Print configuration.
@@ -23,14 +23,14 @@ Option                  | Description
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pipe <name>`   | Specifies the desktop session connection point.
-`-m`, `--monitor`       | Run desktop session monitor.
-`-d`, `--daemon`        | Run desktop server as daemon.
-`-s`, `--server`        | Run desktop server.
-`-r`, `--`, `--branch   | Run detached visual branch.
+`-m`, `--monitor`       | Run Desktop Session Monitor.
+`-d`, `--daemon`        | Run Desktop Server as daemon.
+`-s`, `--server`        | Run Desktop Server.
+`-r`, `--`, `--branch   | Run Detached Visual Branch.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Detached visual branch root.
-`<cui_app ...>`         | Detached visual branch root arguments.
+`<console>`             | Detached Visual Branch root.
+`<cui_app ...>`         | Detached Visual Branch root's arguments.
 
 ### Settings loading order
 
@@ -48,10 +48,10 @@ Option                  | Description
 `vtm`                            | `desk`/`Desktop Client`            | Used to run Desktop Client.
 `vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications.
 `vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`vtm -r dtvt dtvt_app ...`       | `dtvt`/`DirectVT Console`          | Used to run DirectVT aware applications.
+`vtm -r gate dtvt_app ...`       | `gate`/`DirectVT Gateway`          | Used to run DirectVT aware applications.
 `vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications.
 `vtm -r term cui_app ...`        | `terminal`/`Desktop Terminal`      | Used to run CUI applications.
-`vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+`vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
 The following commands have a short form:
   - `vtm -r xlvt ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
@@ -68,7 +68,7 @@ The following characters in the script body will be de-escaped: `\e` `\t` `\r` `
 `vtm.run([<attr_list>...])`              | Create and run a menu item constructed using a space-separated list of `attribute=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.<br>See [Settings/Taskbar menu item attributes](settings.md#Taskbar-menu-item-attributes) for details.
 `vtm.set(id=<item_id> [<attr_list>...])` | Create or override a menu item using a space-separated list of `attribute=<value>`.
 `vtm.del([<item_id>])`                   | Delete the taskbar menu item by `<id>`.<br>Delete all menu items if no `<id>` specified.
-`vtm.dtvt(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.
+`vtm.gate(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.
 `vtm.selected(<item_id>)`                | Set selected menu item using specified `<id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
 `vtm.shutdown()`                         | Terminate the running desktop session.
 
@@ -83,7 +83,7 @@ Command                                            | Description
 `vtm ssh <user@server> vtm </path/to/console/app>` | Run a CUI application remotely over SSH.
 `vtm --script "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run vtm desktop and reconfigure the taskbar menu.
 `echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=xlvt cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
-`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run a Desktop Terminal window on the running desktop.
+`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.gate(vtm -r term)" \| vtm` | Run a Desktop Terminal window on the running desktop.
 `echo "vtm.run(title='Console \nApplication' cmd=</path/to/app>)" \| vtm` | Run a CUI application window on the running desktop.
 `echo "vtm.run(type=tile title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run tiling window manager with three terminals attached.
 `echo "vtm.shutdown()" \| vtm`                     | Terminate the running desktop session.

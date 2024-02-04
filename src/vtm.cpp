@@ -103,7 +103,7 @@ int main(int argc, char* argv[])
             auto syslog = os::tty::logger();
             auto vtm = os::process::binary<true>();
             auto pad = text(os::process::binary<true>().size(), ' ');
-            log("\nText-based desktop environment " + text{ app::shared::version } +
+            log("\nText-based Desktop Environment " + text{ app::shared::version } +
                 "\n"
                 "\n  Syntax:"
                 "\n"
@@ -119,7 +119,8 @@ int main(int argc, char* argv[])
                 "\n    By default, run Detached Visual Branch with Desktop Client console as a root"
                 "\n    and autorun Desktop Server daemon if it is not running."
                 "\n"
-                "\n    Detached Visual Branch can be seamlesly attached to the desktop via dtvt-gate."
+                "\n    Detached Visual Branch can be seamlesly attached to the desktop"
+                "\n    using DirectVT Gateway."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -128,14 +129,14 @@ int main(int argc, char* argv[])
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
                 "\n    -c, --config <file>  Specifies the settings file to load."
                 "\n    -p, --pipe <name>    Specifies the desktop session connection point."
-                "\n    -m, --monitor        Run desktop session monitor."
-                "\n    -d, --daemon         Run desktop server as daemon."
-                "\n    -s, --server         Run desktop server."
-                "\n    -b, --, --branch     Run detached visual branch."
+                "\n    -m, --monitor        Run Desktop Session Monitor."
+                "\n    -d, --daemon         Run Desktop Server as daemon."
+                "\n    -s, --server         Run Desktop Server."
+                "\n    -b, --, --branch     Run Detached Visual Branch."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
-                "\n    <root>               Detached visual branch root."
-                "\n    <arguments ...>      Detached visual branch root arguments."
+                "\n    <root>               Detached Visual Branch root."
+                "\n    <arguments ...>      Detached Visual Branch root's arguments."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -146,12 +147,12 @@ int main(int argc, char* argv[])
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Available detached visual branch roots:"
+                "\n  Available Detached Visual Branch roots:"
                 "\n"
                 "\n    vtty   Teletype Console.           'vtm -r vtty [cui_app ...]'"
                 "\n    term   Desktop Terminal.           'vtm -r term [cui_app ...]'"
-                "\n    dtvt   DirectVT Console.           'vtm -r dtvt [dtvt_app ...]'"
-                "\n    xlvt   DirectVT Console with TTY.  'vtm -r xlvt ssh <user@host dtvt_app ...>'"
+                "\n    gate   DirectVT Gateway.           'vtm -r gate [dtvt_app ...]'"
+                "\n    xlvt   DirectVT Gateway with TTY.  'vtm -r xlvt ssh <user@host dtvt_app ...>'"
                 "\n"
                 "\n    The <root> value defaults to 'vtty' if <arguments ...> is specified without <root>."
                 "\n"
@@ -182,8 +183,9 @@ int main(int argc, char* argv[])
                 "\n        Delete the taskbar menu item by <id>."
                 "\n        Delete all menu items if no <id> specified."
                 "\n"
-                "\n      vtm.dtvt(<dtvt_app...>)"
-                "\n        Create a temporary menu item and run the specified dtvt-app."
+                "\n      vtm.gate(<dtvt_app...>)"
+                "\n        Create a temporary menu item and run DirectVT Gateway"
+                "\n        to host specified dtvt-app."
                 "\n"
                 "\n      vtm.selected(<id>)"
                 "\n        Set selected menu item using specified <id>."
@@ -217,7 +219,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    Run Desktop Terminal window on the running desktop:"
                 "\n        echo \"vtm.run(id=Term)\" | vtm"
-                "\n        echo \"vtm.dtvt(vtm -r term)\" | vtm"
+                "\n        echo \"vtm.gate(vtm -r term)\" | vtm"
                 "\n"
                 "\n    Run an application window on the running desktop:"
                 "\n        echo \"vtm.run(title='Console \\nApplication' cmd=</path/to/app>)\" | vtm"
@@ -370,7 +372,7 @@ int main(int argc, char* argv[])
         utf::to_low(shadow);
              if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;      }
         else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;      }
-        else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
+        else if (shadow.starts_with(app::gate::id))      { aptype = app::gate::id;      apname = app::gate::name;      }
         else if (shadow.starts_with(app::xlvt::id))      { aptype = app::xlvt::id;      apname = app::xlvt::name;      }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
