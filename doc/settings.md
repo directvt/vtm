@@ -268,7 +268,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=gate title="Desktop Terminal" notes=" Desktop Terminal " cmd="$0 -r term">
+        <item id=Term label="Term" type=gate title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>

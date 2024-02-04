@@ -27,9 +27,9 @@ R"==(
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=gate title="Desktop Terminal" cmd="$0 -r term">
+        <item id=Term label="Term" type=gate title="Terminal Console" cmd="$0 -r term">
             <notes>
-                " Desktop Terminal               \n"
+                " Terminal Console               \n"
                 "   LeftClick to launch instance \n"
                 "   RightClick to set as default "
             </notes>

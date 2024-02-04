@@ -80,11 +80,11 @@ namespace netxs::app::teletype
     static constexpr auto id = "teletype";
     static constexpr auto name = "Teletype Console";
 }
-// term: Desktop Terminal.
+// term: Terminal Console.
 namespace netxs::app::terminal
 {
     static constexpr auto id = "terminal";
-    static constexpr auto name = "Desktop Terminal";
+    static constexpr auto name = "Terminal Console";
 
     using events = netxs::events::userland::terminal;
 
