@@ -8,8 +8,8 @@
 
 using namespace netxs;
 
-enum class type { client, server, daemon, logger, branch, config };
-enum class code { noaccess, noserver, nodaemon, nologger, interfer, errormsg };
+enum class type { client, server, daemon, logmon, runapp, config };
+enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
 {
@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     auto getopt = os::process::args{ argc, argv };
     if (getopt.starts("ssh"))//app::ssh::id))
     {
-        whoami = type::branch;
+        whoami = type::runapp;
         params = getopt.rest();
     }
     else while (getopt)
@@ -37,7 +37,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-r", "--", "--run"))
         {
-            whoami = type::branch;
+            whoami = type::runapp;
             params = getopt.rest();
         }
         else if (getopt.match("-s", "--server"))
@@ -50,7 +50,7 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-m", "--monitor"))
         {
-            whoami = type::logger;
+            whoami = type::logmon;
         }
         else if (getopt.match("-p", "--pipe"))
         {
@@ -110,14 +110,14 @@ int main(int argc, char* argv[])
                 "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]"
                 "\n"
                 "\n    " + vtm + " [ --script <commands> ][ -p <name> ][ -c <file> ][ -q ]"
-                "\n    " + pad + " [ -m | -d | -s | [ -r [ <console> ]][ <arguments ...> ] ]"
+                "\n    " + pad + " [ -m | -d | -s | [ -r [ <vtmapp> ]][ <args ...> ] ]"
                 "\n"
                 "\n    <run commands via piped redirection> | " + vtm + " [ <options ...> ]"
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, the fullscreen Desktop Client console will run"
-                "\n    and the Desktop Server daemon will launched if it is not running."
+                "\n    By default, the built-in Desktop Client will run and the Desktop Server"
+                "\n    will be launched in background if it is not found."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -127,13 +127,13 @@ int main(int argc, char* argv[])
                 "\n    -c, --config <file>  Specifies the settings file to load."
                 "\n    -p, --pipe <name>    Specifies the desktop session connection point."
                 "\n    -m, --monitor        Run Desktop Session Monitor."
-                "\n    -d, --daemon         Run Desktop Server daemon."
+                "\n    -d, --daemon         Run Desktop Server in background."
                 "\n    -s, --server         Run Desktop Server."
-                "\n    -b, --, --run        Run fullscreen console."
+                "\n    -b, --, --run        Run built-in application standalone."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
-                "\n    <console>            Fullscreen console to run."
-                "\n    <arguments ...>      Fullscreen console arguments."
+                "\n    <vtmapp>             Built-in application to run."
+                "\n    <args ...>           Built-in application arguments."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,15 +144,15 @@ int main(int argc, char* argv[])
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Fullscreen consoles:"
+                "\n  Built-in applications:"
                 "\n"
-                "\n    vtty   Teletype console.           'vtm -r vtty [<cui_app ...>]'"
-                "\n    term   Terminal console.           'vtm -r term [<cui_app ...>]'"
-                "\n    dtvt   DirectVT console.           'vtm -r dtvt <dtvt_app ...>'"
-                "\n    dtty   DirectVT console with TTY.  'vtm -r dtty ssh <user@host dtvt_app ...>'"
-                "\n     n/a   Desktop Client console.     Run by default."
+                "\n    vtty   Teletype Console.           'vtm -r vtty [<cui_app ...>]'"
+                "\n    term   Terminal Emulator.          'vtm -r term [<cui_app ...>]'"
+                "\n    dtvt   DirectVT Gateway.           'vtm -r dtvt <dtvt_app ...>'"
+                "\n    dtty   DirectVT Gateway with TTY.  'vtm -r dtty ssh <user@host dtvt_app ...>'"
+                "\n     n/a   Desktop Client.             Run by default."
                 "\n"
-                "\n    The <console> value defaults to 'vtty' if <arguments ...> is specified without <console>."
+                "\n    The <vtmapp> value defaults to 'vtty' if <args ...> is specified without <vtmapp>."
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
@@ -182,7 +182,7 @@ int main(int argc, char* argv[])
                 "\n        Delete all menu items if no <id> specified."
                 "\n"
                 "\n      vtm.dtvt(<dtvt_app...>)"
-                "\n        Create a temporary menu item and run DirectVT console"
+                "\n        Create a temporary menu item and run DirectVT Gateway"
                 "\n        to host specified <dtvt-app,,,>."
                 "\n"
                 "\n      vtm.selected(<id>)"
@@ -199,10 +199,10 @@ int main(int argc, char* argv[])
                 "\n    Run Desktop Client console remotely over SSH:"
                 "\n        vtm ssh <user@server> vtm"
                 "\n"
-                "\n    Run Terminal console:"
+                "\n    Run Terminal Emulator:"
                 "\n        vtm -r term"
                 "\n"
-                "\n    Run Terminal console with a CUI application inside:"
+                "\n    Run Terminal Emulator with a CUI application inside:"
                 "\n        vtm -r term </path/to/console/app...>"
                 "\n"
                 "\n    Run a CUI application remotely over SSH:"
@@ -215,11 +215,11 @@ int main(int argc, char* argv[])
                 "\n        echo \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\" | vtm"
                 "\n        echo \"vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')\" | vtm"
                 "\n"
-                "\n    Run Terminal console on the running desktop:"
+                "\n    Run Terminal Emulator on the running desktop:"
                 "\n        echo \"vtm.run(id=Term)\" | vtm"
                 "\n        echo \"vtm.dtvt(vtm -r term)\" | vtm"
                 "\n"
-                "\n    Run Teletype console with a CUI application inside on the running desktop:"
+                "\n    Run Teletype Console with a CUI application inside on the running desktop:"
                 "\n        echo \"vtm.run(title='Console \\nApplication' cmd='</path/to/app..>')\" | vtm"
                 "\n"
                 "\n    Run Tiling Window Manager with three terminals attached:"
@@ -247,7 +247,7 @@ int main(int argc, char* argv[])
         {
             params = getopt.rest(); // params can't be empty at this point (see utf::quote()).
             if (params.front() == '-') errmsg = utf::concat("Unknown option '", params, "'");
-            else                       whoami = type::branch;
+            else                       whoami = type::runapp;
         }
     }
 
@@ -255,9 +255,9 @@ int main(int argc, char* argv[])
     os::dtvt::checkpoint();
 
     if (os::dtvt::vtmode & ui::console::redirio
-     && (whoami == type::branch || whoami == type::client))
+     && (whoami == type::runapp || whoami == type::client))
     {
-        whoami = type::logger;
+        whoami = type::logmon;
     }
     auto denied = faux;
     auto syslog = os::tty::logger();
@@ -269,7 +269,7 @@ int main(int argc, char* argv[])
         os::fail(cause == code::noaccess ? "Access denied"
                : cause == code::interfer ? "Server already running"
                : cause == code::noserver ? "Failed to start server"
-               : cause == code::nologger ? "Failed to start logger"
+               : cause == code::nosrvlog ? "Failed to start session monitor"
                : cause == code::nodaemon ? "Failed to daemonize"
                : cause == code::errormsg ? errmsg.c_str()
                                          : "");
@@ -286,7 +286,7 @@ int main(int argc, char* argv[])
     {
         log(prompt::resultant_settings, "\n", app::shared::load::settings<true>(defaults, cfpath, os::dtvt::config));
     }
-    else if (whoami == type::logger)
+    else if (whoami == type::logmon)
     {
         log("%%Waiting for server...", prompt::main);
         auto result = std::atomic<int>{};
@@ -361,7 +361,7 @@ int main(int argc, char* argv[])
         }
         syncio.unlock();
     }
-    else if (whoami == type::branch)
+    else if (whoami == type::runapp)
     {
         auto config = app::shared::load::settings(defaults, cfpath, os::dtvt::config);
         auto shadow = params;
@@ -463,11 +463,11 @@ int main(int argc, char* argv[])
             if (denied) failed(code::noaccess);
             return      failed(code::noserver);
         }
-        auto logger = os::ipc::socket::open<os::role::server>(prefix_log, denied);
-        if (!logger)
+        auto srvlog = os::ipc::socket::open<os::role::server>(prefix_log, denied);
+        if (!srvlog)
         {
             if (denied) failed(code::noaccess);
-            return      failed(code::nologger);
+            return      failed(code::nosrvlog);
         }
 
         signal->bell(); // Signal we are started and ready for connections.
@@ -485,7 +485,7 @@ int main(int argc, char* argv[])
 
         auto stdlog = std::thread{ [&]
         {
-            while (auto monitor = logger->meet())
+            while (auto monitor = srvlog->meet())
             {
                 domain->run([&, monitor](auto /*task_id*/)
                 {
@@ -553,7 +553,7 @@ int main(int argc, char* argv[])
             }
         }
         readline.stop();
-        logger->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
+        srvlog->stop(); // Monitor listener endpoint must be closed first to prevent reconnections.
         stdlog.join();
         domain->stop();
     }

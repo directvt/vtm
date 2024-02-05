@@ -4,7 +4,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 
 Internal operating modes:
 - Desktop Server
-- Fullscreen Console
+- Built-in Application
 - Desktop Session Monitor
 - Redirected Input Processor
 
@@ -17,40 +17,40 @@ The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Fullscreen Console        | auto     | auto    |
+Built-in Application       | auto     | auto    |
 Desktop Server             |          |         | auto
 Desktop Session Monitor    |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Fullscreen Console` mode.
-In the `Fullscreen Console` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Built-in Application` mode.
+In the `Built-in Application` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Fullscreen Console mode
+### Built-in Application mode
 
-Fullscreen Console mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+Built-in Application mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 //todo
-...By default, the fullscreen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
+...By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not running.
 
-...Fullscreen console can be seamlesly attached to the desktop using DirectVT console.
+...A standalone running built-in application can be seamlesly attached to the desktop using DirectVT Gateway.
 
-...Fullscreen Console mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+...Built-in Application mode is enabled by the `vtm [--run [<vtmapp>]] [args...>]` command line option. Where the `<vtmapp>` value specifies the desktop console object being running, and `<args...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
 
-#### Fullscreen consoles
+#### Built-in Applications
 
-`<console>` value with context     | Object type to run detached        | Description
+Application                        | Object type to run detached        | Description
 -----------------------------------|------------------------------------|----------------------
-`vtm`                              | `desk`/`Desktop Client console`    | Used to run Desktop Explorer.
-`vtm <cui_app ...>`                | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
-`vtm -r <cui_app ...>`             | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
-`vtm -r dtvt <dtvt_app ...>`       | `dtvt`/`DirectVT console`          | Used to run DirectVT aware applications inside the `DirectVT console`.
-`vtm -r vtty <cui_app ...>`        | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
-`vtm -r term <cui_app ...>`        | `terminal`/`Terminal console`      | Used to run CUI applications inside `Terminal console`.
-`vtm -r dtty <cui_dtvt_proxy ...>` | `dtty`/`DirectVT console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+`vtm`                              | `desk`/`Desktop Client`    | Used to run Desktop Explorer.
+`vtm <cui_app ...>`                | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r <cui_app ...>`             | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r dtvt <dtvt_app ...>`       | `dtvt`/`DirectVT Gateway`          | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
+`vtm -r vtty <cui_app ...>`        | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
+`vtm -r term <cui_app ...>`        | `terminal`/`Terminal Emulator`      | Used to run CUI applications inside `Terminal Emulator`.
+`vtm -r dtty <cui_dtvt_proxy ...>` | `dtty`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
+Do not confuse the values of the `<vtmapp>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
 
 ### Desktop Server mode
 
@@ -70,17 +70,17 @@ The desktop window can host an object instance of an arbitrary type. The hosted 
 
 Desktop object types:
 
- Type      | Name                           | Description
------------|--------------------------------|----------------------
-`teletype` | `Teletype console`             | A solid rectangular truecolor text canvas depicting a freely scrollable buffer of the text runs generated by an xterm-compatible parser from the standard output of an attached CUI application. It can be a very heavy object due to maintaining a scrollback buffer of arbitrary length. Not used directly in the desktop process's address space.
-`terminal` | `Terminal console`             | A derivative of `Teletype console` with additional UI controls.
-`dtvt`     | `DirectVT console`             | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
-`vtty`     | `Teletype console dtvt-bridge` | A `DirectVT console` hosting an external standalone `Teletype console` process. It is designed to run a heavy `Teletype console` object in the external process's address space to optimize desktop resource consumption.
-`term`     | `Terminal console dtvt-bridge` | A `DirectVT console` hosting an external standalone `Terminal console` process. It is designed to run a heavy `Terminal console` object in the external process's address space to optimize desktop resource consumption.
-`dtty`     | `DirectVT console with TTY`    | A derivative of `DirectVT console` stacked with additional limited `Teletype console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
-`tile`     | `Tiling Window Manager`        | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
-`site`     | `Desktop Region Marker`        | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
-`desk`     | `Desktop Client console`       | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
+ Type      | Name                            | Description
+-----------|---------------------------------|----------------------
+`teletype` | `Teletype Console`              | A solid rectangular truecolor text canvas depicting a freely scrollable buffer of the text runs generated by an xterm-compatible parser from the standard output of an attached CUI application. It can be a very heavy object due to maintaining a scrollback buffer of arbitrary length. Not used directly in the desktop process's address space.
+`terminal` | `Terminal Emulator`             | A derivative of `Teletype Console` with additional UI controls.
+`dtvt`     | `DirectVT Gateway`              | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
+`vtty`     | `Teletype Console dtvt-bridge`  | A `DirectVT Gateway` hosting an external standalone `Teletype Console` process. It is designed to run a heavy `Teletype Console` object in the external process's address space to optimize desktop resource consumption.
+`term`     | `Terminal Emulator dtvt-bridge` | A `DirectVT Gateway` hosting an external standalone `Terminal Emulator` process. It is designed to run a heavy `Terminal Emulator` object in the external process's address space to optimize desktop resource consumption.
+`dtty`     | `DirectVT Gateway with TTY`     | A derivative of `DirectVT Gateway` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
+`tile`     | `Tiling Window Manager`         | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
+`site`     | `Desktop Region Marker`         | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
+`desk`     | `Desktop Client console`        | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
@@ -136,7 +136,7 @@ graph TB
         subgraph OU3[Output]
             TC3[scrollback\nbuffer]
         end
-        subgraph CS3[DirectVT console]
+        subgraph CS3[DirectVT Gateway]
             VTM3[vtm\nprocess 3]
         end
         C3 --> CS3
@@ -186,7 +186,7 @@ graph TB
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Terminal console` or `Teletype console` in `Fullscreen Console` mode. Terminating this process will automatically close the application.
+- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Built-in Application` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -281,7 +281,7 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Terminal console in Fullscreen Console mode
+### Run Terminal Emulator in Built-in Application mode
 
 - Run command:
     ```bash
@@ -295,12 +295,12 @@ The client side outputs the received render to the console only when the console
     vtm </path/to/console/app...>
     ```
 
-### Run a CUI application inside the Terminal console
+### Run a CUI application inside the Terminal Emulator
 
 - Run command:
     ```bash
     vtm -r term </path/to/console/app...>
-    # The `vtm -r term` option means to run the Terminal console in Fullscreen Console mode to host a CUI application.
+    # The `vtm -r term` option means to run the Terminal Emulator in Built-in Application mode to host a CUI application.
     ```
 
 ## Remote access
@@ -320,7 +320,7 @@ The following examples assume that vtm is installed on both the local and remote
     ```bash
     vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
     # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
-    # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype console on the remote host.
+    # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype Console on the remote host.
     ```
     or
     ```bash
@@ -374,7 +374,7 @@ The following examples assume that vtm is installed on both the local and remote
     - Run command:
     ```bash
     vtm -r dtvt ncat remote_ip remote_tcp_port
-    # The `vtm -r dtvt` option means to run DirectVT console to host ncat.
+    # The `vtm -r dtvt` option means to run DirectVT Gateway to host ncat.
     # Note: Make sure `ncat` is installed.
     ```
 

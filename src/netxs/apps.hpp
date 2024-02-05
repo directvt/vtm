@@ -6,22 +6,22 @@
 namespace netxs::app::vtty
 {
     static constexpr auto id = "vtty";
-    static constexpr auto name = "Teletype console";
+    static constexpr auto name = "Teletype Console";
 }
 namespace netxs::app::term
 {
     static constexpr auto id = "term";
-    static constexpr auto name = "Terminal console";
+    static constexpr auto name = "Terminal Emulator";
 }
 namespace netxs::app::dtvt
 {
     static constexpr auto id = "dtvt";
-    static constexpr auto name = "DirectVT console";
+    static constexpr auto name = "DirectVT Gateway";
 }
 namespace netxs::app::dtty
 {
     static constexpr auto id = "dtty";
-    static constexpr auto name = "DirectVT console with TTY";
+    static constexpr auto name = "DirectVT Gateway with TTY";
 }
 namespace netxs::app::site
 {

@@ -8,12 +8,12 @@
 vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
 
 vtm [ --script <commands> ][ -p <name> ][ -c <file> ][ -q ]
-    [ -m | -d | -s | [ -r [ <console> ]][ <arguments ...> ] ]
+    [ -m | -d | -s | [ -r [ <vtmapp> ]][ <args ...> ] ]
 
 <run commands via piped redirection> | vtm [ <options ...> ]
 ```
 
-> By default, the fullscreen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
+> By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not found.
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
@@ -25,13 +25,13 @@ Option                  | Description
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pipe <name>`   | Specifies the desktop session connection point.
 `-m`, `--monitor`       | Run Desktop Session Monitor.
-`-d`, `--daemon`        | Run Desktop Server daemon.
+`-d`, `--daemon`        | Run Desktop Server in background.
 `-s`, `--server`        | Run Desktop Server.
-`-r`, `--`, `--run`     | Run fullscreen console.
+`-r`, `--`, `--run`     | Run built-in application standalone.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Fullscreen console to run.
-`<arguments ...>`       | Fullscreen console arguments.
+`<console>`             | Built-in application to run.
+`<arguments ...>`       | Built-in application arguments.
 
 ### Settings loading order
 
@@ -42,19 +42,21 @@ Option                  | Description
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent process (dtvt-mode).
 
-### Fullscreen consoles
+### Built-in applications
 
-`<console>` | `<aruments>`     | Object type to run detached        | Description
+Application | Arguments        | Object type to run detached        | Description
 ------------|------------------|------------------------------------|----------------------
-`vtty`      | `<cui_app ...>`  | `teletype`/`Teletype console`      | Used to run CUI applications.
-`term`      | `<cui_app ...>`  | `terminal`/`Terminal console`      | Used to run CUI applications.
-`dtvt`      | `<dtvt_app ...>` | `dtvt`/`DirectVT console`          | Used to run DirectVT aware applications.
-`dtty`      | `<dtvt_src ...>` | `dtty`/`DirectVT console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
-|           |                  | `desk`/`Desktop Client console`    | Used by default to run Desktop Client console.
+`vtty`      | `<cui_app ...>`  | `teletype`/`Teletype Console`      | Used to run CUI applications.
+`term`      | `<cui_app ...>`  | `terminal`/`Terminal Emulator`     | Used to run CUI applications.
+`dtvt`      | `<dtvt_app ...>` | `dtvt`/`DirectVT Gateway`          | Used to run DirectVT aware applications.
+`dtty`      | `<dtvt_src ...>` | `dtty`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+|           |                  | `desk`/`Desktop Client`            | Used by default to run Desktop Client.
 
 The following commands have a short form:
   - `vtm -r vtty [<cui_app ...>]` can be shortened to `vtm [<cui_app ...>]`.
   - `vtm -r dtty ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
+
+The `<vtmapp>` value defaults to 'vtty' if `<args ...>` is specified without `<vtmapp>`.
 
 ### Scripting
 
@@ -75,14 +77,14 @@ The following characters in the script body will be de-escaped: `\e` `\t` `\r` `
 
 Command                                               | Description
 ------------------------------------------------------|--------------------------------------------
-`vtm`                                                 | Run Desktop Client console.
-`vtm ssh <user@server> vtm`                           | Run Desktop Client console remotely over SSH.
-`vtm -r term`                                         | Run Terminal console.
-`vtm -r term </path/to/console/app...>`               | Run Terminal console with a CUI application inside.
+`vtm`                                                 | Run Desktop Client.
+`vtm ssh <user@server> vtm`                           | Run Desktop Client remotely over SSH.
+`vtm -r term`                                         | Run Terminal Emulator.
+`vtm -r term </path/to/console/app...>`               | Run Terminal Emulator with a CUI application inside.
 `vtm ssh <user@server> vtm </path/to/console/app...>` | Run a CUI application remotely over SSH.
-`vtm --script "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client console and reconfigure the taskbar menu.
+`vtm --script "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client and reconfigure the taskbar menu.
 `echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
-`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal console on the running desktop.
-`echo "vtm.run(title='Console \nApplication' cmd='</path/to/app...>')" \| vtm` | Run Teletype console with a CUI application inside on the running desktop.
+`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal Emulator on the running desktop.
+`echo "vtm.run(title='Console \nApplication' cmd='</path/to/app...>')" \| vtm` | Run Teletype Console with a CUI application inside on the running desktop.
 `echo "vtm.run(type=tile title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run Tiling Window Manager with three terminals attached.
 `echo "vtm.shutdown()" \| vtm`                        | Terminate the running desktop session.

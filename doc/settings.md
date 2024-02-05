@@ -223,7 +223,7 @@ Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
 `vtty` (default)                  | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
 `term`                            | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
-`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of the DirectVT console type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of the DirectVT Gateway type. Usage example `type=dtvt cmd="dtvt_app ..."`.
 `dtty`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of dtty type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=dtty cmd="dtvt_app ..."`.
 `tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
 `site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
