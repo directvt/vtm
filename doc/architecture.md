@@ -5,7 +5,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 Internal operating modes:
 - Desktop Server
 - Built-in Application
-- Desktop Session Monitor
+- Desktop Server Monitor
 - Redirected Input Processor
 
 Interprocess communication modes:
@@ -19,7 +19,7 @@ The following combinations of internal and interprocess modes are supported:
 ---------------------------|----------|---------|-------------
 Built-in Application       | auto     | auto    |
 Desktop Server             |          |         | auto
-Desktop Session Monitor    |          |         | auto
+Desktop Server Monitor     |          |         | auto
 Redirected Input Processor |          |         |
 
 The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Built-in Application` mode.
@@ -84,7 +84,7 @@ Desktop object types:
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
-### Desktop Session Monitor mode
+### Desktop Server Monitor mode
 
 ...
 

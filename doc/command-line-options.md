@@ -5,12 +5,12 @@
 ### Syntax
 
 ```
-vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
+vtm [ -c <file> ][ -q ][ -p <name> ][ -s | -d | -m ][ -x <cmds> ]
+vtm [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]
+vtm [ -c <file> ]  -l
+vtm -i | -u | -v | -?
 
-vtm [ --script <commands> ][ -p <name> ][ -c <file> ][ -q ]
-    [ -m | -d | -s | [ -r [ <vtmapp> ]][ <args ...> ] ]
-
-<run commands via piped redirection> | vtm [ <options ...> ]
+<script commands via piped redirection> | vtm [ <options...> ]
 ```
 
 > By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not found.
@@ -22,16 +22,31 @@ Option                  | Description
 `-l`, `--listconfig`    | Print configuration.
 `-i`, `--install`       | Perform system-wide installation.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
+`-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pipe <name>`   | Specifies the desktop session connection point.
-`-m`, `--monitor`       | Run Desktop Session Monitor.
-`-d`, `--daemon`        | Run Desktop Server in background.
-`-s`, `--server`        | Run Desktop Server.
-`-r`, `--`, `--run`     | Run built-in application standalone.
 `-q`, `--quiet`         | Disable logging.
-`--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Built-in application to run.
-`<arguments ...>`       | Built-in application arguments.
+`-s`, `--server`        | Run Desktop Server.
+`-d`, `--daemon`        | Run Desktop Server in background.
+`-m`, `--monitor`       | Run Desktop Server Monitor.
+`-r`, `--`, `--run`     | Run built-in application standalone.
+`<type>`                | Built-in application type to run.
+`<args...>`             | Built-in application arguments.
+
+### Built-in applications
+
+Built-in application      | Type | Arguments
+--------------------------|------|------------------------------------------
+Teletype Console          | vtty | CUI application with arguments to run.
+Terminal Emulator         | term | CUI application with arguments to run.
+DirectVT Gateway          | dtvt | DirectVT-aware application to run.
+DirectVT Gateway with TTY | dtty | CUI application to run, forwarding DirectVT I/O.
+
+The `<type>` value defaults to `vtty` if `<args...>` is specified without `<type>`.
+
+The following commands have a short form:
+  - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
+  - `vtm -r dtty ssh <user@host dtvt_app...>` can be shortened to `vtm ssh <user@host dtvt_app...>`.
 
 ### Settings loading order
 
@@ -40,23 +55,7 @@ Option                  | Description
   - If the `--config` option is not used or `<file>` cannot be loaded:
       - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
-      - Merge with DirectVT packet received from the parent process (dtvt-mode).
-
-### Built-in applications
-
-Application | Arguments        | Object type to run detached        | Description
-------------|------------------|------------------------------------|----------------------
-`vtty`      | `<cui_app ...>`  | `teletype`/`Teletype Console`      | Used to run CUI applications.
-`term`      | `<cui_app ...>`  | `terminal`/`Terminal Emulator`     | Used to run CUI applications.
-`dtvt`      | `<dtvt_app ...>` | `dtvt`/`DirectVT Gateway`          | Used to run DirectVT aware applications.
-`dtty`      | `<dtvt_src ...>` | `dtty`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
-|           |                  | `desk`/`Desktop Client`            | Used by default to run Desktop Client.
-
-The following commands have a short form:
-  - `vtm -r vtty [<cui_app ...>]` can be shortened to `vtm [<cui_app ...>]`.
-  - `vtm -r dtty ssh <user@host dtvt_app ...>` can be shortened to `vtm ssh <user@host dtvt_app ...>`.
-
-The `<vtmapp>` value defaults to 'vtty' if `<args ...>` is specified without `<vtmapp>`.
+      - Merge with DirectVT packet received from the parent DirectVT Gateway process.
 
 ### Scripting
 
@@ -82,7 +81,7 @@ Command                                               | Description
 `vtm -r term`                                         | Run Terminal Emulator.
 `vtm -r term </path/to/console/app...>`               | Run Terminal Emulator with a CUI application inside.
 `vtm ssh <user@server> vtm </path/to/console/app...>` | Run a CUI application remotely over SSH.
-`vtm --script "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client and reconfigure the taskbar menu.
+`vtm -x "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client and reconfigure the taskbar menu.
 `echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
 `echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal Emulator on the running desktop.
 `echo "vtm.run(title='Console \nApplication' cmd='</path/to/app...>')" \| vtm` | Run Teletype Console with a CUI application inside on the running desktop.
