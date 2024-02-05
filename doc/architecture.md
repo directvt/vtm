@@ -292,14 +292,14 @@ The client side outputs the received render to the console only when the console
 
 - Run command:
     ```bash
-    vtm /path/to/console/app
+    vtm </path/to/console/app...>
     ```
 
 ### Run a CUI application inside the Terminal console
 
 - Run command:
     ```bash
-    vtm -r term /path/to/console/app
+    vtm -r term </path/to/console/app...>
     # The `vtm -r term` option means to run the Terminal console in Fullscreen Console mode to host a CUI application.
     ```
 
@@ -318,13 +318,13 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command:
     ```bash
-    vtm -r dtty ssh user@server vtm -r vtty /path/to/console/app
+    vtm -r dtty ssh user@server vtm -r vtty </path/to/console/app...>
     # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
     # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype console on the remote host.
     ```
     or
     ```bash
-    vtm ssh user@server vtm /path/to/console/app
+    vtm ssh user@server vtm </path/to/console/app...>
     ```
 
 ### Run remote vtm desktop in DirectVT mode over SSH
@@ -423,8 +423,8 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <item splitter label="Remote Access"/>
 
         <item id="Run remote vtm desktop in DirectVT mode over SSH" type=dtty cmd="ssh user@server vtm"/>
-        <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term /path/to/console/app"/>
-        <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm /path/to/console/app"/>
+        <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term </path/to/console/app...>"/>
+        <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm </path/to/console/app...>"/>
 
         <item splitter label="Another Examples"/>
 
