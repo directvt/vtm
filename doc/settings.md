@@ -12,7 +12,7 @@ graph LR
         C --->|No| F["Merge global"]
         F --> G["Merge user wise"]
         D ---> H["Merge DirectVT packet
-        received from parent"]
+        received from DirectVT Gateway"]
         G --> H
     end
 ```

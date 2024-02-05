@@ -50,12 +50,30 @@ The following commands have a short form:
 
 ### Settings loading order
 
-  - Initialize hardcoded settings.
-  - Merge with explicitly specified settings from `--config <file>`.
-  - If the `--config` option is not used or `<file>` cannot be loaded:
-      - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
-      - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
-      - Merge with DirectVT packet received from the parent DirectVT Gateway process.
+```mermaid
+graph LR
+    subgraph Settings loading order
+    direction LR
+        B("Init hardcoded
+        settings")
+        B --> C["--config #lt;file#gt;
+        specified?"]
+        C -->|Yes| D["Merge #lt;file#gt;"]
+        C --->|No| F["Merge global"]
+        F --> G["Merge user wise"]
+        D ---> H["Merge DirectVT packet
+        received from DirectVT Gateway"]
+        G --> H
+    end
+```
+
+- Initialize hardcoded settings.
+- In case of using the `--config <file>` option and the `<file>` can be loaded:
+    - Merge settings from `<file>`.
+- otherwise:
+    - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
+    - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
+- Merge with DirectVT packet received from the hosting DirectVT Gateway.
 
 ### Script commands
 
