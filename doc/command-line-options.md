@@ -35,7 +35,7 @@ Option                  | Description
 
 ### Built-in applications
 
-Built-in application      | Type | Arguments
+Application               | Type | Arguments
 --------------------------|------|------------------------------------------
 Teletype Console          | vtty | CUI application with arguments to run.
 Terminal Emulator         | term | CUI application with arguments to run.
@@ -77,7 +77,7 @@ graph LR
 
 ### Script commands
 
-Syntax: `<command1>([<args...>])[; <command2>([<args...>]); ... <commandN>([<args...>])]`
+Syntax: `<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]`
 
  Command                                 | Description
 -----------------------------------------|-------------------------------------------

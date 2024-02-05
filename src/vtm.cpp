@@ -161,7 +161,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Script commands:"
                 "\n"
-                "\n    Syntax: \"<command1>([<args...>])[; <command2>([<args...>]); ... <commandN>([<args...>])]\""
+                "\n    Syntax: \"<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]\""
                 "\n"
                 "\n    Command                       │ Description"
                 "\n    ──────────────────────────────┼───────────────────────────────────────────────────────"
