@@ -57,11 +57,9 @@ The following commands have a short form:
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent DirectVT Gateway process.
 
-### Scripting
+### Script commands
 
 Syntax: `<command1>([<args...>])[; <command2>([<args...>]); ... <commandN>([<args...>])]`
-
-The following characters in the script body will be de-escaped: `\e` `\t` `\r` `\n` `\a` `\"` `\'` `\\`
 
  Command                                 | Description
 -----------------------------------------|-------------------------------------------
@@ -71,6 +69,8 @@ The following characters in the script body will be de-escaped: `\e` `\t` `\r` `
 `vtm.dtvt(<dtvt_app...>)`                | Create a temporary menu item and run the specified dtvt-executable.
 `vtm.selected(<item_id>)`                | Set selected menu item using specified `<id>` (affected to the desktop RightDrag gesture and Tile's `+` button).
 `vtm.shutdown()`                         | Terminate the running desktop session.
+
+The following characters in script commands will be de-escaped: `\e` `\t` `\r` `\n` `\a` `\"` `\'` `\\`
 
 ### Usage Examples
 
