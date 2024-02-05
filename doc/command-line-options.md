@@ -5,12 +5,12 @@
 ### Syntax
 
 ```
-vtm [ -i | -u ] | [ -v ] | [ -? ]  |  [ -c <file>][ -l ]
+vtm [ -i | -u ] | [ -v ] | [ -? ] | [ -c <file> ][ -l ]
 
-vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
-    [ -m | -d | -s | [ -r [<console>]][<arguments ...>]]
+vtm [ --script <commands> ][ -p <name> ][ -c <file> ][ -q ]
+    [ -m | -d | -s | [ -r [ <console> ]][ <arguments ...> ] ]
 
-<run commands via piped redirection> | vtm [options ...]
+<run commands via piped redirection> | vtm [ <options ...> ]
 ```
 
 > By default, the fullscreen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
