@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n    The following commands have a short form:"
                 "\n"
-                "\n      'vtm -r vtty <cui_app ...>' can be shortened to 'vtm <cui_app ...>'."
+                "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
                 "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
                 "\n"
                 "\n  Settings loading order:"
