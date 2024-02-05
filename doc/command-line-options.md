@@ -69,7 +69,7 @@ graph LR
 
 - Initialize hardcoded settings.
 - In case of using the `--config <file>` option and the `<file>` can be loaded:
-    - Merge settings from `<file>`.
+    - Merge settings from the `<file>`.
 - otherwise:
     - Merge with system-wide settings from `/etc/vtm/settings.xml` (`%PROGRAMDATA%/vtm/settings.xml` on Windows).
     - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
