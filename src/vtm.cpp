@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-b", "--", "--branch"))
+        else if (getopt.match("-r", "--", "--run"))
         {
             whoami = type::branch;
             params = getopt.rest();
@@ -116,7 +116,7 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, the full-screen Desktop Client console will run"
+                "\n    By default, the fullscreen Desktop Client console will run"
                 "\n    and the Desktop Server daemon will launched if it is not running."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
@@ -129,11 +129,11 @@ int main(int argc, char* argv[])
                 "\n    -m, --monitor        Run Desktop Session Monitor."
                 "\n    -d, --daemon         Run Desktop Server daemon."
                 "\n    -s, --server         Run Desktop Server."
-                "\n    -b, --, --run        Run full-screen console."
+                "\n    -b, --, --run        Run fullscreen console."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
-                "\n    <console>            Full-screen console to run."
-                "\n    <arguments ...>      Full-screen console arguments."
+                "\n    <console>            Fullscreen console to run."
+                "\n    <arguments ...>      Fullscreen console arguments."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,7 +144,7 @@ int main(int argc, char* argv[])
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Full-screen consoles:"
+                "\n  Fullscreen consoles:"
                 "\n"
                 "\n    vtty   Teletype console.           'vtm -r vtty [cui_app ...]'"
                 "\n    term   Terminal console.           'vtm -r term [cui_app ...]'"

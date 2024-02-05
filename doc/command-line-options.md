@@ -13,7 +13,7 @@ vtm [ --script <commands>][ -p <name>][ -c <file>][ -q ]
 <run commands via piped redirection> | vtm [options ...]
 ```
 
-> By default, the full-screen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
+> By default, the fullscreen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
 
 Option                  | Description
 ------------------------|-------------------------------------------------------
@@ -27,11 +27,11 @@ Option                  | Description
 `-m`, `--monitor`       | Run Desktop Session Monitor.
 `-d`, `--daemon`        | Run Desktop Server daemon.
 `-s`, `--server`        | Run Desktop Server.
-`-r`, `--`, `--run`     | Run full-screen console.
+`-r`, `--`, `--run`     | Run fullscreen console.
 `-q`, `--quiet`         | Disable logging.
 `--script <commands>`   | Specifies script commands to be run by the desktop when ready.
-`<console>`             | Full-screen console to run.
-`<arguments ...>`       | Full-screen console arguments.
+`<console>`             | Fullscreen console to run.
+`<arguments ...>`       | Fullscreen console arguments.
 
 ### Settings loading order
 
@@ -42,7 +42,7 @@ Option                  | Description
       - Merge with user-wise settings from `~/.config/vtm/settings.xml`.
       - Merge with DirectVT packet received from the parent process (dtvt-mode).
 
-### Full-screen consoles
+### Fullscreen consoles
 
 `<console>` | `<aruments>`     | Object type to run detached        | Description
 ------------|------------------|------------------------------------|----------------------

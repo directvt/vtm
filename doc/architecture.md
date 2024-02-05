@@ -4,7 +4,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 
 Internal operating modes:
 - Desktop Server
-- Full-screen Console
+- Fullscreen Console
 - Desktop Session Monitor
 - Redirected Input Processor
 
@@ -17,28 +17,28 @@ The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Full-screen Console        | auto     | auto    |
+Fullscreen Console        | auto     | auto    |
 Desktop Server             |          |         | auto
 Desktop Session Monitor    |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Full-screen Console` mode.
-In the `Full-screen Console` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Fullscreen Console` mode.
+In the `Fullscreen Console` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Full-screen Console mode
+### Fullscreen Console mode
 
-Full-screen Console mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+Fullscreen Console mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 //todo
-...By default, the full-screen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
+...By default, the fullscreen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
 
-...Full-screen console can be seamlesly attached to the desktop using DirectVT console.
+...Fullscreen console can be seamlesly attached to the desktop using DirectVT console.
 
-...Full-screen Console mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+...Fullscreen Console mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
 
-#### Full-screen consoles
+#### Fullscreen consoles
 
 `<console>` value with context     | Object type to run detached        | Description
 -----------------------------------|------------------------------------|----------------------
@@ -186,7 +186,7 @@ graph TB
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Terminal console` or `Teletype console` in `Full-screen Console` mode. Terminating this process will automatically close the application.
+- The terminal process is a fork of the original desktop server process, running `Terminal console` or `Teletype console` in `Fullscreen Console` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -281,7 +281,7 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Terminal console in Full-screen Console mode
+### Run Terminal console in Fullscreen Console mode
 
 - Run command:
     ```bash
@@ -300,7 +300,7 @@ The client side outputs the received render to the console only when the console
 - Run command:
     ```bash
     vtm -r term /path/to/console/app
-    # The `vtm -r term` option means to run the Terminal console in Full-screen Console mode to host a CUI application.
+    # The `vtm -r term` option means to run the Terminal console in Fullscreen Console mode to host a CUI application.
     ```
 
 ## Remote access
