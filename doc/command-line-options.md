@@ -13,7 +13,7 @@ vtm -i | -u | -v | -?
 <script commands via piped redirection> | vtm [ <options...> ]
 ```
 
-> By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not found.
+> By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not running.
 
 Option                  | Description
 ------------------------|-------------------------------------------------------

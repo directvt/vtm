@@ -117,7 +117,7 @@ int main(int argc, char* argv[])
                 "\n  Options:"
                 "\n"
                 "\n    By default, the built-in Desktop Client will run and the Desktop Server"
-                "\n    will be launched in background if it is not found."
+                "\n    will be launched in background if it is not running."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
