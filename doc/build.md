@@ -1,4 +1,4 @@
-# Text-based desktop environment
+# Text-based Desktop Environment
 
 ## Building from source
 

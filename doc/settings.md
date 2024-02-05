@@ -1,4 +1,4 @@
-# Text-based desktop environment settings
+# Text-based Desktop Environment settings
 
 ```mermaid
 graph LR

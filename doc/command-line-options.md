@@ -1,4 +1,4 @@
-# Text-based desktop environment
+# Text-based Desktop Environment
 
 ## Command-line options
 
