@@ -3503,7 +3503,7 @@ namespace netxs::os
                 auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
                 if (term.empty()) term = os::env::get("TERM");
                 if (term.empty()) term = os::env::get("TERM_PROGRAM");
-                if (term.empty()) term = "VT";
+                if (term.empty()) term = "xterm-compatible";
                 if (colorterm != "truecolor" && colorterm != "24bit")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
@@ -3552,10 +3552,10 @@ namespace netxs::os
                 }
 
                 log(prompt::os, "Terminal type: ", term);
-                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "VT 16-color"
+                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
                                               : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
-                                              : dtvt::vtmode & ui::console::vt256 ? "VT 256-color"
-                                                                                  : "VT truecolor");
+                                              : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
+                                                                                  : "xterm truecolor");
                 log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
                                               : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                   : "VT-style");
