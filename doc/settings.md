@@ -31,7 +31,7 @@ graph LR
         ...
         <menu>
             ...
-            <item ... type=gate ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
+            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
                 <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
                     ...
                 </config>
@@ -179,7 +179,7 @@ Top-level element `<config>` contains the following base elements:
 
 #### Application Configuration
 
-The menu item of DirectVT Gateway type (`type=gate`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
+The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
 The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
@@ -221,10 +221,10 @@ Value type | Format
 
 Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`vtty` (default)                  | `cui_app ...`    | Run `cui_app ...` inside of ... type gate and term. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=gate cmd="vtm -r vtty cui_app ..."`.
-`term`                            | `cui_app ...`    | Run `cui_app ...` inside of ... type gate and term. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=gate cmd="vtm -r term cui_app ..."`.
-`gate`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of DirectVT Gateway type. Usage example `type=gate cmd="dtvt_app ..."`.
-`xlvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
+`vtty` (default)                  | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
+`term`                            | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of the DirectVT console type. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`dtty`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of dtty type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=dtty cmd="dtvt_app ..."`.
 `tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
 `site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
@@ -232,7 +232,7 @@ The following configuration items produce the same final result:
 ```
 <item ... cmd=mc/>
 <item ... type=vtty cmd=mc/>
-<item ... type=gate cmd='vtm -r vtty mc'/>
+<item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
 ### Configuration Example
@@ -268,7 +268,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=gate title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
+        <item id=Term label="Term" type=dtvt title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -294,13 +294,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=pwsh label=PowerShell   type=gate title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
-   <!-- <item id=WSL  label="WSL"        type=gate title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
+        <item id=pwsh label=PowerShell   type=dtvt title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+   <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
    <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
    <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
         <item id=Tile label=Tile         type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
         <item id=Site label=Site         type=site title="\e[11:3pSite "         cmd=@ winform=maximized   notes=" Desktop region marker "/>
-        <item id=Logs label=Logs         type=gate title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
+        <item id=Logs label=Logs         type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->

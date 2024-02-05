@@ -1704,10 +1704,10 @@ namespace netxs::app::vtm
             SIGNAL(tier::request, desk::events::exec, appspec);
             return "ok " + appspec.appcfg.cmd;
         }
-        auto vtm_gate(eccc& script, qiew args)
+        auto vtm_dtvt(eccc& script, qiew args)
         {
             auto appspec = desk::spec{ .hidden = true,
-                                       .type   = app::gate::id,
+                                       .type   = app::dtvt::id,
                                        .gearid = script.hid };
             appspec.appcfg.env = script.env;
             appspec.appcfg.cwd = script.cwd;
@@ -2055,7 +2055,7 @@ namespace netxs::app::vtm
                     { "vtm.set"      , &hall::vtm_set      },
                     { "vtm.del"      , &hall::vtm_del      },
                     { "vtm.run"      , &hall::vtm_run      },
-                    { "vtm.gate"     , &hall::vtm_gate     },
+                    { "vtm.dtvt"     , &hall::vtm_dtvt     },
                     { "vtm.exit"     , &hall::vtm_shutdown },
                     { "vtm.close"    , &hall::vtm_shutdown },
                     { "vtm.shutdown" , &hall::vtm_shutdown },

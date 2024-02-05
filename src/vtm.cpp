@@ -110,13 +110,13 @@ int main(int argc, char* argv[])
                 "\n    " + vtm + " [ -i | -u ] | [ -v ] | [ -? ]  |  [ -c <file>][ -l ]"
                 "\n"
                 "\n    " + vtm + " [ --script <commands>][ -p <name>][ -c <file>][ -q ]"
-                "\n    " + pad + " [ -m | -d | -s | [ -b [<widget>]] [<arguments ...>]]"
+                "\n    " + pad + " [ -m | -d | -s | [ -r [<console>]][<arguments ...>]]"
                 "\n"
                 "\n    <run commands via piped redirection> | " + vtm + " [options ...]"
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, Detached Visual Branch with Desktop Explorer will run"
+                "\n    By default, the full-screen Desktop Client console will run"
                 "\n    and the Desktop Server daemon will launched if it is not running."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
@@ -127,13 +127,13 @@ int main(int argc, char* argv[])
                 "\n    -c, --config <file>  Specifies the settings file to load."
                 "\n    -p, --pipe <name>    Specifies the desktop session connection point."
                 "\n    -m, --monitor        Run Desktop Session Monitor."
-                "\n    -d, --daemon         Run Desktop Server as a daemon."
+                "\n    -d, --daemon         Run Desktop Server daemon."
                 "\n    -s, --server         Run Desktop Server."
-                "\n    -b, --, --branch     Run Detached Visual Branch."
+                "\n    -b, --, --run        Run full-screen console."
                 "\n    -q, --quiet          Disable logging."
                 "\n    --script <commands>  Specifies script commands to be run by the desktop when ready."
-                "\n    <widget>             Detached Visual Branch base widget to use."
-                "\n    <arguments ...>      Widget arguments."
+                "\n    <console>            Full-screen console to run."
+                "\n    <arguments ...>      Full-screen console arguments."
                 "\n"
                 "\n  Settings loading order:"
                 "\n"
@@ -144,20 +144,20 @@ int main(int argc, char* argv[])
                 "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
                 "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode)."
                 "\n"
-                "\n  Base widgets:"
+                "\n  Full-screen consoles:"
                 "\n"
-                "\n    desk   Desktop Explorer.           'vtm -r desk' or 'vtm'"
-                "\n    vtty   Teletype Console.           'vtm -r vtty [cui_app ...]'"
-                "\n    term   Terminal Console.           'vtm -r term [cui_app ...]'"
-                "\n    gate   DirectVT Gateway.           'vtm -r gate [dtvt_app ...]'"
-                "\n    xlvt   DirectVT Gateway with TTY.  'vtm -r xlvt ssh <user@host dtvt_app ...>'"
+                "\n    vtty   Teletype console.           'vtm -r vtty [cui_app ...]'"
+                "\n    term   Terminal console.           'vtm -r term [cui_app ...]'"
+                "\n    dtvt   DirectVT console.           'vtm -r dtvt [dtvt_app ...]'"
+                "\n    dtty   DirectVT console with TTY.  'vtm -r dtty ssh <user@host dtvt_app ...>'"
+                "\n     n/a   Desktop Client console.     Run by default."
                 "\n"
-                "\n    The <widget> value defaults to 'vtty' if <arguments ...> is specified without <widget>."
+                "\n    The <console> value defaults to 'vtty' if <arguments ...> is specified without <console>."
                 "\n"
                 "\n  The following commands have a short form:"
                 "\n"
-                "\n    'vtm -r xlvt ssh <user@host dtvt_app ...>' can be shortened to 'vtm ssh <user@host dtvt_app ...>'."
                 "\n    'vtm -r vtty [cui_app ...]' can be shortened to 'vtm [cui_app ...]'."
+                "\n    'vtm -r dtty ssh <user@host dtvt_app ...>' can be shortened to 'vtm ssh <user@host dtvt_app ...>'."
                 "\n"
                 "\n  Scripting"
                 "\n"
@@ -181,8 +181,8 @@ int main(int argc, char* argv[])
                 "\n        Delete the taskbar menu item by <id>."
                 "\n        Delete all menu items if no <id> specified."
                 "\n"
-                "\n      vtm.gate(<dtvt_app...>)"
-                "\n        Create a temporary menu item and run DirectVT Gateway"
+                "\n      vtm.dtvt(<dtvt_app...>)"
+                "\n        Create a temporary menu item and run DirectVT console"
                 "\n        to host specified dtvt-app."
                 "\n"
                 "\n      vtm.selected(<id>)"
@@ -193,33 +193,33 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Usage Examples"
                 "\n"
-                "\n    Run Desktop Explorer:"
+                "\n    Run Desktop Client console:"
                 "\n        vtm"
                 "\n"
-                "\n    Run Desktop Explorer remotely over SSH:"
+                "\n    Run Desktop Client console remotely over SSH:"
                 "\n        vtm ssh <user@server> vtm"
                 "\n"
-                "\n    Run Terminal Console:"
+                "\n    Run Terminal console:"
                 "\n        vtm -r term"
                 "\n"
-                "\n    Run Terminal Console with a CUI application inside:"
+                "\n    Run Terminal console with a CUI application inside:"
                 "\n        vtm -r term </path/to/console/app>"
                 "\n"
                 "\n    Run a CUI application remotely over SSH:"
                 "\n        vtm ssh <user@server> vtm </path/to/console/app>"
                 "\n"
-                "\n    Run Desktop Explorer and reconfigure the taskbar menu:"
+                "\n    Run Desktop Client console and reconfigure the taskbar menu:"
                 "\n        vtm --script \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\""
                 "\n"
                 "\n    Reconfigure the taskbar menu of the running desktop:"
                 "\n        echo \"vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)\" | vtm"
-                "\n        echo \"vtm.set(id=user@server type=xlvt cmd='ssh <user@server> vtm')\" | vtm"
+                "\n        echo \"vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')\" | vtm"
                 "\n"
-                "\n    Run Terminal Console on the running desktop:"
+                "\n    Run Terminal console on the running desktop:"
                 "\n        echo \"vtm.run(id=Term)\" | vtm"
-                "\n        echo \"vtm.gate(vtm -r term)\" | vtm"
+                "\n        echo \"vtm.dtvt(vtm -r term)\" | vtm"
                 "\n"
-                "\n    Run Teletype Console with a CUI application inside on the running desktop:"
+                "\n    Run Teletype console with a CUI application inside on the running desktop:"
                 "\n        echo \"vtm.run(title='Console \\nApplication' cmd=</path/to/app>)\" | vtm"
                 "\n"
                 "\n    Run Tiling Window Manager with three terminals attached:"
@@ -370,8 +370,8 @@ int main(int argc, char* argv[])
         utf::to_low(shadow);
              if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;      }
         else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;      }
-        else if (shadow.starts_with(app::gate::id))      { aptype = app::gate::id;      apname = app::gate::name;      }
-        else if (shadow.starts_with(app::xlvt::id))      { aptype = app::xlvt::id;      apname = app::xlvt::name;      }
+        else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
+        else if (shadow.starts_with(app::dtty::id))      { aptype = app::dtty::id;      apname = app::dtty::name;      }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
@@ -383,8 +383,8 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with("ssh"))//app::ssh::id))
         {
             params = " "s + params;
-            aptype = app::xlvt::id;
-            apname = app::xlvt::name;
+            aptype = app::dtty::id;
+            apname = app::dtty::name;
         }
         else
         {

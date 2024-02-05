@@ -442,10 +442,10 @@ namespace netxs::app::shared
                     "\n   type = vtty"
                     "\n   type = term"
                     "\n   type = dtvt"
-                    "\n   type = xlvt"
-                    "\n   type = shell"
+                    "\n   type = dtty"
                     "\n   type = tile"
                     "\n   type = site"
+                    "\n   type = info"
                     "\n"
                     "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
                     .add(prompt::apps, "See logs for details."));

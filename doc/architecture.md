@@ -4,7 +4,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 
 Internal operating modes:
 - Desktop Server
-- Detached Visual Branch
+- Full-screen Console
 - Desktop Session Monitor
 - Redirected Input Processor
 
@@ -17,38 +17,38 @@ The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Detached Visual Branch     | auto     | auto    |
+Full-screen Console        | auto     | auto    |
 Desktop Server             |          |         | auto
 Desktop Session Monitor    |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Explorer` console is used and it is running in `Detached Visual Branch` mode.
-In the `Detached Visual Branch` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` console is used and it is running in `Full-screen Console` mode.
+In the `Full-screen Console` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Detached Visual Branch mode
+### Full-screen Console mode
 
-Detached Visual Branch mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+Full-screen Console mode is the internal vtm operating mode in which there is only one full-screen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT console` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 //todo
-...By default, run Detached Visual Branch with Desktop Explorer console as a root and autorun Desktop Server daemon if it is not running.
+...By default, the full-screen Desktop Client console will run and the Desktop Server daemon will launched if it is not running.
 
-...Detached Visual Branch can be seamlesly attached to the desktop using DirectVT Gateway.
+...Full-screen console can be seamlesly attached to the desktop using DirectVT console.
 
-...Detached Visual Branch mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+...Full-screen Console mode is enabled by the `vtm [--run [<console>]] [<cui_app...>]` command line option. Where the `<console>` value specifies the desktop console object being running, and `<cui_app...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
 
-#### Available detached visual branch roots
+#### Full-screen consoles
 
-`<console>` value with context   | Object type to run detached        | Description
----------------------------------|------------------------------------|----------------------
-`vtm`                            | `desk`/`Desktop Explorer`            | Used to run Desktop Explorer.
-`vtm cui_app ...`                | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r cui_app ...`             | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r gate dtvt_app ...`       | `gate`/`DirectVT Gateway`          | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
-`vtm -r vtty cui_app ...`        | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r term cui_app ...`        | `terminal`/`Terminal Console`      | Used to run CUI applications inside `Terminal Console`.
-`vtm -r xlvt cui_dtvt_proxy ...` | `xlvt`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+`<console>` value with context     | Object type to run detached        | Description
+-----------------------------------|------------------------------------|----------------------
+`vtm`                              | `desk`/`Desktop Client console`    | Used to run Desktop Explorer.
+`vtm <cui_app ...>`                | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
+`vtm -r <cui_app ...>`             | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
+`vtm -r dtvt <dtvt_app ...>`       | `dtvt`/`DirectVT console`          | Used to run DirectVT aware applications inside the `DirectVT console`.
+`vtm -r vtty <cui_app ...>`        | `teletype`/`Teletype console`      | Used to run CUI applications inside `Teletype console`.
+`vtm -r term <cui_app ...>`        | `terminal`/`Terminal console`      | Used to run CUI applications inside `Terminal console`.
+`vtm -r dtty <cui_dtvt_proxy ...>` | `dtty`/`DirectVT console with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
 Do not confuse the values of the `<console>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
 
@@ -72,15 +72,15 @@ Desktop object types:
 
  Type      | Name                           | Description
 -----------|--------------------------------|----------------------
-`teletype` | `Teletype Console`             | A solid rectangular truecolor text canvas depicting a freely scrollable buffer of the text runs generated by an xterm-compatible parser from the standard output of an attached CUI application. It can be a very heavy object due to maintaining a scrollback buffer of arbitrary length. Not used directly in the desktop process's address space.
-`terminal` | `Terminal Console`             | A derivative of `Teletype Console` with additional UI controls.
-`gate`     | `DirectVT Gateway`             | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
-`vtty`     | `Teletype Console dtvt-bridge` | A `DirectVT Gateway` hosting an external standalone `Teletype Console` process. It is designed to run a heavy `Teletype Console` object in the external process's address space to optimize desktop resource consumption.
-`term`     | `Terminal Console dtvt-bridge` | A `DirectVT Gateway` hosting an external standalone `Terminal Console` process. It is designed to run a heavy `Terminal Console` object in the external process's address space to optimize desktop resource consumption.
-`xlvt`     | `DirectVT Gateway with TTY`    | A derivative of `DirectVT Gateway` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
+`teletype` | `Teletype console`             | A solid rectangular truecolor text canvas depicting a freely scrollable buffer of the text runs generated by an xterm-compatible parser from the standard output of an attached CUI application. It can be a very heavy object due to maintaining a scrollback buffer of arbitrary length. Not used directly in the desktop process's address space.
+`terminal` | `Terminal console`             | A derivative of `Teletype console` with additional UI controls.
+`dtvt`     | `DirectVT console`             | A lightweight truecolor text canvas depicting content received from an external dtvt-aware process.
+`vtty`     | `Teletype console dtvt-bridge` | A `DirectVT console` hosting an external standalone `Teletype console` process. It is designed to run a heavy `Teletype console` object in the external process's address space to optimize desktop resource consumption.
+`term`     | `Terminal console dtvt-bridge` | A `DirectVT console` hosting an external standalone `Terminal console` process. It is designed to run a heavy `Terminal console` object in the external process's address space to optimize desktop resource consumption.
+`dtty`     | `DirectVT console with TTY`    | A derivative of `DirectVT console` stacked with additional limited `Teletype console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
 `tile`     | `Tiling Window Manager`        | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
 `site`     | `Desktop Region Marker`        | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
-`desk`     | `Desktop Explorer`             | ...Used to run Desktop Explorer... Not used directly in the desktop process's address space.
+`desk`     | `Desktop Client console`       | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
@@ -106,7 +106,7 @@ graph TB
         subgraph OU1[Output]
             TC1[scrollback\nbuffer]
         end
-        subgraph CS1[Desktop client 1]
+        subgraph CS1[Desktop Client 1]
             VTM1[vtm\nprocess 1]
         end
         C1 --> CS1
@@ -121,7 +121,7 @@ graph TB
         subgraph OU2[Output]
             TC2[scrollback\nbuffer]
         end
-        subgraph CS2[Desktop client 2]
+        subgraph CS2[Desktop Client 2]
             VTM2[vtm\nprocess 2]
         end
         C2 --> CS2
@@ -136,13 +136,13 @@ graph TB
         subgraph OU3[Output]
             TC3[scrollback\nbuffer]
         end
-        subgraph CS3[DirectVT Gateway]
+        subgraph CS3[DirectVT console]
             VTM3[vtm\nprocess 3]
         end
         C3 --> CS3
         TC3 --- CS3
     end
-    subgraph APP0x[Standalone DirectVT Application]
+    subgraph APP0x[Standalone DirectVT-aware Application]
         APP01[DirectVT App4\napp: process 9]
     end
     CS3 <-->|DirectVT I/O\nsend: Events\nrecv: Render| APP01
@@ -186,7 +186,7 @@ graph TB
 - Sessions with different connection points can coexist independently.
 - Applications are launched/terminated by the user within the current desktop session.
 - Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Terminal Console` or `Teletype Console` in `Detached Visual Branch` mode. Terminating this process will automatically close the application.
+- The terminal process is a fork of the original desktop server process, running `Terminal console` or `Teletype console` in `Full-screen Console` mode. Terminating this process will automatically close the application.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -281,7 +281,7 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Terminal Console in Detached Visual Branch mode
+### Run Terminal console in Full-screen Console mode
 
 - Run command:
     ```bash
@@ -295,12 +295,12 @@ The client side outputs the received render to the console only when the console
     vtm /path/to/console/app
     ```
 
-### Run a CUI application inside the Terminal Console
+### Run a CUI application inside the Terminal console
 
 - Run command:
     ```bash
     vtm -r term /path/to/console/app
-    # The `vtm -r term` option means to run the Terminal Console console in Detached Visual Branch mode to host a CUI application.
+    # The `vtm -r term` option means to run the Terminal console in Full-screen Console mode to host a CUI application.
     ```
 
 ## Remote access
@@ -318,9 +318,9 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command:
     ```bash
-    vtm -r xlvt ssh user@server vtm -r vtty /path/to/console/app
-    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
-    # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype Console on the remote host.
+    vtm -r dtty ssh user@server vtm -r vtty /path/to/console/app
+    # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
+    # The `ssh user@server vtm -r vtty` statement means to connect via ssh and launch the Teletype console on the remote host.
     ```
     or
     ```bash
@@ -334,14 +334,14 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command:
     ```bash
-    vtm -r xlvt ssh user@server vtm
-    # The `vtm -r xlvt` option means to run the next statement in DirectVT/XLVT mode.
+    vtm -r dtty ssh user@server vtm
+    # The `vtm -r dtty` option means to run the next statement in DirectVT&TTY console.
     # The `ssh user@server vtm` statement means to connect via ssh and run the vtm desktop on the remote host.
     ```
     or
     ```bash
     vtm ssh user@server vtm
-    # The `-r xlvt` option is auto added if the first command line argument starts with `ssh` keyword.
+    # The `-r dtty` option is auto added if the first command line argument starts with `ssh` keyword.
     ```
 
 ### Run remote vtm desktop in Text/VT mode over SSH
@@ -373,8 +373,8 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command:
     ```bash
-    vtm -r gate ncat remote_ip remote_tcp_port
-    # The `vtm -r gate` option means to run DirectVT Gateway to host ncat.
+    vtm -r dtvt ncat remote_ip remote_tcp_port
+    # The `vtm -r dtvt` option means to run DirectVT console to host ncat.
     # Note: Make sure `ncat` is installed.
     ```
 
@@ -395,7 +395,7 @@ The following examples assume that vtm is installed on both the local and remote
 - Local side
     - Run command:
     ```bash
-    vtm -r gate ncat remote_ip remote_tcp_port
+    vtm -r dtvt ncat remote_ip remote_tcp_port
     ```
 
 ### Local standard I/O redirection using `socat` (POSIX only)
@@ -409,7 +409,7 @@ The following examples assume that vtm is installed on both the local and remote
 - User side
     - Run command:
     ```bash
-    vtm -r gate socat open:out\!\!open:in stdin\!\!stdout
+    vtm -r dtvt socat open:out\!\!open:in stdin\!\!stdout
     # Note: Make sure `socat` is installed.
     ```
 
@@ -422,24 +422,24 @@ The taskbar menu can be configured using a settings file `~/.config/vtm/settings
         <!-- <item*/> --> <!-- Clear default item list -->
         <item splitter label="Remote Access"/>
 
-        <item id="Run remote vtm desktop in DirectVT mode over SSH" type=xlvt cmd="ssh user@server vtm"/>
-        <item id="Run console app in remote terminal over SSH"      type=xlvt cmd="ssh user@server vtm -r term /path/to/console/app"/>
-        <item id="Run console app remotely over SSH w/o extra UI"   type=xlvt cmd="ssh user@server vtm /path/to/console/app"/>
+        <item id="Run remote vtm desktop in DirectVT mode over SSH" type=dtty cmd="ssh user@server vtm"/>
+        <item id="Run console app in remote terminal over SSH"      type=dtty cmd="ssh user@server vtm -r term /path/to/console/app"/>
+        <item id="Run console app remotely over SSH w/o extra UI"   type=dtty cmd="ssh user@server vtm /path/to/console/app"/>
 
         <item splitter label="Another Examples"/>
 
         <item id="Far Manager"             type=vtty cmd="far"/>
-        <item id="Far Manager in terminal" type=gate cmd="$0 -r term far"/>
+        <item id="Far Manager in terminal" type=dtvt cmd="$0 -r term far"/>
 
         <item id="Midnight Commander"             type=vtty cmd="mc"/>
-        <item id="Midnight Commander in terminal" type=gate cmd="$0 -r term mc"/>
+        <item id="Midnight Commander in terminal" type=dtvt cmd="$0 -r term mc"/>
 
-        <item id="Remote cmd in terminal over SSH" type=xlvt cmd="ssh user@server vtm -r term cmd"/>
-        <item id="Remote cmd over SSH"             type=xlvt cmd="ssh user@server vtm cmd"/>
-        <item id="Remote Far Manager over SSH"     type=xlvt cmd="ssh user@server vtm far"/>
-        <item id="Remote wsl over SSH"             type=xlvt cmd="ssh user@server vtm wsl"/>
-        <item id="Remote mc over SSH"              type=xlvt cmd="ssh user@server vtm mc"/>
-        <item id="Remote wsl mc over SSH"          type=xlvt cmd="ssh user@server vtm wsl mc"/>
+        <item id="Remote cmd in terminal over SSH" type=dtty cmd="ssh user@server vtm -r term cmd"/>
+        <item id="Remote cmd over SSH"             type=dtty cmd="ssh user@server vtm cmd"/>
+        <item id="Remote Far Manager over SSH"     type=dtty cmd="ssh user@server vtm far"/>
+        <item id="Remote wsl over SSH"             type=dtty cmd="ssh user@server vtm wsl"/>
+        <item id="Remote mc over SSH"              type=dtty cmd="ssh user@server vtm mc"/>
+        <item id="Remote wsl mc over SSH"          type=dtty cmd="ssh user@server vtm wsl mc"/>
     </menu>
 </config>
 ```
@@ -451,11 +451,11 @@ echo "vtm.del()" | vtm
 ```
 ```
 # Add new menu items
-echo "vtm.set(id=Term label='Terminal' type=gate cmd='vtm -r term')" | vtm
-echo "vtm.set(id=White label='White Terminal' type=gate fgc=0xFF000000 bgc=0xFFffffff cmd='vtm -r term')" | vtm
-echo "vtm.set(id=Huge label='Huge Terminal' type=gate cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
-echo "vtm.set(id=Tile label='Three Terminals' type=group cmd='v(h(Term, White), Huge)')" | vtm
-echo "vtm.set(id=cmd label='Remote cmd over SSH' type=xlvt cmd='ssh user@server vtm cmd')" | vtm
+echo "vtm.set(id=Term label='Terminal' type=dtvt cmd='vtm -r term')" | vtm
+echo "vtm.set(id=White label='White Terminal' type=dtvt fgc=0xFF000000 bgc=0xFFffffff cmd='vtm -r term')" | vtm
+echo "vtm.set(id=Huge label='Huge Terminal' type=dtvt cmd='vtm -r term' cfg='<config><term><scrollback size=500000/></term></config>')" | vtm
+echo "vtm.set(id=Tile label='Three Terminals' type=tile cmd='v(h(Term, White), Huge)')" | vtm
+echo "vtm.set(id=cmd label='Remote cmd over SSH' type=dtty cmd='ssh user@server vtm cmd')" | vtm
 ```
 ```
 # Set default menu item

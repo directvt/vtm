@@ -202,7 +202,7 @@ namespace netxs::ui
                 def_cursor =             config.take("cursor/style",         true, xml::options::cursor);
                 def_period =             config.take("cursor/blink",         span{ skin::globals().blink_period });
                 def_io_log =             config.take("logs",                 faux);
-                allow_logs =             true; // Disallowed for xlvt.
+                allow_logs =             true; // Disallowed for dtty.
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
