@@ -30,7 +30,7 @@
     <td colspan="9">Leave current session</td>
   </tr>
   <tr>
-    <th>Ctrl+PgUp/Dn</th>
+    <th>Ctrl+PgUp/PgDn</th>
     <td colspan="9">Switch focus between running apps</td>
   </tr>
   <tr>
