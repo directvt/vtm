@@ -276,7 +276,7 @@ vtm ssh user@host vtm
 
 ## Desktop Region Marker
 
-The Desktop Region Marker is used to quickly navigate the desktop by double-left-clicking on an instance in the taskbar. The region title can be set using the clipboard text data by right-clicking once on the region frame (swap clipboard text with title text).
+The Desktop Region Marker is used to quickly navigate the desktop by left-clicking on an instance in the taskbar. The region title can be set using the clipboard text data by right-clicking once on the region frame (swap clipboard text with title text).
 
 ## Tiling Window Manager
 
@@ -290,6 +290,6 @@ The Desktop Region Marker is used to quickly navigate the desktop by double-left
   - `double LeftClick` -- Maxixmize/restore
 - Configurable via settings (See configuration example in doc\settings.md`).
 
-## Desktop Explorer
+## Desktop Client
 
 ...
