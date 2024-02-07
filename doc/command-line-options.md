@@ -5,12 +5,12 @@
 ### Syntax
 
 ```
-vtm [ -c <file> ][ -q ][ -p <name> ][ -s | -d | -m ][ -x <cmds> ]
+vtm [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]
 vtm [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]
 vtm [ -c <file> ]  -l
 vtm -i | -u | -v | -?
 
-<script commands via piped redirection> | vtm [ <options...> ]
+<script commands via piped redirection> | vtm [ -p <id> ]
 ```
 
 > By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not running.
@@ -24,7 +24,7 @@ Option                  | Description
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies the settings file to load.
-`-p`, `--pipe <name>`   | Specifies the desktop session connection point.
+`-p`, `--pin <id>`      | Specifies the desktop id it is pinned to.
 `-q`, `--quiet`         | Disable logging.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.

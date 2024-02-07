@@ -2457,7 +2457,7 @@ namespace netxs::os
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" --script ", script) : ""s));
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" -x ", script) : ""s));
                     if (os::nt::runas(cmdarg))
                     {
                         success.reset(handle); // Do not close until confirmation from the server process is received.

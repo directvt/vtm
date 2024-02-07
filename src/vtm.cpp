@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
         {
             whoami = type::logmon;
         }
-        else if (getopt.match("-p", "--pipe"))
+        else if (getopt.match("-p", "--pin"))
         {
             vtpipe = getopt.next();
             if (vtpipe.empty())
@@ -107,12 +107,12 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Syntax:"
                 "\n"
-                "\n    " + vtm + " [ -c <file> ][ -q ][ -p <name> ][ -s | -d | -m ][ -x <cmds> ]"
+                "\n    " + vtm + " [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
                 "\n    " + vtm + " [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]"
                 "\n    " + vtm + " [ -c <file> ]  -l"
                 "\n    " + vtm + " -i | -u | -v | -?"
                 "\n"
-                "\n    <script commands via piped redirection> | " + vtm + " [ <options...> ]"
+                "\n    <script commands via piped redirection> | " + vtm + " [ -p <id> ]"
                 "\n"
                 "\n  Options:"
                 "\n"
@@ -126,7 +126,7 @@ int main(int argc, char* argv[])
                 "\n    -u, --uninstall      Perform system-wide deinstallation."
                 "\n    -x, --script <cmds>  Specifies script commands to be run by the desktop when ready."
                 "\n    -c, --config <file>  Specifies the settings file to load."
-                "\n    -p, --pipe <name>    Specifies the desktop session connection point."
+                "\n    -p, --pin <id>       Specifies the desktop id it is pinned to."
                 "\n    -q, --quiet          Disable logging."
                 "\n    -s, --server         Run Desktop Server."
                 "\n    -d, --daemon         Run Desktop Server in background."
