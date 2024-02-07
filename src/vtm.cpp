@@ -116,8 +116,8 @@ int main(int argc, char* argv[])
                 "\n"
                 "\n  Options:"
                 "\n"
-                "\n    By default, the Desktop Client applet will run and the Desktop Server"
-                "\n    will be launched in background if it is not running."
+                "\n    By default, " + vtm + " runs Desktop Client, running an additional instance"
+                "\n    with Desktop Server in background if it is not found."
                 "\n"
                 "\n    -h, -?, --help       Print command-line options."
                 "\n    -v, --version        Print version."
@@ -204,8 +204,7 @@ int main(int argc, char* argv[])
     os::dtvt::initialize();
     os::dtvt::checkpoint();
 
-    if (os::dtvt::vtmode & ui::console::redirio
-     && (whoami == type::runapp || whoami == type::client))
+    if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {
         whoami = type::logmon;
     }

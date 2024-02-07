@@ -4,9 +4,9 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 
 Internal operating modes:
 - Desktop Applet
+- Desktop Client
 - Desktop Server
 - Desktop Monitor
-- Script Relay
 
 Interprocess communication modes:
 - DirectVT
@@ -18,12 +18,13 @@ The following combinations of internal and interprocess modes are supported:
 |               | DirectVT | Text/VT | Command line
 ----------------|----------|---------|-------------
 Desktop Applet  | auto     | auto    |
+Desktop Client  | auto     | auto    |
 Desktop Server  |          |         | auto
 Desktop Monitor |          |         | auto
-Script Relay    |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` applet is running standalone.
-In the `Desktop Applet` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` mode is used.
+
+In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
@@ -32,25 +33,24 @@ In the `Desktop Applet` operating mode the interprocess communication mode is au
 `Desktop Applet` mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 //todo
-...By default, the built-in `Desktop Client` applet will run standalone and the Desktop Server will be launched in background if it is not running.
+...By default, the `Desktop Client` will run and the `Desktop Server` will be launched in background if it is not running.
 
 ...A standalone running desktop applet can be seamlesly attached to the desktop using DirectVT Gateway.
 
-...Desktop Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
+...Desktop Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command-line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
 
-#### Desktop Applets
-
-Applets                            | Object type to run detached        | Description
+ Applet                            | Arguments                          | Description
 -----------------------------------|------------------------------------|----------------------
-`vtm`                              | `desk`/`Desktop Client`    | Used to run Desktop Explorer.
-`vtm <cui_app ...>`                | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r <cui_app ...>`             | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r dtvt <dtvt_app ...>`       | `dtvt`/`DirectVT Gateway`          | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
-`vtm -r vtty <cui_app ...>`        | `teletype`/`Teletype Console`      | Used to run CUI applications inside `Teletype Console`.
-`vtm -r term <cui_app ...>`        | `terminal`/`Terminal Emulator`      | Used to run CUI applications inside `Terminal Emulator`.
-`vtm -r dtty <cui_dtvt_proxy ...>` | `dtty`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
+`teletype`/`Teletype Console`      | `vtm -r vtty <cui_app ...>`        | Used to run CUI applications inside `Teletype Console`.
+`terminal`/`Terminal Emulator`     | `vtm -r term <cui_app ...>`        | Used to run CUI applications inside `Terminal Emulator`.
+`dtvt`/`DirectVT Gateway`          | `vtm -r dtvt <dtvt_app ...>`       | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
+`dtty`/`DirectVT Gateway with TTY` | `vtm -r dtty <cui_dtvt_proxy ...>` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
 Do not confuse the values of the `<type>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
+
+### Desktop Client mode
+
+...
 
 ### Desktop Server mode
 
@@ -80,16 +80,12 @@ Desktop object types:
 `dtty`     | `DirectVT Gateway with TTY`     | A derivative of `DirectVT Gateway` stacked with additional limited `Teletype Console` as a controlling terminal. It is used for CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY. Depending on activity the corresponding console became active for the user.
 `tile`     | `Tiling Window Manager`         | A window container with an organization of the hosting window area into mutually non-overlapping panes for nested windows.
 `site`     | `Desktop Region Marker`         | A transparent resizable frame for marking the specific desktop region for quick navigation across the borderless workspace.
-`desk`     | `Desktop Client console`        | ...Used to run Desktop Client... Not used directly in the desktop process's address space.
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
 ### Desktop Monitor mode
-
 ...
-
-### Script Relay mode
-
+#### Script Relay
 ...
 
 ## Interprocess communication modes
@@ -197,7 +193,7 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side (desktop client console in detached window mode) can operate in two modes, either in Text/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
+The vtm client side (desktop client) can operate in two modes, either in Text/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
 
 The vtm server side (desktop server) receives inbound connections only in DirectVT mode.
 
