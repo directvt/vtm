@@ -37,5 +37,5 @@ vtm is a text-based desktop environment allowing remote access over tunneling pr
 - [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Desktop Live Panel](doc/panel.md)
-- [Built-in Applets](doc/apps.md)
+- [Desktop applets](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)

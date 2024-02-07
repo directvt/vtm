@@ -29,20 +29,18 @@ Option                  | Description
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
 `-m`, `--monitor`       | Run Desktop Server Monitor.
-`-r`, `--`, `--run`     | Run built-in applet standalone.
-`<type>`                | Built-in applet type to run.
-`<args...>`             | Built-in applet arguments.
+`-r`, `--`, `--run`     | Run desktop applet standalone.
+`<type>`                | Desktop applet type to run.
+`<args...>`             | Desktop applet arguments.
 
-### Built-in applets
+### Desktop applets
 
-Applet                    | Type | Arguments
---------------------------|------|------------------------------------------
-Teletype Console          | vtty | CUI application with arguments to run.
-Terminal Emulator         | term | CUI application with arguments to run.
-DirectVT Gateway          | dtvt | DirectVT-aware application to run.
-DirectVT Gateway with TTY | dtty | CUI application to run, forwarding DirectVT I/O.
-
-The `<type>` value defaults to `vtty` if `<args...>` is specified without `<type>`.
+Applet                     | Type | Arguments
+---------------------------|------|------------------------------------------
+Teletype Console (default) | vtty | CUI application with arguments to run.
+Terminal Emulator          | term | CUI application with arguments to run.
+DirectVT Gateway           | dtvt | DirectVT-aware application to run.
+DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT I/O.
 
 The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.

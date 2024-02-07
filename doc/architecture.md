@@ -3,8 +3,8 @@
 vtm has a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
 
 Internal operating modes:
+- Desktop Applet
 - Desktop Server
-- Built-in Applet
 - Desktop Server Monitor
 - Redirected Input Processor
 
@@ -17,28 +17,28 @@ The following combinations of internal and interprocess modes are supported:
 
 |                          | DirectVT | Text/VT | Command line
 ---------------------------|----------|---------|-------------
-Built-in Applet            | auto     | auto    |
+Desktop Applet             | auto     | auto    |
 Desktop Server             |          |         | auto
 Desktop Server Monitor     |          |         | auto
 Redirected Input Processor |          |         |
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` applet is used and it is running in `Built-in Applet` mode.
-In the `Built-in Applet` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+The internal operating mode is determined by the command line options used. By default, the `Desktop Client` applet is running standalone.
+In the `Desktop Applet` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
-### Built-in Applet mode
+### Desktop Applet mode
 
-Built-in Applet mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
+`Desktop Applet` mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 //todo
-...By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not running.
+...By default, the built-in `Desktop Client` applet will run standalone and the Desktop Server will be launched in background if it is not running.
 
-...A standalone running built-in applet can be seamlesly attached to the desktop using DirectVT Gateway.
+...A standalone running desktop applet can be seamlesly attached to the desktop using DirectVT Gateway.
 
-...Built-in Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command line option. Where the `<type>` value specifies the built-in applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
+...Desktop Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
 
-#### Built-in Applets
+#### Desktop Applets
 
 Applets                            | Object type to run detached        | Description
 -----------------------------------|------------------------------------|----------------------
@@ -185,7 +185,7 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different desktop ids can coexist independently.
 - Non-DirectVT application runs a pair of operating system processes: terminal process + application process, attached to the `DirectVT Gateway` desktop window.
-- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Built-in Applet` mode. Terminating this process will automatically close the `DirectVT Gateway` desktop window.
+- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Desktop Applet` mode. Terminating this process will automatically close the corresponding `DirectVT Gateway` desktop window.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:

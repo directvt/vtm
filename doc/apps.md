@@ -257,7 +257,7 @@ DirectVT Gateway is used to run DirectVT-aware applications. It is activated by 
 
 //todo in fact, this construction is redundant, since `vtm -r term` can function in any mode without any wrapper
 
-Example (running `vtm -r term` command in DirectVT mode on top of built-in `DirectVT Gateway`):
+Example (running `vtm -r term` command in DirectVT mode on top of built-in `DirectVT Gateway` applet):
 ```
 vtm -r dtvt vtm -r term
 ```
