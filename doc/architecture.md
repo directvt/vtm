@@ -5,7 +5,7 @@ vtm has a number of mutually exclusive internal operating modes and a number of 
 Internal operating modes:
 - Desktop Applet
 - Desktop Server
-- Desktop Server Monitor
+- Desktop Monitor
 - Redirected Input Processor
 
 Interprocess communication modes:
@@ -19,7 +19,7 @@ The following combinations of internal and interprocess modes are supported:
 ---------------------------|----------|---------|-------------
 Desktop Applet             | auto     | auto    |
 Desktop Server             |          |         | auto
-Desktop Server Monitor     |          |         | auto
+Desktop Monitor            |          |         | auto
 Redirected Input Processor |          |         |
 
 The internal operating mode is determined by the command line options used. By default, the `Desktop Client` applet is running standalone.
@@ -84,7 +84,7 @@ Desktop object types:
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
-### Desktop Server Monitor mode
+### Desktop Monitor mode
 
 ...
 
