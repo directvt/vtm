@@ -22,10 +22,10 @@ Option                  | Description
 `-l`, `--listconfig`    | Print configuration.
 `-i`, `--install`       | Perform system-wide installation.
 `-u`, `--uninstall`     | Perform system-wide deinstallation.
+`-q`, `--quiet`         | Disable logging.
 `-x`, `--script <cmds>` | Specifies script commands to be run by the desktop when ready.
 `-c`, `--config <file>` | Specifies the settings file to load.
 `-p`, `--pin <id>`      | Specifies the desktop id it is pinned to.
-`-q`, `--quiet`         | Disable logging.
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
 `-m`, `--monitor`       | Run Desktop Server Monitor.

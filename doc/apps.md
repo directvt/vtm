@@ -255,7 +255,9 @@ TerminalStdioLog             | Stdin/stdout log toggle.
 
 DirectVT Gateway is used to run DirectVT-aware applications. It is activated by the `-r dtvt` option.
 
-Example (running `vtm -r term` command in DirectVT mode on top of built-in terminal of `dtvt` type):
+//todo in fact, this construction is redundant, since `vtm -r term` can function in any mode without any wrapper
+
+Example (running `vtm -r term` command in DirectVT mode on top of built-in `DirectVT Gateway`):
 ```
 vtm -r dtvt vtm -r term
 ```
