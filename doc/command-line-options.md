@@ -10,7 +10,7 @@ vtm [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]
 vtm [ -c <file> ]  -l
 vtm -i | -u | -v | -?
 
-<script commands via piped redirection> | vtm [ -p <id> ]
+<script relay via piped redirection> | vtm [ -p <id> ]
 ```
 
 > By default, the built-in Desktop Client will run and the Desktop Server will be launched in background if it is not running.

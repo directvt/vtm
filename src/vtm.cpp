@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
                 "\n    " + vtm + " [ -c <file> ]  -l"
                 "\n    " + vtm + " -i | -u | -v | -?"
                 "\n"
-                "\n    <script commands via piped redirection> | " + vtm + " [ -p <id> ]"
+                "\n    <script relay via piped redirection> | " + vtm + " [ -p <id> ]"
                 "\n"
                 "\n  Options:"
                 "\n"
