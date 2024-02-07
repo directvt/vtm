@@ -36,7 +36,7 @@ Built-in Application mode is the internal vtm operating mode in which there is o
 
 ...A standalone running built-in application can be seamlesly attached to the desktop using DirectVT Gateway.
 
-...Built-in Application mode is enabled by the `vtm [--run [<vtmapp>]] [args...>]` command line option. Where the `<vtmapp>` value specifies the desktop console object being running, and `<args...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
+...Built-in Application mode is enabled by the `vtm [--run [<type>]] [args...>]` command line option. Where the `<type>` value specifies the desktop console object being running, and `<args...>` is the CUI application to be hosted inside that hosting object. The desktop console object running in detached window mode is called a desktop console.
 
 #### Built-in Applications
 
@@ -50,7 +50,7 @@ Application                        | Object type to run detached        | Descri
 `vtm -r term <cui_app ...>`        | `terminal`/`Terminal Emulator`      | Used to run CUI applications inside `Terminal Emulator`.
 `vtm -r dtty <cui_dtvt_proxy ...>` | `dtty`/`DirectVT Gateway with TTY` | Used to run CUI applications that redirect DirectVT traffic to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<vtmapp>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
+Do not confuse the values of the `<type>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
 
 ### Desktop Server mode
 
@@ -177,16 +177,15 @@ graph TB
 
 - At startup vtm creates a new or connects to an existing desktop session.
 - The desktop session is hosted in a forked and detached vtm process (desktop server).
-- The session is tied to an operating system's named pipe (desktop session connection point).
-- The connection point unique name is coined from the creator's UID or specified explicitly.
+- The session is tied to the desktop id.
 - Only the session creator can access the session (for non-elevated users).
+- The desktop id is coined from the platform-specific creator UID unless explicitly specified.
 - The regular user and the elevated user are different independent users despite having the same username.
 - The session allows multiple access in real time.
 - Users can disconnect from the session and reconnect later.
-- Sessions with different connection points can coexist independently.
-- Applications are launched/terminated by the user within the current desktop session.
-- Non-DirectVT application runs a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Built-in Application` mode. Terminating this process will automatically close the application.
+- Sessions with different desktop ids can coexist independently.
+- Non-DirectVT application runs a pair of operating system processes: terminal process + application process, attached to the `DirectVT Gateway` desktop window.
+- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Built-in Application` mode. Terminating this process will automatically close the `DirectVT Gateway` desktop window.
 - The session exists until it is explicitly shutted down.
 
 Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
@@ -260,7 +259,7 @@ In Text/VT mode, the client side parses input from multiple standard sources, an
 
 Console UI applications running as external processes are instantly rendered into their host desktop windows.
 
-The desktop server receives and caches window rasters and sends the corresponding projection render to the desktop clients every 1/60 of a second.
+The desktop server receives and caches the window rasters and sends the corresponding projection rendering to clients at each internal timer tick.
 
 The binary render stream received from the server side to output is converted by the client side to the format suitable for the console being used to output. The console type is detected at the client side startup and can be one of the following:
 - XTerm-compatible terminal with truecolor support
@@ -281,14 +280,14 @@ The client side outputs the received render to the console only when the console
     vtm
     ```
 
-### Run Terminal Emulator in Built-in Application mode
+### Run Terminal Emulator standalone
 
 - Run command:
     ```bash
     vtm -r term
     ```
 
-### Run a standalone CUI application
+### Run a CUI application standalone
 
 - Run command:
     ```bash
@@ -300,7 +299,7 @@ The client side outputs the received render to the console only when the console
 - Run command:
     ```bash
     vtm -r term </path/to/console/app...>
-    # The `vtm -r term` option means to run the Terminal Emulator in Built-in Application mode to host a CUI application.
+    # The `vtm -r term` option means to run the Terminal Emulator standalone to host a CUI application.
     ```
 
 ## Remote access
