@@ -6,7 +6,7 @@ Internal operating modes:
 - Desktop Applet
 - Desktop Server
 - Desktop Monitor
-- Redirected Input Processor
+- Scripting Bus
 
 Interprocess communication modes:
 - DirectVT
@@ -15,12 +15,12 @@ Interprocess communication modes:
 
 The following combinations of internal and interprocess modes are supported:
 
-|                          | DirectVT | Text/VT | Command line
----------------------------|----------|---------|-------------
-Desktop Applet             | auto     | auto    |
-Desktop Server             |          |         | auto
-Desktop Monitor            |          |         | auto
-Redirected Input Processor |          |         |
+|               | DirectVT | Text/VT | Command line
+----------------|----------|---------|-------------
+Desktop Applet  | auto     | auto    |
+Desktop Server  |          |         | auto
+Desktop Monitor |          |         | auto
+Scripting Bus   |          |         |
 
 The internal operating mode is determined by the command line options used. By default, the `Desktop Client` applet is running standalone.
 In the `Desktop Applet` operating mode the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
@@ -88,7 +88,7 @@ The desktop root after creating a new window or attaching a new user broadcasts 
 
 ...
 
-### Redirected Input Processor mode
+### Scripting Bus mode
 
 ...
 
