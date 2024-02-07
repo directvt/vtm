@@ -29,13 +29,13 @@ Option                  | Description
 `-s`, `--server`        | Run Desktop Server.
 `-d`, `--daemon`        | Run Desktop Server in background.
 `-m`, `--monitor`       | Run Desktop Server Monitor.
-`-r`, `--`, `--run`     | Run built-in application standalone.
-`<type>`                | Built-in application type to run.
-`<args...>`             | Built-in application arguments.
+`-r`, `--`, `--run`     | Run built-in applet standalone.
+`<type>`                | Built-in applet type to run.
+`<args...>`             | Built-in applet arguments.
 
-### Built-in applications
+### Built-in applets
 
-Application               | Type | Arguments
+Applet                    | Type | Arguments
 --------------------------|------|------------------------------------------
 Teletype Console          | vtty | CUI application with arguments to run.
 Terminal Emulator         | term | CUI application with arguments to run.
