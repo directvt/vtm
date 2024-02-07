@@ -1,6 +1,10 @@
 # Text-based Desktop Environment Architecture
 
-vtm has a number of mutually exclusive internal operating modes and a number of mutually exclusive interprocess communication modes.
+The desktop environment is a complex construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
+
+First, vtm comes with a single executable that has a number of mutually exclusive internal operating modes to parallelize functionality by running multiple instances.
+
+The second, the desktop environment interprocess communication, along with vtm instances, involves third-party applications that rely on platform-specific plain-text I/O. So vtm supports several interprocess communication modes to maximize efficiency and minimize cross-platform issues.
 
 Internal operating modes:
 - Desktop Applet
@@ -22,7 +26,7 @@ Desktop Client  | auto     | auto    |
 Desktop Server  |          |         | auto
 Desktop Monitor |          |         | auto
 
-The internal operating mode is determined by the command line options used. By default, the `Desktop Client` mode is used.
+The internal operating mode is determined by the command-line options used. By default, the `Desktop Client` mode is used.
 
 In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
 
@@ -31,11 +35,6 @@ In `Desktop Client` and `Desktop Applet` operating modes the interprocess commun
 ### Desktop Applet mode
 
 `Desktop Applet` mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
-
-//todo
-...By default, the `Desktop Client` will run and the `Desktop Server` will be launched in background if it is not running.
-
-...A standalone running desktop applet can be seamlesly attached to the desktop using DirectVT Gateway.
 
 ...Desktop Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command-line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
 
@@ -50,7 +49,10 @@ Do not confuse the values of the `<type>` option with the names of the desktop o
 
 ### Desktop Client mode
 
-...
+...//todo
+...By default, the `Desktop Client` will run and the `Desktop Server` will be launched in background if it is not running.
+
+...A standalone running `Desktop Client` can be seamlesly attached to the desktop using `DirectVT Gateway` object.
 
 ### Desktop Server mode
 
@@ -336,7 +338,7 @@ The following examples assume that vtm is installed on both the local and remote
     or
     ```bash
     vtm ssh user@server vtm
-    # The `-r dtty` option is auto added if the first command line argument starts with `ssh` keyword.
+    # The `-r dtty` option is auto added if the first command-line argument starts with `ssh` keyword.
     ```
 
 ### Run remote vtm desktop in Text/VT mode over SSH
