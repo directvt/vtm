@@ -1,10 +1,10 @@
 # Text-based Desktop Environment Architecture
 
-The desktop environment is a construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
+The desktop environment is a dynamic construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
 
 First, vtm comes with a single executable that has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
-The second, Along with traditional plain-text xterm-compatible interprocess communication, vtm additionally supports its own binary protocol over standard input/output streams to maximize efficiency and minimize cross-platform issues.
+The second, Along with typical xterm-compatible plain-text interprocess communication over standard input/output streams, vtm additionally has its own binary protocol to maximize communication efficiency and minimize cross-platform issues.
 
 Internal operating modes:
 - Desktop Applet
@@ -27,7 +27,7 @@ Desktop Monitor |          | auto
 
 The internal operating mode is determined by the command-line options used. By default, the `Desktop Client` mode is used.
 
-In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Command line` mode is used and only if the platform TTY is available.
+In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Text/VT` mode is used and only if the platform TTY is available.
 
 ## Internal operating modes
 
@@ -185,7 +185,19 @@ graph TB
 - The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Desktop Applet` mode. Terminating this process will automatically close the corresponding `DirectVT Gateway` desktop window.
 - The session exists until it is explicitly shutted down.
 
-Interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
+There are several interprocess communication levels:
+- Generic text console running `Desktop Applet` (console-applet).
+- Generic text console running `Desktop Client` (console-client).
+- Generic text console running `Desktop Monitor` (console-monitor).
+- Generic text console running `Desktop Server` (console-server).
+- `Desktop Client` connected to `Desktop Server` (client-server).
+- `Desktop Monitor` connected to `Desktop Server` (monitor-server).
+- `Desktop Server` running a dtvt-aware app via `DirectVT Gateway` (server-applet).
+- `DirectVT Gateway` hosting a dtvt-application (applet-dtvt).
+- `Teletype Console` hosting a CUI application (applet-cui).
+....
+
+The client-server interprocess communication relies on the DirectVT binary protocol, multiplexing the following primary channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
@@ -194,11 +206,11 @@ Interprocess communication relies on the DirectVT binary protocol, multiplexing 
 - Render output channel
 - Shutdown event channel
 
-The vtm client side (desktop client) can operate in two modes, either in Text/VT mode (common terminal environment with plain text I/O), or in DirectVT/dtvt mode (vtm environment with binary I/O).
+The console-client communication can operate in one of two modes, either in Text/VT mode (for common terminal environment with plain text I/O), or in DirectVT/dtvt mode (for DirectVT-aware consoles, like as `DirectVT Gateway`).
 
 The vtm server side (desktop server) receives inbound connections only in DirectVT mode.
 
-The DirectVT client-server channel can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
+The DirectVT traffic can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
 ### DirectVT mode
 
