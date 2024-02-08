@@ -1,10 +1,10 @@
 # Text-based Desktop Environment Architecture
 
-The desktop environment is a complex construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
+The desktop environment is a construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
 
-First, vtm comes with a single executable that has a number of mutually exclusive internal operating modes to parallelize functionality by running multiple instances.
+First, vtm comes with a single executable that has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
-The second, the desktop environment interprocess communication, along with vtm instances, involves third-party applications that rely on platform-specific plain-text I/O. So vtm supports several interprocess communication modes to maximize efficiency and minimize cross-platform issues.
+The second, Along with traditional plain-text xterm-compatible interprocess communication, vtm additionally supports its own binary protocol over standard input/output streams to maximize efficiency and minimize cross-platform issues.
 
 Internal operating modes:
 - Desktop Applet
@@ -15,16 +15,15 @@ Internal operating modes:
 Interprocess communication modes:
 - DirectVT
 - Text/VT
-- Command line
 
 The following combinations of internal and interprocess modes are supported:
 
-|               | DirectVT | Text/VT | Command line
-----------------|----------|---------|-------------
-Desktop Applet  | auto     | auto    |
-Desktop Client  | auto     | auto    |
-Desktop Server  |          |         | auto
-Desktop Monitor |          |         | auto
+|               | DirectVT | Text/VT
+----------------|----------|--------
+Desktop Applet  | auto     | auto
+Desktop Client  | auto     | auto
+Desktop Server  |          | auto
+Desktop Monitor |          | auto
 
 The internal operating mode is determined by the command-line options used. By default, the `Desktop Client` mode is used.
 
@@ -201,11 +200,11 @@ The vtm server side (desktop server) receives inbound connections only in Direct
 
 The DirectVT client-server channel can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
-### DirectVT interprocess communication mode
+### DirectVT mode
 
 In DirectVT mode, the client side receives the event stream, and renders itself directly in a binary endianness-aware form, avoiding any expensive parsing and cross-platform issues.
 
-### Text/VT interprocess communication mode
+### Text/VT mode
 
 #### Input
 
