@@ -37,7 +37,7 @@ In `Desktop Client` and `Desktop Applet` operating modes the interprocess commun
 
 `Desktop Applet` mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
-...Desktop Applet mode is enabled by the `vtm [--run [<type>]] [args...>]` command-line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
+...`Desktop Applet` mode is enabled by the `vtm [--run [<type>]] [args...>]` command-line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
 
  Applet                            | Arguments                          | Description
 -----------------------------------|------------------------------------|----------------------
@@ -46,7 +46,7 @@ In `Desktop Client` and `Desktop Applet` operating modes the interprocess commun
 `dtvt`/`DirectVT Gateway`          | `vtm -r dtvt <dtvt_app ...>`       | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
 `dtty`/`DirectVT Gateway with TTY` | `vtm -r dtty <cui_dtvt_proxy ...>` | Used to run CUI applications that redirect DirectVT stream to standard output and require user input via platform's TTY.
 
-Do not confuse the values of the `<type>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in external vtm processes in detached window mode to optimize desktop resource consumption.
+Do not confuse the values of the `<type>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in parallel vtm processes in `Desktop Applet` mode to optimize desktop resource consumption.
 
 ### Desktop Client mode
 
