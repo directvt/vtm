@@ -8,10 +8,10 @@ In general, the desktop environment is a dynamic construct of interacting parall
 
    Internal operating mode  | UI    | Function
   --------------------------|-------|------------------
-  Desktop Applet            | TUI   | Built-in desktop object running in its own process that accepts user input and renders itself.
-  Desktop Client            | TUI   | Built-in desktop client running in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
-  Desktop Server            | CLI   | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
-  Desktop Monitor           | CLI   | Desktop session log monitor and script command relay.
+  Desktop Applet            | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
+  Desktop Client            | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+  Desktop Server            | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+  Desktop Monitor           | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
 - Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
 
