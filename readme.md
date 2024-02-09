@@ -6,7 +6,7 @@
 
 ---
 
-vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. By hosting console applications in floating windows, vtm desktop uses binary-wise DirectVT TUI stack along with traditional plain-text ANSI/VT processing to maximize efficiency and minimize cross-platform issues.
+vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. By hosting console applications in floating windows, vtm desktop leverages the DirectVT binary-wise TUI stack along with traditional ANSI/VT plain text processing to maximize efficiency and minimize cross-platform issues.
 
 # Supported platforms
 
