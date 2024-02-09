@@ -15,7 +15,7 @@ Desktop Client  | auto detected at startup | Built-in desktop client in its own
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
 Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
-The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used and the `Desktop Server` will be launched in background if it is not running.
+The operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used and the `Desktop Server` will be launched in background if it is not running.
 
 ## Desktop Applets
 
