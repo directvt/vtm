@@ -2,34 +2,34 @@
 
 vtm is a text-based desktop environment that comes with a single executable.
 
-In general, the desktop environment is a dynamic construct of interacting parallel processes, which ultimately shapes the following vtm design.
+In general, the desktop environment is a dynamic construct of interacting parallel processes, which ultimately shapes the following vtm design:
 
 - vtm has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
 - Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
 
-   Internal operating mode  | UI    | Function
-  --------------------------|-------|------------------
-  Desktop Applet            | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
-  Desktop Client            | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
-  Desktop Server            | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
-  Desktop Monitor           | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
-
-   Interprocess communication mode  | Form
-  ----------------------------------|------------------
-  Text/VT                           | Character-oriented xterm-compatible communication.
-  DirectVT                          | Full-duplex binary message-based communication.
-
-  Supported combinations | DirectVT | Text/VT
-  -----------------------|----------|--------
-  Desktop Applet         | auto     | auto
-  Desktop Client         | auto     | auto
-  Desktop Server         |          | auto
-  Desktop Monitor        |          | auto
+Internal operating mode   | UI    | Function
+--------------------------|-------|------------------
+Desktop Applet            | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
+Desktop Client            | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Server            | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+Desktop Monitor           | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
 The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used.
 
-In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Text/VT` mode is used and only if the platform TTY is available.
+Interprocess communication mode   | Form
+----------------------------------|------------------
+Text/VT                           | Character-oriented xterm-compatible communication.
+DirectVT                          | Full-duplex binary message-based communication.
+
+In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Text/VT` mode is used and only if the platform TTY is available:
+
+|               | DirectVT | Text/VT
+----------------|----------|--------
+Desktop Applet  | auto     | auto
+Desktop Client  | auto     | auto
+Desktop Server  |          | auto
+Desktop Monitor |          | auto
 
 ## Internal operating modes
 
