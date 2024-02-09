@@ -8,12 +8,12 @@ The following architectural techniques are shaped by the fact that a typical des
 
 - To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI stack called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI stack called `DirectVT`.
 
-Execution mode  | TUI stack                | Environment role
+Execution Mode  | TUI Stack                | Environment Role
 ----------------|--------------------------|------------------
-Desktop Applet  | auto detected            | Built-in desktop applet in its own process that accepts user input and renders itself.
-Desktop Client  | auto detected            | Built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
-Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
+Desktop Applet  | auto detected            | Built-in desktop applet in its own process that accepts user input and renders itself.
+Desktop Client  | auto detected            | Built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
 The execution mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
 
