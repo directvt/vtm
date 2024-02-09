@@ -4,18 +4,18 @@ vtm is a text-based desktop environment that comes with a single executable.
 
 The following architectural techniques are shaped by the fact that a typical desktop environment is a dynamic long-living construct of interacting parallel processes:
 
-- To parallelize functionality by running multiple instances, vtm has a number of mutually exclusive internal operating modes.
+- To parallelize functionality by running multiple instances, vtm has a number of mutually exclusive execution modes.
 
 - To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI mode called `Text/VT`, vtm supports an additional message-based binary TUI mode called `DirectVT`.
 
-Operating Mode  | TUI Mode                 | Environment Role
+Execution Mode  | TUI Mode                 | Environment Role
 ----------------|--------------------------|------------------
 Desktop Applet  | auto detected at startup | Built-in desktop object in its own process that accepts user input and renders itself.
 Desktop Client  | auto detected at startup | Built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
 Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
-The operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
+The execution mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
 
 ## Desktop Applets
 
