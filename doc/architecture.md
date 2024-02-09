@@ -1,22 +1,24 @@
 # Text-based Desktop Environment Architecture
 
-The desktop environment is a dynamic construct of interacting entities, some of which must reside in parallel processes to optimize system resource consumption. For this, vtm has the following architectural traits.
+vtm is a text-based desktop environment that comes with a single executable.
 
-First, vtm comes with a single executable that has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
+In general, the desktop environment is a dynamic construct of interacting parallel processes, which ultimately shapes the following vtm design.
 
- Internal operating mode  | Description
---------------------------|------------------
-Desktop Applet            | ...Built-in desktop object of a certain type running fullscreen.
-Desktop Client            | ...Built-in Desktop Client running fullscreen.
-Desktop Server            | ...Desktop server process running applications and waiting for clients and monitors.
-Desktop Monitor           | ...Desktop log monitor to relay script commands and output logs.
+- vtm has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
-The second, along with typical xterm-compatible plain-text interprocess communication over standard input/output streams, vtm additionally has its own binary protocol to maximize communication efficiency and minimize cross-platform issues.
+   Internal operating mode  | Description
+  --------------------------|------------------
+  Desktop Applet            | ...Built-in desktop object of a certain type running fullscreen.
+  Desktop Client            | ...Built-in Desktop Client running fullscreen.
+  Desktop Server            | ...Desktop server process running applications and waiting for clients and monitors.
+  Desktop Monitor           | ...Desktop log monitor to relay script commands and output logs.
 
- Interprocess communication mode  | Description
-----------------------------------|------------------
-Text/VT                           | Character-oriented xterm-compatible communication.
-DirectVT                          | Full-duplex binary message-based communication.
+- Along with typical xterm-compatible plain-text interprocess communication over standard input/output streams, vtm additionally has its own binary protocol to maximize communication efficiency between instances and minimize cross-platform issues.
+
+   Interprocess communication mode  | Description
+  ----------------------------------|------------------
+  Text/VT                           | Character-oriented xterm-compatible communication.
+  DirectVT                          | Full-duplex binary message-based communication.
 
 The following combinations of internal and interprocess modes are supported:
 
