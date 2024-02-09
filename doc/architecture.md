@@ -2,11 +2,11 @@
 
 vtm is a text-based desktop environment that comes with a single executable.
 
-In general, the desktop environment is a dynamic construct of interacting parallel processes, which ultimately shapes the following vtm design:
+The fact that a typical desktop environment is a dynamic construct of interacting parallel processes shapes the following vtm design:
 
 - To parallelize functionality by running multiple instances, vtm has a number of mutually exclusive internal operating modes.
 
-- To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI mode called `Text/VT`, vtm has its own additional message-based binary TUI mode called `DirectVT`.
+- To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI mode called `Text/VT`, vtm supports an additional message-based binary TUI mode called `DirectVT`.
 
 Operating mode  | UI    | Function
 ----------------|-------|------------------
