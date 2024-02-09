@@ -8,27 +8,16 @@ The fact that a typical desktop environment is a dynamic construct of interactin
 
 - To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI mode called `Text/VT`, vtm supports an additional message-based binary TUI mode called `DirectVT`.
 
-Operating mode  | UI    | Function
-----------------|-------|------------------
-Desktop Applet  | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
-Desktop Client  | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
-Desktop Server  | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
+Operating Mode  | TUI Mode                 | Environment Role
+----------------|--------------------------|------------------
+Desktop Applet  | auto detected at startup | Built-in desktop object in its own process that accepts user input and renders itself.
+Desktop Client  | auto detected at startup | Built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
-The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used.
+The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used and the `Desktop Server` will be launched in background if it is not running.
 
-For the `Desktop Client` and `Desktop Applet` operating modes, the TUI mode is autodetected at startup. For other operating modes, only the `Text/VT` mode is used and only if the platform TTY is available.
-
-|               | DirectVT | Text/VT
-----------------|----------|--------
-Desktop Applet  | auto     | auto
-Desktop Client  | auto     | auto
-Desktop Server  |          | auto
-Desktop Monitor |          | auto
-
-## Internal operating modes
-
-### Desktop Applet mode
+## Desktop Applets
 
  Applet                            | Arguments                          | Description
 -----------------------------------|------------------------------------|----------------------
@@ -39,16 +28,9 @@ Desktop Monitor |          | auto
 
 Do not confuse the values of the `<type>` option with the names of the desktop object types, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name are wrappers for heavy desktop objects that should be launched in parallel vtm processes in `Desktop Applet` mode to optimize desktop resource consumption.
 
-### Desktop Client mode
+...A standalone running `Desktop Applet` can be seamlesly attached to the desktop using `DirectVT Gateway` object.
 
-...//todo
-...By default, the `Desktop Client` will run and the `Desktop Server` will be launched in background if it is not running.
-
-...A standalone running `Desktop Client` can be seamlesly attached to the desktop using `DirectVT Gateway` object.
-
-### Desktop Server mode
-
-#### Desktop structure
+## Desktop Structure
 
 Internally the desktop is represented by the parent-child object tree with a single root object. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
@@ -77,14 +59,16 @@ Desktop object types:
 
 The desktop root after creating a new window or attaching a new user broadcasts a desktop-wide event in order to update users taskbars.
 
-### Desktop Monitor mode
+### Tiling Window Manager
+
+Desktop windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-window-types) for details.
+
+### Desktop Monitor
 ...
 #### Script Relay
 ...
 
-## Interprocess communication modes
-
-### Process model
+## Process Model
 
 ```mermaid
 graph TB
@@ -466,10 +450,6 @@ echo "vtm.selected(Term)" | vtm
 # Run window with terminals
 echo "vtm.run(id=Tile)" | vtm
 ```
-
-# Tiling Window Manager
-
-Desktop windows can be organized using the built-in tiling window manager. Grouping can be temporary within the current session, or pre-configured using settings. See [Settings/App type `group`](settings.md#app-window-types) for details.
 
 # VT logging for developers
 
