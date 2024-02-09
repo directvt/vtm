@@ -8,19 +8,19 @@ In general, the desktop environment is a dynamic construct of interacting parall
 
 - Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
 
-Internal operating mode   | UI    | Function
---------------------------|-------|------------------
-Desktop Applet            | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
-Desktop Client            | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
-Desktop Server            | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor           | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
+Internal mode   | UI    | Function
+----------------|-------|------------------
+Desktop Applet  | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
+Desktop Client  | TUI   | Run the built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Server  | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+Desktop Monitor | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
 The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used.
 
-Interprocess communication mode   | Form
-----------------------------------|------------------
-Text/VT                           | Character-oriented xterm-compatible communication.
-DirectVT                          | Full-duplex binary message-based communication.
+Interprocess mode | Form
+------------------|------------------
+Text/VT           | Character-oriented xterm-compatible communication.
+DirectVT          | Full-duplex binary message-based communication.
 
 In `Desktop Client` and `Desktop Applet` operating modes the interprocess communication mode is autodetected at startup. In other operating modes, only the `Text/VT` mode is used and only if the platform TTY is available:
 
