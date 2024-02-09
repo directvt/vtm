@@ -2,7 +2,7 @@
 
 vtm is a text-based desktop environment that comes with a single executable.
 
-The following architectural techniques are shaped by the fact that a typical desktop environment is a dynamic long-living construct of interacting parallel processes:
+The following architectural techniques are shaped by the fact that a typical desktop environment is a dynamic long-living construct of interacting processes:
 
 - To parallelize functionality by running multiple instances, vtm has a number of mutually exclusive execution modes.
 
