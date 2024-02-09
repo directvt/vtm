@@ -6,16 +6,16 @@ In general, the desktop environment is a dynamic construct of interacting parall
 
 - vtm has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
-   Internal operating mode  | Description
-  --------------------------|------------------
-  Desktop Applet            | ...Built-in desktop object of a certain type running fullscreen.
-  Desktop Client            | ...Built-in Desktop Client running fullscreen.
-  Desktop Server            | ...Desktop server process running applications and waiting for clients and monitors.
-  Desktop Monitor           | ...Desktop log monitor to relay script commands and output logs.
+   Internal operating mode  | UI    | Function
+  --------------------------|-------|------------------
+  Desktop Applet            | TUI   | Built-in desktop object running in its own process that accepts user input and renders itself.
+  Desktop Client            | TUI   | Built-in desktop client running in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+  Desktop Server            | CLI   | The desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
+  Desktop Monitor           | CLI   | Desktop session log monitor and script command relay.
 
-- Along with typical xterm-compatible plain-text interprocess communication over standard input/output streams, vtm additionally has its own binary protocol to maximize communication efficiency between instances and minimize cross-platform issues.
+- Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
 
-   Interprocess communication mode  | Description
+   Interprocess communication mode  | Form
   ----------------------------------|------------------
   Text/VT                           | Character-oriented xterm-compatible communication.
   DirectVT                          | Full-duplex binary message-based communication.
@@ -36,10 +36,6 @@ In `Desktop Client` and `Desktop Applet` operating modes the interprocess commun
 ## Internal operating modes
 
 ### Desktop Applet mode
-
-`Desktop Applet` mode is the internal vtm operating mode in which there is only one fullscreen object of a certain type running. Closing this object terminates the vtm process. If a vtm process running in this mode is hosted inside a desktop `DirectVT Gateway` window, the hosted object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
-
-...`Desktop Applet` mode is enabled by the `vtm [--run [<type>]] [args...>]` command-line option. Where the `<type>` value specifies the built-in desktop applet being running, and `<args...>` is the CUI application to be hosted inside that hosting applet.
 
  Applet                            | Arguments                          | Description
 -----------------------------------|------------------------------------|----------------------
@@ -218,7 +214,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 ### DirectVT mode
 
-In DirectVT mode, the client side receives the event stream, and renders itself directly in a binary endianness-aware form, avoiding any expensive parsing and cross-platform issues.
+In DirectVT mode, the client side receives the event stream, and renders itself directly in a binary endianness-aware form, avoiding any expensive parsing and cross-platform issues. If a vtm process running in this mode is hosted by the desktop `DirectVT Gateway` window, the object behaves as if it were attached directly to the desktop window, seamlessly receiving the entire set of desktop events.
 
 ### Text/VT mode
 
