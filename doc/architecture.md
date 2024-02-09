@@ -6,7 +6,7 @@ The following architectural techniques are shaped by the fact that a typical des
 
 - To parallelize functionality by running multiple instances, vtm has a number of mutually exclusive execution modes.
 
-- To maximize rendering efficiency and minimize cross-platform issues, along with classic character-oriented xterm-compatible TUI stack called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI stack called `DirectVT`.
+- To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI stack called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI stack called `DirectVT`.
 
 Execution Mode  | TUI Stack                | Environment Role
 ----------------|--------------------------|------------------
