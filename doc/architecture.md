@@ -6,6 +6,8 @@ In general, the desktop environment is a dynamic construct of interacting parall
 
 - vtm has a number of mutually exclusive internal operating modes designed to parallelize functionality by running multiple instances.
 
+- Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
+
    Internal operating mode  | UI    | Function
   --------------------------|-------|------------------
   Desktop Applet            | TUI   | Run the built-in desktop object in its own process that accepts user input and renders itself.
@@ -13,21 +15,17 @@ In general, the desktop environment is a dynamic construct of interacting parall
   Desktop Server            | CLI   | Run the desktop environment core that manages connected users and monitors, runs desktop applications, routes user input, and forwards renders to desktop clients.
   Desktop Monitor           | CLI   | Run the built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop.
 
-- Along with typical xterm-compatible plain-text interprocess communication mode over standard input/output streams, vtm has its own additional binary mode to maximize communication efficiency between instances and minimize cross-platform issues.
-
    Interprocess communication mode  | Form
   ----------------------------------|------------------
   Text/VT                           | Character-oriented xterm-compatible communication.
   DirectVT                          | Full-duplex binary message-based communication.
 
-The following combinations of internal and interprocess modes are supported:
-
-|               | DirectVT | Text/VT
-----------------|----------|--------
-Desktop Applet  | auto     | auto
-Desktop Client  | auto     | auto
-Desktop Server  |          | auto
-Desktop Monitor |          | auto
+  Supported combinations | DirectVT | Text/VT
+  -----------------------|----------|--------
+  Desktop Applet         | auto     | auto
+  Desktop Client         | auto     | auto
+  Desktop Server         |          | auto
+  Desktop Monitor        |          | auto
 
 The internal operating mode is selected by the command-line options. By default, the `Desktop Client` mode is used.
 
