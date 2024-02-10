@@ -10,8 +10,8 @@ The following architectural techniques are shaped by the fact that a typical des
 
 Execution Mode  | TUI Stack                | Environment Role
 ----------------|--------------------------|------------------
-Desktop Applet  | auto detected            | Built-in desktop applet in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
-Desktop Client  | auto detected            | Built-in desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
+Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
+Desktop Client  | auto detected            | Desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
 Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
 
