@@ -24,7 +24,7 @@ Applet                              | Description
 Teletype Console<br>`vtty`          | Used to run CUI applications inside `Teletype Console`.
 Terminal Emulator<br>`term`         | Used to run CUI applications inside `Terminal Emulator`.
 DirectVT Gateway<br>`dtvt`          | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
-DirectVT Gateway with TTY<br>`dtty` | Used to run CUI applications that redirect DirectVT stream to standard output and require user input via platform's TTY.
+DirectVT Gateway with TTY<br>`dtty` | Used to run CUI applications that redirect DirectVT flow to standard streams and require user input via platform's TTY.
 
 ## Desktop Structure
 
