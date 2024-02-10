@@ -13,7 +13,7 @@ Execution Mode  | TUI Stack                | Environment Role
 Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
 Desktop Client  | auto detected            | Desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor | n/a<br>command line only | Built-in desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
+Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
 
 The execution mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
 
@@ -28,9 +28,7 @@ DirectVT Gateway with TTY<br>`dtty` | Used to run CUI applications that redir
 
 ## Desktop Structure
 
-Internally the desktop is represented by the parent-child object tree with a single root object. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
-
-The desktop root maintains a desktop-wide configuration, a list of connected users, and a list of running windows.
+Internally the desktop is represented by the parent-child object tree with a single root object that maintains a desktop-wide configuration, a list of connected users, and a list of running windows. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
 Users and windows are associated with the rectangular regions where they are placed at the moment. For the connected user it is a viewport of the terminal used to connect to the desktop. For the window it is a window rectangle itself.
 
