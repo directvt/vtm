@@ -209,6 +209,14 @@ The client side outputs the received render to the console only when the console
 
 ## Desktop Structure
 
+ Term               | Meaning
+--------------------|---------------
+`colored character` | A character depicted with rendition attributes such as background and foreground color.
+`text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
+`text cell`         | A text console cell containing a colored monospaced character or its fragment.
+`bitmap`            | A rectangular block of text cells.
+`canvas`            | A rectangular buffer for text cells output.
+
 Internally the desktop is represented by the parent-child object tree with a single root object that maintains a desktop-wide configuration, a list of connected users, and a list of running windows. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
 Users and windows are associated with the rectangular regions where they are placed at the moment. For the connected user it is a viewport of the terminal used to connect to the desktop. For the window it is a window rectangle itself.
@@ -386,7 +394,7 @@ Important: Avoid enabling the `Logs` switch in the terminal window hosting the `
 
 Important: Be careful with enabling the `Logs` switch when working with sensitive information, since all IO events, including keypresses, are logged in this mode.
 
-# Desktop Taskbar
+## Desktop taskbar customization
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
 ```xml
@@ -438,13 +446,3 @@ echo "vtm.selected(Term)" | vtm
 # Run window with terminals
 echo "vtm.run(id=Tile)" | vtm
 ```
-
-# Terms
-
- Term               | Meaning
---------------------|---------------
-`colored character` | A character depicted with rendition attributes such as background and foreground color.
-`text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
-`text cell`         | A text console cell containing a colored monospaced character or its fragment.
-`bitmap`            | A rectangular block of text cells.
-`canvas`            | A rectangular buffer for text cells output.
