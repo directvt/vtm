@@ -93,9 +93,9 @@ graph TB
 - Users can disconnect from the session and reconnect later.
 - Sessions with different desktop ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI mode called `DirectVT`.
-- All running applications are integrated into the desktop environment via the `DirectVT Gateway` window as a DirectVT-aware endpoint.
+- All running applications are integrated into the desktop environment via the `DirectVT Gateway` window as a DirectVT-endpoint.
   - DirectVT-aware applications could seamlessly send and receive the entire set of desktop events, and render itself directly in binary form, avoiding expensive VT parsing.
-  - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console`/`Terminal Emulator` applet as a DirectVT bridge.
+  - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console` or `Terminal Emulator` applet as the DirectVT-bridge.
 - The desktop environment server can receive and execute script commands relayed from a vtm process running in `Desktop Monitor` runtime mode.
 - In the case of running vtm in `Desktop Monitor` runtime mode with redirected standard input, the entire standard input is directly relayed to the desktop environment server as script commands for execution.
 - The session exists until it is explicitly shutted down.
