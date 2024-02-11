@@ -91,17 +91,17 @@ graph TB
 - Due to the fact that a typical desktop environment is a dynamic long-living construct of interacting processes, vtm has a number of mutually exclusive runtime modes to parallelize functionality by launching multiple instances.
 - The desktop session is instantiated in a vtm process running in the `Desktop Server` runtime mode.
 - Desktop environment users connect to an existing desktop session through a vtm process running in `Desktop Client` runtime mode.
-- The desktop id is coined from the platform-specific creator UID unless explicitly specified.
-- Only the session creator can access the session (for non-elevated users).
+- The desktop session has a unique id coined from the platform-specific creator UID unless explicitly specified.
+- Only the session creator or elevated user can access the session.
 - The regular user and the elevated user are different independent users despite having the same username.
 - The session allows multiple access in real time.
 - Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
-- Sessions with different desktop ids can coexist independently.
+- Sessions with different ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI mode called `DirectVT`.
 - All running applications are integrated into the desktop environment using `DirectVT Gateway` windows as DirectVT endpoints.
   - DirectVT-aware applications connect directly and can seamlessly send and receive the entire set of desktop events, as well as render themselves in binary form, avoiding expensive ANSI/VT parsing.
-  - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console` or `Terminal Emulator` applet as the DirectVT-bridge.
+  - To run non-DirectVT applications, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console` or `Terminal Emulator` applet as the DirectVT bridge to the desktop environment.
 - The desktop environment server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop environment server as script commands for execution.
 - The desktop session exists until it is explicitly shutted down.
@@ -113,7 +113,7 @@ Runtime Mode    | TUI Mode                 | Environment Role
 Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
 Desktop Client  | auto detected            | Desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
-Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
+Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirection.
 
 The runtime mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
 
@@ -168,7 +168,7 @@ In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources
     - `/dev/input/mice`: Received ImPS/2 mouse protocol events are decoded and forwarded to the mouse event channel.
     - `/dev/input/mice.vtm` (used in case of inaccessibility of `/dev/input/mice`)
 
-##### Windows input sources
+##### MS Windows input sources
 
 - ReadConsoleInput events (Win32 Console API)
     - The KEY_EVENT stream is clusterized, forming a key pressed stream forwarded to the keyboard event channel (excluding repeat modifier keys).
@@ -177,8 +177,8 @@ In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources
     - The WINDOW_BUFFER_SIZE_EVENT stream is forwarded to the window size event channel.
     - The MENU_EVENT stream is interpreted using the Event.MenuEvent.dwCommandId value:
         - 0x8000: The subsequent MENU_EVENT record is forwarded to the style event channel.
-        - 0x8001: Clipboard-paste block start (INPUT_RECORD begin mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD end mark appears, and then a whole block of chars is forwarded to the clipboard event channel.
-        - 0x8002: Clipboard-paste block end (INPUT_RECORD end mark).
+        - 0x8001: Clipboard-paste block start (INPUT_RECORD Begin Mark). Subsequent KEY_EVENT records are read until the INPUT_RECORD End Mark appears, and then a whole block of chars is forwarded to the clipboard event channel.
+        - 0x8002: Clipboard-paste block end (INPUT_RECORD End Mark).
 - Window system-defined messages
     - WM_CREATE event is forwarded to the clipboard event channel.
     - WM_CLIPBOARDUPDATE events are forwarded to the clipboard event channel.
@@ -195,17 +195,17 @@ In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources
 
 #### Output
 
-Console UI applications running as external processes are instantly rendered into their host desktop windows.
+Console UI applications running as external processes are instantly rendered into their host `DirectVT Gateways ` windows running directly in the desktop server address space.
 
-The desktop server receives and caches the window rasters and sends the corresponding projection rendering to clients at each internal timer tick.
+The desktop server receives and caches the window rasters and sends the corresponding projection rendering to desktop clients at each internal timer tick.
 
-The binary render stream received from the server side to output is converted by the client side to the format suitable for the console being used to output. The console type is detected at the client side startup and can be one of the following:
+The binary render stream received from the desktop server to output is converted by the desktop client to the format suitable for the console being used to output. The console type is detected at the desktop client startup and can be one of the following:
 - XTerm-compatible terminal with truecolor support
 - XTerm-compatible terminal with 256-color support (Apple Terminal)
 - XTerm-compatible terminal with 16-color support (Linux VGA Console, 16-color terminals)
-- Win32 Console with 16 colors support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
+- Win32 Console with 16-color support (Command Prompt on platforms from Windows 8 upto Windows 2019 Server)
 
-The client side outputs the received render to the console only when the console is ready to accept the next frame.
+The desktop client outputs the received render to the hosting console only when the console is ready to accept the next frame.
 
 ## Desktop Structure
 
@@ -219,7 +219,7 @@ The client side outputs the received render to the console only when the console
 
 Internally the desktop is represented by the parent-child object tree with a single root object that maintains a desktop-wide configuration, a list of connected users, and a list of running windows. The root object broadcasts a fixed number of ticks every second to update the tree state and to do something else in sync.
 
-Users and windows are associated with the rectangular regions where they are placed at the moment. For the connected user it is a viewport of the terminal used to connect to the desktop. For the window it is a window rectangle itself.
+Users and windows are associated with the rectangular regions where they are placed at the moment. For the connected user it is a viewport of the terminal used to connect to the desktop. For the application window it is a window rectangle itself.
 
 Desktop has no bounds and users can navigate the desktop in any direction. For every window located outside the user viewport the navigation string apeears from the viewport center towards the window location.
 
@@ -374,7 +374,7 @@ The following examples assume that vtm is installed on both the local and remote
 
 - Host side
     - Run commands:
-    ```bash
+    ```
     mkfifo in && mkfifo out
     vtm >out <in
     ```
@@ -386,7 +386,7 @@ The following examples assume that vtm is installed on both the local and remote
     ```
 
 
-## Standard I/O streams monitoring
+## Standard I/O stream monitoring
 
 vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
 

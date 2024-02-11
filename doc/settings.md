@@ -199,10 +199,10 @@ Attribute  | Description                                       | Value type | De
 `winsize`  |  App window size                                  | `x;y`      |
 `winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
 `slimmenu` |  App window menu vertical size                    | `boolean`  | `true`
-`type`     |  App window type                                  | `string`   | `SHELL`
+`type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
-`cmd`      |  App constructor arguments                        | `string`   | empty
+`cmd`      |  Desktop window constructor arguments             | `string`   | empty
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
@@ -217,14 +217,14 @@ Value type | Format
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
 
-#### App window types
+#### Desktop Window Types
 
-Window type<br>(case insensitive) | Parameter `cmd=` | Description
+Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`vtty` (default)                  | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
-`term`                            | `cui_app ...`    | Run `cui_app ...` inside of ... type dtvt and term. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
-`dtvt`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of the DirectVT Gateway type. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`dtty`                            | `dtvt_app ...`   | Run `dtvt_app ...` inside the window of dtty type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=dtty cmd="dtvt_app ..."`.
+`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
+`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Emulator dtvt-bridge`. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type=dtty cmd="dtvt_app ..."`.
 `tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
 `site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
@@ -268,7 +268,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=dtvt title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
+        <item id=Term label="Term" type=dtvt title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -294,7 +294,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=pwsh label=PowerShell   type=dtvt title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+        <item id=pwsh label=PowerShell   type=dtvt title="PowerShell"            cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
    <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
    <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
    <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
