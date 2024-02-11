@@ -82,32 +82,32 @@ graph TB
 ```
 
 - vtm is a text-based desktop environment that comes with a single executable.
-- Due to the fact that a typical desktop environment is a dynamic long-living construct of interacting processes, vtm has a number of mutually exclusive execution modes to parallelize functionality by running multiple instances.
-- The desktop session is hosted in a vtm process running in the `Desktop Server` execution mode.
-- Desktop users connect to the existing desktop session via vtm process running in the `Desktop Client` execution mode.
+- Due to the fact that a typical desktop environment is a dynamic long-living construct of interacting processes, vtm has a number of mutually exclusive runtime modes to parallelize functionality by launching multiple instances.
+- The desktop session is instantiated in a vtm process running in the `Desktop Server` runtime mode.
+- Desktop environment users connect to an existing desktop session through a vtm process running in `Desktop Client` runtime mode.
 - The session is tied to the desktop id.
 - Only the session creator can access the session (for non-elevated users).
 - The desktop id is coined from the platform-specific creator UID unless explicitly specified.
 - The regular user and the elevated user are different independent users despite having the same username.
-- The session allows multiple access in real time.
+- The session allows multiple access in real time. Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different desktop ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI mode called `DirectVT`.
-- All desktop applications attached to the hosting `DirectVT Gateway` desktop window.
-- In DirectVT mode, applications could seamlessly receive the entire set of desktop events, and render itself directly in a binary form, avoiding expensive VT parsing.
-- Non DirectVT-aware CUI applications run a pair of operating system processes: terminal process + application process.
-- The terminal process is a fork of the original desktop server process, running `Terminal Emulator` or `Teletype Console` in `Desktop Applet` execution mode.
-- The desktop server can receive and execute script commands relayed from the external vtm process running in `Desktop Monitor` execution mode.
+- All running applications are integrated into the desktop environment via the `DirectVT Gateway` window.
+  - In DirectVT mode, applications could seamlessly send and receive the entire set of desktop events, and render itself directly in binary form, avoiding expensive VT parsing.
+  - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` mode with the `Teletype Console`/`Terminal Emulator` applet as a bridge to DirectVT mode.
+- The desktop environment server can receive and execute script commands relayed from a vtm process running in `Desktop Monitor` runtime mode.
+- In the case of running vtm in `Desktop Monitor` runtime mode with redirected standard input, the entire standard input is directly relayed to the desktop environment server as script commands for execution.
 - The session exists until it is explicitly shutted down.
 
-Execution Mode  | TUI Mode                 | Environment Role
+Runtime Mode    | TUI Mode                 | Environment Role
 ----------------|--------------------------|------------------
 Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
 Desktop Client  | auto detected            | Desktop client in its own process that forwards user input to the desktop and renders the corresponding desktop region with a taskbar overlay.
 Desktop Server  | n/a<br>command line only | The desktop environment core that manages connected users, runs desktop applications, routes user input, and forwards renders to desktop clients.
 Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
 
-The execution mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
+The runtime mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
 
 Desktop Applet                      | Description
 ------------------------------------|----------------------
