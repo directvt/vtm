@@ -130,7 +130,7 @@ DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT
 
 ## TUI Modes
 
-The vtm process instance in `Desktop Client` or `Desktop Applet` runtime mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`/`dtvt` mode.
+An instance of the vtm process in `Desktop Client` or `Desktop Applet` runtime mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`/`dtvt` mode.
 
 ### DirectVT Mode
 
