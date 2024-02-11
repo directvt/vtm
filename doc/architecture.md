@@ -97,7 +97,7 @@ graph TB
   - DirectVT-aware applications could seamlessly send and receive the entire set of desktop events, and render itself directly in binary form, avoiding expensive VT parsing.
   - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console` or `Terminal Emulator` applet as the DirectVT-bridge.
 - The desktop environment server can receive and execute script commands relayed from a vtm process running in `Desktop Monitor` runtime mode.
-- In the case of running vtm in `Desktop Monitor` runtime mode with redirected standard input, the entire standard input is directly relayed to the desktop environment server as script commands for execution.
+- In the case of standard input redirection for a vtm process, all standard input is directly relayed to the desktop environment server as script commands for execution.
 - The session exists until it is explicitly shutted down.
 
 Runtime Mode    | TUI Mode                 | Environment Role
