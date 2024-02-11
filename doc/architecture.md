@@ -130,13 +130,11 @@ DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT
 
 ## TUI Modes
 
-The console-client communication can operate in one of two modes, either in ANSI/VT mode (for common terminal environment with plain text I/O), or in DirectVT/dtvt mode (for DirectVT-aware consoles, like as `DirectVT Gateway`).
-
-The vtm server side (desktop server) receives inbound connections only in DirectVT mode.
+The vtm process instance in `Desktop Client` or `Desktop Applet` runtime mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`/`dtvt` mode.
 
 ### DirectVT Mode
 
-In DirectVT TUI mode, vtm process multiplexing the following primary channels:
+In DirectVT TUI mode, the vtm process, communicating with the desktop server, multiplexes the following main channels:
 - Keyboard event channel
 - Mouse event channel
 - Focus event channel
@@ -151,7 +149,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 #### Input
 
-In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources, and forwards it through appropriate channels to the server side using the DirectVT protocol. The set of input sources varies by platform.
+In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources, and forwards it to the desktop server side using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
@@ -379,6 +377,15 @@ The following examples assume that vtm is installed on both the local and remote
     # Note: Make sure `socat` is installed.
     ```
 
+
+## Standard I/O streams monitoring
+
+vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
+
+Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Desktop Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
+
+Important: Be careful with enabling the `Logs` switch when working with sensitive information, since all IO events, including keypresses, are logged in this mode.
+
 # Desktop Taskbar
 
 The taskbar menu can be configured using a settings file `~/.config/vtm/settings.xml` (`%USERPROFILE%\.config\vtm\settings.xml` on Windows):
@@ -431,14 +438,6 @@ echo "vtm.selected(Term)" | vtm
 # Run window with terminals
 echo "vtm.run(id=Tile)" | vtm
 ```
-
-# VT logging for developers
-
-vtm allows developers to visualize standard input/output streams of the running CUI applications. Launched in the `Desktop Monitor` mode, vtm will log the event stream of each terminal window with the `Logs` switch enabled.
-
-Important: Avoid enabling the `Logs` switch in the terminal window hosting the `Desktop Monitor` process running, this may lead to recursive event logging of event logging with unpredictable results.
-
-Important: Be careful with enabling the `Logs` switch when working with sensitive information, since all IO events, including keypresses, are logged in this mode.
 
 # Terms
 
