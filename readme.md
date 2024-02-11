@@ -37,5 +37,5 @@ vtm is a text-based desktop environment that runs console applications in floati
 - [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Desktop Live Panel](doc/panel.md)
-- [Desktop applets](doc/apps.md)
+- [Desktop Objects / Built-in Applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)
