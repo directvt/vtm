@@ -77,7 +77,7 @@ graph LR
 
 Syntax: `<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]`
 
- Command                                 | Description
+Script Command                           | Description
 -----------------------------------------|-------------------------------------------
 `vtm.run([<attr_list...>])`              | Create and run a menu item constructed using a space-separated list of `<attribute>=<value>` (derived from existing or updated temporary item).<br>Create and run temporary menu item constructed using default attributes if no `<attr_list...>` specified.<br>See [Settings/Taskbar menu item attributes](settings.md#Taskbar-menu-item-attributes) for details.
 `vtm.set(id=<item_id> [<attr_list...>])` | Create or override a menu item using a space-separated list of `<attribute>=<value>`.
@@ -90,7 +90,7 @@ The following characters in script commands will be de-escaped: `\e` `\t` `\r` `
 
 ### Usage Examples
 
-Command                                               | Description
+|                                                     | Description
 ------------------------------------------------------|--------------------------------------------
 `vtm`                                                 | Run Desktop Client.
 `vtm ssh <user@server> vtm`                           | Run Desktop Client remotely over SSH.
