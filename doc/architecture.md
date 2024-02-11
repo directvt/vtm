@@ -149,7 +149,7 @@ The DirectVT stream can be wrapped in any transport layer protocol suitable for 
 
 #### Input
 
-In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources, and forwards it to the desktop server side using the DirectVT transport. The set of input sources varies by platform.
+In ANSI/VT TUI mode, the vtm process parses input from multiple standard sources, and forwards it to the desktop server using the DirectVT transport. The set of input sources varies by platform.
 
 ##### Unix input sources
 
