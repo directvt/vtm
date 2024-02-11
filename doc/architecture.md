@@ -119,7 +119,7 @@ The runtime mode is selected by the command-line options. By default, the `Deskt
 
 ### Desktop Applets
 
-The desktop applet type is specified using the `vtm [-r [<type>]][<args...>]` command line option. The default `vtty` type will be used if `<args...>` is specified without `<type>`.
+The desktop applet type is specified using the `vtm [-r [<type>]][<args...>]` command-line option. The default `vtty` type will be used if `<args...>` is specified without `<type>`.
 
 Desktop Applet             | Type   | Host for
 ---------------------------|--------|----------------------
