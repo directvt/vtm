@@ -104,7 +104,7 @@ graph TB
   - To run non-DirectVT applications in a desktop environment, an additional vtm host process is launched in `Desktop Applet` runtime mode with the `Teletype Console` or `Terminal Emulator` applet as the DirectVT-bridge.
 - The desktop environment server can receive and execute script commands relayed from other vtm processes running on behalf of the session creator.
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop environment server as script commands for execution.
-- The session exists until it is explicitly shutted down.
+- The desktop session exists until it is explicitly shutted down.
 
 ### Runtime Modes
 
@@ -119,12 +119,14 @@ The runtime mode is selected by the command-line options. By default, the `Deskt
 
 ### Desktop Applets
 
-Desktop Applet                      | Description
-------------------------------------|----------------------
-Teletype Console<br>`vtty`          | Used to run CUI applications inside `Teletype Console`.
-Terminal Emulator<br>`term`         | Used to run CUI applications inside `Terminal Emulator`.
-DirectVT Gateway<br>`dtvt`          | Used to run DirectVT aware applications inside the `DirectVT Gateway`.
-DirectVT Gateway with TTY<br>`dtty` | Used to run CUI applications that redirect DirectVT flow to standard streams and require user input via platform's TTY.
+The desktop applet type is specified using the `vtm [-r [<type>]][<args...>]` command line option. The default `vtty` type will be used if `<args...>` is specified without `<type>`.
+
+Desktop Applet             | Type   | Host for
+---------------------------|--------|----------------------
+Teletype Console (default) | `vtty` | CUI applications.
+Terminal Emulator          | `term` | CUI applications.
+DirectVT Gateway           | `dtvt` | DirectVT-aware applications.
+DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT flow to standard streams and require user input via platform's TTY.
 
 ## Desktop Structure
 
