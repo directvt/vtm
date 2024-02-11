@@ -33,7 +33,7 @@ Option                  | Description
 `<type>`                | Desktop applet type to run.
 `<args...>`             | Desktop applet arguments.
 
-### Desktop applets
+### Desktop Applets
 
 Applet                     | Type | Arguments
 ---------------------------|------|------------------------------------------
