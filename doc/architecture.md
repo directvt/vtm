@@ -132,7 +132,7 @@ Each desktop window has a canvas for the hosted object bitmap, sizing grips arou
 
 The desktop window can host an object instance of an arbitrary type. The hosted object controls all the hosting window's properties.
 
-Desktop Objects
+### Desktop Objects
 
 Desktop Object                          | Description
 ----------------------------------------|----------------------
@@ -147,7 +147,7 @@ Desktop Region Marker<br>`site`         | A transparent resizable frame for ma
 
 Do not confuse the `Desktop Applet` names with the desktop object names, even though they are the same literally, e.g. `vtty` and `term`. Desktop objects of the same name as Desktop Applets are wrappers for heavy desktop objects that should be launched in parallel vtm instances.
 
-## TUI Mode
+## TUI Modes
 
 The console-client communication can operate in one of two modes, either in ANSI/VT mode (for common terminal environment with plain text I/O), or in DirectVT/dtvt mode (for DirectVT-aware consoles, like as `DirectVT Gateway`).
 
