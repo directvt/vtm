@@ -100,6 +100,8 @@ graph TB
 - In the case of a vtm process with redirected standard input, all standard input is directly relayed to the desktop environment server as script commands for execution.
 - The session exists until it is explicitly shutted down.
 
+### Runtime Modes
+
 Runtime Mode    | TUI Mode                 | Environment Role
 ----------------|--------------------------|------------------
 Desktop Applet  | auto detected            | Desktop applet of an arbitrary type running in its own process that accepts user input and renders itself. Used to run heavy desktop objects in parallel processes to optimize desktop resource consumption.
@@ -108,6 +110,8 @@ Desktop Server  | n/a<br>command line only | The desktop environment core tha
 Desktop Monitor | n/a<br>command line only | Desktop monitor that outputs the desktop session log and relays script commands to the desktop server via piped redirectioln.
 
 The runtime mode is selected by the command-line options. By default, the `Desktop Client` mode is used with background autostart of the `Desktop Server` if it is not running.
+
+### Desktop Applets
 
 Desktop Applet                      | Description
 ------------------------------------|----------------------
