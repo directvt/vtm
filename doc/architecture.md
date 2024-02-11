@@ -85,7 +85,6 @@ graph TB
 - Due to the fact that a typical desktop environment is a dynamic long-living construct of interacting processes, vtm has a number of mutually exclusive runtime modes to parallelize functionality by launching multiple instances.
 - The desktop session is instantiated in a vtm process running in the `Desktop Server` runtime mode.
 - Desktop environment users connect to an existing desktop session through a vtm process running in `Desktop Client` runtime mode.
-- The session is tied to the desktop id.
 - Only the session creator can access the session (for non-elevated users).
 - The desktop id is coined from the platform-specific creator UID unless explicitly specified.
 - The regular user and the elevated user are different independent users despite having the same username.
