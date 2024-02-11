@@ -1803,27 +1803,18 @@ namespace netxs::os
             return crop;
         }
         // os::env: Get user shell.
-        auto shell(qiew param = {})
+        auto shell()
         {
-            #if defined(_WIN32)
-            auto shell = "cmd"s;
-            if (param.size())
-            {
-                shell += " /c ";
-                shell += param;
-            }
-            #else
             auto shell = os::env::get("SHELL");
-            if (shell.empty() || shell.ends_with("vtm"))
-            {
-                shell = "bash"; //todo request it from user if empty; or make it configurable
-                log("%%Using '%shell%' as a fallback login shell", prompt::os, shell);
-            }
-            if (param.size())
-            {
-                shell += " -c ";
-                shell += param;
-            }
+            #if defined(_WIN32)
+                if (shell.empty()) shell = os::env::get("ComSpec");
+                if (shell.empty()) shell = "cmd";
+            #else
+                if (shell.empty() || shell.ends_with("vtm"))
+                {
+                    shell = "bash"; //todo request it from user if empty; or make it configurable
+                    log("%%Using '%shell%' as a fallback login shell", prompt::os, shell);
+                }
             #endif
             return shell;
         }
@@ -1912,7 +1903,7 @@ namespace netxs::os
                       : path.starts_with("/etc/") ? os::path::etc  / path.substr(5 /* trim "/etc" */)
                                                   : fs::path{ path };
             auto crop_str = "'" + utf::to_utf(crop.wstring()) + "'";
-            utf::change(crop_str, "\\", "/");
+            utf::replace_all(crop_str, "\\", "/");
             return std::pair{ crop, crop_str };
         }
     }
@@ -2466,7 +2457,7 @@ namespace netxs::os
                 {
                     auto cfpath = utf::concat(prefix, os::path::cfg_suffix);
                     auto handle = process::memory::set(cfpath, config);
-                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" --script ", script) : ""s));
+                    auto cmdarg = utf::to_utf(utf::concat(os::process::binary(), " -s -p ", prefix, " -c :", cfpath, script.size() ? utf::concat(" -x ", script) : ""s));
                     if (os::nt::runas(cmdarg))
                     {
                         success.reset(handle); // Do not close until confirmation from the server process is received.
@@ -3512,7 +3503,7 @@ namespace netxs::os
                 auto term = text{ dtvt::vtmode & ui::console::nt16 ? "Windows Console" : "" };
                 if (term.empty()) term = os::env::get("TERM");
                 if (term.empty()) term = os::env::get("TERM_PROGRAM");
-                if (term.empty()) term = "VT";
+                if (term.empty()) term = "xterm-compatible";
                 if (colorterm != "truecolor" && colorterm != "24bit")
                 {
                     auto vt16colors = { // https://github.com//termstandard/colors
@@ -3561,10 +3552,10 @@ namespace netxs::os
                 }
 
                 log(prompt::os, "Terminal type: ", term);
-                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "VT 16-color"
+                log(prompt::os, "Color mode: ", dtvt::vtmode & ui::console::vt16  ? "xterm 16-color"
                                               : dtvt::vtmode & ui::console::nt16  ? "Win32 Console API 16-color"
-                                              : dtvt::vtmode & ui::console::vt256 ? "VT 256-color"
-                                                                                  : "VT truecolor");
+                                              : dtvt::vtmode & ui::console::vt256 ? "xterm 256-color"
+                                                                                  : "xterm truecolor");
                 log(prompt::os, "Mouse mode: ", dtvt::vtmode & ui::console::mouse ? "PS/2"
                                               : dtvt::vtmode & ui::console::nt    ? "Win32 Console API"
                                                                                   : "VT-style");
@@ -3816,7 +3807,7 @@ namespace netxs::os
                     {
                         serverfd = s_pipe_w;
                         clientfd = m_pipe_w;
-                        if constexpr (debugmode) log("%%DirectVT console created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
+                        if constexpr (debugmode) log("%%DirectVT Gateway created for process '%cmd%'", prompt::dtvt, utf::debase(cmd));
                         writesyn.notify_one(); // Flush temp buffer.
                         auto stdwrite = std::thread{ [&]{ writer(); } };
 
@@ -3907,7 +3898,7 @@ namespace netxs::os
                 {
                     std::swap(cache, writebuf);
                     guard.unlock();
-                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::change(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+                    if (terminal.io_log) log(prompt::cin, "\n\t", utf::replace_all(ansi::hi(utf::debase(cache)), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
                     if (termlink->send(cache)) cache.clear();
                     else
                     {
@@ -4664,7 +4655,7 @@ namespace netxs::os
                                 m.changed++;
                                 mouse(m); // Fire mouse event to update kb modifiers.
                             }
-                            if (utf::tocode(r.Event.KeyEvent.uChar.UnicodeChar, point))
+                            if (utf::to_code(r.Event.KeyEvent.uChar.UnicodeChar, point))
                             {
                                 if (point) utf::to_utf_from_code(point, toutf);
                                 k.extflag = r.Event.KeyEvent.dwControlKeyState & ENHANCED_KEY;
@@ -4687,7 +4678,7 @@ namespace netxs::os
                                 auto& up_2 = *(head + 2);
                                 if (dn_1.Event.KeyEvent.uChar.UnicodeChar == up_1.Event.KeyEvent.uChar.UnicodeChar && dn_1.Event.KeyEvent.bKeyDown != 0 && up_1.Event.KeyEvent.bKeyDown == 0
                                  && dn_2.Event.KeyEvent.uChar.UnicodeChar == up_2.Event.KeyEvent.uChar.UnicodeChar && dn_2.Event.KeyEvent.bKeyDown != 0 && up_2.Event.KeyEvent.bKeyDown == 0
-                                 && utf::tocode(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
+                                 && utf::to_code(up_2.Event.KeyEvent.uChar.UnicodeChar, point))
                                 {
                                     head += 3;
                                     utf::to_utf_from_code(point, toutf);
@@ -5730,7 +5721,7 @@ namespace netxs::os
                             if (wraps && width >= panel.x) yield.cuu(width / panel.x);
                             yield.add("\r");
                         }
-                        utf::change(block, "\n", "\r\n"); // Disabled post-processing.
+                        utf::replace_all(block, "\n", "\r\n"); // Disabled post-processing.
                         yield.pushsgr().nil().fgc(yellowlt);
                         width = utf::debase<faux, faux>(block, yield);
                         yield.nil().popsgr();

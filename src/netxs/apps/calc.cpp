@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
 
     os::dtvt::initialize();
     auto syslog = os::tty::logger();
-    auto banner = []{ log(app::calc::desc, ' ', app::shared::version); };
+    auto banner = []{ log(app::calc::name, ' ', app::shared::version); };
     auto cfonly = faux;
     auto cfpath = text{};
     auto errmsg = text{};
@@ -62,22 +62,13 @@ int main(int argc, char* argv[])
         log("\n"
             "\n  Syntax:"
             "\n"
-            "\n    " + os::process::binary<true>() + " [ -c <file> ] [ -l ]"
+            "\n    " + os::process::binary<true>() + " [ -c <file> ][ -l ]"
             "\n"
             "\n  Options:"
             "\n"
-            "\n    No arguments       Run application."
-            "\n    -c, --config <..>  Load specified settings file."
-            "\n    -l, --listconfig   Show configuration and exit."
-            "\n"
-            "\n  Settings loading and merging order:"
-            "\n"
-            "\n    - Initialize hardcoded settings"
-            "\n    - Merge with explicitly specified settings from --config <file>"
-            "\n    - If the --config option is not used or <file> cannot be loaded:"
-            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second +
-            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second +
-            "\n        - Merge with DirectVT packet received from the parent process (dtvt-mode only)"
+            "\n    No arguments         Run application."
+            "\n    -c, --config <file>  Specifies the settings file to load."
+            "\n    -l, --listconfig     Print configuration."
             "\n");
     }
     else if (cfonly)

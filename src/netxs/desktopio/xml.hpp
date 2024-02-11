@@ -606,7 +606,7 @@ namespace netxs::xml
                     auto temp = view{ crop };
                     auto dent = text{ utf::trim_front(temp, whitespaces) };
                     crop = temp;
-                    utf::change(crop, dent, "\n");
+                    utf::replace_all(crop, dent, "\n");
                 }
                 return crop;
             }

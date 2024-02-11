@@ -60,7 +60,7 @@ namespace netxs
                 }
                 void flush()
                 {
-                    block += utf::change(input.str(), "\n", "\r\n"); // We have disabled console post-processing.
+                    block += utf::replace_all(input.str(), "\n", "\r\n"); // We have disabled console post-processing.
                     if (procs.size())
                     {
                         auto shadow = view{ block };

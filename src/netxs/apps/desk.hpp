@@ -7,7 +7,7 @@
 namespace netxs::app::desk
 {
     static constexpr auto id = "desk";
-    static constexpr auto desc = "Taskbar menu";
+    static constexpr auto name = "Taskbar menu";
 
     struct spec
     {
@@ -108,7 +108,7 @@ namespace netxs::app::desk
                     data_src->SIGNAL(tier::request, e2::form::state::maximized, gear_id, ());
                     boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent, -, (gear_id))
                     {
-                        disabled = check_id(boss, gear_id); // On tittle update.
+                        disabled = check_id(boss, gear_id); // On title update.
                     };
                     auto oneshot = ptr::shared(hook{});
                     boss.LISTEN(tier::anycast, events::ui::recalc, state, *oneshot, (oneshot, gear_id, data_src_shadow)) // On session start.
@@ -488,7 +488,7 @@ namespace netxs::app::desk
                                        .cmd = panel_cmd };
                 panel_top = std::max(1, panel_top);
                 panel->limits({ -1, panel_top }, { -1, panel_top })
-                     ->attach(app::shared::builder(app::headless::id)(panel_cfg, config));
+                     ->attach(app::shared::builder(app::vtty::id)(panel_cfg, config));
             }
             auto my_id = id_t{};
 

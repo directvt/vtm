@@ -3,58 +3,35 @@
 
 #pragma once
 
-namespace netxs::app::info
+namespace netxs::app::vtty
 {
-    static constexpr auto id = "info";
+    static constexpr auto id = "vtty";
+    static constexpr auto name = "Teletype Console";
 }
-namespace netxs::app::ssh
+namespace netxs::app::term
 {
-    static constexpr auto id = "ssh";
-}
-namespace netxs::app::headless
-{
-    static constexpr auto id = "headless";
-    static constexpr auto desc = "Headless Terminal Emulator";
-}
-namespace netxs::app::noui
-{
-    static constexpr auto id = "noui";
-    static constexpr auto desc = "Headless Terminal Emulator";
-}
-namespace netxs::app::ansivt
-{
-    static constexpr auto id = "ansivt";
-    static constexpr auto desc = "ansivt";
-}
-namespace netxs::app::directvt
-{
-    static constexpr auto id = "directvt";
-    static constexpr auto desc = "DirectVT Proxy Console";
+    static constexpr auto id = "term";
+    static constexpr auto name = "Terminal Emulator";
 }
 namespace netxs::app::dtvt
 {
     static constexpr auto id = "dtvt";
-    static constexpr auto desc = "DirectVT Proxy Console";
+    static constexpr auto name = "DirectVT Gateway";
 }
-namespace netxs::app::xlinkvt
+namespace netxs::app::dtty
 {
-    static constexpr auto id = "xlinkvt";
-    static constexpr auto desc = "XLinkVT";
+    static constexpr auto id = "dtty";
+    static constexpr auto name = "DirectVT Gateway with TTY";
 }
-namespace netxs::app::xlvt
+namespace netxs::app::site
 {
-    static constexpr auto id = "xlvt";
-    static constexpr auto desc = "XLinkVT";
+    static constexpr auto id = "site";
+    static constexpr auto name = "Desktop Region Marker";
 }
-namespace netxs::app::shell
+namespace netxs::app::info
 {
-    static constexpr auto id = "shell";
-    static constexpr auto desc = "shell";
-}
-namespace netxs::app::region
-{
-    static constexpr auto id = "region";
-    static constexpr auto desc = "region";
+    static constexpr auto id = "info";
+    static constexpr auto name = "Desktop Status";
 }
 
 #include "apps/term.hpp"
@@ -68,29 +45,29 @@ namespace netxs::app::region
 namespace netxs::app::strobe
 {
     static constexpr auto id = "strobe";
-    static constexpr auto desc = "strobe";
+    static constexpr auto name = "strobe";
 }
 namespace netxs::app::settings
 {
     static constexpr auto id = "settings";
-    static constexpr auto desc = "Desktop Settings";
+    static constexpr auto name = "Desktop Settings";
 }
 namespace netxs::app::empty
 {
     static constexpr auto id = "empty";
-    static constexpr auto desc = "empty";
+    static constexpr auto name = "empty";
 }
 namespace netxs::app::truecolor
 {
     static constexpr auto id = "truecolor";
-    static constexpr auto desc = "ANSI Art Test";
+    static constexpr auto name = "ANSI Art Test";
 }
 
 namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_strobe        = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             auto strob = window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -116,7 +93,7 @@ namespace netxs::app::shared
             };
             return window;
         };
-        auto build_Settings      = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_settings      = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -139,7 +116,7 @@ namespace netxs::app::shared
                   });
             return window;
         };
-        auto build_Empty         = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_empty         = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
@@ -161,7 +138,7 @@ namespace netxs::app::shared
                                 ->active();
             return window;
         };
-        auto build_Truecolor     = [](eccc /*appcfg*/, xmls& config)
+        auto build_truecolor     = [](eccc /*appcfg*/, xmls& config)
         {
             //todo put all ansi art into external files
             auto r_grut00 = ansi::wrp(wrap::off).rlf(feed::fwd).jet(bias::center).add(
@@ -293,10 +270,10 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_Strobe    { app::strobe::id   , build_Strobe     };
-        app::shared::initialize builder_Settings  { app::settings::id , build_Settings   };
-        app::shared::initialize builder_Empty     { app::empty::id    , build_Empty      };
-        app::shared::initialize builder_Truecolor { app::truecolor::id, build_Truecolor  };
+        app::shared::initialize builder_strobe    { app::strobe::id   , build_strobe     };
+        app::shared::initialize builder_settings  { app::settings::id , build_settings   };
+        app::shared::initialize builder_empty     { app::empty::id    , build_empty      };
+        app::shared::initialize builder_truecolor { app::truecolor::id, build_truecolor  };
     }
 }
 #endif
@@ -305,104 +282,79 @@ namespace netxs::app::shared
 {
     namespace
     {
-        auto build_Region        = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_site = [](eccc appcfg, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
             window->invoke([&](auto& boss)
+            {
+                //todo reimplement (tiling/window)
+                //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
+                //{
+                //    auto outer = e2::config::plugins::sizer::outer.param();
+                //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
+                //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
+                //    if (actual_rect.hittest(gear.coord))
+                //    {
+                //        rect viewport;
+                //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
+                //        boss.base::extend(viewport);
+                //        gear.dismiss();
+                //    }
+                //};
+                closing_on_quit(boss);
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
+                {
+                    auto title_fg_color = rgba{ 0xFFffffff };
+                    auto area = parent_canvas.full();
+                    auto mark = skin::color(tone::shadower);
+                    mark.fgc(title_fg_color).link(boss.bell::id);
+                    auto fill = [&](cell& c){ c.fusefull(mark); };
+                    parent_canvas.cage(area, dot_21, fill);
+                };
+                boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr, -, (cmd = appcfg.cmd))
+                {
+                    auto& parent = *parent_ptr;
+                    closing_by_gesture(parent);
+
+                    //todo too hacky
+                    if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
                     {
-                        //todo reimplement (tiling/window)
-                        //boss.LISTEN(tier::release, hids::events::mouse::button::dblclick::left, gear)
-                        //{
-                        //    auto outer = e2::config::plugins::sizer::outer.param();
-                        //    boss.RISEUP(tier::request, e2::config::plugins::sizer::outer, outer);
-                        //    auto actual_rect = rect{ dot_00, boss.base::size() } + outer;
-                        //    if (actual_rect.hittest(gear.coord))
-                        //    {
-                        //        rect viewport;
-                        //        gate.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport);
-                        //        boss.base::extend(viewport);
-                        //        gear.dismiss();
-                        //    }
-                        //};
-                        closing_on_quit(boss);
-                        boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
-                        {
-                            auto title_fg_color = rgba{ 0xFFffffff };
-                            auto area = parent_canvas.full();
-                            auto mark = skin::color(tone::shadower);
-                            mark.fgc(title_fg_color).link(boss.bell::id);
-                            auto fill = [&](cell& c){ c.fusefull(mark); };
-                            parent_canvas.cage(area, dot_21, fill);
-                        };
-                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
-                        {
-                            auto& parent = *parent_ptr;
-                            closing_by_gesture(parent);
+                        form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
+                    }
 
-                            //todo too hacky
-                            if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
-                            {
-                                form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
-                            }
-
-                            static auto i = 0; i++;
-                            boss.RISEUP(tier::preview, e2::form::prop::ui::header, title, (ansi::add("View\nRegion ", i)));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
-                            boss.RISEUP(tier::release, e2::config::plugins::align, faux);
-                            boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
-                            parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
-                            {
-                                auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
-                                if (area.hittest(gear.coord))
-                                {
-                                    app::shared::set_title(boss, gear, bias::center);
-                                    gear.dismiss(true);
-                                }
-                            };
-                        };
-                    });
+                    if (cmd.starts_with("@"))
+                    {
+                        static auto title_map = std::unordered_map<text, si32>{};
+                        boss.RISEUP(tier::request, e2::form::prop::ui::header, title, ());
+                        title += std::to_string(++title_map[title]);
+                        boss.RISEUP(tier::preview, e2::form::prop::ui::header, title);
+                    }
+                    boss.RISEUP(tier::release, e2::config::plugins::sizer::outer, outer, (dent{  2, 2, 1, 1 }));
+                    boss.RISEUP(tier::release, e2::config::plugins::sizer::inner, inner, (dent{ -4,-4,-2,-2 }));
+                    boss.RISEUP(tier::release, e2::config::plugins::align, faux);
+                    boss.RISEUP(tier::preview, e2::form::prop::zorder, zpos::backmost);
+                    parent.LISTEN(tier::release, hids::events::mouse::button::click::right, gear)
+                    {
+                        auto area = boss.base::area() + dent{ 2, 2, 1, 1 };
+                        if (area.hittest(gear.coord))
+                        {
+                            app::shared::set_title(boss, gear, bias::center);
+                            gear.dismiss(true);
+                        }
+                    };
+                    parent.LISTEN(tier::release, e2::form::state::keybd::focus::on, gear_id, boss.relyon)
+                    {
+                        if (auto gear_ptr = bell::getref<hids>(gear_id))
+                        {
+                            auto& gear = *gear_ptr;
+                            gear.owner.SIGNAL(tier::release, e2::form::layout::jumpto, parent);
+                        }
+                    };
+                };
+            });
             return window;
         };
-        auto build_Headless      = [](eccc appcfg, xmls& config)
-        {
-            auto menu_white = skin::color(tone::menu_white);
-            auto cB = menu_white;
-
-            auto window = ui::cake::ctor()
-                ->plugin<pro::focus>(pro::focus::mode::active)
-                ->invoke([&](auto& boss)
-                {
-                    closing_on_quit(boss);
-                });
-            window->plugin<pro::track>()
-                ->plugin<pro::acryl>()
-                ->plugin<pro::cache>();
-            //auto object = window->attach(ui::fork::ctor(axis::Y))
-            //                    ->colors(cB.fgc(), cB.bgc());
-            //    auto menu = object->attach(slot::_1, app::shared::menu::create(faux, {}));
-            //    auto layers = object->attach(slot::_2, ui::cake::ctor())
-            //                        ->limits(dot_11, { 400,200 });
-            config.cd("/config/term/color/default/");
-            auto def_fcolor = config.take("fgc", rgba{ whitelt });
-            auto def_bcolor = config.take("bgc", rgba{ blackdk });
-            auto layers = window->attach(ui::cake::ctor())
-                                ->colors(cB)
-                                ->limits(dot_11, { 400,200 });
-            auto scroll = layers->attach(ui::rail::ctor())
-                                ->limits({ 10,1 }); // mc crashes when window is too small
-            if (appcfg.cmd.empty()) appcfg.cmd = os::env::shell() + " -i";
-            auto inst = scroll->attach(ui::term::ctor(config))
-                ->plugin<pro::focus>(pro::focus::mode::focused)
-                ->colors(def_fcolor, def_bcolor)
-                ->invoke([&](auto& boss)
-                {
-                    app::term::terminal_subs(boss, appcfg);
-                });
-            layers->attach(app::shared::scroll_bars(scroll));
-            return window;
-        };
-        auto build_DirectVT      = [](eccc appcfg, xmls& /*config*/)
+        auto build_dtvt = [](eccc appcfg, xmls& /*config*/)
         {
             return ui::dtvt::ctor()
                 ->plugin<pro::focus>(pro::focus::mode::active)
@@ -434,7 +386,7 @@ namespace netxs::app::shared
                     };
                 });
         };
-        auto build_XLinkVT       = [](eccc appcfg, xmls& config)
+        auto build_dtty = [](eccc appcfg, xmls& config)
         {
             auto menu_white = skin::color(tone::menu_white);
             auto cB = menu_white;
@@ -545,20 +497,19 @@ namespace netxs::app::shared
                 });
             return window;
         };
-        auto build_ANSIVT        = [](eccc appcfg, xmls& config)
+        auto build_vtty = [](eccc appcfg, xmls& config)
         {
-            if (appcfg.cmd.empty()) log(prompt::apps, "Nothing to run, use 'type=SHELL' to run instance without arguments");
+            auto args = os::process::binary() + " -r vtty " + appcfg.cmd;
+            std::swap(appcfg.cmd, args);
+            return build_dtvt(appcfg, config);
+        };
+        auto build_term = [](eccc appcfg, xmls& config)
+        {
             auto args = os::process::binary() + " -r term " + appcfg.cmd;
-            appcfg.cmd = args;
-            return build_DirectVT(appcfg, config);
+            std::swap(appcfg.cmd, args);
+            return build_dtvt(appcfg, config);
         };
-        auto build_SHELL         = [](eccc appcfg, xmls& config)
-        {
-            auto args = os::process::binary() + " -r term " + os::env::shell(appcfg.cmd);
-            appcfg.cmd = args;
-            return build_DirectVT(appcfg, config);
-        };
-        auto build_Info          = [](eccc /*appcfg*/, xmls& /*config*/)
+        auto build_info = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             using namespace app::shared;
 
@@ -711,15 +662,17 @@ namespace netxs::app::shared
             return window;
         };
 
-        app::shared::initialize builder_Region    { app::region::id   , build_Region     };
-        app::shared::initialize builder_Headless  { app::headless::id , build_Headless   };
-        app::shared::initialize builder_NoUI      { app::noui::id     , build_Headless   };
-        app::shared::initialize builder_DirectVT  { app::directvt::id , build_DirectVT   };
-        app::shared::initialize builder_DTVT      { app::dtvt::id     , build_DirectVT   };
-        app::shared::initialize builder_XLinkVT   { app::xlinkvt::id  , build_XLinkVT    };
-        app::shared::initialize builder_XLVT      { app::xlvt::id     , build_XLinkVT    };
-        app::shared::initialize builder_ANSIVT    { app::ansivt::id   , build_ANSIVT     };
-        app::shared::initialize builder_SHELL     { app::shell::id    , build_SHELL      };
-        app::shared::initialize builder_Info      { app::info::id     , build_Info       };
+        app::shared::initialize site_builder{ app::site::id, build_site };
+        app::shared::initialize vtty_builder{ app::vtty::id, build_vtty };
+        app::shared::initialize term_builder{ app::term::id, build_term };
+        app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
+        app::shared::initialize dtty_builder{ app::dtty::id, build_dtty };
+        app::shared::initialize info_builder{ app::info::id, build_info };
+        //todo UD
+        app::shared::initialize noui_builder{ "noui", build_vtty };
+        app::shared::initialize xlvt_builder{ "xlvt", build_dtty };
+        app::shared::initialize shell_builder{ "shell", build_vtty };
+        app::shared::initialize ansivt_builder{ "ansivt", build_vtty };
+        app::shared::initialize headless_builder{ "headless", build_vtty };
     }
 }

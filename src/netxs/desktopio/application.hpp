@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.63";
+    static const auto version = "v0.9.64";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -439,12 +439,13 @@ namespace netxs::app::shared
                     "\n" + ansi::nil().wrp(wrap::on) +
                     "\nOnly the following application types are supported"
                     "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
-                    "\n   type = DirectVT(dtvt)"
-                    "\n   type = XLinkVT(xlvt)"
-                    "\n   type = ANSIVT"
-                    "\n   type = SHELL"
-                    "\n   type = Group"
-                    "\n   type = Region"
+                    "\n   type = vtty"
+                    "\n   type = term"
+                    "\n   type = dtvt"
+                    "\n   type = dtty"
+                    "\n   type = tile"
+                    "\n   type = site"
+                    "\n   type = info"
                     "\n"
                     "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
                     .add(prompt::apps, "See logs for details."));

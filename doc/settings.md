@@ -1,4 +1,4 @@
-# Text-based desktop environment settings
+# Text-based Desktop Environment settings
 
 ```mermaid
 graph LR
@@ -12,7 +12,7 @@ graph LR
         C --->|No| F["Merge global"]
         F --> G["Merge user wise"]
         D ---> H["Merge DirectVT packet
-        received from parent"]
+        received from DirectVT Gateway"]
         G --> H
     end
 ```
@@ -26,12 +26,12 @@ graph LR
   - on posix: `~/.config/vtm/settings.xml`
   - on win32: `%userprofile%/.config/vtm/settings.xml`
 - DirectVT packet with configuration payload
-  - The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the dtvt application on launch:
+  - The value of the `cfg` menu item attribute (or `<config>` subsection) will be passed to the dtvt-aware application on launch:
     ```xml
         ...
         <menu>
             ...
-            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection">
+            <item ... type=dtvt ... cfg="xml data as alternative to <config> subsection" cmd="dtvt_app...">
                 <config> <!-- item's `<config>` subsection in case of 'cfg=' is not specified -->
                     ...
                 </config>
@@ -179,7 +179,7 @@ Top-level element `<config>` contains the following base elements:
 
 #### Application Configuration
 
-The menu item of DirectVT type (`type=DirectVT` or `type=dtvt`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
+The menu item of DirectVT Gateway type (`type=dtvt`) can be additionally configured using a `<config>` subsection OR a `cfg="xml-text-data"` attribute. The `<config>` subsection will be ignored if the `cfg` attribute contains a non-empty value.
 
 The content of the `cfg` attribute (or `<config>` subsection) is passed to the dtvt-application on launch.
 
@@ -199,10 +199,10 @@ Attribute  | Description                                       | Value type | De
 `winsize`  |  App window size                                  | `x;y`      |
 `winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
 `slimmenu` |  App window menu vertical size                    | `boolean`  | `true`
-`type`     |  App window type                                  | `string`   | `SHELL`
+`type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
-`cmd`      |  App constructor arguments                        | `string`   | empty
+`cmd`      |  Desktop window constructor arguments             | `string`   | empty
 `cfg`      |  Configuration patch for dtvt-apps in XML-format  | `string`   | empty
 `config`   |  Configuration patch for dtvt-apps                | `xml-node` | empty
 
@@ -217,23 +217,22 @@ Value type | Format
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
 
-#### App window types
+#### Desktop Window Types
 
-Window type<br>(case insensitive) | Parameter        | Description
+Window type<br>(case insensitive) | Parameter `cmd=` | Description
 ----------------------------------|------------------|------------
-`dtvt`\|`DirectVT`                | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of dtvt type. Usage example `type=dtvt cmd="dtvt_app ..."`.
-`xlvt`\|`XLinkVT`                 | `dtvt_app ...`   | Run `dtvt_app ...` inside the built-in terminal of xlvt type which has additional controlling terminal for OpenSSH interactivity. Usage example `type=xlvt cmd="dtvt_app ..."`.
-`ANSIVT`                          | `cli_app ...`    | Run `cli_app ...` inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=ansivt cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term cli_app ..."`.
-`SHELL` (default)                 | `cli_app ...`    | Run `cli_app ...` on top of a system shell that runs inside a pair of nested built-in terminals of type dtvt and term. Usage example `type=shell cmd="cli_app ..."`. It is same as `type=dtvt cmd="$0 -r term your_system_shell -c cli_app ..."`.
-`Group`                           | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id_1 \| _nested_block_ , id_2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=group cmd="v(h1:1(Term, Term),Term)"`.
-`Region`                          |                  | The `cmd` attribute is not used. The attribute `title=<view_title>` is used to set region name/title.
+`vtty` (default)                  | A CUI application command line with arguments | Run a CUI application inside the `Teletype Console dtvt-bridge`. Usage example `type=vtty cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r vtty cui_app ..."`.
+`term`                            | A CUI application command line with arguments | Run a CUI application inside the `Terminal Emulator dtvt-bridge`. Usage example `type=term cmd="cui_app ..."`. It is the same as `type=dtvt cmd="vtm -r term cui_app ..."`.
+`dtvt`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway`. Usage example `type=dtvt cmd="dtvt_app ..."`.
+`dtty`                            | A DirectVT-aware application command line with arguments | Run a DirectVT-aware application inside the `DirectVT Gateway with TTY` which has additional controlling terminal. Usage example `type=dtty cmd="dtvt_app ..."`.
+`tile`                            | [[ v[`n:m:w`] \| h[`n:m:w`] ] ( id1 \| _nested_block_ , id2 \| _nested_block_ )] | Run tiling window manager with layout specified in `cmd`. Usage example `type=tile cmd="v(h1:1(Term, Term),Term)"`.<br>`n:m` - Ratio between panes (default n:m=1:1).<br>`w` - Resizing grip width (default w=1).
+`site`                            | `cmd=@` or empty | The attribute `title=<view_title>` is used to set region name/title. Setting the value of the `cmd` attribute to `@` adds numbering to the title.
 
 The following configuration items produce the same final result:
 ```
 <item ... cmd=mc/>
-<item ... type=SHELL cmd=mc/>
-<item ... type=ANSIVT cmd='bash -c mc'/>
-<item ... type=DirectVT cmd='$0 -r term bash -c mc'/>
+<item ... type=vtty cmd=mc/>
+<item ... type=dtvt cmd='vtm -r vtty mc'/>
 ```
 
 ### Configuration Example
@@ -269,7 +268,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
             </notes>
         </item>
         <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
-        <item id=Term label="Term" type=DirectVT title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
+        <item id=Term label="Term" type=dtvt title="Terminal Emulator" notes=" Terminal Emulator " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
                     <scrollback>
@@ -295,13 +294,13 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=pwsh label="PowerShell" type=DirectVT title="Windows PowerShell"    cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
-   <!-- <item id=WSL  label="WSL"        type=DirectVT title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
-   <!-- <item id=Far  label="Far"        type=SHELL    title="Far Manager"                 cmd="far"                             notes=" Far Manager in its own window "/> -->
-   <!-- <item id=mc   label="mc"         type=SHELL    title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
-        <item id=Tile label="Tile"       type=Group    title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
-        <item id=View label=View         type=Region   title="\e[11:3pView: Region"  winform=maximized         notes=" Desktop region marker "/>
-        <item id=Logs label=Logs         type=DirectVT title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
+        <item id=pwsh label=PowerShell   type=dtvt title="PowerShell"            cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+   <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
+   <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
+   <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->
+        <item id=Tile label=Tile         type=tile title="Tiling Window Manager" cmd="h1:1(Term, Term)"    notes=" Tiling window manager with two terminals attached "/>
+        <item id=Site label=Site         type=site title="\e[11:3pSite "         cmd=@ winform=maximized   notes=" Desktop region marker "/>
+        <item id=Logs label=Logs         type=dtvt title="Logs"                  cmd="$0 -q -r term $0 -m" notes=" Log monitor "/>
         <autorun item*>  <!-- Autorun specified menu items      -->
             <!--  <item* id=Term winsize=80,25 />               -->
             <!--  <item wincoor=92,31 winform=minimized />      --> <!-- Autorun supports minimized winform only. -->

@@ -1598,7 +1598,7 @@ struct impl : consrv
                         {
                             auto& next = src.Event.KeyEvent.uChar.UnicodeChar;
                             auto& copy = code ? left : src;
-                            if (utf::tocode(next, code)) // BMP or the second part of surrogate pair.
+                            if (utf::to_code(next, code)) // BMP or the second part of surrogate pair.
                             {
                                 toANSI.clear();
                                 codec_proc(code, toANSI);
@@ -3325,7 +3325,7 @@ struct impl : consrv
                         }
                         skip = {};
                     }
-                    if (utf::tocode((wchr)src.Char.UnicodeChar, code))
+                    if (utf::to_code((wchr)src.Char.UnicodeChar, code))
                     {
                         toUTF8.clear();
                         utf::to_utf_from_code(code, toUTF8);
@@ -3385,7 +3385,7 @@ struct impl : consrv
         log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
           "\n\tinput.rect: ", view,
           "\n\treply.rect: ", crop,
-          "\n\twrite data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+          "\n\twrite data:\n\t", utf::replace_all(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
         if (crop) unsync = true;
     }
     auto api_scrollback_attribute_set        ()
@@ -3876,7 +3876,7 @@ struct impl : consrv
           "\n\tpanel size: ", size,
           "\n\tinput.rect: ", view,
           "\n\treply.rect: ", crop,
-          "\n\treply data:\n\t", utf::change(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
+          "\n\treply data:\n\t", utf::replace_all(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
     auto api_scrollback_set_active           ()
     {

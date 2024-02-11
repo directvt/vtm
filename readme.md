@@ -1,4 +1,4 @@
-# Text-based desktop environment
+# Text-based Desktop Environment
 
 <a href="https://www.youtube.com/watch?v=kofkoxGjFWQ">
   <img width="400" alt="Demo on YouTube" src="https://user-images.githubusercontent.com/11535558/146906370-c9705579-1bbb-4e9e-8977-47312f551cc8.gif">
@@ -6,7 +6,7 @@
 
 ---
 
-vtm is a text-based desktop environment allowing remote access over tunneling protocols such as SSH. Along with plain-text console I/O, vtm uses binary DirectVT I/O mode to maximize efficiency and minimize cross-platform issues.
+vtm is a text-based desktop environment that runs console applications in floating windows and allows remote access via tunnel protocols such as SSH.
 
 # Supported platforms
 
@@ -31,11 +31,11 @@ vtm is a text-based desktop environment allowing remote access over tunneling pr
 
 # Documentation
 
-- [Architecture and usage](doc/architecture.md)
+- [Architecture](doc/architecture.md)
 - [Building from source](doc/build.md)
 - [Command-line options](doc/command-line-options.md)
 - [User interface](doc/user-interface.md)
 - [Settings](doc/settings.md)
 - [Desktop Live Panel](doc/panel.md)
-- [Built-in applications](doc/apps.md)
+- [Desktop Objects / Built-in Applications](doc/apps.md)
 - Draft: [VT Input Mode](doc/vt-input-mode.md)

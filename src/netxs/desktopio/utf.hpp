@@ -502,7 +502,7 @@ namespace netxs::utf
     };
 
     template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of<view, View>::value == true, View>>
-    inline std::optional<A> to_int(View& ascii)
+    std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
         auto top = ascii.data();
@@ -516,13 +516,13 @@ namespace netxs::utf
         else return std::nullopt;
     }
     template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
-    inline auto to_int(T&& utf8)
+    auto to_int(T&& utf8)
     {
         auto shadow = view{ std::forward<T>(utf8) };
         return to_int<A, Base>(shadow);
     }
     template<si32 Base = 10, class T, class A>
-    inline auto to_int(T&& utf8, A fallback)
+    auto to_int(T&& utf8, A fallback)
     {
         auto result = to_int<A, Base>(std::forward<T>(utf8));
         return result ? result.value() : fallback;
@@ -589,7 +589,7 @@ namespace netxs::utf
         to_utf(utf8, size, wide_text);
         return wide_text;
     }
-    inline utfx tocode(wchr c)
+    utfx to_code(wchr c)
     {
         utfx code;
         if (c >= 0xd800 && c <= 0xdbff)
@@ -604,7 +604,7 @@ namespace netxs::utf
         return code;
     }
     // Return faux only on first part of surrogate pair.
-    inline bool tocode(wchr c, utfx& code)
+    bool to_code(wchr c, utfx& code)
     {
         auto first_part = c >= 0xd800 && c <= 0xdbff;
         if (first_part) // First part of surrogate pair.
@@ -622,10 +622,9 @@ namespace netxs::utf
         }
         return !first_part;
     }
-
     namespace
     {
-        inline void _to_utf(text& utf8, utfx code)
+        void _to_utf(text& utf8, utfx code)
         {
             if (code <= 0x007f)
             {
@@ -838,43 +837,39 @@ namespace netxs::utf
         }
         return from.substr(0, s_size);
     }
-    template<class W, class R>
-    void change(text& utf8, W const& what, R const& replace)
+    void replace_all(text& utf8, auto const& from, auto const& to)
     {
-        auto frag = view{ what };
-        auto fill = view{ replace };
+        auto frag = view{ from };
+        auto fill = view{ to };
         auto spot = 0_sz;
         auto line_sz = utf8.length();
-        auto what_sz = frag.length();
+        auto from_sz = frag.length();
         auto repl_sz = fill.length();
-
-        if (!what_sz || line_sz < what_sz) return;
-
-        if (what_sz == repl_sz)
+        if (!from_sz || line_sz < from_sz) return;
+        if (from_sz == repl_sz)
         {
             while ((spot = utf8.find(frag, spot)) != text::npos)
             {
-                utf8.replace(spot, what_sz, fill);
-                spot += what_sz;
+                utf8.replace(spot, from_sz, fill);
+                spot += from_sz;
             }
         }
         else
         {
             auto last = 0_sz;
-            if (what_sz < repl_sz)
+            if (from_sz < repl_sz)
             {
                 auto temp = text{};
-                temp.reserve((line_sz / what_sz + 1) * repl_sz); // In order to avoid reallocations.
+                temp.reserve((line_sz / from_sz + 1) * repl_sz); // In order to avoid reallocations.
                 auto shadow = view{ utf8 };
                 while ((spot = utf8.find(frag, last)) != text::npos)
                 {
                     temp += shadow.substr(last, spot - last);
                     temp += fill;
-                    spot += what_sz;
+                    spot += from_sz;
                     last  = spot;
                 }
                 temp += shadow.substr(last);
-
                 utf8 = temp; // Assign to perform simultaneous shrinking and copying.
             }
             else
@@ -891,41 +886,21 @@ namespace netxs::utf
                 {
                     if (last) copy(base + last, dest, spot - last);
                     else      dest += spot;
-
                     copy(repl, dest, repl_sz);
-
-                    spot += what_sz;
+                    spot += from_sz;
                     last  = spot;
                 }
-
                 copy(base + last, dest, line_sz - last);
-
                 utf8.resize(dest - base);
             }
         }
     }
-    template<class W, class R>
-    auto change(qiew utf8, W const& what, R const& replace)
+    auto replace_all(qiew utf8, auto const& from, auto const& to)
     {
-        auto crop = utf8.str();
-        change(crop, what, replace);
+        auto crop = utf8.str(); //todo avoid allocation
+        replace_all(crop, from, to);
         return crop;
     }
-    struct filler
-    {
-        std::map<text, text> dict;
-
-        auto& operator [] (text const& s)
-        {
-            return dict[s];
-        }
-        auto operator () (text s)
-        {
-            for (auto& var : dict) utf::change(s, var.first, var.second);
-            for (auto& var : dict) utf::change(s, var.first, var.second);
-            return s;
-        }
-    };
     template<class TextOrView, class T>
     auto remain(TextOrView&& utf8, T const& delimiter, bool lazy = true)
     {
@@ -956,7 +931,7 @@ namespace netxs::utf
         return txt.substr(0, lazy ? txt.find(delimiter, skip) : txt.rfind(delimiter, txt.size() - skip));
     }
     template<class T>
-    inline T domain(T const& txt)
+    T domain(T const& txt)
     {
         return remain(txt);
     }
@@ -1613,8 +1588,7 @@ namespace netxs::utf
         line.remove_suffix(size);
         return crop;
     }
-    template<class TextOrView>
-    auto is_plain(TextOrView&& utf8)
+    auto is_plain(auto&& utf8)
     {
         auto test = utf8.find('\033');
         return test == text::npos;
@@ -1662,8 +1636,7 @@ namespace netxs::utf
             spot += what_sz;
         }
     }
-    template<class V>
-    auto to_hex_0x(V const& n)
+    auto to_hex_0x(auto const& n)
     {
         auto result = (flux{} << std::showbase << std::hex << n).str();
         return result;
