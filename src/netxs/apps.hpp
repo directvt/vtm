@@ -11,7 +11,7 @@ namespace netxs::app::vtty
 namespace netxs::app::term
 {
     static constexpr auto id = "term";
-    static constexpr auto name = "Terminal Emulator";
+    static constexpr auto name = "Terminal Console";
 }
 namespace netxs::app::dtvt
 {

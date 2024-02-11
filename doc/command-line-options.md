@@ -38,7 +38,7 @@ Option                  | Description
 Applet                     | Type | Arguments
 ---------------------------|------|------------------------------------------
 Teletype Console (default) | vtty | CUI application with arguments to run
-Terminal Emulator          | term | CUI application with arguments to run
+Terminal Console           | term | CUI application with arguments to run
 DirectVT Gateway           | dtvt | DirectVT-aware application to run
 DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT I/O
 
@@ -94,12 +94,12 @@ The following characters in script commands will be de-escaped: `\e` `\t` `\r` `
 ------------------------------------------------------|--------------------------------------------
 `vtm`                                                 | Run Desktop Client.
 `vtm ssh <user@server> vtm`                           | Run Desktop Client remotely over SSH.
-`vtm -r term`                                         | Run Terminal Emulator.
-`vtm -r term </path/to/console/app...>`               | Run Terminal Emulator with a CUI application inside.
+`vtm -r term`                                         | Run Terminal Console.
+`vtm -r term </path/to/console/app...>`               | Run Terminal Console with a CUI application inside.
 `vtm ssh <user@server> vtm </path/to/console/app...>` | Run a CUI application remotely over SSH.
 `vtm -x "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)"` | Run Desktop Client and reconfigure the taskbar menu.
 `echo "vtm.del(); vtm.set(splitter id=Apps); vtm.set(id=Term)" \| vtm`<br><br>`echo "vtm.set(id=user@server type=dtty cmd='ssh <user@server> vtm')" \| vtm` | Reconfigure the taskbar menu of the running desktop.
-`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal Emulator on the running desktop.
+`echo "vtm.run()" \| vtm`<br><br>`echo "vtm.run(id=Term)" \| vtm`<br><br>`echo "vtm.dtvt(vtm -r term)" \| vtm` | Run Terminal Console on the running desktop.
 `echo "vtm.run(title='Console \nApplication' cmd='</path/to/app...>')" \| vtm` | Run Teletype Console with a CUI application inside on the running desktop.
 `echo "vtm.run(type=tile title=Terminals cmd='v(h(Term,Term),Term)')" \| vtm` | Run Tiling Window Manager with three terminals attached.
 `echo "vtm.shutdown()" \| vtm`                        | Terminate the running desktop session.

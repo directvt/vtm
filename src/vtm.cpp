@@ -138,7 +138,7 @@ int main(int argc, char* argv[])
                 "\n    Desktop applet             │ Type │ Arguments"
                 "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"
                 "\n    Teletype Console (default) │ vtty │ CUI application with arguments to run."
-                "\n    Terminal Emulator          │ term │ CUI application with arguments to run."
+                "\n    Terminal Console           │ term │ CUI application with arguments to run."
                 "\n    DirectVT Gateway           │ dtvt │ DirectVT-aware application to run."
                 "\n    DirectVT Gateway with TTY  │ dtty │ CUI application to run, forwarding DirectVT I/O."
                 "\n"
