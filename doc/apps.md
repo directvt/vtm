@@ -267,6 +267,8 @@ The Desktop Region Marker is used to quickly navigate the desktop by left-clicki
 
 ## Tiling Window Manager
 
+Tiling Window Manager is a window container that organizes the workspace into mutually non-overlapping panes for nested windows.
+
 ### Features
 
 - Supports Drag and Drop for panes (like tabs in a browser).

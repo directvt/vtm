@@ -37,10 +37,10 @@ Option                  | Description
 
 Applet                     | Type | Arguments
 ---------------------------|------|------------------------------------------
-Teletype Console (default) | vtty | CUI application with arguments to run.
-Terminal Emulator          | term | CUI application with arguments to run.
-DirectVT Gateway           | dtvt | DirectVT-aware application to run.
-DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT I/O.
+Teletype Console (default) | vtty | CUI application with arguments to run
+Terminal Emulator          | term | CUI application with arguments to run
+DirectVT Gateway           | dtvt | DirectVT-aware application to run
+DirectVT Gateway with TTY  | dtty | CUI application to run, forwarding DirectVT I/O
 
 The following commands have a short form:
   - `vtm -r vtty <cui_app...>` can be shortened to `vtm <cui_app...>`.
