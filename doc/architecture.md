@@ -88,7 +88,8 @@ graph TB
 - The desktop id is coined from the platform-specific creator UID unless explicitly specified.
 - Only the session creator can access the session (for non-elevated users).
 - The regular user and the elevated user are different independent users despite having the same username.
-- The session allows multiple access in real time. Multiple connected users can share a focused application, while each user can have multiple applications focused.
+- The session allows multiple access in real time.
+- Multiple connected users can share a focused application, while each user can have multiple applications focused.
 - Users can disconnect from the session and reconnect later.
 - Sessions with different desktop ids can coexist independently.
 - To maximize rendering efficiency and minimize cross-platform issues, along with character-oriented xterm-compatible TUI mode called `ANSI/VT`, vtm supports an additional message-based binary-wise TUI mode called `DirectVT`.
