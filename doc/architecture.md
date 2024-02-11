@@ -130,9 +130,9 @@ DirectVT Gateway with TTY  | `dtty` | CUI applications that redirect DirectVT
 
 ## TUI Modes
 
-An instance of the vtm process in `Desktop Client` or `Desktop Applet` runtime mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`/`dtvt` mode.
+An instance of the vtm process in `Desktop Client` or `Desktop Applet` runtime mode can operate in one of two TUI modes, either in `ANSI/VT` mode, or in `DirectVT`(`dtvt`) mode.
 
-### DirectVT Mode
+### DirectVT
 
 In DirectVT TUI mode, the vtm process, communicating with the desktop server, multiplexes the following main channels:
 - Keyboard event channel
@@ -145,7 +145,7 @@ In DirectVT TUI mode, the vtm process, communicating with the desktop server, mu
 
 The DirectVT stream can be wrapped in any transport layer protocol suitable for stdin/stdout transfer, such as SSH.
 
-### ANSI/VT Mode
+### ANSI/VT
 
 #### Input
 
