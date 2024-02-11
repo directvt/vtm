@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
             auto ok = os::process::dispatch();
             return ok ? 0 : 1;
         }
-        else if (getopt.match("-r", "--", "--run"))
+        else if (getopt.match("-r", "--", "--run", /*UD*/"--runapp"))
         {
             whoami = type::runapp;
             params = getopt.rest();
@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
         {
             whoami = type::logmon;
         }
-        else if (getopt.match("-p", "--pin"))
+        else if (getopt.match("-p", "--pin", /*UD*/"--pipe"))
         {
             vtpipe = getopt.next();
             if (vtpipe.empty())
@@ -317,10 +317,14 @@ int main(int argc, char* argv[])
         auto apname = view{};
         auto aptype = text{};
         utf::to_low(shadow);
-             if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;      }
-        else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;      }
+             if (shadow.starts_with(app::vtty::id))      { aptype = app::teletype::id;  apname = app::teletype::name;  }
+        else if (shadow.starts_with(app::term::id))      { aptype = app::terminal::id;  apname = app::terminal::name;  }
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
         else if (shadow.starts_with(app::dtty::id))      { aptype = app::dtty::id;      apname = app::dtty::name;      }
+        //todo undocumented
+        else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id; apname = app::dtty::name; }
+        else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name; }
+        else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name; }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }

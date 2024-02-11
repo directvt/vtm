@@ -668,5 +668,11 @@ namespace netxs::app::shared
         app::shared::initialize dtvt_builder{ app::dtvt::id, build_dtvt };
         app::shared::initialize dtty_builder{ app::dtty::id, build_dtty };
         app::shared::initialize info_builder{ app::info::id, build_info };
+        //todo UD
+        app::shared::initialize noui_builder{ "noui", build_vtty };
+        app::shared::initialize xlvt_builder{ "xlvt", build_dtty };
+        app::shared::initialize shell_builder{ "shell", build_vtty };
+        app::shared::initialize ansivt_builder{ "ansivt", build_vtty };
+        app::shared::initialize headless_builder{ "headless", build_vtty };
     }
 }
