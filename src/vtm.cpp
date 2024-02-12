@@ -342,8 +342,8 @@ int main(int argc, char* argv[])
         else
         {
             params = " "s + params;
-            aptype = app::vtty::id;
-            apname = app::vtty::name;
+            aptype = app::teletype::id;
+            apname = app::teletype::name;
         }
         log("%appname% %version%", apname, app::shared::version);
         params = utf::remain(params, ' ');
