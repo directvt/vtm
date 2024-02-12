@@ -622,8 +622,32 @@ namespace netxs::app::terminal
         }
     }
 
-    auto ui_term_events = [](ui::term& boss, eccc& appcfg)
+    auto ui_term_events = [](ui::term& boss, eccc& appcfg, xmls& config)
     {
+        auto cwd_sync_ptr = ptr::shared<os::fs::path>();
+        auto& cwd_sync = *cwd_sync_ptr;
+        auto cwdmacro = config.take("/config/term/cwdsync", ""s);
+        boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr))
+        {
+            if (cwd_sync != path)
+            {
+                boss.template expire<tier::preview>(true);
+                cwd_sync = path;
+            }
+        };
+        if (cwdmacro.size())
+        {
+            boss.LISTEN(tier::anycast, e2::form::prop::cwd, path, -, (cwdmacro))
+            {
+                if (cwd_sync != path)
+                {
+                    cwd_sync = path;
+                    auto cmd = cwdmacro;
+                    utf::replace_all(cmd, "$P", path);
+                    boss.data_out(cmd);
+                }
+            };
+        }
         boss.LISTEN(tier::anycast, e2::form::proceed::quit::any, fast)
         {
             boss.SIGNAL(tier::preview, e2::form::proceed::quit::one, fast);
@@ -747,7 +771,7 @@ namespace netxs::app::terminal
             ->colors(def_fcolor, def_bcolor)
             ->invoke([&](auto& boss)
             {
-                ui_term_events(boss, appcfg);
+                ui_term_events(boss, appcfg, config);
             });
         layers->attach(app::shared::scroll_bars(scroll));
         return window;
@@ -906,7 +930,7 @@ namespace netxs::app::terminal
             ->attach_property(ui::term::events::search::status,  terminal::events::search::status)
             ->invoke([&](auto& boss)
             {
-                ui_term_events(boss, appcfg);
+                ui_term_events(boss, appcfg, config);
             });
         return window;
     };

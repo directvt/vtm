@@ -146,10 +146,11 @@ namespace netxs::ansi
     static const auto osc_label        = "1"   ; // Set icon label.
     static const auto osc_title        = "2"   ; // Set title.
     static const auto osc_xprop        = "3"   ; // Set xprop.
+    static const auto osc_set_palette  = "4"   ; // Set 256 colors palette.
     static const auto osc_linux_color  = "P"   ; // Set 16 colors palette. (Linux console)
     static const auto osc_linux_reset  = "R"   ; // Reset 16/256 colors palette. (Linux console)
-    static const auto osc_set_palette  = "4"   ; // Set 256 colors palette.
     static const auto osc_clipboard    = "52"  ; // Set clipboard.
+    static const auto osc_term_notify  = "9"   ; // Terminal notifications.
     static const auto osc_set_fgcolor  = "10"  ; // Set fg color.
     static const auto osc_set_bgcolor  = "11"  ; // Set bg color.
     static const auto osc_reset_color  = "104" ; // Reset color N to default palette. Without params all palette reset.

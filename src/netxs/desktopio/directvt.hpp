@@ -847,6 +847,7 @@ namespace netxs::directvt
         STRUCT_macro(fgc,               (rgba, color))
         STRUCT_macro(slimmenu,          (bool, menusize))
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
+        STRUCT_macro(cwd,               (text, path))
 
         #undef STRUCT_macro
         #undef STRUCT_macro_lite
@@ -1357,7 +1358,8 @@ namespace netxs::directvt
             X(bgc              ) /* Set background color.                         */\
             X(fgc              ) /* Set foreground color.                         */\
             X(slimmenu         ) /* Set window menu size.                         */\
-            X(init             ) /* Startup data.                                 */
+            X(init             ) /* Startup data.                                 */\
+            X(cwd              ) /* CWD Notification.                             */
             //X(quit             ) /* Close and disconnect dtvt app.                */
             //X(focus            ) /* Request to set focus.                         */
 

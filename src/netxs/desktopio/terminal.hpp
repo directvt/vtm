@@ -840,6 +840,7 @@ namespace netxs::ui
                 vt.oscer[osc_reset_fgclr] = V{ p->owner.ctrack.set(osc_reset_fgclr, q); };
                 vt.oscer[osc_reset_bgclr] = V{ p->owner.ctrack.set(osc_reset_bgclr, q); };
                 vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
+                vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -6221,6 +6222,24 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
+        // term: Terminal notification (OSC 9).
+        void osc_notify(view data)
+        {
+            auto delimpos = data.find(';');
+            if (delimpos != text::npos)
+            {
+                static constexpr auto cwdsync = "9"sv;
+                auto type = data.substr(0, delimpos++);
+                if (type == cwdsync)
+                {
+                    auto path = text{ data.substr(delimpos) };
+                    netxs::events::enqueue<faux>(This(), [&, path](auto& /*boss*/) mutable
+                    {
+                        this->RISEUP(tier::preview, e2::form::prop::cwd, path); //todo VS2019 requires `this`
+                    });
+                }
+            }
+        }
         // term: Forward clipboard data (OSC 52).
         void forward_clipboard(view data)
         {
@@ -7641,6 +7660,13 @@ namespace netxs::ui
                     master.RISEUP(tier::release, e2::form::global::sysstart, 1);
                 });
             }
+            void handle(s11n::xs::cwd                 lock)
+            {
+                netxs::events::enqueue(master.This(), [&, path = lock.thing.path](auto& /*boss*/)
+                {
+                    master.RISEUP(tier::preview, e2::form::prop::cwd, path);
+                });
+            }
             evnt(dtvt& master)
                 :   s11n{ *this, master.id },
                   master{ master           }
@@ -7718,6 +7744,10 @@ namespace netxs::ui
                     auto deed = master.bell::template protos<tier::anycast>();
                          if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
                     else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
+                };
+                master.LISTEN(tier::anycast, e2::form::prop::cwd, path, tokens)
+                {
+                    s11n::cwd.send(master, path);
                 };
                 master.LISTEN(tier::release, e2::area, new_area, tokens)
                 {
