@@ -253,7 +253,7 @@ R"==(
             <layout = QWERTY/>  <!-- Not implemented. QWERTY, AZERTY, Dvorak, etc. -->
         </keyboard>
     </client>
-    <term cwdsync="">       <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
+    <term>       <!-- Base configuration for the Term app. It can be partially overridden by the menu item's config subarg. -->
         <scrollback>
             <size=40000    />   <!-- Initial scrollback buffer length. -->
             <growstep=0    />   <!-- Scrollback buffer grow step. The buffer behaves like a ring in case of zero. -->
@@ -349,6 +349,9 @@ R"==(
                 </label>
                 <label="\e[38:2:0:255:255mHTML-code\e[m" data="html"/>
                 <label="\e[38:2:0:255:255mProtected\e[m" data="protected"/>
+            </item>
+            <item label="Sync" notes=" CWD sync is off " type=Option action=TerminalCwdSync data="off">
+                <label="\e[38:2:0:255:0mSync\e[m" notes=" CWD sync is on " data="on"/>
             </item>
             <item label="Log" notes=" Console logging is off " type=Option action=TerminalStdioLog data="off">
                 <label="\e[38:2:0:255:0mLog\e[m" notes=" Console logging is on   \n Run Logs to see output  " data="on"/>

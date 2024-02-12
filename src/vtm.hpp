@@ -1506,6 +1506,16 @@ namespace netxs::app::vtm
                             boss.SIGNAL(tier::release, e2::form::state::maximized, owner_id);
                         }
                     };
+
+                    boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent_ptr)
+                    {
+                        auto& parent = *parent_ptr;
+                        parent.LISTEN(tier::preview, e2::form::prop::cwd, path, boss.relyon)
+                        {
+                            boss.SIGNAL(tier::anycast, e2::form::prop::cwd, path);
+                            parent.template expire<tier::preview>(true);
+                        };
+                    };
                 });
         }
         auto create(link& what)
