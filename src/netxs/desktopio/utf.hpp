@@ -1342,7 +1342,7 @@ namespace netxs::utf
         {
             auto c = *head;
                  if (delims.find(c) != view::npos) break;
-            else if (c == '\\' && head != tail) ++head;
+            else if (c == '\\' && ++head == tail) break;
             ++head;
         }
         return head;
@@ -1354,7 +1354,7 @@ namespace netxs::utf
         {
             auto c = *head;
                  if (delim == c) break;
-            else if (c == '\\' && head != tail) ++head;
+            else if (c == '\\' && ++head == tail) break;
             ++head;
         }
         return head;

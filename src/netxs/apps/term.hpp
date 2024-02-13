@@ -857,6 +857,7 @@ namespace netxs::app::terminal
                         cwd_path = path;
                         auto drv = cwd_path.root_name().string();
                         auto cmd = old != drv ? drv + "\n" : text{};
+                        //auto cmd = (drv.size() && old != drv) ? drv + " && " : text{};
                         auto cwd = cwd_path.string();
                         auto spc = cwd.find(' ') != text::npos;
                         cmd += spc ? "cd \"" + cwd + "\"\n"
