@@ -838,7 +838,7 @@ namespace netxs::app::terminal
                     {
                         cwd_sync = state;
                         boss.SIGNAL(tier::anycast, terminal::events::release::cwdsync, state);
-                        if (cwd_sync) boss.data_out("\n"); // Trigger command prompt reprint.
+                        if (cwd_sync) boss.data_out("cd .\n"); // Trigger command prompt reprint.
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr, cwd_path_ptr))
