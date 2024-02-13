@@ -1513,7 +1513,6 @@ namespace netxs::app::vtm
                         parent.LISTEN(tier::preview, e2::form::prop::cwd, path, boss.relyon)
                         {
                             boss.SIGNAL(tier::anycast, e2::form::prop::cwd, path);
-                            parent.template expire<tier::preview>(true);
                         };
                     };
                 });
