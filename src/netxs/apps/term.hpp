@@ -853,14 +853,11 @@ namespace netxs::app::terminal
                 {
                     if (cwd_sync && path.size() && cwd_path != path)
                     {
-                        auto old = cwd_path.root_name().string();
                         cwd_path = path;
-                        auto drv = cwd_path.root_name().string();
-                        auto cmd = old != drv ? drv + "\n" : text{};
                         auto cwd = cwd_path.string();
                         auto spc = cwd.find(' ') != text::npos;
-                        cmd += spc ? "cd \"" + cwd + "\"\n"
-                                   : "cd "   + cwd + "\n";
+                        auto cmd = spc ? "cd \"" + cwd + "\"\n"
+                                       : "cd "   + cwd + "\n";
                         boss.data_out(cmd);
                     }
                 };

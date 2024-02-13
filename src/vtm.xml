@@ -280,7 +280,7 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitedk />  <!-- Initial colors. -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->

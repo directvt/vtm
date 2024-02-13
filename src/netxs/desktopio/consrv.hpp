@@ -637,6 +637,26 @@ struct impl : consrv
             }
             return crop;
         }
+        void map_cd_shim(text& exe, text& line)
+        {
+            static constexpr auto cd_prefix = "cd "sv;
+            static constexpr auto cd_forced = "cd/d ";
+            if (exe.starts_with("cmd")
+             && line.size() > cd_prefix.size()
+             && line.back() != '\t')
+            {
+                auto prefix = line.substr(0, 3);
+                utf::to_low(prefix);
+                if (prefix != cd_prefix) return;
+                auto crop = qiew{ line }.substr(cd_prefix.size());
+                auto path = crop;
+                utf::trim_front(path, " \t\r\n");
+                if (path && path.front() != '/')
+                {
+                    line = cd_forced + crop.str();
+                }
+            }
+        }
         void map_aliases(text& exe, text& line)
         {
             if (macros.empty() || line.empty()) return;
@@ -1332,6 +1352,7 @@ struct impl : consrv
                 if (EOFpos != text::npos) cooked.ustr.resize(EOFpos);
             }
             map_aliases(nameview, cooked.ustr);
+            map_cd_shim(nameview, cooked.ustr);
             cooked.save(utf16);
             if (stream.empty()) ondata.flush();
 
