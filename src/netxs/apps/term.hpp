@@ -834,8 +834,12 @@ namespace netxs::app::terminal
                 auto& cwd_path = *cwd_path_ptr;
                 boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
                 {
-                    cwd_sync = state;
-                    boss.SIGNAL(tier::anycast, terminal::events::release::cwdsync, state);
+                    if (cwd_sync != state)
+                    {
+                        cwd_sync = state;
+                        boss.SIGNAL(tier::anycast, terminal::events::release::cwdsync, state);
+                        if (cwd_sync) boss.data_out("\n"); // Trigger command prompt reprint.
+                    }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr, cwd_path_ptr))
                 {
