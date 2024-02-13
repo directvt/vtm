@@ -236,6 +236,11 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
             }
+            void handle(s11n::xs::cwd         lock)
+            {
+                auto& path = lock.thing.path;
+                notify<tier::anycast>(e2::form::prop::cwd, path);
+            }
             void handle(s11n::xs::slimmenu    lock)
             {
                 auto& item = lock.thing;
@@ -1380,6 +1385,10 @@ namespace netxs::ui
                 LISTEN(tier::preview, e2::config::fps, fps, tokens)
                 {
                     conio.fps.send(canal, fps);
+                };
+                LISTEN(tier::preview, e2::form::prop::cwd, path, tokens)
+                {
+                    conio.cwd.send(canal, path);
                 };
                 LISTEN(tier::preview, hids::events::mouse::button::click::any, gear, tokens)
                 {

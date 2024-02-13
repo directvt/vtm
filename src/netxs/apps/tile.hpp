@@ -297,6 +297,13 @@ namespace netxs::app::tile
                         {
                             pro::focus::set(boss.This(), gear.id, pro::focus::solo::on, pro::focus::flip::off);
                         };
+                        boss.LISTEN(tier::release, e2::form::upon::vtree::attached, parent)
+                        {
+                            parent->LISTEN(tier::anycast, e2::form::prop::cwd, path, boss.relyon)
+                            {
+                                boss.SIGNAL(tier::anycast, e2::form::prop::cwd, path);
+                            };
+                        };
                     })
                     ->branch(slot::_1, ui::postfx<cell::shaders::contrast>::ctor()
                         ->upload(what.header)
@@ -821,6 +828,10 @@ namespace netxs::app::tile
                             gate.SIGNAL(tier::release, e2::data::changed, menuid); // Set current  default;
                         }
                         oneoff.reset();
+                    };
+                    boss.LISTEN(tier::preview, e2::form::prop::cwd, path)
+                    {
+                        boss.SIGNAL(tier::anycast, e2::form::prop::cwd, path);
                     };
                 });
 

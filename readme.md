@@ -6,7 +6,7 @@
 
 ---
 
-vtm is a text-based desktop environment that runs console applications in floating windows and allows remote access via tunnel protocols such as SSH.
+vtm is a text-based desktop environment that runs console applications in floating windows and allows remote access over tunnelling protocols such as SSH.
 
 # Supported platforms
 

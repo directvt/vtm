@@ -102,6 +102,7 @@ Repeat    | Selects the next label and exec the function specified by the `actio
 
 Value                        | Description
 -----------------------------|------------
+TerminalCwdSync              | Current working directory sync toggle.
 TerminalSelectionMode        | Set terminal text selection mode. The `data=` attribute can have the following values `none`, `text`, `ansi`, `rich`, `html`, `protected`.
 TerminalWrapMode             | Set terminal scrollback lines wrapping mode. Applied to the active selection if it is. The `data=` attribute can have the following values `on`, `off`.
 TerminalAlignMode            | Set terminal scrollback lines aligning mode. Applied to the active selection if it is. The `data=` attribute can have the following values `left`, `right`, `center`.
