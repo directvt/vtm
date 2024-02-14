@@ -107,7 +107,6 @@ namespace netxs::app::shared
                 gear.set_clipboard(dot_00, old_title, mime::ansitext);
             }
         }
-        gear.dismiss(true);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;

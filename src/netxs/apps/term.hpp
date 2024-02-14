@@ -176,7 +176,7 @@ namespace netxs::app::terminal
                     {
                         if (item.brand == menu::item::Option) _update_gear(boss, item, gear);
                     }
-                    gear.dismiss(true);
+                    gear.nodbl = true;
                 };
             }
         };
