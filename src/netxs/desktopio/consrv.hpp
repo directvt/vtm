@@ -227,9 +227,9 @@ struct impl : consrv
         auto done(para& line)
         {
             auto& new_data = line.content();
-            auto trimmed = utf::trim(new_data.utf8(), whitespaces);
-
-            if (trimmed.size() && (data.empty() || data.back() != new_data))
+            if (new_data.size().x  // Don't save space prefixed commands in history.
+            && !new_data.peek(dot_00).isspc()
+            && (data.empty() || data.back() != new_data))
             {
                 data.push_back(new_data);
                 seek = data.size() - 1;
