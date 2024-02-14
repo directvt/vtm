@@ -641,14 +641,16 @@ struct impl : consrv
         {
             static constexpr auto cd_prefix = "cd "sv;
             static constexpr auto cd_forced = "cd/d ";
+            auto shadow = qiew{ line };
+            utf::trim_front(shadow);
             if (exe.starts_with("cmd")
-             && line.size() > cd_prefix.size()
-             && line.back() != '\t')
+             && shadow.size() > cd_prefix.size()
+             && shadow.back() != '\t')
             {
-                auto prefix = line.substr(0, 3);
+                auto prefix = shadow.substr(0, 3).str();
                 utf::to_low(prefix);
                 if (prefix != cd_prefix) return;
-                auto crop = qiew{ line }.substr(cd_prefix.size());
+                auto crop = shadow.substr(cd_prefix.size());
                 auto path = crop;
                 utf::trim_front(path, " \t\r\n");
                 if (path && path.front() != '/')
