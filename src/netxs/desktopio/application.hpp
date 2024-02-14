@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.66";
+    static const auto version = "v0.9.67";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -107,7 +107,6 @@ namespace netxs::app::shared
                 gear.set_clipboard(dot_00, old_title, mime::ansitext);
             }
         }
-        gear.dismiss(true);
     };
 
     using builder_t = std::function<ui::sptr(eccc, xmls&)>;

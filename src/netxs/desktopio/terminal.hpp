@@ -6230,6 +6230,7 @@ namespace netxs::ui
             {
                 static constexpr auto cwdsync = "9"sv;
                 auto type = data.substr(0, delimpos++);
+                if (io_log) log("\tOSC %%;%type% notify: ", ansi::osc_term_notify, type, ansi::hi(utf::debase<faux, faux>(data.substr(delimpos))));
                 if (type == cwdsync)
                 {
                     auto path = text{ data.substr(delimpos) };

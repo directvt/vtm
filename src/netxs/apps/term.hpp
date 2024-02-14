@@ -176,7 +176,7 @@ namespace netxs::app::terminal
                     {
                         if (item.brand == menu::item::Option) _update_gear(boss, item, gear);
                     }
-                    gear.dismiss(true);
+                    gear.nodbl = true;
                 };
             }
         };
@@ -838,7 +838,7 @@ namespace netxs::app::terminal
                     {
                         cwd_sync = state;
                         boss.SIGNAL(tier::anycast, terminal::events::release::cwdsync, state);
-                        if (cwd_sync) boss.data_out("\n"); // Trigger command prompt reprint.
+                        if (cwd_sync) boss.data_out(" cd .\n"); // Trigger command prompt reprint.
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr, cwd_path_ptr))
@@ -856,8 +856,8 @@ namespace netxs::app::terminal
                         cwd_path = path;
                         auto cwd = cwd_path.string();
                         auto spc = cwd.find(' ') != text::npos;
-                        auto cmd = spc ? "cd \"" + cwd + "\"\n"
-                                       : "cd "   + cwd + "\n";
+                        auto cmd = spc ? " cd \"" + cwd + "\"\n"
+                                       : " cd "   + cwd + "\n";
                         boss.data_out(cmd);
                     }
                 };
