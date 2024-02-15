@@ -88,6 +88,11 @@ namespace netxs::app::terminal
     static constexpr auto id = "terminal";
     static constexpr auto name = "Terminal Console";
 
+    namespace attr
+    {
+        static constexpr auto cwdsync = "cwdsync";
+    }
+
     using events = netxs::events::userland::terminal;
 
     namespace
@@ -828,17 +833,23 @@ namespace netxs::app::terminal
             ->plugin<pro::focus>(pro::focus::mode::focused)
             ->invoke([&](auto& boss)
             {
+                auto cwd_commands = config.take(attr::cwdsync, ""s);
                 auto cwd_sync_ptr = ptr::shared<bool>();
                 auto cwd_path_ptr = ptr::shared<os::fs::path>();
                 auto& cwd_sync = *cwd_sync_ptr;
                 auto& cwd_path = *cwd_path_ptr;
-                boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state)
+                boss.LISTEN(tier::anycast, terminal::events::preview::cwdsync, state, -, (cwd_commands))
                 {
                     if (cwd_sync != state)
                     {
                         cwd_sync = state;
                         boss.SIGNAL(tier::anycast, terminal::events::release::cwdsync, state);
-                        if (cwd_sync) boss.data_out(" cd .\n"); // Trigger command prompt reprint.
+                        if (cwd_sync)
+                        {
+                            auto cmd = cwd_commands;
+                            utf::replace_all(cmd, "$P", ".");
+                            boss.data_out(cmd); // Trigger command prompt reprint.
+                        }
                     }
                 };
                 boss.LISTEN(tier::preview, e2::form::prop::cwd, path, -, (cwd_sync_ptr, cwd_path_ptr))
@@ -849,18 +860,21 @@ namespace netxs::app::terminal
                         cwd_path = path;
                     }
                 };
-                boss.LISTEN(tier::anycast, e2::form::prop::cwd, path)
+                if (cwd_commands.size())
                 {
-                    if (cwd_sync && path.size() && cwd_path != path)
+                    boss.LISTEN(tier::anycast, e2::form::prop::cwd, path, -, (cwd_commands))
                     {
-                        cwd_path = path;
-                        auto cwd = cwd_path.string();
-                        auto spc = cwd.find(' ') != text::npos;
-                        auto cmd = spc ? " cd \"" + cwd + "\"\n"
-                                       : " cd "   + cwd + "\n";
-                        boss.data_out(cmd);
-                    }
-                };
+                        if (cwd_sync && path.size() && cwd_path != path)
+                        {
+                            cwd_path = path;
+                            auto cwd = cwd_path.string();
+                            if (cwd.find(' ') != text::npos) cwd = '\"' + cwd + '\"';
+                            auto cmd = cwd_commands;
+                            utf::replace_all(cmd, "$P", cwd);
+                            boss.data_out(cmd);
+                        }
+                    };
+                }
             });
         auto sb = layers->attach(ui::fork::ctor());
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
