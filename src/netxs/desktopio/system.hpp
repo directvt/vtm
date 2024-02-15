@@ -3589,6 +3589,10 @@ namespace netxs::os
                 ok(::GetConsoleTitleW(wstr.data(), size), "::GetConsoleTitleW(vtmode)", os::unexpected);
                 dtvt::backup.title = wstr.data();
                 ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
+                if (auto cmd_prompt = os::env::get("PROMPT"); cmd_prompt.empty() || cmd_prompt == "$P$G")
+                {
+                    os::env::set("PROMPT", "$e]9;9;$P$e\\$P$G"); // Enable OSC 9;9 notifications for cmd.exe by default.
+                }
 
             #else
 
