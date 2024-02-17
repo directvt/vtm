@@ -1215,7 +1215,11 @@ struct impl : consrv
                             default:
                             {
                                 n--;
-                                if (c < ' ')
+                                if (c == '\0' && v >= VK_OEM_4 && v <= VK_OEM_8) // Dead key pressed.
+                                {
+                                    break;
+                                }
+                                else if (c < ' ')
                                 {
                                     auto cook = [&](auto c, auto crlf_value)
                                     {
