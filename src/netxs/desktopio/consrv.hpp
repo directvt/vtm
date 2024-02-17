@@ -1215,7 +1215,7 @@ struct impl : consrv
                             default:
                             {
                                 n--;
-                                if (c == '\0' && v >= VK_OEM_4 && v <= VK_OEM_8) // Dead key pressed.
+                                if (c == '\0' && v >= VK_OEM_1 && v <= VK_OEM_8) // Dead key detection.
                                 {
                                     break;
                                 }
