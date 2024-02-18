@@ -106,8 +106,10 @@ namespace netxs::os
     static constexpr auto unexpected = " returns unexpected result"sv;
     static auto autosync = true; // Auto sync viewport with cursor position (win7/8 console).
     static auto finalized = flag{ faux }; // Ready flag for clean exit.
-    void release()
+    static auto logbuffer = text{};
+    void release(bool clear_log = true)
     {
+        if (clear_log) os::logbuffer.clear(); // Graceful exit w/o errors.
         os::finalized.exchange(true);
         os::finalized.notify_all();
     }
@@ -3488,23 +3490,28 @@ namespace netxs::os
             }
             else
             {
+                dtvt::win_sz = dtvt::consize();
+                trygui = faux; // Not implemented.
                 if (trygui)
                 {
-                    if (::FreeConsole() && ::AttachConsole(ATTACH_PARENT_PROCESS)) // We are hosted by shell.
+                    if (::FreeConsole() && ::AttachConsole(ATTACH_PARENT_PROCESS)) // We are hosted by a shell.
                     {
                         os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
                         os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
                         os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
                     }
-                    else
+                    else // Run gui console.
                     {
-                        // Run gui console.
-                        ::MessageBoxW(NULL, L"Run GUI-console.", L"Run GUI-console.", MB_OK);
-                        os::process::exit<true>(0);
+                        os::stdin_fd  = os::invalid_fd;
+                        os::stdout_fd = os::invalid_fd;
+                        os::stderr_fd = os::invalid_fd;
+                        dtvt::vtmode |= ui::console::gui;
+                        auto term = "Native GUI console";
+                        log(prompt::os, "Terminal type: ", term);
+                        return;
                     }
                 }
 
-                dtvt::win_sz = dtvt::consize();
                 #if defined(_WIN32)
                 {
                     //todo revise
@@ -3579,7 +3586,8 @@ namespace netxs::os
         }
         auto checkpoint()
         {
-            if (dtvt::active || dtvt::vtmode & ui::console::redirio) return;
+            if (dtvt::active || dtvt::vtmode & ui::console::redirio
+                             || dtvt::vtmode & ui::console::gui) return;
             #if defined(_WIN32)
 
                 ok(::GetConsoleMode(os::stdout_fd, &dtvt::backup.omode), "::GetConsoleMode(os::stdout_fd)", os::unexpected);
@@ -4506,8 +4514,29 @@ namespace netxs::os
         auto logger()
         {
             static auto dtvt_output = [](auto& data){ io::send(os::stdout_fd, data); };
+            if (dtvt::vtmode & ui::console::gui)
+            {
+                auto errmsg = []
+                {
+                    if (os::logbuffer.size())
+                    {
+                        #if defined(_WIN32)
+                        auto caption = utf::to_utf(os::process::binary());
+                        auto message = utf::to_utf(utf::trunc(os::logbuffer, 32));
+                        ::MessageBoxW(NULL, message.data(), caption.data(), MB_OK);
+                        #else
+                        #endif
+                    }
+                };
+                std::atexit(errmsg);
+            }
             return netxs::logger::attach([](qiew utf8)
             {
+                if (dtvt::vtmode & ui::console::gui) // Deferred logs in gui mode.
+                {
+                    os::logbuffer += utf8;
+                    utf8 = os::logbuffer;
+                }
                 if (utf8.empty()) return;
                 if (dtvt::active || dtvt::client)
                 {
@@ -4515,6 +4544,7 @@ namespace netxs::os
                     logs.set(os::process::id.first, os::process::id.second, utf8);
                     dtvt::active ? logs.sendfx(dtvt_output)   // Send logs to the dtvt-app hoster.
                                  : logs.sendby(dtvt::client); // Send logs to the dtvt-app.
+                    os::logbuffer.clear();
                 }
                 else if (os::stdout_fd != os::invalid_fd)
                 {
