@@ -3488,6 +3488,20 @@ namespace netxs::os
             }
             else
             {
+                ok(::FreeConsole(), "::FreeConsole()", os::unexpected);
+                if (::AttachConsole(ATTACH_PARENT_PROCESS))
+                {
+                    os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+                    os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+                    os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+                }
+                else
+                {
+                    // Run gui console.
+                    ::MessageBoxW(NULL, L"Run GUI-console.", L"Run GUI-console.", MB_OK);
+                    os::process::exit<true>(0);
+                }
+
                 dtvt::win_sz = dtvt::consize();
                 #if defined(_WIN32)
                 {
