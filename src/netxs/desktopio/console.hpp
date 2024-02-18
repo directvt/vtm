@@ -11,14 +11,15 @@ namespace netxs::ui
     {
         static auto id = std::pair<ui32, time>{};
         static constexpr auto mouse   = 1 << 0;
-        static constexpr auto nt      = 1 << 5; // Use win32 console api for input.
-        static constexpr auto redirio = 1 << 6;
+        static constexpr auto nt      = 1 << 6; // Use win32 console api for input.
+        static constexpr auto redirio = 1 << 7;
         //todo make 3-bit field for color mode
         static constexpr auto vtrgb   = 0;
         static constexpr auto nt16    = 1 << 1;
         static constexpr auto vt16    = 1 << 2;
         static constexpr auto vt256   = 1 << 3;
         static constexpr auto direct  = 1 << 4;
+        static constexpr auto gui     = 1 << 5;
 
         template<class T>
         auto str(T mode)

@@ -8,7 +8,7 @@
 
 using namespace netxs;
 
-enum class type { client, server, daemon, logmon, runapp, config };
+enum class type { client, server, daemon, logmon, runapp, hlpmsg, config };
 enum class code { noaccess, noserver, nodaemon, nosrvlog, interfer, errormsg };
 
 int main(int argc, char* argv[])
@@ -98,88 +98,8 @@ int main(int argc, char* argv[])
         }
         else if (getopt.match("-?", "-h", "--help"))
         {
-            os::dtvt::initialize();
-            netxs::logger::wipe();
-            auto syslog = os::tty::logger();
-            auto vtm = os::process::binary<true>();
-            auto pad = text(os::process::binary<true>().size(), ' ');
-            log("\nText-based Desktop Environment " + text{ app::shared::version } +
-                "\n"
-                "\n  Syntax:"
-                "\n"
-                "\n    " + vtm + " [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
-                "\n    " + vtm + " [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]"
-                "\n    " + vtm + " [ -c <file> ]  -l"
-                "\n    " + vtm + " -i | -u | -v | -?"
-                "\n"
-                "\n    <script relay via piped redirection> | " + vtm + " [ -p <id> ]"
-                "\n"
-                "\n  Options:"
-                "\n"
-                "\n    By default, " + vtm + " runs Desktop Client, running an additional instance"
-                "\n    with Desktop Server in background if it is not found."
-                "\n"
-                "\n    -h, -?, --help       Print command-line options."
-                "\n    -v, --version        Print version."
-                "\n    -l, --listconfig     Print configuration."
-                "\n    -i, --install        Perform system-wide installation."
-                "\n    -u, --uninstall      Perform system-wide deinstallation."
-                "\n    -q, --quiet          Disable logging."
-                "\n    -x, --script <cmds>  Specifies script commands to be run by the desktop when ready."
-                "\n    -c, --config <file>  Specifies the settings file to load."
-                "\n    -p, --pin <id>       Specifies the desktop id it is pinned to."
-                "\n    -s, --server         Run Desktop Server."
-                "\n    -d, --daemon         Run Desktop Server in background."
-                "\n    -m, --monitor        Run Desktop Monitor."
-                "\n    -r, --, --run        Run desktop applet standalone."
-                "\n    <type>               Desktop applet type to run."
-                "\n    <args...>            Desktop applet arguments."
-                "\n"
-                "\n    Desktop applet             │ Type │ Arguments"
-                "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"
-                "\n    Teletype Console (default) │ vtty │ CUI application with arguments to run."
-                "\n    Terminal Console           │ term │ CUI application with arguments to run."
-                "\n    DirectVT Gateway           │ dtvt │ DirectVT-aware application to run."
-                "\n    DirectVT Gateway with TTY  │ dtty │ CUI application to run, forwarding DirectVT I/O."
-                "\n"
-                "\n    The following commands have a short form:"
-                "\n"
-                "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
-                "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
-                "\n"
-                "\n  Settings loading order:"
-                "\n"
-                "\n    - Initialize hardcoded settings."
-                "\n    - In case of using the '--config <file>' option and the <file> can be loaded:"
-                "\n        - Merge settings from the <file>."
-                "\n      otherwise:"
-                "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
-                "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
-                "\n    - Merge with DirectVT packet received from the hosting DirectVT Gateway."
-                "\n"
-                "\n  Script commands:"
-                "\n"
-                "\n    Syntax: \"<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]\""
-                "\n"
-                "\n    Command                       │ Description"
-                "\n    ──────────────────────────────┼───────────────────────────────────────────────────────"
-                "\n    vtm.run([<attrs...>])         │ Create and run a menu item constructed using"
-                "\n                                  │ a space-separated list of <attr>=<val>."
-                "\n                                  │ Run a temporary menu item constructed using"
-                "\n                                  │ default attributes if no arguments specified."
-                "\n    vtm.set(id=<id> [<attrs...>]) │ Create or override a menu item using a space-separated"
-                "\n                                  │ list of <attr>=<val>."
-                "\n    vtm.del([<id>])               │ Delete the taskbar menu item by <id>."
-                "\n                                  │ Delete all menu items if no <id> specified."
-                "\n    vtm.dtvt(<dtvt_app...>)       │ Create a temporary menu item and run DirectVT Gateway"
-                "\n                                  │ to host specified <dtvt_app...>."
-                "\n    vtm.selected(<id>)            │ Set selected menu item using specified <id>."
-                "\n    vtm.shutdown()                │ Terminate the running desktop session."
-                "\n"
-                "\n    The following characters in script commands will be de-escaped: \\e \\t \\r \\n \\a \\\" \\' \\\\"
-                "\n"
-                );
-            return 0;
+            whoami = type::hlpmsg;
+            break;
         }
         else if (getopt.match("-v", "--version"))
         {
@@ -201,8 +121,97 @@ int main(int argc, char* argv[])
         }
     }
 
-    os::dtvt::initialize();
+    auto trygui = whoami == type::runapp
+               || whoami == type::client
+               || whoami == type::hlpmsg;
+    os::dtvt::initialize(trygui);
     os::dtvt::checkpoint();
+
+    if (whoami == type::hlpmsg)
+    {
+        netxs::logger::wipe();
+        auto syslog = os::tty::logger();
+        auto vtm = os::process::binary<true>();
+        auto pad = text(os::process::binary<true>().size(), ' ');
+        log("\nText-based Desktop Environment " + text{ app::shared::version } +
+            "\n"
+            "\n  Syntax:"
+            "\n"
+            "\n    " + vtm + " [ -c <file> ][ -q ][ -p <id> ][ -s | -d | -m ][ -x <cmds> ]"
+            "\n    " + vtm + " [ -c <file> ][ -q ][ -r [ <type> ]][ <args...> ]"
+            "\n    " + vtm + " [ -c <file> ]  -l"
+            "\n    " + vtm + " -i | -u | -v | -?"
+            "\n"
+            "\n    <script relay via piped redirection> | " + vtm + " [ -p <id> ]"
+            "\n"
+            "\n  Options:"
+            "\n"
+            "\n    By default, " + vtm + " runs Desktop Client, running an additional"
+            "\n    instance with Desktop Server in background if it is not found."
+            "\n"
+            "\n    -h, -?, --help       Print command-line options."
+            "\n    -v, --version        Print version."
+            "\n    -l, --listconfig     Print configuration."
+            "\n    -i, --install        Perform system-wide installation."
+            "\n    -u, --uninstall      Perform system-wide deinstallation."
+            "\n    -q, --quiet          Disable logging."
+            "\n    -x, --script <cmds>  Specifies script commands."
+            "\n    -c, --config <file>  Specifies the settings file to load."
+            "\n    -p, --pin <id>       Specifies the desktop id it is pinned to."
+            "\n    -s, --server         Run Desktop Server."
+            "\n    -d, --daemon         Run Desktop Server in background."
+            "\n    -m, --monitor        Run Desktop Monitor."
+            "\n    -r, --, --run        Run desktop applet standalone."
+            "\n    <type>               Desktop applet type to run."
+            "\n    <args...>            Desktop applet arguments."
+            "\n"
+            "\n    Desktop applet             │ Type │ Arguments"
+            "\n    ───────────────────────────┼──────┼─────────────────────────────────────────────────"
+            "\n    Teletype Console (default) │ vtty │ CUI application with arguments to run."
+            "\n    Terminal Console           │ term │ CUI application with arguments to run."
+            "\n    DirectVT Gateway           │ dtvt │ DirectVT-aware application to run."
+            "\n    DirectVT Gateway with TTY  │ dtty │ CUI application to run, forwarding DirectVT I/O."
+            "\n"
+            "\n    The following commands have a short form:"
+            "\n"
+            "\n      'vtm -r vtty <cui_app...>' can be shortened to 'vtm <cui_app...>'."
+            "\n      'vtm -r dtty ssh <user@host dtvt_app...>' can be shortened to 'vtm ssh <user@host dtvt_app...>'."
+            "\n"
+            "\n  Settings loading order:"
+            "\n"
+            "\n    - Initialize hardcoded settings."
+            "\n    - In case of using the '--config <file>' option and the <file> can be loaded:"
+            "\n        - Merge settings from the <file>."
+            "\n      otherwise:"
+            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
+            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
+            "\n    - Merge with DirectVT packet received from the hosting DirectVT Gateway."
+            "\n"
+            "\n  Script commands:"
+            "\n"
+            "\n    Syntax: \"<command>([<args...>])[; <command>([<args...>]); ... <command>([<args...>])]\""
+            "\n"
+            "\n    Command                       │ Description"
+            "\n    ──────────────────────────────┼───────────────────────────────────────────────────────"
+            "\n    vtm.run([<attrs...>])         │ Create and run a menu item constructed using"
+            "\n                                  │ a space-separated list of <attr>=<val>."
+            "\n                                  │ Run a temporary menu item constructed using"
+            "\n                                  │ default attributes if no arguments specified."
+            "\n    vtm.set(id=<id> [<attrs...>]) │ Create or override a menu item using a space-separated"
+            "\n                                  │ list of <attr>=<val>."
+            "\n    vtm.del([<id>])               │ Delete the taskbar menu item by <id>."
+            "\n                                  │ Delete all menu items if no <id> specified."
+            "\n    vtm.dtvt(<dtvt_app...>)       │ Create a temporary menu item and run DirectVT Gateway"
+            "\n                                  │ to host specified <dtvt_app...>."
+            "\n    vtm.selected(<id>)            │ Set selected menu item using specified <id>."
+            "\n    vtm.shutdown()                │ Terminate the running desktop session."
+            "\n"
+            "\n    The following characters in script commands will be de-escaped: \\e \\t \\r \\n \\a \\\" \\' \\\\"
+            "\n"
+            );
+        os::release(faux);
+        return 0;
+    }
 
     if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
     {
