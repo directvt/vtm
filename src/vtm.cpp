@@ -201,7 +201,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    os::dtvt::initialize();
+    auto trygui = whoami == type::runapp || whoami == type::client;
+    os::dtvt::initialize(trygui);
     os::dtvt::checkpoint();
 
     if (os::dtvt::vtmode & ui::console::redirio && (whoami == type::runapp || whoami == type::client))
