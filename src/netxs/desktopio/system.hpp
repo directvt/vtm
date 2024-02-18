@@ -4524,8 +4524,9 @@ namespace netxs::os
                     if (os::logbuffer.size())
                     {
                         #if defined(_WIN32)
+                        auto utf8log = ui::page{ utf::trunc(os::logbuffer, 32) }.to_utf8<faux>();
+                        auto message = utf::to_utf(utf::trim_front(view{ utf8log }, '\n'));
                         auto caption = utf::to_utf(os::process::binary());
-                        auto message = utf::to_utf(utf::trunc(os::logbuffer, 32));
                         ::MessageBoxW(NULL, message.data(), caption.data(), MB_OK);
                         #else
                         #endif

@@ -133,7 +133,7 @@ int main(int argc, char* argv[])
         auto syslog = os::tty::logger();
         auto vtm = os::process::binary<true>();
         auto pad = text(os::process::binary<true>().size(), ' ');
-        log("Text-based Desktop Environment " + text{ app::shared::version } +
+        log("\nText-based Desktop Environment " + text{ app::shared::version } +
             "\n"
             "\n  Syntax:"
             "\n"
@@ -146,8 +146,8 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Options:"
             "\n"
-            "\n    By default, " + vtm + " runs Desktop Client, running an additional instance"
-            "\n    with Desktop Server in background if it is not found."
+            "\n    By default, " + vtm + " runs Desktop Client, running an additional"
+            "\n    instance with Desktop Server in background if it is not found."
             "\n"
             "\n    -h, -?, --help       Print command-line options."
             "\n    -v, --version        Print version."
@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
             "\n    -i, --install        Perform system-wide installation."
             "\n    -u, --uninstall      Perform system-wide deinstallation."
             "\n    -q, --quiet          Disable logging."
-            "\n    -x, --script <cmds>  Specifies script commands to be run by the desktop when ready."
+            "\n    -x, --script <cmds>  Specifies script commands."
             "\n    -c, --config <file>  Specifies the settings file to load."
             "\n    -p, --pin <id>       Specifies the desktop id it is pinned to."
             "\n    -s, --server         Run Desktop Server."

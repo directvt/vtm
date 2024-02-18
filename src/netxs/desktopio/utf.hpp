@@ -1406,6 +1406,11 @@ namespace netxs::utf
         }
         utf8.remove_prefix(std::distance(utf8.begin(), head));
     }
+    auto trim_front(view&& utf8, char c = ' ')
+    {
+        utf::trim_front(utf8, c);
+        return utf8;
+    }
     auto trim_back(view& utf8, view delims)
     {
         auto temp = utf8;
