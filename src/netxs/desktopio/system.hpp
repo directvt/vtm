@@ -3494,22 +3494,25 @@ namespace netxs::os
                 trygui = faux; // Not implemented.
                 if (trygui)
                 {
-                    if (::FreeConsole() && ::AttachConsole(ATTACH_PARENT_PROCESS)) // We are hosted by a shell.
-                    {
-                        os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
-                        os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
-                        os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
-                    }
-                    else // Run gui console.
-                    {
-                        os::stdin_fd  = os::invalid_fd;
-                        os::stdout_fd = os::invalid_fd;
-                        os::stderr_fd = os::invalid_fd;
-                        dtvt::vtmode |= ui::console::gui;
-                        auto term = "Native GUI console";
-                        log(prompt::os, "Terminal type: ", term);
-                        return;
-                    }
+                    #if defined(_WIN32)
+                        if (::FreeConsole() && ::AttachConsole(ATTACH_PARENT_PROCESS)) // We are hosted by a shell.
+                        {
+                            os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
+                            os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
+                            os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
+                        }
+                        else // Run gui console.
+                        {
+                            os::stdin_fd  = os::invalid_fd;
+                            os::stdout_fd = os::invalid_fd;
+                            os::stderr_fd = os::invalid_fd;
+                            dtvt::vtmode |= ui::console::gui;
+                            auto term = "Native GUI console";
+                            log(prompt::os, "Terminal type: ", term);
+                            return;
+                        }
+                    #else
+                    #endif
                 }
 
                 #if defined(_WIN32)
