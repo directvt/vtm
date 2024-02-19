@@ -3349,6 +3349,8 @@ namespace netxs::os
         static auto backup = tios{}; // dtvt: Saved console state to restore at exit.
         static auto win_sz = twod{}; // dtvt: Initial window size.
         static auto client = xipc{}; // dtvt: Internal IO link.
+        static auto uifont = text{}; // dtvt: Font name for gui console.
+        static auto fontsz = twod{}; // dtvt: Font size for gui console.
 
         auto consize()
         {
@@ -3491,26 +3493,36 @@ namespace netxs::os
             else
             {
                 dtvt::win_sz = dtvt::consize();
-                trygui = faux; // Not implemented.
+                //trygui = faux; // Not implemented.
                 if (trygui)
                 {
                     #if defined(_WIN32)
-                        if (::FreeConsole() && ::AttachConsole(ATTACH_PARENT_PROCESS)) // We are hosted by a shell.
+
+                        auto processpid = DWORD{};
+                        auto proc_count = ::GetConsoleProcessList(&processpid, 1);
+                        if (1 == proc_count) // Run gui console.
                         {
-                            os::stdin_fd  = fd_t{ ptr::test(::GetStdHandle(STD_INPUT_HANDLE ), os::invalid_fd) };
-                            os::stdout_fd = fd_t{ ptr::test(::GetStdHandle(STD_OUTPUT_HANDLE), os::invalid_fd) };
-                            os::stderr_fd = fd_t{ ptr::test(::GetStdHandle(STD_ERROR_HANDLE ), os::invalid_fd) };
-                        }
-                        else // Run gui console.
-                        {
+                            auto modeflags = DWORD{};
+                            ::GetConsoleDisplayMode(&modeflags);
+                            auto maximized = modeflags == CONSOLE_FULLSCREEN;
+                            auto font_info = CONSOLE_FONT_INFOEX{ sizeof(CONSOLE_FONT_INFOEX) };
+                            if (::GetCurrentConsoleFontEx(os::stdout_fd, maximized, &font_info))
+                            {
+                                dtvt::uifont = utf::to_utf(font_info.FaceName);
+                                dtvt::fontsz = { font_info.dwFontSize.X, font_info.dwFontSize.Y };
+                            }
+                            ::FreeConsole();
                             os::stdin_fd  = os::invalid_fd;
                             os::stdout_fd = os::invalid_fd;
                             os::stderr_fd = os::invalid_fd;
                             dtvt::vtmode |= ui::console::gui;
+                            if (dtvt::fontsz == dot_00) dtvt::fontsz = { 8, 16 };
+                            if (dtvt::uifont == text{}) dtvt::uifont = "Consolas";
                             auto term = "Native GUI console";
-                            log(prompt::os, "Terminal type: ", term);
+                            log("%%Terminal type: %term%, %font% %w%×%h%", prompt::os, term, dtvt::uifont, dtvt::fontsz.x, dtvt::fontsz.y);
                             return;
                         }
+                        // We are hosted by a shell.
                     #else
                     #endif
                 }
@@ -4426,18 +4438,35 @@ namespace netxs::os
                 void direct(s11n::xs::bitmap_vtrgb   /*lock*/, view& data) { io::send(data); }
                 void direct(s11n::xs::bitmap_dtvt      lock,   view& data) // Decode for nt16 mode.
                 {
-                    #if defined(_WIN32)
+                    auto& bitmap = lock.thing;
+                    if (os::dtvt::vtmode & ui::console::gui)
+                    {
                         auto update = [](auto size, auto head, auto iter, auto tail)
                         {
-                            auto offset = (si32)(iter - head);
-                            auto coor = twod{ offset % size.x, offset / size.x };
-                            nt::console::print<svga::vt16>(size, coor, iter, tail);
+                            #if defined(_WIN32)
+                                auto offset = (si32)(iter - head);
+                                auto coor = twod{ offset % size.x, offset / size.x };
+                                //todo update client area
+                            #else
+                                //todo update client area
+                            #endif
                         };
-                    #else
-                        auto update = noop{};
-                    #endif
-                    auto& bitmap = lock.thing;
-                    bitmap.get(data, update);
+                        bitmap.get(data, update);
+                    }
+                    else
+                    {
+                        #if defined(_WIN32)
+                            auto update = [](auto size, auto head, auto iter, auto tail)
+                            {
+                                auto offset = (si32)(iter - head);
+                                auto coor = twod{ offset % size.x, offset / size.x };
+                                nt::console::print<svga::vt16>(size, coor, iter, tail);
+                            };
+                        #else
+                            auto update = noop{};
+                        #endif
+                        bitmap.get(data, update);
+                    }
                 }
                 void handle(s11n::xs::header_request /*lock*/)
                 {
@@ -5695,11 +5724,19 @@ namespace netxs::os
             os::sleep(200ms); // Wait for delayed input events (e.g. mouse reports lagging over remote ssh).
             io::drop(); // Discard delayed events to avoid garbage in the shell's readline.
         }
+        auto native()
+        {
+            #if defined(_WIN32)
+                ::MessageBoxW(NULL, L"Welcome to GUI Console", L"caption.data()", MB_OK);
+            #else
+            #endif
+        }
         auto splice(xipc client)
         {
             os::dtvt::client = client;
-            os::dtvt::active ? tty::direct()
-                             : tty::legacy();
+            os::dtvt::active ? tty::direct() :
+            os::dtvt::vtmode & ui::console::gui ? tty::native()
+                                                : tty::legacy();
         }
 
         struct readline

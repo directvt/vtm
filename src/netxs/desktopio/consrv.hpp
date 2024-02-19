@@ -4451,7 +4451,7 @@ struct impl : consrv
     }
     auto api_window_font_get                 ()
     {
-        log(prompt, "GetCurrentConsoleFont");
+        log(prompt, "GetCurrentConsoleFontEx");
         struct payload : drvpacket<payload>
         {
             struct
