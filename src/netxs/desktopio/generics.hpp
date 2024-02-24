@@ -441,6 +441,7 @@ namespace netxs::generics
               : buff{ buff },
                 addr{ addr }
             { }
+            auto  operator =  (iter const& i)       { assert(&i.buff == &buff); addr = i.addr; return *this;              }
             auto  operator -  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr - n) };                 }
             auto  operator +  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr + n) };                 }
             auto  operator ++ (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.inc(addr); return temp;  }

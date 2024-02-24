@@ -1910,6 +1910,11 @@ namespace netxs
               client{ dot_00, { length, 1 } },
               canvas( length, fill )
         { }
+        core(cell const& fill)
+            : region{ dot_00, dot_01 },
+              client{ dot_00, dot_01 },
+              marker{ fill }
+        { }
 
         template<class P>
         auto same(core const& c, P compare) const // core: Compare content.
@@ -2150,6 +2155,31 @@ namespace netxs
                 else                       target = canvas;
             }
             return region.size;
+        }
+        template<feed Direction>
+        auto seek(si32& x, auto proc) // core: Find proc(c) == true.
+        {
+            if (!region) return faux;
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
+            x += rev ? 1 : 0;
+            auto count = 0;
+            auto found = faux;
+            auto width = (rev ? 0 : region.size.x) - x;
+            auto field = rect{ twod{ x, 0 } + region.coor, { width, 1 }}.normalize();
+            auto allfx = [&](auto& c)
+            {
+                if (proc(c))
+                {
+                    found = true;
+                    return true;
+                }
+                count++;
+                return faux;
+            };
+            netxs::onrect<rev>(*this, field, allfx);
+            if (count) count--;
+            x -= rev ? count + 1 : -count;
+            return found;
         }
         template<feed Direction>
         auto word(twod coord) // core: Detect a word bound.

@@ -3630,7 +3630,7 @@ namespace netxs::os
                 ok(::GetConsoleCursorInfo(os::stdout_fd, &dtvt::backup.caret), "::GetConsoleCursorInfo()", os::unexpected);
                 if (auto cmd_prompt = os::env::get("PROMPT"); cmd_prompt.empty() || cmd_prompt == "$P$G")
                 {
-                    os::env::set("PROMPT", "$e]9;9;$P$e\\$P$G"); // Enable OSC 9;9 notifications for cmd.exe by default.
+                    os::env::set("PROMPT", "$e]133;A$e\\$e]9;9;$P$e\\$e[#{$e[97m$P$G$e[#}$e]133;B$e\\"); // Enable OSC 9;9 notifications for cmd.exe by default.
                 }
 
             #else

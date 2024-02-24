@@ -841,6 +841,7 @@ namespace netxs::ui
                 vt.oscer[osc_reset_bgclr] = V{ p->owner.ctrack.set(osc_reset_bgclr, q); };
                 vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
+                vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
                 #undef V
 
                 // Log all unimplemented CSI commands.
@@ -884,23 +885,24 @@ namespace netxs::ui
                     l._kind = {};
                 }
                 line(line const& l)
-                    : rich { l       },
-                      index{ l.index },
-                      style{ l.style }
-                { }
-                line(id_t line_id, deco const& line_style = {})
-                    : index{ line_id },
-                      style{ line_style }
+                    : rich{ l       },
+                     index{ l.index },
+                     style{ l.style }
                 { }
                 line(id_t line_id, deco const& line_style, span dt, twod sz)
-                    : rich { dt, sz },
-                      index{ line_id },
-                      style{ line_style }
+                    : rich{ dt, sz     },
+                     index{ line_id    },
+                     style{ line_style }
+                { }
+                line(id_t line_id, deco const& line_style, cell const& blank)
+                    : rich{ blank      },
+                     index{ line_id    },
+                     style{ line_style }
                 { }
                 line(id_t line_id, deco const& line_style, cell const& blank, si32 length)
-                    : rich { blank, length },
-                      index{ line_id },
-                      style{ line_style }
+                    : rich{ blank, length },
+                     index{ line_id       },
+                     style{ line_style    }
                 { }
                 line(core&& s)
                     : rich{ std::forward<core>(s) }
@@ -1008,6 +1010,8 @@ namespace netxs::ui
             virtual void selection_follow(twod coor, bool lock)           = 0;
             virtual void selection_byword(twod coor)                      = 0;
             virtual void selection_byline(twod coor)                      = 0;
+            virtual void selection_bymark(twod coor)                      = 0;
+            virtual void selection_selall()                               = 0;
             virtual text selection_pickup(si32 selmod)                    = 0;
             virtual void selection_render(face& dest)                     = 0;
             virtual void selection_status(term_state& status) const       = 0;
@@ -2440,7 +2444,7 @@ namespace netxs::ui
                 selection_selbox(faux);
                 selection_update(faux);
             }
-            // alt_screen: Select one line.
+            // alt_screen: Select line.
             void selection_byline(twod coor) override
             {
                 seltop.y = selend.y = coor.y;
@@ -2449,6 +2453,21 @@ namespace netxs::ui
                 selection_locked(faux);
                 selection_selbox(faux);
                 selection_update(faux);
+            }
+            // alt_screen: Select all.
+            void selection_selall() override
+            {
+                seltop.y = 0;
+                seltop.x = 0;
+                selend = panel - dot_11;
+                selection_locked(faux);
+                selection_selbox(true);
+                selection_update(faux);
+            }
+            // alt_screen: Select lines between OSC marks.
+            void selection_bymark(twod /*coor*/) override
+            {
+                selection_selall();
             }
             // alt_screen: Take selected data.
             text selection_pickup(si32 selmod) override
@@ -2777,7 +2796,7 @@ namespace netxs::ui
                     caret = 0;
                     basis = 0;
                     slide = 0;
-                    invite(0, deco{}.wrp(auto_wrap)); // At least one line must exist.
+                    invite(0, deco{}.wrp(auto_wrap), cell{}); // At least one line must exist.
                     ancid = back().index;
                     ancdy = 0;
                     set_width(width);
@@ -2817,7 +2836,7 @@ namespace netxs::ui
                        shore{ boss.config.def_margin }
             {
                 parser::style.wrp(boss.config.def_wrpmod);
-                batch.invite(0, deco{}.wrp(boss.config.def_wrpmod == wrap::on)); // At least one line must exist.
+                batch.invite(0, deco{}.wrp(boss.config.def_wrpmod == wrap::on), cell{}); // At least one line must exist.
                 batch.set_width(1);
                 index_rebuild();
 
@@ -3678,7 +3697,7 @@ namespace netxs::ui
                     do
                     {
                         auto& curln = *head;
-                        block.output(curln);
+                        block.output(curln, cell::shaders::fuse);
                         block.nl(1);
                     }
                     while (++head != tail);
@@ -3703,7 +3722,7 @@ namespace netxs::ui
                         {
                             auto count = arena - index.size;
                             auto curid = batch.back().index;
-                            while (count-- > 0) batch.invite(++curid, parser::style);
+                            while (count-- > 0) batch.invite(++curid, parser::style, parser::brush);
                             start = batch.size;
                         }
                     }
@@ -3751,7 +3770,7 @@ namespace netxs::ui
                     if (old_sctop == 0) upbox.mark(brush.spare);
                     upbox.crop<faux>(upmin);
                     pull(upbox, { 0, old_sctop }, 0, delta_top);
-                    if (batch.size == 0) batch.invite(0, parser::style);
+                    if (batch.size == 0) batch.invite(0, parser::style, parser::brush);
                 }
                 else
                 {
@@ -3772,7 +3791,7 @@ namespace netxs::ui
                 auto line_id = batch.back().index;
                 while (amount-- > 0)
                 {
-                    batch.invite(++line_id, parser::style);
+                    batch.invite(++line_id, parser::style, parser::brush);
                     index.push_back(line_id, 0, 0);
                 }
             }
@@ -4499,7 +4518,7 @@ namespace netxs::ui
                     auto height = curln.height(panel.x);
                     auto length = curln.length();
                     auto adjust = curln.style.jet();
-                    dest.output(curln, coor);
+                    dest.output(curln, coor, cell::shaders::fuse);
                     //dest.output_proxy(curln, coor, [&](auto const& coord, auto const& subblock, auto isr_to_l)
                     //{
                     //    dest.text(coord, subblock, isr_to_l, cell::shaders::fusefull);
@@ -4601,7 +4620,7 @@ namespace netxs::ui
             {
                 assert(test_futures());
 
-                auto blank = brush.dry();
+                auto blank = brush.dry().link(parser::brush.link());
                 auto clear = [&](twod coor)
                 {
                     auto& from = index[coor.y];
@@ -4739,7 +4758,7 @@ namespace netxs::ui
                 {
                     auto after = batch.index_by_id(curid);
                     auto tmpln = std::move(batch[after]);
-                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.style);
+                    auto curit = batch.ring::insert(after + 1, tmpln.index, tmpln.style, parser::brush);
                     auto endit = batch.end();
 
                     auto& newln = *curit;
@@ -4844,7 +4863,7 @@ namespace netxs::ui
                         batch.remove(start, range);
 
                         // Insert block.
-                        while (count-- > 0) batch.insert(floor, id_t{}, parser::style);
+                        while (count-- > 0) batch.insert(floor, id_t{}, parser::style, parser::brush);
 
                         batch.reindex(start); //todo revise ? The index may be outdated due to the ring.
                         index_rebuild();
@@ -4881,7 +4900,7 @@ namespace netxs::ui
                         batch.remove(floor, range);
 
                         // Insert block.
-                        while (count-- > 0) batch.insert(start, id_t{}, parser::style);
+                        while (count-- > 0) batch.insert(start, id_t{}, parser::style, parser::brush);
 
                         batch.reindex(start); //todo revise ? The index may be outdated due to the ring.
                     }
@@ -5386,7 +5405,7 @@ namespace netxs::ui
                 selection_selbox(faux);
                 selection_update(faux);
             }
-            // scroll_buf: Select one line.
+            // scroll_buf: Select line.
             void selection_byline(twod coor) override
             {
                 auto scrolling_margin = batch.slide + y_top;
@@ -5409,7 +5428,6 @@ namespace netxs::ui
                     upend.role = dnend.role = grip::idle;
                     upmid = selection_coor_to_grip(coor, grip::base);
                     dnmid = upmid;
-                    upmid.coor = dot_00;
                     auto& curln = batch.item_by_id(upmid.link);
                     auto limit = std::max(0, curln.length() - 1);
                     upmid.coor = offset_to_screen(curln, 0);
@@ -5426,6 +5444,119 @@ namespace netxs::ui
                     dnend = upend;
                     upend.coor.x = 0;
                     dnend.coor.x = panel.x - 1;
+                }
+                selection_locked(faux);
+                selection_selbox(faux);
+                selection_update(faux);
+            }
+            // scroll_buf: Select all (ignore non-scrolling regions).
+            void selection_selall() override
+            {
+                place = part::mid;
+                uptop.role = dntop.role = grip::idle;
+                upend.role = dnend.role = grip::idle;
+                auto& topln = batch.front();
+                auto& endln = batch.back();
+                auto x = std::max(0, endln.length() - 1);
+                upmid = { .link = topln.index, .coor = offset_to_screen(topln, 0), .role = grip::base};
+                dnmid = { .link = endln.index, .coor = offset_to_screen(endln, x), .role = grip::base};
+                selection_locked(faux);
+                selection_selbox(faux);
+                selection_update(faux);
+            }
+            // scroll_buf: Select lines between OSC marks.
+            void selection_bymark(twod coor) override
+            {
+                auto scrolling_margin = batch.slide + y_top;
+                if (coor.y < scrolling_margin) // Inside the top margin.
+                {
+                    place = part::top;
+                    upmid.role = dnmid.role = grip::idle;
+                    upend.role = dnend.role = grip::idle;
+                    uptop.role = grip::base;
+                    uptop.coor = {-owner.origin.x, 0 };
+                    dntop = uptop;
+                    uptop.coor.x = 0;
+                    dntop.coor.x = panel.x - 1;
+                    dntop.coor.y += y_top;
+                }
+                else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
+                {
+                    upmid = selection_coor_to_grip(coor, grip::base);
+                    dnmid = upmid;
+                    auto curit = batch.iter_by_id(upmid.link);
+                    auto& line = *curit;
+                    auto start = screen_to_offset(line, upmid.coor);
+                    auto group = line.empty() ? line.link() : line.at(start).link();
+                    auto check = [&](auto& c){ return c.link() != group; };
+                    if (!group) // Semantic markers are not used.
+                    {
+                        selection_selall();
+                    }
+                    else
+                    {
+                        place = part::mid;
+                        auto offup = start;
+                        auto offdn = start;
+                        auto up_rc = line.seek<feed::rev>(offup, check);
+                        auto dn_rc = line.seek<feed::fwd>(offdn, check);
+                        if (up_rc) // We are inside the command line.
+                        {
+                            upmid.coor = offset_to_screen(line, offup);
+                            dnmid.coor = offset_to_screen(line, offdn);
+                        }
+                        else // We are inside the output or prompt.
+                        {
+                            auto head = batch.begin();
+                            auto tail = batch.end();
+                            auto iter = curit;
+                            upmid.link = batch.front().index;
+                            while (head != iter)
+                            {
+                                auto& curln = *--iter;
+                                auto found = curln.empty() ? curln.link() != group : !curln.each(check);
+                                if (found)
+                                {
+                                    upmid.link = curln.index + 1;
+                                    break;
+                                }
+                            }
+                            if (!dn_rc)
+                            {
+                                auto& backln = batch.back();
+                                dnmid.link = backln.index;
+                                iter = curit;
+                                while (tail != ++iter)
+                                {
+                                    auto& curln = *iter;
+                                    auto found = curln.empty() ? curln.link() != group : !curln.each(check);
+                                    if (found)
+                                    {
+                                        dnmid.link = curln.index - 1;
+                                        break;
+                                    }
+                                }
+                            }
+                            auto& upline = batch.item_by_id(upmid.link);
+                            auto& dnline = batch.item_by_id(dnmid.link);
+                            upmid.coor = offset_to_screen(upline, 0);
+                            dnmid.coor = offset_to_screen(dnline, dn_rc ? offdn : (dnline.empty() ? 0 : dnline.length() - 1));
+                        }
+                        uptop.role = dntop.role = grip::idle;
+                        upend.role = dnend.role = grip::idle;
+                    }
+                }
+                else // Inside the bottom margin.
+                {
+                    place = part::end;
+                    upmid.role = dnmid.role = grip::idle;
+                    uptop.role = dntop.role = grip::idle;
+                    upend.role = grip::base;
+                    upend.coor = {-owner.origin.x, 0 };
+                    dnend = upend;
+                    upend.coor.x = 0;
+                    dnend.coor.x = panel.x - 1;
+                    dnend.coor.y += scend;
                 }
                 selection_locked(faux);
                 selection_selbox(faux);
@@ -6222,6 +6353,13 @@ namespace netxs::ui
         hook       onerun; // term: One-shot token for restart session.
         vtty       ipccon; // term: IPC connector. Should be destroyed first.
 
+        // term: Set semantic marker (OSC 133).
+        void osc_marker(view data)
+        {
+            auto type = data.size() ? data.front() : 0;
+            if (io_log) log("\tOSC %% semantic marker: %type%", ansi::osc_semantic_fx, type ? type : '-');
+            target->brush.link(type);
+        }
         // term: Terminal notification (OSC 9).
         void osc_notify(view data)
         {
@@ -6828,7 +6966,10 @@ namespace netxs::ui
         }
         void selection_tplclk(hids& gear)
         {
-            target->selection_byline(gear.coord);
+            auto clicks = gear.clicks(hids::buttons::left);
+                 if (clicks == 3) target->selection_byline(gear.coord);
+            else if (clicks == 4) target->selection_bymark(gear.coord);
+            else if (clicks == 5) target->selection_selall();
             gear.dismiss();
             base::expire<tier::release>();
             base::deface();
@@ -6981,28 +7122,34 @@ namespace netxs::ui
         void set_color(cell brush)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            auto& console = *target;
             brush.link(base::id);
             base::color(brush);
-            target->brush.reset(brush);
+            brush.link(console.brush.link());
+            console.brush.reset(brush);
         }
         void set_bg_color(rgba bg)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            auto& console = *target;
             auto brush = base::color();
             brush.bgc(bg);
             brush.link(base::id);
             base::color(brush);
-            target->brush.reset(brush);
+            brush.link(console.brush.link());
+            console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
         void set_fg_color(rgba fg)
         {
             //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
+            auto& console = *target;
             auto brush = base::color();
             brush.fgc(fg);
             brush.link(base::id);
             base::color(brush);
-            target->brush.reset(brush);
+            brush.link(console.brush.link());
+            console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::fg, fg);
         }
         void set_wrapln(si32 wrapln)
