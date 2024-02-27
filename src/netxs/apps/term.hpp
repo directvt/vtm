@@ -778,7 +778,7 @@ namespace netxs::app::terminal
         auto cB = menu_white;
 
         auto window = ui::cake::ctor();
-        window->plugin<pro::focus>(os::dtvt::active ? pro::focus::mode::hub : pro::focus::mode::focusable)
+        window->plugin<pro::focus>(pro::focus::mode::hub)
             ->plugin<pro::track>()
             ->plugin<pro::acryl>()
             ->plugin<pro::cache>();

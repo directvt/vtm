@@ -1044,9 +1044,10 @@ namespace netxs::ui
         { }
         virtual ~para() = default;
 
-        para              (auto utf8) {              ansi::parse(utf8, this);               }
-        auto& operator  = (auto utf8) { wipe(brush); ansi::parse(utf8, this); return *this; }
-        auto& operator += (auto utf8) {              ansi::parse(utf8, this); return *this; }
+        para(id_t id, auto utf8)      { brush.link(id); ansi::parse(utf8, this);               }
+        para(auto utf8)               {                 ansi::parse(utf8, this);               }
+        auto& operator  = (auto utf8) { wipe(brush);    ansi::parse(utf8, this); return *this; }
+        auto& operator += (auto utf8) {                 ansi::parse(utf8, this); return *this; }
 
         operator writ const& () const { return locus; }
 

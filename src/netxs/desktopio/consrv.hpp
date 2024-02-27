@@ -1106,7 +1106,7 @@ struct impl : consrv
             auto mode = testy<bool>{ !!(server.inpmod & nt::console::inmode::insert) };
             auto buff = text{};
             auto nums = utfx{};
-            auto line = para{ cooked.ustr };
+            auto line = para{ 'C', cooked.ustr }; // Set semantic marker OSC 133;C.
             auto done = faux;
             auto crlf = 0;
             auto burn = [&]
@@ -4451,7 +4451,7 @@ struct impl : consrv
     }
     auto api_window_font_get                 ()
     {
-        log(prompt, "GetCurrentConsoleFont");
+        log(prompt, "GetCurrentConsoleFontEx");
         struct payload : drvpacket<payload>
         {
             struct

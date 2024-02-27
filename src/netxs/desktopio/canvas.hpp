@@ -1340,6 +1340,36 @@ namespace netxs
                 st.get<Mode, UseSGR>(base.st, dest);
             }
         }
+        // cell: Render colored whitespaces instead of "░▒▓".
+        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
+        void filter(cell& base, T& dest) const
+        {
+            if constexpr (UseSGR && Mode == svga::vtrgb)
+            {
+                auto egc = gc.get<Mode>();
+                if (egc.size() == 3 && egc[0] == '\xE2' && egc[1] == '\x96')
+                {
+                    auto k = 0;
+                         if (egc[2] == '\x91') k = 64;  // "░"
+                    else if (egc[2] == '\x92') k = 96;  // "▒"
+                    else if (egc[2] == '\x93') k = 128; // "▓"
+                    else
+                    {
+                        dest += egc;
+                        return;
+                    }
+                    auto bgc = rgba::transit(base.uv.bg, base.uv.fg, k);
+                    if (bgc != base.uv.bg)
+                    {
+                        base.uv.bg = bgc;
+                        dest.template bgc<Mode>(bgc);
+                    }
+                    dest += whitespace;
+                }
+                else dest += egc;
+            }
+            else dest += gc.get<Mode>();
+        }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
         template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void scan(cell& base, T& dest) const
@@ -1352,7 +1382,7 @@ namespace netxs
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
                 }
-                if (wdt() && !gc.is_space()) dest += gc.get<Mode>();
+                if (wdt() && !gc.is_space()) filter<Mode, UseSGR>(base, dest);
                 else                         dest += whitespace;
             }
         }
@@ -1369,7 +1399,7 @@ namespace netxs
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
                 }
-                dest += gc.get<Mode>();
+                filter<Mode, UseSGR>(base, dest);
                 return true;
             }
             else
@@ -1910,6 +1940,11 @@ namespace netxs
               client{ dot_00, { length, 1 } },
               canvas( length, fill )
         { }
+        core(cell const& fill)
+            : region{ dot_00, dot_01 },
+              client{ dot_00, dot_01 },
+              marker{ fill }
+        { }
 
         template<class P>
         auto same(core const& c, P compare) const // core: Compare content.
@@ -2074,7 +2109,7 @@ namespace netxs
             netxs::zoomin(*this, block, fuse);
         }
         template<class P>
-        void plot(core const& block, P fuse) // core: Fill view by the specified block using its coordinates inside canvas area.
+        void plot(core const& block, P fuse) // core: Fill view by the specified block with coordinates inside the canvas area.
         {
             auto local = rect{ client.coor - region.coor, client.size };
             auto joint = local.clip(block.region);
@@ -2150,6 +2185,31 @@ namespace netxs
                 else                       target = canvas;
             }
             return region.size;
+        }
+        template<feed Direction>
+        auto seek(si32& x, auto proc) // core: Find proc(c) == true.
+        {
+            if (!region) return faux;
+            static constexpr auto rev = Direction == feed::fwd ? faux : true;
+            x += rev ? 1 : 0;
+            auto count = 0;
+            auto found = faux;
+            auto width = (rev ? 0 : region.size.x) - x;
+            auto field = rect{ twod{ x, 0 } + region.coor, { width, 1 }}.normalize();
+            auto allfx = [&](auto& c)
+            {
+                if (proc(c))
+                {
+                    found = true;
+                    return true;
+                }
+                count++;
+                return faux;
+            };
+            netxs::onrect<rev>(*this, field, allfx);
+            if (count) count--;
+            x -= rev ? count + 1 : -count;
+            return found;
         }
         template<feed Direction>
         auto word(twod coord) // core: Detect a word bound.

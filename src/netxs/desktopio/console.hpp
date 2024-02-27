@@ -467,6 +467,7 @@ namespace netxs::ui
                 vtmode = legacy_mode & ui::console::nt16   ? svga::nt16
                        : legacy_mode & ui::console::vt16   ? svga::vt16
                        : legacy_mode & ui::console::vt256  ? svga::vt256
+                       : legacy_mode & ui::console::gui    ? svga::dtvt
                        : legacy_mode & ui::console::direct ? svga::dtvt
                                                            : svga::vtrgb;
             }

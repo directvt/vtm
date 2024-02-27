@@ -811,13 +811,21 @@ namespace netxs::input
                                         {
                                             fire(dblclick, i);
                                             s.fired = fired;
-                                            s.count = 2;
+                                            s.count++;
                                         }
-                                        else if (s.count == 2)
+                                        else if (s.count >= 2)
                                         {
                                             fire(tplclick, i);
-                                            s.fired = {};
-                                            s.count = {};
+                                            if (s.count == 4) // Limit to quintuple click.
+                                            {
+                                                s.fired = {};
+                                                s.count = {};
+                                            }
+                                            else
+                                            {
+                                                s.fired = fired;
+                                                s.count++;
+                                            }
                                         }
                                     }
                                 }
@@ -845,6 +853,12 @@ namespace netxs::input
                 m_sys.hzwheel = {};
                 m_sys.wheeldt = {};
             }
+        }
+        // mouse: Return the number of clicks for the specified button.
+        auto clicks(si32 button)
+        {
+            button = std::clamp(button, 0, buttons::numofbuttons - 1);
+            return stamp[button].count + 1;
         }
         // mouse: Initiator of visual tree informing about mouse enters/leaves.
         template<bool Entered>

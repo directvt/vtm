@@ -22,15 +22,21 @@
 - Horizontal scrolling
 - Infinite* scrollback (40k lines by default, * `< max_int32`)
 - Scrollback buffer searching and matching
-- Line-based/rect-block text selection (See #149 for details)
-- Widely used clipboard formats support
+- Line-based/rect-block text selection:
+  - Ctrl: Extend selection.
+  - Alt/Option: Change selection mode (line/block).
+  - Double left click: Select a word.
+  - Triple left click: Select paragraph.
+  - Quadruple left click: Select the entire scrollback buffer or semantic block (when using OSC 133).
+  - Quintuple left click: Select the entire scrollback buffer.
+- Widely used clipboard formats support:
   - Plain text
   - RTF
   - HTML
   - ANSI/VT
   - Protected (Windows only: `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory`, `CanUploadToCloudClipboard`)
 - [VT-100 terminal emulation](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html) compatible (pass vttest 1 and 2 sections)
-- Built-in Windows Console API server
+- Built-in Windows Console API server:
   - Legacy Win32 Console API support
   - No Windows Console Host (conhost.exe) dependency
   - Fullduplex pass-through VT input/output
