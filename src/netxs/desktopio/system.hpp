@@ -4441,17 +4441,20 @@ namespace netxs::os
                     auto& bitmap = lock.thing;
                     if (os::dtvt::vtmode & ui::console::gui)
                     {
-                        auto update = [](auto size, auto head, auto iter, auto tail)
-                        {
-                            #if defined(_WIN32)
-                                auto offset = (si32)(iter - head);
-                                auto coor = twod{ offset % size.x, offset / size.x };
-                                //todo update client area
-                            #else
-                                //todo update client area
-                            #endif
-                        };
-                        bitmap.get(data, update);
+                        //todo gui-bridge
+                        //auto update = [](auto size, auto head, auto iter, auto tail)
+                        //{
+                        //    #if defined(_WIN32)
+                        //        auto offset = (si32)(iter - head);
+                        //        auto coor = twod{ offset % size.x, offset / size.x };
+                        //        //todo update client area
+                        //    #else
+                        //        auto offset = (si32)(iter - head);
+                        //        auto coor = twod{ offset % size.x, offset / size.x };
+                        //        //todo update client area
+                        //    #endif
+                        //};
+                        //bitmap.get(data, update);
                     }
                     else
                     {

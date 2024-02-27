@@ -437,11 +437,14 @@ namespace netxs::generics
         {
             Ring& buff;
             si32  addr;
-            iter(Ring& buff, si32 addr)
+
+            constexpr iter(iter const&) = default;
+            constexpr iter(Ring& buff, si32 addr)
               : buff{ buff },
                 addr{ addr }
             { }
-            auto  operator =  (iter const& i)       { assert(&i.buff == &buff); addr = i.addr; return *this;              }
+
+            auto& operator =  (iter const& i)       { assert(&i.buff == &buff); addr = i.addr; return *this;              }
             auto  operator -  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr - n) };                 }
             auto  operator +  (si32 n)        const {      return iter<Ring>{ buff, buff.mod(addr + n) };                 }
             auto  operator ++ (int)                 { auto temp = iter<Ring>{ buff, addr }; buff.inc(addr); return temp;  }
