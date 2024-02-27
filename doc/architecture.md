@@ -209,7 +209,7 @@ The desktop client outputs the received render to the hosting console only when 
 
 ## Desktop Structure
 
- Term               | Meaning
+ Term               | Description
 --------------------|---------------
 `colored character` | A character depicted with rendition attributes such as background and foreground color.
 `text console`      | A cellular rectangular surface designed to display colored monospaced characters in cells.
