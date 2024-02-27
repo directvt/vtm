@@ -2335,7 +2335,6 @@ namespace netxs::ui
                         dest.full(full);
                     }
                 }
-
                 selection_render(dest);
             }
             // alt_screen: Remove all lines below except the current. "ED2 Erase viewport" keeps empty lines.
@@ -4582,35 +4581,42 @@ namespace netxs::ui
                     ++head;
                 }
 
-                auto top_coor = twod{ view.coor.x, view.coor.y + y_top - sctop }; //todo ? replace view.coor.y with batch.slide
-                auto end_coor = twod{ view.coor.x, view.coor.y + y_end + 1     };
-                upbox.move(top_coor);
-                dnbox.move(end_coor);
-                dest.fill(upbox, cell::shaders::xlucent(owner.config.def_lucent));
-                dest.fill(dnbox, cell::shaders::xlucent(owner.config.def_lucent));
-                if (find && panel.y != arena)
+                if (panel.y != arena) // The scrolling region is set.
                 {
-                    auto draw = [&](auto const& block)
+                    auto destcoor = view.coor - dest.coor();
+                    auto top_coor = twod{ 0, y_top - sctop } + destcoor;
+                    auto end_coor = twod{ 0, y_end + 1     } + destcoor;
+                    upbox.move(top_coor);
+                    dnbox.move(end_coor);
+                    dest.plot(upbox, cell::shaders::xlucent(owner.config.def_lucent));
+                    dest.plot(dnbox, cell::shaders::xlucent(owner.config.def_lucent));
+                    if (find)
                     {
-                        if (auto area = block.area())
+                        auto draw = [&](auto const& block)
                         {
-                            dest.full(area);
-                            auto offset = si32{};
-                            auto work = [&](auto shader)
+                            if (auto area = block.area())
                             {
-                                while (block.find(match, offset))
+                                auto block_view = view;
+                                block_view.size.x = area.size.x; // Follow wrapping for matches.
+                                dest.full(block_view);
+                                area.coor -= destcoor;
+                                auto offset = si32{};
+                                auto marker = [&](auto shader)
                                 {
-                                    auto c = block.toxy(offset);
-                                    dest.output(match, c, shader);
-                                    offset += match.length();
-                                }
-                            };
-                            _shade(owner.config.def_find_f, owner.config.def_find_c, work);
-                        }
-                    };
-                    draw(upbox);
-                    draw(dnbox);
-                    dest.full(full);
+                                    while (block.find(match, offset))
+                                    {
+                                        auto c = block.toxy(offset) + area.coor;
+                                        dest.output(match, c, shader);
+                                        offset += match.length();
+                                    }
+                                };
+                                _shade(owner.config.def_find_f, owner.config.def_find_c, marker);
+                            }
+                        };
+                        draw(upbox);
+                        draw(dnbox);
+                        dest.full(full);
+                    }
                 }
 
                 selection_render(dest);
@@ -5452,14 +5458,30 @@ namespace netxs::ui
             // scroll_buf: Select all (ignore non-scrolling regions).
             void selection_selall() override
             {
-                place = part::mid;
+                place = scend ? part::end : part::mid; // Last active region.
                 uptop.role = dntop.role = grip::idle;
+                upmid.role = dnmid.role = grip::base;
                 upend.role = dnend.role = grip::idle;
+                if (y_top != 0)
+                {
+                    uptop.role = grip::base;
+                    dntop.role = upmid.role = grip::join;
+                    uptop.coor = { 0, sctop - y_top };
+                    dntop.coor = { panel.x - 1, sctop - 1 };
+                }
+                auto dyend = (panel.y - 1) - y_end;
+                if (dyend > 0)
+                {
+                    dnmid.role = upend.role = grip::join;
+                    dnend.role = grip::base;
+                    upend.coor = { 0, 0 };
+                    dnend.coor = { panel.x - 1, dyend };
+                }
                 auto& topln = batch.front();
                 auto& endln = batch.back();
                 auto x = std::max(0, endln.length() - 1);
-                upmid = { .link = topln.index, .coor = offset_to_screen(topln, 0), .role = grip::base};
-                dnmid = { .link = endln.index, .coor = offset_to_screen(endln, x), .role = grip::base};
+                upmid = { .link = topln.index, .coor = offset_to_screen(topln, 0), .role = upmid.role };
+                dnmid = { .link = endln.index, .coor = offset_to_screen(endln, x), .role = dnmid.role };
                 selection_locked(faux);
                 selection_selbox(faux);
                 selection_update(faux);
@@ -5474,11 +5496,8 @@ namespace netxs::ui
                     upmid.role = dnmid.role = grip::idle;
                     upend.role = dnend.role = grip::idle;
                     uptop.role = grip::base;
-                    uptop.coor = {-owner.origin.x, 0 };
-                    dntop = uptop;
-                    uptop.coor.x = 0;
-                    dntop.coor.x = panel.x - 1;
-                    dntop.coor.y += y_top;
+                    uptop.coor = { 0, sctop - y_top };
+                    dntop.coor = { panel.x - 1, sctop - 1 };
                 }
                 else if (coor.y < scrolling_margin + arena) // Inside the scrolling region.
                 {
@@ -5487,7 +5506,7 @@ namespace netxs::ui
                     auto curit = batch.iter_by_id(upmid.link);
                     auto& line = *curit;
                     auto start = screen_to_offset(line, upmid.coor);
-                    auto group = line.empty() ? line.link() : line.at(start).link();
+                    auto group = 0xFF & (line.empty() ? line.link() : line.at(start).link()); // The semantic marker is placed in the low byte of the identifier.
                     auto check = [&](auto& c){ return c.link() != group; };
                     if (!group) // Semantic markers are not used.
                     {
@@ -5552,11 +5571,8 @@ namespace netxs::ui
                     upmid.role = dnmid.role = grip::idle;
                     uptop.role = dntop.role = grip::idle;
                     upend.role = grip::base;
-                    upend.coor = {-owner.origin.x, 0 };
-                    dnend = upend;
-                    upend.coor.x = 0;
-                    dnend.coor.x = panel.x - 1;
-                    dnend.coor.y += scend;
+                    upend.coor = { 0, 0 };
+                    dnend.coor = { panel.x - 1, (panel.y - 1) - y_end };
                 }
                 selection_locked(faux);
                 selection_selbox(faux);
@@ -5827,8 +5843,10 @@ namespace netxs::ui
                                 bufferbase::selection_raster(dest, grip_1.coor, grip_2.coor, grip_1.role == grip::base, grip_2.role == grip::base);
                             }
                         };
-                        draw_area(uptop, dntop, batch.slide);
-                        draw_area(upend, dnend, batch.slide + y_top + arena);
+                        auto dytop = y_top;
+                        auto dyend = (panel.y - 1) - y_end;
+                        if (dytop > 0) draw_area(uptop, dntop, batch.slide - (sctop - y_top));
+                        if (dyend > 0) draw_area(upend, dnend, batch.slide + y_end + 1);
                     }
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
@@ -6357,8 +6375,10 @@ namespace netxs::ui
         void osc_marker(view data)
         {
             auto type = data.size() ? data.front() : 0;
-            if (io_log) log("\tOSC %% semantic marker: %type%", ansi::osc_semantic_fx, type ? type : '-');
-            target->brush.link(type);
+            auto& console = *target;
+            auto new_id = type | (console.brush.link() & 0xFF);
+            console.brush.link(new_id);
+            if (io_log) log("\tOSC %% semantic marker: %type%", ansi::osc_semantic_fx, type);
         }
         // term: Terminal notification (OSC 9).
         void osc_notify(view data)

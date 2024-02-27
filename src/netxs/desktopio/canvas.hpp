@@ -2079,7 +2079,7 @@ namespace netxs
             netxs::zoomin(*this, block, fuse);
         }
         template<class P>
-        void plot(core const& block, P fuse) // core: Fill view by the specified block using its coordinates inside canvas area.
+        void plot(core const& block, P fuse) // core: Fill view by the specified block with coordinates inside the canvas area.
         {
             auto local = rect{ client.coor - region.coor, client.size };
             auto joint = local.clip(block.region);
