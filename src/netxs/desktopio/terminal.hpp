@@ -5507,7 +5507,7 @@ namespace netxs::ui
                     auto& line = *curit;
                     auto start = screen_to_offset(line, upmid.coor);
                     auto group = 0xFF & (line.empty() ? line.link() : line.at(start).link()); // The semantic marker is placed in the low byte of the identifier.
-                    auto check = [&](auto& c){ return c.link() != group; };
+                    auto check = [&](auto& c){ return (c.link() & 0xFF) != group; };
                     if (!group) // Semantic markers are not used.
                     {
                         selection_selall();
@@ -5533,7 +5533,7 @@ namespace netxs::ui
                             while (head != iter)
                             {
                                 auto& curln = *--iter;
-                                auto found = curln.empty() ? curln.link() != group : !curln.each(check);
+                                auto found = curln.empty() ? (curln.link() & 0xFF) != group : !curln.each(check);
                                 if (found)
                                 {
                                     upmid.link = curln.index + 1;
@@ -5548,7 +5548,7 @@ namespace netxs::ui
                                 while (tail != ++iter)
                                 {
                                     auto& curln = *iter;
-                                    auto found = curln.empty() ? curln.link() != group : !curln.each(check);
+                                    auto found = curln.empty() ? (curln.link() & 0xFF) != group : !curln.each(check);
                                     if (found)
                                     {
                                         dnmid.link = curln.index - 1;
@@ -6376,7 +6376,7 @@ namespace netxs::ui
         {
             auto type = data.size() ? data.front() : 0;
             auto& console = *target;
-            auto new_id = type | (console.brush.link() & 0xFF);
+            auto new_id = type | (console.brush.link() & ~0xFF);
             console.brush.link(new_id);
             if (io_log) log("\tOSC %% semantic marker: %type%", ansi::osc_semantic_fx, type);
         }
