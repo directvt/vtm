@@ -1340,6 +1340,36 @@ namespace netxs
                 st.get<Mode, UseSGR>(base.st, dest);
             }
         }
+        // cell: Render colored whitespaces instead of "░▒▓".
+        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
+        void filter(cell& base, T& dest) const
+        {
+            if constexpr (UseSGR && Mode == svga::vtrgb)
+            {
+                auto egc = gc.get<Mode>();
+                if (egc.size() == 3 && egc[0] == '\xE2' && egc[1] == '\x96')
+                {
+                    auto k = 0;
+                         if (egc[2] == '\x91') k = 64;  // "░"
+                    else if (egc[2] == '\x92') k = 96;  // "▒"
+                    else if (egc[2] == '\x93') k = 128; // "▓"
+                    else
+                    {
+                        dest += egc;
+                        return;
+                    }
+                    auto bgc = rgba::transit(base.uv.bg, base.uv.fg, k);
+                    if (bgc != base.uv.bg)
+                    {
+                        base.uv.bg = bgc;
+                        dest.template bgc<Mode>(bgc);
+                    }
+                    dest += whitespace;
+                }
+                else dest += egc;
+            }
+            else dest += gc.get<Mode>();
+        }
         // cell: Get differences (ANSI CSI/SGR format) of "base" and add it to "dest" and update the "base".
         template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
         void scan(cell& base, T& dest) const
@@ -1352,7 +1382,7 @@ namespace netxs
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
                 }
-                if (wdt() && !gc.is_space()) dest += gc.get<Mode>();
+                if (wdt() && !gc.is_space()) filter<Mode, UseSGR>(base, dest);
                 else                         dest += whitespace;
             }
         }
@@ -1369,7 +1399,7 @@ namespace netxs
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
                 }
-                dest += gc.get<Mode>();
+                filter<Mode, UseSGR>(base, dest);
                 return true;
             }
             else

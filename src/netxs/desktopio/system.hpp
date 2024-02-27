@@ -3493,7 +3493,7 @@ namespace netxs::os
             else
             {
                 dtvt::win_sz = dtvt::consize();
-                //trygui = faux; // Not implemented.
+                trygui = faux; //todo Not implemented.
                 if (trygui)
                 {
                     #if defined(_WIN32)
