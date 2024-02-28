@@ -56,11 +56,11 @@ graph LR
         settings")
         B --> C["--config #lt;file#gt;
         specified?"]
-        C -->|Yes| D["Merge #lt;file#gt;"]
-        C --->|No| F["Merge global"]
-        F --> G["Merge user wise"]
-        D ---> H["Merge DirectVT packet
-        received from DirectVT Gateway"]
+        C -->|Yes| D["Overlay the settings from the #lt;file#gt;"]
+        C --->|No| F["Overlay global settings"]
+        F --> G["Overlay user wise settings"]
+        D ---> H["Overlay the settings received
+        from the DirectVT Gateway"]
         G --> H
     end
 ```
