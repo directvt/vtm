@@ -6,9 +6,9 @@ graph LR
     direction LR
         B("Init hardcoded
         settings")
-        B --> C["--config 〈file〉
+        B --> C["--config ‹file›
         specified?"]
-        C -->|Yes| D["Overlay the settings from the 〈file〉"]
+        C -->|Yes| D["Overlay the settings from the ‹file›"]
         C --->|No| F["Overlay global settings"]
         F --> G["Overlay user wise settings"]
         D ---> H["Overlay the settings received
