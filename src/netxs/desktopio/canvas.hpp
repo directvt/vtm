@@ -1964,7 +1964,7 @@ namespace netxs
         constexpr auto& size() const           { return region.size;                                                        }
         auto& coor() const                     { return region.coor;                                                        }
         auto& area() const                     { return region;                                                             }
-        auto  area(rect new_area)              { size(new_area.size); move(new_area.coor); view(new_area);                  }
+        auto  area(rect new_area)              { size(new_area.size); move(new_area.coor); clip(new_area);                  }
         auto  data() const -> cell const*      { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto  data()       -> cell*            { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto& pick()                           { return canvas;                                                             }
@@ -1985,8 +1985,8 @@ namespace netxs
         auto  link()                           { return marker.link();                                                      } // core: Return default object ID.
         void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
         auto  link(twod coord) const           { return region.size.inside(coord) ? (*(data(coord))).link() : 0;            } // core: Return ID of the object in cell at the specified coordinates.
-        auto  view() const                     { return client;                                                             }
-        void  view(rect new_client)            { client = new_client;                                                       }
+        auto  clip() const                     { return client;                                                             }
+        void  clip(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
         void size(twod new_size, cell const& c) // core: Change the size of the face.
@@ -2109,7 +2109,7 @@ namespace netxs
             netxs::zoomin(*this, block, fuse);
         }
         template<class P>
-        void plot(core const& block, P fuse) // core: Fill view by the specified block with coordinates inside the canvas area.
+        void plot(core const& block, P fuse) // core: Fill the client area by the specified block with coordinates inside the canvas area.
         {
             auto local = rect{ client.coor - region.coor, client.size };
             auto joint = local.clip(block.region);
@@ -2134,11 +2134,11 @@ namespace netxs
         template<class P>
         void fill(P fuse) // core: Fill the client area using lambda.
         {
-            fill(view(), fuse);
+            fill(clip(), fuse);
         }
         void fill(cell const& c) // core: Fill the client area using brush.
         {
-            fill(view(), cell::shaders::full(c));
+            fill(clip(), cell::shaders::full(c));
         }
         void grad(rgba c1, rgba c2) // core: Fill the specified region with the linear gradient.
         {

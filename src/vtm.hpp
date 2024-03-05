@@ -600,8 +600,8 @@ namespace netxs::app::vtm
                             }
                             else
                             {
-                                auto temp = canvas.view();
-                                canvas.view(area);
+                                auto temp = canvas.clip();
+                                canvas.clip(area);
                                 canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
                                 canvas.blur(10);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
@@ -613,7 +613,7 @@ namespace netxs::app::vtm
                                 coor.x -= caption.length() - 1;
                                 header.move(coor);
                                 canvas.fill(header, cell::shaders::contrast);
-                                canvas.view(temp);
+                                canvas.clip(temp);
                             }
                         }
                     }

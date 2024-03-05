@@ -52,7 +52,7 @@ namespace netxs::ui
         si32 caret_mx{ }; // flow: Maximum x-coor value on the visible area.
         twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position.
         twod caretsav{ }; // flow: Caret pos saver.
-        rect viewrect{ }; // flow: Client area inside page margins.
+        rect cliprect{ }; // flow: Client area inside page margins.
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator.
         rect pagecopy{ }; // flow: Client full area saver.
         deco selfcopy{ }; // flow: Flow state storage.
@@ -120,7 +120,7 @@ namespace netxs::ui
             auto outwidth = si32{};
             if constexpr (Wrap)
             {
-                printout = textline.trunc(viewrect.size);
+                printout = textline.trunc(cliprect.size);
                 outwidth = printout.coor.x + printout.size.x - textline.coor.x;
 
                 if constexpr (!Split)
@@ -163,19 +163,19 @@ namespace netxs::ui
             curpoint += std::max(printout.size.x, 1);
             textline.size.x = textsize - curpoint;
 
-            if (RtoL) printout.coor.x = viewrect.size.x - (printout.coor.x + printout.size.x);
-            if (ReLF) printout.coor.y = viewrect.size.y - (printout.coor.y + printout.size.y);
+            if (RtoL) printout.coor.x = cliprect.size.x - (printout.coor.x + printout.size.x);
+            if (ReLF) printout.coor.y = cliprect.size.y - (printout.coor.y + printout.size.y);
             else      printout.coor.y = textline.coor.y; //do not truncate y-axis?
             //todo revise: It is actually only for the coor.y that is negative.
 
-            printout.coor += viewrect.coor;
+            printout.coor += cliprect.coor;
             boundary |= printout;
 
             if constexpr (!std::is_same_v<P, noop>)
             {
                 //todo margins don't apply to unwrapped text
                 //auto imprint = Wrap ? printout
-                //                    : viewrect.clip(printout);
+                //                    : cliprect.clip(printout);
                 if (printout)
                 {
                     auto& coord = printout.coor;
@@ -188,7 +188,7 @@ namespace netxs::ui
             highness = textline.size.y;
         }
 
-        auto middle() { return (viewrect.size.x >> 1) - (textline.size.x >> 1); }
+        auto middle() { return (cliprect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
@@ -268,9 +268,9 @@ namespace netxs::ui
             {
                 textline = getvol(block_size);
                 curpoint = 0;
-                viewrect = textpads.area(size_x, size_y);
-                viewrect.coor += pagerect.coor;
-                caret_mx = viewrect.size.x;
+                cliprect = textpads.area(size_x, size_y);
+                cliprect.coor += pagerect.coor;
+                caret_mx = cliprect.size.x;
 
                 // Move cursor down if next line is lower than previous.
                 if (highness > textline.size.y)
@@ -493,7 +493,7 @@ namespace netxs::ui
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? used, body.size().y } };
             auto place = rect{ coord, { used, body.size().y } };
-            auto joint = canvas.view().clip(place);
+            auto joint = canvas.clip().clip(place);
             if (joint)
             {
                 if constexpr (RtoL)
@@ -2254,24 +2254,24 @@ namespace netxs::ui
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto bump(dent delta, bool clip = true)
+        auto bump(dent delta, bool trim = true)
         {
             auto old_full = flow::full();
-            auto old_view = core::view();
-            if (clip)
+            auto old_clip = core::clip();
+            if (trim)
             {
-                auto new_view = core::area().clip(old_view + delta);
-                core::view(new_view);
+                auto new_clip = core::area().clip(old_clip + delta);
+                core::clip(new_clip);
             }
             auto new_full = old_full + delta;
             flow::full(new_full);
-            return std::pair{ old_full, old_view };
+            return std::pair{ old_full, old_clip };
         }
         // face: Restore previously saved context.
         void bump(std::pair<rect, rect> ctx)
         {
             flow::full(ctx.first);
-            core::view(ctx.second);
+            core::clip(ctx.second);
         }
         // face: Dive into object context.
         auto change_basis(rect object_area, bool trim = true)
@@ -2280,44 +2280,44 @@ namespace netxs::ui
             {
                 face& canvas;
                 rect canvas_full;
-                rect canvas_view;
+                rect canvas_clip;
                 twod canvas_coor;
-                bool nested_view;
+                bool nested_clip;
 
-                operator bool () { return nested_view; };
+                operator bool () { return nested_clip; };
 
-                ctx(face& canvas, rect canvas_full = {}, rect canvas_view = {}, twod canvas_coor = {}, bool nested_view = {})
+                ctx(face& canvas, rect canvas_full = {}, rect canvas_clip = {}, twod canvas_coor = {}, bool nested_clip = {})
                     :      canvas{ canvas      },
                       canvas_full{ canvas_full },
-                      canvas_view{ canvas_view },
+                      canvas_clip{ canvas_clip },
                       canvas_coor{ canvas_coor },
-                      nested_view{ nested_view }
+                      nested_clip{ nested_clip }
                 { }
                 ctx(ctx&& c)
                     :      canvas{ c.canvas      },
                       canvas_full{ c.canvas_full },
-                      canvas_view{ c.canvas_view },
+                      canvas_clip{ c.canvas_clip },
                       canvas_coor{ c.canvas_coor },
-                      nested_view{ c.nested_view }
+                      nested_clip{ c.nested_clip }
                 {
-                    c.nested_view = faux;
+                    c.nested_clip = faux;
                 }
                ~ctx()
                 {
-                    if (nested_view)
+                    if (nested_clip)
                     {
                         canvas.flow::full(canvas_full);
-                        canvas.core::view(canvas_view);
+                        canvas.core::clip(canvas_clip);
                         canvas.core::move(canvas_coor);
                     }
                 }
             };
-            auto nested_view = trim ? core::view().clip(object_area) : core::view();
-            if (nested_view)
+            auto nested_clip = trim ? core::clip().clip(object_area) : core::clip();
+            if (nested_clip)
             {
-                auto context = ctx{ *this, flow::full(), core::view(), core::coor(), true };
+                auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);
-                core::view({     nested_view.coor - object_area.coor,   nested_view.size });
+                core::clip({     nested_clip.coor - object_area.coor,   nested_clip.size });
                 flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
                 return context;
             }
@@ -2384,10 +2384,10 @@ namespace netxs::ui
             using irgb = vrgb::value_type;
 
             auto area = core::area();
-            auto view = core::view();
+            auto clip = core::clip();
 
-            auto w = std::max(0, view.size.x);
-            auto h = std::max(0, view.size.y);
+            auto w = std::max(0, clip.size.x);
+            auto h = std::max(0, clip.size.y);
             auto s = w * h;
 
             if (cache.size() < (size_t)s)
@@ -2395,11 +2395,11 @@ namespace netxs::ui
                 cache.resize(s);
             }
 
-            auto s_ptr = core::data(view.coor - area.coor);
+            auto s_ptr = core::data(clip.coor - area.coor);
             auto d_ptr = cache.data();
 
             auto s_width = area.size.x;
-            auto d_width = view.size.x;
+            auto d_width = clip.size.x;
 
             auto s_point = [](cell* c)->auto& { return c->bgc(); };
             auto d_point = [](irgb* c)->auto& { return *c;       };

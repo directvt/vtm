@@ -97,7 +97,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::postrender, parent_canvas, memo)
                 {
                     auto full = parent_canvas.full();
-                    auto view = parent_canvas.view();
+                    auto clip = parent_canvas.clip();
                     auto mark = cell{}.bgc(bluelt).bga(0x40);
                     auto fill = [&](cell& c){ c.fuse(mark); };
                     auto step = twod{ 5, 1 };
@@ -110,13 +110,13 @@ namespace netxs::ui
                             auto region = item.region.normalize();
                             auto pos1 = region.coor / step * step;
                             auto pos2 = (region.coor + region.size + step) / step * step;
-                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.clip(area).clip(view);
+                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.clip(area).clip(clip);
                             parent_canvas.fill(pick, fill);
                         }
                         if (item.inside)
                         {
                             auto pos1 = item.curpos / step * step;
-                            auto pick = rect{ full.coor + pos1, step }.clip(view);
+                            auto pick = rect{ full.coor + pos1, step }.clip(clip);
                             parent_canvas.fill(pick, fill);
                         }
                     });

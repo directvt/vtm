@@ -883,13 +883,13 @@ namespace netxs::ui
                                           : live;
                         if (state)
                         {
-                            auto view = canvas.core::view();
-                            if (auto area = view.clip(body))
+                            auto clip = canvas.core::clip();
+                            if (auto area = clip.clip(body))
                             {
                                 auto& test = canvas.peek(body.coor);
                                 if (test.wdt() == 2) // Extend cursor to adjacent halves.
                                 {
-                                    if (view.hittest(body.coor + dot_10))
+                                    if (clip.hittest(body.coor + dot_10))
                                     {
                                         auto& next = canvas.peek(body.coor + dot_10);
                                         if (next.wdt() == 3 && test.same_txt(next))
@@ -900,7 +900,7 @@ namespace netxs::ui
                                 }
                                 else if (test.wdt() == 3)
                                 {
-                                    if (view.hittest(body.coor - dot_10))
+                                    if (clip.hittest(body.coor - dot_10))
                                     {
                                         auto& prev = canvas.peek(body.coor - dot_10);
                                         if (prev.wdt() == 2 && test.same_txt(prev))
@@ -1861,7 +1861,7 @@ namespace netxs::ui
                     auto bright = rgba{0xFFffffff};
 
                     //todo optimize - don't fill the head and foot twice
-                    auto area = parent_canvas.view();
+                    auto area = parent_canvas.clip();
                     auto n = std::clamp(size, 0, area.size.y / 2) + 1;
                     //auto n = std::clamp(size, 0, boss.base::size().y / 2) + 1;
 
@@ -2649,7 +2649,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto basis = parent_canvas.full();
-                auto frame = parent_canvas.view();
+                auto frame = parent_canvas.clip();
                 auto min_y = frame.coor[updown] - basis.coor[updown];
                 auto max_y = frame.size[updown] + min_y;
                 auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
@@ -2945,7 +2945,7 @@ namespace netxs::ui
             {
                 output(parent_canvas);
                 //auto mark = rect{ base::anchor + base::coor(), {10,5} };
-                //mark.coor += parent_canvas.view().coor; // Set client's basis
+                //mark.coor += parent_canvas.clip().coor; // Set client's basis
                 //parent_canvas.fill(mark, [](cell& c){ c.alpha(0x80).bgc().chan.r = 0xff; });
             };
         }
@@ -3818,7 +3818,7 @@ namespace netxs::ui
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto region = parent_canvas.view();
+                auto region = parent_canvas.clip();
                 auto object = parent_canvas.full();
                 auto handle = region;
 
@@ -3893,10 +3893,10 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
             {
-                auto view = parent_canvas.view();
-                parent_canvas.view(view + extpad);
+                auto clip = parent_canvas.clip();
+                parent_canvas.clip(clip + extpad);
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
-                parent_canvas.view(view);
+                parent_canvas.clip(clip);
                 if (!empty())
                 {
                     auto& item = *base::subset.back();
@@ -3983,7 +3983,7 @@ namespace netxs::ui
                 parent_canvas.output(data);
                 if (test)
                 {
-                    auto area = parent_canvas.view();
+                    auto area = parent_canvas.clip();
                     auto size = data.size();
                     if (area.size > 0 && size.x > 0)
                     {
