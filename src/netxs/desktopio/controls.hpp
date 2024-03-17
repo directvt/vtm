@@ -2049,7 +2049,7 @@ namespace netxs::ui
 
         public:
             acryl(base&&) = delete;
-            acryl(base& boss, si32 size = 5)
+            acryl(base& boss, si32 size = 3)
                 : skill{ boss },
                   width{ size },
                   alive{ true }
@@ -3991,14 +3991,14 @@ namespace netxs::ui
                         {
                             auto coor = area.coor - parent_canvas.coor();
                             coor.y += std::min(area.size.y - 1, base::intpad.t);
-                            parent_canvas.core::data(coor)->txt(dots);
+                            parent_canvas.core::begin(coor)->txt(dots);
                         }
                         if (full.coor.x + base::intpad.l + size.x + base::intpad.r > area.coor.x + area.size.x)
                         {
                             auto coor = area.coor - parent_canvas.coor();
                             coor.x += area.size.x - 1;
                             coor.y += std::min(area.size.y - 1, base::intpad.t);
-                            parent_canvas.core::data(coor)->txt(dots);
+                            parent_canvas.core::begin(coor)->txt(dots);
                         }
                     }
                 }

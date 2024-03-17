@@ -2161,7 +2161,7 @@ namespace netxs::ui
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
                 auto size = canvas.size();
-                auto head = canvas.iter() + coord.y * size.x;
+                auto head = canvas.begin() + coord.y * size.x;
                 auto tail = head;
                 switch (n)
                 {
@@ -2258,7 +2258,7 @@ namespace netxs::ui
                         }
                         auto data = proto.begin();
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = canvas.iter() + seek;
+                        auto dest = canvas.begin() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
@@ -2275,7 +2275,7 @@ namespace netxs::ui
                         auto miny = seek - y_top * panel.x;
                         if (count > miny) count = miny;
 
-                        auto dest = canvas.iter() + seek;
+                        auto dest = canvas.begin() + seek;
                         auto tail = dest - count;
                         auto data = proto.end();
                         rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
@@ -2287,8 +2287,8 @@ namespace netxs::ui
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = canvas.iter() + seek;
-                        auto tail = canvas.iend();
+                        auto dest = canvas.begin() + seek;
+                        auto tail = canvas.end();
                         auto back = panel.x;
                         rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, fuse);
                     }
@@ -3731,7 +3731,7 @@ namespace netxs::ui
                         start = batch.index_by_id(index.front().index);
                     }
 
-                    auto curit = block.iter();
+                    auto curit = block.begin();
                     auto width = twod{ size.x, 1 };
                     auto curid = start == 0 ? batch.front().index
                                             : batch[start - 1].index + 1;
@@ -4265,7 +4265,7 @@ namespace netxs::ui
                         }
                         auto data = proto.begin();
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = upbox.iter() + seek;
+                        auto dest = upbox.begin() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
@@ -4456,8 +4456,8 @@ namespace netxs::ui
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = dnbox.iter() + seek;
-                        auto tail = dnbox.iend();
+                        auto dest = dnbox.begin() + seek;
+                        auto tail = dnbox.end();
                         auto back = panel.x;
                         rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
                     }

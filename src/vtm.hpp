@@ -603,7 +603,7 @@ namespace netxs::app::vtm
                                 auto temp = canvas.clip();
                                 canvas.clip(area);
                                 canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
-                                canvas.blur(10);
+                                canvas.blur(5);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
                                 auto caption = para(coder);

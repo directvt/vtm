@@ -510,8 +510,8 @@ namespace netxs
     {
         auto size1 = canvas.size();
         auto size2 = bitmap.size();
-        auto data1 = canvas.data();
-        auto data2 = bitmap.data();
+        auto data1 = canvas.begin();
+        auto data2 = bitmap.begin();
         auto data3 = data2;
         if (size1.x * size1.y == 0
          || size2.x * size2.y == 0) return;
@@ -555,8 +555,8 @@ namespace netxs
 
         if (size1 == size2)
         {
-            auto data1 = bitmap1.data();
-            auto data2 = bitmap2.data();
+            auto data1 = bitmap1.begin();
+            auto data2 = bitmap2.begin();
 
             auto limit = data1 + size1.y * size2.x;
             while (limit != data1)
@@ -572,13 +572,14 @@ namespace netxs
     template<bool RtoL, class T, class D, class R, class C, class P, class NewlineFx = noop>
     void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
+        if (region.size.y == 0) return;
         auto& base1 = region.coor;
 
         auto& size1 = canvas.size();
         auto& size2 = bitmap.size();
 
-        auto  data1 = canvas.data() + base1.x + base1.y * size1.x;
-        auto  data2 = bitmap.data() + base2.x + base2.y * size2.x;
+        auto  data1 = canvas.begin() + base1.x + base1.y * size1.x;
+        auto  data2 = bitmap.begin() + base2.x + base2.y * size2.x;
 
         auto  skip1 = size1.x - region.size.x;
         auto  skip2 = size2.x;
@@ -592,18 +593,20 @@ namespace netxs
             skip2 -= region.size.x;
         }
 
-        auto limit = data1 + region.size.y * size1.x;
-        while (limit != data1)
+        auto bound = data1 + region.size.x;
+        auto limit = bound + (region.size.y - 1) * size1.x;
+        while (true)
         {
-            auto bound = data1 + region.size.x;
-            while (bound != data1)
+            while (data1 != bound)
             {
                 if constexpr (RtoL) handle(*data1++, *--data2);
                 else                handle(*data1++, *data2++);
             }
+            online();
+            if (data1 == limit) break;
+            bound += size1.x;//= data1 + region.size.x;
             data1 += skip1;
             data2 += skip2;
-            online();
         }
     }
 
@@ -611,18 +614,28 @@ namespace netxs
     template<class T, class Rect>
     struct raster
     {
-        T    _data;
+        using base = T;
+        base _data;
         Rect _area;
-        auto  data()       { return _data.begin(); }
-        auto& size()       { return _area.size;    }
-        auto& area()       { return _area;         }
-        auto  data() const { return _data.begin(); }
-        auto& size() const { return _area.size;    }
-        auto& area() const { return _area;         }
+        auto  length() const { return _data.length(); }
+        auto  begin()        { return _data.begin();  }
+        auto  end()          { return _data.end();    }
+        auto  begin()  const { return _data.begin();  }
+        auto  end()    const { return _data.end();    }
+        auto& size()         { return _area.size;     }
+        auto& area()         { return _area;          }
+        auto& size()   const { return _area.size;     }
+        auto& area()   const { return _area;          }
+        raster() = default;
         raster(T data, Rect area)
             : _data{ data },
               _area{ area }
         { }
+        void resize(auto new_size, auto filler = {})
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler);
+        }
     };
 
     // intmath: Intersect two sprites and invoking
@@ -646,17 +659,17 @@ namespace netxs
     // intmath: Draw the rectangle region inside the canvas by
     //          invoking handle(canvas_element)
     //          (without boundary checking).
-    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().data()))>>>
+    template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
     void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
         auto& place = canvas.area();
         if (auto joint = region.clip(place))
         {
             auto basis = joint.coor - place.coor;
-            auto frame = place.size.x * basis.y + basis.x + canvas.data();
+            auto frame = place.size.x * basis.y + basis.x + canvas.begin();
             auto notch = place.size.x - joint.size.x;
-            auto limit = place.size.x * joint.size.y + frame;
-            while (limit != frame)
+            auto limit = place.size.x * (joint.size.y - 1) + frame + joint.size.x;
+            while (true)
             {
                 auto bound = frame + joint.size.x;
                 while (bound != frame)
@@ -673,8 +686,9 @@ namespace netxs
                     }
                 }
                 if constexpr (RtoL) frame += joint.size.x;
-                frame += notch;
                 online();
+                if (frame == limit) break;
+                frame += notch;
             }
         }
     }
@@ -887,105 +901,350 @@ namespace netxs
         return true;
     }
 
+    // 1D box-blur.
+    // To achieve a 2D blur, it needs to apply it again and swap the X with Y, and source with destination.
+    //
+    // Accum_t       Point accumulator type to avoid overflow.
+    // Calc          Whether do the division in the current run. Performance burst by 40% !
+    // s_ptr         Source bitmap pointer.
+    // d_ptr         Destination bitmap pointer.
+    // w             Bitmap width.
+    // h             Bitmap height.
+    // r             Horizontal blur radius.
+    // s_dtx         Index step along X in the source.
+    // s_dty         Index step along Y in the source.
+    // d_dtx         Index step along X in the destination.
+    // d_dty         Index step along Y in the destination.
+    // P_Base s_ref  Lambda to convert the src pointer to the reference.
+    // P_Dest d_ref  Lambda to convert the dst pointer to the reference.
+    // PostFx shade  Lambda for postprocessing.
+    template<class Accum_t, bool Calc,
+        class Src_t,
+        class Dst_t, class Int_t,
+        class P_Base, class P_Dest, class PostFx = noop>
+    void boxblur1d(Src_t s_ptr,
+                   Dst_t d_ptr, Int_t w,
+                                Int_t h, Int_t r, Int_t s_dtx, Int_t s_dty,
+                                                  Int_t d_dtx, Int_t d_dty, auto count,
+        P_Base s_ref, P_Dest d_ref, PostFx shade = {})
+    {
+        auto test = [&](auto accum){ auto n = accum / count; if (n > 255) throw; };
+        auto limit = s_ptr + s_dty * (h - 1);
+        while (true)
+        {
+            if (w <= r + 1) // All pixels on a line have the same average value.
+            {
+                // Find the left average.
+                auto accum = Accum_t{};
+                auto s_cur = s_ptr;
+                auto d_cur = d_ptr;
+                auto s_end = s_cur + (w - 1) * s_dtx;
+                auto d_end = d_cur + (w - 1) * d_dtx;
+                while (true)
+                {
+                    accum += s_ref(s_cur);
+                    if (s_cur == s_end) break;
+                    s_cur += s_dtx;
+                }
+                auto value = accum * (r + 1 + r) / w;
+                if constexpr (Calc) value /= count;
+                while (true)
+                {
+                    d_ref(d_cur) = value;
+                    shade(*d_cur);
+                    if (d_cur == d_end) break;
+                    d_cur += d_dtx;
+                }
+            }
+            else // if (w > r + 1)
+            {
+                // Find the left average.
+                auto accum = Accum_t{};
+                auto s_cur   = s_ptr;
+                auto s_cur_i = 0;
+                auto s_end   = s_cur   + r * s_dtx;
+                auto s_end_i = s_cur_i + r * 1;
+                auto n_i = 1000;
+                auto a_i = 0;
+                while (true)
+                {
+                    accum += s_ref(s_cur);
+                    a_i += n_i;
+                    if (s_cur_i == s_end_i) break;
+                    s_cur   += s_dtx;
+                    s_cur_i += 1;
+                }
+                auto l_val = accum / (r + 1);
+                auto b_i = a_i;
+                auto c_i = a_i / (r + 1);
+                a_i /= (r + 1);
+
+                // Find the right average.
+                auto r_val = Accum_t{};
+                s_cur   = s_ptr + (w - (r + 1)) * s_dtx;
+                s_cur_i =         (w - (r + 1)) * 1;
+                s_end =   s_cur   + r * s_dtx;
+                s_end_i = s_cur_i + r * 1;
+                a_i = 0;
+                while (true)
+                {
+                    r_val += s_ref(s_cur);
+                    a_i += n_i;
+                    if (s_cur_i == s_end_i) break;
+                    s_cur   += s_dtx;
+                    s_cur_i += 1;
+                }
+                r_val /= (r + 1);
+                a_i /= (r + 1);
+
+                auto d_cur   = d_ptr;
+                auto d_cur_i = 0;
+                auto d_end   = d_cur;
+                auto d_end_i = d_cur_i;
+                accum += l_val * r; // Leftmost pixel value.
+                if (c_i != n_i) throw;
+                b_i += r * c_i;
+                if (r + 1 + r >= w)
+                {
+                    // Sub l_val, add src.
+                    s_cur   = s_ptr + (r + 1) * s_dtx;
+                    s_cur_i =         (r + 1) * 1;
+                    d_end   += (w - (r + 1)) * d_dtx;
+                    d_end_i += (w - (r + 1)) * 1;
+                    if (d_end_i >= w) throw;
+                    test(accum);
+                    d_ref(d_cur) = Calc ? accum / count : accum;
+                    shade(*d_cur);
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                    while (true)
+                    {
+                        accum -= l_val;
+                        accum += s_ref(s_cur);
+                        test(accum);
+                        d_ref(d_cur) = Calc ? accum / count : accum;
+                        shade(*d_cur);
+                        if (d_cur_i == d_end_i) break;
+                        s_cur   += s_dtx;
+                        s_cur_i += 1;
+                        d_cur   += d_dtx;
+                        d_cur_i += 1;
+                    }
+                    // Sub l_val, add r_val.
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                    d_end   = d_cur   + (r + r + 1 - w) * d_dtx;
+                    d_end_i = d_cur_i + (r + r + 1 - w) * 1;
+                    if (d_end_i >= w) throw;
+                    while (true)
+                    {
+                        accum -= l_val;
+                        accum += r_val;
+                        test(accum);
+                        d_ref(d_cur) = Calc ? accum / count : accum;
+                        shade(*d_cur);
+                        if (d_cur_i == d_end_i) break;
+                        d_cur   += d_dtx;
+                        d_cur_i += 1;
+                    }
+                    s_cur = s_ptr;
+                    s_cur_i = 0;
+                }
+                else
+                {
+                    // Sub l_val, add src.
+                    s_cur   = s_ptr + (r + 1) * s_dtx;
+                    s_cur_i =         (r + 1) * 1;
+                    d_end   += r * d_dtx;
+                    d_end_i += r * 1;
+                    if (d_end_i >= w) throw;
+                    test(accum);
+                    d_ref(d_cur) = Calc ? accum / count : accum;
+                    shade(*d_cur);
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                    while (true)
+                    {
+                        accum -= l_val;
+                        accum += s_ref(s_cur);
+                        test(accum);
+                        d_ref(d_cur) = Calc ? accum / count : accum;
+                        shade(*d_cur);
+                        if (d_cur_i == d_end_i) break;
+                        s_cur   += s_dtx;
+                        s_cur_i += 1;
+                        d_cur   += d_dtx;
+                        d_cur_i += 1;
+                    }
+                    // Sub src, add src.
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                    d_end   = d_cur   + (w - 1 - (r + 1 + r)) * d_dtx;
+                    d_end_i = d_cur_i + (w - 1 - (r + 1 + r)) * 1;
+                    if (d_end_i >= w) throw;
+                    auto s_fwd   = s_ptr + (r + 1 + r) * s_dtx;
+                    auto s_fwd_i =         (r + 1 + r) * 1;
+                    s_cur = s_ptr;
+                    s_cur_i = 0;
+
+                    accum -= s_ref(s_cur);//l_val;
+                    accum += s_ref(s_fwd);
+
+                    test(accum);
+                    d_ref(d_cur) = Calc ? accum / count : accum;
+                    shade(*d_cur);
+                    while (d_cur_i != d_end_i)
+                    {
+                        s_cur += s_dtx;
+                        s_fwd += s_dtx;
+                        d_cur += d_dtx;
+                        s_fwd_i += 1;
+                        s_cur_i += 1;
+                        d_cur_i += 1;
+                        accum -= s_ref(s_cur);
+                        accum += s_ref(s_fwd);
+                        test(accum);
+                        d_ref(d_cur) = Calc ? accum / count : accum;
+                        shade(*d_cur);
+                    }
+                    s_cur   += s_dtx;
+                    s_cur_i += 1;
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                }
+
+                // Sub src, add r_val.
+                d_end   = d_ptr   + (w - 1) * d_dtx;
+                d_end_i =           (w - 1) * 1;
+                if (d_end_i >= w) throw;
+                while (true)
+                {
+                    accum -= s_ref(s_cur);
+                    accum += r_val;
+                    test(accum);
+                    d_ref(d_cur) = Calc ? accum / count : accum;
+                    shade(*d_cur);
+                    if (d_cur_i == d_end_i) break;
+                    s_cur   += s_dtx;
+                    s_cur_i += 1;
+                    d_cur   += d_dtx;
+                    d_cur_i += 1;
+                }
+                if (d_cur_i != w - 1) throw;
+            }
+            if (s_ptr == limit) break;
+            s_ptr += s_dty;
+            d_ptr += d_dty;
+        }
+        return;
+        /*
+        auto limit = s_ptr + s_dty * h;
+        auto k0 = (w <= r + 1 + r) ? 1 : 0;
+        auto rad_1 = r + 1;
+        auto srad1 = s_dtx * rad_1;
+        auto srad0 = srad1 - s_dtx;
+        auto end_x = s_dtx * (w - rad_1 - r);
+        //auto limit = s_ptr + s_dty * h;
+
+        //if constexpr (Calc) count *= rad_x + rad_x + 1;
+
+        while (s_ptr < limit)
+        {
+            auto front_i = 0;
+            auto front = s_ptr;
+            auto bound = Accum_t{ s_ref(front) };
+            auto accum = Accum_t{};
+
+            auto until_i = front_i + srad0;
+            auto until = front + srad0;
+            auto after_i = front_i;
+            auto after = front;
+            while (front_i < until_i) // Sum left semi-block.
+            {
+                front_i += s_dtx;
+                front += s_dtx;
+                accum += s_ref(front);
+            }
+            auto t = accum + bound;
+            bound = t / rad_1;
+            accum += t;
+
+            auto caret_i = 0;
+            auto caret = d_ptr;
+            until_i += srad1 - k0;
+            until += srad1 - k0;
+            while (front_i < until_i) // Fillleft semi-block.
+            {
+                accum -= bound;
+                accum += s_ref(front);
+                auto& point = d_ref(caret);
+                point = Calc ? accum / count : accum;
+                shade(*caret);
+                front += s_dtx;
+                caret += d_dtx;
+                front_i += s_dtx;
+                caret_i += d_dtx;
+            }
+            until_i += end_x - srad1;
+            until += end_x - srad1;
+            while (front_i < until_i) // Fill internal blocks.
+            {
+                accum -= s_ref(after);
+                accum += s_ref(front);
+                auto& point = d_ref(caret);
+                point = Calc ? accum / count : accum;
+                shade(*caret);
+                after_i += s_dtx;
+                caret_i += d_dtx;
+                after += s_dtx;
+                caret += d_dtx;
+                front_i += s_dtx;
+                front += s_dtx;
+            }
+            bound = {};
+            until_i += srad0 + k0; // srad1 for small
+            until += srad0 + k0;
+            while (true) // Fill pre semi-block and sum ending semi-block.
+            {
+                auto& f = s_ref(front);
+                accum -= s_ref(after);
+                accum += f;
+                bound += f;
+                auto& point = d_ref(caret);
+                point = Calc ? accum / count : accum;
+                shade(*caret);
+                if (front_i == until_i) break;
+                after_i += s_dtx;
+                caret_i += d_dtx;
+                after += s_dtx;
+                caret += d_dtx;
+                front_i += s_dtx;
+                front += s_dtx;
+            }
+            bound /= rad_1 - k0;
+            until_i -= srad1 - k0; // srad0 for small
+            until -= srad1 - k0;
+            while (true) // Fill ending semi-block.
+            {
+                accum -= s_ref(after);
+                accum += bound;
+                auto& point = d_ref(caret);
+                point = Calc ? accum / count : accum;
+                shade(*caret);
+                if (after_i == until_i) break;
+                after_i += s_dtx;
+                caret_i += d_dtx;
+                after += s_dtx;
+                caret += d_dtx;
+            }
+            s_ptr += s_dty;
+            d_ptr += d_dty;
+        }
+        */
+    }
+
     namespace _private
     {
-        ///<summary> intmath:
-        ///          Bitmap 1D box-blurring.
-        ///          To achieve a 2D blur, it needs to apply it again and swap the X with Y,
-        ///          and source with destination.
-        /// </summary>
-        /// <typeparam name="RGB_t"> Point value accumulator type. </typeparam>
-        /// <typeparam name="Calc" > Whether do the division in the current round. Performance burst by 40% ! </typeparam>
-        /// <param name="s_ptr"> Source bitmap array pointer. </param>
-        /// <param name="d_ptr"> Destination bitmap array pointer. </param>
-        /// <param name="w"    > Bitmap width. </param>
-        /// <param name="h"    > Bitmap height. </param>
-        /// <param name="rad_0"> Horizontal blur radius. </param>
-        /// <param name="rad_x"> Vertical blur radius (for the second round). </param>
-        /// <param name="s_dtx"> Index step along X in the source. </param>
-        /// <param name="s_dty"> Index step along Y in the source. </param>
-        /// <param name="d_dtx"> Index step along X in the destination. </param>
-        /// <param name="d_dty"> Index step along Y in the destination. </param>
-        /// <param name="P_Base s_ref"> Lambda to convert source pointer to the reference. </param>
-        /// <param name="P_Dest d_ref"> Lambda to convert destination pointer to the reference. </param>
-        /// <param name="PostFx shade"> Lambda for further processing. </param>
-        template<class RGB_t, bool Calc,
-            class Src_t,
-            class Dst_t, class Int_t,
-            class P_Base, class P_Dest, class PostFx = noop>
-        void blur1d(Src_t s_ptr,
-                    Dst_t d_ptr, Int_t w,
-                                 Int_t h, Int_t rad_0,
-                                          Int_t rad_x, Int_t s_dtx, Int_t s_dty,
-                                                       Int_t d_dtx, Int_t d_dty,
-            P_Base s_ref, P_Dest d_ref, PostFx shade = {})
-        {
-            auto rad_1 = rad_0 + 1;
-            auto count = rad_0 + rad_1;
-            auto beg_x = s_dtx * rad_0;
-            auto end_x = s_dtx * (w - count);
-            auto limit = s_ptr + s_dty * h;
-
-            if constexpr (Calc) count *= rad_x + rad_x + 1;
-
-            while (s_ptr < limit)
-            {
-                auto& first = s_ref(s_ptr);
-                auto  accum = RGB_t{ first };
-                accum *= rad_1;
-
-                auto front = s_ptr;
-                auto until = s_ptr + beg_x;
-                while (front < until)
-                {
-                    accum += s_ref(front);
-                    front += s_dtx;
-                }
-
-                auto caret = d_ptr;
-                until += beg_x;
-                while (front <= until)
-                {
-                    accum -= first;
-                    accum += s_ref(front);
-                    auto& point = d_ref(caret);
-                    point = Calc ? accum / count : accum;
-                    shade(*caret);
-                    front += s_dtx;
-                    caret += d_dtx;
-                }
-
-                auto after = s_ptr;
-                until = s_ptr + end_x;
-                while (after < until)
-                {
-                    accum -= s_ref(after);
-                    accum += s_ref(front);
-                    auto& point = d_ref(caret);
-                    point = Calc ? accum / count : accum;
-                    shade(*caret);
-                    after += s_dtx;
-                    front += s_dtx;
-                    caret += d_dtx;
-                }
-
-                auto& final = s_ref(front - s_dtx);
-                until += beg_x;
-                while (after < until)
-                {
-                    accum -= s_ref(after);
-                    accum += final;
-                    auto& point = d_ref(caret);
-                    point = Calc ? accum / count : accum;
-                    shade(*caret);
-                    after += s_dtx;
-                    caret += d_dtx;
-                }
-
-                s_ptr += s_dty;
-                d_ptr += d_dty;
-            }
-        }
         // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
         template<bool Fwd, class Src, class Dst, class P>
         void proc_block(Src begin_it, Src end_it, Dst dest_it, P proc)
@@ -1019,52 +1278,68 @@ namespace netxs
         _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
-    /// <summary> intmath:
-    ///           Bokeh (acryllic, blur) approximation.
-    ///           Edge points are multiplied by r in order to form inner glow.
-    /// </summary>
-    /// <typeparam name="RGB_t"> Point accumulator type. </typeparam>
-    /// <param name="s_ptr"> Source bitmap array pointer. </param>
-    /// <param name="d_ptr"> Destination bitmap array pointer. </param>
-    /// <param name="w"> Bitmap width. </param>
-    /// <param name="h"> Bitmap height. </param>
-    /// <param name="r"> Bokeh radius. </param>
-    /// <param name="s_dty"> Index step along Y in the source. </param>
-    /// <param name="d_dty"> Index step along Y in the destination. </param>
-    /// <param name="P_Base s_ref"> Lambda to convert source pointer to the reference. </param>
-    /// <param name="P_Dest d_ref"> Lambda to convert destination pointer to the reference. </param>
-    /// <param name="PostFx shade"> Lambda for further processing. </param>
-    /// <exmpla>
-    ///		see ui:pro::panel::blur()
-    /// </exmpla>
-    template<class RGB_t,
+    // Bokeh (acryllic, blur) approximation.
+    // Edge points are multiplied by r in order to form inner glow.
+    //
+    // Accum_t       Point accumulator type.
+    // s_ptr         Source bitmap array pointer.
+    // d_ptr         Destination bitmap array pointer.
+    // w             Bitmap width.
+    // h             Bitmap height.
+    // r             Bokeh radius.
+    // s_dty         Index step along Y in the source.
+    // d_dty         Index step along Y in the destination.
+    // ratio         X/Y axis ratio (2 for text cells, 1 for pixels).
+    // P_Base s_ref  Lambda to convert src pointer to the reference.
+    // P_Dest d_ref  Lambda to convert dst pointer to the reference.
+    // PostFx shade  Lambda for postprocessing.
+    template<class Accum_t,
         class Src_t,
         class Dst_t, class Int_t,
         class P_Base, class P_Dest, class PostFx = noop>
-    void bokefy(Src_t s_ptr,
-                Dst_t d_ptr, Int_t w,
-                             Int_t h, Int_t r, Int_t s_dty,
-                                               Int_t d_dty,
+    void boxblur(Src_t s_ptr,
+                 Dst_t d_ptr, Int_t w,
+                              Int_t h, Int_t r, Int_t s_dty,
+                                                Int_t d_dty, Int_t ratio,
         P_Base s_ref, P_Dest d_ref, PostFx shade = {})
     {
-        //auto rx = std::min(r + r, w - 1) >> 1;
-        auto rx = std::min((r + r) << 1, w - 1) >> 1; // x2 to preserve 2:1 text proportions
-        auto ry = std::min(r + r, h - 1) >> 1;
-
+        if (h <= 0 || w <= 0 || r <= 0) return;
+        auto rx = r * ratio;
+        auto ry = r;
         //for (auto i = 0; i < 1000; i++) //test performance
         {
-        _private::blur1d<RGB_t, 0>(s_ptr,    // blur horizontally and place
-                                   d_ptr, w, // result to the temp buffer
-                                          h, rx,
-                                             0,  1, s_dty,
-                                                 1, d_dty, s_ref,
-                                                           d_ref);
-        _private::blur1d<RGB_t, 1>(d_ptr,    // blur vertically and place
-                                   s_ptr, h, // result back to the source
-                                          w, ry,
-                                             rx, d_dty, 1,
-                                                 s_dty, 1, d_ref,
-                                                           s_ref, shade);
+        auto count = rx + rx + 1;
+        boxblur1d<Accum_t, 0>(s_ptr,    // blur horizontally and place
+                              d_ptr, w, // result to the temp buffer (d_ptr)
+                                     h, rx, 1, s_dty,
+                                            1, d_dty, count, s_ref,
+                                                             d_ref);
+        count *= ry + ry + 1;
+        boxblur1d<Accum_t, 1>(d_ptr,    // blur vertically and place
+                              s_ptr, h, // result back to the source (s_ptr)
+                                     w, ry, d_dty, 1,
+                                            s_dty, 1, count, d_ref,
+                                                             s_ref, shade);
         }
+    }
+    template<class T>
+    void boxblur(T& bitmap, si32 r, auto area, auto clip)
+    {
+        using type = std::decay_t<decltype(*bitmap.begin())>;
+        auto w = std::max(0, clip.size.x);
+        auto h = std::max(0, clip.size.y);
+        auto s = w * h;
+        auto buffer = T::base(s);
+        auto coor = clip.coor - area.coor;
+        auto s_ptr = bitmap.begin() + coor.x * coor.y;
+        auto d_ptr = buffer.begin();
+        auto s_width = area.size.x;
+        auto d_width = clip.size.x;
+        auto d_point = [](type* c)->auto& { return *c; };
+        netxs::boxblur<type>(s_ptr,
+                             d_ptr, w,
+                                    h, r, s_width,
+                                          d_width, 1, d_point,
+                                                      d_point);
     }
 }

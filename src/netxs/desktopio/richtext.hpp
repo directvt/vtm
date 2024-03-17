@@ -465,18 +465,18 @@ namespace netxs::ui
             return a < w ? shot{ body, a, std::min(std::max(0, length), w - a) }
                          : shot{ body, 0, 0 };
         }
-                  auto&  mark() const { return  body.mark();        }
-                  auto   data() const { return  body.data() + skip; }
-        constexpr auto   size() const { return  body.size();        }
-        constexpr auto  empty() const { return !used;               }
-        constexpr auto length() const { return  used;               }
+                  auto&  mark() const { return  body.mark();         }
+                  auto  begin() const { return  body.begin() + skip; }
+        constexpr auto   size() const { return  body.size();         }
+        constexpr auto  empty() const { return !used;                }
+        constexpr auto length() const { return  used;                }
         // shot: Compare content.
         template<class P>
         auto same(shot const& s, P compare) const
         {
             if (used != s.used) return faux;
-            auto dest = s.body.iter();
-            auto head =   body.iter();
+            auto dest = s.body.begin();
+            auto head =   body.begin();
             auto tail = head + used;
             while (head != tail)
             {
@@ -536,8 +536,8 @@ namespace netxs::ui
         void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
             assert(min_size <= length());
-            auto head = iter();
-            auto tail = iend();
+            auto head = begin();
+            auto tail = end();
             auto stop = head + min_size;
             while (stop != tail)
             {
@@ -563,7 +563,7 @@ namespace netxs::ui
                 if (at >= len) return;
                 count = std::min(count, len - at);
             }
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
@@ -573,10 +573,10 @@ namespace netxs::ui
         {
             auto len = fragment.length();
             resize(len + at);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + len;
-            auto src = fragment.data();
+            auto src = fragment.begin();
             while (dst != end) fuse(*dst++, *src++);
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -753,7 +753,7 @@ namespace netxs::ui
         {
             if (count <= 0) return;
             resize(at + count);
-            auto end = iter() + at;
+            auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
@@ -762,7 +762,7 @@ namespace netxs::ui
         void splice(twod at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            auto end = iter() + at.x + at.y * size().x;
+            auto end = begin() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
@@ -770,7 +770,7 @@ namespace netxs::ui
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(si32 top, si32 end, si32 gap, cell const& clr)
         {
-            auto data = core::data();
+            auto data = core::begin();
             auto size = core::size();
             auto step = size.x;
             assert(top >= 0 && top < end && end <= size.y);
@@ -823,7 +823,7 @@ namespace netxs::ui
             auto need = from + size + step;
             if (need > core::size().x) crop(need);
 
-            auto tail = core::iter() + from;
+            auto tail = core::begin() + from;
             auto iter = tail + size;
             while (iter != tail)
             {
@@ -846,7 +846,7 @@ namespace netxs::ui
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
             resize(max);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + max;
             auto src = dst - vol;
             auto end = ptr + at;
@@ -859,7 +859,7 @@ namespace netxs::ui
             if (count <= 0) return;
             auto len = length();
             crop(std::max(at, len) + count);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at;
             auto end = pos + count;
             auto src = ptr + len;
@@ -881,7 +881,7 @@ namespace netxs::ui
                 auto pos = at % margin;
                 auto rem = std::min(margin - pos, len - at);
                 auto vol = std::min(count, rem);
-                auto dst = iter() + at;
+                auto dst = begin() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
                 while (src != end) *dst++ = *src++;
@@ -897,7 +897,7 @@ namespace netxs::ui
             {
                 auto rem = len - at;
                 auto vol = std::min(count, rem);
-                auto dst = iter() + at;
+                auto dst = begin() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
                 while (src != end) *dst++ = *src++;
@@ -915,7 +915,7 @@ namespace netxs::ui
                 count = std::min(count, margin);
                 if (count >= len - at)
                 {
-                    auto ptr = iter();
+                    auto ptr = begin();
                     auto dst = ptr + at;
                     auto end = ptr + len;
                     while (dst != end) *dst++ = blank;
@@ -923,7 +923,7 @@ namespace netxs::ui
                 else
                 {
                     resize(margin + at);
-                    auto ptr = iter();
+                    auto ptr = begin();
                     auto dst = ptr + at;
                     auto src = dst + count;
                     auto end = dst - count + margin;
@@ -940,7 +940,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at.x + at.y * len.x;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
@@ -957,7 +957,7 @@ namespace netxs::ui
             count -= dt;
             if (count <= 0) return;
             auto vol = std::min(count, len.x * len.y - d2);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + d2;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
@@ -969,7 +969,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + len.x;
             auto end = pos + at.x;
@@ -984,7 +984,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + at.x;
             auto end = pos + len.x;
@@ -996,17 +996,17 @@ namespace netxs::ui
         void del_below(twod pos, cell const& blank)
         {
             auto len = size();
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
-            auto end = iend();
+            auto end = core::end();
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the top to the specified coor.
         void del_above(twod pos, cell const& blank)
         {
             auto len = size();
-            auto dst = iter();
+            auto dst = begin();
             auto end = dst + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
             while (dst != end) *dst++ = blank;
@@ -1016,7 +1016,7 @@ namespace netxs::ui
         auto& at(si32 p) const
         {
             assert(p >= 0);
-            return *(core::data() + p);
+            return *(core::begin() + p);
         }
     };
 
@@ -1104,7 +1104,7 @@ namespace netxs::ui
         auto& set(cell const& c) { brush.set(c); return *this; }
 
         //todo unify
-        auto& at(si32 p) const { return lyric->data(p); } // para: .
+        auto& at(si32 p) const { return *(lyric->begin(p)); } // para: .
 
         // para: Normalize caret position.
         void caret_check()
@@ -1164,7 +1164,7 @@ namespace netxs::ui
             {
                 caret--;
                 auto& line = content();
-                auto  iter = line.iter() + caret;
+                auto  iter = line.begin() + caret;
                 if (iter->wdt() == 3 && caret > 0 && (--iter)->wdt() == 2)
                 {
                     caret--;
@@ -1194,7 +1194,7 @@ namespace netxs::ui
             if (caret < length())
             {
                 auto& line = content();
-                auto  iter = line.iter() + caret;
+                auto  iter = line.begin() + caret;
                 caret++;
                 if (iter->wdt() == 2 && caret < length() && (++iter)->wdt() == 3)
                 {
@@ -1230,7 +1230,7 @@ namespace netxs::ui
             {
                 line.insert_full(caret, 2, c);
                 caret++;
-                line.data(caret).wdt(3);
+                line.begin(caret)->wdt(3);
                 caret++;
             }
             else line.insert_full(caret++, 1, c.wdt(1));
@@ -1335,9 +1335,9 @@ namespace netxs::ui
             else
             {
                 auto& data = content();
-                auto iter1 = data.iter();
+                auto iter1 = data.begin();
                 auto end_1 = iter1 + length();
-                auto iter2 = fallback.iter();
+                auto iter2 = fallback.begin();
                 auto end_2 = iter2 + fallback.length();
                 while (iter2 != end_2)
                 {
@@ -2395,20 +2395,21 @@ namespace netxs::ui
                 cache.resize(s);
             }
 
-            auto s_ptr = core::data(clip.coor - area.coor);
-            auto d_ptr = cache.data();
+            auto s_ptr = core::begin(clip.coor - area.coor);
+            auto d_ptr = cache.begin();
 
             auto s_width = area.size.x;
             auto d_width = clip.size.x;
 
-            auto s_point = [](cell* c)->auto& { return c->bgc(); };
-            auto d_point = [](irgb* c)->auto& { return *c;       };
+            auto s_point = [](auto c)->auto& { return c->bgc(); };
+            auto d_point = [](auto c)->auto& { return *c;       };
 
-            netxs::bokefy<irgb>(s_ptr,
-                                d_ptr, w,
-                                       h, r, s_width,
-                                             d_width, s_point,
-                                                      d_point, shade);
+            for (auto _(2); _--;) // Emulate Gaussian blur.
+            netxs::boxblur<irgb>(s_ptr,
+                                 d_ptr, w,
+                                        h, r, s_width,
+                                              d_width, 2, s_point,
+                                                          d_point, shade);
         }
     };
 

@@ -2333,7 +2333,7 @@ struct impl : consrv
         trim = dest.clip(trim);
         clip -= dest - trim;
         coor = trim.coor;
-        auto head = block.iter() + clip.coor.y * size.x;
+        auto head = block.begin() + clip.coor.y * size.x;
         auto tail = head + clip.size.y * size.x;
         auto rest = size.x - (clip.coor.x + clip.size.x);
         auto save = scrollback.coord;
@@ -3123,7 +3123,7 @@ struct impl : consrv
                             "\n\tinput.coord: ", coord,
                             "\n\tinput.count: ", count);
                 filler.size(count, cell{});
-                auto iter = filler.iter();
+                auto iter = filler.begin();
                 for (auto& attr : recs)
                 {
                     *iter++ = attr_to_brush(attr);
@@ -3537,8 +3537,8 @@ struct impl : consrv
                     filler.size(count, c);
                     if (w == 2)
                     {
-                        auto head = filler.iter();
-                        auto tail = filler.iend();
+                        auto head = filler.begin();
+                        auto tail = filler.end();
                         while (head != tail)
                         {
                             (++head)->wdt(3);
@@ -3644,7 +3644,7 @@ struct impl : consrv
                 log("\tinput.type: attributes");
                 auto recs = wrap<ui16>::cast(buffer, count);
                 auto iter = recs.begin();
-                auto head = mirror.iter() + start;
+                auto head = mirror.begin() + start;
                 auto tail = head + count;
                 while (head != tail)
                 {
@@ -3662,7 +3662,7 @@ struct impl : consrv
             }
             else
             {
-                auto head = mirror.iter() + start;
+                auto head = mirror.begin() + start;
                 auto tail = head + count;
                 log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 toUTF8.clear();

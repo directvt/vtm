@@ -701,19 +701,27 @@ namespace netxs
 
         operator rgba() const { return rgba{ r, g, b, a }; }
 
-        template<class N>
-        auto operator / (N v) const
+        bool operator > (auto n) const { return r > n || g > n || b > n || a > n; }
+        auto operator / (auto n) const { return irgb{ r / n, g / n, b / n, a / n }; } // 10% faster than divround.
+        auto operator * (auto n) const { return irgb{ r * n, g * n, b * n, a * n }; }
+        auto operator + (irgb const& c) const
         {
-            return irgb<T>{ r / v, g / v, b / v, a / v }; // 10% faster than divround.
+            return irgb{ r + c.r, g + c.g, b + c.b, a + c.a };
         }
 
-        template<class N>
-        void operator *= (N v)
+        void operator *= (auto n)
         {
-            r *= v;
-            g *= v;
-            b *= v;
-            a *= v;
+            r *= n;
+            g *= n;
+            b *= n;
+            a *= n;
+        }
+        void operator /= (auto n)
+        {
+            r /= n;
+            g /= n;
+            b /= n;
+            a /= n;
         }
         void operator = (irgb const& c)
         {
@@ -947,13 +955,13 @@ namespace netxs
                     {
                         bitstate bolded : 1;
                         bitstate italic : 1;
-                        bitstate unline : 2; // 0: no underline, 1 - single, 2 - double underline
+                        bitstate unline : 3; // 0: no, 1: single, 2: double, 3: curly, 4: dotted, 5: dashed
                         bitstate invert : 1;
                         bitstate overln : 1;
                         bitstate strike : 1;
                         bitstate r_to_l : 1;
                         bitstate blinks : 1;
-                        bitstate reserv : 7; // reserved
+                        bitstate reserv : 6; // reserved
                     } var;
                 } shared;
 
@@ -968,7 +976,6 @@ namespace netxs
                         bitstate isepar : 1;
                         bitstate inplus : 1;
                         bitstate zwnbsp : 1;
-                        //todo use these bits as a underline variator
                         bitstate render : 2; // reserved
                         bitstate reserv : 8; // reserved
                     } var;
@@ -1965,17 +1972,15 @@ namespace netxs
         auto& coor() const                     { return region.coor;                                                        }
         auto& area() const                     { return region;                                                             }
         auto  area(rect new_area)              { size(new_area.size); move(new_area.coor); clip(new_area);                  }
-        auto  data() const -> cell const*      { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
-        auto  data()       -> cell*            { return canvas.data();                                                      } //todo MSVC 17.7.0 requires return type
         auto& pick()                           { return canvas;                                                             }
-        auto  iter()                           { return canvas.begin();                                                     }
-        auto  iend()                           { return canvas.end();                                                       }
-        auto  iter() const                     { return canvas.begin();                                                     }
-        auto  iend() const                     { return canvas.end();                                                       }
-        auto  data(twod coord)                 { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the offset of the cell corresponding to the specified coordinates.
-        auto  data(twod coord) const           { return  data() + coord.x + coord.y * region.size.x;                        } // core: Return the const offset value of the cell.
-        auto& data(size_t offset)              { return*(data() + offset);                                                  } // core: Return the const offset value of the cell corresponding to the specified coordinates.
-        auto& operator [] (twod coord)         { return*(data(coord));                                                      } // core: Return reference of the canvas cell at the specified location. It is dangerous in case of layer resizing.
+        auto  begin()                          { return canvas.begin();                                                     }
+        auto  end()                            { return canvas.end();                                                       }
+        auto  begin() const                    { return canvas.begin();                                                     }
+        auto  end() const                      { return canvas.end();                                                       }
+        auto  begin(twod coord)                { return canvas.begin() + coord.x + coord.y * region.size.x;                 }
+        auto  begin(twod coord) const          { return canvas.begin() + coord.x + coord.y * region.size.x;                 }
+        auto  begin(size_t offset)             { return canvas.begin() + offset;                                            }
+        auto& operator [] (twod coord)         { return*(begin(coord));                                                     }
         auto& mark()                           { return marker;                                                             } // core: Return a reference to the default cell value.
         auto& mark() const                     { return marker;                                                             } // core: Return a reference to the default cell value.
         auto& mark(cell const& new_marker)     { marker = new_marker; return marker;                                        } // core: Set the default cell value.
@@ -1984,7 +1989,7 @@ namespace netxs
         auto& back()                           { return canvas.back();                                                      } // core: Return last cell.
         auto  link()                           { return marker.link();                                                      } // core: Return default object ID.
         void  link(id_t id)                    { marker.link(id);                                                           } // core: Set the default object ID.
-        auto  link(twod coord) const           { return region.size.inside(coord) ? (*(data(coord))).link() : 0;            } // core: Return ID of the object in cell at the specified coordinates.
+        auto  link(twod coord) const           { return region.size.inside(coord) ? (*(begin(coord))).link() : 0;           } // core: Return ID of the object in cell at the specified coordinates.
         auto  clip() const                     { return client;                                                             }
         void  clip(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
@@ -2122,7 +2127,7 @@ namespace netxs
         auto& peek(twod p) // core: Take the cell at the specified coor.
         {
             p -= region.coor;
-            auto& c = *(iter() + p.x + p.y * region.size.x);
+            auto& c = *(canvas.begin() + p.x + p.y * region.size.x);
             return c;
         }
         template<class P>
@@ -2293,7 +2298,7 @@ namespace netxs
             };
 
             coord = std::clamp(coord, dot_00, region.size - dot_11);
-            auto test = data(coord)->txt();
+            auto test = begin(coord)->txt();
             is_digit(test) ? func(digit) :
             is_email(test) ? func(email) :
             is_empty(test) ? func(empty) :
@@ -2409,7 +2414,7 @@ namespace netxs
             from = std::clamp(from, 0, maxs ? maxs - 1 : 0);
             upto = std::clamp(upto, 0, maxs);
             auto size = upto - from;
-            return core{ span{ canvas.data() + from, static_cast<size_t>(size) }, { size, 1 }};
+            return core{ span{ canvas.begin() + from, static_cast<size_t>(size) }, { size, 1 }};
         }
         auto line(twod p1, twod p2) const // core: Get stripe.
         {

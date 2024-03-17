@@ -623,7 +623,7 @@ namespace netxs::app::desk
             auto taskbar_grips = taskbar_viewport->attach(slot::_1, ui::fork::ctor(axis::X))
                 ->limits({ menu_min_size, -1 }, { menu_min_size, -1 })
                 ->plugin<pro::timer>()
-                ->plugin<pro::acryl>(10)
+                ->plugin<pro::acryl>()
                 ->plugin<pro::cache>()
                 ->active(menu_bg_color)
                 ->invoke([&](auto& boss)

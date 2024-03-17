@@ -889,11 +889,11 @@ namespace netxs::directvt
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
                 auto pen = state;
-                auto src = cache.iter();
-                auto end = cache.iend();
+                auto src = cache.begin();
+                auto end = cache.end();
                 auto csz = cache.size();
                 auto fsz = image.size();
-                auto dst = image.iter();
+                auto dst = image.begin();
                 auto dtx = fsz.x - csz.x;
                 auto min = std::min(csz, fsz);
                 auto beg = src + 1;
@@ -1001,8 +1001,8 @@ namespace netxs::directvt
                     image.crop(area.size);
                 }
                 auto mark = image.mark();
-                auto head = image.iter();
-                auto tail = image.iend();
+                auto head = image.begin();
+                auto tail = image.end();
                 auto iter = head;
                 auto step = head;
                 auto take = [&](auto what, cell& c)
@@ -1142,7 +1142,7 @@ namespace netxs::directvt
                 if (image.hash() != cache.hash())
                 {
                     block.basevt::scroll_wipe();
-                    auto src = cache.iter();
+                    auto src = cache.begin();
                     while (coord.y < field.y)
                     {
                         if (abort)
@@ -1183,8 +1183,8 @@ namespace netxs::directvt
                 }
                 else
                 {
-                    auto src = cache.iter();
-                    auto dst = image.iter();
+                    auto src = cache.begin();
+                    auto dst = image.begin();
                     while (coord.y < field.y)
                     {
                         if (abort)
