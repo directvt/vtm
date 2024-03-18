@@ -1094,12 +1094,9 @@ namespace netxs::app::vtm
                     head = iter;
                     while (head != tail) { auto& item = *head++; if (visible(item, canvas)) item->fasten(canvas); }
                 }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render(canvas); }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render(canvas); }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render<true>(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render<true>(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render<true>(canvas); }
             }
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)
@@ -2184,8 +2181,8 @@ namespace netxs::app::vtm
         // hall: .
         void redraw(face& canvas)
         {
-            users.prerender (canvas); // Draw backpane for spectators.
-            items.render    (canvas); // Draw objects of the world.
+            users.prerender(canvas);  // Draw backpane for spectators.
+            items.render(canvas);     // Draw objects of the world.
             users.postrender(canvas); // Draw spectator's mouse pointers.
         }
         // hall: .

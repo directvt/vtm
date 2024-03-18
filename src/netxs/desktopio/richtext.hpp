@@ -2274,6 +2274,7 @@ namespace netxs::ui
             core::clip(ctx.second);
         }
         // face: Dive into object context.
+        template<bool Forced = faux>
         auto change_basis(rect object_area, bool trim = true)
         {
             struct ctx
@@ -2284,7 +2285,7 @@ namespace netxs::ui
                 twod canvas_coor;
                 bool nested_clip;
 
-                operator bool () { return nested_clip; };
+                operator bool () { return Forced || nested_clip; };
 
                 ctx(face& canvas, rect canvas_full = {}, rect canvas_clip = {}, twod canvas_coor = {}, bool nested_clip = {})
                     :      canvas{ canvas      },
@@ -2313,7 +2314,7 @@ namespace netxs::ui
                 }
             };
             auto nested_clip = trim ? core::clip().clip(object_area) : core::clip();
-            if (nested_clip)
+            if (Forced || nested_clip)
             {
                 auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);
