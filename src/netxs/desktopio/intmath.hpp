@@ -931,11 +931,10 @@ namespace netxs
     {
         auto test = [&](auto accum){ auto n = accum / count; if (n > 255) throw; };
         auto limit = s_ptr + s_dty * (h - 1);
-        while (true)
+        if (w <= r + 1) // All pixels on a line have the same average value.
         {
-            if (w <= r + 1) // All pixels on a line have the same average value.
+            while (true)
             {
-                // Find the left average.
                 auto accum = Accum_t{};
                 auto s_cur = s_ptr;
                 auto d_cur = d_ptr;
@@ -956,33 +955,46 @@ namespace netxs
                     if (d_cur == d_end) break;
                     d_cur += d_dtx;
                 }
+                if (s_ptr == limit) break;
+                s_ptr += s_dty;
+                d_ptr += d_dty;
             }
-            else // if (w > r + 1)
+        }
+        else // if (w > r + 1)
+        {
+            while (true)
             {
-                //if constexpr (InnerGlow) ...
                 // Find the left average.
                 auto accum = Accum_t{};
+                auto l_val = Accum_t{};
+                auto r_val = Accum_t{};
                 auto s_cur = s_ptr;
-                auto s_end = s_cur + r * s_dtx;
+                auto s_end = s_ptr + r * s_dtx;
+                if constexpr (InnerGlow) l_val = s_ref(s_cur);
                 while (true)
                 {
                     accum += s_ref(s_cur);
                     if (s_cur == s_end) break;
                     s_cur += s_dtx;
                 }
-                auto l_val = accum / (r + 1);
+                if constexpr (!InnerGlow) l_val = accum / (r + 1);
                 // Find the right average.
-                auto r_val = Accum_t{};
-                s_cur = s_ptr + (w - (r + 1)) * s_dtx;
-                s_end = s_cur + r * s_dtx;
-                while (true)
+                s_end = s_ptr + (w - 1) * s_dtx;
+                if constexpr (InnerGlow)
                 {
-                    r_val += s_ref(s_cur);
-                    if (s_cur == s_end) break;
-                    s_cur += s_dtx;
+                    r_val = s_ref(s_end);
                 }
-                r_val /= (r + 1);
-
+                else
+                {
+                    s_cur = s_ptr + (w - 1 - r) * s_dtx;
+                    while (true)
+                    {
+                        r_val += s_ref(s_cur);
+                        if (s_cur == s_end) break;
+                        s_cur += s_dtx;
+                    }
+                    r_val /= (r + 1);
+                }
                 auto d_cur = d_ptr;
                 auto d_end = d_cur;
                 accum += l_val * r; // Leftmost pixel value.
@@ -1065,7 +1077,6 @@ namespace netxs
                     s_cur += s_dtx;
                     d_cur += d_dtx;
                 }
-
                 // Sub src, add r_val.
                 d_end = d_ptr + (w - 1) * d_dtx;
                 while (true)
@@ -1079,10 +1090,10 @@ namespace netxs
                     s_cur += s_dtx;
                     d_cur += d_dtx;
                 }
+                if (s_ptr == limit) break;
+                s_ptr += s_dty;
+                d_ptr += d_dty;
             }
-            if (s_ptr == limit) break;
-            s_ptr += s_dty;
-            d_ptr += d_dty;
         }
     }
 
