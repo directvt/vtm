@@ -1248,6 +1248,7 @@ namespace netxs::app::vtm
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
+                ->plugin<pro::ghost>(2)
                 ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()

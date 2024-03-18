@@ -1046,25 +1046,25 @@ namespace netxs
                 param.shared.var.invert = !!!param.shared.var.invert;
             }
 
-            void bld (bool b) { param.shared.var.bolded = b; }
-            void itc (bool b) { param.shared.var.italic = b; }
-            void und (si32 n) { param.shared.var.unline = n; }
-            void inv (bool b) { param.shared.var.invert = b; }
-            void ovr (bool b) { param.shared.var.overln = b; }
-            void stk (bool b) { param.shared.var.strike = b; }
-            void rtl (bool b) { param.shared.var.r_to_l = b; }
-            void blk (bool b) { param.shared.var.blinks = b; }
-            void vis (si32 l) { param.unique.var.render = l; }
+            void bld(bool b) { param.shared.var.bolded = b; }
+            void itc(bool b) { param.shared.var.italic = b; }
+            void und(si32 n) { param.shared.var.unline = n; }
+            void inv(bool b) { param.shared.var.invert = b; }
+            void ovr(bool b) { param.shared.var.overln = b; }
+            void stk(bool b) { param.shared.var.strike = b; }
+            void rtl(bool b) { param.shared.var.r_to_l = b; }
+            void blk(bool b) { param.shared.var.blinks = b; }
+            void vis(si32 l) { param.unique.var.render = l; }
 
-            bool bld () const { return param.shared.var.bolded; }
-            bool itc () const { return param.shared.var.italic; }
-            si32 und () const { return param.shared.var.unline; }
-            bool inv () const { return param.shared.var.invert; }
-            bool ovr () const { return param.shared.var.overln; }
-            bool stk () const { return param.shared.var.strike; }
-            bool rtl () const { return param.shared.var.r_to_l; }
-            bool blk () const { return param.shared.var.blinks; }
-            si32 vis () const { return param.unique.var.render; }
+            bool bld() const { return param.shared.var.bolded; }
+            bool itc() const { return param.shared.var.italic; }
+            si32 und() const { return param.shared.var.unline; }
+            bool inv() const { return param.shared.var.invert; }
+            bool ovr() const { return param.shared.var.overln; }
+            bool stk() const { return param.shared.var.strike; }
+            bool rtl() const { return param.shared.var.r_to_l; }
+            bool blk() const { return param.shared.var.blinks; }
+            si32 vis() const { return param.unique.var.render; }
         };
         struct clrs
         {
@@ -1291,6 +1291,12 @@ namespace netxs
                 st = c.st;
                 gc = c.gc;
             }
+        }
+        // cell: Blend cell colors.
+        void blend(cell const& c)
+        {
+            uv.fg.mix_one(c.uv.fg);
+            uv.bg.mix_one(c.uv.bg);
         }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
@@ -1697,6 +1703,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.mix(src); }
             };
+            struct blend_t : public brush_t<blend_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend(src); }
+            };
             struct full_t : public brush_t<full_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1846,6 +1857,7 @@ namespace netxs
             static constexpr auto fusefull = fusefull_t{};
             static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
+            static constexpr auto    blend =    blend_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};

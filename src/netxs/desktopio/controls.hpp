@@ -2136,6 +2136,64 @@ namespace netxs::ui
             }
         };
 
+        // pro: UI-control shadow.
+        class ghost
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            face canvas;
+            si32 radius;
+            twod region;
+            twod offset;
+
+            auto draw_shadow()
+            {
+                canvas.core::area({ dot_00, dot_21 * radius * 4 + region });
+                auto dark = rect{ dot_21 * radius * 2, region };
+                auto body = cell{}.bgc(0).fgc(0).alpha(0x60);
+                auto step = radius;
+                    canvas.fill(dark, cell::shaders::color(body));
+                while (step--)
+                {
+                    canvas.blur<true>(1);
+                }
+                canvas.each([](cell& c){ c.fgc(c.bgc()).txt(""); });
+            }
+
+        public:
+            ghost(base&&) = delete;
+            ghost(base& boss, si32 shadowsize)
+                : skill{ boss },
+                  radius{ shadowsize },
+                  offset{dot_21 * radius * 2 - dot_21}
+            {
+                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
+                {
+                    if (region != boss.base::size())
+                    {
+                        region = boss.base::size();
+                        draw_shadow();
+                    }
+                };
+                boss.LISTEN(tier::release, e2::area, new_area, memo)
+                {
+                    if (region != new_area.size)
+                    {
+                        region = new_area.size;
+                        draw_shadow();
+                    }
+                };
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
+                {
+                    auto full = parent_canvas.full();
+                    canvas.move(full.coor - offset);
+                    parent_canvas.fill(canvas, cell::shaders::blend);
+                };
+            }
+        };
+
         // pro: Drag&roll support.
         class glide
             : public skill

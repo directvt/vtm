@@ -1074,28 +1074,28 @@ namespace netxs::input
         void update(sysboard& b) // Update clipboard preview.
         {
             board::image.move(dot_00); // Reset basis.
-            auto draw_shadow = [&](auto& block, auto size)
+            auto draw_shadow = [](auto& canvas, auto& block, auto shadow_radius, twod trim_to)
             {
-                board::image.mark(cell{});
-                board::image.wipe();
-                board::image.size(dot_21 * size * 2 + b.size);
-                auto full = rect{ dot_21 * size + dot_21, b.size };
-                while (size--)
+                canvas.mark(cell{});
+                canvas.wipe();
+                canvas.size(dot_21 * shadow_radius * 2 + trim_to);
+                auto full = rect{ dot_21 * shadow_radius + dot_21, trim_to };
+                while (shadow_radius--)
                 {
-                    board::image.reset();
-                    board::image.full(full);
-                    board::image.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    board::image.blur<true>(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
+                    canvas.reset();
+                    canvas.full(full);
+                    canvas.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    canvas.blur<true>(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
-                board::image.reset();
-                board::image.full(full);
+                canvas.reset();
+                canvas.full(full);
             };
             if (b.form == mime::safetext)
             {
                 auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                 auto block = page{ blank };
-                if (ghost) draw_shadow(block, ghost);
+                if (ghost) draw_shadow(board::image, block, ghost, block.current().size());
                 else
                 {
                     board::image.size(block.current().size());
@@ -1106,7 +1106,7 @@ namespace netxs::input
             else
             {
                 auto block = page{ b.utf8 };
-                if (ghost) draw_shadow(block, ghost);
+                if (ghost) draw_shadow(board::image, block, ghost, b.size);
                 else
                 {
                     board::image.size(b.size);
