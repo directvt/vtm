@@ -319,6 +319,7 @@ namespace netxs::app::shared
                     //todo too hacky
                     if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
                     {
+                        form_ptr->unplug<pro::ghost>();
                         form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
                     }
 
