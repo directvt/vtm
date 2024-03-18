@@ -751,7 +751,7 @@ namespace netxs::app::terminal
                 closing_on_quit(boss);
             });
         window->plugin<pro::track>()
-            ->plugin<pro::acryl>()
+            //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
         config.cd("/config/term/color/default/");
         auto def_fcolor = config.take("fgc", rgba{ whitelt });
@@ -780,7 +780,7 @@ namespace netxs::app::terminal
         auto window = ui::cake::ctor();
         window->plugin<pro::focus>(pro::focus::mode::hub)
             ->plugin<pro::track>()
-            ->plugin<pro::acryl>()
+            //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
 
         auto object = window->attach(ui::fork::ctor(axis::Y))
@@ -929,7 +929,7 @@ namespace netxs::app::terminal
             {
                 if (state(*visible || winsz->y != 1))
                 {
-                    boss.RISEUP(tier::preview, e2::form::prop::ui::acryl, state.last);
+                    //boss.RISEUP(tier::preview, e2::form::prop::ui::acryl, state.last);
                     boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state.last);
                 }
             });

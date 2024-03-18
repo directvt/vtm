@@ -424,7 +424,7 @@ namespace netxs::ui
                 clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
                 clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
                 clip_preview_alfa = config.take("clipboard/preview/alpha"  , byte{ 0xFF });
-                clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
+                clip_preview_glow = config.take("clipboard/preview/shadow" , 3);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
                 clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
                 clip_prtscrn_mime = config.take("clipboard/format"         , mime::htmltext, xml::options::format);
@@ -435,7 +435,7 @@ namespace netxs::ui
                 debug_overlay     = config.take("debug/overlay"            , faux);
                 debug_toggle      = config.take("debug/toggle"             , "🐞"s);
                 show_regions      = config.take("regions/enabled"          , faux);
-                clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
+                clip_preview_glow = std::clamp(clip_preview_glow, 0, 5);
             }
 
             props_t(pipe& /*canal*/, view userid, si32 mode, bool isvtm, si32 session_id, xmls& config)

@@ -1085,7 +1085,7 @@ namespace netxs::input
                     board::image.reset();
                     board::image.full(full);
                     board::image.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    board::image.blur(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
+                    board::image.blur<true>(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
                 board::image.reset();

@@ -906,6 +906,7 @@ namespace netxs
     //
     // Accum_t       Point accumulator type to avoid overflow.
     // Calc          Whether do the division in the current run. Performance burst by 40% !
+    // InnerGlow     Using the left/rightmost pixel value to approximate the image boundary.
     // s_ptr         Source bitmap pointer.
     // d_ptr         Destination bitmap pointer.
     // w             Bitmap width.
@@ -918,7 +919,7 @@ namespace netxs
     // P_Base s_ref  Lambda to convert the src pointer to the reference.
     // P_Dest d_ref  Lambda to convert the dst pointer to the reference.
     // PostFx shade  Lambda for postprocessing.
-    template<class Accum_t, bool Calc,
+    template<class Accum_t, bool InnerGlow, bool Calc,
         class Src_t,
         class Dst_t, class Int_t,
         class P_Base, class P_Dest, class PostFx = noop>
@@ -958,65 +959,42 @@ namespace netxs
             }
             else // if (w > r + 1)
             {
+                //if constexpr (InnerGlow) ...
                 // Find the left average.
                 auto accum = Accum_t{};
-                auto s_cur   = s_ptr;
-                auto s_cur_i = 0;
-                auto s_end   = s_cur   + r * s_dtx;
-                auto s_end_i = s_cur_i + r * 1;
-                auto n_i = 1000;
-                auto a_i = 0;
+                auto s_cur = s_ptr;
+                auto s_end = s_cur + r * s_dtx;
                 while (true)
                 {
                     accum += s_ref(s_cur);
-                    a_i += n_i;
-                    if (s_cur_i == s_end_i) break;
-                    s_cur   += s_dtx;
-                    s_cur_i += 1;
+                    if (s_cur == s_end) break;
+                    s_cur += s_dtx;
                 }
                 auto l_val = accum / (r + 1);
-                auto b_i = a_i;
-                auto c_i = a_i / (r + 1);
-                a_i /= (r + 1);
-
                 // Find the right average.
                 auto r_val = Accum_t{};
-                s_cur   = s_ptr + (w - (r + 1)) * s_dtx;
-                s_cur_i =         (w - (r + 1)) * 1;
-                s_end =   s_cur   + r * s_dtx;
-                s_end_i = s_cur_i + r * 1;
-                a_i = 0;
+                s_cur = s_ptr + (w - (r + 1)) * s_dtx;
+                s_end = s_cur + r * s_dtx;
                 while (true)
                 {
                     r_val += s_ref(s_cur);
-                    a_i += n_i;
-                    if (s_cur_i == s_end_i) break;
-                    s_cur   += s_dtx;
-                    s_cur_i += 1;
+                    if (s_cur == s_end) break;
+                    s_cur += s_dtx;
                 }
                 r_val /= (r + 1);
-                a_i /= (r + 1);
 
-                auto d_cur   = d_ptr;
-                auto d_cur_i = 0;
-                auto d_end   = d_cur;
-                auto d_end_i = d_cur_i;
+                auto d_cur = d_ptr;
+                auto d_end = d_cur;
                 accum += l_val * r; // Leftmost pixel value.
-                if (c_i != n_i) throw;
-                b_i += r * c_i;
                 if (r + 1 + r >= w)
                 {
                     // Sub l_val, add src.
-                    s_cur   = s_ptr + (r + 1) * s_dtx;
-                    s_cur_i =         (r + 1) * 1;
-                    d_end   += (w - (r + 1)) * d_dtx;
-                    d_end_i += (w - (r + 1)) * 1;
-                    if (d_end_i >= w) throw;
+                    s_cur = s_ptr + (r + 1) * s_dtx;
+                    d_end += (w - (r + 1)) * d_dtx;
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
+                    d_cur += d_dtx;
                     while (true)
                     {
                         accum -= l_val;
@@ -1024,18 +1002,13 @@ namespace netxs
                         test(accum);
                         d_ref(d_cur) = Calc ? accum / count : accum;
                         shade(*d_cur);
-                        if (d_cur_i == d_end_i) break;
-                        s_cur   += s_dtx;
-                        s_cur_i += 1;
-                        d_cur   += d_dtx;
-                        d_cur_i += 1;
+                        if (d_cur == d_end) break;
+                        s_cur += s_dtx;
+                        d_cur += d_dtx;
                     }
                     // Sub l_val, add r_val.
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
-                    d_end   = d_cur   + (r + r + 1 - w) * d_dtx;
-                    d_end_i = d_cur_i + (r + r + 1 - w) * 1;
-                    if (d_end_i >= w) throw;
+                    d_cur += d_dtx;
+                    d_end = d_cur + (r + r + 1 - w) * d_dtx;
                     while (true)
                     {
                         accum -= l_val;
@@ -1043,26 +1016,20 @@ namespace netxs
                         test(accum);
                         d_ref(d_cur) = Calc ? accum / count : accum;
                         shade(*d_cur);
-                        if (d_cur_i == d_end_i) break;
-                        d_cur   += d_dtx;
-                        d_cur_i += 1;
+                        if (d_cur == d_end) break;
+                        d_cur += d_dtx;
                     }
                     s_cur = s_ptr;
-                    s_cur_i = 0;
                 }
                 else
                 {
                     // Sub l_val, add src.
-                    s_cur   = s_ptr + (r + 1) * s_dtx;
-                    s_cur_i =         (r + 1) * 1;
-                    d_end   += r * d_dtx;
-                    d_end_i += r * 1;
-                    if (d_end_i >= w) throw;
+                    s_cur = s_ptr + (r + 1) * s_dtx;
+                    d_end += r * d_dtx;
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
+                    d_cur += d_dtx;
                     while (true)
                     {
                         accum -= l_val;
@@ -1070,53 +1037,37 @@ namespace netxs
                         test(accum);
                         d_ref(d_cur) = Calc ? accum / count : accum;
                         shade(*d_cur);
-                        if (d_cur_i == d_end_i) break;
-                        s_cur   += s_dtx;
-                        s_cur_i += 1;
-                        d_cur   += d_dtx;
-                        d_cur_i += 1;
+                        if (d_cur == d_end) break;
+                        s_cur += s_dtx;
+                        d_cur += d_dtx;
                     }
                     // Sub src, add src.
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
-                    d_end   = d_cur   + (w - 1 - (r + 1 + r)) * d_dtx;
-                    d_end_i = d_cur_i + (w - 1 - (r + 1 + r)) * 1;
-                    if (d_end_i >= w) throw;
-                    auto s_fwd   = s_ptr + (r + 1 + r) * s_dtx;
-                    auto s_fwd_i =         (r + 1 + r) * 1;
+                    d_cur += d_dtx;
+                    d_end = d_cur + (w - 1 - (r + 1 + r)) * d_dtx;
+                    auto s_fwd = s_ptr + (r + 1 + r) * s_dtx;
                     s_cur = s_ptr;
-                    s_cur_i = 0;
-
-                    accum -= s_ref(s_cur);//l_val;
+                    accum -= s_ref(s_cur);
                     accum += s_ref(s_fwd);
-
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
-                    while (d_cur_i != d_end_i)
+                    while (d_cur != d_end)
                     {
                         s_cur += s_dtx;
                         s_fwd += s_dtx;
                         d_cur += d_dtx;
-                        s_fwd_i += 1;
-                        s_cur_i += 1;
-                        d_cur_i += 1;
                         accum -= s_ref(s_cur);
                         accum += s_ref(s_fwd);
                         test(accum);
                         d_ref(d_cur) = Calc ? accum / count : accum;
                         shade(*d_cur);
                     }
-                    s_cur   += s_dtx;
-                    s_cur_i += 1;
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
+                    s_cur += s_dtx;
+                    d_cur += d_dtx;
                 }
 
                 // Sub src, add r_val.
-                d_end   = d_ptr   + (w - 1) * d_dtx;
-                d_end_i =           (w - 1) * 1;
-                if (d_end_i >= w) throw;
+                d_end = d_ptr + (w - 1) * d_dtx;
                 while (true)
                 {
                     accum -= s_ref(s_cur);
@@ -1124,123 +1075,15 @@ namespace netxs
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
-                    if (d_cur_i == d_end_i) break;
-                    s_cur   += s_dtx;
-                    s_cur_i += 1;
-                    d_cur   += d_dtx;
-                    d_cur_i += 1;
+                    if (d_cur == d_end) break;
+                    s_cur += s_dtx;
+                    d_cur += d_dtx;
                 }
-                if (d_cur_i != w - 1) throw;
             }
             if (s_ptr == limit) break;
             s_ptr += s_dty;
             d_ptr += d_dty;
         }
-        return;
-        /*
-        auto limit = s_ptr + s_dty * h;
-        auto k0 = (w <= r + 1 + r) ? 1 : 0;
-        auto rad_1 = r + 1;
-        auto srad1 = s_dtx * rad_1;
-        auto srad0 = srad1 - s_dtx;
-        auto end_x = s_dtx * (w - rad_1 - r);
-        //auto limit = s_ptr + s_dty * h;
-
-        //if constexpr (Calc) count *= rad_x + rad_x + 1;
-
-        while (s_ptr < limit)
-        {
-            auto front_i = 0;
-            auto front = s_ptr;
-            auto bound = Accum_t{ s_ref(front) };
-            auto accum = Accum_t{};
-
-            auto until_i = front_i + srad0;
-            auto until = front + srad0;
-            auto after_i = front_i;
-            auto after = front;
-            while (front_i < until_i) // Sum left semi-block.
-            {
-                front_i += s_dtx;
-                front += s_dtx;
-                accum += s_ref(front);
-            }
-            auto t = accum + bound;
-            bound = t / rad_1;
-            accum += t;
-
-            auto caret_i = 0;
-            auto caret = d_ptr;
-            until_i += srad1 - k0;
-            until += srad1 - k0;
-            while (front_i < until_i) // Fillleft semi-block.
-            {
-                accum -= bound;
-                accum += s_ref(front);
-                auto& point = d_ref(caret);
-                point = Calc ? accum / count : accum;
-                shade(*caret);
-                front += s_dtx;
-                caret += d_dtx;
-                front_i += s_dtx;
-                caret_i += d_dtx;
-            }
-            until_i += end_x - srad1;
-            until += end_x - srad1;
-            while (front_i < until_i) // Fill internal blocks.
-            {
-                accum -= s_ref(after);
-                accum += s_ref(front);
-                auto& point = d_ref(caret);
-                point = Calc ? accum / count : accum;
-                shade(*caret);
-                after_i += s_dtx;
-                caret_i += d_dtx;
-                after += s_dtx;
-                caret += d_dtx;
-                front_i += s_dtx;
-                front += s_dtx;
-            }
-            bound = {};
-            until_i += srad0 + k0; // srad1 for small
-            until += srad0 + k0;
-            while (true) // Fill pre semi-block and sum ending semi-block.
-            {
-                auto& f = s_ref(front);
-                accum -= s_ref(after);
-                accum += f;
-                bound += f;
-                auto& point = d_ref(caret);
-                point = Calc ? accum / count : accum;
-                shade(*caret);
-                if (front_i == until_i) break;
-                after_i += s_dtx;
-                caret_i += d_dtx;
-                after += s_dtx;
-                caret += d_dtx;
-                front_i += s_dtx;
-                front += s_dtx;
-            }
-            bound /= rad_1 - k0;
-            until_i -= srad1 - k0; // srad0 for small
-            until -= srad1 - k0;
-            while (true) // Fill ending semi-block.
-            {
-                accum -= s_ref(after);
-                accum += bound;
-                auto& point = d_ref(caret);
-                point = Calc ? accum / count : accum;
-                shade(*caret);
-                if (after_i == until_i) break;
-                after_i += s_dtx;
-                caret_i += d_dtx;
-                after += s_dtx;
-                caret += d_dtx;
-            }
-            s_ptr += s_dty;
-            d_ptr += d_dty;
-        }
-        */
     }
 
     namespace _private
@@ -1278,10 +1121,10 @@ namespace netxs
         _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
-    // Bokeh (acryllic, blur) approximation.
-    // Edge points are multiplied by r in order to form inner glow.
+    // Boxblur.
     //
     // Accum_t       Point accumulator type.
+    // InnerGlow     Using the left/rightmost pixel value to approximate the image boundary.
     // s_ptr         Source bitmap array pointer.
     // d_ptr         Destination bitmap array pointer.
     // w             Bitmap width.
@@ -1293,7 +1136,7 @@ namespace netxs
     // P_Base s_ref  Lambda to convert src pointer to the reference.
     // P_Dest d_ref  Lambda to convert dst pointer to the reference.
     // PostFx shade  Lambda for postprocessing.
-    template<class Accum_t,
+    template<class Accum_t, bool InnerGlow = faux,
         class Src_t,
         class Dst_t, class Int_t,
         class P_Base, class P_Dest, class PostFx = noop>
@@ -1309,20 +1152,20 @@ namespace netxs
         //for (auto i = 0; i < 1000; i++) //test performance
         {
         auto count = rx + rx + 1;
-        boxblur1d<Accum_t, 0>(s_ptr,    // blur horizontally and place
-                              d_ptr, w, // result to the temp buffer (d_ptr)
-                                     h, rx, 1, s_dty,
-                                            1, d_dty, count, s_ref,
-                                                             d_ref);
+        boxblur1d<Accum_t, InnerGlow, 0>(s_ptr,    // blur horizontally and place
+                                         d_ptr, w, // result to the temp buffer (d_ptr)
+                                                h, rx, 1, s_dty,
+                                                       1, d_dty, count, s_ref,
+                                                                        d_ref);
         count *= ry + ry + 1;
-        boxblur1d<Accum_t, 1>(d_ptr,    // blur vertically and place
-                              s_ptr, h, // result back to the source (s_ptr)
-                                     w, ry, d_dty, 1,
-                                            s_dty, 1, count, d_ref,
-                                                             s_ref, shade);
+        boxblur1d<Accum_t, InnerGlow, 1>(d_ptr,    // blur vertically and place
+                                         s_ptr, h, // result back to the source (s_ptr)
+                                                w, ry, d_dty, 1,
+                                                       s_dty, 1, count, d_ref,
+                                                                        s_ref, shade);
         }
     }
-    template<class T>
+    template<class T, bool InnerGlow = faux>
     void boxblur(T& bitmap, si32 r, auto area, auto clip)
     {
         using type = std::decay_t<decltype(*bitmap.begin())>;
@@ -1336,10 +1179,10 @@ namespace netxs
         auto s_width = area.size.x;
         auto d_width = clip.size.x;
         auto d_point = [](type* c)->auto& { return *c; };
-        netxs::boxblur<type>(s_ptr,
-                             d_ptr, w,
-                                    h, r, s_width,
-                                          d_width, 1, d_point,
-                                                      d_point);
+        netxs::boxblur<type, InnerGlow>(s_ptr,
+                                        d_ptr, w,
+                                               h, r, s_width,
+                                                     d_width, 1, d_point,
+                                                                 d_point);
     }
 }

@@ -2378,7 +2378,7 @@ namespace netxs::ui
             core::crop<BottomAnchored>(new_size, core::mark());
             flow::size(new_size);
         }
-        template<class P = noop>
+        template<bool InnerGlow = faux, class P = noop>
         void blur(si32 r, P shade = {}) // face: .
         {
             using irgb = vrgb::value_type;
@@ -2405,11 +2405,11 @@ namespace netxs::ui
             auto d_point = [](auto c)->auto& { return *c;       };
 
             for (auto _(2); _--;) // Emulate Gaussian blur.
-            netxs::boxblur<irgb>(s_ptr,
-                                 d_ptr, w,
-                                        h, r, s_width,
-                                              d_width, 2, s_point,
-                                                          d_point, shade);
+            netxs::boxblur<irgb, InnerGlow>(s_ptr,
+                                            d_ptr, w,
+                                                   h, r, s_width,
+                                                         d_width, 2, s_point,
+                                                                     d_point, shade);
         }
     };
 

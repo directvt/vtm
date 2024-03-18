@@ -168,7 +168,7 @@ R"==(
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
-            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <kb_focus   fgc=bluelt    bgc=bluedk    alpha=192 /> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
@@ -234,14 +234,14 @@ R"==(
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF180800>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF403000>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
             <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
+                <shadow=3  />  <!-- Preview shadow strength (0-5). -->
             </preview>
             <format=html />  <!-- text | ansi | rich | html | protected -->
         </clipboard>
