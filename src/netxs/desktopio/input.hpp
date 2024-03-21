@@ -1439,6 +1439,19 @@ namespace netxs::input
 
         void take(sysmouse& m)
         {
+            #if defined(DEBUG)
+            if (m.wheeled)
+            {
+                auto s = m.ctlstat;
+                auto alt     = s & hids::anyAlt ? 1 : 0;
+                auto l_ctrl  = s & hids::LCtrl  ? 1 : 0;
+                auto r_ctrl  = s & hids::RCtrl  ? 1 : 0;
+                     if (l_ctrl && alt) netxs::_k2 += m.wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
+                else if (l_ctrl)        netxs::_k0 += m.wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+                else if (alt)           netxs::_k1 += m.wheeldt > 0 ? 1 : -1; // Alt+Wheel.
+                else if (r_ctrl)        netxs::_k3 += m.wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
+            }
+            #endif
             disabled = faux;
             ctlstate = m.ctlstat;
             mouse::update(m);

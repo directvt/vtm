@@ -240,6 +240,8 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
                 {
+                    //todo make it switchable
+                    //return;
                     if (gear.meta(hids::anyCtrl))
                     {
                         auto& g = items.take(gear);
@@ -445,7 +447,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Keybd/Mouse highlighter.
+        // pro: Mouse cursor glow.
         class track
             : public skill
         {
@@ -463,15 +465,15 @@ namespace netxs::ui
                 }
             };
 
-            using pool = std::list<id_t>;
+            //using pool = std::list<id_t>;
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
 
-            pool focus; // track: Is keybd focused.
+            //pool focus; // track: Is keybd focused.
             list items; // track: .
             bool alive; // track: Is active.
-
+/*
             void add_keybd(id_t gear_id)
             {
                 if (gear_id != id_t{})
@@ -498,67 +500,60 @@ namespace netxs::ui
                     }
                 }
             }
+*/
+            static auto& glow_overlay()
+            {
+                static auto bitmap = []
+                {
+                    auto r = 5;
+                    auto blob = core{};
+                    auto area = rect{ dot_00, dot_21 * (r * 2 + 1) };
+                    auto func = netxs::spline01{ 0.65f };
+                    blob.core::area(area, cell{}.bgc(0xFFffffff));
+                    auto iter = blob.begin();
+                    for (auto y = 0; y < area.size.y; y++)
+                    {
+                        auto y0 = (y - area.size.y / 2) / (area.size.y - 2 -     1.6f);
+                        y0 *= y0;
+                        for (auto x = 0; x < area.size.x; x++)
+                        {
+                            auto& c = iter++->bgc();
+                            auto x0 = (x - area.size.x / 2) / (area.size.x - 4 - 2 * 1.6f);
+                            auto dr = std::sqrt(x0 * x0 + y0);
+                            if (dr > 1) c.chan.a = 0;
+                            else
+                            {
+                                auto a = std::round(255.0 * func(1.0f - dr));
+                                c.chan.a = (byte)std::clamp((si32)(a * 0.16f), 0, 255);
+                            }
+                        }
+                    }
+                    return blob;
+                }();
+                return bitmap;
+            }
 
         public:
             track(base&&) = delete;
-            track(base& boss, bool keybd_only = faux)
+            track(base& boss)
                 : skill{ boss },
                   items{ boss },
                   alive{ true }
             {
                 // Keybd focus.
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
-                {
-                    add_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
-                {
-                    del_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
-                {
-                    del_keybd(gear.id);
-                };
-                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
-                {
-                    if (focus.empty() || !alive) return;
-                    static constexpr auto title_fg_color = rgba{ 0xFFffffff };
-                    //todo revise, too many fillings (mold's artifacts)
-                    auto normal = boss.base::color();
-                    auto bright = skin::color(tone::brighter);
-                    //auto shadow = skin::color(tone::shadower);
-                    //todo unify, make it more contrast
-                    //shadow.alpha(0x80);
-                    bright.fgc(title_fg_color);
-                    //shadow.fgc(title_fg_color);
-                    auto fillup = [&](auto fx)
-                    {
-                        parent_canvas.fill(fx);
-                    };
-                    if (normal.bgc().alpha())
-                    {
-                        auto fuse_bright = [&](cell& c){ c.fuse(normal); c.fuse(bright); };
-                        //auto fuse_shadow = [&](cell& c){ c.fuse(normal); c.fuse(shadow); };
-                        fillup(fuse_bright);
-                    }
-                    else
-                    {
-                        auto only_bright = [&](cell& c){ c.fuse(bright); };
-                        //auto only_shadow = [&](cell& c){ c.fuse(shadow); };
-                        fillup(only_bright);
-                    }
-                    // Draw the border around
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::kb_focus);
-                    mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c){ c.fuse(mark); };
-                    parent_canvas.cage(area, dot_21, fill);
-                };
-                boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
-                {
-                    if (lucidity != -1) alive = lucidity == 0xFF;
-                };
-                if (keybd_only || !skin::globals().tracking) return;
+                //boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
+                //{
+                //    add_keybd(seed.id);
+                //};
+                //boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
+                //{
+                //    del_keybd(seed.id);
+                //};
+                //boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
+                //{
+                //    del_keybd(gear.id);
+                //};
+                //if (!skin::globals().tracking) return;
                 // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
@@ -567,14 +562,14 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
-                    auto full = parent_canvas.full();
-                    auto mark = cell{}.bgc(0xFFffffff);
-                    auto fill = [&](cell& c){ c.fuse(mark); };
+                    auto& glow = glow_overlay();
+                    auto  coor = parent_canvas.coor();
+                    auto  full = parent_canvas.full();
+                    auto  base = full.coor - coor - glow.size() / 2;
                     items.foreach([&](sock& item)
                     {
-                        auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
-                        area.coor += full.coor;
-                        parent_canvas.fill(area.clip(full), fill);
+                        glow.move(base + item.cursor);
+                        parent_canvas.plot(glow, cell::shaders::blend);
                     });
                 };
             }
@@ -2312,10 +2307,12 @@ namespace netxs::ui
                 if constexpr (is_cell) fx.link(bell::id);
                 LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
                 {
+                    static constexpr auto is_func = requires{ fx(parent_canvas, param, *this); };
                     if (param)
                     {
-                        if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
-                        else                   parent_canvas.fill(fx[param]);
+                             if constexpr (is_func) fx(parent_canvas, param, *this);
+                        else if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
+                        else                        parent_canvas.fill(fx[param]);
                     }
                 };
             }

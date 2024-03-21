@@ -1295,8 +1295,8 @@ namespace netxs
         // cell: Blend cell colors.
         void blend(cell const& c)
         {
-            uv.fg.mix_one(c.uv.fg);
-            uv.bg.mix_one(c.uv.bg);
+            uv.fg.mix(c.uv.fg);
+            uv.bg.mix(c.uv.bg);
         }
         // cell: Mix colors using alpha.
         void mix(cell const& c, byte alpha)
@@ -1984,6 +1984,7 @@ namespace netxs
         auto& coor() const                     { return region.coor;                                                        }
         auto& area() const                     { return region;                                                             }
         auto  area(rect new_area)              { size(new_area.size); move(new_area.coor); clip(new_area);                  }
+        auto  area(rect new_area, cell c)      { size(new_area.size, c); move(new_area.coor); clip(new_area);               }
         auto& pick()                           { return canvas;                                                             }
         auto  begin()                          { return canvas.begin();                                                     }
         auto  end()                            { return canvas.end();                                                       }

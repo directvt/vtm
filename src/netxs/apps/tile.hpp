@@ -326,6 +326,9 @@ namespace netxs::app::tile
         };
         auto built_node = [](auto tag, auto slot1, auto slot2, auto grip_width)
         {
+            auto highlight_color = skin::color(tone::highlight);
+            auto c3 = highlight_color.bga(0x40);
+
             auto node = tag == 'h' ? ui::fork::ctor(axis::X, grip_width == -1 ? 2 : grip_width, slot1, slot2)
                                    : ui::fork::ctor(axis::Y, grip_width == -1 ? 1 : grip_width, slot1, slot2);
             node->isroot(faux, base::node) // Set object kind to 1 to be different from others. See empty_slot::select.
@@ -355,7 +358,7 @@ namespace netxs::app::tile
                                 ->isroot(true)
                                 ->template plugin<pro::mover>() //todo GCC 11 requires template keyword
                                 ->template plugin<pro::focus>(pro::focus::mode::focusable)
-                                ->template plugin<pro::track>(true)
+                                ->shader(c3, e2::form::state::keybd::focus::count)
                                 ->template plugin<pro::shade<cell::shaders::xlight>>()
                                 ->invoke([&](auto& boss)
                                 {
@@ -374,9 +377,9 @@ namespace netxs::app::tile
         {
             auto menu_black = skin::color(tone::menu_black);
             auto cC = menu_black.fgc(whitedk);
-            //auto highlight_color = skin::color(tone::highlight);
+            auto highlight_color = skin::color(tone::highlight);
             auto danger_color    = skin::color(tone::danger);
-            //auto c3 = highlight_color;
+            auto c3 = highlight_color.bga(0x40);
             auto c1 = danger_color;
 
             using namespace app::shared;
@@ -438,7 +441,7 @@ namespace netxs::app::tile
                 ->active(cC)
                 ->limits(dot_00, -dot_11)
                 ->plugin<pro::focus>(pro::focus::mode::focusable)
-                ->plugin<pro::track>(true)
+                ->shader(c3, e2::form::state::keybd::focus::count)
                 ->invoke([&](auto& boss)
                 {
                     anycasting(boss);

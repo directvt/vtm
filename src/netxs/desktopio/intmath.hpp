@@ -32,6 +32,8 @@ namespace netxs
     using id_t = uint32_t;
     using arch = size_t;
     using sz_t = ui32;
+    using fp32 = float;
+    using fp64 = double;
     using flag = std::atomic<bool>;
 
     constexpr size_t operator "" _sz (unsigned long long i) { return static_cast<size_t>(i); }
@@ -49,6 +51,11 @@ namespace netxs
         #else
         = faux;
         #endif
+
+    static auto _k0 = 0; // LCtrl+Wheel.
+    static auto _k1 = 0; // Alt+Wheel.
+    static auto _k2 = 0; // LCtrl+Alt+Wheel.
+    static auto _k3 = 0; // RCtrl+Wheel.
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 
@@ -330,8 +337,9 @@ namespace netxs
     //          The QUADRATIC-LAW fader from the initial velocity
     //          to stop for a given period of time.
     template<class T>
-    class quadratic
+    struct quadratic
     {
+    private:
         using twod = T;
         using type = disintegrate<twod>;
 
@@ -384,8 +392,9 @@ namespace netxs
     //          The LINEAR-LAW fader from the initial velocity
     //          to stop for a given period of time with constant speed.
     template<class T>
-    class constlinear
+    struct constlinear
     {
+    private:
         using twod = T;
         using type = disintegrate<twod>;
 
@@ -438,8 +447,9 @@ namespace netxs
     //          The LINEAR-LAW fader from the initial point to the destination
     //          point for a given period of time with constant speed.
     template<class T>
-    class constlinearAtoB
+    struct constlinearAtoB
     {
+    private:
         using twod = T;
         using type = disintegrate<twod>;
 
@@ -480,6 +490,92 @@ namespace netxs
             }
 
             return delta;
+        }
+    };
+
+    // Cubic spline for three points {0, 0}, {r, 0.5}, {1,1}. For x < 0: F(x) = 0, For x > 1: F(x) = 1. 0 < r < 1.
+    // x <= 0 :     S(x) = 0
+    // 0 < x < x1 : S(x) = d1 * x^3
+    // x <= 1:      S(x) = a2 + b2 * x + c2 * x^2 + d2 * x^3
+    // x > 1:       S(x) = 1
+    //
+    // 0 < r < 1
+    // 1. S(0) = 0       a1 = 0
+    // 2. S(1) = 1
+    // 3. S'(0) = 0      b1 = 0
+    // 4. S'(1) = 0
+    // 5. S(r) = S(r)
+    // 6. S'(r) = S'(r)
+    // 7. S''(0) = 0     c1 = 0
+    // 8. S''(1) = 0
+    template<class T = fp32>
+    struct spline01
+    {
+    private:
+        T r;
+        T d1, d2;
+        T a2, b2, c2;
+
+    public:
+        spline01(T r)
+            :  r{ r },
+              d1{ 1 / (r * r)},
+              d2{ 1 / ((r - 1) * (r - 1)) },
+              a2{ 1 - d2 }, 
+              b2{ 3 * d2},
+              c2{ -3 * d2}
+        { }
+
+        auto operator () (T x) const
+        {
+            auto y = T{ x <= 0 ? 0
+                      : x < r  ? d1 * x * x * x
+                      : x < 1  ? a2 + b2 * x + c2 * x * x  + d2 * x * x * x
+                      : 1 };
+            return y;
+        }
+    };
+    template<class T = fp32>
+    struct spline
+    {
+    private:
+        static constexpr auto zero = T{};
+        static constexpr auto one = (T{} + 1) / (T{} + 1);
+        T r;
+        T d1, d2;
+        T a2, b2, c2;
+        T offset_x, offset_y, scale_x, scale_y;
+
+    public:
+        spline(T r, T offset_x = zero, T offset_y = zero, T scale_x = one, T scale_y = one)
+            : r{ r },
+              d1{ 1 / (r * r)},
+              d2{ 1 / ((r - 1) * (r - 1)) },
+              a2{ 1 - d2 }, 
+              b2{ 3 * d2},
+              c2{ -3 * d2},
+            offset_x{ offset_x },
+            offset_y{ offset_y },
+            scale_x{ scale_x },
+            scale_y{ scale_y }
+        { }
+
+        auto operator () (T x) const
+        {
+            //auto y = T{ x <= 0 ? 0
+            //          : x < x1 ? d1 * x * x * x
+            //          : x < 1  ? a2 + b2 * x + c2 * x * x  + d2 * x * x * x
+            //          : 1 };
+            //todo precalc abcd
+            x -= offset_x;
+            x /= scale_x;
+            auto y = T{ x <= 0 ? 0
+                      : x <  r ? d1 * x * x * x
+                      : x <  1 ? a2 + b2 * x + c2 * x * x  + d2 * x * x * x
+                      : 1 };
+            y *= scale_y;
+            y += offset_y;
+            return y;
         }
     };
 
@@ -1097,39 +1193,35 @@ namespace netxs
         }
     }
 
-    namespace _private
+    // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
+    template<bool Fwd, class Src, class Dst, class P>
+    void proc_block(Src begin_it, Src end_it, Dst dest_it, P proc)
     {
-        // intmath: Move block to the specified destination. If begin_it > end_it (exclusive) decrement is used.
-        template<bool Fwd, class Src, class Dst, class P>
-        void proc_block(Src begin_it, Src end_it, Dst dest_it, P proc)
-        {
-                while (begin_it != end_it)
+            while (begin_it != end_it)
+            {
+                if constexpr (Fwd)
                 {
-                    if constexpr (Fwd)
-                    {
-                        proc(*begin_it, *dest_it);
-                        ++begin_it;
-                        ++dest_it;
-                    }
-                    else
-                    {
-                        proc(*begin_it, *dest_it);
-                        --begin_it;
-                        --dest_it;
-                    }
-            }
+                    proc(*begin_it, *dest_it);
+                    ++begin_it;
+                    ++dest_it;
+                }
+                else
+                {
+                    proc(*begin_it, *dest_it);
+                    --begin_it;
+                    --dest_it;
+                }
         }
     }
-
     template<bool Fwd = true, class Src, class Dst>
     void move_block(Src begin_it, Src end_it, Dst dest_it)
     {
-        _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
+        proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ dst = std::move(src); });
     }
     template<bool Fwd = true, class Src, class Dst>
     void swap_block(Src begin_it, Src end_it, Dst dest_it)
     {
-        _private::proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
+        proc_block<Fwd>(begin_it, end_it, dest_it, [](auto& src, auto& dst){ std::swap(src, dst); });
     }
 
     // Boxblur.

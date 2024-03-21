@@ -750,7 +750,7 @@ namespace netxs::app::terminal
             {
                 closing_on_quit(boss);
             });
-        window->plugin<pro::track>()
+        window//->plugin<pro::track>()
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
         config.cd("/config/term/color/default/");
@@ -777,11 +777,44 @@ namespace netxs::app::terminal
         auto menu_white = skin::color(tone::menu_white);
         auto cB = menu_white;
 
+        auto gradient = [bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
+        {
+            static constexpr auto grad_vsize = 32; // 
+
+            auto region = parent_canvas.full();
+            if (region.size.x != bground.size().x)
+            {
+                auto spline = netxs::spline01{ -0.30f };
+                auto mx = region.size.x;
+                auto my = std::min(3, region.size.y);
+                bground.size({ mx, my }, skin::color(tone::kb_focus));
+                auto it = bground.begin();
+                for (auto y = 0.f; y < my; y++)
+                {
+                    auto y0 = (y + 1) / grad_vsize;
+                    auto sy = spline(y0);
+                    for (auto x = 0.f; x < mx; x++)
+                    {
+                        auto& c = it++->bgc();
+                        auto mirror = x < mx / 2.f ? x : mx - x;
+                        auto x0 = (mirror + 2) / (mx - 1.f);
+                        auto sx = spline(x0);
+                        auto xy = sy * sx;
+                        c.chan.a = (byte)std::round(255.0 * (1.f - xy));
+                    }
+                }
+            }
+            bground.move(region.coor);
+            parent_canvas.fill(bground, cell::shaders::blend); // Menu background.
+            bground.step({ 0, region.size.y - 1 });
+            parent_canvas.fill(bground, cell::shaders::blend); // Hz scrollbar background.
+        };
+
         auto window = ui::cake::ctor();
         window->plugin<pro::focus>(pro::focus::mode::hub)
             ->plugin<pro::track>()
-            //->plugin<pro::acryl>()
-            ->plugin<pro::cache>();
+            ->plugin<pro::cache>()
+            ->shader(gradient, e2::form::state::keybd::focus::count);
 
         auto object = window->attach(ui::fork::ctor(axis::Y))
                             ->colors(cB);

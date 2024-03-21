@@ -2314,7 +2314,8 @@ namespace netxs::ui
                 }
             };
             auto nested_clip = trim ? core::clip().clip(object_area) : core::clip();
-            if (Forced || nested_clip)
+            auto proceed = Forced || nested_clip;
+            if (proceed)
             {
                 auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);

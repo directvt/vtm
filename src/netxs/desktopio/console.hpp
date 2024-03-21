@@ -602,6 +602,7 @@ namespace netxs::ui
             X(key_character, "key char"         ) \
             X(key_pressed  , "key push"         ) \
             X(ctrl_state   , "controls"         ) \
+            X(k            , "k"                ) \
             X(mouse_pos    , "mouse coord"      ) \
             X(mouse_wheeldt, "wheel delta"      ) \
             X(mouse_hzwheel, "H wheel"          ) \
@@ -762,6 +763,13 @@ namespace netxs::ui
                         state = m_buttons[i] ? "pressed" : "idle   ";
                     }
 
+                    if constexpr (debugmode)
+                    {
+                        status[prop::k].set(stress) = std::to_string(netxs::_k0) + " "
+                                                    + std::to_string(netxs::_k1) + " "
+                                                    + std::to_string(netxs::_k2) + " "
+                                                    + std::to_string(netxs::_k3);
+                    }
                     status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
                     status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
                     status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
@@ -948,6 +956,36 @@ namespace netxs::ui
                 if (debug)
                 {
                     debug.output(canvas);
+
+                    if constexpr (debugmode) // Red channel histogram.
+                    {
+                        auto hist = page{};//std::array<byte, 40>{};
+                        hist.brush.bgc(0x80ffffff);
+                        auto full = canvas.full();
+                        auto area = canvas.area();
+                        auto clip = canvas.clip();
+                        canvas.area({ dot_00, area.size });
+                        for (auto& [gear_id, gear_ptr] : input.gears)
+                        {
+                            auto coor = gear_ptr->coord;
+                            for (auto x = 0; x < area.size.y; x++)
+                            {
+                                auto xy = coor + twod{ x - area.size.y/2, 0 };
+                                if (xy.x > 0 && xy.x < canvas.size().x)
+                                    hist += utf::repeat(" ", canvas[xy].bgc().chan.r) + "\n";
+                                else
+                                    hist += "\n"s;
+                            }
+                            auto full_area = full;
+                            full_area.coor = {};
+                            full_area.size.x = dot_mx.x; // Prevent line wrapping.
+                            canvas.full(full_area);
+                            canvas.cup(dot_00);
+                            canvas.output(hist, cell::shaders::blend);
+                        }
+                        canvas.area(area);
+                        canvas.full(full);
+                    }
                 }
                 if (props.show_regions)
                 {

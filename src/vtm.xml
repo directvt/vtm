@@ -168,7 +168,7 @@ R"==(
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
-            <kb_focus   fgc=bluelt    bgc=bluedk    alpha=192 /> <!-- Keyboard focus indicator. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
