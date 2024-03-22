@@ -790,8 +790,8 @@ namespace netxs
     }
 
     static inline
-    bool liang_barsky(float xmin, float ymin, float xmax, float ymax,
-                      float&  x1, float&  y1, float&  x2, float&  y2)
+    bool liang_barsky(fp32 xmin, fp32 ymin, fp32 xmax, fp32 ymax,
+                      fp32&  x1, fp32&  y1, fp32&  x2, fp32&  y2)
     {
         auto dx = x2 - x1;
         auto dy = y2 - y1;
@@ -945,8 +945,8 @@ namespace netxs
 
         if (!size.inside(p0) || !size.inside(p1))
         {
-            auto x1 = static_cast<float>(p0.x); auto y1 = static_cast<float>(p0.y);
-            auto x2 = static_cast<float>(p1.x); auto y2 = static_cast<float>(p1.y);
+            auto x1 = (fp32)p0.x; auto y1 = (fp32)p0.y;
+            auto x2 = (fp32)p1.x; auto y2 = (fp32)p1.y;
             auto minx = -1.0f;// One element wide margin for antialiasing.
             auto miny = -1.0f;//
             auto maxx = size.x + 1.0f;

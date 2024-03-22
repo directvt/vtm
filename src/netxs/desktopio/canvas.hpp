@@ -2160,8 +2160,8 @@ namespace netxs
         }
         void grad(rgba c1, rgba c2) // core: Fill the specified region with the linear gradient.
         {
-            auto mx = (float)region.size.x;
-            auto my = (float)region.size.y;
+            auto mx = (fp32)region.size.x;
+            auto my = (fp32)region.size.y;
             auto len = std::sqrt(mx * mx + my * my * 4);
 
             auto dr = (c2.chan.r - c1.chan.r) / len;
@@ -2176,10 +2176,10 @@ namespace netxs
             {
                 auto dt = std::sqrt(x * x + z);
                 auto& chan = c.bgc().chan;
-                chan.r = (byte)((float)c1.chan.r + dr * dt);
-                chan.g = (byte)((float)c1.chan.g + dg * dt);
-                chan.b = (byte)((float)c1.chan.b + db * dt);
-                chan.a = (byte)((float)c1.chan.a + da * dt);
+                chan.r = (byte)((fp32)c1.chan.r + dr * dt);
+                chan.g = (byte)((fp32)c1.chan.g + dg * dt);
+                chan.b = (byte)((fp32)c1.chan.b + db * dt);
+                chan.a = (byte)((fp32)c1.chan.a + da * dt);
                 ++x;
             };
             auto eolfx = [&]

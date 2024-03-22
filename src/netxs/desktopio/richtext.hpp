@@ -2379,6 +2379,7 @@ namespace netxs::ui
             core::crop<BottomAnchored>(new_size, core::mark());
             flow::size(new_size);
         }
+        // face: Double boxblur the face background.
         template<bool InnerGlow = faux, class T = vrgb, class P = noop>
         void blur(si32 r, T&& cache = {}, P shade = {}) // face: .
         {
