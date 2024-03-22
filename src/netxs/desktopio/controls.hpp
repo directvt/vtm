@@ -2041,6 +2041,7 @@ namespace netxs::ui
 
             si32 width; // acryl: Blur radius.
             bool alive; // acryl: Is active.
+            vrgb cache; // acryl: Boxblur temp buffer.
 
         public:
             acryl(base&&) = delete;
@@ -2060,7 +2061,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive || boss.base::filler.bga() == 0xFF) return;
-                    parent_canvas.blur(width, [&](cell& c){ c.alpha(0xFF); });
+                    parent_canvas.blur(width, cache, [&](cell& c){ c.alpha(0xFF); });
                 };
             }
         };
@@ -2143,18 +2144,21 @@ namespace netxs::ui
             twod region;
             twod offset;
 
+            vrgb cache; // acryl: Boxblur temp buffer.
             auto draw_shadow()
             {
                 canvas.core::area({ dot_00, dot_21 * radius * 4 + region });
                 auto dark = rect{ dot_21 * radius * 2, region };
                 auto body = cell{}.bgc(0).fgc(0).alpha(0x60);
                 auto step = radius;
+                    //todo use spline01
                     canvas.fill(dark, cell::shaders::color(body));
-                while (step--)
-                {
-                    canvas.blur<true>(1);
-                }
-                canvas.each([](cell& c){ c.fgc(c.bgc()).txt(""); });
+
+                    while (step--)
+                    {
+                        canvas.blur<true>(1, cache);
+                    }
+                    canvas.each([](cell& c){ c.fgc(c.bgc()).txt(""); });
             }
 
         public:

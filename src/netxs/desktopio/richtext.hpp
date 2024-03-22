@@ -2097,7 +2097,6 @@ namespace netxs::ui
     protected:
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
-        vrgb cache;     // face: BlurFX temp buffer.
 
         // face: Is the c inside the viewport?
         bool inside(twod c)
@@ -2380,8 +2379,8 @@ namespace netxs::ui
             core::crop<BottomAnchored>(new_size, core::mark());
             flow::size(new_size);
         }
-        template<bool InnerGlow = faux, class P = noop>
-        void blur(si32 r, P shade = {}) // face: .
+        template<bool InnerGlow = faux, class T = vrgb, class P = noop>
+        void blur(si32 r, T&& cache = {}, P shade = {}) // face: .
         {
             using irgb = vrgb::value_type;
 

@@ -1080,12 +1080,13 @@ namespace netxs::input
                 canvas.wipe();
                 canvas.size(dot_21 * shadow_radius * 2 + trim_to);
                 auto full = rect{ dot_21 * shadow_radius + dot_21, trim_to };
+                auto temp = vrgb{};
                 while (shadow_radius--)
                 {
                     canvas.reset();
                     canvas.full(full);
                     canvas.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    canvas.blur<true>(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
+                    canvas.blur<true>(1, temp, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
                 canvas.reset();

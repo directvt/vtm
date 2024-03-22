@@ -8043,9 +8043,10 @@ namespace netxs::ui
                 {
                     if (show_msg)
                     {
+                        auto tmpbuf = vrgb{};
                         splash.zoom(canvas, cell::shaders::onlyid(parent_id));
                         splash.output(errmsg);
-                        splash.blur(2, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.blur(2, tmpbuf, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                         splash.output(errmsg);
                     }
                     else

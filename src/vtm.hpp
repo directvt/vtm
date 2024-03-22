@@ -443,6 +443,7 @@ namespace netxs::app::vtm
             };
             std::unordered_map<id_t, slot_t> slots;
             escx coder;
+            vrgb cache;
 
             void check_modifiers(hids& gear)
             {
@@ -492,6 +493,7 @@ namespace netxs::app::vtm
                 if (gear.captured(boss.bell::id))
                 {
                     slots.erase(gear.id);
+                    if (slots.empty()) cache = {};
                     gear.dismiss();
                     gear.setfree();
                 }
@@ -510,6 +512,7 @@ namespace netxs::app::vtm
                         boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                     }
                     slots.erase(gear.id);
+                    if (slots.empty()) cache = {};
                     gear.dismiss();
                     gear.setfree();
                 }
@@ -603,7 +606,7 @@ namespace netxs::app::vtm
                                 auto temp = canvas.clip();
                                 canvas.clip(area);
                                 canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
-                                canvas.blur(5);
+                                canvas.blur(5, cache);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
                                 auto caption = para(coder);
