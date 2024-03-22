@@ -1026,23 +1026,27 @@ namespace netxs
         P_Base s_ref, P_Dest d_ref, PostFx shade = {})
     {
         auto test = [&](auto accum){ auto n = accum / count; if (n > 255) throw; };
+
         auto limit = s_ptr + s_dty * (h - 1);
+        auto s_hop = (w - 1) * s_dtx;
+        auto d_hop = (w - 1) * d_dtx;
+        auto width = r + 1 + r;
         if (w <= r + 1) // All pixels on a line have the same average value.
         {
+            auto s_end = s_ptr + s_hop;
+            auto d_end = d_ptr + d_hop;;
             while (true)
             {
                 auto accum = Accum_t{};
                 auto s_cur = s_ptr;
                 auto d_cur = d_ptr;
-                auto s_end = s_cur + (w - 1) * s_dtx;
-                auto d_end = d_cur + (w - 1) * d_dtx;
                 while (true)
                 {
                     accum += s_ref(s_cur);
                     if (s_cur == s_end) break;
                     s_cur += s_dtx;
                 }
-                auto value = accum * (r + 1 + r) / w;
+                auto value = accum * width / w;
                 if constexpr (Calc) value /= count;
                 while (true)
                 {
@@ -1054,18 +1058,30 @@ namespace netxs
                 if (s_ptr == limit) break;
                 s_ptr += s_dty;
                 d_ptr += d_dty;
+                s_end += s_dty;
+                d_end += d_dty;
             }
         }
         else // if (w > r + 1)
         {
+            auto r_s_dtx = r * s_dtx;
+            auto r_d_dtx = r * d_dtx;
+            auto r1 = r + 1;
+            auto wr1 = w - r1;
+            auto s_w1r = wr1 * s_dtx;
+            auto d_w1r = wr1 * d_dtx;
+            auto s_r1x = r_s_dtx + s_dtx;
+            auto width_s_dtx = width * s_dtx;
+            auto d_rev = (width - w) * d_dtx;
+            auto w_1_width_d_dtx = -(d_rev + d_dtx);
             while (true)
             {
-                // Find the left average.
+                // Find the average on the left side.
                 auto accum = Accum_t{};
                 auto l_val = Accum_t{};
                 auto r_val = Accum_t{};
                 auto s_cur = s_ptr;
-                auto s_end = s_ptr + r * s_dtx;
+                auto s_end = s_ptr + r_s_dtx;
                 if constexpr (InnerGlow) l_val = s_ref(s_cur);
                 while (true)
                 {
@@ -1073,32 +1089,29 @@ namespace netxs
                     if (s_cur == s_end) break;
                     s_cur += s_dtx;
                 }
-                if constexpr (!InnerGlow) l_val = accum / (r + 1);
-                // Find the right average.
-                s_end = s_ptr + (w - 1) * s_dtx;
-                if constexpr (InnerGlow)
-                {
-                    r_val = s_ref(s_end);
-                }
+                if constexpr (!InnerGlow) l_val = accum / r1;
+                // Find the average on the right side.
+                s_end = s_ptr + s_hop;
+                if constexpr (InnerGlow) r_val = s_ref(s_end);
                 else
                 {
-                    s_cur = s_ptr + (w - 1 - r) * s_dtx;
+                    s_cur = s_ptr + s_w1r;
                     while (true)
                     {
                         r_val += s_ref(s_cur);
                         if (s_cur == s_end) break;
                         s_cur += s_dtx;
                     }
-                    r_val /= (r + 1);
+                    r_val /= r1;
                 }
                 auto d_cur = d_ptr;
                 auto d_end = d_cur;
                 accum += l_val * r; // Leftmost pixel value.
-                if (r + 1 + r >= w)
+                if (width >= w)
                 {
                     // Sub l_val, add src.
-                    s_cur = s_ptr + (r + 1) * s_dtx;
-                    d_end += (w - (r + 1)) * d_dtx;
+                    s_cur = s_ptr + s_r1x;
+                    d_end += d_w1r;
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
@@ -1116,7 +1129,7 @@ namespace netxs
                     }
                     // Sub l_val, add r_val.
                     d_cur += d_dtx;
-                    d_end = d_cur + (r + r + 1 - w) * d_dtx;
+                    d_end = d_cur + d_rev;
                     while (true)
                     {
                         accum -= l_val;
@@ -1132,8 +1145,8 @@ namespace netxs
                 else
                 {
                     // Sub l_val, add src.
-                    s_cur = s_ptr + (r + 1) * s_dtx;
-                    d_end += r * d_dtx;
+                    s_cur = s_ptr + s_r1x;
+                    d_end += r_d_dtx;
                     test(accum);
                     d_ref(d_cur) = Calc ? accum / count : accum;
                     shade(*d_cur);
@@ -1151,8 +1164,8 @@ namespace netxs
                     }
                     // Sub src, add src.
                     d_cur += d_dtx;
-                    d_end = d_cur + (w - 1 - (r + 1 + r)) * d_dtx;
-                    auto s_fwd = s_ptr + (r + 1 + r) * s_dtx;
+                    d_end = d_cur + w_1_width_d_dtx;
+                    auto s_fwd = s_ptr + width_s_dtx;
                     s_cur = s_ptr;
                     accum -= s_ref(s_cur);
                     accum += s_ref(s_fwd);
@@ -1174,7 +1187,7 @@ namespace netxs
                     d_cur += d_dtx;
                 }
                 // Sub src, add r_val.
-                d_end = d_ptr + (w - 1) * d_dtx;
+                d_end = d_ptr + d_hop;
                 while (true)
                 {
                     accum -= s_ref(s_cur);
