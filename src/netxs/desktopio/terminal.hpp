@@ -7480,6 +7480,9 @@ namespace netxs::ui
                 auto base = full.coor - clip.coor;
                 cursor.coor(console.get_coord(base));
 
+                //todo use configurable background
+                parent_canvas.fill(cell{}.link(id));
+
                 console.output(parent_canvas);
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
 
@@ -7494,20 +7497,20 @@ namespace netxs::ui
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 
-                if (clip.coor.x) // Shade left and right margins.
-                {
-                    auto west = full;
-                    west.size = dot_mx;
-                    west.coor.y -= dot_mx.y / 2;
-                    auto east = west;
-                    auto pads = console.getpad();
-                    west.coor.x -= oversz.l - pads + dot_mx.x;
-                    east.coor.x += oversz.r - pads + console.panel.x;
-                    west = west.clip(clip);
-                    east = east.clip(clip);
-                    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
-                    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
-                }
+                //if (clip.coor.x) // Shade left and right margins.
+                //{
+                //    auto west = full;
+                //    west.size = dot_mx;
+                //    west.coor.y -= dot_mx.y / 2;
+                //    auto east = west;
+                //    auto pads = console.getpad();
+                //    west.coor.x -= oversz.l - pads + dot_mx.x;
+                //    east.coor.x += oversz.r - pads + console.panel.x;
+                //    west = west.clip(clip);
+                //    east = east.clip(clip);
+                //    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
+                //    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
+                //}
 
                 // Debug: Shade active viewport.
                 //{

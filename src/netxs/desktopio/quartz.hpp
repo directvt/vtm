@@ -32,7 +32,7 @@ namespace netxs::datetime
     template<class T, class degree = std::chrono::milliseconds>
     T round(span t)
     {
-        return clamp<T>(std::chrono::duration_cast<degree>(t).count());
+        return netxs::clamp<T>(std::chrono::duration_cast<degree>(t).count());
     }
 
     // quartz: Return a total count degree unts (def: milliseconds) since epoch.

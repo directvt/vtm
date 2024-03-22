@@ -553,7 +553,7 @@ namespace netxs::ui
                 //{
                 //    del_keybd(gear.id);
                 //};
-                //if (!skin::globals().tracking) return;
+                if (!skin::globals().tracking) return;
                 // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
