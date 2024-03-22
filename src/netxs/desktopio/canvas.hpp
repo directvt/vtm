@@ -166,9 +166,13 @@ namespace netxs
         constexpr auto luma() const
         {
             auto t = netxs::letoh(token);
-            return static_cast<byte>(0.2627 * ((t & 0x0000FF) >> 0)
-                                   + 0.6780 * ((t & 0x00FF00) >> 8)
-                                   + 0.0593 * ((t & 0xFF0000) >> 16));
+            return static_cast<byte>(0.2627f * ((t & 0x0000FF) >> 0)
+                                   + 0.6780f * ((t & 0x00FF00) >> 8)
+                                   + 0.0593f * ((t & 0xFF0000) >> 16));
+        }
+        static constexpr auto luma(si32 r, si32 g, si32 b)
+        {
+            return static_cast<byte>(0.2627f * r + 0.6780f * g + 0.0593f * b);
         }
         void grayscale()
         {
@@ -313,43 +317,118 @@ namespace netxs
         // rgba: Shift color.
         void xlight(si32 factor = 1)
         {
-            if (luma() > 140)
+            if (chan.a == 255)
             {
-                auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
+                if (luma() > 140)
+                {
+                    auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
+                    chan.r = chan.r < k ? 0x00 : chan.r - k;
+                    chan.g = chan.g < k ? 0x00 : chan.g - k;
+                    chan.b = chan.b < k ? 0x00 : chan.b - k;
+                }
+                else
+                {
+                    auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                    chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+                    chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+                    chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                }
+            }
+            else if (chan.a == 0)
+            {
+                auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                chan.r = 255;
+                chan.g = 255;
+                chan.b = 255;
+                chan.a = k;
             }
             else
             {
-                auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                auto r = (si32)chan.r * chan.a / 256;
+                auto g = (si32)chan.g * chan.a / 256;
+                auto b = (si32)chan.b * chan.a / 256;
+                if (luma(r, g, b) > 140)
+                {
+                    auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
+                    chan.r = chan.r < k ? 0x00 : chan.r - k;
+                    chan.g = chan.g < k ? 0x00 : chan.g - k;
+                    chan.b = chan.b < k ? 0x00 : chan.b - k;
+                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                }
+                else
+                {
+                    auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                    chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+                    chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+                    chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                }
             }
         }
         // rgba: Shift color pair.
         void xlight(si32 factor, rgba& second)
         {
-            if (luma() > 140)
+            if (chan.a == 255)
             {
-                auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
-                chan.r = chan.r < k ? 0x00 : chan.r - k;
-                chan.g = chan.g < k ? 0x00 : chan.g - k;
-                chan.b = chan.b < k ? 0x00 : chan.b - k;
-                second.chan.r = second.chan.r < k ? 0x00 : second.chan.r - k;
-                second.chan.g = second.chan.g < k ? 0x00 : second.chan.g - k;
-                second.chan.b = second.chan.b < k ? 0x00 : second.chan.b - k;
+                if (luma() > 140)
+                {
+                    auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
+                    chan.r = chan.r < k ? 0x00 : chan.r - k;
+                    chan.g = chan.g < k ? 0x00 : chan.g - k;
+                    chan.b = chan.b < k ? 0x00 : chan.b - k;
+                    second.chan.r = second.chan.r < k ? 0x00 : second.chan.r - k;
+                    second.chan.g = second.chan.g < k ? 0x00 : second.chan.g - k;
+                    second.chan.b = second.chan.b < k ? 0x00 : second.chan.b - k;
+                }
+                else
+                {
+                    auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                    chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+                    chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+                    chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                    second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
+                    second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
+                    second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
+                }
             }
-            else
+            else if (chan.a == 0)
             {
                 auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
-                chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
-                chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
-                chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                chan.r = 255;
+                chan.g = 255;
+                chan.b = 255;
+                chan.a = k;
                 second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
                 second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
                 second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
+            }
+            else
+            {
+                auto r = (si32)chan.r * chan.a / 256;
+                auto g = (si32)chan.g * chan.a / 256;
+                auto b = (si32)chan.b * chan.a / 256;
+                if (luma(r, g, b) > 140)
+                {
+                    auto k = (byte)std::clamp(64 * factor, 0, 0xFF);
+                    chan.r = chan.r < k ? 0x00 : chan.r - k;
+                    chan.g = chan.g < k ? 0x00 : chan.g - k;
+                    chan.b = chan.b < k ? 0x00 : chan.b - k;
+                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                    second.chan.r = second.chan.r < k ? 0x00 : second.chan.r - k;
+                    second.chan.g = second.chan.g < k ? 0x00 : second.chan.g - k;
+                    second.chan.b = second.chan.b < k ? 0x00 : second.chan.b - k;
+                }
+                else
+                {
+                    auto k = (byte)std::clamp(48 * factor, 0, 0xFF);
+                    chan.r = chan.r > 0xFF - k ? 0xFF : chan.r + k;
+                    chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
+                    chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
+                    chan.a = chan.a > 0xFF - k ? 0xFF : chan.a + k;
+                    second.chan.r = second.chan.r > 0xFF - k ? 0xFF : second.chan.r + k;
+                    second.chan.g = second.chan.g > 0xFF - k ? 0xFF : second.chan.g + k;
+                    second.chan.b = second.chan.b > 0xFF - k ? 0xFF : second.chan.b + k;
+                }
             }
         }
         // rgba: Darken the color.
