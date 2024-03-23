@@ -139,6 +139,7 @@ namespace netxs::ui
             si32 def_atexit;
             rgba def_fcolor;
             rgba def_bcolor;
+            rgba def_filler;
             si32 def_selmod;
             bool def_selalt;
             bool def_cursor;
@@ -206,6 +207,7 @@ namespace netxs::ui
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
+                def_filler =             config.take("color/bground",        rgba{ 0x00'00'00'00 });
 
                 def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -2840,7 +2842,7 @@ namespace netxs::ui
                 index_rebuild();
 
                 auto c = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
-                boss.base::color(c);
+                boss.defclr = c;
                 parser::brush.reset(c);
             }
             si32 get_size() const override { return batch.size;     }
@@ -6351,6 +6353,7 @@ namespace netxs::ui
         w_tracking wtrack; // term: Terminal title tracking object.
         c_tracking ctrack; // term: Custom terminal palette tracking object.
         term_state status; // term: Screen buffer status info.
+        cell       defclr; // term: Default/current colors (SGR49/39).
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
@@ -6738,13 +6741,12 @@ namespace netxs::ui
         void setdef()
         {
             auto& console = *target;
+            defclr.txt('\0').fgc(config.def_fcolor).bgc(config.def_bcolor).link(base::id);
+            console.brush.reset(defclr);
             console.style.reset();
             console.style.wrp(config.def_wrpmod);
             console.setpad(config.def_margin);
             selection_selmod(config.def_selmod);
-            auto brush = base::color();
-            brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor).link(brush.link());
-            base::color(brush);
             cursor.style(config.def_cursor);
         }
         // term: Set terminal background.
@@ -6759,7 +6761,7 @@ namespace netxs::ui
             static auto parser = ansi::csi_t<marker, true>{};
 
             auto mark = marker{};
-            mark.brush = base::color();
+            mark.brush = defclr;
             auto param = queue.front(ansi::sgr_rst);
             if (queue.issub(param))
             {
@@ -7141,33 +7143,38 @@ namespace netxs::ui
         }
         void set_color(cell brush)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
             brush.link(base::id);
-            base::color(brush);
+            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            {
+                base::color(cell{ brush }.txt(whitespace));
+            }
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
         }
         void set_bg_color(rgba bg)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
-            auto brush = base::color();
+            auto brush = defclr;
             brush.bgc(bg);
             brush.link(base::id);
-            base::color(brush);
+            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            {
+                base::color(cell{ brush }.txt(whitespace));
+            }
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
         void set_fg_color(rgba fg)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
-            auto brush = base::color();
+            auto brush = defclr;
             brush.fgc(fg);
             brush.link(base::id);
-            base::color(brush);
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::fg, fg);
@@ -7403,6 +7410,13 @@ namespace netxs::ui
               altscr{ config.def_altscr },
               kbmode{ prot::vt }
         {
+            set_fg_color(config.def_fcolor);
+            set_bg_color(config.def_bcolor);
+            if (config.def_filler != 0x00'ff'ff'ff) // Unsync with SGR default background.
+            {
+                auto c = cell{whitespace}.bgc(config.def_filler).link(base::id);
+                base::color(c);
+            }
             selection_submit();
             publish_property(ui::term::events::io_log,         [&](auto& v){ v = io_log; });
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
@@ -7479,9 +7493,6 @@ namespace netxs::ui
                 auto full = parent_canvas.full();
                 auto base = full.coor - clip.coor;
                 cursor.coor(console.get_coord(base));
-
-                //todo use configurable background
-                parent_canvas.fill(cell{}.link(id));
 
                 console.output(parent_canvas);
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
@@ -7906,16 +7917,6 @@ namespace netxs::ui
                         s11n::fps.send(master, frame_rate);
                     }
                 };
-                master.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, tokens)
-                {
-                    s11n::slimmenu.send(master, slim);
-                };
-                master.LISTEN(tier::anycast, e2::form::prop::colors::any, clr, tokens)
-                {
-                    auto deed = master.bell::template protos<tier::anycast>();
-                         if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
-                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
-                };
                 master.LISTEN(tier::anycast, e2::form::prop::cwd, path, tokens)
                 {
                     s11n::cwd.send(master, path);
@@ -8063,7 +8064,7 @@ namespace netxs::ui
         // dtvt: Render next frame.
         void fill(core& parent_canvas, core const& canvas)
         {
-            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
+            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::overlay);
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
 

@@ -1542,12 +1542,9 @@ namespace netxs::app::vtm
             conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
             conf_rec.title      = item.take(attr::title,    fallback.title   );
             conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
-            conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
-            conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
             conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
             conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
-            conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
             conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
@@ -1623,7 +1620,6 @@ namespace netxs::app::vtm
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .fixed    = true,
                                        .winform  = shared::winform::undefined,
-                                       .slimmenu = host::config.take(path::menuslim, true),
                                        .type     = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
@@ -1688,7 +1684,6 @@ namespace netxs::app::vtm
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .hidden   = true,
                                        .winform  = shared::winform::undefined,
-                                       .slimmenu = host::config.take(path::menuslim, true),
                                        .type     = app::vtty::id,
                                        .gearid   = script.hid };
             auto menuid = itemptr->take(attr::id, ""s);
@@ -1746,7 +1741,6 @@ namespace netxs::app::vtm
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
                                           .winform  = shared::winform::undefined,
-                                          .slimmenu = faux,
                                           .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
@@ -1841,9 +1835,6 @@ namespace netxs::app::vtm
                 what.applet = maker(setup.appcfg, host::config);
                 what.header = setup.title;
                 what.footer = setup.footer;
-                if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
-                if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
-                if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {

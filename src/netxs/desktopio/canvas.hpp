@@ -1340,7 +1340,7 @@ namespace netxs
         }
         auto& data() const { return *this;} // cell: Return the const reference of the base cell.
 
-        // cell: Merge two cells according to visibility and other attributes.
+        // cell: Blend two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
             //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
@@ -1355,12 +1355,12 @@ namespace netxs
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Merge two cells if text part != '\0'.
+        // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
         {
             if (c.gc.glyph[1] != 0) fuse(c);
         }
-        // cell: Mix cell colors.
+        // cell: Blend cell colors.
         void mix(cell const& c)
         {
             uv.fg.mix_one(c.uv.fg);
@@ -1377,7 +1377,7 @@ namespace netxs
             uv.fg.mix(c.uv.fg);
             uv.bg.mix(c.uv.bg);
         }
-        // cell: Mix colors using alpha.
+        // cell: Blend colors using alpha.
         void mix(cell const& c, byte alpha)
         {
             uv.fg.mix(c.uv.fg, alpha);
@@ -1385,7 +1385,7 @@ namespace netxs
             st = c.st;
             if (c.wdt()) gc = c.gc;
         }
-        // cell: Mix colors using alpha.
+        // cell: Blend colors using alpha.
         void mixfull(cell const& c, si32 alpha)
         {
             if (c.id) id = c.id;
@@ -1398,16 +1398,38 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
         }
-        // cell: Merge two cells and set specified id.
+        // cell: Blend two cells and set specified id.
         void fuse(cell const& c, id_t oid)
         {
             fuse(c);
             id = oid;
         }
-        // cell: Merge two cells and set id if it is.
+        // cell: Blend two cells and set id if it is.
         void fusefull(cell const& c)
         {
             fuse(c);
+            if (c.id) id = c.id;
+        }
+        // cell: Blend two cells and set id if it is (fg = bg * c.fg).
+        void overlay(cell const& c)
+        {
+            if (c.wdt() || c.st.und())
+            {
+                auto bg = uv.bg;
+                if (bg.chan.a == 0xFF) bg.mix_one(c.uv.fg);
+                else                   bg.mix(c.uv.fg);
+                uv.fg = bg;
+                gc = c.gc;
+            }
+            else
+            {
+                if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.bg);
+                else                      uv.fg.mix(c.uv.bg);
+            }
+            if (uv.bg.chan.a == 0xFF) uv.bg.mix_one(c.uv.bg);
+            else                      uv.bg.mix(c.uv.bg);
+
+            st = c.st;
             if (c.id) id = c.id;
         }
         // cell: Merge two cells and set id.
@@ -1549,9 +1571,10 @@ namespace netxs
             return *this;
         }
         // cell: Delight both foreground and background.
-        void xlight(si32 factor = 1)
+        auto& xlight(si32 factor = 1)
         {
             uv.bg.xlight(factor, uv.fg);
+            return *this;
         }
         // cell: Invert both foreground and background.
         void invert()
@@ -1812,6 +1835,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.fusefull(src); }
             };
+            struct overlay_t : public brush_t<overlay_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.overlay(src); }
+            };
             struct text_t : public brush_t<text_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -1934,6 +1962,7 @@ namespace netxs
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
+            static constexpr auto  overlay =  overlay_t{};
             static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
             static constexpr auto    blend =    blend_t{};
@@ -2208,6 +2237,7 @@ namespace netxs
         template<class P>
         void plot(core const& block, P fuse) // core: Fill the client area by the specified block with coordinates inside the canvas area.
         {
+            //todo use block.client instead of block.region
             auto local = rect{ client.coor - region.coor, client.size };
             auto joint = local.clip(block.region);
             if (joint)

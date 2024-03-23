@@ -26,7 +26,7 @@ R"==(
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"
@@ -231,6 +231,7 @@ R"==(
         <puregreen = 0xFF00ff00 />
         <pureblue  = 0xFFff0000 />
         <nocolor   = 0x00000000 />
+        <default   = 0x00ffffff />
         <transparent = nocolor  />
     </set>
     <client>
@@ -281,7 +282,9 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitedk />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
+            <underline = transparent />  <!-- Default underline color (SGR59). This alpha value is alpha blended on top of the current foreground color when rendered.  -->
+            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->

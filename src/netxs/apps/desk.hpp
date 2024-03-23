@@ -19,12 +19,9 @@ namespace netxs::app::desk
         text    notes{};
         text    title{};
         text   footer{};
-        rgba      bgc{};
-        rgba      fgc{};
         twod  winsize{};
         twod  wincoor{};
         shared::winform::form winform{};
-        bool slimmenu{};
         bool splitter{};
         text   hotkey{};
         eccc   appcfg{};

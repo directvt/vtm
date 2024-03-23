@@ -194,11 +194,8 @@ Attribute  | Description                                       | Value type | De
 `notes`    |  Item tooltip text                                | `string`   | empty
 `title`    |  App window title                                 | `string`   | empty
 `footer`   |  App window footer                                | `string`   | empty
-`bgc`      |  App window background color                      | `RGBA`     |
-`fgc`      |  App window foreground color                      | `RGBA`     |
 `winsize`  |  App window size                                  | `x;y`      |
 `winform`  |  App window state                                 | `undefined` \| `maximized` \| `minimized` |
-`slimmenu` |  App window menu vertical size                    | `boolean`  | `true`
 `type`     |  Desktop window type                              | `string`   | `vtty`
 `env`      |  Environment variable in "var=val" format         | `string`   |
 `cwd`      |  Current working directory                        | `string`   |
@@ -267,7 +264,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" notes=" Terminal Console " cmd="$0 -r term">
             <config>   <!-- The following config partially overrides the base configuration. It is valid for DirectVT apps only. -->
                 <term>
@@ -278,7 +275,9 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                     <color>
                         <color4  = bluedk     /> <!-- See /config/set/* for the color name reference. -->
                         <color15 = whitelt    />
-                        <default bgc=pureblack fgc=whitelt />  <!-- Initial colors. -->
+                        <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
+                        <underline = transparent />  <!-- Default underline color (SGR59). This alpha value is alpha blended on top of the current foreground color when rendered.  -->
+                        <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
                     </color>
                     <cursor>
                         <style="underline"/> <!-- block | underline  -->
@@ -294,7 +293,7 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                 </term>
             </config>
         </item>
-        <item id=pwsh label=PowerShell   type=dtvt title="PowerShell"            cmd="$0 -r term pwsh" fgc=15 bgc=0xFF562401 notes=" PowerShell Core "/>
+        <item id=pwsh label=PowerShell   type=dtvt title="PowerShell"            cmd="$0 -r term pwsh"     notes=" PowerShell Core "/>
    <!-- <item id=WSL  label="WSL"        type=dtvt title="Windows Subsystem for Linux" cmd="$0 -r term wsl"                  notes=" Default WSL profile session "/> -->
    <!-- <item id=Far  label="Far"        type=vtty title="Far Manager"           cmd="far"                             notes=" Far Manager in its own window "/> -->
    <!-- <item id=mc   label="mc"         type=vtty title="Midnight Commander"    cmd="mc"                  notes=" Midnight Commander in its own window "/> -->

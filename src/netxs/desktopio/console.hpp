@@ -227,25 +227,10 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::config::fps, item.frame_rate);
             }
-            void handle(s11n::xs::bgc         lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
-            }
-            void handle(s11n::xs::fgc         lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
-            }
             void handle(s11n::xs::cwd         lock)
             {
                 auto& path = lock.thing.path;
                 notify<tier::anycast>(e2::form::prop::cwd, path);
-            }
-            void handle(s11n::xs::slimmenu    lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
             }
             void handle(s11n::xs::sysclose    lock)
             {

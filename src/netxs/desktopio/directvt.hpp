@@ -843,9 +843,6 @@ namespace netxs::directvt
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
-        STRUCT_macro(bgc,               (rgba, color))
-        STRUCT_macro(fgc,               (rgba, color))
-        STRUCT_macro(slimmenu,          (bool, menusize))
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
         STRUCT_macro(cwd,               (text, path))
 
@@ -1355,9 +1352,6 @@ namespace netxs::directvt
             X(request_gc       ) /* Unknown gc token list.                        */\
             X(unknown_gc       ) /* Unknown gc token.                             */\
             X(fps              ) /* Set frame rate.                               */\
-            X(bgc              ) /* Set background color.                         */\
-            X(fgc              ) /* Set foreground color.                         */\
-            X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */\
             X(cwd              ) /* CWD Notification.                             */
             //X(quit             ) /* Close and disconnect dtvt app.                */

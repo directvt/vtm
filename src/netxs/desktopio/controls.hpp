@@ -2023,7 +2023,7 @@ namespace netxs::ui
                         }
                         auto full = parent_canvas.full();
                         bosscopy.move(full.coor);
-                        if (lucidity == 0xFF) parent_canvas.fill(bosscopy, cell::shaders::fusefull);
+                        if (lucidity == 0xFF) parent_canvas.fill(bosscopy, cell::shaders::overlay);
                         else                  parent_canvas.fill(bosscopy, cell::shaders::transparent(lucidity));
                         bosscopy.move(dot_00);
                         boss.bell::expire<tier::release>();
