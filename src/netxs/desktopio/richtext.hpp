@@ -1845,9 +1845,15 @@ namespace netxs::ui
                 static constexpr auto off = "\\ul0 "sv;
                 static constexpr auto sgl = "\\ul "sv;
                 static constexpr auto dbl = "\\uldb "sv;
-                     if (unline == 1) data += sgl;
-                else if (unline == 2) data += dbl;
-                else                  data += off;
+                static constexpr auto wavy = "\\ulwave "sv;
+                static constexpr auto dotted = "\\uld "sv;
+                static constexpr auto dashed = "\\uldash "sv;
+                     if (unline == unln::line  ) data += sgl;
+                else if (unline == unln::biline) data += dbl;
+                else if (unline == unln::wavy  ) data += wavy;
+                else if (unline == unln::dotted) data += dotted;
+                else if (unline == unln::dashed) data += dashed;
+                else                             data += off;
             }
             auto inv(bool b)
             {
@@ -1927,8 +1933,11 @@ namespace netxs::ui
         {
             static constexpr auto bclr = "<span style=\"background-color:#"sv;
             static constexpr auto fclr = ";color:#"sv;
-            static constexpr auto unln = ";text-decoration:underline"sv;
-            static constexpr auto undb = ";border-bottom:3px double"sv;
+            static constexpr auto line   = ";text-decoration:underline"sv;
+            static constexpr auto biline = ";text-decoration:double"sv;
+            static constexpr auto wavy   = ";text-decoration:wavy"sv;
+            static constexpr auto dotted = ";text-decoration:dotted"sv;
+            static constexpr auto dashed = ";text-decoration:dashed"sv;
             static constexpr auto itlc = ";font-style:italic"sv;
             static constexpr auto bold = ";font-weight:bold"sv;
             static constexpr auto strk = ";text-decoration:line-through"sv;
@@ -1965,8 +1974,11 @@ namespace netxs::ui
                         if (base.bld()) data += bold;
                         if (base.stk()) data += strk;
                         if (base.ovr()) data += ovln;
-                             if (base.und() == 1) data += unln;
-                        else if (base.und() == 2) data += undb;
+                             if (base.und() == unln::line  ) data += line;
+                        else if (base.und() == unln::biline) data += biline;
+                        else if (base.und() == unln::wavy  ) data += wavy;
+                        else if (base.und() == unln::dotted) data += dotted;
+                        else if (base.und() == unln::dashed) data += dashed;
                         data += stop;
                     }
                     for (auto c : utf8)

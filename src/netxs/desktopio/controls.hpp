@@ -4024,7 +4024,7 @@ namespace netxs::ui
         para data{}; // item: Label content.
         bool flex{}; // item: Violate or not the label size.
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
-        bool unln{}; // item: Draw full-width underline.
+        bool ulin{}; // item: Draw full-width underline.
 
     protected:
         item(view label = {})
@@ -4061,14 +4061,14 @@ namespace netxs::ui
                         }
                     }
                 }
-                if (unln)
+                if (ulin)
                 {
                     auto area = parent_canvas.full();
                     parent_canvas.fill(area, [](cell& c)
                     {
                         auto u = c.und();
-                        if (u == 1) c.und(2);
-                        else        c.und(1);
+                        if (u == unln::line) c.und(unln::biline);
+                        else                 c.und(unln::line);
                     });
                 }
                 parent_canvas.bump(context);
@@ -4087,7 +4087,7 @@ namespace netxs::ui
         // item: .
         auto drawdots(bool b = true) { test = b; return This(); }
         // item: .
-        auto accented(bool b = true) { unln = b; return This(); }
+        auto accented(bool b = true) { ulin = b; return This(); }
         // item: .
         void brush(cell c)
         {

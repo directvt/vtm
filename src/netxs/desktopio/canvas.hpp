@@ -26,6 +26,16 @@ namespace netxs
         topmost  =  1,
     };
 
+    namespace unln
+    {
+        static constexpr auto none   = 0;
+        static constexpr auto line   = 1;
+        static constexpr auto biline = 2;
+        static constexpr auto wavy   = 3;
+        static constexpr auto dotted = 4;
+        static constexpr auto dashed = 5;
+    }
+
     enum tint
     {
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
@@ -1034,7 +1044,7 @@ namespace netxs
                     {
                         bitstate bolded : 1;
                         bitstate italic : 1;
-                        bitstate unline : 3; // 0: no, 1: single, 2: double, 3: curly, 4: dotted, 5: dashed
+                        bitstate unline : 3; // 0: no, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed
                         bitstate invert : 1;
                         bitstate overln : 1;
                         bitstate strike : 1;
@@ -1743,9 +1753,13 @@ namespace netxs
                      << "\n\tblk " <<(c.blk() ? "true" : "faux")
                      << "\n\tinv " <<(c.inv() ? "true" : "faux")
                      << "\n\tbld " <<(c.bld() ? "true" : "faux")
-                     << "\n\tund " <<(c.und() == 0 ? "none"
-                                    : c.und() == 1 ? "single"
-                                                   : "double");
+                     << "\n\tund " <<(c.und() == unln::none   ? "none"
+                                    : c.und() == unln::line   ? "line"
+                                    : c.und() == unln::biline ? "biline"
+                                    : c.und() == unln::wavy   ? "wavy"
+                                    : c.und() == unln::dotted ? "dotted"
+                                    : c.und() == unln::dashed ? "dashed"
+                                                              : "unknown");
         }
 
         class shaders

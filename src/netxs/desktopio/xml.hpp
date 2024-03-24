@@ -1283,7 +1283,7 @@ namespace netxs::xml
             crop.bgc(take<true>(bgc_path, defval.bgc()));
             crop.itc(take<true>(itc_path, defval.itc()));
             crop.bld(take<true>(bld_path, defval.bld()));
-            crop.und(take<true>(und_path, (bool)defval.und()));
+            crop.und(take<true>(und_path, defval.und()));
             crop.inv(take<true>(inv_path, defval.inv()));
             crop.ovr(take<true>(ovr_path, defval.ovr()));
             crop.blk(take<true>(blk_path, defval.blk()));
