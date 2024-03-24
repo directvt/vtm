@@ -178,6 +178,11 @@ namespace netxs::ansi
     static const auto sgr_nostrike  = 29;
     static const auto sgr_overln    = 53;
     static const auto sgr_nooverln  = 55;
+    static const auto sgr_uline_clr = 58;
+    static const auto sgr_uline_rst = 59;
+    static const auto sgr_gridlines = 60; // \e[60:n m  gridline. Bits in n: 0: left, 1: right, 2: top, 3: botton.
+    static const auto sgr_grid_clr  = 68;
+    static const auto sgr_grid_rst  = 69;
     static const auto sgr_fg_blk    = 30;
     static const auto sgr_fg_red    = 31;
     static const auto sgr_fg_grn    = 32;
@@ -341,13 +346,21 @@ namespace netxs::ansi
         }
 
         auto& bld(bool b)    { return add(b ? "\033[1m" : "\033[22m"         ); } // basevt: SGR 𝗕𝗼𝗹𝗱 attribute.
-        auto& und(si32 n)    { return add(n == unln::none   ? "\033[24m"
-                                        : n == unln::line   ? "\033[4m"
-                                        : n == unln::biline ? "\033[21m"
-                                        : n == unln::wavy   ? "\033[4:3m"
-                                        : n == unln::dotted ? "\033[4:4m"
-                                        : n == unln::dashed ? "\033[4:5m"
-                                                            : "\033[4m"      ); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& und(si32 n)    { return n==unln::none   ? add("\033[24m")
+                                    : n==unln::line   ? add("\033[4m")
+                                    : n==unln::biline ? add("\033[21m")
+                                                      : add("\033[4:", n, "m"); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& unc(rgba c) // basevt: SGR 58/59 Underline color. RGB: red, green, blue.
+        {
+            return c.token == 0 ? add("\033[59m")
+                                : add("\033[58:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
+        }
+        auto& grd(rgba c) // basevt: SGR 68/69 Grid color. RGB: red, green, blue.
+        {
+            return c.token == 0 ? add("\033[69m")
+                                : add("\033[68:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
+        }
+        auto& gln(si32 n)    { return add("\033[60:", n, "m"                 ); } // basevt: SGR gridline attribute.
         auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
         auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         auto& itc(bool b)    { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -381,13 +394,13 @@ namespace netxs::ansi
         auto& del(si32 n)    { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
         auto& del_below()    { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
         auto& fgx(rgba c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
-                                                               c.chan.g, ':',
-                                                               c.chan.b, ':',
-                                                               c.chan.a, 'm'); }
+                                                        c.chan.g, ':',
+                                                        c.chan.b, ':',
+                                                        c.chan.a, 'm'); }
         auto& bgx(rgba c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
-                                                               c.chan.g, ':',
-                                                               c.chan.b, ':',
-                                                               c.chan.a, 'm'); }
+                                                        c.chan.g, ':',
+                                                        c.chan.b, ':',
+                                                        c.chan.a, 'm'); }
         auto& fgc256(si32 c) { return add("\033[38;5;", c, 'm'); } // basevt: SGR Foreground color (256-color mode).
         auto& bgc256(si32 c) { return add("\033[48;5;", c, 'm'); } // basevt: SGR Background color (256-color mode).
         auto& fgc_16(si32 f) // basevt: SGR Foreground color (16-color mode).
@@ -812,6 +825,9 @@ namespace netxs::ansi
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
+    auto unc(rgba c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
+    auto grd(rgba c)           { return escx{}.grd(c);        } // ansi: SGR SGR 68/69 grid color. RGB: red, green, blue.
+    auto gln(si32 n)           { return escx{}.gln(n);        } // ansi: SGR SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -1143,6 +1159,9 @@ namespace netxs::ansi
             * - void inv(bool b);                    // Set inverse attribute.
             * - void stk(bool b);                    // Set strikethgh attribute.
             * - void und(si32 b);                    // Set underline attribute. 1 - single, 2 - double.
+            * - void unc(rgba c);                    // Set underline color.
+            * - void grd(rgba c);                    // Set grid color.
+            * - void gln(si32 n);                    // Set SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
             * - void blk(bool b);                    // Set blink attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
@@ -1249,6 +1268,11 @@ namespace netxs::ansi
                     sgr[sgr_und      ] = V{ p->brush.und(q(unln::line));  };
                     sgr[sgr_doubleund] = V{ p->brush.und(  unln::biline); };
                     sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
+                    sgr[sgr_uline_clr] = V{ p->brush.unc(rgba{ q }); };
+                    sgr[sgr_uline_rst] = V{ p->brush.unc(rgba{   }); };
+                    sgr[sgr_grid_clr ] = V{ p->brush.grd(rgba{ q }); };
+                    sgr[sgr_grid_rst ] = V{ p->brush.grd(rgba{   }); };
+                    sgr[sgr_gridlines] = V{ p->brush.gln(q(0)); };
                     sgr[sgr_slowblink] = V{ p->brush.blk(true); };
                     sgr[sgr_fastblink] = V{ p->brush.blk(true); };
                     sgr[sgr_no_blink ] = V{ p->brush.blk(faux); };

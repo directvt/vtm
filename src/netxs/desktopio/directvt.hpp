@@ -864,21 +864,24 @@ namespace netxs::directvt
             core                           image; // bitmap: .
             std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
 
-            struct subtype
-            {
-                static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
-                static constexpr auto dif = byte{ 0x20 }; // Cell dif.
-                static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
-                static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
-            };
-
             enum : byte
             {
                 refer = 1 << 0, // 1 - Diff with our canvas cell, 0 - diff with current brush (state).
                 bgclr = 1 << 1,
                 fgclr = 1 << 2,
                 style = 1 << 3,
-                glyph = 1 << 4,
+                ulclr = 1 << 4,
+                gdclr = 1 << 5,
+                glyph = 1 << 6,
+                dmax  = 1 << 7,
+            };
+
+            struct subtype
+            {
+                static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
+                static constexpr auto dif = byte{ dmax }; // Cell dif.
+                static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
+                static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
             };
 
             void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
@@ -918,6 +921,8 @@ namespace netxs::directvt
                     if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
                     if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
                     if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
+                    if (c1.unc() != c2.unc()) { meaning += sizeof(c1.unc()); changes |= ulclr; }
+                    if (c1.grd() != c2.grd()) { meaning += sizeof(c1.grd()); changes |= gdclr; }
                     if (c1.egc() != c2.egc())
                     {
                         cluster = c1.egc().state.jumbo ? 8
@@ -933,6 +938,8 @@ namespace netxs::directvt
                     if (changes & bgclr) add(cache.bgc());
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
+                    if (changes & ulclr) add(cache.unc());
+                    if (changes & gdclr) add(cache.grd());
                     if (changes & glyph) add(cluster, cache.egc().glyph, cluster);
                     state = cache;
                 };
@@ -1007,6 +1014,8 @@ namespace netxs::directvt
                     if (what & bgclr) stream::take(c.bgc(), data);
                     if (what & fgclr) stream::take(c.fgc(), data);
                     if (what & style) stream::take(c.stl(), data);
+                    if (what & ulclr) stream::take(c.unc(), data);
+                    if (what & gdclr) stream::take(c.grd(), data);
                     if (what & glyph)
                     {
                         auto [size] = stream::take<byte>(data);

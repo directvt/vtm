@@ -1840,6 +1840,9 @@ namespace netxs::ui
                 static constexpr auto off = "\\i0 "sv;
                 data += b ? set : off;
             }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -1997,6 +2000,9 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2072,6 +2078,9 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
