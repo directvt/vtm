@@ -950,7 +950,6 @@ namespace netxs::ui
                             hist.brush.bgc(0x80ffffff);
                             auto full = canvas.full();
                             auto area = canvas.area();
-                            auto clip = canvas.clip();
                             canvas.area({ dot_00, area.size });
                             auto coor = gear_ptr->coord;
                             for (auto x = 0; x < area.size.y; x++)

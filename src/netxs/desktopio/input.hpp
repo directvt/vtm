@@ -1085,8 +1085,8 @@ namespace netxs::input
                 {
                     canvas.reset();
                     canvas.full(full);
-                    canvas.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    canvas.blur<true>(1, temp, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
+                    canvas.template output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    canvas.template blur<true>(1, temp, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
                 canvas.reset();
