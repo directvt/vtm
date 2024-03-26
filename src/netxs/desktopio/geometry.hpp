@@ -15,7 +15,7 @@ namespace netxs
     using fifo = generics::fifo<si32>;
 
     // geometry: 2D point template.
-    template<class T = int>
+    template<class T = si32>
     struct duplet
     {
         using type = T;
@@ -51,8 +51,8 @@ namespace netxs
               y{ queue(0) }
         { }
 
-        constexpr T&       operator []  (int selector)          { return selector ? y : x;          }
-        constexpr T const& operator []  (int selector) const    { return selector ? y : x;          }
+        constexpr T&       operator []  (si32 selector)        { return selector ? y : x;          }
+        constexpr T const& operator []  (si32 selector) const  { return selector ? y : x;          }
         constexpr explicit operator bool() const                { return x != 0 || y != 0;          }
         constexpr duplet&  operator ++  ()                      { x++; y++;           return *this; }
         constexpr duplet&  operator --  ()                      { x--; y--;           return *this; }
@@ -110,6 +110,26 @@ namespace netxs
         {
             return { x == what.x ? if_yes.x : if_no.x,
                      y == what.y ? if_yes.y : if_no.y };
+        }
+        duplet less(T const& what, duplet const& if_yes, duplet const& if_no) const
+        {
+            return { x < what ? if_yes.x : if_no.x,
+                     y < what ? if_yes.y : if_no.y };
+        }
+        duplet equals(T const& what, duplet const& if_yes, duplet const& if_no) const
+        {
+            return { x == what ? if_yes.x : if_no.x,
+                     y == what ? if_yes.y : if_no.y };
+        }
+        duplet less(T const& what, T const& if_yes, T const& if_no) const
+        {
+            return { x < what ? if_yes : if_no,
+                     y < what ? if_yes : if_no };
+        }
+        duplet equals(T const& what, T const& if_yes, T const& if_no) const
+        {
+            return { x == what ? if_yes : if_no,
+                     y == what ? if_yes : if_no };
         }
         bool inside(duplet const& p) const
         {
@@ -213,7 +233,7 @@ namespace netxs
         // rect: Is the point inside the rect.
         bool hittest(twod p) const
         {
-            bool test;
+            auto test = faux;
             if (size.x > 0)
             {
                 auto t = p.x - coor.x;
@@ -243,7 +263,7 @@ namespace netxs
         }
         rect rotate(twod dir) const
         {
-            rect r;
+            auto r = rect{};
             if ((dir.x ^ size.x) < 0)
             {
                 r.coor.x = coor.x + size.x;
@@ -269,7 +289,7 @@ namespace netxs
         }
         rect normalize() const
         {
-            rect r;
+            auto r = rect{};
             if (size.x < 0)
             {
                 r.coor.x =  coor.x + size.x;
@@ -322,7 +342,7 @@ namespace netxs
         // rect: Intersect the rect with rect{ dot_00, edge }.
         rect trunc(twod edge) const
         {
-            rect r;
+            auto r = rect{};
             r.coor = std::clamp(coor, dot_00, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
             return r;

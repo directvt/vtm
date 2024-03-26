@@ -609,8 +609,8 @@ namespace netxs
         auto data1 = canvas.begin();
         auto data2 = bitmap.begin();
         auto data3 = data2;
-        if (size1.x * size1.y == 0
-         || size2.x * size2.y == 0) return;
+        if (size1.x == 0 || size1.y == 0
+         || size2.x == 0 || size2.y == 0) return;
 
         auto size11 = decltype(size1){ 1, 1 };
         auto msize0 = size1 - size11;
@@ -639,6 +639,87 @@ namespace netxs
         }
         data3 = data2 + msize2.y * size2.x;
         h_line();
+    }
+
+    // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
+    template<class P, class NewlineFx = noop>
+    void xform_scale(auto& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    {
+        auto dst_size = canvas.size();
+        auto src_size = bitmap.size();
+        auto dst_view = canvas_rect.trunc(dst_size);
+        auto src_view = bitmap_rect.trunc(src_size);
+        if (dst_view.size.x == 0 || dst_view.size.y == 0
+         || src_view.size.x == 0 || src_view.size.y == 0) return;
+
+        auto s_00 = src_view.coor.x + src_view.coor.y * src_size.x;
+        auto sptr = bitmap.begin();
+        auto dptr = canvas.begin() + dst_view.coor.x + dst_view.coor.y * dst_size.x;
+        auto step = (src_view.size * 65536) / dst_view.size;
+        auto half = step / 2; // Centrify by pixel half.
+        dst_view.size -= 1;
+        auto tail = dptr + dst_view.size.x;
+        auto stop = tail + dst_view.size.y * dst_size.x;
+        auto y = half.y;
+        while (true)
+        {
+            auto x = half.x;
+            auto s = sptr + (s_00 + (y >> 16) * src_size.x);
+            while (true)
+            {
+                auto xptr = s + (x >> 16);
+                handle(*dptr, *xptr);
+                if (dptr == tail) break;
+                dptr++;
+                x += step.x;
+            }
+            online();
+            if (dptr == stop) break;
+            tail += dst_size.x;
+            dptr = tail - dst_view.size.x;
+            y += step.y;
+        }
+    }
+
+    // intmath: Project bitmap_rect to the canvas_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
+    template<class P, class NewlineFx = noop>
+    void xform_mirror(auto& canvas, auto canvas_coor, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    {
+        auto dst_size = canvas.size();
+        auto src_size = bitmap.size();
+        auto src_view = bitmap_rect.trunc(src_size);
+        bitmap_rect.coor = canvas_coor;
+        auto dst_view = bitmap_rect.normalize().trunc(dst_size);
+
+        if (dst_view.size.x == 0 || dst_view.size.y == 0
+         || src_view.size.x == 0 || src_view.size.y == 0) return;
+
+        auto dx = 1;
+        auto dy = std::abs(src_size.x);
+        if (src_view.size.x < 0) { dx = -dx; src_view.coor.x -= 1; }
+        if (src_view.size.y < 0) { dy = -dy; src_view.coor.y -= 1; }
+        
+        dst_view.size -= 1;
+        auto sptr = bitmap.begin() + (src_view.coor.x + src_view.coor.y * src_size.x);
+        auto dptr = canvas.begin() + (dst_view.coor.x + dst_view.coor.y * dst_size.x);
+        auto tail = dptr + dst_view.size.x;
+        auto stop = tail + dst_view.size.y * dst_size.x;
+        while (true)
+        {
+            auto xptr = sptr;
+            while (true)
+            {
+                handle(*dptr, *xptr);
+                if (dptr == tail) break;
+                dptr++;
+                xptr += dx;
+            }
+            online();
+            if (dptr == stop) break;
+            sptr += dy;
+            tail += dst_size.x;
+            dptr = tail - dst_view.size.x;
+        }
     }
 
     // intmath: Copy the bitmap to the bitmap by invoking

@@ -240,9 +240,7 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
                 {
-                    //todo make it switchable
-                    //return;
-                    if (gear.meta(hids::anyCtrl))
+                    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock))
                     {
                         auto& g = items.take(gear);
                         if (!g.zoomon)// && g.inside)
@@ -2144,21 +2142,68 @@ namespace netxs::ui
             twod region;
             twod offset;
 
-            vrgb cache; // acryl: Boxblur temp buffer.
+            //todo optimize
+            vrgb cache; // ghost: Boxblur temp buffer.
             auto draw_shadow()
             {
+                canvas.wipe();
                 canvas.core::area({ dot_00, dot_21 * radius * 4 + region });
-                auto dark = rect{ dot_21 * radius * 2, region };
-                auto body = cell{}.bgc(0).fgc(0).alpha(0x60);
-                auto step = radius;
-                    //todo use spline01
-                    canvas.fill(dark, cell::shaders::color(body));
-
-                    while (step--)
+                auto spline = netxs::spline01{ 0.36f };
+                auto area = rect{ dot_00, dot_21 * (radius * 4 + 1)};
+                auto blob = core{};
+                auto mx = area.size.x;
+                auto my = area.size.y;
+                blob.size({ mx, my });
+                auto it = blob.begin();
+                for (auto y = 0.f; y < my; y++)
+                {
+                    auto y0 = y / (my - 1.f);
+                    auto sy = spline(y0);
+                    for (auto x = 0.f; x < mx; x++)
                     {
-                        canvas.blur<true>(1, cache);
+                        auto& c = it++->bgc();
+                        auto x0 = x / (mx - 1.f);
+                        auto sx = spline(x0);
+                        auto xy = sy * sx;
+                        c.chan.a = (byte)std::round((96.f) * (xy));
                     }
-                    canvas.each([](cell& c){ c.fgc(c.bgc()).txt(""); });
+                }
+                auto src = blob.area();
+                auto dst = canvas.area();
+                auto dir = dot_11;
+                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
+                auto off = dent{ 0, cut.x, 0, cut.y };
+                src += off;
+                auto mid = rect{ dst.coor + src.size, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{{ mid.coor.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{{ 0, mid.coor.y }, { src.size.x, mid.size.y }};
+                if (mid)
+                {
+                    auto base_shadow = blob[src.size - dot_11];
+                    canvas.fill(mid, cell::shaders::blend(base_shadow));
+                }
+                if (top)
+                {
+                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
+                    netxs::xform_scale(canvas, top, blob, pen, cell::shaders::blend);
+                    top.coor.y += mid.size.y + top.size.y;
+                    netxs::xform_scale(canvas, top, blob, pen.rotate({ 1, -1 }), cell::shaders::blend);
+                    //canvas.fill(btm, cell::shaders::color(cell{}.bgc(0x80'80ff80)));
+                    //canvas.fill(top, cell::shaders::color(cell{}.bgc(0x80'ff80ff)));
+                }
+                if (lft)
+                {
+                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
+                    netxs::xform_scale(canvas, lft, blob, pen, cell::shaders::blend);
+                    lft.coor.x += mid.size.x + lft.size.x;
+                    netxs::xform_scale(canvas, lft, blob, pen.rotate({ -1, 1 }), cell::shaders::blend);
+                    //canvas.fill(lft, cell::shaders::color(cell{}.bgc(0x80'008080)));
+                    //canvas.fill(rht, cell::shaders::color(cell{}.bgc(0x80'00ff80)));
+                }
+                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
+                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
             }
 
         public:
@@ -2166,7 +2211,7 @@ namespace netxs::ui
             ghost(base& boss, si32 shadowsize)
                 : skill{ boss },
                   radius{ shadowsize },
-                  offset{dot_21 * radius * 2 - dot_21}
+                  offset{dot_21 * (radius * 2 - 1)}
             {
                 boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
                 {
@@ -2190,6 +2235,12 @@ namespace netxs::ui
                     canvas.move(full.coor - offset);
                     parent_canvas.fill(canvas, cell::shaders::blend);
                 };
+                //test
+                //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+                //{
+                //    draw_shadow();
+                //    boss.base::deface();
+                //};
             }
         };
 

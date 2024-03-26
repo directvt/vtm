@@ -941,25 +941,24 @@ namespace netxs::ui
                 if (debug)
                 {
                     debug.output(canvas);
-
                     if constexpr (debugmode) // Red channel histogram.
                     {
-                        auto hist = page{};//std::array<byte, 40>{};
-                        hist.brush.bgc(0x80ffffff);
-                        auto full = canvas.full();
-                        auto area = canvas.area();
-                        auto clip = canvas.clip();
-                        canvas.area({ dot_00, area.size });
-                        for (auto& [gear_id, gear_ptr] : input.gears)
+                        auto& [gear_id, gear_ptr] = *input.gears.begin();
+                        if (gear_ptr->meta(hids::ScrlLock)) 
                         {
+                            auto hist = page{};
+                            hist.brush.bgc(0x80ffffff);
+                            auto full = canvas.full();
+                            auto area = canvas.area();
+                            auto clip = canvas.clip();
+                            canvas.area({ dot_00, area.size });
                             auto coor = gear_ptr->coord;
                             for (auto x = 0; x < area.size.y; x++)
                             {
                                 auto xy = coor + twod{ x - area.size.y/2, 0 };
-                                if (xy.x > 0 && xy.x < canvas.size().x)
-                                    hist += utf::repeat(" ", canvas[xy].bgc().chan.r) + "\n";
-                                else
-                                    hist += "\n"s;
+                                auto has_value = xy.x > 0 && xy.x < canvas.size().x;
+                                if (has_value) utf::repeat(" ", canvas[xy].bgc().chan.r);
+                                hist += "\n"s;
                             }
                             auto full_area = full;
                             full_area.coor = {};
@@ -967,9 +966,9 @@ namespace netxs::ui
                             canvas.full(full_area);
                             canvas.cup(dot_00);
                             canvas.output(hist, cell::shaders::blend);
+                            canvas.area(area);
+                            canvas.full(full);
                         }
-                        canvas.area(area);
-                        canvas.full(full);
                     }
                 }
                 if (props.show_regions)

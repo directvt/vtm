@@ -35,7 +35,7 @@ namespace netxs::generics
         // Our maximum for Item=si32 is +/- 1 073 741 823 (wo two last bits)
 
         using uItem = std::make_unsigned_t<Item>;
-        static constexpr auto sigbit = (uItem)1 << (8 * sizeof(Item) - 1);
+        static constexpr auto sigbit = (uItem)1 << (8 * sizeof(Item) - 1); // ! Signed and unsigned shifts behave differently.
         static constexpr auto subbit = sigbit >> 1;
 
     public:
