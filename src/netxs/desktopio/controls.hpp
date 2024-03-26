@@ -2161,11 +2161,14 @@ namespace netxs::ui
                     auto sy = spline(y0);
                     for (auto x = 0.f; x < mx; x++)
                     {
-                        auto& c = it++->bgc();
+                        auto& c = *it++;
+                        auto& f = c.fgc();
+                        auto& b = c.bgc();
                         auto x0 = x / (mx - 1.f);
                         auto sx = spline(x0);
                         auto xy = sy * sx;
-                        c.chan.a = (byte)std::round((96.f) * (xy));
+                        f.chan.a = (byte)std::round((96.f) * (xy));
+                        b.chan.a = (byte)std::round((96.f) * (xy));
                     }
                 }
                 auto src = blob.area();
