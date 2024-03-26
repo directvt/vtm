@@ -2137,50 +2137,51 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            face canvas;
             si32 radius;
             twod region;
             twod offset;
 
-            //todo optimize
-            vrgb cache; // ghost: Boxblur temp buffer.
-            auto draw_shadow()
+            auto draw_shadow(face& canvas)
             {
-                canvas.wipe();
-                canvas.core::area({ dot_00, dot_21 * radius * 4 + region });
-                auto spline = netxs::spline01{ 0.36f };
-                auto area = rect{ dot_00, dot_21 * (radius * 4 + 1)};
-                auto blob = core{};
-                auto mx = area.size.x;
-                auto my = area.size.y;
-                blob.size({ mx, my });
-                auto it = blob.begin();
-                for (auto y = 0.f; y < my; y++)
+                static auto blob = [&]()
                 {
-                    auto y0 = y / (my - 1.f);
-                    auto sy = spline(y0);
-                    for (auto x = 0.f; x < mx; x++)
+                    auto spline = netxs::spline01{ 0.36f };
+                    auto area = rect{ dot_00, dot_21 * (radius * 4 + 1)};
+                    auto blob = core{};
+                    auto mx = area.size.x;
+                    auto my = area.size.y;
+                    blob.size({ mx, my });
+                    auto it = blob.begin();
+                    for (auto y = 0.f; y < my; y++)
                     {
-                        auto& c = *it++;
-                        auto& f = c.fgc();
-                        auto& b = c.bgc();
-                        auto x0 = x / (mx - 1.f);
-                        auto sx = spline(x0);
-                        auto xy = sy * sx;
-                        auto a = (byte)std::round((96.f) * (xy));
-                        f.chan.a = a;
-                        b.chan.a = a;
+                        auto y0 = y / (my - 1.f);
+                        auto sy = spline(y0);
+                        for (auto x = 0.f; x < mx; x++)
+                        {
+                            auto& c = *it++;
+                            auto& f = c.fgc();
+                            auto& b = c.bgc();
+                            auto x0 = x / (mx - 1.f);
+                            auto sx = spline(x0);
+                            auto xy = sy * sx;
+                            auto a = (byte)std::round((96.f) * (xy));
+                            f.chan.a = a;
+                            b.chan.a = a;
+                        }
                     }
-                }
+                    return blob;
+                }();
+                auto win = boss.base::area();
+                auto area = canvas.area();
                 auto src = blob.area();
-                auto dst = canvas.area();
+                auto dst = rect{ -(offset + area.coor), region + win.size };
                 auto dir = dot_11;
                 auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
                 auto off = dent{ 0, cut.x, 0, cut.y };
                 src += off;
-                auto mid = rect{ dst.coor + src.size, std::max(dot_00, dst.size - src.size * 2) };
-                auto top = rect{{ mid.coor.x, 0 }, { mid.size.x, src.size.y }};
-                auto lft = rect{{ 0, mid.coor.y }, { src.size.x, mid.size.y }};
+                auto mid = rect{ src.size - offset, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{ dst.coor + twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{ dst.coor + twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
                 if (mid)
                 {
                     auto base_shadow = blob[src.size - dot_11];
@@ -2215,29 +2216,12 @@ namespace netxs::ui
             ghost(base& boss, si32 shadowsize)
                 : skill{ boss },
                   radius{ shadowsize },
-                  offset{dot_21 * (radius * 2 - 1)}
+                  region{ dot_21 * radius * 4 },
+                  offset{ dot_21 * (radius * 2 - 1)}
             {
-                boss.LISTEN(tier::anycast, e2::form::upon::started, root, memo)
-                {
-                    if (region != boss.base::size())
-                    {
-                        region = boss.base::size();
-                        draw_shadow();
-                    }
-                };
-                boss.LISTEN(tier::release, e2::area, new_area, memo)
-                {
-                    if (region != new_area.size)
-                    {
-                        region = new_area.size;
-                        draw_shadow();
-                    }
-                };
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    auto full = parent_canvas.full();
-                    canvas.move(full.coor - offset);
-                    parent_canvas.fill(canvas, cell::shaders::blend);
+                    draw_shadow(parent_canvas);
                 };
                 //test
                 //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
