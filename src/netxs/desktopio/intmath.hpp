@@ -788,7 +788,7 @@ namespace netxs
             }
             online();
             if (data1 == limit) break;
-            bound += size1.x;//= data1 + region.size.x;
+            bound += size1.x;
             data1 += skip1;
             data2 += skip2;
         }
