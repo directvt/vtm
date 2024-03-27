@@ -436,7 +436,7 @@ namespace netxs::app::shared
                     "\n"
                     "\nUnsupported application type"
                     "\n" + ansi::nil().wrp(wrap::on) +
-                    "\nOnly the following application types are supported"
+                    "\nOnly the following application types are supported:"
                     "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
                     "\n   type = vtty"
                     "\n   type = term"
@@ -452,7 +452,8 @@ namespace netxs::app::shared
                 ->colors(whitelt, rgba{ 0x7F404040 })
                 ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
-                ->attach(placeholder);
+                ->attach(placeholder)
+                ->active();
             return window;
         };
         auto& map = creator();
