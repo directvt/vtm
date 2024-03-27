@@ -2138,77 +2138,72 @@ namespace netxs::ui
                   skill::memo;
 
             si32 radius;
-            twod region;
+            twod oversz;
             twod offset;
 
             auto draw_shadow(face& canvas)
             {
-                static auto blob = [&]()
+                static auto edge = [&]()
                 {
+                    auto bitmap = core{};
                     auto spline = netxs::spline01{ 0.36f };
-                    auto area = rect{ dot_00, dot_21 * (radius * 4 + 1)};
-                    auto blob = core{};
-                    auto mx = area.size.x;
-                    auto my = area.size.y;
-                    blob.size({ mx, my });
-                    auto it = blob.begin();
-                    for (auto y = 0.f; y < my; y++)
+                    auto sz = dot_21 * (radius * 4 + 1);
+                    bitmap.size(sz);
+                    auto it = bitmap.begin();
+                    for (auto y = 0.f; y < sz.y; y++)
                     {
-                        auto y0 = y / (my - 1.f);
+                        auto y0 = y / (sz.y - 1.f);
                         auto sy = spline(y0);
-                        for (auto x = 0.f; x < mx; x++)
+                        for (auto x = 0.f; x < sz.x; x++)
                         {
                             auto& c = *it++;
                             auto& f = c.fgc();
                             auto& b = c.bgc();
-                            auto x0 = x / (mx - 1.f);
+                            auto x0 = x / (sz.x - 1.f);
                             auto sx = spline(x0);
                             auto xy = sy * sx;
-                            auto a = (byte)std::round((96.f) * (xy));
+                            auto a = (byte)std::round(96.f * xy);
                             f.chan.a = a;
                             b.chan.a = a;
                         }
                     }
-                    return blob;
+                    return bitmap;
                 }();
-                auto win = boss.base::area();
-                auto area = canvas.area();
-                auto src = blob.area();
-                auto dst = rect{ -(offset + area.coor), region + win.size };
+                canvas.step(offset);
                 auto dir = dot_11;
+                auto win = boss.area();
+                auto src = edge.area();
+                auto dst = rect{ dot_00, win.size + oversz };
                 auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
                 auto off = dent{ 0, cut.x, 0, cut.y };
                 src += off;
-                auto mid = rect{ src.size - offset, std::max(dot_00, dst.size - src.size * 2) };
-                auto top = rect{ dst.coor + twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
-                auto lft = rect{ dst.coor + twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
+                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
                 if (mid)
                 {
-                    auto base_shadow = blob[src.size - dot_11];
-                    canvas.fill(mid, cell::shaders::blend(base_shadow));
+                    auto base_shadow = edge[src.size - dot_11];
+                    netxs::onrect(canvas, mid, cell::shaders::blend(base_shadow));
                 }
                 if (top)
                 {
                     auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
-                    netxs::xform_scale(canvas, top, blob, pen, cell::shaders::blend);
+                    netxs::xform_scale(canvas, top, edge, pen, cell::shaders::blend);
                     top.coor.y += mid.size.y + top.size.y;
-                    netxs::xform_scale(canvas, top, blob, pen.rotate({ 1, -1 }), cell::shaders::blend);
-                    //canvas.fill(btm, cell::shaders::color(cell{}.bgc(0x80'80ff80)));
-                    //canvas.fill(top, cell::shaders::color(cell{}.bgc(0x80'ff80ff)));
+                    netxs::xform_scale(canvas, top, edge, pen.rotate({ 1, -1 }), cell::shaders::blend);
                 }
                 if (lft)
                 {
                     auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
-                    netxs::xform_scale(canvas, lft, blob, pen, cell::shaders::blend);
+                    netxs::xform_scale(canvas, lft, edge, pen, cell::shaders::blend);
                     lft.coor.x += mid.size.x + lft.size.x;
-                    netxs::xform_scale(canvas, lft, blob, pen.rotate({ -1, 1 }), cell::shaders::blend);
-                    //canvas.fill(lft, cell::shaders::color(cell{}.bgc(0x80'008080)));
-                    //canvas.fill(rht, cell::shaders::color(cell{}.bgc(0x80'00ff80)));
+                    netxs::xform_scale(canvas, lft, edge, pen.rotate({ -1, 1 }), cell::shaders::blend);
                 }
-                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
-                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, blob, src.rotate(dir), cell::shaders::blend);
+                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                canvas.step(-offset);
             }
 
         public:
@@ -2216,7 +2211,7 @@ namespace netxs::ui
             ghost(base& boss, si32 shadowsize)
                 : skill{ boss },
                   radius{ shadowsize },
-                  region{ dot_21 * radius * 4 },
+                  oversz{ dot_21 * (radius * 4) },
                   offset{ dot_21 * (radius * 2 - 1)}
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)

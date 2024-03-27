@@ -583,7 +583,7 @@ namespace netxs
     //          sequence of cells onto the canvas at the specified offset
     //          and return count of copied cells.
     template<bool RtoL, class T1, class T2, class P>
-    auto xerox (T1*& frame, T2 const& source, P handle)
+    auto xerox(T1*& frame, T2 const& source, P handle)
     {
         auto lyric = source.data();
         auto width = source.length();
@@ -647,8 +647,11 @@ namespace netxs
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        canvas_rect.coor -= canvas.coor();
+        bitmap_rect.coor -= bitmap.coor();
         auto dst_view = canvas_rect.trunc(dst_size);
         auto src_view = bitmap_rect.trunc(src_size);
+
         if (dst_view.size.x == 0 || dst_view.size.y == 0
          || src_view.size.x == 0 || src_view.size.y == 0) return;
 
@@ -681,14 +684,16 @@ namespace netxs
         }
     }
 
-    // intmath: Project bitmap_rect to the canvas_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
+    // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
     template<class P, class NewlineFx = noop>
-    void xform_mirror(auto& canvas, auto canvas_coor, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    void xform_mirror(auto& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
+        canvas_rect_coor -= canvas.coor();
+        bitmap_rect.coor -= bitmap.coor();
         auto src_view = bitmap_rect.trunc(src_size);
-        bitmap_rect.coor = canvas_coor;
+        bitmap_rect.coor = canvas_rect_coor;
         auto dst_view = bitmap_rect.normalize().trunc(dst_size);
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
