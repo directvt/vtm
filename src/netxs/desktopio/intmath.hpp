@@ -658,8 +658,8 @@ namespace netxs
         auto s_00 = src_view.coor.x + src_view.coor.y * src_size.x;
         auto sptr = bitmap.begin();
         auto dptr = canvas.begin() + dst_view.coor.x + dst_view.coor.y * dst_size.x;
-        auto step = (src_view.size * 65536) / dst_view.size;
-        auto half = step / 2; // Centrify by pixel half.
+        auto step = (bitmap_rect.size * 65536) / canvas_rect.size;
+        auto half = step * abs(canvas_rect.coor - dst_view.coor) + step / 2; // Centrify by pixel half.
         dst_view.size -= 1;
         auto tail = dptr + dst_view.size.x;
         auto stop = tail + dst_view.size.y * dst_size.x;
@@ -694,7 +694,9 @@ namespace netxs
         bitmap_rect.coor -= bitmap.coor();
         auto src_view = bitmap_rect.trunc(src_size);
         bitmap_rect.coor = canvas_rect_coor;
-        auto dst_view = bitmap_rect.normalize().trunc(dst_size);
+        auto dst_area = bitmap_rect.normalize();
+        auto dst_view = dst_area.trunc(dst_size);
+        src_view -= dst_area - dst_view; // Cut invisible sides.
 
         if (dst_view.size.x == 0 || dst_view.size.y == 0
          || src_view.size.x == 0 || src_view.size.y == 0) return;
