@@ -276,7 +276,6 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
                         <color4  = bluedk     /> <!-- See /config/set/* for the color name reference. -->
                         <color15 = whitelt    />
                         <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
-                        <underline = transparent />  <!-- Default underline color (SGR59). This alpha value is alpha blended on top of the current foreground color when rendered.  -->
                         <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
                     </color>
                     <cursor>
