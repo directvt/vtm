@@ -143,20 +143,20 @@ namespace netxs
         {
             return "{ " + std::to_string(x) + ", " + std::to_string(y) + " }";
         }
-        friend static auto& operator << (std::ostream& s, duplet const& p)
+        friend auto& operator << (std::ostream& s, duplet const& p)
         {
             return s << "{ " << p.x << ", " << p.y << " }";
         }
         // Change endianness to LE.
-        friend static auto letoh(duplet const& p)
+        friend auto letoh(duplet const& p)
         {
             return duplet{ netxs::letoh(p.x), netxs::letoh(p.y) };
         }
-        friend static auto   min(duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
-        friend static auto   max(duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
-        friend static auto round(duplet const& p)                    { return duplet{ std::round(p.x), std::round(p.y) }; }
-        friend static auto   abs(duplet const& p)                    { return duplet{ std::abs(p.x), std::abs(p.y) }; }
-        friend static auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
+        friend auto   min(duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+        friend auto   max(duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+        friend auto round(duplet const& p)                    { return duplet{ std::round(p.x), std::round(p.y) }; }
+        friend auto   abs(duplet const& p)                    { return duplet{ std::abs(p.x), std::abs(p.y) }; }
+        friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
     };
 
     // geometry: 2D point.
