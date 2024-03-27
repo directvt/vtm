@@ -2325,26 +2325,26 @@ struct impl : consrv
                               "OEM-"s + std::to_string(codepage);
     }
     template<class S, class P>
-    auto write_block(S& scrollback, core const& block, twod coor, rect clip, P fuse)
+    auto write_block(S& scrollback, core const& block, twod coor, rect trim, P fuse)
     {
         auto size = block.size();
-        auto view = block.view();
-        auto dest = rect{ coor, view.size };
-        clip = dest.clip(clip);
-        view -= dest - clip;
-        coor = clip.coor;
-        auto head = block.iter() + view.coor.y * size.x;
-        auto tail = head + view.size.y * size.x;
-        auto rest = size.x - (view.coor.x + view.size.x);
+        auto clip = block.clip();
+        auto dest = rect{ coor, clip.size };
+        trim = dest.clip(trim);
+        clip -= dest - trim;
+        coor = trim.coor;
+        auto head = block.begin() + clip.coor.y * size.x;
+        auto tail = head + clip.size.y * size.x;
+        auto rest = size.x - (clip.coor.x + clip.size.x);
         auto save = scrollback.coord;
         assert(rest >= 0);
         while (head != tail)
         {
-            head += view.coor.x;
-            auto next = head + view.size.x;
+            head += clip.coor.x;
+            auto next = head + clip.size.x;
             auto line = std::span(head, next);
             scrollback.cup0(coor);
-            scrollback._data<true>(view.size.x, line, fuse);
+            scrollback._data<true>(clip.size.x, line, fuse);
             head = next + rest;
             coor.y++;
         }
@@ -3123,7 +3123,7 @@ struct impl : consrv
                             "\n\tinput.coord: ", coord,
                             "\n\tinput.count: ", count);
                 filler.size(count, cell{});
-                auto iter = filler.iter();
+                auto iter = filler.begin();
                 for (auto& attr : recs)
                 {
                     *iter++ = attr_to_brush(attr);
@@ -3259,19 +3259,19 @@ struct impl : consrv
             return;
         }
         auto& window_inst = *window_ptr;
-        auto view = rect{{ packet.input.rectL, packet.input.rectT },
+        auto clip = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
-        auto crop = view;
+        auto crop = clip;
         auto recs = take_buffer<CHAR_INFO, feed::fwd>(packet);
         if constexpr (isreal())
         {
-            crop = view.trunc(window_inst.panel);
+            crop = clip.trunc(window_inst.panel);
             mirror.size(window_inst.panel);
-            mirror.view(crop);
+            mirror.clip(crop);
             if (recs.size() && crop)
             {
-                auto copy = netxs::raster(recs, view);
+                auto copy = netxs::raster(recs, clip);
                 auto& codec = *outenc;
                 if (!packet.input.utf16 && codec.codepage != CP_UTF8) // Decode from OEM.
                 {
@@ -3410,7 +3410,7 @@ struct impl : consrv
         packet.reply.rectR = (si16)(crop.coor.x + crop.size.x - 1);
         packet.reply.rectB = (si16)(crop.coor.y + crop.size.y - 1);
         log("\tinput.type: ", show_page(packet.input.utf16, outenc->codepage),
-          "\n\tinput.rect: ", view,
+          "\n\tinput.rect: ", clip,
           "\n\treply.rect: ", crop,
           "\n\twrite data:\n\t", utf::replace_all(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
         if (crop) unsync = true;
@@ -3537,8 +3537,8 @@ struct impl : consrv
                     filler.size(count, c);
                     if (w == 2)
                     {
-                        auto head = filler.iter();
-                        auto tail = filler.iend();
+                        auto head = filler.begin();
+                        auto tail = filler.end();
                         while (head != tail)
                         {
                             (++head)->wdt(3);
@@ -3623,10 +3623,10 @@ struct impl : consrv
         auto coor = twod{ packet.input.coorx, packet.input.coory };
         if constexpr (isreal())
         {
-            auto view = rect{{ 0, coor.y }, { window_inst.panel.x, (coor.x + count) / window_inst.panel.x + 1 }};
-            view = view.trunc(window_inst.panel);
-            count = std::max(0, std::min(view.size.x * view.size.y, coor.x + count) - coor.x);
-            if (!view || !count)
+            auto clip = rect{{ 0, coor.y }, { window_inst.panel.x, (coor.x + count) / window_inst.panel.x + 1 }};
+            clip = clip.trunc(window_inst.panel);
+            count = std::max(0, std::min(clip.size.x * clip.size.y, coor.x + count) - coor.x);
+            if (!clip || !count)
             {
                 return;
             }
@@ -3635,7 +3635,7 @@ struct impl : consrv
             auto mark = cell{};
             auto attr = brush_to_attr(mark);
             mirror.size(window_inst.panel);
-            mirror.view(view);
+            mirror.clip(clip);
             mirror.fill(mark);
             window_inst.do_viewport_copy(mirror);
             //auto& copy = (rich&)mirror;
@@ -3644,7 +3644,7 @@ struct impl : consrv
                 log("\tinput.type: attributes");
                 auto recs = wrap<ui16>::cast(buffer, count);
                 auto iter = recs.begin();
-                auto head = mirror.iter() + start;
+                auto head = mirror.begin() + start;
                 auto tail = head + count;
                 while (head != tail)
                 {
@@ -3662,7 +3662,7 @@ struct impl : consrv
             }
             else
             {
-                auto head = mirror.iter() + start;
+                auto head = mirror.begin() + start;
                 auto tail = head + count;
                 log("\tinput.type: ", show_page(packet.input.etype != type::ansiOEM, outenc->codepage));
                 toUTF8.clear();
@@ -3685,7 +3685,7 @@ struct impl : consrv
                     else
                     {
                         toANSI.clear();
-                        auto utf8 = netxs::view{ toUTF8 };
+                        auto utf8 = view{ toUTF8 };
                         codec.encode(utf8, toANSI, count);
                         count = std::min(count, (si32)toANSI.size());
                         std::copy(toANSI.begin(), toANSI.end(), recs.begin());
@@ -3778,13 +3778,13 @@ struct impl : consrv
             return;
         }
         auto& window_inst = *window_ptr;
-        auto view = rect{{ packet.input.rectL, packet.input.rectT },
+        auto clip = rect{{ packet.input.rectL, packet.input.rectT },
                          { std::max(0, packet.input.rectR - packet.input.rectL + 1),
                            std::max(0, packet.input.rectB - packet.input.rectT + 1) }};
         buffer.clear();
-        auto recs = wrap<CHAR_INFO>::cast(buffer, view.size.x * view.size.y);
-        auto crop = view;
-        auto size = view.size;
+        auto recs = wrap<CHAR_INFO>::cast(buffer, clip.size.x * clip.size.y);
+        auto crop = clip;
+        auto size = clip.size;
         if constexpr (isreal())
         {
             if (recs.size())
@@ -3793,12 +3793,12 @@ struct impl : consrv
                 auto attr = brush_to_attr(mark);
                 size = window_inst.panel;
                 mirror.size(window_inst.panel);
-                mirror.view(view);
+                mirror.clip(clip);
                 mirror.fill(mark);
                 window_inst.do_viewport_copy(mirror);
-                crop = mirror.view();
+                crop = mirror.clip();
                 auto& copy = (rich&)mirror;
-                auto  dest = netxs::raster(recs, view);
+                auto  dest = netxs::raster(recs, clip);
                 if (packet.input.utf16)
                 {
                     netxs::onbody(dest, copy, [&](auto& dst, auto& src)
@@ -3901,7 +3901,7 @@ struct impl : consrv
         packet.reply.rectB = (si16)(crop.coor.y + crop.size.y - 1);
         log("\treply.type: ", show_page(packet.input.utf16, outenc->codepage),
           "\n\tpanel size: ", size,
-          "\n\tinput.rect: ", view,
+          "\n\tinput.rect: ", clip,
           "\n\treply.rect: ", crop,
           "\n\treply data:\n\t", utf::replace_all(ansi::s11n((rich&)mirror, crop), "\n", ansi::pushsgr().nil().add("\n\t").popsgr()));
     }
@@ -4325,10 +4325,10 @@ struct impl : consrv
             scrl = scrl.trunc(window_inst.panel);
             clip = clip.trunc(window_inst.panel);
             mirror.size(window_inst.panel);
-            mirror.view(scrl);
+            mirror.clip(scrl);
             mirror.fill(cell{});
             window_inst.do_viewport_copy(mirror);
-            mirror.view(scrl);
+            mirror.clip(scrl);
             filler.kill();
             filler.mark(mark);
             filler.size(scrl.size);

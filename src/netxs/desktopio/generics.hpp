@@ -22,9 +22,9 @@ namespace netxs::generics
     template<class Item>
     class fifo
     {
-        Item * peak;
-        Item * tail;
-        Item * item;
+        Item*  peak;
+        Item*  tail;
+        Item*  item;
         size_t size;
         Item   zero;
 
@@ -32,30 +32,29 @@ namespace netxs::generics
         // In section 4.3.3.2 of EK-VT520-RM:
         //    “any parameter greater than 9 999 (decimal) is set to 9 999 (decimal)”.
         // In the DECSR (Secure Reset) - from 0 to 16 383 (decimal).
-        // Our maximum for Item=int32_t is +/- 1 073 741 823 (wo two last bits)
-        static constexpr auto subbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 2) };
-        static constexpr auto sigbit = unsigned{ 1 << (std::numeric_limits<Item>::digits - 1) };
+        // Our maximum for Item=si32 is +/- 1 073 741 823 (wo two last bits)
+
+        using uItem = std::make_unsigned_t<Item>;
+        static constexpr auto sigbit = (uItem)1 << (8 * sizeof(Item) - 1); // ! Signed and unsigned shifts behave differently.
+        static constexpr auto subbit = sigbit >> 1;
 
     public:
-        static constexpr auto skip = unsigned{ 0x3fff'ffff };
+        static constexpr auto skip = ~(subbit | sigbit); // Zeroize the left two bits.
         static inline bool issub(Item const& value) { return (value & subbit) != (value & sigbit) >> 1; }
-        static inline auto desub(Item const& value) { return static_cast<Item>((value & ~subbit) | (value & sigbit) >> 1); }
-        static inline auto insub(Item const& value) { return static_cast<Item>((value & ~subbit) | ((value & sigbit) ^ sigbit) >> 1); }
+        static inline auto desub(Item const& value) { return (Item)((value & ~subbit) | ((value & sigbit) >> 1)); }
+        static inline auto insub(Item const& value) { return (Item)((value & ~subbit) | (((value & sigbit) ^ sigbit) >> 1)); }
         static inline auto isdef(Item const& value) { return (value & ~subbit) == fifo::skip; }
 
         static auto& fake() { static fifo empty; return empty; }
 
-        constexpr
-        fifo()
-            : peak {0},
-              tail {0},
-              item {0},
-              size {0},
-              zero { }
+        constexpr fifo()
+            : peak{ 0 },
+              tail{ 0 },
+              item{ 0 },
+              size{ 0 },
+              zero{   }
         { }
-
-        constexpr
-        fifo( Item* data,  size_t size)
+        constexpr fifo(Item* data, size_t size)
             : peak{ data + size},
               tail{ data },
               item{ data },
@@ -64,8 +63,7 @@ namespace netxs::generics
         { }
 
         template<bool IsSub = !true>
-        constexpr
-        void push(Item value)
+        constexpr void push(Item value)
         {
             if (tail != peak)
             {
@@ -74,15 +72,13 @@ namespace netxs::generics
                                 : value;
             }
         }
-        constexpr
-        void remove_prefix(size_t n)
+        constexpr void remove_prefix(size_t n)
         {
             n = std::min(n, size);
             size -= n;
             item += n;
         }
-        constexpr
-        void pop_front()
+        constexpr void pop_front()
         {
             if (size)
             {
@@ -102,26 +98,23 @@ namespace netxs::generics
             }
             else return dflt;
         }
-        constexpr
-        Item operator () (Item const& dflt = {})
+        constexpr Item operator () (Item const& dflt = {})
         {
             if (size)
             {
                 size--;
                 auto result = *item++;
-                return isdef(result) ? dflt :
-                       issub(result) ? desub(result)
+                return isdef(result) ? dflt
+                     : issub(result) ? desub(result)
                                      : result;
             }
             else return dflt;
         }
-        constexpr
-        void settop(Item value)
+        constexpr void settop(Item value)
         {
             if (size) *item = value;
         }
-        constexpr
-        Item rawarg(Item const& dflt = {})
+        constexpr Item rawarg(Item const& dflt = {})
         {
             if (size)
             {
@@ -131,8 +124,7 @@ namespace netxs::generics
             }
             else return dflt;
         }
-        constexpr
-        Item subarg(Item const& dflt = {})
+        constexpr Item subarg(Item const& dflt = {})
         {
             if (size)
             {
@@ -159,14 +151,12 @@ namespace netxs::generics
         Item data[Size];
 
     public:
-        constexpr
-        bank()
-            : fifo(data, Size)
+        constexpr bank()
+            : fifo{ data, Size }
         { }
 
-        constexpr
-        bank(Item value)
-            : fifo(data, Size)
+        constexpr bank(Item value)
+            : fifo{ data, Size }
         {
             fifo::push(value);
         }

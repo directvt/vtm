@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.74";
+    static const auto version = "v0.9.75";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -436,7 +436,7 @@ namespace netxs::app::shared
                     "\n"
                     "\nUnsupported application type"
                     "\n" + ansi::nil().wrp(wrap::on) +
-                    "\nOnly the following application types are supported"
+                    "\nOnly the following application types are supported:"
                     "\n" + ansi::nil().wrp(wrap::off).fgc(whitedk) +
                     "\n   type = vtty"
                     "\n   type = term"
@@ -452,7 +452,8 @@ namespace netxs::app::shared
                 ->colors(whitelt, rgba{ 0x7F404040 })
                 ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
-                ->attach(placeholder);
+                ->attach(placeholder)
+                ->active();
             return window;
         };
         auto& map = creator();

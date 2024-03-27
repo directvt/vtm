@@ -15,7 +15,7 @@ namespace netxs
     using fifo = generics::fifo<si32>;
 
     // geometry: 2D point template.
-    template<class T = int>
+    template<class T = si32>
     struct duplet
     {
         using type = T;
@@ -36,14 +36,12 @@ namespace netxs
         { }
 
         constexpr duplet(duplet const& p)
-            : duplet{ p.x,
-                      p.y }
+            : duplet{ p.x, p.y }
         { }
 
         template<class D>
         constexpr duplet(duplet<D> const& d)
-            : duplet{ static_cast<T>(d.x),
-                      static_cast<T>(d.y) }
+            : duplet{ static_cast<T>(d.x), static_cast<T>(d.y) }
         { }
 
         constexpr duplet(fifo& queue)
@@ -51,8 +49,8 @@ namespace netxs
               y{ queue(0) }
         { }
 
-        constexpr T&       operator []  (int selector)          { return selector ? y : x;          }
-        constexpr T const& operator []  (int selector) const    { return selector ? y : x;          }
+        constexpr T&       operator []  (si32 selector)         { return selector ? y : x;          }
+        constexpr T const& operator []  (si32 selector) const   { return selector ? y : x;          }
         constexpr explicit operator bool() const                { return x != 0 || y != 0;          }
         constexpr duplet&  operator ++  ()                      { x++; y++;           return *this; }
         constexpr duplet&  operator --  ()                      { x--; y--;           return *this; }
@@ -62,11 +60,11 @@ namespace netxs
         constexpr void     operator *=  (duplet const& p)       { x *= p.x; y *= p.y;               }
         constexpr void     operator /=  (duplet const& p)       { x /= p.x; y /= p.y;               }
         constexpr void     operator %=  (duplet const& p)       { x %= p.x; y %= p.y;               }
-        constexpr void     operator -=  (T i)                   { x -=   i; y -=   i;               }
-        constexpr void     operator +=  (T i)                   { x +=   i; y +=   i;               }
-        constexpr void     operator *=  (T i)                   { x *=   i; y *=   i;               }
-        constexpr void     operator /=  (T i)                   { x /=   i; y /=   i;               }
-        constexpr void     operator %=  (T i)                   { x %=   i; y %=   i;               }
+        constexpr void     operator -=  (T i)                   { x -= i;   y -= i;                 }
+        constexpr void     operator +=  (T i)                   { x += i;   y += i;                 }
+        constexpr void     operator *=  (T i)                   { x *= i;   y *= i;                 }
+        constexpr void     operator /=  (T i)                   { x /= i;   y /= i;                 }
+        constexpr void     operator %=  (T i)                   { x %= i;   y %= i;                 }
         constexpr bool     operator <   (T i) const             { return x < i && y < i;            }
         constexpr bool     operator >   (T i) const             { return x > i && y > i;            }
         constexpr duplet   operator +   (duplet const& p) const { return { x + p.x, y + p.y };      }
@@ -86,10 +84,10 @@ namespace netxs
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D> duplet<D> constexpr operator / (D i) const { return { x / i, y / i }; }
-        template<class D> duplet<D> constexpr operator + (D i) const { return { x + i, y + i }; }
-        template<class D> duplet<D> constexpr operator - (D i) const { return { x - i, y - i }; }
-        template<class D> duplet<D> constexpr operator * (D i) const { return { x * i, y * i }; }
+        template<class D> auto constexpr operator / (D i) const { return duplet<D>{ x / i, y / i }; }
+        template<class D> auto constexpr operator + (D i) const { return duplet<D>{ x + i, y + i }; }
+        template<class D> auto constexpr operator - (D i) const { return duplet<D>{ x - i, y - i }; }
+        template<class D> auto constexpr operator * (D i) const { return duplet<D>{ x * i, y * i }; }
 
         bool operator () (duplet const& p)
         {
@@ -111,16 +109,30 @@ namespace netxs
             return { x == what.x ? if_yes.x : if_no.x,
                      y == what.y ? if_yes.y : if_no.y };
         }
+        duplet less(T const& what, duplet const& if_yes, duplet const& if_no) const
+        {
+            return { x < what ? if_yes.x : if_no.x,
+                     y < what ? if_yes.y : if_no.y };
+        }
+        duplet equals(T const& what, duplet const& if_yes, duplet const& if_no) const
+        {
+            return { x == what ? if_yes.x : if_no.x,
+                     y == what ? if_yes.y : if_no.y };
+        }
+        duplet less(T const& what, T const& if_yes, T const& if_no) const
+        {
+            return { x < what ? if_yes : if_no,
+                     y < what ? if_yes : if_no };
+        }
+        duplet equals(T const& what, T const& if_yes, T const& if_no) const
+        {
+            return { x == what ? if_yes : if_no,
+                     y == what ? if_yes : if_no };
+        }
         bool inside(duplet const& p) const
         {
-            if (x > 0 ? (p.x >= 0 && p.x < x) : (p.x >= x && p.x < 0))
-            {
-                if (y > 0 ? (p.y >= 0 && p.y < y) : (p.y >= y && p.y < 0))
-                {
-                    return true;
-                }
-            }
-            return faux;
+            return (x > 0 ? (p.x >= 0 && p.x < x) : (p.x >= x && p.x < 0))
+                && (y > 0 ? (p.y >= 0 && p.y < y) : (p.y >= y && p.y < 0));
         }
 
         duplet divround(type n)          const { return { netxs::divround(x, n  ), netxs::divround(y, n  ) }; }
@@ -140,25 +152,24 @@ namespace netxs
         {
             return duplet{ netxs::letoh(p.x), netxs::letoh(p.y) };
         }
-        friend auto min  (duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
-        friend auto max  (duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
-        friend auto round(duplet const& p) { return duplet{ std::round(p.x), std::round(p.y) }; }
-        friend auto abs  (duplet const& p) { return duplet{ std::  abs(p.x), std::  abs(p.y) }; }
+        friend auto   min(duplet const& p1, duplet const& p2) { return duplet{ std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+        friend auto   max(duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+        friend auto round(duplet const& p)                    { return duplet{ std::round(p.x), std::round(p.y) }; }
+        friend auto   abs(duplet const& p)                    { return duplet{ std::abs(p.x), std::abs(p.y) }; }
         friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
     };
 
     // geometry: 2D point.
     using twod = duplet<si32>;
 
-    static constexpr const auto dot_00 = twod{ 0,0 };
-    static constexpr const auto dot_01 = twod{ 0,1 };
-    static constexpr const auto dot_10 = twod{ 1,0 };
-    static constexpr const auto dot_11 = twod{ 1,1 };
-    static constexpr const auto dot_22 = twod{ 2,2 };
-    static constexpr const auto dot_21 = twod{ 2,1 };
-    static constexpr const auto dot_33 = twod{ 3,3 };
-    static constexpr const auto dot_mx = twod{ si32max / 2,
-                                               si32max / 2 };
+    static constexpr auto dot_00 = twod{ 0,0 };
+    static constexpr auto dot_01 = twod{ 0,1 };
+    static constexpr auto dot_10 = twod{ 1,0 };
+    static constexpr auto dot_11 = twod{ 1,1 };
+    static constexpr auto dot_22 = twod{ 2,2 };
+    static constexpr auto dot_21 = twod{ 2,1 };
+    static constexpr auto dot_33 = twod{ 3,3 };
+    static constexpr auto dot_mx = twod{ si32max / 2, si32max / 2 };
 
     twod divround(twod p, si32 n) { return { divround(p.x, n  ), divround(p.y, n  ) }; }
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
@@ -168,10 +179,10 @@ namespace netxs
 
 namespace std
 {
-    template<class T = netxs::si32> constexpr netxs::duplet<T> min  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
-    template<class T = netxs::si32> constexpr netxs::duplet<T> max  (netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
-    template<class T = netxs::si32> constexpr netxs::duplet<T> round(netxs::duplet<T> const& p) { return { std::round(p.x), std::round(p.y) }; }
-    template<class T = netxs::si32> constexpr netxs::duplet<T> abs  (netxs::duplet<T> const& p) { return { std::  abs(p.x), std::  abs(p.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T>   min(netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::min(p1.x, p2.x), std::min(p1.y, p2.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T>   max(netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T> round(netxs::duplet<T> const& p)                              { return { std::round(p.x), std::round(p.y) }; }
+    template<class T = netxs::si32> constexpr netxs::duplet<T>   abs(netxs::duplet<T> const& p)                              { return { std::abs(p.x), std::abs(p.y) }; }
     template<class T = netxs::si32> constexpr netxs::duplet<T> clamp(netxs::duplet<T> const& p, netxs::duplet<T> const& p1, netxs::duplet<T> const& p2) { return { std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
 }
 
@@ -213,7 +224,7 @@ namespace netxs
         // rect: Is the point inside the rect.
         bool hittest(twod p) const
         {
-            bool test;
+            auto test = faux;
             if (size.x > 0)
             {
                 auto t = p.x - coor.x;
@@ -243,7 +254,7 @@ namespace netxs
         }
         rect rotate(twod dir) const
         {
-            rect r;
+            auto r = rect{};
             if ((dir.x ^ size.x) < 0)
             {
                 r.coor.x = coor.x + size.x;
@@ -269,7 +280,7 @@ namespace netxs
         }
         rect normalize() const
         {
-            rect r;
+            auto r = rect{};
             if (size.x < 0)
             {
                 r.coor.x =  coor.x + size.x;
@@ -322,7 +333,7 @@ namespace netxs
         // rect: Intersect the rect with rect{ dot_00, edge }.
         rect trunc(twod edge) const
         {
-            rect r;
+            auto r = rect{};
             r.coor = std::clamp(coor, dot_00, edge);
             r.size = std::clamp(size, -coor, edge - coor) + coor - r.coor;
             return r;
@@ -584,18 +595,20 @@ namespace netxs
         // dent: Return area with padding.
         friend auto operator + (rect area, dent pad)
         {
-            return rect{{ area.coor.x - pad.l,
-                          area.coor.y - pad.t },
-                        { std::max(0, area.size.x + (pad.l + pad.r)),
-                          std::max(0, area.size.y + (pad.t + pad.b)) }};
+            if (area.size.x < 0) { area.coor.x += pad.l; area.size.x -= pad.l + pad.r; }
+            else                 { area.coor.x -= pad.l; area.size.x += pad.l + pad.r; }
+            if (area.size.y < 0) { area.coor.y += pad.t; area.size.y -= pad.t + pad.b; }
+            else                 { area.coor.y -= pad.t; area.size.y += pad.t + pad.b; }
+            return area;
         }
         // dent: Return area without padding.
         friend auto operator - (rect area, dent pad)
         {
-            return rect{{ area.coor.x + pad.l,
-                          area.coor.y + pad.t },
-                        { std::max(0, area.size.x - (pad.l + pad.r)),
-                          std::max(0, area.size.y - (pad.t + pad.b)) }};
+            if (area.size.x < 0) { area.coor.x -= pad.l; area.size.x += pad.l + pad.r; }
+            else                 { area.coor.x += pad.l; area.size.x -= pad.l + pad.r; }
+            if (area.size.y < 0) { area.coor.y -= pad.t; area.size.y += pad.t + pad.b; }
+            else                 { area.coor.y += pad.t; area.size.y -= pad.t + pad.b; }
+            return area;
         }
         // dent: Return area with padding.
         friend auto operator += (rect& area, dent pad)
@@ -620,18 +633,20 @@ namespace netxs
         // dent: Return summ of two paddings.
         friend auto operator + (dent pad1, dent pad2)
         {
-            return dent{ pad1.l + pad2.l,
-                         pad1.r + pad2.r,
-                         pad1.t + pad2.t,
-                         pad1.b + pad2.b };
+            pad1.l += pad2.l;
+            pad1.r += pad2.r;
+            pad1.t += pad2.t;
+            pad1.b += pad2.b;
+            return pad1;
         }
         // dent: Return diff of two paddings.
         friend auto operator - (dent pad1, dent pad2)
         {
-            return dent{ pad1.l - pad2.l,
-                         pad1.r - pad2.r,
-                         pad1.t - pad2.t,
-                         pad1.b - pad2.b };
+            pad1.l -= pad2.l;
+            pad1.r -= pad2.r;
+            pad1.t -= pad2.t;
+            pad1.b -= pad2.b;
+            return pad1;
         }
         // dent: Change endianness to LE.
         friend auto letoh(dent d)
@@ -652,6 +667,8 @@ namespace netxs
         {
             return s << d.str();
         }
+        friend auto min(dent d1, dent d2) { return dent{ std::min(d1.l, d2.l), std::min(d1.r, d2.r), std::min(d1.t, d2.t), std::min(d1.b, d2.b) }; }
+        friend auto max(dent d1, dent d2) { return dent{ std::max(d1.l, d2.l), std::max(d1.r, d2.r), std::max(d1.t, d2.t), std::max(d1.b, d2.b) }; }
     };
     // dent: Return difference between area.
     auto operator - (rect r1, rect r2)

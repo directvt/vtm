@@ -54,13 +54,13 @@ graph LR
     direction LR
         B("Init hardcoded
         settings")
-        B --> C["--config #lt;file#gt;
+        B --> C["--config ‹file›
         specified?"]
-        C -->|Yes| D["Merge #lt;file#gt;"]
-        C --->|No| F["Merge global"]
-        F --> G["Merge user wise"]
-        D ---> H["Merge DirectVT packet
-        received from DirectVT Gateway"]
+        C -->|Yes| D["Overlay the settings from the ‹file›"]
+        C --->|No| F["Overlay global settings"]
+        F --> G["Overlay user wise settings"]
+        D ---> H["Overlay the settings received
+        from the DirectVT Gateway"]
         G --> H
     end
 ```

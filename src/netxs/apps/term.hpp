@@ -750,8 +750,8 @@ namespace netxs::app::terminal
             {
                 closing_on_quit(boss);
             });
-        window->plugin<pro::track>()
-            ->plugin<pro::acryl>()
+        window//->plugin<pro::track>()
+            //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
         config.cd("/config/term/color/default/");
         auto def_fcolor = config.take("fgc", rgba{ whitelt });
@@ -777,14 +777,50 @@ namespace netxs::app::terminal
         auto menu_white = skin::color(tone::menu_white);
         auto cB = menu_white;
 
+        auto menu_height = ptr::shared(0);
+        auto gradient = [menu_height, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
+        {
+            static constexpr auto grad_vsize = 32;
+            auto region = parent_canvas.full();
+            if (region.size.x != bground.size().x)
+            {
+                auto spline = netxs::spline01{ -0.30f };
+                auto mx = region.size.x;
+                auto my = std::min(3, region.size.y);
+                bground.size({ mx, my }, skin::color(tone::kb_focus));
+                auto it = bground.begin();
+                for (auto y = 0.f; y < my; y++)
+                {
+                    auto y0 = (y + 1) / grad_vsize;
+                    auto sy = spline(y0);
+                    for (auto x = 0.f; x < mx; x++)
+                    {
+                        auto& c = it++->bgc();
+                        auto mirror = x < mx / 2.f ? x : mx - x;
+                        auto x0 = (mirror + 2) / (mx - 1.f);
+                        auto sx = spline(x0);
+                        auto xy = sy * sx;
+                        c.chan.a = (byte)std::round(255.0 * (1.f - xy));
+                    }
+                }
+            }
+            auto clip = parent_canvas.clip();
+            auto dest = clip.clip({ region.coor, { region.size.x, std::min(bground.size().y, *menu_height) }});
+            parent_canvas.clip(dest);
+            bground.move(region.coor);
+            parent_canvas.plot(bground, cell::shaders::blend); // Menu background.
+            bground.step({ 0, region.size.y - 1 });
+            parent_canvas.clip(clip);
+            parent_canvas.plot(bground, cell::shaders::blend); // Hz scrollbar background.
+        };
+
         auto window = ui::cake::ctor();
         window->plugin<pro::focus>(pro::focus::mode::hub)
             ->plugin<pro::track>()
-            ->plugin<pro::acryl>()
-            ->plugin<pro::cache>();
+            ->plugin<pro::cache>()
+            ->shader(gradient, e2::form::state::keybd::focus::count);
 
-        auto object = window->attach(ui::fork::ctor(axis::Y))
-                            ->colors(cB);
+        auto object = window->attach(ui::fork::ctor(axis::Y));
         auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
         auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
                                     ->limits(dot_11, { 400,200 });
@@ -880,56 +916,58 @@ namespace netxs::app::terminal
         auto vt = sb->attach(slot::_2, ui::grip<axis::Y>::ctor(scroll));
         static constexpr auto drawfx = [](auto& boss, auto& canvas, auto handle, auto /*object_len*/, auto handle_len, auto region_len, auto wide)
         {
-            // Brightener isn't suitable for white backgrounds.
-            auto brighter = skin::color(tone::selector);
-            brighter.bga(std::min(0xFF, brighter.bga() * 3));
-            auto brighter_bgc = brighter.bgc();
-            auto boss_bgc = boss.base::color().bgc();
-
+            static auto box1 = "▄"sv;
+            static auto box2 = ' ';
+            auto menu_white = skin::color(tone::menu_white);
+            auto cB = menu_white;
+            auto term_bgc = boss.base::color().bgc();
             if (handle_len != region_len) // Show only if it is oversized.
             {
-                if (wide) // Draw full scrollbar on mouse hover
+                if (wide) // Draw full scrollbar on mouse hover.
                 {
-                    static auto box = ' ';
-                    canvas.fill([&](cell& c){ c.txt(box).link(boss.bell::id).xlight(); });
-                    canvas.fill(handle, [&](cell& c){ c.bgc().mix(brighter_bgc); });
+                    canvas.fill([&](cell& c){ c.txt(box2).link(boss.bell::id).xlight().bgc().mix(cB.bgc()); });
+                    canvas.fill(handle, [&](cell& c){ c.bgc().xlight(2); });
                 }
                 else
                 {
-                    static auto box = "▄"sv; //"▀"sv;
-                    canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).bgc().mix(brighter_bgc); });
-                    canvas.fill([&](cell& c){ c.inv(true).txt(box).fgc(boss_bgc); });
+                    canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(cB.bgc()); });
+                    canvas.fill(handle, [&](cell& c){ c.link(boss.bell::id).fgc().xlight(2); });
                 }
             }
-            else
-            {
-                static auto box = "▄"sv;
-                canvas.fill([&](cell& c){ c.inv(true).txt(box).fgc(boss_bgc); });
-            }
+            else canvas.fill([&](cell& c){ c.txt(box1).fgc(c.bgc()).bgc(term_bgc).fgc().mix(cB.bgc()); });
         };
         auto hz = term_stat_area->attach(slot::_2, ui::gripfx<axis::X, drawfx>::ctor(scroll))
             ->limits({ -1,1 }, { -1,1 })
             ->invoke([&](auto& boss)
             {
-                boss.LISTEN(tier::anycast, terminal::events::release::colors::bg, bg)
+                boss.color(boss.color().bgc(inst->color().bgc()));
+                inst->LISTEN(tier::release, e2::form::prop::filler, brush, -)
                 {
-                    boss.color(boss.color().bgc(bg).txt(""));
+                    boss.color(boss.color().bgc(brush.bgc()));
                 };
             });
 
         auto [slot1, cover, menu_data] = construct_menu(config);
-        auto menu = object->attach(slot::_1, slot1);
+        auto menu = object->attach(slot::_1, slot1)
+            ->colors(cB)
+            ->invoke([&](auto& boss)
+            {
+                boss.LISTEN(tier::release, e2::area, new_area, -, (menu_height))
+                {
+                    *menu_height = new_area.size.y;
+                };
+            });
         cover->invoke([&, &slot1 = slot1](auto& boss) //todo clang 15.0.0 still disallows capturing structured bindings (wait for clang 16.0.0)
         {
             auto bar = cell{ "▀"sv }.link(slot1->id);
-            auto brush = ptr::shared(cell{ cB }.inv(true).txt("▀"sv).link(slot1->id));
+            auto term_bgc_ptr = ptr::shared(inst->color().bgc());
+            auto& term_bgc = *term_bgc_ptr;
             auto winsz = ptr::shared(dot_00);
             auto visible = ptr::shared(slot1->back() != boss.This());
             auto check_state = ptr::function([state = testy<bool>{ true }, winsz, visible](base& boss) mutable
             {
                 if (state(*visible || winsz->y != 1))
                 {
-                    boss.RISEUP(tier::preview, e2::form::prop::ui::acryl, state.last);
                     boss.RISEUP(tier::preview, e2::form::prop::ui::cache, state.last);
                 }
             });
@@ -943,21 +981,14 @@ namespace netxs::app::terminal
                 *winsz = new_area.size;
                 (*check_state)(boss);
             };
-            boss.LISTEN(tier::anycast, terminal::events::release::colors::bg, bg, -, (brush))
+            inst->LISTEN(tier::release, e2::form::prop::filler, clr, -, (term_bgc_ptr))
             {
-                brush->fgc(bg);
+                term_bgc = clr.bgc();
             };
-            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, brush))
+            boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, term_bgc_ptr))
             {
-                if (winsz->y != 1)
-                {
-                    auto& b = *brush;
-                    parent_canvas.fill([&](cell& c){ c.fusefull(b); });
-                }
-                else
-                {
-                    parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).fga(0xff).bgc(0).txt(bar).link(bar); });
-                }
+                if (winsz->y != 1) parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(term_bgc).txt(bar).link(bar); });
+                else               parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(0       ).txt(bar).link(bar); });
             };
         });
 

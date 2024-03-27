@@ -179,13 +179,13 @@ int main(int argc, char* argv[])
             "\n"
             "\n  Settings loading order:"
             "\n"
-            "\n    - Initialize hardcoded settings."
+            "\n    - Initialize hard-coded settings."
             "\n    - In case of using the '--config <file>' option and the <file> can be loaded:"
-            "\n        - Merge settings from the <file>."
+            "\n        - Overlay the settings from the <file>."
             "\n      otherwise:"
-            "\n        - Merge with system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
-            "\n        - Merge with user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
-            "\n    - Merge with DirectVT packet received from the hosting DirectVT Gateway."
+            "\n        - Overlay system-wide settings from " + os::path::expand(app::shared::sys_config).second + "."
+            "\n        - Overlay user-wise settings from "   + os::path::expand(app::shared::usr_config).second + "."
+            "\n    - Overlay the settings received from the DirectVT Gateway."
             "\n"
             "\n  Script commands:"
             "\n"
@@ -331,13 +331,15 @@ int main(int argc, char* argv[])
         else if (shadow.starts_with(app::dtvt::id))      { aptype = app::dtvt::id;      apname = app::dtvt::name;      }
         else if (shadow.starts_with(app::dtty::id))      { aptype = app::dtty::id;      apname = app::dtty::name;      }
         //todo undocumented
-        else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id; apname = app::dtty::name; }
-        else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name; }
-        else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name; }
+        else if (shadow.starts_with(/*UD*/"xlvt"))       { aptype = app::dtty::id;     apname = app::dtty::name;       }
+        else if (shadow.starts_with(/*UD*/"headless"))   { aptype = app::teletype::id; apname = app::teletype::name;   }
+        else if (shadow.starts_with(/*UD*/"noui"))       { aptype = app::teletype::id; apname = app::teletype::name;   }
         #if defined(DEBUG)
         else if (shadow.starts_with(app::calc::id))      { aptype = app::calc::id;      apname = app::calc::name;      }
         else if (shadow.starts_with(app::shop::id))      { aptype = app::shop::id;      apname = app::shop::name;      }
         else if (shadow.starts_with(app::test::id))      { aptype = app::test::id;      apname = app::test::name;      }
+        else if (shadow.starts_with(app::empty::id))     { aptype = app::empty::id;     apname = app::empty::name;     }
+        else if (shadow.starts_with(app::strobe::id))    { aptype = app::strobe::id;    apname = app::strobe::name;    }
         else if (shadow.starts_with(app::textancy::id))  { aptype = app::textancy::id;  apname = app::textancy::name;  }
         else if (shadow.starts_with(app::settings::id))  { aptype = app::settings::id;  apname = app::settings::name;  }
         else if (shadow.starts_with(app::truecolor::id)) { aptype = app::truecolor::id; apname = app::truecolor::name; }

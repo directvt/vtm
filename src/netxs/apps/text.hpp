@@ -78,11 +78,13 @@ displaying the requested definition in a popup window or temporary buffer. Some 
         auto build = [](eccc /*appcfg*/, xmls& config)
         {
             auto highlight_color = skin::color(tone::highlight);
+            auto c3 = highlight_color;
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
+                  ->shader(c3, e2::form::state::keybd::focus::count)
+                  //->plugin<pro::acryl>()
                   ->plugin<pro::cache>()
                   ->invoke([&](auto& boss)
                   {

@@ -227,25 +227,10 @@ namespace netxs::ui
                 auto& item = lock.thing;
                 notify(e2::config::fps, item.frame_rate);
             }
-            void handle(s11n::xs::bgc         lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::colors::bg, item.color);
-            }
-            void handle(s11n::xs::fgc         lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::colors::fg, item.color);
-            }
             void handle(s11n::xs::cwd         lock)
             {
                 auto& path = lock.thing.path;
                 notify<tier::anycast>(e2::form::prop::cwd, path);
-            }
-            void handle(s11n::xs::slimmenu    lock)
-            {
-                auto& item = lock.thing;
-                notify<tier::anycast>(e2::form::prop::ui::slimmenu, item.menusize);
             }
             void handle(s11n::xs::sysclose    lock)
             {
@@ -424,7 +409,7 @@ namespace netxs::ui
                 clip_preview_clrs = config.take("clipboard/preview"        , cell{}.bgc(bluedk).fgc(whitelt));
                 clip_preview_time = config.take("clipboard/preview/timeout", span{ 3s });
                 clip_preview_alfa = config.take("clipboard/preview/alpha"  , byte{ 0xFF });
-                clip_preview_glow = config.take("clipboard/preview/shadow" , 7);
+                clip_preview_glow = config.take("clipboard/preview/shadow" , 3);
                 clip_preview_show = config.take("clipboard/preview/enabled", true);
                 clip_preview_size = config.take("clipboard/preview/size"   , twod{ 80,25 });
                 clip_prtscrn_mime = config.take("clipboard/format"         , mime::htmltext, xml::options::format);
@@ -435,7 +420,7 @@ namespace netxs::ui
                 debug_overlay     = config.take("debug/overlay"            , faux);
                 debug_toggle      = config.take("debug/toggle"             , "🐞"s);
                 show_regions      = config.take("regions/enabled"          , faux);
-                clip_preview_glow = std::clamp(clip_preview_glow, 0, 10);
+                clip_preview_glow = std::clamp(clip_preview_glow, 0, 5);
             }
 
             props_t(pipe& /*canal*/, view userid, si32 mode, bool isvtm, si32 session_id, xmls& config)
@@ -602,6 +587,7 @@ namespace netxs::ui
             X(key_character, "key char"         ) \
             X(key_pressed  , "key push"         ) \
             X(ctrl_state   , "controls"         ) \
+            X(k            , "k"                ) \
             X(mouse_pos    , "mouse coord"      ) \
             X(mouse_wheeldt, "wheel delta"      ) \
             X(mouse_hzwheel, "H wheel"          ) \
@@ -762,6 +748,13 @@ namespace netxs::ui
                         state = m_buttons[i] ? "pressed" : "idle   ";
                     }
 
+                    if constexpr (debugmode)
+                    {
+                        status[prop::k].set(stress) = std::to_string(netxs::_k0) + " "
+                                                    + std::to_string(netxs::_k1) + " "
+                                                    + std::to_string(netxs::_k2) + " "
+                                                    + std::to_string(netxs::_k3);
+                    }
                     status[prop::mouse_wheeldt].set(stress) = m.wheeldt ? std::to_string(m.wheeldt) :  " -- "s;
                     status[prop::mouse_hzwheel].set(stress) = m.hzwheel ? "active" : "idle  ";
                     status[prop::mouse_vtwheel].set(stress) = m.wheeled ? "active" : "idle  ";
@@ -948,6 +941,34 @@ namespace netxs::ui
                 if (debug)
                 {
                     debug.output(canvas);
+                    if constexpr (debugmode) // Red channel histogram.
+                    {
+                        auto& [gear_id, gear_ptr] = *input.gears.begin();
+                        if (gear_ptr->meta(hids::ScrlLock)) 
+                        {
+                            auto hist = page{};
+                            hist.brush.bgc(0x80ffffff);
+                            auto full = canvas.full();
+                            auto area = canvas.area();
+                            canvas.area({ dot_00, area.size });
+                            auto coor = gear_ptr->coord;
+                            for (auto x = 0; x < area.size.y; x++)
+                            {
+                                auto xy = coor + twod{ x - area.size.y/2, 0 };
+                                auto has_value = xy.x > 0 && xy.x < canvas.size().x;
+                                if (has_value) utf::repeat(" ", canvas[xy].bgc().chan.r);
+                                hist += "\n"s;
+                            }
+                            auto full_area = full;
+                            full_area.coor = {};
+                            full_area.size.x = dot_mx.x; // Prevent line wrapping.
+                            canvas.full(full_area);
+                            canvas.cup(dot_00);
+                            canvas.output(hist, cell::shaders::blend);
+                            canvas.area(area);
+                            canvas.full(full);
+                        }
+                    }
                 }
                 if (props.show_regions)
                 {

@@ -53,10 +53,18 @@
 - Configurable at startup via `settings.xml`
 - Configurable in runtime using VT-sequences
 
+### Custom SGR attributes
+
+Name               | Sequence                         | Description
+-------------------|----------------------------------|------------
+`grid lines`       | `CSI` 60 : n `m`                 | Set grid lines around the cell using bits from `n`:<br>0 bit: Left side<br>1 bit: Right side<br>2 bit: Top side<br>3 bit: Bottom side
+`grid color`       | `CSI` 68 : 2 :: r : g : b `m`<br>`CSI` 68 : 5 : n `m`<br>`CSI` 68 : n `m`    | Set grid color.
+`reset grid color` | `CSI` 69 `m`                     | Reset grid color (sync with foreground color).
+
 ### Runtime configuraion vt-sequences
 
 Name         | Sequence                         | Description
--------------|----------------------------------|-----------
+-------------|----------------------------------|------------
 `CCC_SBS`    | `CSI` 24 : n : m : q `p`         | Scrollback buffer configuration<br>`n` Initial buffer size<br>`m` Grow step<br>`q` Grow limit
 `CCC_SGR`    | `CSI` 28 : Pm `p`                | Set terminal background using SGR attributes (one attribute at once)<br>`Pm` Colon-separated list of attributes, 0 — reset all attributes, _default is 0_
 `CCC_SEL`    | `CSI` 29 : n `p`                 | Set selection mode<br>`n = 0` Selection is off (default)<br>`n = 1` Select and copy as plaintext<br>`n = 2` Select and copy as ANSI/VT text<br>`n = 3` Select and copy as RTF-document<br>`n = 4` Select and copy as HTML-code<br>`n = 5` Select and copy as protected plaintext (suppressed preview, [details](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats#cloud-clipboard-and-clipboard-history-formats))

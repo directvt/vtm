@@ -1074,28 +1074,29 @@ namespace netxs::input
         void update(sysboard& b) // Update clipboard preview.
         {
             board::image.move(dot_00); // Reset basis.
-            auto draw_shadow = [&](auto& block, auto size)
+            auto draw_shadow = [](auto& canvas, auto& block, auto shadow_radius, twod trim_to)
             {
-                board::image.mark(cell{});
-                board::image.wipe();
-                board::image.size(dot_21 * size * 2 + b.size);
-                auto full = rect{ dot_21 * size + dot_21, b.size };
-                while (size--)
+                canvas.mark(cell{});
+                canvas.wipe();
+                canvas.size(dot_21 * shadow_radius * 2 + trim_to);
+                auto full = rect{ dot_21 * shadow_radius + dot_21, trim_to };
+                auto temp = vrgb{};
+                while (shadow_radius--)
                 {
-                    board::image.reset();
-                    board::image.full(full);
-                    board::image.output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
-                    board::image.blur(1, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
+                    canvas.reset();
+                    canvas.full(full);
+                    canvas.template output<true>(block, cell::shaders::color(cell{}.bgc(0).fgc(0).alpha(0x60)));
+                    canvas.template blur<true>(1, temp, [&](cell& c){ c.fgc(c.bgc()).txt(""); });
                 }
                 full.coor -= dot_21;
-                board::image.reset();
-                board::image.full(full);
+                canvas.reset();
+                canvas.full(full);
             };
             if (b.form == mime::safetext)
             {
                 auto blank = ansi::bgc(0x7Fffffff).fgc(0xFF000000).add(" Protected Data "); //todo unify (i18n)
                 auto block = page{ blank };
-                if (ghost) draw_shadow(block, ghost);
+                if (ghost) draw_shadow(board::image, block, ghost, block.current().size());
                 else
                 {
                     board::image.size(block.current().size());
@@ -1106,7 +1107,7 @@ namespace netxs::input
             else
             {
                 auto block = page{ b.utf8 };
-                if (ghost) draw_shadow(block, ghost);
+                if (ghost) draw_shadow(board::image, block, ghost, b.size);
                 else
                 {
                     board::image.size(b.size);
@@ -1439,6 +1440,19 @@ namespace netxs::input
 
         void take(sysmouse& m)
         {
+            #if defined(DEBUG)
+            if (m.wheeled)
+            {
+                auto s = m.ctlstat;
+                auto alt     = s & hids::anyAlt ? 1 : 0;
+                auto l_ctrl  = s & hids::LCtrl  ? 1 : 0;
+                auto r_ctrl  = s & hids::RCtrl  ? 1 : 0;
+                     if (l_ctrl && alt) netxs::_k2 += m.wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
+                else if (l_ctrl)        netxs::_k0 += m.wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+                else if (alt)           netxs::_k1 += m.wheeldt > 0 ? 1 : -1; // Alt+Wheel.
+                else if (r_ctrl)        netxs::_k3 += m.wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
+            }
+            #endif
             disabled = faux;
             ctlstate = m.ctlstat;
             mouse::update(m);

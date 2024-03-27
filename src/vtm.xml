@@ -26,7 +26,7 @@ R"==(
                 " It can be configured in ~/.config/vtm/settings.xml "
             </notes>
         </item>
-        <item* hidden=no fgc=whitedk bgc=0x00000000 winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
+        <item* hidden=no winsize=0,0 wincoor=0,0 winform=undefined /> <!-- winform: undefined | maximized | minimized -->
         <item id=Term label="Term" type=dtvt title="Terminal Console" cmd="$0 -r term">
             <notes>
                 " Terminal Console               \n"
@@ -168,7 +168,7 @@ R"==(
             <tracking = off  /> <!-- Mouse cursor highlighting. -->
             <macstyle = no /> <!-- Preferred window control buttons location. no: right corner (like on MS Windows), yes: left side (like on macOS) -->
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
-            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=60 /> <!-- Keyboard focus indicator. -->
+            <kb_focus   fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
             <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
@@ -231,17 +231,18 @@ R"==(
         <puregreen = 0xFF00ff00 />
         <pureblue  = 0xFFff0000 />
         <nocolor   = 0x00000000 />
+        <default   = 0x00ffffff />
         <transparent = nocolor  />
     </set>
     <client>
-        <background fgc=whitedk bgc=0xFF180800>  <!-- Desktop background color. -->
+        <background fgc=whitedk bgc=0xFF403000>  <!-- Desktop background color. -->
             <tile=""/> <!-- True color ANSI-art with gradients can be used here. -->
         </background>
         <clipboard>
             <preview enabled=no size=80x25 bgc=bluedk fgc=whitelt>
                 <alpha=0xFF/>  <!-- Preview alpha is applied only to the ansi/rich/html text type -->
                 <timeout=3s/>  <!-- Preview hiding timeout. Set it to zero to disable hiding. -->
-                <shadow=7  />  <!-- Preview shadow strength (0-10). -->
+                <shadow=3  />  <!-- Preview shadow strength (0-5). -->
             </preview>
             <format=html />  <!-- text | ansi | rich | html | protected -->
         </clipboard>
@@ -281,7 +282,8 @@ R"==(
             <color13 = magentalt  />
             <color14 = cyanlt     />
             <color15 = whitelt    />
-            <default bgc=pureblack fgc=whitedk />  <!-- Initial colors. -->
+            <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
+            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->

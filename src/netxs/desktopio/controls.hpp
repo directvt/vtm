@@ -240,7 +240,7 @@ namespace netxs::ui
             {
                 boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
                 {
-                    if (gear.meta(hids::anyCtrl))
+                    if (gear.meta(hids::anyCtrl) && !gear.meta(hids::ScrlLock))
                     {
                         auto& g = items.take(gear);
                         if (!g.zoomon)// && g.inside)
@@ -259,7 +259,9 @@ namespace netxs::ui
                         if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
                         else                                              g.zoomdt += warp;
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto next = (g.zoomsz + g.zoomdt).clip(viewport);
+                        auto r = g.zoomsz + g.zoomdt;
+                        r.size = std::max(dot_00, r.size);
+                        auto next = r.clip(viewport);
                         auto step = boss.base::extend(next);
                         if (!step.size) // Undo if can't zoom.
                         {
@@ -445,7 +447,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: Keybd/Mouse highlighter.
+        // pro: Mouse cursor glow.
         class track
             : public skill
         {
@@ -463,15 +465,15 @@ namespace netxs::ui
                 }
             };
 
-            using pool = std::list<id_t>;
+            //using pool = std::list<id_t>;
             using list = socks<sock>;
             using skill::boss,
                   skill::memo;
 
-            pool focus; // track: Is keybd focused.
+            //pool focus; // track: Is keybd focused.
             list items; // track: .
             bool alive; // track: Is active.
-
+/*
             void add_keybd(id_t gear_id)
             {
                 if (gear_id != id_t{})
@@ -498,67 +500,60 @@ namespace netxs::ui
                     }
                 }
             }
+*/
+            static auto& glow_overlay()
+            {
+                static auto bitmap = []
+                {
+                    auto r = 5;
+                    auto blob = core{};
+                    auto area = rect{ dot_00, dot_21 * (r * 2 + 1) };
+                    auto func = netxs::spline01{ 0.65f };
+                    blob.core::area(area, cell{}.bgc(0xFFffffff));
+                    auto iter = blob.begin();
+                    for (auto y = 0; y < area.size.y; y++)
+                    {
+                        auto y0 = (y - area.size.y / 2) / (area.size.y - 2 -     1.6f);
+                        y0 *= y0;
+                        for (auto x = 0; x < area.size.x; x++)
+                        {
+                            auto& c = iter++->bgc();
+                            auto x0 = (x - area.size.x / 2) / (area.size.x - 4 - 2 * 1.6f);
+                            auto dr = std::sqrt(x0 * x0 + y0);
+                            if (dr > 1) c.chan.a = 0;
+                            else
+                            {
+                                auto a = std::round(255.0 * func(1.0f - dr));
+                                c.chan.a = (byte)std::clamp((si32)(a * 0.16f), 0, 255);
+                            }
+                        }
+                    }
+                    return blob;
+                }();
+                return bitmap;
+            }
 
         public:
             track(base&&) = delete;
-            track(base& boss, bool keybd_only = faux)
+            track(base& boss)
                 : skill{ boss },
                   items{ boss },
                   alive{ true }
             {
                 // Keybd focus.
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
-                {
-                    add_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
-                {
-                    del_keybd(seed.id);
-                };
-                boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
-                {
-                    del_keybd(gear.id);
-                };
-                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
-                {
-                    if (focus.empty() || !alive) return;
-                    static constexpr auto title_fg_color = rgba{ 0xFFffffff };
-                    //todo revise, too many fillings (mold's artifacts)
-                    auto normal = boss.base::color();
-                    auto bright = skin::color(tone::brighter);
-                    //auto shadow = skin::color(tone::shadower);
-                    //todo unify, make it more contrast
-                    //shadow.alpha(0x80);
-                    bright.fgc(title_fg_color);
-                    //shadow.fgc(title_fg_color);
-                    auto fillup = [&](auto fx)
-                    {
-                        parent_canvas.fill(fx);
-                    };
-                    if (normal.bgc().alpha())
-                    {
-                        auto fuse_bright = [&](cell& c){ c.fuse(normal); c.fuse(bright); };
-                        //auto fuse_shadow = [&](cell& c){ c.fuse(normal); c.fuse(shadow); };
-                        fillup(fuse_bright);
-                    }
-                    else
-                    {
-                        auto only_bright = [&](cell& c){ c.fuse(bright); };
-                        //auto only_shadow = [&](cell& c){ c.fuse(shadow); };
-                        fillup(only_bright);
-                    }
-                    // Draw the border around
-                    auto area = parent_canvas.full();
-                    auto mark = skin::color(tone::kb_focus);
-                    mark.fgc(title_fg_color); //todo unify, make it more contrast
-                    auto fill = [&](cell& c){ c.fuse(mark); };
-                    parent_canvas.cage(area, dot_21, fill);
-                };
-                boss.LISTEN(tier::anycast, e2::form::prop::lucidity, lucidity, memo)
-                {
-                    if (lucidity != -1) alive = lucidity == 0xFF;
-                };
-                if (keybd_only || !skin::globals().tracking) return;
+                //boss.LISTEN(tier::release, hids::events::keybd::focus::bus::on, seed, memo)
+                //{
+                //    add_keybd(seed.id);
+                //};
+                //boss.LISTEN(tier::release, hids::events::keybd::focus::bus::off, seed, memo)
+                //{
+                //    del_keybd(seed.id);
+                //};
+                //boss.LISTEN(tier::release, hids::events::die, gear, memo) // Gen by pro::focus.
+                //{
+                //    del_keybd(gear.id);
+                //};
+                if (!skin::globals().tracking) return;
                 // Mouse focus.
                 boss.LISTEN(tier::release, hids::events::mouse::move, gear, memo)
                 {
@@ -567,14 +562,14 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive) return;
-                    auto full = parent_canvas.full();
-                    auto mark = cell{}.bgc(0xFFffffff);
-                    auto fill = [&](cell& c){ c.fuse(mark); };
+                    auto& glow = glow_overlay();
+                    auto  coor = parent_canvas.coor();
+                    auto  full = parent_canvas.full();
+                    auto  base = full.coor - coor - glow.size() / 2;
                     items.foreach([&](sock& item)
                     {
-                        auto area = rect{ item.cursor, dot_00 } + dent{ 6,6,3,3 };
-                        area.coor += full.coor;
-                        parent_canvas.fill(area.clip(full), fill);
+                        glow.move(base + item.cursor);
+                        parent_canvas.plot(glow, cell::shaders::blend);
                     });
                 };
             }
@@ -883,13 +878,13 @@ namespace netxs::ui
                                           : live;
                         if (state)
                         {
-                            auto view = canvas.core::view();
-                            if (auto area = view.clip(body))
+                            auto clip = canvas.core::clip();
+                            if (auto area = clip.clip(body))
                             {
                                 auto& test = canvas.peek(body.coor);
                                 if (test.wdt() == 2) // Extend cursor to adjacent halves.
                                 {
-                                    if (view.hittest(body.coor + dot_10))
+                                    if (clip.hittest(body.coor + dot_10))
                                     {
                                         auto& next = canvas.peek(body.coor + dot_10);
                                         if (next.wdt() == 3 && test.same_txt(next))
@@ -900,7 +895,7 @@ namespace netxs::ui
                                 }
                                 else if (test.wdt() == 3)
                                 {
-                                    if (view.hittest(body.coor - dot_10))
+                                    if (clip.hittest(body.coor - dot_10))
                                     {
                                         auto& prev = canvas.peek(body.coor - dot_10);
                                         if (prev.wdt() == 2 && test.same_txt(prev))
@@ -1861,7 +1856,7 @@ namespace netxs::ui
                     auto bright = rgba{0xFFffffff};
 
                     //todo optimize - don't fill the head and foot twice
-                    auto area = parent_canvas.view();
+                    auto area = parent_canvas.clip();
                     auto n = std::clamp(size, 0, area.size.y / 2) + 1;
                     //auto n = std::clamp(size, 0, boss.base::size().y / 2) + 1;
 
@@ -2028,7 +2023,7 @@ namespace netxs::ui
                         }
                         auto full = parent_canvas.full();
                         bosscopy.move(full.coor);
-                        if (lucidity == 0xFF) parent_canvas.fill(bosscopy, cell::shaders::fusefull);
+                        if (lucidity == 0xFF) parent_canvas.fill(bosscopy, cell::shaders::overlay);
                         else                  parent_canvas.fill(bosscopy, cell::shaders::transparent(lucidity));
                         bosscopy.move(dot_00);
                         boss.bell::expire<tier::release>();
@@ -2046,10 +2041,11 @@ namespace netxs::ui
 
             si32 width; // acryl: Blur radius.
             bool alive; // acryl: Is active.
+            vrgb cache; // acryl: Boxblur temp buffer.
 
         public:
             acryl(base&&) = delete;
-            acryl(base& boss, si32 size = 5)
+            acryl(base& boss, si32 size = 3)
                 : skill{ boss },
                   width{ size },
                   alive{ true }
@@ -2065,7 +2061,7 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
                     if (!alive || boss.base::filler.bga() == 0xFF) return;
-                    parent_canvas.blur(width, [&](cell& c){ c.alpha(0xFF); });
+                    parent_canvas.blur(width, cache, [&](cell& c){ c.alpha(0xFF); });
                 };
             }
         };
@@ -2133,6 +2129,103 @@ namespace netxs::ui
                         parent_canvas.fill(area, fx);
                     }
                 };
+            }
+        };
+
+        // pro: UI-control shadow.
+        class ghost
+            : public skill
+        {
+            using skill::boss,
+                  skill::memo;
+
+            si32 radius;
+            twod oversz;
+            twod offset;
+
+            auto draw_shadow(face& canvas)
+            {
+                static auto edge = [&]()
+                {
+                    auto bitmap = core{};
+                    auto spline = netxs::spline01{ 0.36f };
+                    auto sz = dot_21 * (radius * 4 + 1);
+                    bitmap.size(sz);
+                    auto it = bitmap.begin();
+                    for (auto y = 0.f; y < sz.y; y++)
+                    {
+                        auto y0 = y / (sz.y - 1.f);
+                        auto sy = spline(y0);
+                        for (auto x = 0.f; x < sz.x; x++)
+                        {
+                            auto& c = *it++;
+                            auto& f = c.fgc();
+                            auto& b = c.bgc();
+                            auto x0 = x / (sz.x - 1.f);
+                            auto sx = spline(x0);
+                            auto xy = sy * sx;
+                            auto a = (byte)std::round(96.f * xy);
+                            f.chan.a = a;
+                            b.chan.a = a;
+                        }
+                    }
+                    return bitmap;
+                }();
+                canvas.step(offset);
+                auto dir = dot_11;
+                auto win = boss.area();
+                auto src = edge.area();
+                auto dst = rect{ dot_00, win.size + oversz };
+                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
+                auto off = dent{ 0, cut.x, 0, cut.y };
+                src += off;
+                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
+                if (mid)
+                {
+                    auto base_shadow = edge[src.size - dot_11];
+                    netxs::onrect(canvas, mid, cell::shaders::blend(base_shadow));
+                }
+                if (top)
+                {
+                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
+                    netxs::xform_scale(canvas, top, edge, pen, cell::shaders::blend);
+                    top.coor.y += mid.size.y + top.size.y;
+                    netxs::xform_scale(canvas, top, edge, pen.rotate({ 1, -1 }), cell::shaders::blend);
+                }
+                if (lft)
+                {
+                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
+                    netxs::xform_scale(canvas, lft, edge, pen, cell::shaders::blend);
+                    lft.coor.x += mid.size.x + lft.size.x;
+                    netxs::xform_scale(canvas, lft, edge, pen.rotate({ -1, 1 }), cell::shaders::blend);
+                }
+                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
+                canvas.step(-offset);
+            }
+
+        public:
+            ghost(base&&) = delete;
+            ghost(base& boss, si32 shadowsize)
+                : skill{ boss },
+                  radius{ shadowsize },
+                  oversz{ dot_21 * (radius * 4) },
+                  offset{ dot_21 * (radius * 2 - 1)}
+            {
+                boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
+                {
+                    draw_shadow(parent_canvas);
+                };
+                //test
+                //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
+                //{
+                //    draw_shadow();
+                //    boss.base::deface();
+                //};
             }
         };
 
@@ -2254,10 +2347,12 @@ namespace netxs::ui
                 if constexpr (is_cell) fx.link(bell::id);
                 LISTEN(tier::release, RenderOrder, parent_canvas, -, (fx))
                 {
+                    static constexpr auto is_func = requires{ fx(parent_canvas, param, *this); };
                     if (param)
                     {
-                        if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
-                        else                   parent_canvas.fill(fx[param]);
+                             if constexpr (is_func) fx(parent_canvas, param, *this);
+                        else if constexpr (is_cell) parent_canvas.fill(cell::shaders::fuseid(fx));
+                        else                        parent_canvas.fill(fx[param]);
                     }
                 };
             }
@@ -2649,7 +2744,7 @@ namespace netxs::ui
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
                 auto basis = parent_canvas.full();
-                auto frame = parent_canvas.view();
+                auto frame = parent_canvas.clip();
                 auto min_y = frame.coor[updown] - basis.coor[updown];
                 auto max_y = frame.size[updown] + min_y;
                 auto bound = [xy = updown](auto& o){ return o ? o->base::region.coor[xy] + o->base::region.size[xy] : -dot_mx.y; };
@@ -2945,7 +3040,7 @@ namespace netxs::ui
             {
                 output(parent_canvas);
                 //auto mark = rect{ base::anchor + base::coor(), {10,5} };
-                //mark.coor += parent_canvas.view().coor; // Set client's basis
+                //mark.coor += parent_canvas.clip().coor; // Set client's basis
                 //parent_canvas.fill(mark, [](cell& c){ c.alpha(0x80).bgc().chan.r = 0xff; });
             };
         }
@@ -3818,7 +3913,7 @@ namespace netxs::ui
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {
-                auto region = parent_canvas.view();
+                auto region = parent_canvas.clip();
                 auto object = parent_canvas.full();
                 auto handle = region;
 
@@ -3893,10 +3988,10 @@ namespace netxs::ui
         {
             LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
             {
-                auto view = parent_canvas.view();
-                parent_canvas.view(view + extpad);
+                auto clip = parent_canvas.clip();
+                parent_canvas.clip(clip + extpad);
                 this->SIGNAL(tier::release, e2::render::any, parent_canvas);
-                parent_canvas.view(view);
+                parent_canvas.clip(clip);
                 if (!empty())
                 {
                     auto& item = *base::subset.back();
@@ -3965,7 +4060,7 @@ namespace netxs::ui
         para data{}; // item: Label content.
         bool flex{}; // item: Violate or not the label size.
         bool test{}; // item: Place or not(default) the Two Dot Leader when there is not enough space.
-        bool unln{}; // item: Draw full-width underline.
+        bool ulin{}; // item: Draw full-width underline.
 
     protected:
         item(view label = {})
@@ -3983,7 +4078,7 @@ namespace netxs::ui
                 parent_canvas.output(data);
                 if (test)
                 {
-                    auto area = parent_canvas.view();
+                    auto area = parent_canvas.clip();
                     auto size = data.size();
                     if (area.size > 0 && size.x > 0)
                     {
@@ -3991,25 +4086,25 @@ namespace netxs::ui
                         {
                             auto coor = area.coor - parent_canvas.coor();
                             coor.y += std::min(area.size.y - 1, base::intpad.t);
-                            parent_canvas.core::data(coor)->txt(dots);
+                            parent_canvas.core::begin(coor)->txt(dots);
                         }
                         if (full.coor.x + base::intpad.l + size.x + base::intpad.r > area.coor.x + area.size.x)
                         {
                             auto coor = area.coor - parent_canvas.coor();
                             coor.x += area.size.x - 1;
                             coor.y += std::min(area.size.y - 1, base::intpad.t);
-                            parent_canvas.core::data(coor)->txt(dots);
+                            parent_canvas.core::begin(coor)->txt(dots);
                         }
                     }
                 }
-                if (unln)
+                if (ulin)
                 {
                     auto area = parent_canvas.full();
                     parent_canvas.fill(area, [](cell& c)
                     {
                         auto u = c.und();
-                        if (u == 1) c.und(2);
-                        else        c.und(1);
+                        if (u == unln::line) c.und(unln::biline);
+                        else                 c.und(unln::line);
                     });
                 }
                 parent_canvas.bump(context);
@@ -4028,7 +4123,7 @@ namespace netxs::ui
         // item: .
         auto drawdots(bool b = true) { test = b; return This(); }
         // item: .
-        auto accented(bool b = true) { unln = b; return This(); }
+        auto accented(bool b = true) { ulin = b; return This(); }
         // item: .
         void brush(cell c)
         {

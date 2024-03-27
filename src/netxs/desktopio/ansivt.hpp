@@ -178,6 +178,11 @@ namespace netxs::ansi
     static const auto sgr_nostrike  = 29;
     static const auto sgr_overln    = 53;
     static const auto sgr_nooverln  = 55;
+    static const auto sgr_uline_clr = 58;
+    static const auto sgr_uline_rst = 59;
+    static const auto sgr_gridlines = 60; // \e[60:n m  gridline. Bits in n: 0: left, 1: right, 2: top, 3: botton.
+    static const auto sgr_grid_clr  = 68;
+    static const auto sgr_grid_rst  = 69;
     static const auto sgr_fg_blk    = 30;
     static const auto sgr_fg_red    = 31;
     static const auto sgr_fg_grn    = 32;
@@ -341,8 +346,21 @@ namespace netxs::ansi
         }
 
         auto& bld(bool b)    { return add(b ? "\033[1m" : "\033[22m"         ); } // basevt: SGR 𝗕𝗼𝗹𝗱 attribute.
-        auto& und(si32 n)    { return add(n==0 ? "\033[24m" :
-                                          n==2 ? "\033[21m" : "\033[4m"      ); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& und(si32 n)    { return n==unln::none   ? add("\033[24m")
+                                    : n==unln::line   ? add("\033[4m")
+                                    : n==unln::biline ? add("\033[21m")
+                                                      : add("\033[4:", n, "m"); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
+        auto& unc(rgba c) // basevt: SGR 58/59 Underline color. RGB: red, green, blue.
+        {
+            return c.token == 0 ? add("\033[59m")
+                                : add("\033[58:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
+        }
+        auto& grd(rgba c) // basevt: SGR 68/69 Grid color. RGB: red, green, blue.
+        {
+            return c.token == 0 ? add("\033[69m")
+                                : add("\033[68:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
+        }
+        auto& gln(si32 n)    { return add("\033[60:", n, "m"                 ); } // basevt: SGR gridline attribute.
         auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
         auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         auto& itc(bool b)    { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -376,13 +394,13 @@ namespace netxs::ansi
         auto& del(si32 n)    { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
         auto& del_below()    { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
         auto& fgx(rgba c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
-                                                               c.chan.g, ':',
-                                                               c.chan.b, ':',
-                                                               c.chan.a, 'm'); }
+                                                        c.chan.g, ':',
+                                                        c.chan.b, ':',
+                                                        c.chan.a, 'm'); }
         auto& bgx(rgba c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
-                                                               c.chan.g, ':',
-                                                               c.chan.b, ':',
-                                                               c.chan.a, 'm'); }
+                                                        c.chan.g, ':',
+                                                        c.chan.b, ':',
+                                                        c.chan.a, 'm'); }
         auto& fgc256(si32 c) { return add("\033[38;5;", c, 'm'); } // basevt: SGR Foreground color (256-color mode).
         auto& bgc256(si32 c) { return add("\033[48;5;", c, 'm'); } // basevt: SGR Background color (256-color mode).
         auto& fgc_16(si32 f) // basevt: SGR Foreground color (16-color mode).
@@ -807,6 +825,9 @@ namespace netxs::ansi
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
+    auto unc(rgba c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
+    auto grd(rgba c)           { return escx{}.grd(c);        } // ansi: SGR SGR 68/69 grid color. RGB: red, green, blue.
+    auto gln(si32 n)           { return escx{}.gln(n);        } // ansi: SGR SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -1138,6 +1159,9 @@ namespace netxs::ansi
             * - void inv(bool b);                    // Set inverse attribute.
             * - void stk(bool b);                    // Set strikethgh attribute.
             * - void und(si32 b);                    // Set underline attribute. 1 - single, 2 - double.
+            * - void unc(rgba c);                    // Set underline color.
+            * - void grd(rgba c);                    // Set grid color.
+            * - void gln(si32 n);                    // Set SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
             * - void blk(bool b);                    // Set blink attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
@@ -1231,60 +1255,65 @@ namespace netxs::ansi
 
                 auto& sgr = table[csi_sgr].resize(0x100);
                     sgr.template enable_multi_arg<NoMultiArg>();
-                    sgr[sgr_rst      ] = V{ p->brush.nil( );    }; // fx_sgr_rst      ;
-                    sgr[sgr_sav      ] = V{ p->brush.sav( );    }; // fx_sgr_sav      ;
-                    sgr[sgr_fg       ] = V{ p->brush.rfg( );    }; // fx_sgr_fg_def   ;
-                    sgr[sgr_bg       ] = V{ p->brush.rbg( );    }; // fx_sgr_bg_def   ;
-                    sgr[sgr_bold     ] = V{ p->brush.bld(true); }; // fx_sgr_bld<true>;
-                    sgr[sgr_faint    ] = V{ p->brush.bld(faux); }; // fx_sgr_bld<faux>;
-                    sgr[sgr_italic   ] = V{ p->brush.itc(true); }; // fx_sgr_itc<true>;
-                    sgr[sgr_nonitalic] = V{ p->brush.itc(faux); }; // fx_sgr_itc<faux>;
-                    sgr[sgr_inv      ] = V{ p->brush.inv(true); }; // fx_sgr_inv<true>;
-                    sgr[sgr_noinv    ] = V{ p->brush.inv(faux); }; // fx_sgr_inv<faux>;
-                    sgr[sgr_und      ] = V{ p->brush.und(   1); }; // fx_sgr_und;
-                    sgr[sgr_doubleund] = V{ p->brush.und(   2); }; // fx_sgr_dnl;
-                    sgr[sgr_nound    ] = V{ p->brush.und(faux); }; // fx_sgr_und;
-                    sgr[sgr_slowblink] = V{ p->brush.blk(true); }; // fx_sgr_blk;
-                    sgr[sgr_fastblink] = V{ p->brush.blk(true); }; // fx_sgr_blk;
-                    sgr[sgr_no_blink ] = V{ p->brush.blk(faux); }; // fx_sgr_blk;
-                    sgr[sgr_strike   ] = V{ p->brush.stk(true); }; // fx_sgr_stk<true>;
-                    sgr[sgr_nostrike ] = V{ p->brush.stk(faux); }; // fx_sgr_stk<faux>;
-                    sgr[sgr_overln   ] = V{ p->brush.ovr(true); }; // fx_sgr_ovr<faux>;
-                    sgr[sgr_nooverln ] = V{ p->brush.ovr(faux); }; // fx_sgr_ovr<faux>;
-                    sgr[sgr_fg_rgb   ] = V{ p->brush.fgc(q);    }; // fx_sgr_fg_rgb   ;
-                    sgr[sgr_bg_rgb   ] = V{ p->brush.bgc(q);    }; // fx_sgr_bg_rgb   ;
-                    sgr[sgr_fg_blk   ] = V{ p->brush.fgc(tint::blackdk  ); }; // fx_sgr_fg_16<tint::blackdk>  ;
-                    sgr[sgr_fg_red   ] = V{ p->brush.fgc(tint::reddk    ); }; // fx_sgr_fg_16<tint::reddk>    ;
-                    sgr[sgr_fg_grn   ] = V{ p->brush.fgc(tint::greendk  ); }; // fx_sgr_fg_16<tint::greendk>  ;
-                    sgr[sgr_fg_ylw   ] = V{ p->brush.fgc(tint::yellowdk ); }; // fx_sgr_fg_16<tint::yellowdk> ;
-                    sgr[sgr_fg_blu   ] = V{ p->brush.fgc(tint::bluedk   ); }; // fx_sgr_fg_16<tint::bluedk>   ;
-                    sgr[sgr_fg_mgt   ] = V{ p->brush.fgc(tint::magentadk); }; // fx_sgr_fg_16<tint::magentadk>;
-                    sgr[sgr_fg_cyn   ] = V{ p->brush.fgc(tint::cyandk   ); }; // fx_sgr_fg_16<tint::cyandk>   ;
-                    sgr[sgr_fg_wht   ] = V{ p->brush.fgc(tint::whitedk  ); }; // fx_sgr_fg_16<tint::whitedk>  ;
-                    sgr[sgr_fg_blk_lt] = V{ p->brush.fgc(tint::blacklt  ); }; // fx_sgr_fg_16<tint::blacklt>  ;
-                    sgr[sgr_fg_red_lt] = V{ p->brush.fgc(tint::redlt    ); }; // fx_sgr_fg_16<tint::redlt>    ;
-                    sgr[sgr_fg_grn_lt] = V{ p->brush.fgc(tint::greenlt  ); }; // fx_sgr_fg_16<tint::greenlt>  ;
-                    sgr[sgr_fg_ylw_lt] = V{ p->brush.fgc(tint::yellowlt ); }; // fx_sgr_fg_16<tint::yellowlt> ;
-                    sgr[sgr_fg_blu_lt] = V{ p->brush.fgc(tint::bluelt   ); }; // fx_sgr_fg_16<tint::bluelt>   ;
-                    sgr[sgr_fg_mgt_lt] = V{ p->brush.fgc(tint::magentalt); }; // fx_sgr_fg_16<tint::magentalt>;
-                    sgr[sgr_fg_cyn_lt] = V{ p->brush.fgc(tint::cyanlt   ); }; // fx_sgr_fg_16<tint::cyanlt>   ;
-                    sgr[sgr_fg_wht_lt] = V{ p->brush.fgc(tint::whitelt  ); }; // fx_sgr_fg_16<tint::whitelt>  ;
-                    sgr[sgr_bg_blk   ] = V{ p->brush.bgc(tint::blackdk  ); }; // fx_sgr_bg_16<tint::blackdk>  ;
-                    sgr[sgr_bg_red   ] = V{ p->brush.bgc(tint::reddk    ); }; // fx_sgr_bg_16<tint::reddk>    ;
-                    sgr[sgr_bg_grn   ] = V{ p->brush.bgc(tint::greendk  ); }; // fx_sgr_bg_16<tint::greendk>  ;
-                    sgr[sgr_bg_ylw   ] = V{ p->brush.bgc(tint::yellowdk ); }; // fx_sgr_bg_16<tint::yellowdk> ;
-                    sgr[sgr_bg_blu   ] = V{ p->brush.bgc(tint::bluedk   ); }; // fx_sgr_bg_16<tint::bluedk>   ;
-                    sgr[sgr_bg_mgt   ] = V{ p->brush.bgc(tint::magentadk); }; // fx_sgr_bg_16<tint::magentadk>;
-                    sgr[sgr_bg_cyn   ] = V{ p->brush.bgc(tint::cyandk   ); }; // fx_sgr_bg_16<tint::cyandk>   ;
-                    sgr[sgr_bg_wht   ] = V{ p->brush.bgc(tint::whitedk  ); }; // fx_sgr_bg_16<tint::whitedk>  ;
-                    sgr[sgr_bg_blk_lt] = V{ p->brush.bgc(tint::blacklt  ); }; // fx_sgr_bg_16<tint::blacklt>  ;
-                    sgr[sgr_bg_red_lt] = V{ p->brush.bgc(tint::redlt    ); }; // fx_sgr_bg_16<tint::redlt>    ;
-                    sgr[sgr_bg_grn_lt] = V{ p->brush.bgc(tint::greenlt  ); }; // fx_sgr_bg_16<tint::greenlt>  ;
-                    sgr[sgr_bg_ylw_lt] = V{ p->brush.bgc(tint::yellowlt ); }; // fx_sgr_bg_16<tint::yellowlt> ;
-                    sgr[sgr_bg_blu_lt] = V{ p->brush.bgc(tint::bluelt   ); }; // fx_sgr_bg_16<tint::bluelt>   ;
-                    sgr[sgr_bg_mgt_lt] = V{ p->brush.bgc(tint::magentalt); }; // fx_sgr_bg_16<tint::magentalt>;
-                    sgr[sgr_bg_cyn_lt] = V{ p->brush.bgc(tint::cyanlt   ); }; // fx_sgr_bg_16<tint::cyanlt>   ;
-                    sgr[sgr_bg_wht_lt] = V{ p->brush.bgc(tint::whitelt  ); }; // fx_sgr_bg_16<tint::whitelt>  ;
+                    sgr[sgr_sav      ] = V{ p->brush.sav( );    };
+                    sgr[sgr_rst      ] = V{ p->brush.nil( );    };
+                    sgr[sgr_fg       ] = V{ p->brush.rfg( );    };
+                    sgr[sgr_bg       ] = V{ p->brush.rbg( );    };
+                    sgr[sgr_bold     ] = V{ p->brush.bld(true); };
+                    sgr[sgr_faint    ] = V{ p->brush.bld(faux); };
+                    sgr[sgr_italic   ] = V{ p->brush.itc(true); };
+                    sgr[sgr_nonitalic] = V{ p->brush.itc(faux); };
+                    sgr[sgr_inv      ] = V{ p->brush.inv(true); };
+                    sgr[sgr_noinv    ] = V{ p->brush.inv(faux); };
+                    sgr[sgr_und      ] = V{ p->brush.und(q(unln::line));  };
+                    sgr[sgr_doubleund] = V{ p->brush.und(  unln::biline); };
+                    sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
+                    sgr[sgr_uline_clr] = V{ p->brush.unc(rgba{ q }); };
+                    sgr[sgr_uline_rst] = V{ p->brush.unc(rgba{   }); };
+                    sgr[sgr_grid_clr ] = V{ p->brush.grd(rgba{ q }); };
+                    sgr[sgr_grid_rst ] = V{ p->brush.grd(rgba{   }); };
+                    sgr[sgr_gridlines] = V{ p->brush.gln(q(0)); };
+                    sgr[sgr_slowblink] = V{ p->brush.blk(true); };
+                    sgr[sgr_fastblink] = V{ p->brush.blk(true); };
+                    sgr[sgr_no_blink ] = V{ p->brush.blk(faux); };
+                    sgr[sgr_strike   ] = V{ p->brush.stk(true); };
+                    sgr[sgr_nostrike ] = V{ p->brush.stk(faux); };
+                    sgr[sgr_overln   ] = V{ p->brush.ovr(true); };
+                    sgr[sgr_nooverln ] = V{ p->brush.ovr(faux); };
+                    sgr[sgr_fg_rgb   ] = V{ p->brush.fgc(q);    };
+                    sgr[sgr_bg_rgb   ] = V{ p->brush.bgc(q);    };
+                    sgr[sgr_fg_blk   ] = V{ p->brush.fgc(tint::blackdk  ); };
+                    sgr[sgr_fg_red   ] = V{ p->brush.fgc(tint::reddk    ); };
+                    sgr[sgr_fg_grn   ] = V{ p->brush.fgc(tint::greendk  ); };
+                    sgr[sgr_fg_ylw   ] = V{ p->brush.fgc(tint::yellowdk ); };
+                    sgr[sgr_fg_blu   ] = V{ p->brush.fgc(tint::bluedk   ); };
+                    sgr[sgr_fg_mgt   ] = V{ p->brush.fgc(tint::magentadk); };
+                    sgr[sgr_fg_cyn   ] = V{ p->brush.fgc(tint::cyandk   ); };
+                    sgr[sgr_fg_wht   ] = V{ p->brush.fgc(tint::whitedk  ); };
+                    sgr[sgr_fg_blk_lt] = V{ p->brush.fgc(tint::blacklt  ); };
+                    sgr[sgr_fg_red_lt] = V{ p->brush.fgc(tint::redlt    ); };
+                    sgr[sgr_fg_grn_lt] = V{ p->brush.fgc(tint::greenlt  ); };
+                    sgr[sgr_fg_ylw_lt] = V{ p->brush.fgc(tint::yellowlt ); };
+                    sgr[sgr_fg_blu_lt] = V{ p->brush.fgc(tint::bluelt   ); };
+                    sgr[sgr_fg_mgt_lt] = V{ p->brush.fgc(tint::magentalt); };
+                    sgr[sgr_fg_cyn_lt] = V{ p->brush.fgc(tint::cyanlt   ); };
+                    sgr[sgr_fg_wht_lt] = V{ p->brush.fgc(tint::whitelt  ); };
+                    sgr[sgr_bg_blk   ] = V{ p->brush.bgc(tint::blackdk  ); };
+                    sgr[sgr_bg_red   ] = V{ p->brush.bgc(tint::reddk    ); };
+                    sgr[sgr_bg_grn   ] = V{ p->brush.bgc(tint::greendk  ); };
+                    sgr[sgr_bg_ylw   ] = V{ p->brush.bgc(tint::yellowdk ); };
+                    sgr[sgr_bg_blu   ] = V{ p->brush.bgc(tint::bluedk   ); };
+                    sgr[sgr_bg_mgt   ] = V{ p->brush.bgc(tint::magentadk); };
+                    sgr[sgr_bg_cyn   ] = V{ p->brush.bgc(tint::cyandk   ); };
+                    sgr[sgr_bg_wht   ] = V{ p->brush.bgc(tint::whitedk  ); };
+                    sgr[sgr_bg_blk_lt] = V{ p->brush.bgc(tint::blacklt  ); };
+                    sgr[sgr_bg_red_lt] = V{ p->brush.bgc(tint::redlt    ); };
+                    sgr[sgr_bg_grn_lt] = V{ p->brush.bgc(tint::greenlt  ); };
+                    sgr[sgr_bg_ylw_lt] = V{ p->brush.bgc(tint::yellowlt ); };
+                    sgr[sgr_bg_blu_lt] = V{ p->brush.bgc(tint::bluelt   ); };
+                    sgr[sgr_bg_mgt_lt] = V{ p->brush.bgc(tint::magentalt); };
+                    sgr[sgr_bg_cyn_lt] = V{ p->brush.bgc(tint::cyanlt   ); };
+                    sgr[sgr_bg_wht_lt] = V{ p->brush.bgc(tint::whitelt  ); };
 
             #undef F
             #undef V

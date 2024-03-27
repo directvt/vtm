@@ -926,11 +926,12 @@ namespace netxs::ui
             base::intpad = new_intpad;
             base::extpad = new_extpad;
         }
-        // base.: Render to the canvas. Trim = trim viewport to the nested object region.
+        // base: Render to the canvas. Trim = trim viewport to the nested object region.
+        template<bool Forced = faux>
         void render(face& canvas, bool trim = true, bool pred = true, bool post = true)
         {
             if (hidden) return;
-            if (auto context = canvas.change_basis(base::region, trim)) // Basis = base::region.coor.
+            if (auto context = canvas.change_basis<Forced>(base::region, trim)) // Basis = base::region.coor.
             {
                 if (pred) SIGNAL(tier::release, e2::render::background::prerender, canvas);
                 if (post) SIGNAL(tier::release, e2::postrender, canvas);

@@ -443,6 +443,7 @@ namespace netxs::app::vtm
             };
             std::unordered_map<id_t, slot_t> slots;
             escx coder;
+            vrgb cache;
 
             void check_modifiers(hids& gear)
             {
@@ -492,6 +493,7 @@ namespace netxs::app::vtm
                 if (gear.captured(boss.bell::id))
                 {
                     slots.erase(gear.id);
+                    if (slots.empty()) cache = {};
                     gear.dismiss();
                     gear.setfree();
                 }
@@ -510,6 +512,7 @@ namespace netxs::app::vtm
                         boss.RISEUP(tier::request, e2::form::proceed::createby, gear);
                     }
                     slots.erase(gear.id);
+                    if (slots.empty()) cache = {};
                     gear.dismiss();
                     gear.setfree();
                 }
@@ -600,10 +603,10 @@ namespace netxs::app::vtm
                             }
                             else
                             {
-                                auto temp = canvas.view();
-                                canvas.view(area);
+                                auto temp = canvas.clip();
+                                canvas.clip(area);
                                 canvas.fill(area, [&](cell& c){ c.fuse(mark); c.und(faux); });
-                                canvas.blur(10);
+                                canvas.blur(5, cache);
                                 coder.wrp(wrap::off).add(' ').add(slot.size.x).add(" × ").add(slot.size.y).add(' ');
                                 //todo optimize para
                                 auto caption = para(coder);
@@ -613,7 +616,7 @@ namespace netxs::app::vtm
                                 coor.x -= caption.length() - 1;
                                 header.move(coor);
                                 canvas.fill(header, cell::shaders::contrast);
-                                canvas.view(temp);
+                                canvas.clip(temp);
                             }
                         }
                     }
@@ -1094,12 +1097,9 @@ namespace netxs::app::vtm
                     head = iter;
                     while (head != tail) { auto& item = *head++; if (visible(item, canvas)) item->fasten(canvas); }
                 }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render(canvas); }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render(canvas); }
-                head = iter;
-                while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::backmost) item->object->render<true>(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::plain   ) item->object->render<true>(canvas); }
+                head = iter; while (head != tail) { auto& item = *head++; if (visible(item, canvas) && item->z_order == zpos::topmost ) item->object->render<true>(canvas); }
             }
             //hall::list: Draw spectator's mouse pointers.
             void postrender(face& canvas)
@@ -1248,6 +1248,7 @@ namespace netxs::app::vtm
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
+                ->plugin<pro::ghost>(2)
                 ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()
@@ -1541,12 +1542,9 @@ namespace netxs::app::vtm
             conf_rec.notes      = item.take(attr::notes,    fallback.notes   );
             conf_rec.title      = item.take(attr::title,    fallback.title   );
             conf_rec.footer     = item.take(attr::footer,   fallback.footer  );
-            conf_rec.bgc        = item.take(attr::bgc,      fallback.bgc     );
-            conf_rec.fgc        = item.take(attr::fgc,      fallback.fgc     );
             conf_rec.winsize    = item.take(attr::winsize,  fallback.winsize );
             conf_rec.wincoor    = item.take(attr::wincoor,  fallback.wincoor );
             conf_rec.winform    = item.take(attr::winform,  fallback.winform, shared::winform::options);
-            conf_rec.slimmenu   = item.take(attr::slimmenu, fallback.slimmenu);
             conf_rec.hotkey     = item.take(attr::hotkey,   fallback.hotkey  ); //todo register hotkey
             conf_rec.appcfg.cwd = item.take(attr::cwd,      fallback.appcfg.cwd);
             conf_rec.appcfg.cfg = item.take(attr::cfg, ""s);
@@ -1622,7 +1620,6 @@ namespace netxs::app::vtm
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .fixed    = true,
                                        .winform  = shared::winform::undefined,
-                                       .slimmenu = host::config.take(path::menuslim, true),
                                        .type     = app::vtty::id };
             auto menuid = itemptr->take(attr::id, ""s);
             if (menuid.empty())
@@ -1687,7 +1684,6 @@ namespace netxs::app::vtm
             auto itemptr = appconf.homelist.front();
             auto appspec = desk::spec{ .hidden   = true,
                                        .winform  = shared::winform::undefined,
-                                       .slimmenu = host::config.take(path::menuslim, true),
                                        .type     = app::vtty::id,
                                        .gearid   = script.hid };
             auto menuid = itemptr->take(attr::id, ""s);
@@ -1745,7 +1741,6 @@ namespace netxs::app::vtm
             auto  temp_list = free_list;
             auto  dflt_spec = desk::spec{ .hidden   = faux,
                                           .winform  = shared::winform::undefined,
-                                          .slimmenu = faux,
                                           .type     = app::vtty::id,
                                           .notfound = true };
             auto find = [&](auto const& menuid) -> auto&
@@ -1840,9 +1835,6 @@ namespace netxs::app::vtm
                 what.applet = maker(setup.appcfg, host::config);
                 what.header = setup.title;
                 what.footer = setup.footer;
-                if (setup.bgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::bg,   setup.bgc);
-                if (setup.fgc     ) what.applet->SIGNAL(tier::anycast, e2::form::prop::colors::fg,   setup.fgc);
-                if (setup.slimmenu) what.applet->SIGNAL(tier::anycast, e2::form::prop::ui::slimmenu, setup.slimmenu);
             };
             LISTEN(tier::general, e2::conio::logs, utf8) // Forward logs from brokers.
             {
@@ -2183,8 +2175,8 @@ namespace netxs::app::vtm
         // hall: .
         void redraw(face& canvas)
         {
-            users.prerender (canvas); // Draw backpane for spectators.
-            items.render    (canvas); // Draw objects of the world.
+            users.prerender(canvas);  // Draw backpane for spectators.
+            items.render(canvas);     // Draw objects of the world.
             users.postrender(canvas); // Draw spectator's mouse pointers.
         }
         // hall: .

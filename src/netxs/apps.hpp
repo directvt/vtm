@@ -96,23 +96,17 @@ namespace netxs::app::shared
         auto build_settings      = [](eccc /*appcfg*/, xmls& /*config*/)
         {
             auto window = ui::cake::ctor();
+            auto colors = cell{}.bgc(bluedk).fgc(cyanlt);
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::cache>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->attach(ui::stem_rate<tier::preview, decltype(e2::config::fps)>::ctor("Set frame rate limit", 1, 200, "fps"))
-                  ->active()
-                  ->colors(0xFFFFFFFF, bluedk)
+                  ->active(colors)
                   ->invoke([&](auto& boss)
                   {
                         //boss.keybd.accept(true);
                         closing_by_gesture(boss);
                         closing_on_quit(boss);
-                        boss.LISTEN(tier::anycast, e2::form::prop::colors::any, clr)
-                        {
-                            auto deed = boss.bell::template protos<tier::anycast>();
-                                 if (deed == e2::form::prop::colors::bg.id) boss.base::color(boss.base::color().fgc(), clr);
-                            else if (deed == e2::form::prop::colors::fg.id) boss.base::color(clr, boss.base::color().bgc());
-                        };
                   });
             return window;
         };
@@ -121,7 +115,7 @@ namespace netxs::app::shared
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
                   ->plugin<pro::track>()
-                  ->plugin<pro::acryl>()
+                  //->plugin<pro::acryl>()
                   ->plugin<pro::notes>(" Left+Right click to close ")
                   ->invoke([&](auto& boss)
                   {
@@ -319,6 +313,7 @@ namespace netxs::app::shared
                     //todo too hacky
                     if (auto form_ptr = std::dynamic_pointer_cast<ui::cake>(parent_ptr))
                     {
+                        form_ptr->unplug<pro::ghost>();
                         form_ptr->plugin<pro::notes>(" Right click to set title from clipboard. Left+Right to close. ");
                     }
 

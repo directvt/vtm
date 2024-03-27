@@ -52,7 +52,7 @@ namespace netxs::ui
         si32 caret_mx{ }; // flow: Maximum x-coor value on the visible area.
         twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position.
         twod caretsav{ }; // flow: Caret pos saver.
-        rect viewrect{ }; // flow: Client area inside page margins.
+        rect cliprect{ }; // flow: Client area inside page margins.
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator.
         rect pagecopy{ }; // flow: Client full area saver.
         deco selfcopy{ }; // flow: Flow state storage.
@@ -120,7 +120,7 @@ namespace netxs::ui
             auto outwidth = si32{};
             if constexpr (Wrap)
             {
-                printout = textline.trunc(viewrect.size);
+                printout = textline.trunc(cliprect.size);
                 outwidth = printout.coor.x + printout.size.x - textline.coor.x;
 
                 if constexpr (!Split)
@@ -163,19 +163,19 @@ namespace netxs::ui
             curpoint += std::max(printout.size.x, 1);
             textline.size.x = textsize - curpoint;
 
-            if (RtoL) printout.coor.x = viewrect.size.x - (printout.coor.x + printout.size.x);
-            if (ReLF) printout.coor.y = viewrect.size.y - (printout.coor.y + printout.size.y);
+            if (RtoL) printout.coor.x = cliprect.size.x - (printout.coor.x + printout.size.x);
+            if (ReLF) printout.coor.y = cliprect.size.y - (printout.coor.y + printout.size.y);
             else      printout.coor.y = textline.coor.y; //do not truncate y-axis?
             //todo revise: It is actually only for the coor.y that is negative.
 
-            printout.coor += viewrect.coor;
+            printout.coor += cliprect.coor;
             boundary |= printout;
 
             if constexpr (!std::is_same_v<P, noop>)
             {
                 //todo margins don't apply to unwrapped text
                 //auto imprint = Wrap ? printout
-                //                    : viewrect.clip(printout);
+                //                    : cliprect.clip(printout);
                 if (printout)
                 {
                     auto& coord = printout.coor;
@@ -188,7 +188,7 @@ namespace netxs::ui
             highness = textline.size.y;
         }
 
-        auto middle() { return (viewrect.size.x >> 1) - (textline.size.x >> 1); }
+        auto middle() { return (cliprect.size.x >> 1) - (textline.size.x >> 1); }
         void autocr() { if (caretpos.x >= caret_mx) flow::nl(highness); }
 
         template<bool Split, bool RtoL, bool ReLF, class T, class P>
@@ -268,9 +268,9 @@ namespace netxs::ui
             {
                 textline = getvol(block_size);
                 curpoint = 0;
-                viewrect = textpads.area(size_x, size_y);
-                viewrect.coor += pagerect.coor;
-                caret_mx = viewrect.size.x;
+                cliprect = textpads.area(size_x, size_y);
+                cliprect.coor += pagerect.coor;
+                caret_mx = cliprect.size.x;
 
                 // Move cursor down if next line is lower than previous.
                 if (highness > textline.size.y)
@@ -465,18 +465,18 @@ namespace netxs::ui
             return a < w ? shot{ body, a, std::min(std::max(0, length), w - a) }
                          : shot{ body, 0, 0 };
         }
-                  auto&  mark() const { return  body.mark();        }
-                  auto   data() const { return  body.data() + skip; }
-        constexpr auto   size() const { return  body.size();        }
-        constexpr auto  empty() const { return !used;               }
-        constexpr auto length() const { return  used;               }
+                  auto&  mark() const { return  body.mark();         }
+                  auto  begin() const { return  body.begin() + skip; }
+        constexpr auto   size() const { return  body.size();         }
+        constexpr auto  empty() const { return !used;                }
+        constexpr auto length() const { return  used;                }
         // shot: Compare content.
         template<class P>
         auto same(shot const& s, P compare) const
         {
             if (used != s.used) return faux;
-            auto dest = s.body.iter();
-            auto head =   body.iter();
+            auto dest = s.body.begin();
+            auto head =   body.begin();
             auto tail = head + used;
             while (head != tail)
             {
@@ -493,7 +493,7 @@ namespace netxs::ui
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? used, body.size().y } };
             auto place = rect{ coord, { used, body.size().y } };
-            auto joint = canvas.view().clip(place);
+            auto joint = canvas.clip().clip(place);
             if (joint)
             {
                 if constexpr (RtoL)
@@ -536,8 +536,8 @@ namespace netxs::ui
         void shrink(cell const& blank, si32 max_size = 0, si32 min_size = 0)
         {
             assert(min_size <= length());
-            auto head = iter();
-            auto tail = iend();
+            auto head = begin();
+            auto tail = end();
             auto stop = head + min_size;
             while (stop != tail)
             {
@@ -563,7 +563,7 @@ namespace netxs::ui
                 if (at >= len) return;
                 count = std::min(count, len - at);
             }
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + count;
             while (dst != end) *dst++ = blank;
@@ -573,10 +573,10 @@ namespace netxs::ui
         {
             auto len = fragment.length();
             resize(len + at);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + len;
-            auto src = fragment.data();
+            auto src = fragment.begin();
             while (dst != end) fuse(*dst++, *src++);
         }
         template<bool Copy = faux, class SrcIt, class DstIt, class Shader>
@@ -753,7 +753,7 @@ namespace netxs::ui
         {
             if (count <= 0) return;
             resize(at + count);
-            auto end = iter() + at;
+            auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
@@ -762,7 +762,7 @@ namespace netxs::ui
         void splice(twod at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            auto end = iter() + at.x + at.y * size().x;
+            auto end = begin() + at.x + at.y * size().x;
             auto dst = end + count;
             auto src = proto.end();
             reverse_fill_proc<Copy>(src, dst, end, fuse);
@@ -770,7 +770,7 @@ namespace netxs::ui
         // rich: Scroll by gap the 2D-block of lines between top and end (exclusive); down: gap > 0; up: gap < 0.
         void scroll(si32 top, si32 end, si32 gap, cell const& clr)
         {
-            auto data = core::data();
+            auto data = core::begin();
             auto size = core::size();
             auto step = size.x;
             assert(top >= 0 && top < end && end <= size.y);
@@ -823,7 +823,7 @@ namespace netxs::ui
             auto need = from + size + step;
             if (need > core::size().x) crop(need);
 
-            auto tail = core::iter() + from;
+            auto tail = core::begin() + from;
             auto iter = tail + size;
             while (iter != tail)
             {
@@ -846,7 +846,7 @@ namespace netxs::ui
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
             resize(max);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + max;
             auto src = dst - vol;
             auto end = ptr + at;
@@ -859,7 +859,7 @@ namespace netxs::ui
             if (count <= 0) return;
             auto len = length();
             crop(std::max(at, len) + count);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at;
             auto end = pos + count;
             auto src = ptr + len;
@@ -881,7 +881,7 @@ namespace netxs::ui
                 auto pos = at % margin;
                 auto rem = std::min(margin - pos, len - at);
                 auto vol = std::min(count, rem);
-                auto dst = iter() + at;
+                auto dst = begin() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
                 while (src != end) *dst++ = *src++;
@@ -897,7 +897,7 @@ namespace netxs::ui
             {
                 auto rem = len - at;
                 auto vol = std::min(count, rem);
-                auto dst = iter() + at;
+                auto dst = begin() + at;
                 auto end = dst + rem;
                 auto src = dst + vol;
                 while (src != end) *dst++ = *src++;
@@ -915,7 +915,7 @@ namespace netxs::ui
                 count = std::min(count, margin);
                 if (count >= len - at)
                 {
-                    auto ptr = iter();
+                    auto ptr = begin();
                     auto dst = ptr + at;
                     auto end = ptr + len;
                     while (dst != end) *dst++ = blank;
@@ -923,7 +923,7 @@ namespace netxs::ui
                 else
                 {
                     resize(margin + at);
-                    auto ptr = iter();
+                    auto ptr = begin();
                     auto dst = ptr + at;
                     auto src = dst + count;
                     auto end = dst - count + margin;
@@ -940,7 +940,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + at.x + at.y * len.x;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
@@ -957,7 +957,7 @@ namespace netxs::ui
             count -= dt;
             if (count <= 0) return;
             auto vol = std::min(count, len.x * len.y - d2);
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + d2;
             auto end = dst + vol;
             while (dst != end) *dst++ = blank;
@@ -969,7 +969,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + len.x;
             auto end = pos + at.x;
@@ -984,7 +984,7 @@ namespace netxs::ui
             auto len = size();
             auto vol = std::min(count, len.x - at.x);
             assert(at.x + at.y * len.x + vol <= len.y * len.x);
-            auto ptr = iter();
+            auto ptr = begin();
             auto pos = ptr + at.y * len.x;
             auto dst = pos + at.x;
             auto end = pos + len.x;
@@ -996,17 +996,17 @@ namespace netxs::ui
         void del_below(twod pos, cell const& blank)
         {
             auto len = size();
-            auto ptr = iter();
+            auto ptr = begin();
             auto dst = ptr + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
-            auto end = iend();
+            auto end = core::end();
             while (dst != end) *dst++ = blank;
         }
         // rich: Clear from the top to the specified coor.
         void del_above(twod pos, cell const& blank)
         {
             auto len = size();
-            auto dst = iter();
+            auto dst = begin();
             auto end = dst + std::min<si32>(pos.x + pos.y * len.x,
                                                     len.y * len.x);
             while (dst != end) *dst++ = blank;
@@ -1016,7 +1016,7 @@ namespace netxs::ui
         auto& at(si32 p) const
         {
             assert(p >= 0);
-            return *(core::data() + p);
+            return *(core::begin() + p);
         }
     };
 
@@ -1104,7 +1104,7 @@ namespace netxs::ui
         auto& set(cell const& c) { brush.set(c); return *this; }
 
         //todo unify
-        auto& at(si32 p) const { return lyric->data(p); } // para: .
+        auto& at(si32 p) const { return *(lyric->begin(p)); } // para: .
 
         // para: Normalize caret position.
         void caret_check()
@@ -1164,7 +1164,7 @@ namespace netxs::ui
             {
                 caret--;
                 auto& line = content();
-                auto  iter = line.iter() + caret;
+                auto  iter = line.begin() + caret;
                 if (iter->wdt() == 3 && caret > 0 && (--iter)->wdt() == 2)
                 {
                     caret--;
@@ -1194,7 +1194,7 @@ namespace netxs::ui
             if (caret < length())
             {
                 auto& line = content();
-                auto  iter = line.iter() + caret;
+                auto  iter = line.begin() + caret;
                 caret++;
                 if (iter->wdt() == 2 && caret < length() && (++iter)->wdt() == 3)
                 {
@@ -1230,7 +1230,7 @@ namespace netxs::ui
             {
                 line.insert_full(caret, 2, c);
                 caret++;
-                line.data(caret).wdt(3);
+                line.begin(caret)->wdt(3);
                 caret++;
             }
             else line.insert_full(caret++, 1, c.wdt(1));
@@ -1335,9 +1335,9 @@ namespace netxs::ui
             else
             {
                 auto& data = content();
-                auto iter1 = data.iter();
+                auto iter1 = data.begin();
                 auto end_1 = iter1 + length();
-                auto iter2 = fallback.iter();
+                auto iter2 = fallback.begin();
                 auto end_2 = iter2 + fallback.length();
                 while (iter2 != end_2)
                 {
@@ -1840,14 +1840,23 @@ namespace netxs::ui
                 static constexpr auto off = "\\i0 "sv;
                 data += b ? set : off;
             }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
                 static constexpr auto sgl = "\\ul "sv;
                 static constexpr auto dbl = "\\uldb "sv;
-                     if (unline == 1) data += sgl;
-                else if (unline == 2) data += dbl;
-                else                  data += off;
+                static constexpr auto wavy = "\\ulwave "sv;
+                static constexpr auto dotted = "\\uld "sv;
+                static constexpr auto dashed = "\\uldash "sv;
+                     if (unline == unln::line  ) data += sgl;
+                else if (unline == unln::biline) data += dbl;
+                else if (unline == unln::wavy  ) data += wavy;
+                else if (unline == unln::dotted) data += dotted;
+                else if (unline == unln::dashed) data += dashed;
+                else                             data += off;
             }
             auto inv(bool b)
             {
@@ -1927,8 +1936,11 @@ namespace netxs::ui
         {
             static constexpr auto bclr = "<span style=\"background-color:#"sv;
             static constexpr auto fclr = ";color:#"sv;
-            static constexpr auto unln = ";text-decoration:underline"sv;
-            static constexpr auto undb = ";border-bottom:3px double"sv;
+            static constexpr auto line   = ";text-decoration:underline"sv;
+            static constexpr auto biline = ";text-decoration:double"sv;
+            static constexpr auto wavy   = ";text-decoration:wavy"sv;
+            static constexpr auto dotted = ";text-decoration:dotted"sv;
+            static constexpr auto dashed = ";text-decoration:dashed"sv;
             static constexpr auto itlc = ";font-style:italic"sv;
             static constexpr auto bold = ";font-weight:bold"sv;
             static constexpr auto strk = ";text-decoration:line-through"sv;
@@ -1965,8 +1977,11 @@ namespace netxs::ui
                         if (base.bld()) data += bold;
                         if (base.stk()) data += strk;
                         if (base.ovr()) data += ovln;
-                             if (base.und() == 1) data += unln;
-                        else if (base.und() == 2) data += undb;
+                             if (base.und() == unln::line  ) data += line;
+                        else if (base.und() == unln::biline) data += biline;
+                        else if (base.und() == unln::wavy  ) data += wavy;
+                        else if (base.und() == unln::dotted) data += dotted;
+                        else if (base.und() == unln::dashed) data += dashed;
                         data += stop;
                     }
                     for (auto c : utf8)
@@ -1985,6 +2000,9 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2060,6 +2078,9 @@ namespace netxs::ui
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
+            auto unc(rgba ) { }
+            auto grd(rgba ) { }
+            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2097,7 +2118,6 @@ namespace netxs::ui
     protected:
         twod anker;     // face: The position of the nearest visible paragraph.
         id_t piece = 1; // face: The nearest to top paragraph.
-        vrgb cache;     // face: BlurFX temp buffer.
 
         // face: Is the c inside the viewport?
         bool inside(twod c)
@@ -2254,70 +2274,72 @@ namespace netxs::ui
             flow::reset();
         }
         // face: Change current context. Return old context.
-        auto bump(dent delta, bool clip = true)
+        auto bump(dent delta, bool trim = true)
         {
             auto old_full = flow::full();
-            auto old_view = core::view();
-            if (clip)
+            auto old_clip = core::clip();
+            if (trim)
             {
-                auto new_view = core::area().clip(old_view + delta);
-                core::view(new_view);
+                auto new_clip = core::area().clip(old_clip + delta);
+                core::clip(new_clip);
             }
             auto new_full = old_full + delta;
             flow::full(new_full);
-            return std::pair{ old_full, old_view };
+            return std::pair{ old_full, old_clip };
         }
         // face: Restore previously saved context.
         void bump(std::pair<rect, rect> ctx)
         {
             flow::full(ctx.first);
-            core::view(ctx.second);
+            core::clip(ctx.second);
         }
         // face: Dive into object context.
+        template<bool Forced = faux>
         auto change_basis(rect object_area, bool trim = true)
         {
             struct ctx
             {
                 face& canvas;
                 rect canvas_full;
-                rect canvas_view;
+                rect canvas_clip;
                 twod canvas_coor;
-                bool nested_view;
+                bool nested_clip;
 
-                operator bool () { return nested_view; };
+                operator bool () { return Forced || nested_clip; };
 
-                ctx(face& canvas, rect canvas_full = {}, rect canvas_view = {}, twod canvas_coor = {}, bool nested_view = {})
+                ctx(face& canvas, rect canvas_full = {}, rect canvas_clip = {}, twod canvas_coor = {}, bool nested_clip = {})
                     :      canvas{ canvas      },
                       canvas_full{ canvas_full },
-                      canvas_view{ canvas_view },
+                      canvas_clip{ canvas_clip },
                       canvas_coor{ canvas_coor },
-                      nested_view{ nested_view }
+                      nested_clip{ nested_clip }
                 { }
                 ctx(ctx&& c)
                     :      canvas{ c.canvas      },
                       canvas_full{ c.canvas_full },
-                      canvas_view{ c.canvas_view },
+                      canvas_clip{ c.canvas_clip },
                       canvas_coor{ c.canvas_coor },
-                      nested_view{ c.nested_view }
+                      nested_clip{ c.nested_clip }
                 {
-                    c.nested_view = faux;
+                    c.nested_clip = faux;
                 }
                ~ctx()
                 {
-                    if (nested_view)
+                    if (nested_clip)
                     {
                         canvas.flow::full(canvas_full);
-                        canvas.core::view(canvas_view);
+                        canvas.core::clip(canvas_clip);
                         canvas.core::move(canvas_coor);
                     }
                 }
             };
-            auto nested_view = trim ? core::view().clip(object_area) : core::view();
-            if (nested_view)
+            auto nested_clip = trim ? core::clip().clip(object_area) : core::clip();
+            auto proceed = Forced || nested_clip;
+            if (proceed)
             {
-                auto context = ctx{ *this, flow::full(), core::view(), core::coor(), true };
+                auto context = ctx{ *this, flow::full(), core::clip(), core::coor(), true };
                 core::step(                       - object_area.coor);
-                core::view({     nested_view.coor - object_area.coor,   nested_view.size });
+                core::clip({     nested_clip.coor - object_area.coor,   nested_clip.size });
                 flow::full({{ }/*object_area.coor - object_area.coor*/, object_area.size });
                 return context;
             }
@@ -2378,16 +2400,17 @@ namespace netxs::ui
             core::crop<BottomAnchored>(new_size, core::mark());
             flow::size(new_size);
         }
-        template<class P = noop>
-        void blur(si32 r, P shade = {}) // face: .
+        // face: Double boxblur the face background.
+        template<bool InnerGlow = faux, class T = vrgb, class P = noop>
+        void blur(si32 r, T&& cache = {}, P shade = {}) // face: .
         {
             using irgb = vrgb::value_type;
 
             auto area = core::area();
-            auto view = core::view();
+            auto clip = core::clip();
 
-            auto w = std::max(0, view.size.x);
-            auto h = std::max(0, view.size.y);
+            auto w = std::max(0, clip.size.x);
+            auto h = std::max(0, clip.size.y);
             auto s = w * h;
 
             if (cache.size() < (size_t)s)
@@ -2395,20 +2418,21 @@ namespace netxs::ui
                 cache.resize(s);
             }
 
-            auto s_ptr = core::data(view.coor - area.coor);
-            auto d_ptr = cache.data();
+            auto s_ptr = core::begin(clip.coor - area.coor);
+            auto d_ptr = cache.begin();
 
             auto s_width = area.size.x;
-            auto d_width = view.size.x;
+            auto d_width = clip.size.x;
 
-            auto s_point = [](cell* c)->auto& { return c->bgc(); };
-            auto d_point = [](irgb* c)->auto& { return *c;       };
+            auto s_point = [](auto c)->auto& { return c->bgc(); };
+            auto d_point = [](auto c)->auto& { return *c;       };
 
-            netxs::bokefy<irgb>(s_ptr,
-                                d_ptr, w,
-                                       h, r, s_width,
-                                             d_width, s_point,
-                                                      d_point, shade);
+            for (auto _(2); _--;) // Emulate Gaussian blur.
+            netxs::boxblur<irgb, InnerGlow>(s_ptr,
+                                            d_ptr, w,
+                                                   h, r, s_width,
+                                                         d_width, 2, s_point,
+                                                                     d_point, shade);
         }
     };
 

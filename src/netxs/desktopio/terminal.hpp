@@ -139,6 +139,7 @@ namespace netxs::ui
             si32 def_atexit;
             rgba def_fcolor;
             rgba def_bcolor;
+            rgba def_filler;
             si32 def_selmod;
             bool def_selalt;
             bool def_cursor;
@@ -206,6 +207,7 @@ namespace netxs::ui
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
                 def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
                 def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
+                def_filler =             config.take("color/bground",        rgba{ 0x00'00'00'00 });
 
                 def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -1965,11 +1967,11 @@ namespace netxs::ui
                 if (selection_active())
                 {
                     auto mode = owner.selmod;
-                    auto view = dest.view();
+                    auto clip = dest.clip();
                     auto grip_1 = rect{ curtop, dot_11 };
                     auto grip_2 = rect{ curend, dot_11 };
-                    grip_1.coor.x += view.coor.x; // Compensate scrollback's hz movement.
-                    grip_2.coor.x += view.coor.x; //
+                    grip_1.coor.x += clip.coor.x; // Compensate scrollback's hz movement.
+                    grip_2.coor.x += clip.coor.x; //
                     auto square = grip_1 | grip_2;
                     square.normalize_itself();
                     auto work = [&](auto fill)
@@ -1990,14 +1992,14 @@ namespace netxs::ui
                             }
                             auto west = rect{{ 0, curtop.y + 1 }, { a,           size_0.y }}.normalize();
                             auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }}.normalize();
-                            west.coor.x += view.coor.x; // Compensate scrollback's hz movement.
-                            east.coor.x += view.coor.x; //
-                            west = west.clip(view);
-                            east = east.clip(view);
+                            west.coor.x += clip.coor.x; // Compensate scrollback's hz movement.
+                            east.coor.x += clip.coor.x; //
+                            west = west.clip(clip);
+                            east = east.clip(clip);
                             dest.fill(west, fill);
                             dest.fill(east, fill);
                         }
-                        square = square.clip(view);
+                        square = square.clip(clip);
                         dest.fill(square, fill);
                     };
                     _shade_selection(mode, work);
@@ -2161,7 +2163,7 @@ namespace netxs::ui
                 assert(coord.y < panel.y);
                 assert(coord.x >= 0);
                 auto size = canvas.size();
-                auto head = canvas.iter() + coord.y * size.x;
+                auto head = canvas.begin() + coord.y * size.x;
                 auto tail = head;
                 switch (n)
                 {
@@ -2258,7 +2260,7 @@ namespace netxs::ui
                         }
                         auto data = proto.begin();
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = canvas.iter() + seek;
+                        auto dest = canvas.begin() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
@@ -2275,7 +2277,7 @@ namespace netxs::ui
                         auto miny = seek - y_top * panel.x;
                         if (count > miny) count = miny;
 
-                        auto dest = canvas.iter() + seek;
+                        auto dest = canvas.begin() + seek;
                         auto tail = dest - count;
                         auto data = proto.end();
                         rich::reverse_fill_proc<Copy>(data, dest, tail, fuse);
@@ -2287,8 +2289,8 @@ namespace netxs::ui
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = canvas.iter() + seek;
-                        auto tail = canvas.iend();
+                        auto dest = canvas.begin() + seek;
+                        auto tail = canvas.end();
                         auto back = panel.x;
                         rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, fuse);
                     }
@@ -2367,8 +2369,8 @@ namespace netxs::ui
             void do_viewport_copy(face& dest) override
             {
                 auto full = dest.full();
-                auto view = dest.view().clip(full);
-                dest.view(view);
+                auto clip = dest.clip().clip(full);
+                dest.clip(clip);
                 dest.plot(canvas, cell::shaders::full);
             }
             // alt_screen: Start text selection.
@@ -2840,7 +2842,7 @@ namespace netxs::ui
                 index_rebuild();
 
                 auto c = cell{ '\0' }.fgc(boss.config.def_fcolor).bgc(boss.config.def_bcolor).link(boss.id);
-                boss.base::color(c);
+                boss.defclr = c;
                 parser::brush.reset(c);
             }
             si32 get_size() const override { return batch.size;     }
@@ -3691,7 +3693,7 @@ namespace netxs::ui
                     auto tail = head + size;
                     auto area = block.area();
                     block.full(area);
-                    block.view(area);
+                    block.clip(area);
                     block.ac(origin);
                     do
                     {
@@ -3731,7 +3733,7 @@ namespace netxs::ui
                         start = batch.index_by_id(index.front().index);
                     }
 
-                    auto curit = block.iter();
+                    auto curit = block.begin();
                     auto width = twod{ size.x, 1 };
                     auto curid = start == 0 ? batch.front().index
                                             : batch[start - 1].index + 1;
@@ -4265,7 +4267,7 @@ namespace netxs::ui
                         }
                         auto data = proto.begin();
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = upbox.iter() + seek;
+                        auto dest = upbox.begin() + seek;
                         auto tail = dest + count;
                         rich::forward_fill_proc<Copy>(data, dest, tail, fuse);
                     }
@@ -4456,8 +4458,8 @@ namespace netxs::ui
                         auto data = proto.begin();
                         auto size = count;
                         auto seek = start.x + start.y * panel.x;
-                        auto dest = dnbox.iter() + seek;
-                        auto tail = dnbox.iend();
+                        auto dest = dnbox.begin() + seek;
+                        auto tail = dnbox.end();
                         auto back = panel.x;
                         rich::unlimit_fill_proc<Copy>(data, size, dest, tail, back, cell::shaders::full);
                     }
@@ -4490,26 +4492,26 @@ namespace netxs::ui
             void output(face& dest) override
             {
                 dest.vsize(batch.vsize + sctop + scend); // Include margins and bottom oversize.
-                auto view = dest.view();
+                auto clip = dest.clip();
                 auto full = dest.full();
                 auto coor = twod{ 0, batch.slide - batch.ancdy + y_top };
-                auto stop = view.coor.y + view.size.y;
+                auto stop = clip.coor.y + clip.size.y;
                 auto head = batch.iter_by_id(batch.ancid);
                 auto tail = batch.end();
                 auto find = selection_active() && match.length() && owner.selmod == mime::textonly;
                 auto fill = [&](auto& area, auto chr)
                 {
-                    if (auto r = view.clip(area))
+                    if (auto r = clip.clip(area))
                     {
                         dest.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                     }
                 };
-                auto left_edge = view.coor.x;
-                auto rght_edge = view.coor.x + view.size.x;
+                auto left_edge = clip.coor.x;
+                auto rght_edge = clip.coor.x + clip.size.x;
                 auto half_size = full.size.x / 2;
                 auto left_rect = rect{{ left_edge, full.coor.y + coor.y }, dot_11 };
                 auto rght_rect = left_rect;
-                rght_rect.coor.x += view.size.x - 1;
+                rght_rect.coor.x += clip.size.x - 1;
 
                 while (head != tail && rght_rect.coor.y < stop)
                 {
@@ -4553,8 +4555,8 @@ namespace netxs::ui
                         else
                         {
                             auto lt_dot = full.coor.x;
-                            auto rt_dot = lt_dot + view.size.x;
-                            auto remain = (length - 1) % view.size.x + 1;
+                            auto rt_dot = lt_dot + clip.size.x;
+                            auto remain = (length - 1) % clip.size.x + 1;
                             if (left_edge > lt_dot)
                             {
                                 if ((adjust == bias::right  && left_edge <= rt_dot - remain)
@@ -4583,7 +4585,7 @@ namespace netxs::ui
 
                 if (panel.y != arena) // The scrolling region is set.
                 {
-                    auto destcoor = view.coor - dest.coor();
+                    auto destcoor = clip.coor - dest.coor();
                     auto top_coor = twod{ 0, y_top - sctop } + destcoor;
                     auto end_coor = twod{ 0, y_end + 1     } + destcoor;
                     upbox.move(top_coor);
@@ -4596,9 +4598,9 @@ namespace netxs::ui
                         {
                             if (auto area = block.area())
                             {
-                                auto block_view = view;
-                                block_view.size.x = area.size.x; // Follow wrapping for matches.
-                                dest.full(block_view);
+                                auto block_clip = clip;
+                                block_clip.size.x = area.size.x; // Follow wrapping for matches.
+                                dest.full(block_clip);
                                 area.coor -= destcoor;
                                 auto offset = si32{};
                                 auto marker = [&](auto shader)
@@ -5671,18 +5673,18 @@ namespace netxs::ui
             void do_viewport_copy(face& dest) override
             {
                 auto full = dest.full();
-                auto view = dest.view().clip(full);
-                dest.view(view);
-                auto vpos = view.coor.y - y_top;
+                auto clip = dest.clip().clip(full);
+                dest.clip(clip);
+                auto vpos = clip.coor.y - y_top;
                 if (vpos >= 0 && vpos < arena)
                 {
                     auto& mapln = index[vpos];
                     auto  ancid = mapln.index;
                     auto  ancdy = mapln.start / panel.x;
-                    auto  limit = view.coor.y + view.size.y;
+                    auto  limit = clip.coor.y + clip.size.y;
                     auto head = batch.iter_by_id(ancid);
                     auto tail = batch.end();
-                    auto coor = twod{ 0, view.coor.y - ancdy };
+                    auto coor = twod{ 0, clip.coor.y - ancdy };
                     while (head != tail && coor.y < limit)
                     {
                         auto& curln = *head++;
@@ -5720,10 +5722,10 @@ namespace netxs::ui
                     auto coor = dot_00;
                     auto area = rect{{ std::min(upcur.coor.x,  dncur.coor.x), upcur.coor.y },
                                      { std::abs(upcur.coor.x - dncur.coor.x) + 1, selection_height(head, tail, upcur, dncur) }};
-                    auto view = rect{ dot_00, area.size };
+                    auto clip = rect{ dot_00, area.size };
                     auto full = rect{ -area.coor, { panel.x, area.coor.y + area.size.y }};
                     dest.core::size(area.size, brush.dry());
-                    dest.core::view(view);
+                    dest.core::clip(clip);
                     dest.flow::full(full);
                     do
                     {
@@ -5830,7 +5832,7 @@ namespace netxs::ui
                 if (selection_active())
                 {
                     auto mode = owner.selmod;
-                    auto view = dest.view();
+                    auto clip = dest.clip();
                     if (panel.y != arena)
                     {
                         auto draw_area = [&](auto grip_1, auto grip_2, auto offset)
@@ -5850,7 +5852,7 @@ namespace netxs::ui
                     }
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
-                    view = view.clip(scrolling_region);
+                    clip = clip.clip(scrolling_region);
                     //todo Clang 15 don't get it
                     //auto [curtop, curend] = selection_take_grips();
                     auto tempvr = selection_take_grips();
@@ -5863,7 +5865,7 @@ namespace netxs::ui
                         auto area = grip_1 | grip_2;
                         auto proc = [&](auto fx)
                         {
-                            dest.fill(area.clip(view), fx);
+                            dest.fill(area.clip(clip), fx);
                         };
                         _shade_selection(mode, proc);
                     }
@@ -5901,7 +5903,7 @@ namespace netxs::ui
                                         bound.size.x += 1;
                                         block = block.clip(bound);
                                     }
-                                    dest.fill(block.clip(view), fill);
+                                    dest.fill(block.clip(clip), fill);
                                 }
                             };
                             while (head != tail && coor.y < stop)
@@ -6351,6 +6353,7 @@ namespace netxs::ui
         w_tracking wtrack; // term: Terminal title tracking object.
         c_tracking ctrack; // term: Custom terminal palette tracking object.
         term_state status; // term: Screen buffer status info.
+        cell       defclr; // term: Default/current colors (SGR49/39).
         twod       origin; // term: Viewport position.
         twod       follow; // term: Viewport follows cursor (bool: X, Y).
         bool       decckm; // term: Cursor keys Application(true)/ANSI(faux) mode.
@@ -6738,13 +6741,12 @@ namespace netxs::ui
         void setdef()
         {
             auto& console = *target;
+            defclr.txt('\0').fgc(config.def_fcolor).bgc(config.def_bcolor).link(base::id);
+            console.brush.reset(defclr);
             console.style.reset();
             console.style.wrp(config.def_wrpmod);
             console.setpad(config.def_margin);
             selection_selmod(config.def_selmod);
-            auto brush = base::color();
-            brush = cell{ '\0' }.fgc(config.def_fcolor).bgc(config.def_bcolor).link(brush.link());
-            base::color(brush);
             cursor.style(config.def_cursor);
         }
         // term: Set terminal background.
@@ -6759,7 +6761,7 @@ namespace netxs::ui
             static auto parser = ansi::csi_t<marker, true>{};
 
             auto mark = marker{};
-            mark.brush = base::color();
+            mark.brush = defclr;
             auto param = queue.front(ansi::sgr_rst);
             if (queue.issub(param))
             {
@@ -7141,33 +7143,38 @@ namespace netxs::ui
         }
         void set_color(cell brush)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
             brush.link(base::id);
-            base::color(brush);
+            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            {
+                base::color(cell{ brush }.txt(whitespace));
+            }
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
         }
         void set_bg_color(rgba bg)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
-            auto brush = base::color();
+            auto brush = defclr;
             brush.bgc(bg);
             brush.link(base::id);
-            base::color(brush);
+            if (config.def_filler == 0x00'ff'ff'ff) // Sync with SGR49.
+            {
+                base::color(cell{ brush }.txt(whitespace));
+            }
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
         void set_fg_color(rgba fg)
         {
-            //todo remove base::color dependency (background is colorized twice! use transparent target->brush)
             auto& console = *target;
-            auto brush = base::color();
+            auto brush = defclr;
             brush.fgc(fg);
             brush.link(base::id);
-            base::color(brush);
+            defclr = brush;
             brush.link(console.brush.link());
             console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::fg, fg);
@@ -7403,6 +7410,13 @@ namespace netxs::ui
               altscr{ config.def_altscr },
               kbmode{ prot::vt }
         {
+            set_fg_color(config.def_fcolor);
+            set_bg_color(config.def_bcolor);
+            if (config.def_filler != 0x00'ff'ff'ff) // Unsync with SGR default background.
+            {
+                auto c = cell{whitespace}.bgc(config.def_filler).link(base::id);
+                base::color(c);
+            }
             selection_submit();
             publish_property(ui::term::events::io_log,         [&](auto& v){ v = io_log; });
             publish_property(ui::term::events::selmod,         [&](auto& v){ v = selmod; });
@@ -7475,10 +7489,11 @@ namespace netxs::ui
                     this->RISEUP(tier::preview, e2::form::prop::ui::footer, status.data);
                 }
 
-                auto view = parent_canvas.view();
+                auto clip = parent_canvas.clip();
                 auto full = parent_canvas.full();
-                auto base = full.coor - view.coor;
+                auto base = full.coor - clip.coor;
                 cursor.coor(console.get_coord(base));
+                if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
 
                 console.output(parent_canvas);
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
@@ -7490,24 +7505,24 @@ namespace netxs::ui
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize.size.x += oversz.l + oversz.r;
-                    bottom_oversize = bottom_oversize.clip(view);
+                    bottom_oversize = bottom_oversize.clip(clip);
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 
-                if (view.coor.x) // Shade left and right margins.
-                {
-                    auto west = full;
-                    west.size = dot_mx;
-                    west.coor.y -= dot_mx.y / 2;
-                    auto east = west;
-                    auto pads = console.getpad();
-                    west.coor.x -= oversz.l - pads + dot_mx.x;
-                    east.coor.x += oversz.r - pads + console.panel.x;
-                    west = west.clip(view);
-                    east = east.clip(view);
-                    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
-                    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
-                }
+                //if (clip.coor.x) // Shade left and right margins.
+                //{
+                //    auto west = full;
+                //    west.size = dot_mx;
+                //    west.coor.y -= dot_mx.y / 2;
+                //    auto east = west;
+                //    auto pads = console.getpad();
+                //    west.coor.x -= oversz.l - pads + dot_mx.x;
+                //    east.coor.x += oversz.r - pads + console.panel.x;
+                //    west = west.clip(clip);
+                //    east = east.clip(clip);
+                //    parent_canvas.fill(west, cell::shaders::xlucent(config.def_lucent));
+                //    parent_canvas.fill(east, cell::shaders::xlucent(config.def_lucent));
+                //}
 
                 // Debug: Shade active viewport.
                 //{
@@ -7515,7 +7530,7 @@ namespace netxs::ui
                 //    size.y -= console.sctop + console.scend;
                 //    auto vp = rect{{ 0,console.get_basis() + console.sctop }, size };
                 //    vp.coor += parent_canvas.full().coor;
-                //    vp = vp.clip(parent_canvas.view());
+                //    vp = vp.clip(parent_canvas.clip());
                 //    parent_canvas.fill(vp, [](auto& c){ c.fuse(cell{}.bgc(magentalt).bga(50)); });
                 //}
             };
@@ -7903,16 +7918,6 @@ namespace netxs::ui
                         s11n::fps.send(master, frame_rate);
                     }
                 };
-                master.LISTEN(tier::anycast, e2::form::prop::ui::slimmenu, slim, tokens)
-                {
-                    s11n::slimmenu.send(master, slim);
-                };
-                master.LISTEN(tier::anycast, e2::form::prop::colors::any, clr, tokens)
-                {
-                    auto deed = master.bell::template protos<tier::anycast>();
-                         if (deed == e2::form::prop::colors::bg.id) s11n::bgc.send(master, clr);
-                    else if (deed == e2::form::prop::colors::fg.id) s11n::fgc.send(master, clr);
-                };
                 master.LISTEN(tier::anycast, e2::form::prop::cwd, path, tokens)
                 {
                     s11n::cwd.send(master, path);
@@ -8043,9 +8048,10 @@ namespace netxs::ui
                 {
                     if (show_msg)
                     {
+                        auto tmpbuf = vrgb{};
                         splash.zoom(canvas, cell::shaders::onlyid(parent_id));
                         splash.output(errmsg);
-                        splash.blur(2, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.blur(2, tmpbuf, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
                         splash.output(errmsg);
                     }
                     else
@@ -8059,7 +8065,7 @@ namespace netxs::ui
         // dtvt: Render next frame.
         void fill(core& parent_canvas, core const& canvas)
         {
-            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::fusefull);
+            if (opaque == 0xFF) parent_canvas.fill(canvas, cell::shaders::overlay);
             else                parent_canvas.fill(canvas, cell::shaders::transparent(opaque));
         }
 

@@ -843,9 +843,6 @@ namespace netxs::directvt
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */
         STRUCT_macro(unknown_gc,        (ui64, token))
         STRUCT_macro(fps,               (si32, frame_rate))
-        STRUCT_macro(bgc,               (rgba, color))
-        STRUCT_macro(fgc,               (rgba, color))
-        STRUCT_macro(slimmenu,          (bool, menusize))
         STRUCT_macro(init,              (text, user) (si32, mode) (text, env) (text, cwd) (text, cmd) (text, cfg) (twod, win))
         STRUCT_macro(cwd,               (text, path))
 
@@ -867,21 +864,24 @@ namespace netxs::directvt
             core                           image; // bitmap: .
             std::unordered_map<ui64, text> newgc; // bitmap: Unknown grapheme cluster list.
 
-            struct subtype
-            {
-                static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
-                static constexpr auto dif = byte{ 0x20 }; // Cell dif.
-                static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
-                static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
-            };
-
             enum : byte
             {
                 refer = 1 << 0, // 1 - Diff with our canvas cell, 0 - diff with current brush (state).
                 bgclr = 1 << 1,
                 fgclr = 1 << 2,
                 style = 1 << 3,
-                glyph = 1 << 4,
+                ulclr = 1 << 4,
+                gdclr = 1 << 5,
+                glyph = 1 << 6,
+                dmax  = 1 << 7,
+            };
+
+            struct subtype
+            {
+                static constexpr auto nop = byte{ 0x00 }; // Apply current brush. nop = dif - refer.
+                static constexpr auto dif = byte{ dmax }; // Cell dif.
+                static constexpr auto mov = byte{ 0xFE }; // Set insertion point. sz_t: offset.
+                static constexpr auto rep = byte{ 0xFF }; // Repeat current brush ui32 times. sz_t: N.
             };
 
             void set(id_t winid, twod coord, core& cache, flag& abort, sz_t& delta)
@@ -889,11 +889,11 @@ namespace netxs::directvt
                 //todo multiple windows
                 stream::reinit(winid, rect{ coord, cache.size() });
                 auto pen = state;
-                auto src = cache.iter();
-                auto end = cache.iend();
+                auto src = cache.begin();
+                auto end = cache.end();
                 auto csz = cache.size();
                 auto fsz = image.size();
-                auto dst = image.iter();
+                auto dst = image.begin();
                 auto dtx = fsz.x - csz.x;
                 auto min = std::min(csz, fsz);
                 auto beg = src + 1;
@@ -921,6 +921,8 @@ namespace netxs::directvt
                     if (c1.bgc() != c2.bgc()) { meaning += sizeof(c1.bgc()); changes |= bgclr; }
                     if (c1.fgc() != c2.fgc()) { meaning += sizeof(c1.fgc()); changes |= fgclr; }
                     if (c1.stl() != c2.stl()) { meaning += sizeof(c1.stl()); changes |= style; }
+                    if (c1.unc() != c2.unc()) { meaning += sizeof(c1.unc()); changes |= ulclr; }
+                    if (c1.grd() != c2.grd()) { meaning += sizeof(c1.grd()); changes |= gdclr; }
                     if (c1.egc() != c2.egc())
                     {
                         cluster = c1.egc().state.jumbo ? 8
@@ -936,6 +938,8 @@ namespace netxs::directvt
                     if (changes & bgclr) add(cache.bgc());
                     if (changes & fgclr) add(cache.fgc());
                     if (changes & style) add(cache.stl());
+                    if (changes & ulclr) add(cache.unc());
+                    if (changes & gdclr) add(cache.grd());
                     if (changes & glyph) add(cluster, cache.egc().glyph, cluster);
                     state = cache;
                 };
@@ -1001,8 +1005,8 @@ namespace netxs::directvt
                     image.crop(area.size);
                 }
                 auto mark = image.mark();
-                auto head = image.iter();
-                auto tail = image.iend();
+                auto head = image.begin();
+                auto tail = image.end();
                 auto iter = head;
                 auto step = head;
                 auto take = [&](auto what, cell& c)
@@ -1010,6 +1014,8 @@ namespace netxs::directvt
                     if (what & bgclr) stream::take(c.bgc(), data);
                     if (what & fgclr) stream::take(c.fgc(), data);
                     if (what & style) stream::take(c.stl(), data);
+                    if (what & ulclr) stream::take(c.unc(), data);
+                    if (what & gdclr) stream::take(c.grd(), data);
                     if (what & glyph)
                     {
                         auto [size] = stream::take<byte>(data);
@@ -1142,7 +1148,7 @@ namespace netxs::directvt
                 if (image.hash() != cache.hash())
                 {
                     block.basevt::scroll_wipe();
-                    auto src = cache.iter();
+                    auto src = cache.begin();
                     while (coord.y < field.y)
                     {
                         if (abort)
@@ -1183,8 +1189,8 @@ namespace netxs::directvt
                 }
                 else
                 {
-                    auto src = cache.iter();
-                    auto dst = image.iter();
+                    auto src = cache.begin();
+                    auto dst = image.begin();
                     while (coord.y < field.y)
                     {
                         if (abort)
@@ -1355,9 +1361,6 @@ namespace netxs::directvt
             X(request_gc       ) /* Unknown gc token list.                        */\
             X(unknown_gc       ) /* Unknown gc token.                             */\
             X(fps              ) /* Set frame rate.                               */\
-            X(bgc              ) /* Set background color.                         */\
-            X(fgc              ) /* Set foreground color.                         */\
-            X(slimmenu         ) /* Set window menu size.                         */\
             X(init             ) /* Startup data.                                 */\
             X(cwd              ) /* CWD Notification.                             */
             //X(quit             ) /* Close and disconnect dtvt app.                */
