@@ -667,6 +667,8 @@ namespace netxs
         {
             return s << d.str();
         }
+        friend auto min(dent d1, dent d2) { return dent{ std::min(d1.l, d2.l), std::min(d1.r, d2.r), std::min(d1.t, d2.t), std::min(d1.b, d2.b) }; }
+        friend auto max(dent d1, dent d2) { return dent{ std::max(d1.l, d2.l), std::max(d1.r, d2.r), std::max(d1.t, d2.t), std::max(d1.b, d2.b) }; }
     };
     // dent: Return difference between area.
     auto operator - (rect r1, rect r2)

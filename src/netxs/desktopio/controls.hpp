@@ -259,7 +259,9 @@ namespace netxs::ui
                         if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
                         else                                              g.zoomdt += warp;
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto next = (g.zoomsz + g.zoomdt).clip(viewport);
+                        auto r = g.zoomsz + g.zoomdt;
+                        r.size = std::max(dot_00, r.size);
+                        auto next = r.clip(viewport);
                         auto step = boss.base::extend(next);
                         if (!step.size) // Undo if can't zoom.
                         {
