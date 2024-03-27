@@ -7493,6 +7493,7 @@ namespace netxs::ui
                 auto full = parent_canvas.full();
                 auto base = full.coor - clip.coor;
                 cursor.coor(console.get_coord(base));
+                if (base::color().bga() != 0xFF) parent_canvas.fill(rect{ cursor.coor(), dot_11 }, [&](cell& c){ c.fgc(console.brush.fgc()); }); //todo unify
 
                 console.output(parent_canvas);
                 if (invert) parent_canvas.fill(cell::shaders::invbit);
