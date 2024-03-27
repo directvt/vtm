@@ -794,7 +794,7 @@ namespace netxs
         }
     }
 
-    // intmath: Wild bitmap.
+    // intmath: Generic bitmap.
     template<class T, class Rect>
     struct raster
     {
