@@ -1052,7 +1052,6 @@ namespace netxs
                 set(whitespace);
             }
         };
-
         union body
         {
             // There are no applicable rich text formatting attributes due to their gradual nature
@@ -1065,47 +1064,32 @@ namespace netxs
             // weigth := 0..255
             // italic := 0..255
             //
-            using bitstate = ui16;
+            struct attr
+            {
+                // Shared attributes.
+                ui32 bolded : 1;
+                ui32 italic : 1;
+                ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
+                ui32 invert : 1;
+                ui32 overln : 1;
+                ui32 strike : 1;
+                ui32 r_to_l : 1;
+                ui32 blinks : 1;
+                ui32 gridln : 4; // grid lines (bits): left, right, top, bottom
+                // Unique attributes. From 14th bit.
+                ui32 hyphen : 1;
+                ui32 fnappl : 1;
+                ui32 itimes : 1;
+                ui32 isepar : 1;
+                ui32 inplus : 1;
+                ui32 zwnbsp : 1;
+                ui32 reserv : 12; // reserved
+            };
 
             ui32 token;
+            attr attrs;
 
-            struct
-            {
-                union
-                {
-                    bitstate token;
-                    struct
-                    {
-                        bitstate bolded : 1;
-                        bitstate italic : 1;
-                        bitstate unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
-                        bitstate invert : 1;
-                        bitstate overln : 1;
-                        bitstate strike : 1;
-                        bitstate r_to_l : 1;
-                        bitstate blinks : 1;
-                        bitstate gridln : 4; // grid lines (bits): left, right, top, bottom
-                        bitstate reserv : 2; // reserved
-                    } var;
-                } shared;
-
-                union
-                {
-                    bitstate token;
-                    struct
-                    {
-                        bitstate hyphen : 1;
-                        bitstate fnappl : 1;
-                        bitstate itimes : 1;
-                        bitstate isepar : 1;
-                        bitstate inplus : 1;
-                        bitstate zwnbsp : 1;
-                        bitstate reserv : 10; // reserved
-                    } var;
-
-                } unique;
-            }
-            param;
+            static constexpr auto shared_bits = (1 << 14) - 1;
 
             constexpr body()
                 : token{ 0 }
@@ -1119,9 +1103,8 @@ namespace netxs
             bool operator == (body const& b) const
             {
                 return token == b.token;
-                // sizeof(*this);
-                // sizeof(param.shared.var);
-                // sizeof(param.unique.var);
+                //sizeof(*this);
+                //sizeof(attr);
             }
             bool operator != (body const& b) const
             {
@@ -1129,7 +1112,7 @@ namespace netxs
             }
             bool like(body b) const
             {
-                return param.shared.token == b.param.shared.token;
+                return (token & body::shared_bits) == (b.token & body::shared_bits);
             }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
@@ -1137,28 +1120,26 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return;
                 if (!like(base))
                 {
-                    auto& cvar =      param.shared.var;
-                    auto& bvar = base.param.shared.var;
                     if constexpr (UseSGR) // It is not available in the Linux and Win8 consoles.
                     {
                         if constexpr (Mode != svga::vt16) // It is not available in the Linux and Win8 consoles.
                         {
-                            if (cvar.bolded != bvar.bolded) dest.bld(cvar.bolded);
-                            if (cvar.italic != bvar.italic) dest.itc(cvar.italic);
-                            if (cvar.unline != bvar.unline) dest.und(cvar.unline);
-                            if (cvar.invert != bvar.invert) dest.inv(cvar.invert);
-                            if (cvar.strike != bvar.strike) dest.stk(cvar.strike);
-                            if (cvar.overln != bvar.overln) dest.ovr(cvar.overln);
-                            if (cvar.blinks != bvar.blinks) dest.blk(cvar.blinks);
-                            if (cvar.gridln != bvar.gridln) dest.gln(cvar.gridln);
-                            if (cvar.r_to_l != bvar.r_to_l) {} //todo implement RTL
+                            if (attrs.bolded != base.attrs.bolded) dest.bld(attrs.bolded);
+                            if (attrs.italic != base.attrs.italic) dest.itc(attrs.italic);
+                            if (attrs.unline != base.attrs.unline) dest.und(attrs.unline);
+                            if (attrs.invert != base.attrs.invert) dest.inv(attrs.invert);
+                            if (attrs.strike != base.attrs.strike) dest.stk(attrs.strike);
+                            if (attrs.overln != base.attrs.overln) dest.ovr(attrs.overln);
+                            if (attrs.blinks != base.attrs.blinks) dest.blk(attrs.blinks);
+                            if (attrs.gridln != base.attrs.gridln) dest.gln(attrs.gridln);
+                            if (attrs.r_to_l != base.attrs.r_to_l) {} //todo implement RTL
                         }
                         else
                         {
-                            if (cvar.unline != bvar.unline) dest.inv(cvar.unline);
+                            if (attrs.unline != base.attrs.unline) dest.inv(attrs.unline);
                         }
                     }
-                    bvar = cvar;
+                    base.attrs = attrs;
                 }
             }
             void wipe()
@@ -1167,28 +1148,28 @@ namespace netxs
             }
             void rev()
             {
-                param.shared.var.invert = !!!param.shared.var.invert;
+                attrs.invert = !!!attrs.invert;
             }
 
-            void bld(bool b) { param.shared.var.bolded = b; }
-            void itc(bool b) { param.shared.var.italic = b; }
-            void und(si32 n) { param.shared.var.unline = n; }
-            void gln(si32 n) { param.shared.var.gridln = n; }
-            void inv(bool b) { param.shared.var.invert = b; }
-            void ovr(bool b) { param.shared.var.overln = b; }
-            void stk(bool b) { param.shared.var.strike = b; }
-            void rtl(bool b) { param.shared.var.r_to_l = b; }
-            void blk(bool b) { param.shared.var.blinks = b; }
+            void bld(bool b) { attrs.bolded = b; }
+            void itc(bool b) { attrs.italic = b; }
+            void und(si32 n) { attrs.unline = n; }
+            void gln(si32 n) { attrs.gridln = n; }
+            void inv(bool b) { attrs.invert = b; }
+            void ovr(bool b) { attrs.overln = b; }
+            void stk(bool b) { attrs.strike = b; }
+            void rtl(bool b) { attrs.r_to_l = b; }
+            void blk(bool b) { attrs.blinks = b; }
 
-            bool bld() const { return param.shared.var.bolded; }
-            bool itc() const { return param.shared.var.italic; }
-            si32 und() const { return param.shared.var.unline; }
-            si32 gln() const { return param.shared.var.gridln; }
-            bool inv() const { return param.shared.var.invert; }
-            bool ovr() const { return param.shared.var.overln; }
-            bool stk() const { return param.shared.var.strike; }
-            bool rtl() const { return param.shared.var.r_to_l; }
-            bool blk() const { return param.shared.var.blinks; }
+            bool bld() const { return attrs.bolded; }
+            bool itc() const { return attrs.italic; }
+            si32 und() const { return attrs.unline; }
+            si32 gln() const { return attrs.gridln; }
+            bool inv() const { return attrs.invert; }
+            bool ovr() const { return attrs.overln; }
+            bool stk() const { return attrs.strike; }
+            bool rtl() const { return attrs.r_to_l; }
+            bool blk() const { return attrs.blinks; }
         };
         struct clrs
         {
@@ -1302,6 +1283,9 @@ namespace netxs
         body st;        // 4U, cell: Style attributes.
         id_t id;        // 4U, cell: Link ID.
         rgba underline; // 4U, cell: Underline color.
+                        //           1. alpha not used - it is shared with fgc alpha
+                        //           2. One byte: use 256-cube color instead of true colors.
+                        //           3. =0 - same as fgc
         rgba gridcolor; // 4U, cell: pad, the size should be a power of 2.
 
         cell()
@@ -1312,10 +1296,9 @@ namespace netxs
             : gc{ c },
               id{ 0 }
         {
-            // sizeof(glyf<void>);
+            // sizeof(glyf);
             // sizeof(clrs);
             // sizeof(body);
-            // sizeof(id_t);
             // sizeof(id_t);
             // sizeof(cell);
         }
@@ -1402,9 +1385,6 @@ namespace netxs
         // cell: Blend two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
-            //if (c.uv.fg.chan.a) uv.fg = c.uv.fg;
-            ////uv.param.fg.mix(c.uv.param.fg);
-
             if (uv.fg.chan.a == 0xFF) uv.fg.mix_one(c.uv.fg);
             else                      uv.fg.mix(c.uv.fg);
 
@@ -1769,12 +1749,12 @@ namespace netxs
             return *this;
         }
 
-        void hyphen(bool b) { st.param.unique.var.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
-        void fnappl(bool b) { st.param.unique.var.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
-        void itimes(bool b) { st.param.unique.var.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
-        void isepar(bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
-        void inplus(bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
-        void zwnbsp(bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
+        void hyphen(bool b) { st.attrs.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
+        void fnappl(bool b) { st.attrs.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
+        void itimes(bool b) { st.attrs.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
+        void isepar(bool b) { st.attrs.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
+        void inplus(bool b) { st.attrs.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
+        void zwnbsp(bool b) { st.attrs.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
 
         auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
