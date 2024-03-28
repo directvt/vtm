@@ -283,7 +283,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
-            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
+            <bground = transparent />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
