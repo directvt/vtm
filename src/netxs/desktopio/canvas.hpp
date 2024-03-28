@@ -852,7 +852,6 @@ namespace netxs
     // canvas: Enriched grapheme cluster.
     struct cell
     {
-        template<class V = void> // Use template in order to define statics in the header file.
         union glyf
         {
             struct mode
@@ -863,14 +862,53 @@ namespace netxs
                 byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
             };
 
-            // There is no need to reset/clear/flush the map because
-            // count of different grapheme clusters is finite.
-            static constexpr auto                 asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
-            static constexpr auto                 limit = sizeof(ui64);
-            static std::hash<view>                coder;
-            static text                           empty;
-            static std::unordered_map<ui64, text> jumbo;
-            static std::mutex                     mutex;
+            static constexpr auto asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
+            static constexpr auto limit = sizeof(ui64);
+
+            static auto jumbos()
+            {
+                using lock = std::mutex;
+                using sync = std::lock_guard<lock>;
+                using depo = std::unordered_map<ui64, text>;
+
+                struct vars
+                {
+                    lock mutex{}; // There is no need to reset/clear/flush the map because
+                    depo jumbo{}; // count of different grapheme clusters is finite.
+                };
+                struct guard : sync
+                {
+                    depo& map;
+                    guard(vars& inst)
+                        : sync{ inst.mutex },
+                           map{ inst.jumbo }
+                    { }
+                    // jumbos: Get grapheme cluster.
+                    auto& get(ui64 token)
+                    {
+                        static auto empty = text{};
+                        return netxs::get_or(map, token & glyf::asset, empty);
+                    }
+                    // jumbos: Set grapheme cluster.
+                    void set(ui64 token, view data)
+                    {
+                        map[token & glyf::asset] = data;
+                    }
+                    // jumbos: Add grapheme cluster.
+                    void add(ui64 token, view data)
+                    {
+                        map.insert(std::pair{ token & glyf::asset, data }); // Silently ignore if it exists.
+                    }
+                    // jumbos: Check the existence of a grapheme cluster by token.
+                    auto exists(ui64 token)
+                    {
+                        return map.find(token & glyf::asset) != map.end();
+                    }
+                };
+
+                static auto inst = vars{};
+                return guard{ inst };
+            }
 
             ui64 token;
             mode state;
@@ -902,7 +940,7 @@ namespace netxs
             // Check grapheme clusters equality.
             bool same(glyf const& c) const
             {
-                return (token & asset) == (c.token & asset); // Compare excluding the first three bits.
+                return (token & glyf::asset) == (c.token & glyf::asset); // Compare excluding the first three bits.
             }
 
             void wipe()
@@ -953,21 +991,21 @@ namespace netxs
             }
             void set(view utf8, size_t cwidth)
             {
+                static constexpr auto hasher = std::hash<view>{};
                 auto count = utf8.size();
-                if (count >= limit)
-                {
-                    token = coder(utf8);
-                    state.jumbo = true;
-                    state.width = cwidth;
-                    auto lock = std::lock_guard{ mutex };
-                    jumbo.insert(std::pair{ token & asset, utf8 }); // silently ignore if it exists
-                }
-                else
+                if (count < limit)
                 {
                     token = 0;
                     state.count = count;
                     state.width = cwidth;
                     std::memcpy(glyph + 1, utf8.data(), count);
+                }
+                else
+                {
+                    token = hasher(utf8);
+                    state.jumbo = true;
+                    state.width = cwidth;
+                    jumbos().add(token, utf8);
                 }
             }
             void set(view utf8)
@@ -985,30 +1023,25 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (state.jumbo)
-                    {
-                        auto lock = std::lock_guard{ mutex };
-                        return netxs::get_or(jumbo, token & asset, empty);
-                    }
-                    else return view(glyph + 1, state.count);
+                    if (state.jumbo) return jumbos().get(token);
+                    else             return view(glyph + 1, state.count);
                 }
             }
             auto is_registered() const
             {
-                auto lock = std::lock_guard{ mutex };
-                return jumbo.find(token & asset) != jumbo.end();
+                return jumbos().exists(token);
             }
             auto is_space() const
             {
-                return static_cast<byte>(glyph[1]) <= whitespace;
+                return (byte)(glyph[1]) <= whitespace;
             }
             auto is_null() const
             {
-                return static_cast<byte>(glyph[1]) == 0;
+                return glyph[1] == 0;
             }
             auto tkn() const
             {
-                return token & asset;
+                return token & glyf::asset;
             }
             bool jgc() const
             {
@@ -1019,6 +1052,7 @@ namespace netxs
                 set(whitespace);
             }
         };
+
         union body
         {
             // There are no applicable rich text formatting attributes due to their gradual nature
@@ -1044,14 +1078,14 @@ namespace netxs
                     {
                         bitstate bolded : 1;
                         bitstate italic : 1;
-                        bitstate unline : 4; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 15: unknown.
+                        bitstate unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                         bitstate invert : 1;
                         bitstate overln : 1;
                         bitstate strike : 1;
                         bitstate r_to_l : 1;
                         bitstate blinks : 1;
                         bitstate gridln : 4; // grid lines (bits): left, right, top, bottom
-                        bitstate reserv : 1; // reserved
+                        bitstate reserv : 2; // reserved
                     } var;
                 } shared;
 
@@ -1066,8 +1100,7 @@ namespace netxs
                         bitstate isepar : 1;
                         bitstate inplus : 1;
                         bitstate zwnbsp : 1;
-                        bitstate render : 2; // reserved
-                        bitstate reserv : 8; // reserved
+                        bitstate reserv : 10; // reserved
                     } var;
 
                 } unique;
@@ -1146,7 +1179,6 @@ namespace netxs
             void stk(bool b) { param.shared.var.strike = b; }
             void rtl(bool b) { param.shared.var.r_to_l = b; }
             void blk(bool b) { param.shared.var.blinks = b; }
-            void vis(si32 l) { param.unique.var.render = l; }
 
             bool bld() const { return param.shared.var.bolded; }
             bool itc() const { return param.shared.var.italic; }
@@ -1157,7 +1189,6 @@ namespace netxs
             bool stk() const { return param.shared.var.strike; }
             bool rtl() const { return param.shared.var.r_to_l; }
             bool blk() const { return param.shared.var.blinks; }
-            si32 vis() const { return param.unique.var.render; }
         };
         struct clrs
         {
@@ -1266,12 +1297,12 @@ namespace netxs
             }
         };
 
-        clrs       uv;     // 8U, cell: RGBA color.
-        glyf<void> gc;     // 8U, cell: Grapheme cluster.
-        body       st;     // 4U, cell: Style attributes.
-        id_t       id;     // 4U, cell: Link ID.
-        rgba       underline; // 4U, cell: Underline color.
-        rgba       gridcolor; // 4U, cell: pad, the size should be a power of 2.
+        clrs uv;        // 8U, cell: Fg and bg colors.
+        glyf gc;        // 8U, cell: Grapheme cluster.
+        body st;        // 4U, cell: Style attributes.
+        id_t id;        // 4U, cell: Link ID.
+        rgba underline; // 4U, cell: Underline color.
+        rgba gridcolor; // 4U, cell: pad, the size should be a power of 2.
 
         cell()
             : id{ 0 }
@@ -1696,38 +1727,38 @@ namespace netxs
         // cell: Reset Grapheme cluster.
         void set_gc() { gc.wipe(); }
         // cell: Copy view of the cell (Preserve ID).
-        auto& set(cell const& c)  { uv = c.uv;
-                                    st = c.st;
-                                    gc = c.gc;
-                                    underline= c.underline;
-                                    gridcolor= c.gridcolor; return *this; }
-        auto& bgc (rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
-        auto& fgc (rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
-        auto& bga (si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set Background alpha/transparency.
-        auto& fga (si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set Foreground alpha/transparency.
-        auto& alpha(si32 k)       { uv.bg.chan.a = (byte)k;
-                                    uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
-        auto& bld (bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
-        auto& itc (bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
-        auto& und (si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
-        auto& unc (rgba c)        { underline = c;          return *this; } // cell: Set Underline color.
-        auto& grd (rgba c)        { gridcolor = c;          return *this; } // cell: Set grid color.
-        auto& gln (si32 n)        { st.gln(n);              return *this; } // cell: Set grid lines.
-        auto& ovr (bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
-        auto& inv (bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
-        auto& stk (bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
-        auto& blk (bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
-        auto& rtl (bool b)        { st.rtl(b);              return *this; } // cell: Set Right-To-Left attribute.
-        auto& link(id_t oid)      { id = oid;               return *this; } // cell: Set link object ID.
-        auto& link(cell const& c) { id = c.id;              return *this; } // cell: Set link object ID.
-        auto& txt (view c)        { c.size() ? gc.set(c)
-                                             : gc.wipe();   return *this; } // cell: Set Grapheme cluster.
-        auto& txt (view c, si32 w){ gc.set(c, w);           return *this; } // cell: Set Grapheme cluster.
-        auto& txt (char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
-        auto& txt (cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
-        auto& clr (cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt (si32 w)        { gc.state.width = w;     return *this; } // cell: Return Grapheme cluster screen width.
-        auto& rst () // cell: Reset view attributes of the cell to zero.
+        auto& set(cell const& c) { uv = c.uv;
+                                   st = c.st;
+                                   gc = c.gc;
+                                   underline= c.underline;
+                                   gridcolor= c.gridcolor; return *this; }
+        auto& bgc(rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
+        auto& fgc(rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
+        auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set Background alpha/transparency.
+        auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set Foreground alpha/transparency.
+        auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
+                                   uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
+        auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
+        auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
+        auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
+        auto& unc(rgba c)        { underline = c;          return *this; } // cell: Set Underline color.
+        auto& grd(rgba c)        { gridcolor = c;          return *this; } // cell: Set grid color.
+        auto& gln(si32 n)        { st.gln(n);              return *this; } // cell: Set grid lines.
+        auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
+        auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
+        auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
+        auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
+        auto& rtl(bool b)        { st.rtl(b);              return *this; } // cell: Set Right-To-Left attribute.
+        auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
+        auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
+        auto& txt(view c)        { c.size() ? gc.set(c)
+                                            : gc.wipe();   return *this; } // cell: Set Grapheme cluster.
+        auto& txt(view c, si32 w){ gc.set(c, w);           return *this; } // cell: Set Grapheme cluster.
+        auto& txt(char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
+        auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
+        auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
+        auto& wdt(si32 w)        { gc.state.width = w;     return *this; } // cell: Return Grapheme cluster screen width.
+        auto& rst() // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };
             uv = empty.uv;
@@ -1738,26 +1769,13 @@ namespace netxs
             return *this;
         }
 
-        void hyphen (bool b) { st.param.unique.var.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
-        void fnappl (bool b) { st.param.unique.var.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
-        void itimes (bool b) { st.param.unique.var.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
-        void isepar (bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
-        void inplus (bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
-        void zwnbsp (bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
-        //todo unify
-        // cell: Get grapheme cluster data by token.
-        static auto gc_get_data(ui64 token)
-        {
-            auto lock = std::lock_guard{ cell::glyf<>::mutex };
-            return netxs::get_or(cell::glyf<>::jumbo, token & cell::glyf<>::asset, cell::glyf<>::empty);
-        }
-        // cell: Set grapheme cluster data by token.
-        static auto gc_set_data(ui64 token, view data)
-        {
-            auto lock = std::lock_guard{ cell::glyf<>::mutex };
-            auto& map = cell::glyf<>::jumbo;
-            map[token & cell::glyf<>::asset] = data;
-        }
+        void hyphen(bool b) { st.param.unique.var.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
+        void fnappl(bool b) { st.param.unique.var.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
+        void itimes(bool b) { st.param.unique.var.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
+        void isepar(bool b) { st.param.unique.var.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
+        void inplus(bool b) { st.param.unique.var.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
+        void zwnbsp(bool b) { st.param.unique.var.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
+
         auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
         si32  len() const  { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
@@ -1786,7 +1804,7 @@ namespace netxs
         auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
-        auto link() const  { return id;            } // cell: Return link object ID.
+        auto link() const  { return id;            } // cell: Return object ID.
         auto iswide()const { return wdt() > 1;     } // cell: Return true if char is wide.
         auto isspc() const { return gc.is_space(); } // cell: Return true if char is whitespace.
         auto isnul() const { return gc.is_null();  } // cell: Return true if char is null.
@@ -2075,11 +2093,6 @@ namespace netxs
             static constexpr auto disabled = disabled_t{};
         };
     };
-
-    template<class T> std::hash<view>                cell::glyf<T>::coder;
-    template<class T> text                           cell::glyf<T>::empty;
-    template<class T> std::unordered_map<ui64, text> cell::glyf<T>::jumbo;
-    template<class T> std::mutex                     cell::glyf<T>::mutex;
 
     enum class bias : unsigned char { none, left, right, center, };
     enum class wrap : unsigned char { none, on,  off,            };

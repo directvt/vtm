@@ -7593,10 +7593,13 @@ namespace netxs::ui
             }
             void handle(s11n::xs::jgc_list            lock)
             {
-                for (auto& jgc : lock.thing)
                 {
-                    cell::gc_set_data(jgc.token, jgc.cluster);
-                    if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    auto jumbos = cell::glyf::jumbos();
+                    for (auto& jgc : lock.thing)
+                    {
+                        jumbos.set(jgc.token, jgc.cluster);
+                        if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                    }
                 }
                 netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
                 {

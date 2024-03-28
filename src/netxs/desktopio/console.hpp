@@ -215,10 +215,12 @@ namespace netxs::ui
             {
                 auto& items = lock.thing;
                 auto list = s11n::jgc_list.freeze();
-                for (auto& gc : items)
                 {
-                    auto cluster = cell::gc_get_data(gc.token);
-                    list.thing.push(gc.token, cluster);
+                    auto jumbos = cell::glyf::jumbos();
+                    for (auto& gc : items)
+                    {
+                        list.thing.push(gc.token, jumbos.get(gc.token));
+                    }
                 }
                 list.thing.sendby(canal);
             }

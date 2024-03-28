@@ -1850,8 +1850,6 @@ namespace netxs::ui
                 {
                     auto size = si32{ 5 }; // grade: Vertical gradient size.
                     auto step = si32{ 2 }; // grade: Vertical gradient step.
-                    //cell shadow{ cell{}.vis(cell::highlighter) };
-                    //cell bright{ cell{}.vis(cell::darklighter) };
                     auto shadow = rgba{0xFF000000};
                     auto bright = rgba{0xFFffffff};
 
