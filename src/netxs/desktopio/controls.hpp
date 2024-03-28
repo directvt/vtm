@@ -259,9 +259,9 @@ namespace netxs::ui
                         if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
                         else                                              g.zoomdt += warp;
                         gear.owner.SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
-                        auto r = g.zoomsz + g.zoomdt;
-                        r.size = std::max(dot_00, r.size);
-                        auto next = r.clip(viewport);
+                        auto next = g.zoomsz + g.zoomdt;
+                        next.size = std::max(dot_00, next.size);
+                        next.trimby(viewport);
                         auto step = boss.base::extend(next);
                         if (!step.size) // Undo if can't zoom.
                         {
@@ -284,9 +284,9 @@ namespace netxs::ui
                     {
                         auto corner = item.corner(area.size);
                         auto side_x = item.hzgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).clip(area);
+                                                 .shift_itself(area.coor).trim(area);
                         auto side_y = item.vtgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).clip(area);
+                                                 .shift_itself(area.coor).trim(area);
                         canvas.fill(side_x, fuse);
                         canvas.fill(side_y, fuse);
                     });
@@ -879,7 +879,7 @@ namespace netxs::ui
                         if (state)
                         {
                             auto clip = canvas.core::clip();
-                            if (auto area = clip.clip(body))
+                            if (auto area = clip.trim(body))
                             {
                                 auto& test = canvas.peek(body.coor);
                                 if (test.wdt() == 2) // Extend cursor to adjacent halves.
@@ -3923,7 +3923,7 @@ namespace netxs::ui
                 auto& region_len = region.size[Axis];
                 auto& object_len = object.size[Axis];
 
-                handle = region.clip(handle);
+                handle.trimby(region);
                 handle_len = std::max(1, handle_len);
 
                 drawfx(*this, parent_canvas, handle, object_len, handle_len, region_len, wide);

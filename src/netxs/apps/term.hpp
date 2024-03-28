@@ -805,7 +805,7 @@ namespace netxs::app::terminal
                 }
             }
             auto clip = parent_canvas.clip();
-            auto dest = clip.clip({ region.coor, { region.size.x, std::min(bground.size().y, *menu_height) }});
+            auto dest = clip.trim({ region.coor, { region.size.x, std::min(bground.size().y, *menu_height) }});
             parent_canvas.clip(dest);
             bground.move(region.coor);
             parent_canvas.plot(bground, cell::shaders::blend); // Menu background.

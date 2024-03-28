@@ -1994,12 +1994,12 @@ namespace netxs::ui
                             auto east = rect{{ b, curtop.y     }, { panel.x - b, size_0.y }}.normalize();
                             west.coor.x += clip.coor.x; // Compensate scrollback's hz movement.
                             east.coor.x += clip.coor.x; //
-                            west = west.clip(clip);
-                            east = east.clip(clip);
+                            west.trimby(clip);
+                            east.trimby(clip);
                             dest.fill(west, fill);
                             dest.fill(east, fill);
                         }
-                        square = square.clip(clip);
+                        square.trimby(clip);
                         dest.fill(square, fill);
                     };
                     _shade_selection(mode, work);
@@ -2369,7 +2369,7 @@ namespace netxs::ui
             void do_viewport_copy(face& dest) override
             {
                 auto full = dest.full();
-                auto clip = dest.clip().clip(full);
+                auto clip = dest.clip().trim(full);
                 dest.clip(clip);
                 dest.plot(canvas, cell::shaders::full);
             }
@@ -4501,7 +4501,7 @@ namespace netxs::ui
                 auto find = selection_active() && match.length() && owner.selmod == mime::textonly;
                 auto fill = [&](auto& area, auto chr)
                 {
-                    if (auto r = clip.clip(area))
+                    if (auto r = clip.trim(area))
                     {
                         dest.fill(r, [&](auto& c){ c.txt(chr).fgc(tint::greenlt); });
                     }
@@ -5673,7 +5673,7 @@ namespace netxs::ui
             void do_viewport_copy(face& dest) override
             {
                 auto full = dest.full();
-                auto clip = dest.clip().clip(full);
+                auto clip = dest.clip().trim(full);
                 dest.clip(clip);
                 auto vpos = clip.coor.y - y_top;
                 if (vpos >= 0 && vpos < arena)
@@ -5852,7 +5852,7 @@ namespace netxs::ui
                     }
                     if (upmid.role == grip::idle) return;
                     auto scrolling_region = rect{{ -dot_mx.x / 2, batch.slide + y_top }, { dot_mx.x, arena }};
-                    clip = clip.clip(scrolling_region);
+                    clip.trimby(scrolling_region);
                     //todo Clang 15 don't get it
                     //auto [curtop, curend] = selection_take_grips();
                     auto tempvr = selection_take_grips();
@@ -5865,7 +5865,7 @@ namespace netxs::ui
                         auto area = grip_1 | grip_2;
                         auto proc = [&](auto fx)
                         {
-                            dest.fill(area.clip(clip), fx);
+                            dest.fill(area.trim(clip), fx);
                         };
                         _shade_selection(mode, proc);
                     }
@@ -5895,15 +5895,16 @@ namespace netxs::ui
                                         auto width = curtop.y == curend.y ? curend.x - curtop.x + 1
                                                                           : dot_mx.x;
                                         auto bound = rect{ curtop, { width, 1 }}.normalize();
-                                        block = block.clip(bound);
+                                        block.trimby(bound);
                                     }
                                     else if (coord.y == curend.y)
                                     {
                                         auto bound = rect{ curend, { -dot_mx.x, 1 }}.normalize();
                                         bound.size.x += 1;
-                                        block = block.clip(bound);
+                                        block.trimby(bound);
                                     }
-                                    dest.fill(block.clip(clip), fill);
+                                    block.trimby(clip);
+                                    dest.fill(block, fill);
                                 }
                             };
                             while (head != tail && coor.y < stop)
@@ -7505,7 +7506,7 @@ namespace netxs::ui
                     bottom_oversize.coor.y += console.get_basis() + console.panel.y - console.scend;
                     bottom_oversize.size.y  = oversz.b;
                     bottom_oversize.size.x += oversz.l + oversz.r;
-                    bottom_oversize = bottom_oversize.clip(clip);
+                    bottom_oversize = bottom_oversize.trim(clip);
                     parent_canvas.fill(bottom_oversize, cell::shaders::xlight);
                 }
 

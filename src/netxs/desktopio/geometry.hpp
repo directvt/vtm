@@ -156,7 +156,17 @@ namespace netxs
         friend auto   max(duplet const& p1, duplet const& p2) { return duplet{ std::max(p1.x, p2.x), std::max(p1.y, p2.y) }; }
         friend auto round(duplet const& p)                    { return duplet{ std::round(p.x), std::round(p.y) }; }
         friend auto   abs(duplet const& p)                    { return duplet{ std::abs(p.x), std::abs(p.y) }; }
-        friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2) { return duplet{ std::clamp(p.x, p1.x, p2.x), std::clamp(p.y, p1.y, p2.y) }; }
+        friend auto clamp(duplet const& p, duplet const& p1, duplet const& p2)
+        {
+            return duplet{ std::clamp(p.x, p1.x, p2.x),
+                           std::clamp(p.y, p1.y, p2.y) };
+        }
+        static constexpr auto sort(duplet p1, duplet p2)
+        {
+            if (p1.x > p2.x) std::swap(p1.x, p2.x);
+            if (p1.y > p2.y) std::swap(p1.y, p2.y);
+            return std::pair{ p1, p2 };
+        }
     };
 
     // geometry: 2D point.
@@ -194,21 +204,6 @@ namespace netxs
         twod coor;
         twod size;
 
-        // rect: Intersect two rects.
-        template<bool Relative = faux>
-        constexpr rect clip(rect r) const
-        {
-            if constexpr (Relative) r.coor += coor;
-            auto apex = coor + size;
-            auto r_apex = r.coor + r.size;
-            r.coor = std::clamp(r.coor, coor, apex);
-            r.size = std::clamp(r_apex, coor, apex) - r.coor;
-            return r;
-        }
-        twod clip(twod point) const
-        {
-            return std::clamp(point, coor, coor + std::max(dot_00, size - dot_11));
-        }
         bool operator == (rect const&) const = default;
         explicit operator bool ()       const { return size.x != 0 && size.y != 0;            }
         auto   center          ()       const { return coor + size / 2;                       }
@@ -216,122 +211,84 @@ namespace netxs
         twod   map             (twod p) const { return p - coor;                              }
         rect   shift           (twod p) const { return { coor + p, size };                    }
         auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
-        rect   operator &      (rect r) const { return clip(r);                               }
-        rect   operator |      (rect r) const { return unite(r);                              }
+        rect   operator |      (rect r) const { return unite(r, *this);                       }
         auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
         auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }
 
+        // rect: Return rect trimmed by r.
+        template<bool Relative = faux>
+        constexpr rect trim(rect r) const
+        {
+            if constexpr (Relative) r.coor += coor;
+            auto r_apex = r.coor + r.size;
+            auto [min, max] = twod::sort(coor, coor + size);
+            r.coor = std::clamp(r.coor, min, max);
+            r.size = std::clamp(r_apex, min, max) - r.coor;
+            return r;
+        }
+        // rect: Trim by the specified rect.
+        template<bool Relative = faux>
+        constexpr auto& trimby(rect r)
+        {
+            if constexpr (Relative) coor += r.coor;
+            auto apex = coor + size;
+            auto [min, max] = twod::sort(r.coor, r.coor + r.size);
+            coor = std::clamp(coor, min, max);
+            size = std::clamp(apex, min, max) - coor;
+            return *this;
+        }
+        // rect: Return clamped point.
+        constexpr twod clamp(twod point) const
+        {
+            auto [min, max] = twod::sort(coor, coor + size);
+            return std::clamp(point, min, max - dot_11);
+        }
         // rect: Is the point inside the rect.
-        bool hittest(twod p) const
+        constexpr bool hittest(twod p) const
         {
             auto test = faux;
-            if (size.x > 0)
-            {
-                auto t = p.x - coor.x;
-                test = t >= 0 && t < size.x;
-            }
-            else
-            {
-                auto t = p.x + coor.x;
-                test = t >= size.x && t < 0;
-            }
+            if (size.x > 0) { auto t = p.x - coor.x; test = t >= 0 && t < size.x; }
+            else            { auto t = p.x + coor.x; test = t >= size.x && t < 0; }
 
             if (test)
             {
-                if (size.y > 0)
-                {
-                    auto t = p.y - coor.y;
-                    test = t >= 0 && t < size.y;
-                }
-                else
-                {
-                    auto t = p.y + coor.y;
-                    test = t >= size.y && t < 0;
-                }
-                return test;
+                if (size.y > 0) { auto t = p.y - coor.y; test = t >= 0 && t < size.y; }
+                else            { auto t = p.y + coor.y; test = t >= size.y && t < 0; }
             }
-            return faux;
+            return test;
         }
-        rect rotate(twod dir) const
+        // rect: Return rect with specified orientation.
+        constexpr rect rotate(twod dir) const
         {
-            auto r = rect{};
-            if ((dir.x ^ size.x) < 0)
-            {
-                r.coor.x = coor.x + size.x;
-                r.size.x = -size.x;
-            }
-            else
-            {
-                r.coor.x = coor.x;
-                r.size.x = size.x;
-            }
-
-            if ((dir.y ^ size.y) < 0)
-            {
-                r.coor.y =  coor.y + size.y;
-                r.size.y = -size.y;
-            }
-            else
-            {
-                r.coor.y = coor.y;
-                r.size.y = size.y;
-            }
-            return r;
+            auto sx = (dir.x ^ size.x) < 0;
+            auto sy = (dir.y ^ size.y) < 0;
+            return {{ sx ?  coor.x + size.x : coor.x, sy ?  coor.y + size.y : coor.y },
+                    { sx ? -size.x          : size.x, sy ? -size.y          : size.y }};
         }
-        rect normalize() const
+        // rect: Change orientation.
+        constexpr auto& rotate_itself(twod dir)
         {
-            auto r = rect{};
-            if (size.x < 0)
-            {
-                r.coor.x =  coor.x + size.x;
-                r.size.x = -size.x;
-            }
-            else
-            {
-                r.coor.x = coor.x;
-                r.size.x = size.x;
-            }
-
-            if (size.y < 0)
-            {
-                r.coor.y =  coor.y + size.y;
-                r.size.y = -size.y;
-            }
-            else
-            {
-                r.coor.y = coor.y;
-                r.size.y = size.y;
-            }
-
-            return r;
+            if ((dir.x ^ size.x) < 0) { coor.x += size.x; size.x = -size.x; }
+            if ((dir.y ^ size.y) < 0) { coor.y += size.y; size.y = -size.y; }
+            return *this;
         }
-        auto& normalize_itself()
+        // rect: Return rect with top-left orientation.
+        constexpr rect normalize() const
         {
-            if (size.x < 0)
-            {
-                coor.x =  coor.x + size.x;
-                size.x = -size.x;
-            }
-            else
-            {
-                coor.x = coor.x;
-                size.x = size.x;
-            }
-
-            if (size.y < 0)
-            {
-                coor.y =  coor.y + size.y;
-                size.y = -size.y;
-            }
-            else
-            {
-                coor.y = coor.y;
-                size.y = size.y;
-            }
+            auto sx = size.x < 0;
+            auto sy = size.y < 0;
+            return {{ sx ?  coor.x + size.x : coor.x, sy ?  coor.y + size.y : coor.y },
+                    { sx ? -size.x : size.x         , sy ? -size.y : size.y          }};
+        }
+        // rect: Set top-left orientation.
+        constexpr auto& normalize_itself()
+        {
+            if (size.x < 0) { coor.x += size.x; size.x = -size.x; }
+            if (size.y < 0) { coor.y += size.y; size.y = -size.y; }
             return *this;
         }
         // rect: Intersect the rect with rect{ dot_00, edge }.
-        rect trunc(twod edge) const
+        constexpr rect trunc(twod edge) const
         {
             auto r = rect{};
             r.coor = std::clamp(coor, dot_00, edge);
@@ -339,22 +296,23 @@ namespace netxs
             return r;
         }
         // rect: Return circumscribed rect.
-        rect unite(rect annex) const
+        static constexpr rect unite(rect r1, rect r2)
         {
-            auto r1 = annex.normalize();
-            auto r2 = normalize();
+            r1.normalize_itself();
+            r2.normalize_itself();
             auto tl = std::min(r1.coor, r2.coor);
             auto br = std::max(r1.coor + r1.size, r2.coor + r2.size );
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
-        bool overlap(rect r) const
+        constexpr bool overlap(rect r) const
         {
             return coor.x          < r.coor.x + r.size.x
                 && coor.y          < r.coor.y + r.size.y
                 && coor.x + size.x > r.coor.x
                 && coor.y + size.y > r.coor.y;
         }
+        // rect: To string.
         auto str() const
         {
             return "{" + coor.str() + ", " + size.str() + "}";

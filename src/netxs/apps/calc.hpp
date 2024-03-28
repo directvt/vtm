@@ -110,13 +110,13 @@ namespace netxs::ui
                             auto region = item.region.normalize();
                             auto pos1 = region.coor / step * step;
                             auto pos2 = (region.coor + region.size + step) / step * step;
-                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.clip(area).clip(clip);
+                            auto pick = rect{ full.coor + pos1, pos2 - pos1 }.trimby(area).trimby(clip);
                             parent_canvas.fill(pick, fill);
                         }
                         if (item.inside)
                         {
                             auto pos1 = item.curpos / step * step;
-                            auto pick = rect{ full.coor + pos1, step }.clip(clip);
+                            auto pick = rect{ full.coor + pos1, step }.trimby(clip);
                             parent_canvas.fill(pick, fill);
                         }
                     });
