@@ -914,7 +914,7 @@ namespace netxs::app::vtm
         {
             SIGNAL(tier::request, e2::form::prop::viewport, viewport, ());
             window.SIGNAL(tier::request, e2::form::prop::window::fullsize, object_area, ());
-            auto outside = viewport.unite(object_area);
+            auto outside = viewport | object_area;
             if (outside != viewport)
             {
                 auto coor = outside.coor.equals(object_area.coor, object_area.coor, outside.coor + outside.size - viewport.size);
