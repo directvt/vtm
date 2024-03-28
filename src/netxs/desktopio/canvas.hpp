@@ -1075,21 +1075,22 @@ namespace netxs
                 ui32 strike : 1;
                 ui32 r_to_l : 1;
                 ui32 blinks : 1;
-                ui32 gridln : 4; // grid lines (bits): left, right, top, bottom
-                // Unique attributes. From 14th bit.
+                ui32 gridln : 4; // grid lines (bits): left, right, top, bottom.
+                ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
+                // Unique attributes. From 22th bit.
                 ui32 hyphen : 1;
                 ui32 fnappl : 1;
                 ui32 itimes : 1;
                 ui32 isepar : 1;
                 ui32 inplus : 1;
                 ui32 zwnbsp : 1;
-                ui32 reserv : 12; // reserved
+                ui32 reserv : 4; // reserved
             };
 
             ui32 token;
             attr attrs;
 
-            static constexpr auto shared_bits = (1 << 14) - 1;
+            static constexpr auto shared_bits = (1 << 22) - 1;
 
             constexpr body()
                 : token{ 0 }
@@ -1132,6 +1133,7 @@ namespace netxs
                             if (attrs.overln != base.attrs.overln) dest.ovr(attrs.overln);
                             if (attrs.blinks != base.attrs.blinks) dest.blk(attrs.blinks);
                             if (attrs.gridln != base.attrs.gridln) dest.gln(attrs.gridln);
+                            if (attrs.ucolor != base.attrs.ucolor) dest.unc(attrs.ucolor);
                             if (attrs.r_to_l != base.attrs.r_to_l) {} //todo implement RTL
                         }
                         else
@@ -1154,6 +1156,7 @@ namespace netxs
             void bld(bool b) { attrs.bolded = b; }
             void itc(bool b) { attrs.italic = b; }
             void und(si32 n) { attrs.unline = n; }
+            void unc(si32 c) { attrs.ucolor = c; }
             void gln(si32 n) { attrs.gridln = n; }
             void inv(bool b) { attrs.invert = b; }
             void ovr(bool b) { attrs.overln = b; }
@@ -1164,6 +1167,7 @@ namespace netxs
             bool bld() const { return attrs.bolded; }
             bool itc() const { return attrs.italic; }
             si32 und() const { return attrs.unline; }
+            si32 unc() const { return attrs.ucolor; }
             si32 gln() const { return attrs.gridln; }
             bool inv() const { return attrs.invert; }
             bool ovr() const { return attrs.overln; }
@@ -1282,11 +1286,8 @@ namespace netxs
         glyf gc;        // 8U, cell: Grapheme cluster.
         body st;        // 4U, cell: Style attributes.
         id_t id;        // 4U, cell: Link ID.
-        rgba underline; // 4U, cell: Underline color.
-                        //           1. alpha not used - it is shared with fgc alpha
-                        //           2. One byte: use 256-cube color instead of true colors.
-                        //           3. =0 - same as fgc
-        rgba gridcolor; // 4U, cell: pad, the size should be a power of 2.
+        rgba gridcolor; // 4U, cell: Cell grid color.
+        id_t na;        // 4U, cell: reserved. pad, the size should be a power of 2.
 
         cell()
             : id{ 0 }
@@ -1314,7 +1315,6 @@ namespace netxs
               gc{ base.gc },
               st{ base.st },
               id{ base.id },
-              underline{ base.underline },
               gridcolor{ base.gridcolor }
         { }
 
@@ -1323,7 +1323,6 @@ namespace netxs
               gc{ base.gc, cluster, ucwidth },
               st{ base.st },
               id{ base.id },
-              underline{ base.underline },
               gridcolor{ base.gridcolor }
         { }
 
@@ -1332,7 +1331,6 @@ namespace netxs
               gc{ c       },
               st{ base.st },
               id{ base.id },
-              underline{ base.underline },
               gridcolor{ base.gridcolor }
         { }
 
@@ -1341,7 +1339,6 @@ namespace netxs
             return uv == c.uv
                 && st == c.st
                 && gc == c.gc
-                && underline == c.underline
                 && gridcolor == c.gridcolor;
         }
         auto operator != (cell const& c) const
@@ -1354,7 +1351,6 @@ namespace netxs
             gc = c.gc;
             st = c.st;
             id = c.id;
-            underline = c.underline;
             gridcolor = c.gridcolor;
             return *this;
         }
@@ -1369,7 +1365,6 @@ namespace netxs
         {
             return uv == c.uv
                 && st.like(c.st)
-                && underline == c.underline
                 && gridcolor == c.gridcolor;
         }
         void wipe() // cell: Set colors, attributes and grapheme cluster to zero.
@@ -1377,7 +1372,6 @@ namespace netxs
             uv.wipe();
             gc.wipe();
             st.wipe();
-            underline.wipe();
             gridcolor.wipe();
         }
         auto& data() const { return *this;} // cell: Return the const reference of the base cell.
@@ -1392,7 +1386,6 @@ namespace netxs
             else                      uv.bg.mix(c.uv.bg);
 
             st = c.st;
-            if (st.und()) underline = c.underline;
             if (st.gln()) gridcolor = c.gridcolor;
             if (c.wdt()) gc = c.gc;
         }
@@ -1410,7 +1403,6 @@ namespace netxs
             {
                 st = c.st;
                 gc = c.gc;
-                if (st.und()) underline = c.underline;
             }
             if (st.gln()) gridcolor = c.gridcolor;
         }
@@ -1426,7 +1418,6 @@ namespace netxs
             uv.fg.mix(c.uv.fg, alpha);
             uv.bg.mix(c.uv.bg, alpha);
             st = c.st;
-            if (st.und()) underline = c.underline;
             if (st.gln()) gridcolor = c.gridcolor;
             if (c.wdt()) gc = c.gc;
         }
@@ -1438,7 +1429,6 @@ namespace netxs
             {
                 st = c.st;
                 gc = c.gc;
-                if (st.und()) underline = c.underline;
                 uv.fg = uv.bg; // The character must be on top of the cell background. (see block graphics)
             }
             if (st.gln()) gridcolor = c.gridcolor;
@@ -1467,7 +1457,6 @@ namespace netxs
                 else                   bg.mix(c.uv.fg);
                 uv.fg = bg;
                 gc = c.gc;
-                underline = c.underline;
             }
             else
             {
@@ -1491,7 +1480,6 @@ namespace netxs
         {
             uv = c.uv;
             st = c.st;
-            underline = c.underline;
             gridcolor = c.gridcolor;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
@@ -1503,13 +1491,8 @@ namespace netxs
                 //todo additionally consider UNIQUE ATTRIBUTES
                 uv.get<Mode, UseSGR>(base.uv, dest);
                 st.get<Mode, UseSGR>(base.st, dest);
-                if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored underline only in vtrgb mode.
+                if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored grid only in vtrgb mode.
                 {
-                    if (base.underline != underline)
-                    {
-                        dest.unc(underline);
-                        base.underline = underline;
-                    }
                     if (base.gridcolor != gridcolor)
                     {
                         dest.grd(gridcolor);
@@ -1559,13 +1542,8 @@ namespace netxs
                     //todo additionally consider UNIQUE ATTRIBUTES
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
-                    if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored underline only in vtrgb mode.
+                    if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored grid only in vtrgb mode.
                     {
-                        if (base.underline != underline)
-                        {
-                            dest.unc(underline);
-                            base.underline = underline;
-                        }
                         if (base.gridcolor != gridcolor)
                         {
                             dest.grd(gridcolor);
@@ -1589,13 +1567,8 @@ namespace netxs
                     //todo additionally consider UNIQUE ATTRIBUTES
                     uv.get<Mode, UseSGR>(base.uv, dest);
                     st.get<Mode, UseSGR>(base.st, dest);
-                    if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored underline only in vtrgb mode.
+                    if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored grid only in vtrgb mode.
                     {
-                        if (base.underline != underline)
-                        {
-                            dest.unc(underline);
-                            base.underline = underline;
-                        }
                         if (base.gridcolor != gridcolor)
                         {
                             dest.grd(gridcolor);
@@ -1710,7 +1683,6 @@ namespace netxs
         auto& set(cell const& c) { uv = c.uv;
                                    st = c.st;
                                    gc = c.gc;
-                                   underline= c.underline;
                                    gridcolor= c.gridcolor; return *this; }
         auto& bgc(rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
         auto& fgc(rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
@@ -1721,7 +1693,8 @@ namespace netxs
         auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
         auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
         auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
-        auto& unc(rgba c)        { underline = c;          return *this; } // cell: Set Underline color.
+        auto& unc(rgba c)        { st.unc(c.to_256cube()); return *this; } // cell: Set Underline color.
+        auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set Underline color.
         auto& grd(rgba c)        { gridcolor = c;          return *this; } // cell: Set grid color.
         auto& gln(si32 n)        { st.gln(n);              return *this; } // cell: Set grid lines.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
@@ -1744,7 +1717,6 @@ namespace netxs
             uv = empty.uv;
             st = empty.st;
             gc = empty.gc;
-            underline = empty.underline;
             gridcolor = empty.gridcolor;
             return *this;
         }
@@ -1773,8 +1745,7 @@ namespace netxs
         auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
         auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
         auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
-        auto& unc()        { return underline;     } // cell: Return Underline color.
-        auto& unc() const  { return underline;     } // cell: Return Underline color.
+        auto  unc() const  { return st.unc();      } // cell: Return Underline color.
         auto& grd()        { return gridcolor;     } // cell: Return grid color.
         auto& grd() const  { return gridcolor;     } // cell: Return grid color.
         auto  gln() const  { return st.gln();      } // cell: Return grid lines.

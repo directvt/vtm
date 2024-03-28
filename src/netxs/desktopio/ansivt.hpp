@@ -355,6 +355,11 @@ namespace netxs::ansi
             return c.token == 0 ? add("\033[59m")
                                 : add("\033[58:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
         }
+        auto& unc(si32 c) // basevt: SGR 58/59 Underline color from 256-color 6x6x6-cube.
+        {
+            c &= 0xFF;
+            return c ? unc(rgba{ rgba::vt256[c] }) : add("\033[59m");
+        }
         auto& grd(rgba c) // basevt: SGR 68/69 Grid color. RGB: red, green, blue.
         {
             return c.token == 0 ? add("\033[69m")
@@ -1269,7 +1274,7 @@ namespace netxs::ansi
                     sgr[sgr_doubleund] = V{ p->brush.und(  unln::biline); };
                     sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
                     sgr[sgr_uline_clr] = V{ p->brush.unc(rgba{ q }); };
-                    sgr[sgr_uline_rst] = V{ p->brush.unc(rgba{   }); };
+                    sgr[sgr_uline_rst] = V{ p->brush.unc(0        ); };
                     sgr[sgr_grid_clr ] = V{ p->brush.grd(rgba{ q }); };
                     sgr[sgr_grid_rst ] = V{ p->brush.grd(rgba{   }); };
                     sgr[sgr_gridlines] = V{ p->brush.gln(q(0)); };
