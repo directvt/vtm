@@ -2330,7 +2330,7 @@ struct impl : consrv
         auto size = block.size();
         auto clip = block.clip();
         auto dest = rect{ coor, clip.size };
-        trim = dest.clip(trim);
+        trim.trimby(dest);
         clip -= dest - trim;
         coor = trim.coor;
         auto head = block.begin() + clip.coor.y * size.x;

@@ -830,12 +830,10 @@ namespace netxs
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
-
-        if (auto joint = rect1.clip(rect2))
+        if (auto joint = rect1.trim(rect2))
         {
             auto basis = joint.coor - rect2.coor;
             joint.coor-= rect1.coor;
-
             inbody<faux>(canvas, bitmap, joint, basis, handle, online);
         }
     }
@@ -847,7 +845,7 @@ namespace netxs
     void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
         auto& place = canvas.area();
-        if (auto joint = region.clip(place))
+        if (auto joint = region.trim(place))
         {
             auto basis = joint.coor - place.coor;
             auto frame = place.size.x * basis.y + basis.x + canvas.begin();

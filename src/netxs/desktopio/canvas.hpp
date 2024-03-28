@@ -2333,9 +2333,8 @@ namespace netxs
         void plot(core const& block, P fuse) // core: Fill the client area by the specified block with coordinates inside the canvas area.
         {
             //todo use block.client instead of block.region
-            auto local = rect{ client.coor - region.coor, client.size };
-            auto joint = local.clip(block.region);
-            if (joint)
+            auto joint = rect{ client.coor - region.coor, client.size };
+            if (joint.trimby(block.region))
             {
                 auto place = joint.coor - block.region.coor;
                 netxs::inbody<faux>(*this, block, joint, place, fuse);
@@ -2532,17 +2531,17 @@ namespace netxs
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top
-            fill(temp.clip(area), fuse);
+            fill(temp.trim(area), fuse);
             temp.coor.y += area.size.y - border.b; // Bottom
             temp.size.y = std::max(0, border.b);
-            fill(temp.clip(area), fuse);
+            fill(temp.trim(area), fuse);
             temp.size.x = std::max(0, border.l); // Left
             temp.size.y = std::max(0, area.size.y - border.t - border.b);
             temp.coor.y = area.coor.y + border.t;
-            fill(temp.clip(area), fuse);
+            fill(temp.trim(area), fuse);
             temp.coor.x += area.size.x - border.r; // Right
             temp.size.x = std::max(0, border.r);
-            fill(temp.clip(area), fuse);
+            fill(temp.trim(area), fuse);
         }
         template<class P>
         void cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.

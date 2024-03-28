@@ -161,7 +161,7 @@ namespace netxs
             return duplet{ std::clamp(p.x, p1.x, p2.x),
                            std::clamp(p.y, p1.y, p2.y) };
         }
-        static auto sort(duplet p1, duplet p2)
+        static constexpr auto sort(duplet p1, duplet p2)
         {
             if (p1.x > p2.x) std::swap(p1.x, p2.x);
             if (p1.y > p2.y) std::swap(p1.y, p2.y);
@@ -217,7 +217,7 @@ namespace netxs
 
         // rect: Return rect trimmed by r.
         template<bool Relative = faux>
-        constexpr rect clip(rect r) const
+        constexpr rect trim(rect r) const
         {
             if constexpr (Relative) r.coor += coor;
             auto r_apex = r.coor + r.size;
@@ -228,22 +228,23 @@ namespace netxs
         }
         // rect: Trim by the specified rect.
         template<bool Relative = faux>
-        constexpr void trimby(rect r)
+        constexpr auto& trimby(rect r)
         {
             if constexpr (Relative) coor += r.coor;
             auto apex = coor + size;
             auto [min, max] = twod::sort(r.coor, r.coor + r.size);
             coor = std::clamp(coor, min, max);
             size = std::clamp(apex, min, max) - coor;
+            return *this;
         }
         // rect: Return clamped point.
-        twod clamp(twod point) const
+        constexpr twod clamp(twod point) const
         {
             auto [min, max] = twod::sort(coor, coor + size);
             return std::clamp(point, min, max - dot_11);
         }
         // rect: Is the point inside the rect.
-        bool hittest(twod p) const
+        constexpr bool hittest(twod p) const
         {
             auto test = faux;
             if (size.x > 0) { auto t = p.x - coor.x; test = t >= 0 && t < size.x; }
@@ -257,7 +258,7 @@ namespace netxs
             return test;
         }
         // rect: Return rect with specified orientation.
-        rect rotate(twod dir) const
+        constexpr rect rotate(twod dir) const
         {
             auto sx = (dir.x ^ size.x) < 0;
             auto sy = (dir.y ^ size.y) < 0;
@@ -265,14 +266,14 @@ namespace netxs
                     { sx ? -size.x          : size.x, sy ? -size.y          : size.y }};
         }
         // rect: Change orientation.
-        auto& rotate_itself(twod dir)
+        constexpr auto& rotate_itself(twod dir)
         {
             if ((dir.x ^ size.x) < 0) { coor.x += size.x; size.x = -size.x; }
             if ((dir.y ^ size.y) < 0) { coor.y += size.y; size.y = -size.y; }
             return *this;
         }
         // rect: Return rect with top-left orientation.
-        rect normalize() const
+        constexpr rect normalize() const
         {
             auto sx = size.x < 0;
             auto sy = size.y < 0;
@@ -280,14 +281,14 @@ namespace netxs
                     { sx ? -size.x : size.x         , sy ? -size.y : size.y          }};
         }
         // rect: Set top-left orientation.
-        auto& normalize_itself()
+        constexpr auto& normalize_itself()
         {
             if (size.x < 0) { coor.x += size.x; size.x = -size.x; }
             if (size.y < 0) { coor.y += size.y; size.y = -size.y; }
             return *this;
         }
         // rect: Intersect the rect with rect{ dot_00, edge }.
-        rect trunc(twod edge) const
+        constexpr rect trunc(twod edge) const
         {
             auto r = rect{};
             r.coor = std::clamp(coor, dot_00, edge);
@@ -295,7 +296,7 @@ namespace netxs
             return r;
         }
         // rect: Return circumscribed rect.
-        static rect unite(rect r1, rect r2)
+        static constexpr rect unite(rect r1, rect r2)
         {
             r1.normalize_itself();
             r2.normalize_itself();
@@ -304,7 +305,7 @@ namespace netxs
             return { tl, br - tl};
         }
         // rect: Return true in case of normalized rectangles are overlapped.
-        bool overlap(rect r) const
+        constexpr bool overlap(rect r) const
         {
             return coor.x          < r.coor.x + r.size.x
                 && coor.y          < r.coor.y + r.size.y

@@ -493,7 +493,7 @@ namespace netxs::ui
             //todo place is wrong if RtoL==true
             //rect place{ pos, { RtoL ? used, body.size().y } };
             auto place = rect{ coord, { used, body.size().y } };
-            auto joint = canvas.clip().clip(place);
+            auto joint = canvas.clip().trim(place);
             if (joint)
             {
                 if constexpr (RtoL)
@@ -2280,7 +2280,7 @@ namespace netxs::ui
             auto old_clip = core::clip();
             if (trim)
             {
-                auto new_clip = core::area().clip(old_clip + delta);
+                auto new_clip = core::area().trim(old_clip + delta);
                 core::clip(new_clip);
             }
             auto new_full = old_full + delta;
@@ -2333,7 +2333,7 @@ namespace netxs::ui
                     }
                 }
             };
-            auto nested_clip = trim ? core::clip().clip(object_area) : core::clip();
+            auto nested_clip = trim ? core::clip().trim(object_area) : core::clip();
             auto proceed = Forced || nested_clip;
             if (proceed)
             {
