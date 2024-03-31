@@ -503,7 +503,6 @@ namespace netxs::ui
         poly kb_focus;
         poly brighter;
         poly shadower;
-        poly shadow;
         poly selector;
 
         cell highlight;
@@ -542,6 +541,12 @@ namespace netxs::ui
         span fader_time;
         span fader_fast;
 
+        bool shadow_enabled = true;
+        si32 shadow_blur = 3;
+        fp32 shadow_bias = 0.37f;
+        fp32 shadow_opacity = 105.5f;
+        twod shadow_offset = dot_21;
+
         twod min_value = dot_00;
         twod max_value = twod{ 2000, 1000 }; //todo unify
 
@@ -559,7 +564,6 @@ namespace netxs::ui
                 case tone::prop::kb_focus:   return g.kb_focus;
                 case tone::prop::brighter:   return g.brighter;
                 case tone::prop::shadower:   return g.shadower;
-                case tone::prop::shadow:     return g.shadow;
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
@@ -584,7 +588,6 @@ namespace netxs::ui
                 case tone::prop::kb_focus: return g.kb_focus;
                 case tone::prop::brighter: return g.brighter;
                 case tone::prop::shadower: return g.shadower;
-                case tone::prop::shadow:   return g.shadow;
                 case tone::prop::selector: return g.selector;
                 default:                   return g.brighter;
             }

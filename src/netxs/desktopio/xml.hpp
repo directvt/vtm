@@ -70,6 +70,11 @@ namespace netxs::xml
         else return utf::to_int<T, 10>(utf8);
     }
     template<>
+    auto take<float>(qiew utf8) -> std::optional<float>
+    {
+        return utf::to_int<float>(utf8);
+    }
+    template<>
     auto take<text>(qiew utf8) -> std::optional<text>
     {
         return utf8.str();

@@ -857,8 +857,12 @@ namespace netxs
             struct mode
             {
                 byte jumbo : 1;                  // grapheme cluster length overflow bit
+
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+                //todo move width to body
                 byte width : utf::wcwidth_field_size; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+
+                //todo extend to 7 bit for cluster length in bytes
                 byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
             };
 
@@ -1069,28 +1073,33 @@ namespace netxs
                 // Shared attributes.
                 ui32 bolded : 1;
                 ui32 italic : 1;
-                ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                 ui32 invert : 1;
                 ui32 overln : 1;
                 ui32 strike : 1;
-                ui32 r_to_l : 1;
-                ui32 blinks : 1;
-                ui32 gridln : 4; // grid lines (bits): left, right, top, bottom.
+                ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                 ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
-                // Unique attributes. From 22th bit.
+                ui32 gridln : 4; // grid lines (bits): left, right, top, bottom.
+                ui32 blinks : 1;
+                ui32 cursor : 3; // bits: 0 none, 1 bold underscore, 2 underscore, 3 bar, 4 dbl underscore, 5 box, 6 empty box, 7 transparent - hint for IME.
+
+                //todo ui32 fragment : 8; // 8 bit for CFA
+
+                // Unique attributes. From 24th bit.
+                //todo move all to cell::na
+                //ui32 r_to_l : 1;
                 ui32 hyphen : 1;
                 ui32 fnappl : 1;
                 ui32 itimes : 1;
                 ui32 isepar : 1;
                 ui32 inplus : 1;
                 ui32 zwnbsp : 1;
-                ui32 reserv : 4; // reserved
+                ui32 reserv : 2; // reserved
             };
 
             ui32 token;
             attr attrs;
 
-            static constexpr auto shared_bits = (1 << 22) - 1;
+            static constexpr auto shared_bits = (1 << 24) - 1;
 
             constexpr body()
                 : token{ 0 }
@@ -1134,7 +1143,7 @@ namespace netxs
                             if (attrs.blinks != base.attrs.blinks) dest.blk(attrs.blinks);
                             if (attrs.gridln != base.attrs.gridln) dest.gln(attrs.gridln);
                             if (attrs.ucolor != base.attrs.ucolor) dest.unc(attrs.ucolor);
-                            if (attrs.r_to_l != base.attrs.r_to_l) {} //todo implement RTL
+                            //if (attrs.r_to_l != base.attrs.r_to_l) {} //todo implement RTL
                         }
                         else
                         {
@@ -1161,7 +1170,7 @@ namespace netxs
             void inv(bool b) { attrs.invert = b; }
             void ovr(bool b) { attrs.overln = b; }
             void stk(bool b) { attrs.strike = b; }
-            void rtl(bool b) { attrs.r_to_l = b; }
+            //void rtl(bool b) { attrs.r_to_l = b; }
             void blk(bool b) { attrs.blinks = b; }
 
             bool bld() const { return attrs.bolded; }
@@ -1172,7 +1181,7 @@ namespace netxs
             bool inv() const { return attrs.invert; }
             bool ovr() const { return attrs.overln; }
             bool stk() const { return attrs.strike; }
-            bool rtl() const { return attrs.r_to_l; }
+            //bool rtl() const { return attrs.r_to_l; }
             bool blk() const { return attrs.blinks; }
         };
         struct clrs
@@ -1701,7 +1710,7 @@ namespace netxs
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
         auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
         auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
-        auto& rtl(bool b)        { st.rtl(b);              return *this; } // cell: Set Right-To-Left attribute.
+        auto& rtl(bool /*b*/) { /*todo st.rtl(b);*/     return *this; } // cell: Set Right-To-Left attribute.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
         auto& txt(view c)        { c.size() ? gc.set(c)
@@ -1710,7 +1719,7 @@ namespace netxs
         auto& txt(char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
         auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt(si32 w)        { gc.state.width = w;     return *this; } // cell: Return Grapheme cluster screen width.
+        auto& wdt(si32 w)        { gc.state.width = w;     return *this; } // cell: Set Grapheme cluster screen width.
         auto& rst() // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };

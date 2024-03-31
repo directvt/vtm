@@ -2465,7 +2465,6 @@ namespace netxs::ui
         X(kb_focus  , "Keyboard focus indicator")      \
         X(brighter  , "Highlighter modificator")       \
         X(shadower  , "Darklighter modificator")       \
-        X(shadow    , "Light Darklighter modificator") \
         X(selector  , "Selection overlay")             \
         X(highlight , "Hilighted item color")          \
         X(warning   , "Warning color")                 \

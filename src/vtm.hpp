@@ -866,7 +866,7 @@ namespace netxs::app::vtm
                     if (canvas.cmode != svga::vt16 && canvas.cmode != svga::nt16) // Don't show shadow in poor color environment.
                     {
                         //todo revise
-                        auto mark = skin::color(tone::shadow);
+                        auto mark = skin::color(tone::shadower);
                         mark.bga(mark.bga() / 2);
                         canvas.fill(gate_area, [&](cell& c){ c.fuse(mark); });
                     }
@@ -1248,7 +1248,7 @@ namespace netxs::app::vtm
         {
             return ui::cake::ctor()
                 ->plugin<pro::d_n_d>()
-                ->plugin<pro::ghost>(2)
+                ->plugin<pro::ghost>()
                 ->plugin<pro::title>(what.header, what.footer)
                 ->plugin<pro::notes>(what.header, dent{ 2,2,1,1 })
                 ->plugin<pro::sizer>()

@@ -2137,17 +2137,24 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            si32 radius;
-            twod oversz;
-            twod offset;
-
-            auto draw_shadow(face& canvas)
+            struct corner_t
             {
-                static auto edge = [&]()
+                bool sync{};
+                core bitmap;
+                twod oversz;
+                twod offset;
+
+                void generate_corner()
                 {
-                    auto bitmap = core{};
-                    auto spline = netxs::spline01{ 0.36f };
-                    auto sz = dot_21 * (radius * 4 + 1);
+                    sync = true;
+                    auto bias    = skin::globals().shadow_bias;                            // +_k0 * 0.1f;
+                    auto opacity = std::clamp(skin::globals().shadow_opacity, 0.f, 255.f); // +_k1 * 1.f;
+                    auto blur    = std::abs(skin::globals().shadow_blur);                  // +_k2;
+                    auto shift   = skin::globals().shadow_offset;                          // + dot_21 * _k3;
+                    oversz = dot_21 * (blur * 4);
+                    offset = dot_21 * (blur * 2) - shift;
+                    auto spline = netxs::spline01{ bias };
+                    auto sz = dot_21 * (blur * 4 + 1);
                     bitmap.size(sz);
                     auto it = bitmap.begin();
                     for (auto y = 0.f; y < sz.y; y++)
@@ -2162,18 +2169,30 @@ namespace netxs::ui
                             auto x0 = x / (sz.x - 1.f);
                             auto sx = spline(x0);
                             auto xy = sy * sx;
-                            auto a = (byte)std::round(96.f * xy);
+                            auto a = (byte)std::round(opacity * xy);
                             f.chan.a = a;
                             b.chan.a = a;
                         }
                     }
-                    return bitmap;
-                }();
-                canvas.step(offset);
+                }
+            };
+
+            auto& get_corner()
+            {
+                static auto corner = corner_t{};
+                return corner;
+            }
+
+            auto draw_shadow(face& canvas)
+            {
+                auto& corner = ghost::get_corner();
+                if (!corner.sync) corner.generate_corner();
+                auto& edge = corner.bitmap;
+                canvas.step(corner.offset);
                 auto dir = dot_11;
                 auto win = boss.area();
                 auto src = edge.area();
-                auto dst = rect{ dot_00, win.size + oversz };
+                auto dst = rect{ dot_00, win.size + corner.oversz };
                 auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
                 auto off = dent{ 0, cut.x, 0, cut.y };
                 src += off;
@@ -2203,20 +2222,17 @@ namespace netxs::ui
                 dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
                 dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
                 dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                canvas.step(-offset);
+                canvas.step(-corner.offset);
             }
 
         public:
             ghost(base&&) = delete;
-            ghost(base& boss, si32 shadowsize)
-                : skill{ boss },
-                  radius{ shadowsize },
-                  oversz{ dot_21 * (radius * 4) },
-                  offset{ dot_21 * (radius * 2 - 1)}
+            ghost(base& boss)//, si32 shadowsize)
+                : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    draw_shadow(parent_canvas);
+                    if (skin::globals().shadow_enabled) draw_shadow(parent_canvas);
                 };
                 //test
                 //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)

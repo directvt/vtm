@@ -508,12 +508,23 @@ namespace netxs::utf
         auto top = ascii.data();
         auto end = ascii.length() + top;
 
-        if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
+        if constexpr (std::is_floating_point_v<A>)
         {
-            ascii.remove_prefix(pos - top);
-            return num;
+            if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
+            {
+                ascii.remove_prefix(pos - top);
+                return num;
+            }
         }
-        else return std::nullopt;
+        else
+        {
+            if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
+            {
+                ascii.remove_prefix(pos - top);
+                return num;
+            }
+        }
+        return std::nullopt;
     }
     template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
     auto to_int(T&& utf8)
