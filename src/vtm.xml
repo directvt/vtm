@@ -310,7 +310,7 @@ R"==(
             <style="underline"/> <!-- Cursor style: underline | block -->
             <blink=400ms/>       <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
-            <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the foreground color (fgc) of the underlying text. -->
+            <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
         </cursor>
         <menu item*>
             <autohide=off/>
