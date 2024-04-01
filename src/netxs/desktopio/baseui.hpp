@@ -130,13 +130,13 @@ namespace netxs::events::userland
             {
                 EVENT_XS( creator, ui::sptr ), // request: pointer to world object.
                 EVENT_XS( fps    , si32     ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret  , span     ), // any kind of intervals property.
+                GROUP_XS( cursor , span     ), // any kind of intervals property.
                 GROUP_XS( plugins, si32     ),
 
-                SUBSET_XS( caret )
+                SUBSET_XS( cursor )
                 {
-                    EVENT_XS( blink, span ), // caret blinking interval.
-                    EVENT_XS( style, si32 ), // caret style: 0 - underline, 1 - box.
+                    EVENT_XS( blink, span ), // cursor blinking interval.
+                    EVENT_XS( style, si32 ), // netxs::text_cursor.
                 };
                 SUBSET_XS( plugins )
                 {

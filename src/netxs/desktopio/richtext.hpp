@@ -50,8 +50,8 @@ namespace netxs::ui
         side boundary{ }; // flow: Affected area by the text output.
         si32 curpoint{ }; // flow: Current substring start position.
         si32 caret_mx{ }; // flow: Maximum x-coor value on the visible area.
-        twod caretpos{ }; // flow: Current virtual (w/o style applied) caret position.
-        twod caretsav{ }; // flow: Caret pos saver.
+        twod caretpos{ }; // flow: Current virtual (w/o style applied) cursor position.
+        twod caretsav{ }; // flow: Cursor pos saver.
         rect cliprect{ }; // flow: Client area inside page margins.
         rect pagerect{ }; // flow: Client full area. Used as a nested areas (coords++) accumulator.
         rect pagecopy{ }; // flow: Client full area saver.
@@ -1106,12 +1106,12 @@ namespace netxs::ui
         //todo unify
         auto& at(si32 p) const { return *(lyric->begin(p)); } // para: .
 
-        // para: Normalize caret position.
+        // para: Normalize cursor position.
         void caret_check()
         {
             caret = std::clamp(caret, 0, length());
         }
-        // para: Move caret to the beginning.
+        // para: Move cursor to the beginning.
         auto move_to_home(bool erase)
         {
             if (erase)
@@ -1123,7 +1123,7 @@ namespace netxs::ui
             }
             caret = 0;
         }
-        // para: Move caret to the end.
+        // para: Move cursor to the end.
         auto move_to_end(bool erase)
         {
             if (erase)
@@ -1134,7 +1134,7 @@ namespace netxs::ui
             }
             caret = length();
         }
-        // para: Move caret one cell to the left.
+        // para: Move cursor one cell to the left.
         auto step_by_cell_rev()
         {
             caret_check();
@@ -1145,7 +1145,7 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Move caret one cell to the right.
+        // para: Move cursor one cell to the right.
         auto step_by_cell_fwd()
         {
             caret_check();
@@ -1156,7 +1156,7 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Move caret one grapheme cluster to the left.
+        // para: Move cursor one grapheme cluster to the left.
         auto step_by_gc_rev()
         {
             caret_check();
@@ -1187,7 +1187,7 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Move caret one grapheme cluster to the right.
+        // para: Move cursor one grapheme cluster to the right.
         auto step_by_gc_fwd()
         {
             caret_check();
@@ -1219,7 +1219,7 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Insert one proto cell before caret (the proto means that it will be expanded if it is wide - wdt == 2).
+        // para: Insert one proto cell before cursor (the proto means that it will be expanded if it is wide - wdt == 2).
         auto insert(cell c, bool inserting = true)
         {
             if (!inserting) del_gc_fwd();
@@ -1267,7 +1267,7 @@ namespace netxs::ui
             }
             else operator+=(utf8);
         }
-        // para: Move caret one word to the left.
+        // para: Move cursor one word to the left.
         auto step_by_word_rev()
         {
             caret_check();
@@ -1293,7 +1293,7 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Move caret one word to the right.
+        // para: Move cursor one word to the right.
         auto step_by_word_fwd()
         {
             caret_check();
@@ -1321,13 +1321,13 @@ namespace netxs::ui
             }
             else return faux;
         }
-        // para: Move caret one word(true) or grapheme cluster(faux) to the left.
+        // para: Move cursor one word(true) or grapheme cluster(faux) to the left.
         auto step_rev(bool by_word)
         {
             return by_word ? step_by_word_rev()
                            : step_by_gc_rev();
         }
-        // para: Move caret one word(true) or grapheme cluster(faux) to the right.
+        // para: Move cursor one word(true) or grapheme cluster(faux) to the right.
         auto step_fwd(bool by_word, rich const& fallback)
         {
                  if (by_word)           return step_by_word_fwd();
@@ -1841,8 +1841,6 @@ namespace netxs::ui
                 data += b ? set : off;
             }
             auto unc(rgba ) { }
-            auto grd(rgba ) { }
-            auto gln(si32 ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -2001,8 +1999,6 @@ namespace netxs::ui
             auto itc(bool ) { }
             auto und(si32 ) { }
             auto unc(rgba ) { }
-            auto grd(rgba ) { }
-            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2079,8 +2075,6 @@ namespace netxs::ui
             auto itc(bool ) { }
             auto und(si32 ) { }
             auto unc(rgba ) { }
-            auto grd(rgba ) { }
-            auto gln(si32 ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }

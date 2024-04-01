@@ -37,13 +37,13 @@ namespace netxs::ansi
     static const auto esc_key_n   = '>'; // ESC >  Normal      keypad.
     static const auto esc_decbi   = '6'; // ESC 6  Back index,    DECBI.
     static const auto esc_decfi   = '9'; // ESC 9  Forward index, DECFI.
-    static const auto esc_sc      = '7'; // ESC 7  Save    caret position and rendition state.
-    static const auto esc_rc      = '8'; // ESC 8  Restore caret position and rendition state.
-    static const auto esc_hts     = 'H'; // ESC H  Set tabstop at the current caret position.
-    static const auto esc_nel     = 'E'; // ESC E  Move caret down and CR.
-    static const auto esc_clb     = 'F'; // ESC F  Move caret to lower leftmost position.
-    static const auto esc_ind     = 'D'; // ESC D  Caret down.
-    static const auto esc_ir      = 'M'; // ESC M  Caret up.
+    static const auto esc_sc      = '7'; // ESC 7  Save    cursor position and rendition state.
+    static const auto esc_rc      = '8'; // ESC 8  Restore cursor position and rendition state.
+    static const auto esc_hts     = 'H'; // ESC H  Set tabstop at the current cursor position.
+    static const auto esc_nel     = 'E'; // ESC E  Move cursor down and CR.
+    static const auto esc_clb     = 'F'; // ESC F  Move cursor to lower leftmost position.
+    static const auto esc_ind     = 'D'; // ESC D  Cursor down.
+    static const auto esc_ir      = 'M'; // ESC M  Cursor up.
     static const auto esc_ris     = 'c'; // ESC c  Reset terminal to initial state.
     static const auto esc_memlk   = 'l'; // ESC l  Memory lock.
     static const auto esc_munlk   = 'm'; // ESC m  Memory unlock.
@@ -59,7 +59,7 @@ namespace netxs::ansi
     static const auto esc_rid     = 'Z'; // ESC Z  Return ID.
     static const auto csi_spc_slc = '@'; // CSI n SP   @  — Shift left n columns(s).
     static const auto csi_spc_src = 'A'; // CSI n SP   A  — Shift right n columns(s).
-    static const auto csi_spc_cst = 'q'; // CSI n SP   q  — Set caret style (DECSCUSR).
+    static const auto csi_spc_cst = 'q'; // CSI n SP   q  — Set cursor style (DECSCUSR).
     static const auto csi_hsh_scp = 'P'; // CSI n #    P  — Push current palette colors onto stack. n default is 0.
     static const auto csi_hsh_rcp = 'Q'; // CSI n #    Q  — Pop current palette colors from stack. n default is 0.
     static const auto csi_hsh_sva = 'p'; // CSI   #    p  — Push video attributes from stack (XTPUSHSGR).
@@ -70,28 +70,28 @@ namespace netxs::ansi
     static const auto csi_exl_rst = 'p'; // CSI   !    p  — Reset terminal to initial state.
     static const auto csi_qst_rtb = 'W'; // CSI   ?    W  — Reset tabstops to the defaults.
     static const auto csi_dlr_fra = 'x'; // CSI Char ; Top ; Left ; Bottom ; Right $ x  — Fill rectangular area (DECFRA).
-    static const auto csi_cuu     = 'A'; // CSI n      A  — Caret Up.
-    static const auto csi_cud     = 'B'; // CSI n      B  — Caret Down.
-    static const auto csi_cud2    = 'e'; // CSI n      e  — Caret Down.
-    static const auto csi_cuf     = 'C'; // CSI n      C  — Caret Forward.
-    static const auto csi_cub     = 'D'; // CSI n      D  — Caret Back.
-    static const auto csi_cnl     = 'E'; // CSI n      E  — Caret Next Line.     Move n lines down and to the leftmost column.
-    static const auto csi_cpl     = 'F'; // CSI n      F  — Caret Previous Line. Move n lines up   and to the leftmost column.
-    static const auto csi_chx     = 'G'; // CSI n      G  — Caret Horizontal Absolute.
-    static const auto csi_chy     = 'd'; // CSI n      d  — Caret Vertical Absolute.
+    static const auto csi_cuu     = 'A'; // CSI n      A  — Cursor Up.
+    static const auto csi_cud     = 'B'; // CSI n      B  — Cursor Down.
+    static const auto csi_cud2    = 'e'; // CSI n      e  — Cursor Down.
+    static const auto csi_cuf     = 'C'; // CSI n      C  — Cursor Forward.
+    static const auto csi_cub     = 'D'; // CSI n      D  — Cursor Back.
+    static const auto csi_cnl     = 'E'; // CSI n      E  — Cursor Next Line.     Move n lines down and to the leftmost column.
+    static const auto csi_cpl     = 'F'; // CSI n      F  — Cursor Previous Line. Move n lines up   and to the leftmost column.
+    static const auto csi_chx     = 'G'; // CSI n      G  — Cursor Horizontal Absolute.
+    static const auto csi_chy     = 'd'; // CSI n      d  — Cursor Vertical Absolute.
     static const auto csi_hvp     = 'f'; // CSI n ; m  f  — Horizontal and Vertical Position.
-    static const auto csi_cup     = 'H'; // CSI n ; m  H  — Caret Position.
-    static const auto csi_cht     = 'I'; // CSI n      I  — Caret forward  n tab stops (default = 1).
-    static const auto csi_cbt     = 'Z'; // CSI n      Z  — Caret backward n tab stops (default = 1).
+    static const auto csi_cup     = 'H'; // CSI n ; m  H  — Cursor Position.
+    static const auto csi_cht     = 'I'; // CSI n      I  — Cursor forward  n tab stops (default = 1).
+    static const auto csi_cbt     = 'Z'; // CSI n      Z  — Cursor backward n tab stops (default = 1).
     static const auto csi_rep     = 'b'; // CSI n      b  — Repeat the preceding character n times.
     static const auto csi_tbc     = 'g'; // CSI n      g  — Reset tabstop value.
     static const auto csi_sgr     = 'm'; // CSI n [;k] m  — Select Graphic Rendition.
     static const auto csi_dsr     = 'n'; // CSI n      n  — Device Status Report (DSR). n==5 -> "OK"; n==6 -> CSI r ; c R
-    static const auto csi_scp     = 's'; // CSI        s  — Save caret Position.
-    static const auto csi_rcp     = 'u'; // CSI        u  — Restore caret Position.
-    static const auto csi__el     = 'K'; // CSI n      K  — Erase 0: from caret to end, 1: from begin to caret, 2: all line.
+    static const auto csi_scp     = 's'; // CSI        s  — Save cursor Position.
+    static const auto csi_rcp     = 'u'; // CSI        u  — Restore cursor Position.
+    static const auto csi__el     = 'K'; // CSI n      K  — Erase 0: from cursor to end, 1: from begin to cursor, 2: all line.
     static const auto csi__il     = 'L'; // CSI n      L  — Insert n blank lines.
-    static const auto csi__ed     = 'J'; // CSI n      J  — Erase 0: from caret to end of screen, 1: from begin to caret, 2: all screen.
+    static const auto csi__ed     = 'J'; // CSI n      J  — Erase 0: from cursor to end of screen, 1: from begin to cursor, 2: all screen.
     static const auto csi__dl     = 'M'; // CSI n      M  — Delete n lines.
     static const auto csi_dch     = 'P'; // CSI n      P  — Delete n character(s).
     static const auto csi_led     = 'q'; // CSI n      q  — Load keyboard LEDs.
@@ -116,12 +116,12 @@ namespace netxs::ansi
     static const auto c0_enq = '\x05'; // Enquiry             - Signal intended to trigger a response at the receiving end, to see if it is still present.
     static const auto c0_ack = '\x06'; // Acknowledge         - Response to an ENQ, or an indication of successful receipt of a message.
     static const auto c0_bel = '\x07'; // Bell, Alert     \a  - Originally used to sound a bell on the terminal. Later used for a beep on systems that didn't have a physical bell. May also quickly turn on and off inverse video (a visual bell).
-    static const auto c0_bs  = '\x08'; // Backspace       \b  - Move the caret one position leftwards. On input, this may delete the character to the left of the caret. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
+    static const auto c0_bs  = '\x08'; // Backspace       \b  - Move cursor one position leftwards. On input, this may delete the character to the left of the cursor. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
     static const auto c0_ht  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation	\t	Position to the next character tab stop.
-    static const auto c0_lf  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves the caret down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
+    static const auto c0_lf  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves cursor down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
     static const auto c0_vt  = '\x0B'; // Line Tab,VTab   \v  - Position the form at the next line tab stop.
     static const auto c0_ff  = '\x0C'; // Form Feed       \f  - On printers, load the next page. Treated as whitespace in many programming languages, and may be used to separate logical divisions in code. In some terminal emulators, it clears the screen. It still appears in some common plain text files as a page break character, such as the RFCs published by IETF.
-    static const auto c0_cr  = '\x0D'; // Carriage Return \r  - Originally used to move the caret to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
+    static const auto c0_cr  = '\x0D'; // Carriage Return \r  - Originally used to move cursor to column zero while staying on the same line. On classic Mac OS (pre-Mac OS X), as well as in earlier systems such as the Apple II and Commodore 64, used to mark end-of-line. In DOS, Windows, and various network standards, it is used preceding LF as part of the end-of-line mark. The Enter or Return key on a keyboard will send this character, but it may be converted to a different end-of-line sequence by a terminal program.
     static const auto c0_so  = '\x0E'; // Shift Out           - Switch to an alternative character set.
     static const auto c0_si  = '\x0F'; // Shift In            - Return to regular character set after Shift Out.
     static const auto c0_dle = '\x10'; // Data Link Escape    - Cause the following octets to be interpreted as raw data, not as control codes or graphic characters. Returning to normal usage would be implementation dependent.
@@ -153,6 +153,7 @@ namespace netxs::ansi
     static const auto osc_term_notify  = "9"   ; // Terminal notifications.
     static const auto osc_set_fgcolor  = "10"  ; // Set fg color.
     static const auto osc_set_bgcolor  = "11"  ; // Set bg color.
+    static const auto osc_caret_color  = "12"  ; // Set cursor color.
     static const auto osc_reset_color  = "104" ; // Reset color N to default palette. Without params all palette reset.
     static const auto osc_reset_fgclr  = "110" ; // Reset fg color to default.
     static const auto osc_reset_bgclr  = "111" ; // Reset bg color to default.
@@ -180,9 +181,9 @@ namespace netxs::ansi
     static const auto sgr_nooverln  = 55;
     static const auto sgr_uline_clr = 58;
     static const auto sgr_uline_rst = 59;
-    static const auto sgr_gridlines = 60; // \e[60:n m  gridline. Bits in n: 0: left, 1: right, 2: top, 3: botton.
-    static const auto sgr_grid_clr  = 68;
-    static const auto sgr_grid_rst  = 69;
+    //static const auto sgr_gridlines = 60; // \e[60:n m  gridline. Bits in n: 0: left, 1: right, 2: top, 3: botton.
+    //static const auto sgr_grid_clr  = 68;
+    //static const auto sgr_grid_rst  = 69;
     static const auto sgr_fg_blk    = 30;
     static const auto sgr_fg_red    = 31;
     static const auto sgr_fg_grn    = 32;
@@ -222,9 +223,9 @@ namespace netxs::ansi
 
     static const auto ccc_nop    = 0  ; // CSI             p  - no operation.
     static const auto ccc_rst    = 1  ; // CSI 1           p  - reset to zero all params (zz).
-    static const auto ccc_cpp    = 2  ; // CSI 2 : x [: y] p  - caret percent position.
-    static const auto ccc_cpx    = 3  ; // CSI 3 : x       p  - caret H percent position.
-    static const auto ccc_cpy    = 4  ; // CSI 4 : y       p  - caret V percent position.
+    static const auto ccc_cpp    = 2  ; // CSI 2 : x [: y] p  - cursor percent position.
+    static const auto ccc_cpx    = 3  ; // CSI 3 : x       p  - cursor H percent position.
+    static const auto ccc_cpy    = 4  ; // CSI 4 : y       p  - cursor V percent position.
     static const auto ccc_tbs    = 5  ; // CSI 5 : n       p  - tab step length.
     static const auto ccc_mgn    = 6  ; // CSI 6 : l:r:t:b p  - margin left, right, top, bottom.
     static const auto ccc_mgl    = 7  ; // CSI 7 : n       p  - margin left   ╮
@@ -240,9 +241,9 @@ namespace netxs::ansi
     static const auto ccc_rtl_or = 17 ; // CSI 17: n       p  - set text right-to-left none/on/off if it is not set.
     static const auto ccc_rlf_or = 18 ; // CSI 18: n       p  - set reverse line feed none/on/off if it is not set.
     static const auto ccc_idx    = 19 ; // CSI 19: id      p  - Split the text run and associate the fragment with an id.
-    static const auto ccc_cup    = 20 ; // CSI 20: x [: y] p  - caret absolute position 0-based.
-    static const auto ccc_chx    = 21 ; // CSI 21: x       p  - caret H absolute position 0-based.
-    static const auto ccc_chy    = 22 ; // CSI 22: y       p  - caret V absolute position 0-based.
+    static const auto ccc_cup    = 20 ; // CSI 20: x [: y] p  - cursor absolute position 0-based.
+    static const auto ccc_chx    = 21 ; // CSI 21: x       p  - cursor H absolute position 0-based.
+    static const auto ccc_chy    = 22 ; // CSI 22: y       p  - cursor V absolute position 0-based.
     static const auto ccc_ref    = 23 ; // CSI 23: id      p  - create the reference to the existing paragraph.
     static const auto ccc_sbs    = 24 ; // CSI 24: n: m: q p  - define scrollback size: n: init size, m: grow_by step, q: max limit.
     static const auto ccc_sms    = 26 ; // CSI 26: b       p  - Should the mouse poiner to be drawn.
@@ -360,12 +361,6 @@ namespace netxs::ansi
             c &= 0xFF;
             return c ? unc(rgba{ rgba::vt256[c] }) : add("\033[59m");
         }
-        auto& grd(rgba c) // basevt: SGR 68/69 Grid color. RGB: red, green, blue.
-        {
-            return c.token == 0 ? add("\033[69m")
-                                : add("\033[68:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
-        }
-        auto& gln(si32 n)    { return add("\033[60:", n, "m"                 ); } // basevt: SGR gridline attribute.
         auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
         auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
         auto& itc(bool b)    { return add(b ? "\033[3m" : "\033[23m"         ); } // basevt: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -376,21 +371,21 @@ namespace netxs::ansi
         auto& fgc()          { return add("\033[39m"                         ); } // basevt: Set default foreground color.
         auto& bgc()          { return add("\033[49m"                         ); } // basevt: Set default background color.
         auto& scroll_wipe()  { return add("\033[2J"                          ); } // basevt: Erase scrollback.
-        auto& locate(twod p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // basevt: 0-Based caret position.
-        auto& cuu(si32 n)    { return add("\033[", n, 'A'                    ); } // basevt: Caret up.
-        auto& cud(si32 n)    { return add("\033[", n, 'B'                    ); } // basevt: Caret down.
-        auto& cuf(si32 n)    { return add("\033[", n, 'C'                    ); } // basevt: Caret forward.  Negative values can wrap to the prev line.
-        auto& cub(si32 n)    { return add("\033[", n, 'D'                    ); } // basevt: Caret backward. Negative values can wrap to the next line.
-        auto& cnl(si32 n)    { return add("\033[", n, 'E'                    ); } // basevt: caret next line.
-        auto& cpl(si32 n)    { return add("\033[", n, 'F'                    ); } // basevt: Caret previous line.
-        auto& ocx(si32 n)    { return add("\033[", n, 'G'                    ); } // basevt: Caret 1-based horizontal absolute.
-        auto& ocy(si32 n)    { return add("\033[", n, 'd'                    ); } // basevt: Caret 1-based vertical absolute.
+        auto& locate(twod p) { return add("\033[", p.y + 1, ';', p.x + 1, 'H'); } // basevt: 0-Based cursor position.
+        auto& cuu(si32 n)    { return add("\033[", n, 'A'                    ); } // basevt: Cursor up.
+        auto& cud(si32 n)    { return add("\033[", n, 'B'                    ); } // basevt: Cursor down.
+        auto& cuf(si32 n)    { return add("\033[", n, 'C'                    ); } // basevt: Cursor forward.  Negative values can wrap to the prev line.
+        auto& cub(si32 n)    { return add("\033[", n, 'D'                    ); } // basevt: Cursor backward. Negative values can wrap to the next line.
+        auto& cnl(si32 n)    { return add("\033[", n, 'E'                    ); } // basevt: Cursor next line.
+        auto& cpl(si32 n)    { return add("\033[", n, 'F'                    ); } // basevt: Cursor previous line.
+        auto& ocx(si32 n)    { return add("\033[", n, 'G'                    ); } // basevt: Cursor 1-based horizontal absolute.
+        auto& ocy(si32 n)    { return add("\033[", n, 'd'                    ); } // basevt: Cursor 1-based vertical absolute.
         auto& dch(si32 n)    { return add("\033[", n, 'P'                    ); } // basevt: DCH
         auto& fwd(si32 n)    { return n > 0 ? add("\033[",-n, 'D')
-                                    : n < 0 ? add("\033[", n, 'C') : *this;     } // basevt: Move caret n cell in line with wrapping.
+                                    : n < 0 ? add("\033[", n, 'C') : *this;     } // basevt: Move cursor n cell in line with wrapping.
         auto& del()          { return add('\x7F'                             ); } // basevt: Delete cell backwards.
-        auto& scp()          { return add("\033[s"                           ); } // basevt: Save caret position in memory.
-        auto& rcp()          { return add("\033[u"                           ); } // basevt: Restore caret position from memory.
+        auto& scp()          { return add("\033[s"                           ); } // basevt: Save cursor position in memory.
+        auto& rcp()          { return add("\033[u"                           ); } // basevt: Restore cursor position from memory.
         auto& pushsgr()      { return add("\033[#{"                          ); } // basevt: Push SGR attributes onto stack.
         auto& popsgr()       { return add("\033[#}"                          ); } // basevt: Pop  SGR attributes from stack.
         auto& fcs(bool b)    { return add("\033[", b ? 'I' : 'O'             ); } // basevt: Terminal window focus.
@@ -567,15 +562,15 @@ namespace netxs::ansi
         }
         auto& setutf(bool b)        { return add(b ? "\033%G"      : "\033%@"        ); } // escx: Select UTF-8 character set (true) or default (faux). Not supported by Apple Terminal on macOS.
         auto& altbuf(bool b)        { return add(b ? "\033[?1049h" : "\033[?1049l"   ); } // escx: Alternative buffer.
-        auto& cursor(bool b)        { return add(b ? "\033[?25h"   : "\033[?25l"     ); } // escx: Caret visibility.
-        auto& appkey(bool b)        { return add(b ? "\033[?1h"    : "\033[?1l"      ); } // escx: Application(=on)/ANSI(=off) Caret Keys (DECCKM).
+        auto& cursor(bool b)        { return add(b ? "\033[?25h"   : "\033[?25l"     ); } // escx: Cursor visibility.
+        auto& appkey(bool b)        { return add(b ? "\033[?1h"    : "\033[?1l"      ); } // escx: Application(=on)/ANSI(=off) Cursor Keys (DECCKM).
         auto& bpmode(bool b)        { return add(b ? "\033[?2004h" : "\033[?2004l"   ); } // escx: Set bracketed paste mode.
         auto& autowr(bool b)        { return add(b ? "\033[?7h"    : "\033[?7l"      ); } // escx: Set autowrap mode.
-        auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based caret position (CPR).
+        auto& report(twod p)        { return add("\033[", p.y+1, ";", p.x+1, "R"     ); } // escx: Report 1-Based cursor position (CPR).
         auto& win_sz(twod p)        { return add("\033[", p.y, ";", p.x, "t"         ); } // escx: Report viewport size (Reply on CSI 18 t).
         auto& locate_wipe()         { return add("\033[r"                            ); } // escx: Enable scrolling for entire display (clear screen).
-        auto& locate_call()         { return add("\033[6n"                           ); } // escx: Report caret position.
-        auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset caret location.
+        auto& locate_call()         { return add("\033[6n"                           ); } // escx: Report cursor position.
+        auto& scrn_reset()          { return add("\033[H\033[m\033[2J"               ); } // escx: Reset palette, erase scrollback and reset cursor location.
         auto& save_title()          { return add("\033[22;0t"                        ); } // escx: Save terminal window title.
         auto& load_title()          { return add("\033[23;0t"                        ); } // escx: Restore terminal window title.
         auto& osc(view p, view arg) { return add("\033]", p, ';', arg,        c0_bel ); } // escx: OSC report.
@@ -767,13 +762,13 @@ namespace netxs::ansi
         auto& nop()              { return add("\033["   ,      csi_ccc); } // escx: No operation. Split the text run.
         auto& rst()              { return add("\033[1"  ,      csi_ccc); } // escx: Reset formatting parameters.
         auto& tbs(si32 n)        { return add("\033[5:" , n  , csi_ccc); } // escx: Tabulation step length.
-        auto& chx(si32 n)        { return add("\033[21:", n  , csi_ccc); } // escx: Caret 0-based horizontal absolute.
-        auto& chy(si32 n)        { return add("\033[22:", n  , csi_ccc); } // escx: Caret 0-based vertical absolute.
-        auto& cpx(si32 n)        { return add("\033[3:" , n  , csi_ccc); } // escx: Caret horizontal percent position.
-        auto& cpy(si32 n)        { return add("\033[4:" , n  , csi_ccc); } // escx: Caret vertical percent position.
-        auto& cup(twod p) { return add("\033[20:", p.y, ':',        // escx: 0-Based caret position.
+        auto& chx(si32 n)        { return add("\033[21:", n  , csi_ccc); } // escx: Cursor 0-based horizontal absolute.
+        auto& chy(si32 n)        { return add("\033[22:", n  , csi_ccc); } // escx: Cursor 0-based vertical absolute.
+        auto& cpx(si32 n)        { return add("\033[3:" , n  , csi_ccc); } // escx: Cursor horizontal percent position.
+        auto& cpy(si32 n)        { return add("\033[4:" , n  , csi_ccc); } // escx: Cursor vertical percent position.
+        auto& cup(twod p) { return add("\033[20:", p.y, ':',        // escx: 0-Based cursor position.
                                                    p.x, csi_ccc); }
-        auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Caret percent position.
+        auto& cpp(twod p) { return add("\033[2:" , p.x, ':',        // escx: Cursor percent position.
                                                    p.y, csi_ccc); }
         auto& mgn(side n) { return add("\033[6:" , n.l, ':',        // escx: Margin (left, right, top, bottom).
                                                    n.r, ':',
@@ -814,25 +809,23 @@ namespace netxs::ansi
     auto err(Args&&... data)   { return escx{}.err(std::forward<Args>(data)...); } // ansi: Add error message.
     template<class ...Args>
     auto hi(Args&&... data)    { return escx{}.hi(std::forward<Args>(data)...); } // ansi: Add highlighted message.
-    auto cup(twod p)           { return escx{}.cup(p);        } // ansi: 0-Based caret position.
-    auto cuu(si32 n)           { return escx{}.cuu(n);        } // ansi: Caret up.
-    auto cud(si32 n)           { return escx{}.cud(n);        } // ansi: Caret down.
-    auto cuf(si32 n)           { return escx{}.cuf(n);        } // ansi: Caret forward.
-    auto cub(si32 n)           { return escx{}.cub(n);        } // ansi: Caret backward.
-    auto cnl(si32 n)           { return escx{}.cnl(n);        } // ansi: Caret next line.
-    auto cpl(si32 n)           { return escx{}.cpl(n);        } // ansi: Caret previous line.
-    auto ocx(si32 n)           { return escx{}.ocx(n);        } // ansi: Caret 1-based horizontal absolute.
-    auto ocy(si32 n)           { return escx{}.ocy(n);        } // ansi: Caret 1-based vertical absolute.
-    auto chx(si32 n)           { return escx{}.chx(n);        } // ansi: Caret 0-based horizontal absolute.
-    auto chy(si32 n)           { return escx{}.chy(n);        } // ansi: Caret 0-based vertical absolute.
-    auto fwd(si32 n)           { return escx{}.fwd(n);        } // ansi: Move caret n cell in line.
+    auto cup(twod p)           { return escx{}.cup(p);        } // ansi: 0-Based cursor position.
+    auto cuu(si32 n)           { return escx{}.cuu(n);        } // ansi: Cursor up.
+    auto cud(si32 n)           { return escx{}.cud(n);        } // ansi: Cursor down.
+    auto cuf(si32 n)           { return escx{}.cuf(n);        } // ansi: Cursor forward.
+    auto cub(si32 n)           { return escx{}.cub(n);        } // ansi: Cursor backward.
+    auto cnl(si32 n)           { return escx{}.cnl(n);        } // ansi: Cursor next line.
+    auto cpl(si32 n)           { return escx{}.cpl(n);        } // ansi: Cursor previous line.
+    auto ocx(si32 n)           { return escx{}.ocx(n);        } // ansi: Cursor 1-based horizontal absolute.
+    auto ocy(si32 n)           { return escx{}.ocy(n);        } // ansi: Cursor 1-based vertical absolute.
+    auto chx(si32 n)           { return escx{}.chx(n);        } // ansi: Cursor 0-based horizontal absolute.
+    auto chy(si32 n)           { return escx{}.chy(n);        } // ansi: Cursor 0-based vertical absolute.
+    auto fwd(si32 n)           { return escx{}.fwd(n);        } // ansi: Move cursor n cell in line.
     auto dch(si32 n)           { return escx{}.dch(n);        } // ansi: Delete (not Erase) letters under the cursor.
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
     auto unc(rgba c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
-    auto grd(rgba c)           { return escx{}.grd(c);        } // ansi: SGR SGR 68/69 grid color. RGB: red, green, blue.
-    auto gln(si32 n)           { return escx{}.gln(n);        } // ansi: SGR SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
@@ -850,14 +843,14 @@ namespace netxs::ansi
     auto rst()                 { return escx{}.rst( );        } // ansi: Reset formatting parameters.
     auto eol()                 { return escx{}.eol( );        } // ansi: EOL.
     auto edl()                 { return escx{}.edl( );        } // ansi: EDL.
-    auto scp()                 { return escx{}.scp( );        } // ansi: Save caret position in memory.
-    auto rcp()                 { return escx{}.rcp( );        } // ansi: Restore caret position from memory.
+    auto scp()                 { return escx{}.scp( );        } // ansi: Save cursor position in memory.
+    auto rcp()                 { return escx{}.rcp( );        } // ansi: Restore cursor position from memory.
     auto del(si32 n)           { return escx{}.del(n);        } // ansi: CSI n J  Erase display.
     auto pushsgr()             { return escx{}.pushsgr();     } // ansi: Push SGR attrs onto stack.
     auto popsgr()              { return escx{}.popsgr();      } // ansi: Pop  SGR attrs from stack.
-    auto cpp(twod p)           { return escx{}.cpp(p);        } // ansi: Caret percent position.
-    auto cpx(si32 n)           { return escx{}.cpx(n);        } // ansi: Caret horizontal percent position.
-    auto cpy(si32 n)           { return escx{}.cpy(n);        } // ansi: Caret vertical percent position.
+    auto cpp(twod p)           { return escx{}.cpp(p);        } // ansi: Cursor percent position.
+    auto cpx(si32 n)           { return escx{}.cpx(n);        } // ansi: Cursor horizontal percent position.
+    auto cpy(si32 n)           { return escx{}.cpy(n);        } // ansi: Cursor vertical percent position.
     auto tbs(si32 n)           { return escx{}.tbs(n);        } // ansi: Tabulation step length.
     auto mgn(side s)           { return escx{}.mgn(s);        } // ansi: Margin (left, right, top, bottom).
     auto mgl(si32 n)           { return escx{}.mgl(n);        } // ansi: Left margin.
@@ -876,16 +869,16 @@ namespace netxs::ansi
     auto show_mouse(bool b)    { return escx{}.show_mouse(b); } // ansi: Should the mouse poiner to be drawn.
     auto shellmouse(bool b)    { return escx{}.shellmouse(b); } // ansi: Mouse shell integration on/off.
     auto vmouse(bool b)        { return escx{}.vmouse(b);     } // ansi: Mouse position reporting/tracking.
-    auto locate(twod p)        { return escx{}.locate(p);     } // ansi: 1-Based caret position.
+    auto locate(twod p)        { return escx{}.locate(p);     } // ansi: 1-Based cursor position.
     auto locate_wipe()         { return escx{}.locate_wipe(); } // ansi: Enable scrolling for entire display (clear screen).
-    auto locate_call()         { return escx{}.locate_call(); } // ansi: Report caret position.
-    auto scrn_reset()          { return escx{}.scrn_reset();  } // ansi: Reset palette, erase scrollback and reset caret location.
+    auto locate_call()         { return escx{}.locate_call(); } // ansi: Report cursor position.
+    auto scrn_reset()          { return escx{}.scrn_reset();  } // ansi: Reset palette, erase scrollback and reset cursor location.
     auto save_title()          { return escx{}.save_title();  } // ansi: Save terminal window title.
     auto load_title()          { return escx{}.load_title();  } // ansi: Restore terminal window title.
     auto setutf(bool b)        { return escx{}.setutf(b);     } // ansi: Select UTF-8 character set.
     auto header(view t)        { return escx{}.header(t);     } // ansi: Window title.
     auto altbuf(bool b)        { return escx{}.altbuf(b);     } // ansi: Alternative buffer.
-    auto cursor(bool b)        { return escx{}.cursor(b);     } // ansi: Caret visibility.
+    auto cursor(bool b)        { return escx{}.cursor(b);     } // ansi: Cursor visibility.
     auto appkey(bool b)        { return escx{}.appkey(b);     } // ansi: Application cursor Keys (DECCKM).
     auto bpmode(bool b)        { return escx{}.bpmode(b);     } // ansi: Set bracketed paste mode.
     auto styled(si32 b)        { return escx{}.styled(b);     } // ansi: Enable line style reporting.
@@ -936,7 +929,7 @@ namespace netxs::ansi
             // Ps = 2  ⇒  Erase All.
             // Ps = 3  ⇒  Erase Scrollback
 
-        // CSI Ps K  Erase in Line (EL), VT100. Caret position does not change.
+        // CSI Ps K  Erase in Line (EL), VT100. Cursor position does not change.
         el, // Ps = 0  ⇒  Erase line to Right (default).
             // Ps = 1  ⇒  Erase line to Left.
             // Ps = 2  ⇒  Erase line All.
@@ -944,7 +937,7 @@ namespace netxs::ansi
         fn_count
     };
 
-    // ansi: Caret control sequence: one command with one argument.
+    // ansi: Cursor control sequence: one command with one argument.
     struct rule
     {
         si32 cmd;
@@ -1165,8 +1158,6 @@ namespace netxs::ansi
             * - void stk(bool b);                    // Set strikethgh attribute.
             * - void und(si32 b);                    // Set underline attribute. 1 - single, 2 - double.
             * - void unc(rgba c);                    // Set underline color.
-            * - void grd(rgba c);                    // Set grid color.
-            * - void gln(si32 n);                    // Set SGR gridline. Bits: 0: left, 1: right, 2: top, 3: botton.
             * - void blk(bool b);                    // Set blink attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
@@ -1275,9 +1266,6 @@ namespace netxs::ansi
                     sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
                     sgr[sgr_uline_clr] = V{ p->brush.unc(rgba{ q }); };
                     sgr[sgr_uline_rst] = V{ p->brush.unc(0        ); };
-                    sgr[sgr_grid_clr ] = V{ p->brush.grd(rgba{ q }); };
-                    sgr[sgr_grid_rst ] = V{ p->brush.grd(rgba{   }); };
-                    sgr[sgr_gridlines] = V{ p->brush.gln(q(0)); };
                     sgr[sgr_slowblink] = V{ p->brush.blk(true); };
                     sgr[sgr_fastblink] = V{ p->brush.blk(true); };
                     sgr[sgr_no_blink ] = V{ p->brush.blk(faux); };
@@ -1770,7 +1758,7 @@ namespace netxs::ansi
         virtual void data(si32 /*count*/, grid const& /*proto*/) { };
     };
 
-    // ansi: Caret manipulation command list.
+    // ansi: Cursor manipulation command list.
     struct writ
         : public std::list<ansi::rule>
     {
@@ -1782,22 +1770,22 @@ namespace netxs::ansi
         inline writ& kill()         { list::clear(); return *this; } // Clear command list.
 
         writ& rst()           { push({ fn::zz, 0   }); return *this; } // Reset formatting parameters. Do not clear the command list.
-        writ& cpp(twod p)     { push({ fn::px, p.x });                 // Caret percent position.
+        writ& cpp(twod p)     { push({ fn::px, p.x });                 // Cursor percent position.
                                 push({ fn::py, p.y }); return *this; }
-        writ& cpx(si32 x)     { push({ fn::px, x   }); return *this; } // Caret horizontal percent position.
-        writ& cpy(si32 y)     { push({ fn::py, y   }); return *this; } // Caret vertical percent position.
-        writ& cup(twod p)     { push({ fn::ay, p.y });                 // 0-Based caret position.
+        writ& cpx(si32 x)     { push({ fn::px, x   }); return *this; } // Cursor horizontal percent position.
+        writ& cpy(si32 y)     { push({ fn::py, y   }); return *this; } // Cursor vertical percent position.
+        writ& cup(twod p)     { push({ fn::ay, p.y });                 // 0-Based cursor position.
                                 push({ fn::ax, p.x }); return *this; }
-        writ& cuu(si32 n = 1) { push({ fn::dy,-n   }); return *this; } // Caret up.
-        writ& cud(si32 n = 1) { push({ fn::dy, n   }); return *this; } // Caret down.
-        writ& cuf(si32 n = 1) { push({ fn::dx, n   }); return *this; } // Caret forward.
-        writ& cub(si32 n = 1) { push({ fn::dx,-n   }); return *this; } // Caret backward.
-        writ& cnl(si32 n = 1) { push({ fn::nl, n   }); return *this; } // Caret next line.
-        writ& cpl(si32 n = 1) { push({ fn::nl,-n   }); return *this; } // Caret previous line.
-        writ& chx(si32 x)     { push({ fn::ax, x   }); return *this; } // Caret o-based horizontal absolute.
-        writ& chy(si32 y)     { push({ fn::ay, y   }); return *this; } // Caret o-based vertical absolute.
-        writ& scp()           { push({ fn::sc, 0   }); return *this; } // Save caret position in memory.
-        writ& rcp()           { push({ fn::rc, 0   }); return *this; } // Restore caret position from memory.
+        writ& cuu(si32 n = 1) { push({ fn::dy,-n   }); return *this; } // Cursor up.
+        writ& cud(si32 n = 1) { push({ fn::dy, n   }); return *this; } // Cursor down.
+        writ& cuf(si32 n = 1) { push({ fn::dx, n   }); return *this; } // Cursor forward.
+        writ& cub(si32 n = 1) { push({ fn::dx,-n   }); return *this; } // Cursor backward.
+        writ& cnl(si32 n = 1) { push({ fn::nl, n   }); return *this; } // Cursor next line.
+        writ& cpl(si32 n = 1) { push({ fn::nl,-n   }); return *this; } // Cursor previous line.
+        writ& chx(si32 x)     { push({ fn::ax, x   }); return *this; } // Cursor o-based horizontal absolute.
+        writ& chy(si32 y)     { push({ fn::ay, y   }); return *this; } // Cursor o-based vertical absolute.
+        writ& scp()           { push({ fn::sc, 0   }); return *this; } // Save cursor position in memory.
+        writ& rcp()           { push({ fn::rc, 0   }); return *this; } // Restore cursor position from memory.
     };
 
     // ansi: Checking ANSI/UTF-8 integrity and return a valid view.
@@ -1919,8 +1907,8 @@ namespace netxs::ansi
                           || c == '8'  // Restore cursor coor and rendition state
                           || c == '9'  // Forward index, DECFI
                           || c == 'c'  // Full reset, RIS
-                          || c == 'D'  // Caret down
-                          || c == 'M'  // Caret up
+                          || c == 'D'  // Cursor down
+                          || c == 'M'  // Cursor up
                           || c == 'E'  // Next line
                           || c == 'F'  // Set cursor to lower leftmost coor
                           || c == 'H'  // Tabstop set

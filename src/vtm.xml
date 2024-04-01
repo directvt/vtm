@@ -307,9 +307,10 @@ R"==(
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
-            <style="underline"/> <!-- block | underline -->
-            <blink=400ms/>       <!-- blink period -->
+            <style="underline"/> <!-- Cursor style: underline | block -->
+            <blink=400ms/>       <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
+            <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the foreground color (fgc) of the underlying text. -->
         </cursor>
         <menu item*>
             <autohide=off/>

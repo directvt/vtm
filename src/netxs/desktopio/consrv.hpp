@@ -4008,7 +4008,8 @@ struct impl : consrv
         {
             if constexpr (isreal())
             {
-                uiterm.cursor.style(packet.input.style > 50);
+                // Ignore legacy cursor style.
+                //uiterm.cursor.style(packet.input.style > 50 ? text_cursor::block : text_cursor::underline);
                 packet.input.alive ? uiterm.cursor.show()
                                    : uiterm.cursor.hide();
             }

@@ -1402,9 +1402,11 @@ namespace netxs::xml
             { "html",      mime::htmltext },
             { "protected", mime::safetext }};
 
-        static auto cursor = std::unordered_map<text, bool>
-           {{ "underline", faux },
-            { "block"    , true }};
+        static auto cursor = std::unordered_map<text, si32>
+           {{ "underline",  text_cursor::underline },
+            { "block",      text_cursor::block     },
+            { "bar",        text_cursor::I_bar     },
+            { "I_bar",      text_cursor::I_bar     }};
 
         static auto align = std::unordered_map<text, bias>
            {{ "left",   bias::left   },
