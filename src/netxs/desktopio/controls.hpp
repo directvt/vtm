@@ -723,7 +723,7 @@ namespace netxs::ui
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, si32 cursor_style = text_cursor::underline, twod position = dot_00, span freq = skin::globals().blink_period, cell default_color = cell{}.inv(1))
+            caret(base& boss, bool visible = faux, si32 cursor_style = text_cursor::underline, twod position = dot_00, span freq = skin::globals().blink_period, cell default_color = cell{})
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
@@ -773,6 +773,16 @@ namespace netxs::ui
                 {
                     hide();
                     mark.bgc(c);
+                    show();
+                }
+            }
+            // pro::caret: Set cursor color.
+            void color(cell c)
+            {
+                if (mark != c)
+                {
+                    hide();
+                    mark = c;
                     show();
                 }
             }

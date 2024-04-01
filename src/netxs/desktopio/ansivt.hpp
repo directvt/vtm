@@ -157,6 +157,7 @@ namespace netxs::ansi
     static const auto osc_reset_color  = "104" ; // Reset color N to default palette. Without params all palette reset.
     static const auto osc_reset_fgclr  = "110" ; // Reset fg color to default.
     static const auto osc_reset_bgclr  = "111" ; // Reset bg color to default.
+    static const auto osc_reset_crclr  = "112" ; // Reset cursor color to default.
     static const auto osc_semantic_fx  = "133" ; // Semantic markers (shell integration).
     static const auto osc_title_report = "l"   ; // Get terminal window title.
     static const auto osc_label_report = "L"   ; // Get terminal window icon label.

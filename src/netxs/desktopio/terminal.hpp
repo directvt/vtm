@@ -684,6 +684,10 @@ namespace netxs::ui
                     }
                     else notsupported(ansi::osc_caret_color, data);
                 };
+                procs[ansi::osc_reset_crclr] = [&](view /*data*/)
+                {
+                    owner.cursor.color(owner.config.def_curclr);
+                };
                 procs[ansi::osc_reset_fgclr] = [&](view /*data*/)
                 {
                     owner.target->brush.sfg(0);
@@ -852,6 +856,7 @@ namespace netxs::ui
                 vt.oscer[osc_caret_color] = V{ p->owner.ctrack.set(osc_caret_color, q); };
                 vt.oscer[osc_reset_fgclr] = V{ p->owner.ctrack.set(osc_reset_fgclr, q); };
                 vt.oscer[osc_reset_bgclr] = V{ p->owner.ctrack.set(osc_reset_bgclr, q); };
+                vt.oscer[osc_reset_crclr] = V{ p->owner.ctrack.set(osc_reset_crclr, q); };
                 vt.oscer[osc_clipboard  ] = V{ p->owner.forward_clipboard(q);           };
                 vt.oscer[osc_term_notify] = V{ p->owner.osc_notify(q);                  };
                 vt.oscer[osc_semantic_fx] = V{ p->owner.osc_marker(q);                  };
