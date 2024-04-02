@@ -215,10 +215,12 @@ namespace netxs::ui
             {
                 auto& items = lock.thing;
                 auto list = s11n::jgc_list.freeze();
-                for (auto& gc : items)
                 {
-                    auto cluster = cell::gc_get_data(gc.token);
-                    list.thing.push(gc.token, cluster);
+                    auto jumbos = cell::glyf::jumbos();
+                    for (auto& gc : items)
+                    {
+                        list.thing.push(gc.token, jumbos.get(gc.token));
+                    }
                 }
                 list.thing.sendby(canal);
             }
@@ -1485,7 +1487,6 @@ namespace netxs::ui
             g.brighter       = config.take("brighter"              , cell{ whitespace });//120);
             g.kb_focus       = config.take("kb_focus"              , cell{ whitespace });//60
             g.shadower       = config.take("shadower"              , cell{ whitespace });//180);//60);//40);// 20);
-            g.shadow         = config.take("shadow"                , cell{ whitespace });//180);//5);
             g.selector       = config.take("selector"              , cell{ whitespace });//48);
             g.highlight      = config.take("highlight"             , cell{ whitespace });
             g.selected       = config.take("selected"              , cell{ whitespace });
@@ -1520,6 +1521,12 @@ namespace netxs::ui
             g.fader_fast     = config.take("timings/fader/fast"    , span{ 0ms   });
             g.max_value      = config.take("limits/window/size"    , twod{ 2000, 1000  });
             g.menuwide       = config.take("/config/menu/wide"     , faux);
+
+            g.shadow_enabled = config.take("shadow/enabled", true);
+            g.shadow_bias    = config.take("shadow/bias"   , 0.37f);
+            g.shadow_blur    = config.take("shadow/blur"   , 3);
+            g.shadow_opacity = config.take("shadow/opacity", 105.5f);
+            g.shadow_offset  = config.take("shadow/offset" , dot_21);
 
             maxfps = config.take("fps");
             if (maxfps <= 0) maxfps = 60;

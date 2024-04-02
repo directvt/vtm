@@ -70,6 +70,11 @@ namespace netxs::xml
         else return utf::to_int<T, 10>(utf8);
     }
     template<>
+    auto take<fp32>(qiew utf8) -> std::optional<fp32>
+    {
+        return utf::to_int<fp32>(utf8);
+    }
+    template<>
     auto take<text>(qiew utf8) -> std::optional<text>
     {
         return utf8.str();
@@ -1397,9 +1402,11 @@ namespace netxs::xml
             { "html",      mime::htmltext },
             { "protected", mime::safetext }};
 
-        static auto cursor = std::unordered_map<text, bool>
-           {{ "underline", faux },
-            { "block"    , true }};
+        static auto cursor = std::unordered_map<text, si32>
+           {{ "underline",  text_cursor::underline },
+            { "block",      text_cursor::block     },
+            { "bar",        text_cursor::I_bar     },
+            { "I_bar",      text_cursor::I_bar     }};
 
         static auto align = std::unordered_map<text, bias>
            {{ "left",   bias::left   },

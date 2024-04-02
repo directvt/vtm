@@ -170,7 +170,13 @@ R"==(
             <brighter   fgc=purewhite bgc=purewhite alpha=60 /> <!-- Highlighter. -->
             <kb_focus   fgc=bluelt    bgc=bluelt    alpha=255/> <!-- Keyboard focus indicator. -->
             <shadower   bgc=0xB4202020 />                       <!-- Darklighter. -->
-            <shadow     bgc=0xB4202020 />                       <!-- Light Darklighter. -->
+            <shadow> <!-- Window shadow configuration. -->
+                <enabled = true />
+                <blur = 3 />         <!-- Blur radius (in cells). Default is 3. -->
+                <bias = 0.37 />      <!-- Shadow contour bias [0.0 - 1.0]. Default is 0.37 -->
+                <opacity = 105.5 />  <!-- Opacity level (alpha) [0.0 - 255.0]. Default is 105.5 -->
+                <offset = 2,1 />     <!-- 2D offset relative to the window (in cells). Default is 2,1. -->
+            </shadow>
             <selector   bgc=0x30ffffff txt=" " />               <!-- Selection overlay. -->
             <highlight  fgc=purewhite bgc=bluelt      />
             <focused    fgc=puregreen                 />
@@ -283,7 +289,7 @@ R"==(
             <color14 = cyanlt     />
             <color15 = whitelt    />
             <default bgc=pureblack fgc=whitedk />  <!-- Default/current colors (SGR49/39). -->
-            <bground = transparent />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
+            <bground = default />  <!-- Independent background color of the scrollback canvas. Set to 0x00ffffff(or =default) to sync with SGR49 (default background). -->
             <match fx=color bgc="0xFF007F00" fgc=whitelt/>  <!-- Color of the selected text occurrences. Set fx to use cell::shaders: xlight | color | invert | reverse -->
             <selection>
                 <text fx=color bgc=bluelt fgc=whitelt/>  <!-- Highlighting of the selected text in plaintext mode. -->
@@ -301,9 +307,10 @@ R"==(
         <tablen=8/>   <!-- Tab length. -->
         <logs=faux/>   <!-- Enable IO logging. Use the Logs or monitor mode (vtm -m) to see the output. -->
         <cursor>
-            <style="underline"/> <!-- block | underline -->
-            <blink=400ms/>       <!-- blink period -->
+            <style="underline"/> <!-- Cursor style: underline | block -->
+            <blink=400ms/>       <!-- Cursor blink period. Set to zero for a steady cursor. -->
             <show=true/>
+            <color bgc=default fgc=default /> <!-- Cursor cell color. By default, the cursor color (bgc) is set to either black or white depending on the lightness of the underlying text background. -->
         </cursor>
         <menu item*>
             <autohide=off/>

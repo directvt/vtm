@@ -130,13 +130,13 @@ namespace netxs::events::userland
             {
                 EVENT_XS( creator, ui::sptr ), // request: pointer to world object.
                 EVENT_XS( fps    , si32     ), // request to set new fps, arg: new fps (si32); the value == -1 is used to request current fps.
-                GROUP_XS( caret  , span     ), // any kind of intervals property.
+                GROUP_XS( cursor , span     ), // any kind of intervals property.
                 GROUP_XS( plugins, si32     ),
 
-                SUBSET_XS( caret )
+                SUBSET_XS( cursor )
                 {
-                    EVENT_XS( blink, span ), // caret blinking interval.
-                    EVENT_XS( style, si32 ), // caret style: 0 - underline, 1 - box.
+                    EVENT_XS( blink, span ), // cursor blinking interval.
+                    EVENT_XS( style, si32 ), // netxs::text_cursor.
                 };
                 SUBSET_XS( plugins )
                 {
@@ -503,7 +503,6 @@ namespace netxs::ui
         poly kb_focus;
         poly brighter;
         poly shadower;
-        poly shadow;
         poly selector;
 
         cell highlight;
@@ -542,6 +541,12 @@ namespace netxs::ui
         span fader_time;
         span fader_fast;
 
+        bool shadow_enabled = true;
+        si32 shadow_blur = 3;
+        fp32 shadow_bias = 0.37f;
+        fp32 shadow_opacity = 105.5f;
+        twod shadow_offset = dot_21;
+
         twod min_value = dot_00;
         twod max_value = twod{ 2000, 1000 }; //todo unify
 
@@ -559,7 +564,6 @@ namespace netxs::ui
                 case tone::prop::kb_focus:   return g.kb_focus;
                 case tone::prop::brighter:   return g.brighter;
                 case tone::prop::shadower:   return g.shadower;
-                case tone::prop::shadow:     return g.shadow;
                 case tone::prop::selector:   return g.selector;
                 case tone::prop::highlight:  return g.highlight;
                 case tone::prop::selected:   return g.selected;
@@ -584,7 +588,6 @@ namespace netxs::ui
                 case tone::prop::kb_focus: return g.kb_focus;
                 case tone::prop::brighter: return g.brighter;
                 case tone::prop::shadower: return g.shadower;
-                case tone::prop::shadow:   return g.shadow;
                 case tone::prop::selector: return g.selector;
                 default:                   return g.brighter;
             }

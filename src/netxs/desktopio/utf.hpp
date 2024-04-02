@@ -506,14 +506,39 @@ namespace netxs::utf
     {
         auto num = A{};
         auto top = ascii.data();
-        auto end = ascii.length() + top;
-
-        if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
+        auto end = top + ascii.length();
+        if constexpr (std::is_floating_point_v<A>)
         {
-            ascii.remove_prefix(pos - top);
-            return num;
+            //todo neither clang nor apple clang support from_chars with floating point (ver < 15.0)
+            //if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
+            auto integer = si64{};
+            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc())
+            {
+                ascii.remove_prefix(pos - top);
+                num = (A)integer;
+                if (ascii.size() && ascii.front() == '.')
+                {
+                    ascii.pop_front();
+                    top = ascii.data();
+                    if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
+                    {
+                        auto len = mpos - top;
+                        num += (A)(integer * std::pow(10, -len));
+                        ascii.remove_prefix(len);
+                    }
+                }
+                return num;
+            }
         }
-        else return std::nullopt;
+        else
+        {
+            if (auto [pos, err] = std::from_chars(top, end, num, Base); err == std::errc())
+            {
+                ascii.remove_prefix(pos - top);
+                return num;
+            }
+        }
+        return std::nullopt;
     }
     template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
     auto to_int(T&& utf8)

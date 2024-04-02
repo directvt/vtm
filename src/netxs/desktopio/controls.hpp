@@ -704,7 +704,7 @@ namespace netxs::ui
             }
         };
 
-        // pro: The text caret controller.
+        // pro: Text cursor.
         class caret
             : public skill
         {
@@ -712,50 +712,52 @@ namespace netxs::ui
                   skill::memo;
 
             subs conf; // caret: Configuration subscriptions.
-            bool live; // caret: Should the caret be drawn.
-            bool done; // caret: Is the caret already drawn.
-            bool down; // caret: Is the caret suppressed (lost focus).
-            bool form; // caret: Caret style.
-            rect body; // caret: Caret position.
+            bool live; // caret: Should the cursor be drawn.
+            bool done; // caret: Is the cursor already drawn.
+            bool unfocused; // caret: Is the cursor suppressed (lost focus).
+            rect body; // caret: Cursor position.
+            si32 form; // caret: Cursor style (netxs::text_cursor).
             span step; // caret: Blink interval. span::zero() if steady.
             time next; // caret: Time of next blinking.
+            cell mark; // caret: Cursor brush.
 
         public:
             caret(base&&) = delete;
-            caret(base& boss, bool visible = faux, bool abox = faux, twod position = dot_00, span freq = skin::globals().blink_period)
+            caret(base& boss, bool visible = faux, si32 cursor_style = text_cursor::underline, twod position = dot_00, span freq = skin::globals().blink_period, cell default_color = cell{})
                 : skill{ boss },
                    live{ faux },
                    done{ faux },
-                   down{ true },
-                   form{ abox },
-                   body{ position, dot_11 }, // Caret is always one cell size (see the term::scrollback definition).
-                   step{ freq }
+                   unfocused{ true },
+                   body{ position, dot_11 }, // Cursor is always one cell size (see the term::scrollback definition).
+                   form{ cursor_style },
+                   step{ freq },
+                   mark{ default_color }
             {
                 boss.LISTEN(tier::release, e2::form::state::keybd::focus::count, count, conf)
                 {
-                    down = !count;
+                    unfocused = !count;
                 };
-                boss.LISTEN(tier::request, e2::config::caret::blink, req_step, conf)
+                boss.LISTEN(tier::request, e2::config::cursor::blink, req_step, conf)
                 {
                     req_step = step;
                 };
-                boss.LISTEN(tier::request, e2::config::caret::style, req_style, conf)
+                boss.LISTEN(tier::request, e2::config::cursor::style, req_style, conf)
                 {
-                    req_style = form ? 1 : 0;
+                    req_style = form;
                 };
-                boss.LISTEN(tier::general, e2::config::caret::blink, new_step, conf)
-                {
-                    blink_period(new_step);
-                };
-                boss.LISTEN(tier::preview, e2::config::caret::blink, new_step, conf)
+                boss.LISTEN(tier::general, e2::config::cursor::blink, new_step, conf)
                 {
                     blink_period(new_step);
                 };
-                boss.LISTEN(tier::general, e2::config::caret::style, new_style, conf)
+                boss.LISTEN(tier::preview, e2::config::cursor::blink, new_step, conf)
+                {
+                    blink_period(new_step);
+                };
+                boss.LISTEN(tier::general, e2::config::cursor::style, new_style, conf)
                 {
                     style(new_style);
                 };
-                boss.LISTEN(tier::preview, e2::config::caret::style, new_style, conf)
+                boss.LISTEN(tier::preview, e2::config::cursor::style, new_style, conf)
                 {
                     style(new_style);
                 };
@@ -764,8 +766,28 @@ namespace netxs::ui
 
             operator bool () const { return memo.count(); }
 
-            // pro::caret: Set caret style.
-            void style(bool new_form)
+            // pro::caret: Set cursor background color.
+            void bgc(rgba c)
+            {
+                if (mark.bgc() != c)
+                {
+                    hide();
+                    mark.bgc(c);
+                    show();
+                }
+            }
+            // pro::caret: Set cursor color.
+            void color(cell c)
+            {
+                if (mark != c)
+                {
+                    hide();
+                    mark = c;
+                    show();
+                }
+            }
+            // pro::caret: Set cursor style.
+            void style(si32 new_form)
             {
                 if (form != new_form)
                 {
@@ -785,34 +807,34 @@ namespace netxs::ui
                     show();
                 }
             }
-            void style(si32 mode)
+            void decscusr(si32 mode)
             {
                 switch (mode)
                 {
                     case 0: // n = 0  blinking box
                     case 1: // n = 1  blinking box (default)
                         blink_period();
-                        style(true);
+                        style(text_cursor::block);
                         break;
                     case 2: // n = 2  steady box
                         blink_period(span::zero());
-                        style(true);
+                        style(text_cursor::block);
                         break;
                     case 3: // n = 3  blinking underline
                         blink_period();
-                        style(faux);
+                        style(text_cursor::underline);
                         break;
                     case 4: // n = 4  steady underline
                         blink_period(span::zero());
-                        style(faux);
+                        style(text_cursor::underline);
                         break;
                     case 5: // n = 5  blinking I-bar
                         blink_period();
-                        style(true);
+                        style(text_cursor::I_bar);
                         break;
                     case 6: // n = 6  steady I-bar
                         blink_period(span::zero());
-                        style(true);
+                        style(text_cursor::I_bar);
                         break;
                     default:
                         log(prompt::term, "Unsupported cursor style requested, ", mode);
@@ -821,10 +843,10 @@ namespace netxs::ui
             }
             void toggle()
             {
-                style(!form);
+                style(form == text_cursor::underline ? text_cursor::block : text_cursor::underline);
                 reset();
             }
-            // pro::caret: Set caret position.
+            // pro::caret: Set cursor position.
             void coor(twod coor)
             {
                 if (body.coor != coor)
@@ -833,17 +855,17 @@ namespace netxs::ui
                     body.coor = coor;
                 }
             }
-            // pro::caret: Get caret position.
+            // pro::caret: Get cursor position.
             auto& coor() const
             {
                 return body.coor;
             }
-            // pro::caret: Get caret style.
+            // pro::caret: Get cursor style.
             auto style() const
             {
                 return std::pair{ form, !!(*this) };
             }
-            // pro::caret: Force to redraw caret.
+            // pro::caret: Force to redraw cursor.
             void reset()
             {
                 if (step != span::zero())
@@ -852,15 +874,16 @@ namespace netxs::ui
                     next = {};
                 }
             }
-            // pro::caret: Enable caret.
+            // pro::caret: Enable cursor.
             void show()
             {
                 if (!*this)
                 {
                     done = faux;
-                    live = step == span::zero();
-                    if (!live)
+                    auto blinking = step != span::zero();
+                    if (blinking)
                     {
+                        live = faux;
                         boss.LISTEN(tier::general, e2::timer::tick, timestamp, memo)
                         {
                             if (timestamp > next)
@@ -871,12 +894,16 @@ namespace netxs::ui
                             }
                         };
                     }
+                    else
+                    {
+                        live = true;
+                    }
                     boss.LISTEN(tier::release, e2::postrender, canvas, memo)
                     {
-                        done = live;
-                        auto state = down ? (step == span::zero() ? faux : true)
-                                          : live;
-                        if (state)
+                        done = true;
+                        auto blinking = step != span::zero();
+                        auto visible = (unfocused == blinking) || (blinking && live);
+                        if (visible)
                         {
                             auto clip = canvas.core::clip();
                             if (auto area = clip.trim(body))
@@ -906,17 +933,68 @@ namespace netxs::ui
                                     }
                                 }
 
-                                if (form)
+                                switch (form)
                                 {
-                                    canvas.fill(area, [](cell& c)
-                                    {
-                                        auto b = c.bgc();
-                                        auto f = c.fgc();
-                                        if (c.inv()) c.bgc(f).fgc(cell::shaders::contrast.invert(f));
-                                        else         c.fgc(b).bgc(cell::shaders::contrast.invert(b));
-                                    });
+                                    //todo
+                                    //c.cursor_style(form);
+                                    //c.cursor_color(mark);
+                                    case text_cursor::block:
+                                        if (mark.bga() == 0)
+                                        {
+                                            canvas.fill(area, [&](cell& c)
+                                            {
+                                                auto b = c.inv() ? c.fgc() : c.bgc();
+                                                auto f = mark.fga() ? mark.fgc() : b;
+                                                c.inv(faux).fgc(f).bgc(cell::shaders::contrast.invert(b));
+                                            });
+                                        }
+                                        else
+                                        {
+                                            auto b = mark.bgc();
+                                            auto f = mark.fga() ? mark.fgc() : cell::shaders::contrast.invert(b);
+                                            canvas.fill(area, [&](cell& c)
+                                            {
+                                                c.inv(faux).fgc(f).bgc(b);
+                                            });
+                                        }
+                                        break;
+                                    case text_cursor::I_bar:
+                                    case text_cursor::underline:
+                                        if (mark.bga() == 0)
+                                        {
+                                            canvas.fill(area, [](cell& c)
+                                            {
+                                                if (c.und() == unln::line)
+                                                {
+                                                    c.und(unln::none);
+                                                }
+                                                else
+                                                {
+                                                    auto b = c.inv() ? c.fgc() : c.bgc();
+                                                    auto u = rgba{ cell::shaders::contrast.invert(b) };
+                                                    c.und(unln::line);
+                                                    c.unc(u);
+                                                }
+                                            });
+                                        }
+                                        else
+                                        {
+                                            auto u = mark.bgc().to_256cube();
+                                            canvas.fill(area, [&](cell& c)
+                                            {
+                                                if (u == c.unc() && c.und() == unln::line)
+                                                {
+                                                    c.und(unln::none);
+                                                }
+                                                else
+                                                {
+                                                    c.und(unln::line);
+                                                    c.unc(u);
+                                                }
+                                            });
+                                        }
+                                        break;
                                 }
-                                else canvas.fill(area, [](cell& c){ c.und() ? c.und(0) : c.und(1); });
                             }
                             else if (area.size.y)
                             {
@@ -929,7 +1007,7 @@ namespace netxs::ui
                     };
                 }
             }
-            // pro::caret: Disable caret.
+            // pro::caret: Disable cursor.
             void hide()
             {
                 if (*this)
@@ -1850,8 +1928,6 @@ namespace netxs::ui
                 {
                     auto size = si32{ 5 }; // grade: Vertical gradient size.
                     auto step = si32{ 2 }; // grade: Vertical gradient step.
-                    //cell shadow{ cell{}.vis(cell::highlighter) };
-                    //cell bright{ cell{}.vis(cell::darklighter) };
                     auto shadow = rgba{0xFF000000};
                     auto bright = rgba{0xFFffffff};
 
@@ -2139,17 +2215,24 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            si32 radius;
-            twod oversz;
-            twod offset;
-
-            auto draw_shadow(face& canvas)
+            struct corner_t
             {
-                static auto edge = [&]()
+                bool sync{};
+                core bitmap;
+                twod oversz;
+                twod offset;
+
+                void generate_corner()
                 {
-                    auto bitmap = core{};
-                    auto spline = netxs::spline01{ 0.36f };
-                    auto sz = dot_21 * (radius * 4 + 1);
+                    sync = true;
+                    auto bias    = skin::globals().shadow_bias;                            // +_k0 * 0.1f;
+                    auto opacity = std::clamp(skin::globals().shadow_opacity, 0.f, 255.f); // +_k1 * 1.f;
+                    auto blur    = std::abs(skin::globals().shadow_blur);                  // +_k2;
+                    auto shift   = skin::globals().shadow_offset;                          // + dot_21 * _k3;
+                    oversz = dot_21 * (blur * 4);
+                    offset = dot_21 * (blur * 2) - shift;
+                    auto spline = netxs::spline01{ bias };
+                    auto sz = dot_21 * (blur * 4 + 1);
                     bitmap.size(sz);
                     auto it = bitmap.begin();
                     for (auto y = 0.f; y < sz.y; y++)
@@ -2164,18 +2247,30 @@ namespace netxs::ui
                             auto x0 = x / (sz.x - 1.f);
                             auto sx = spline(x0);
                             auto xy = sy * sx;
-                            auto a = (byte)std::round(96.f * xy);
+                            auto a = (byte)std::round(opacity * xy);
                             f.chan.a = a;
                             b.chan.a = a;
                         }
                     }
-                    return bitmap;
-                }();
-                canvas.step(offset);
+                }
+            };
+
+            auto& get_corner()
+            {
+                static auto corner = corner_t{};
+                return corner;
+            }
+
+            auto draw_shadow(face& canvas)
+            {
+                auto& corner = ghost::get_corner();
+                if (!corner.sync) corner.generate_corner();
+                auto& edge = corner.bitmap;
+                canvas.step(corner.offset);
                 auto dir = dot_11;
                 auto win = boss.area();
                 auto src = edge.area();
-                auto dst = rect{ dot_00, win.size + oversz };
+                auto dst = rect{ dot_00, win.size + corner.oversz };
                 auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
                 auto off = dent{ 0, cut.x, 0, cut.y };
                 src += off;
@@ -2205,20 +2300,17 @@ namespace netxs::ui
                 dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
                 dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
                 dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                canvas.step(-offset);
+                canvas.step(-corner.offset);
             }
 
         public:
             ghost(base&&) = delete;
-            ghost(base& boss, si32 shadowsize)
-                : skill{ boss },
-                  radius{ shadowsize },
-                  oversz{ dot_21 * (radius * 4) },
-                  offset{ dot_21 * (radius * 2 - 1)}
+            ghost(base& boss)//, si32 shadowsize)
+                : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    draw_shadow(parent_canvas);
+                    if (skin::globals().shadow_enabled) draw_shadow(parent_canvas);
                 };
                 //test
                 //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
