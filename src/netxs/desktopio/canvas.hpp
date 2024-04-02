@@ -1097,11 +1097,22 @@ namespace netxs
                 ui32 cursor : 3; // 0: None, 1: Underline, 2: Block, 3: I-bar, 7: Transparent - hint for IME. cell::px stores cursor fg/bg if cursor is set.
                 ui32 blinks : 1;
                 ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
-                ui32 bit_reserv : 2;
-
+                ui32 fusion : 4; // Background interpolation with neighbor cells:
+                                 //    c1  
+                                 // c2 c0 c3
+                                 //    c4
+                                 // BG interpolation type (four 1-bit values):
+                                 // 0 -- None
+                                 // 1 -- Cubic
+                                 //
+                                 // 0 1 2 3
+                                 // │ │ │ └── interpolation type between `c0` and `c4`
+                                 // │ │ └──── interpolation type between `c0` and `c3`
+                                 // │ └────── interpolation type between `c0` and `c2`
+                                 // └──────── interpolation type between `c0` and `c1`
                 //todo ui32 fragment : 8; // 8 bit for CFA
 
-                // Unique attributes. From 24th bit.
+                // Unique attributes. From 26th bit.
                 //todo move all to cell::na
                 //ui32 r_to_l : 1;
                 ui32 hyphen : 1;
@@ -1110,13 +1121,12 @@ namespace netxs
                 ui32 isepar : 1;
                 ui32 inplus : 1;
                 ui32 zwnbsp : 1;
-                ui32 reserv : 2; // reserved
             };
 
             ui32 token;
             attr attrs;
 
-            static constexpr auto shared_bits = (1 << 24) - 1;
+            static constexpr auto shared_bits = (1 << 26) - 1;
 
             constexpr body()
                 : token{ 0 }
