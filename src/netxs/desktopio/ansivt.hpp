@@ -478,7 +478,11 @@ namespace netxs::ansi
                     {
                         if (state.wdt() == 2)
                         {
-                            if (state.scan<svga::vtrgb, UseSGR>(c, state, block)) state.set_gc(); // Cleanup used t
+                            if (state.check_pair(c))
+                            {
+                                state.scan<svga::vtrgb, UseSGR>(state, block);
+                                state.set_gc(); // Cleanup used t
+                            }
                             else
                             {
                                 badfx(); // Left part alone

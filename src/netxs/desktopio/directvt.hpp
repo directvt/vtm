@@ -1113,13 +1113,19 @@ namespace netxs::directvt
                 };
                 auto put = [&](cell const& cache)
                 {
-                    //todo
-                    cache.scan<Mode>(state, block);
+                    if (cache.cur())
+                    {
+                        auto c = cache;
+                        c.draw_cursor();
+                        c.scan<Mode>(state, block);
+                    }
+                    else cache.scan<Mode>(state, block);
                 };
                 auto dif = [&](cell const& cache, cell const& front)
                 {
-                    //todo
-                    return !cache.scan<Mode>(front, state, block);
+                    auto same = cache.check_pair(front);
+                    if (same) put(cache);
+                    return !same;
                 };
                 auto left_half = [&](cell const& cache)
                 {

@@ -903,105 +903,55 @@ namespace netxs::ui
                         done = true;
                         auto blinking = step != span::zero();
                         auto visible = (unfocused == blinking) || (blinking && live);
+                        auto clip = canvas.core::clip();
+                        auto area = clip.trim(body);
+                        if (area)
+                        {
+                            auto& test = canvas.peek(body.coor);
+                            if (test.wdt() == 2) // Extend cursor to adjacent halves.
+                            {
+                                if (clip.hittest(body.coor + dot_10))
+                                {
+                                    auto& next = canvas.peek(body.coor + dot_10);
+                                    if (next.wdt() == 3 && test.same_txt(next))
+                                    {
+                                        area.size.x++;
+                                    }
+                                }
+                            }
+                            else if (test.wdt() == 3)
+                            {
+                                if (clip.hittest(body.coor - dot_10))
+                                {
+                                    auto& prev = canvas.peek(body.coor - dot_10);
+                                    if (prev.wdt() == 2 && test.same_txt(prev))
+                                    {
+                                        area.size.x++;
+                                        area.coor.x--;
+                                    }
+                                }
+                            }
+                        }
                         if (visible)
                         {
-                            auto clip = canvas.core::clip();
-                            if (auto area = clip.trim(body))
+                            if (area)
                             {
-                                auto& test = canvas.peek(body.coor);
-                                if (test.wdt() == 2) // Extend cursor to adjacent halves.
-                                {
-                                    if (clip.hittest(body.coor + dot_10))
-                                    {
-                                        auto& next = canvas.peek(body.coor + dot_10);
-                                        if (next.wdt() == 3 && test.same_txt(next))
-                                        {
-                                            area.size.x++;
-                                        }
-                                    }
-                                }
-                                else if (test.wdt() == 3)
-                                {
-                                    if (clip.hittest(body.coor - dot_10))
-                                    {
-                                        auto& prev = canvas.peek(body.coor - dot_10);
-                                        if (prev.wdt() == 2 && test.same_txt(prev))
-                                        {
-                                            area.size.x++;
-                                            area.coor.x--;
-                                        }
-                                    }
-                                }
-
-                                switch (form)
-                                {
-                                    //todo
-                                    //c.cursor_style(form);
-                                    //c.cursor_color(mark);
-                                    case text_cursor::block:
-                                        if (mark.bga() == 0)
-                                        {
-                                            canvas.fill(area, [&](cell& c)
-                                            {
-                                                auto b = c.inv() ? c.fgc() : c.bgc();
-                                                auto f = mark.fga() ? mark.fgc() : b;
-                                                c.inv(faux).fgc(f).bgc(cell::shaders::contrast.invert(b));
-                                            });
-                                        }
-                                        else
-                                        {
-                                            auto b = mark.bgc();
-                                            auto f = mark.fga() ? mark.fgc() : cell::shaders::contrast.invert(b);
-                                            canvas.fill(area, [&](cell& c)
-                                            {
-                                                c.inv(faux).fgc(f).bgc(b);
-                                            });
-                                        }
-                                        break;
-                                    case text_cursor::I_bar:
-                                    case text_cursor::underline:
-                                        if (mark.bga() == 0)
-                                        {
-                                            canvas.fill(area, [](cell& c)
-                                            {
-                                                if (c.und() == unln::line)
-                                                {
-                                                    c.und(unln::none);
-                                                }
-                                                else
-                                                {
-                                                    auto b = c.inv() ? c.fgc() : c.bgc();
-                                                    auto u = rgba{ cell::shaders::contrast.invert(b) };
-                                                    c.und(unln::line);
-                                                    c.unc(u);
-                                                }
-                                            });
-                                        }
-                                        else
-                                        {
-                                            auto u = mark.bgc().to_256cube();
-                                            canvas.fill(area, [&](cell& c)
-                                            {
-                                                if (u == c.unc() && c.und() == unln::line)
-                                                {
-                                                    c.und(unln::none);
-                                                }
-                                                else
-                                                {
-                                                    c.und(unln::line);
-                                                    c.unc(u);
-                                                }
-                                            });
-                                        }
-                                        break;
-                                }
+                                canvas.fill(area, [&](auto& c){ c.set_cursor(form, mark); });
                             }
                             else if (area.size.y)
                             {
                                 auto chr = area.coor.x ? '>' : '<';
                                 area.coor.x -= area.coor.x ? 1 : 0;
                                 area.size.x = 1;
-                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())); });
+                                canvas.fill(area, [&](auto& c){ c.txt(chr).fgc(cell::shaders::contrast.invert(c.bgc())).cur(text_cursor::invisible); });
+                            }
+                        }
+                        else
+                        {
+                            if (area.size.y)
+                            {
+                                area.size.x = 1;
+                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::invisible); });
                             }
                         }
                     };

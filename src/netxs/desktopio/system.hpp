@@ -600,7 +600,8 @@ namespace netxs::os
                     auto dest = outbuf.begin();
                     while (head != tail)
                     {
-                        auto& src = *head++;
+                        auto src = *head++;
+                        if (src.cur()) src.draw_cursor();
                         auto& dst = *dest++;
                         dst.Attributes = nt::console::attr<Mode>(src);
                         toWIDE.clear();
