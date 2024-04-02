@@ -70,9 +70,9 @@ namespace netxs::xml
         else return utf::to_int<T, 10>(utf8);
     }
     template<>
-    auto take<float>(qiew utf8) -> std::optional<float>
+    auto take<fp32>(qiew utf8) -> std::optional<fp32>
     {
-        return utf::to_int<float>(utf8);
+        return utf::to_int<fp32>(utf8);
     }
     template<>
     auto take<text>(qiew utf8) -> std::optional<text>

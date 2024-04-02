@@ -506,13 +506,27 @@ namespace netxs::utf
     {
         auto num = A{};
         auto top = ascii.data();
-        auto end = ascii.length() + top;
-
+        auto end = top + ascii.length();
         if constexpr (std::is_floating_point_v<A>)
         {
-            if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
+            //todo neither clang nor apple clang support from_chars with floating point (ver < 15.0)
+            //if (auto [pos, err] = std::from_chars(top, end, num); err == std::errc())
+            auto integer = si64{};
+            if (auto [pos, err] = std::from_chars(top, end, integer, Base); err == std::errc())
             {
                 ascii.remove_prefix(pos - top);
+                num = (A)integer;
+                if (ascii.size() && ascii.front() == '.')
+                {
+                    ascii.pop_front();
+                    top = ascii.data();
+                    if (auto [mpos, merr] = std::from_chars(top, end, integer, Base); merr == std::errc())
+                    {
+                        auto len = mpos - top;
+                        num += (A)(integer * std::pow(10, -len));
+                        ascii.remove_prefix(len);
+                    }
+                }
                 return num;
             }
         }
