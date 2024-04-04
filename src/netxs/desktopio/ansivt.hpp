@@ -1110,15 +1110,10 @@ namespace netxs::ansi
         changer	setter = {};
         marker()
         {
-            setter[ctrl::alm                 ] = [](cell& p){ p.rtl(true);    };
-            setter[ctrl::rlm                 ] = [](cell& p){ p.rtl(true);    };
-            setter[ctrl::lrm                 ] = [](cell& p){ p.rtl(faux);    };
-            setter[ctrl::shy                 ] = [](cell& p){ p.hyphen(true); };
-            setter[ctrl::function_application] = [](cell& p){ p.fnappl(true); };
-            setter[ctrl::invisible_times     ] = [](cell& p){ p.itimes(true); };
-            setter[ctrl::invisible_separator ] = [](cell& p){ p.isepar(true); };
-            setter[ctrl::invisible_plus      ] = [](cell& p){ p.inplus(true); };
-            setter[ctrl::zwnbsp              ] = [](cell& p){ p.zwnbsp(true); };
+            setter[ctrl::alm                 ] = [](cell& p){ p.rtl(true); };
+            setter[ctrl::rlm                 ] = [](cell& p){ p.rtl(true); };
+            setter[ctrl::lrm                 ] = [](cell& p){ p.rtl(faux); };
+            //setter[ctrl::shy                 ] = [](cell& p){ p.hyphen();  };
         }
     };
 

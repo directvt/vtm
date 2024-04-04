@@ -4987,7 +4987,7 @@ namespace netxs::os
                         }
                         else // ESC cluster == Alt+cluster
                         {
-                            auto cluster = utf::letter(s.substr(1));
+                            auto cluster = utf::cluster<true>(s.substr(1));
                             s = s.substr(0, cluster.attr.utf8len + 1);
                         }
                     }
@@ -5373,7 +5373,7 @@ namespace netxs::os
                         }
                         else
                         {
-                            auto cluster = utf::letter(cache);
+                            auto cluster = utf::cluster<true>(cache);
                             detect_key(k, cluster.text);
                             cache.remove_prefix(cluster.attr.utf8len);
                         }

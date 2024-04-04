@@ -7614,7 +7614,7 @@ namespace netxs::ui
                     for (auto& jgc : lock.thing)
                     {
                         jumbos.set(jgc.token, jgc.cluster);
-                        if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                        if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                     }
                 }
                 netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable

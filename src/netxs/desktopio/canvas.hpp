@@ -1026,7 +1026,7 @@ namespace netxs
                 if (utf8.empty()) token = 0;
                 else
                 {
-                    auto cluster = utf::letter(utf8);
+                    auto cluster = utf::cluster(utf8);
                     set(cluster.text, cluster.attr.ucwidth);
                 }
             }
@@ -1108,18 +1108,16 @@ namespace netxs
                                  // 0 1
                                  // │ └────── interpolation type between `c0` and `c2`
                                  // └──────── interpolation type between `c0` and `c1`
-                //todo ui32 fragment : 8; // 8 bit for CFA
+                //todo Cf's can not be entered: even using paste from clipboard
+                //dont show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
+
+                //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
+                // append prev: U+200C ZERO WIDTH NON-JOINER
+                // append prev: U+00AD SOFT HYPHEN
 
                 // Unique attributes. From 24th bit.
-                //todo move all to cell::na
-                //ui32 r_to_l : 1;
-                ui32 hyphen : 1;
-                ui32 fnappl : 1;
-                ui32 itimes : 1;
-                ui32 isepar : 1;
-                ui32 inplus : 1;
-                ui32 zwnbsp : 1;
-                ui32 reserv : 2;
+                //todo ui32 fragment : 8; // 8 bit for CFA
+                ui32 reserv : 8;
             };
 
             ui32 token;
@@ -1738,12 +1736,6 @@ namespace netxs
             return *this;
         }
 
-        void hyphen(bool b) { st.attrs.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
-        void fnappl(bool b) { st.attrs.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
-        void itimes(bool b) { st.attrs.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
-        void isepar(bool b) { st.attrs.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
-        void inplus(bool b) { st.attrs.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
-        void zwnbsp(bool b) { st.attrs.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
 
         auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
@@ -1796,7 +1788,7 @@ namespace netxs
         }
         auto set_cursor(si32 style, cell color = {})
         {
-            st.attrs.cursor = style;
+            st.cur(style);
             if (st.attrs.bitmap != body::pxtype::bitmap && (color.uv.bg.token || color.uv.fg.token))
             {
                 st.attrs.bitmap = body::pxtype::colors;
@@ -1806,7 +1798,7 @@ namespace netxs
         auto cursor_color()
         {
             auto colored = st.attrs.bitmap == body::pxtype::colors;
-            return colored ? std::pair{ rgba{ px.token >> 32 }, rgba{ px.token & 0xFFFF'FFFF }}
+            return colored ? std::pair{ rgba{ (ui32)(px.token >> 32) }, rgba{ (ui32)(px.token & 0xFFFF'FFFF) }}
                            : std::pair{ rgba{}, rgba{} };
         }
         // cell: Return whitespace cell.
@@ -2079,7 +2071,7 @@ namespace netxs
         auto draw_cursor()
         {
             auto [cursor_bgc, cursor_fgc] = cursor_color();
-            switch (st.attrs.cursor)
+            switch (st.cur())
             {
                 case text_cursor::block:
                     if (cursor_bgc.chan.a == 0)
@@ -2490,7 +2482,7 @@ namespace netxs
             auto alpha = [&](auto txt)
             {
                 //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster<true>(txt).attr.cdpoint;
                 return (c >= '0' && c <= '9')//30-39: '0'-'9'
                      ||(c >= '@' && c <= 'Z')//40-5A: '@','A'-'Z'
                      ||(c >= 'a' && c <= 'z')//5F,61-7A: '_','a'-'z'
@@ -2519,14 +2511,14 @@ namespace netxs
             };
             auto is_digit = [&](auto txt)
             {
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster(txt).attr.cdpoint;
                 return (c >= '0'    && c <= '9')
                      ||(c >= 0xFF10 && c <= 0xFF19) // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
                      || c == '.';
             };
             auto digit = [&](auto txt)
             {
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster(txt).attr.cdpoint;
                 return c == '.'
                     ||(c >= 'a' && c <= 'f')
                     ||(c >= 'A' && c <= 'F')

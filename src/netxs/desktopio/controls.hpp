@@ -948,9 +948,14 @@ namespace netxs::ui
                         }
                         else
                         {
-                            if (area.size.y)
+                            if (area)
+                            {
+                                canvas.fill(area, [&](auto& c){ c.cur(text_cursor::invisible); });
+                            }
+                            else if (area.size.y)
                             {
                                 area.size.x = 1;
+                                area.coor.x -= area.coor.x ? 1 : 0;
                                 canvas.fill(area, [&](auto& c){ c.cur(text_cursor::invisible); });
                             }
                         }

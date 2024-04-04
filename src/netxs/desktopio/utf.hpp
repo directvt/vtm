@@ -259,68 +259,55 @@ namespace netxs::utf
         view text;
         prop attr;
 
-        auto letter(view utf8)
+        template<bool AllowControls = faux>
+        static auto take_cluster(view utf8)
         {
             if (auto code = cpit{ utf8 })
             {
                 auto next = code.take();
+                if (next.is_cmd())
+                {
+                    if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
+                    else                         return frag{ replacement, next };
+                }
+                auto head = code.textptr;
+                auto left = next;
                 do
                 {
-                    if (next.is_cmd())
+                    code.step();
+                    if (next.correct)
                     {
-                        //todo revise
-                        //code.step();
-                        return std::pair{ replacement, next };
+                        next = code.take();
+                        if (auto size = left.combine(next))
+                        {
+                            return frag{ view(head, size), left };
+                        }
                     }
                     else
                     {
-                        auto head = code.textptr;
-                        auto left = next;
-                        do
-                        {
-                            code.step();
-                            if (next.correct)
-                            {
-                                next = code.take();
-                                if (auto size = left.combine(next))
-                                {
-                                    return std::pair{ view(head, size), left };
-                                }
-                            }
-                            else
-                            {
-                                next.utf8len = left.utf8len;
-                                return std::pair{ replacement, next };
-                            }
-                        }
-                        while (true);
+                        next.utf8len = left.utf8len;
+                        return frag{ replacement, next };
                     }
                 }
-                while (code);
+                while (true);
             }
-            return std::pair{ replacement, prop{ 0 } };
+            return frag{ replacement, prop{ 0 } };
         }
 
         frag(view utf8, prop const& attr)
             : text{ utf8 },
               attr{ attr }
         { }
-        frag(view utf8, utfx code)
-            : text{ utf8 },
-              attr{ code, utf8.size() }
-        { }
-        frag(std::pair<view, prop> p)
-            : frag{ p.first, p.second }
-        { }
         frag(view utf8)
-            : frag{ letter(utf8) }
+            : frag{ take_cluster(utf8) }
         { }
     };
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    auto letter(view utf8)
+    template<bool AllowControls = faux>
+    auto cluster(view utf8)
     {
-        return frag{ utf8 };
+        return frag::take_cluster<AllowControls>(utf8);
     }
 
     // utf: Break the text into the enriched grapheme clusters.
@@ -458,11 +445,11 @@ namespace netxs::utf
         auto pop_all(ctrl cmd)
         {
             auto n = si32{ 1 };
-            auto next = utf::letter(*this);
+            auto next = utf::cluster<true>(*this);
             while (next.attr.control == cmd)
             {
                 view::remove_prefix(next.attr.utf8len);
-                next = utf::letter(*this);
+                next = utf::cluster<true>(*this);
                 n++;
             }
             return n;
@@ -481,7 +468,7 @@ namespace netxs::utf
         // qiew: Return true and pop the front control point when it is equal to cmd.
         auto pop_if(ctrl cmd)
         {
-            auto next = utf::letter(*this);
+            auto next = utf::cluster<true>(*this);
             if (next.attr.control == cmd)
             {
                 view::remove_prefix(next.attr.utf8len);
@@ -553,12 +540,6 @@ namespace netxs::utf
         return result ? result.value() : fallback;
     }
 
-    struct letter_sync
-    {
-        int lb;
-        int rb;
-        int cp;
-    };
     void capacity(auto& target, auto additional)
     {
         auto required = target.size() + additional;
@@ -794,7 +775,7 @@ namespace netxs::utf
         if (tail != head) // Check codepoint.
         {
             auto p = head - tail - 1;
-            auto l = utf::letter(utf8.substr(p));
+            auto l = utf::cluster<true>(utf8.substr(p));
             if (!l.attr.correct)
             {
                 utf8 = utf8.substr(0, p);
