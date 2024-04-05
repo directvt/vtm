@@ -1110,10 +1110,10 @@ namespace netxs::ansi
         changer	setter = {};
         marker()
         {
-            setter[ctrl::alm                 ] = [](cell& p){ p.rtl(true); };
-            setter[ctrl::rlm                 ] = [](cell& p){ p.rtl(true); };
-            setter[ctrl::lrm                 ] = [](cell& p){ p.rtl(faux); };
-            //setter[ctrl::shy                 ] = [](cell& p){ p.hyphen();  };
+            //setter[ctrl::alm] = [](cell& p){ p.rtl(true); };
+            //setter[ctrl::rlm] = [](cell& p){ p.rtl(true); };
+            //setter[ctrl::lrm] = [](cell& p){ p.rtl(faux); };
+            //setter[ctrl::shy] = [](cell& p){ p.hyphen();  };
         }
     };
 
@@ -1703,7 +1703,7 @@ namespace netxs::ansi
             if (auto w = attr.ucwidth)
             {
                 proto_count += w;
-                brush.set_gc(utf8, w);
+                brush.txt(utf8, w);
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
@@ -1725,7 +1725,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    brush.set_gc(utf8, w);
+                    brush.txt(utf8, w);
                     proto_cells.push_back(brush);
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);

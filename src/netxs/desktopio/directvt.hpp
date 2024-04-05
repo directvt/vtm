@@ -922,8 +922,7 @@ namespace netxs::directvt
                     if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
-                        cluster = c1.egc().state.jumbo ? 8
-                                                       : c1.egc().state.count + 1;
+                        cluster = c1.len();
                         meaning += cluster + 1;
                         changes |= glyph;
                     }

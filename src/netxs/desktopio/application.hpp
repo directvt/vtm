@@ -231,7 +231,7 @@ namespace netxs::app::shared
                 button->active(); // Always active for tooltips.
                 if (alive)
                 {
-                    if (hover.set()) button->shader(hover                , e2::form::state::hover);
+                    if (hover.clr()) button->shader(hover                , e2::form::state::hover);
                     else             button->shader(cell::shaders::xlight, e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(notes)
