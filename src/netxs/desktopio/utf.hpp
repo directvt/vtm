@@ -1012,8 +1012,8 @@ namespace netxs::utf
         return to_hex(reinterpret_cast<std::uintptr_t>(ptr), std::forward<Args>(args)...);
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
-    template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
-    auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2)
+    template<bool UpperCase = faux, class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+    auto to_hex(T number, text& crop, size_t width = sizeof(T) * 2)
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
@@ -1026,39 +1026,33 @@ namespace netxs::utf
         return crop;
     }
     template<bool UpperCase = faux>
-    auto to_hex(view buffer, bool formatted = faux)
+    auto buffer_to_hex(view buffer, bool formatted = faux)
     {
         if (formatted)
         {
             auto size = buffer.size();
             auto addr = 0_sz;
             auto crop = text{};
-
             while (addr < size)
             {
                 auto frag = (size - addr > 16) ? 16
                                                : size - addr;
                 crop += adjust(std::to_string(addr), 4, '0', true);
-
                 for (auto i = 0_sz; i < 16; i++)
                 {
                     if (i % 8 == 0)
                     {
                         crop += i < frag ? " -" : "  ";
                     }
-
-                    crop += i < frag ? ' ' + to_hex<UpperCase>(buffer[addr + i], 2, true)
+                    crop += i < frag ? ' ' + utf::to_hex<UpperCase>(buffer[addr + i], 2)
                                      : "   ";
                 }
-
                 crop += "   ";
-
                 for (auto i = addr; i < addr + frag; i++)
                 {
-                    auto c = buffer[i];
-                    crop += (c < 33) ? '.' : c;
+                    auto c = (byte)buffer[i];
+                    crop += (c < 0x21 || c > 0x7e) ? '.' : c;
                 }
-
                 crop += '\n';
                 addr += 16;
             }
@@ -1317,8 +1311,8 @@ namespace netxs::utf
                 default:
                 {
                     auto cp = traits.cdpoint;
-                    if (cp < 0x100000) { buff += "\\u"; to_hex<true>(buff, cp, 4); }
-                    else               { buff += "\\U"; to_hex<true>(buff, cp, 8); }
+                    if (cp < 0x100000) { buff += "\\u"; utf::to_hex<true>(cp, buff, 4); }
+                    else               { buff += "\\U"; utf::to_hex<true>(cp, buff, 8); }
                 }
             }
             return utf8;
