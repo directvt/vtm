@@ -1964,13 +1964,13 @@ namespace netxs::ui
                         auto [bg, fg] = base.inv() ? std::pair{ base.fgc(), base.bgc() }
                                                    : std::pair{ base.bgc(), base.fgc() };
                         data += bclr;
-                        utf::to_hex(data, bg.chan.r);
-                        utf::to_hex(data, bg.chan.g);
-                        utf::to_hex(data, bg.chan.b);
+                        utf::to_hex(bg.chan.r, data);
+                        utf::to_hex(bg.chan.g, data);
+                        utf::to_hex(bg.chan.b, data);
                         data += fclr;
-                        utf::to_hex(data, fg.chan.r);
-                        utf::to_hex(data, fg.chan.g);
-                        utf::to_hex(data, fg.chan.b);
+                        utf::to_hex(fg.chan.r, data);
+                        utf::to_hex(fg.chan.g, data);
+                        utf::to_hex(fg.chan.b, data);
                         if (base.itc()) data += itlc;
                         if (base.bld()) data += bold;
                         if (base.stk()) data += strk;

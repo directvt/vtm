@@ -3,7 +3,7 @@
 # Copyright (c) NetXS Group.
 # Licensed under the MIT license.
 
-""" Generates C++ header and source file based on the Unicode Character Database """
+""" Generates C++ header file based on the Unicode Character Database """
 
 import os
 import re

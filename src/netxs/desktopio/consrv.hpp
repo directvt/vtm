@@ -3065,7 +3065,7 @@ struct impl : consrv
                 {
                     auto active = scroll_handle.link == &uiterm.target || scroll_handle.link == uiterm.target; // Target buffer can be changed during vt execution (eg: switch to altbuf).
                     if (!direct(packet.target, [&](auto& scrollback){ active ? uiterm.ondata(crop)
-                                                                              : uiterm.ondata(crop, &scrollback); }))
+                                                                             : uiterm.ondata(crop, &scrollback); }))
                     {
                         datasize = 0;
                     }
@@ -3074,8 +3074,7 @@ struct impl : consrv
                 {
                     uiterm.ondata(crop);
                 }
-                log("\t", show_page(packet.input.utf16, codec.codepage),
-                    ": ", ansi::hi(utf::debase<faux, faux>(crop)));
+                log("\t", show_page(packet.input.utf16, codec.codepage), ": ", ansi::hi(utf::debase<faux, faux>(crop)));
                 scroll_handle.toUTF8.erase(0, crop.size()); // Delete processed data.
             }
             else
@@ -4474,7 +4473,7 @@ struct impl : consrv
         packet.reply.index = 0;
         packet.reply.sizex = 10;
         packet.reply.sizey = 20;
-        packet.reply.pitch = 0;
+        packet.reply.pitch = TMPF_TRUETYPE; // Pwsh checks this to decide whether or not to switch to UTF-8. For raster fonts (non-Unicode), the low-order bits are set to zero.
         packet.reply.heavy = 0;
         auto brand = L"Consolas"s + L'\0';
         std::copy(std::begin(brand), std::end(brand), std::begin(packet.reply.brand));

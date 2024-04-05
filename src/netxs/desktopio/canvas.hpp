@@ -1026,7 +1026,7 @@ namespace netxs
                 if (utf8.empty()) token = 0;
                 else
                 {
-                    auto cluster = utf::letter(utf8);
+                    auto cluster = utf::cluster(utf8);
                     set(cluster.text, cluster.attr.ucwidth);
                 }
             }
@@ -1077,6 +1077,13 @@ namespace netxs
             // weigth := 0..255
             // italic := 0..255
             //
+            struct pxtype
+            {
+                static constexpr auto none     = 0;
+                static constexpr auto colors   = 1; // rgba colors pair (cursor/grid/whatever).
+                static constexpr auto bitmap   = 2; // Attached rgba bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
+                static constexpr auto reserved = 3;
+            };
             struct attr
             {
                 // Shared attributes.
@@ -1087,23 +1094,30 @@ namespace netxs
                 ui32 strike : 1;
                 ui32 unline : 3; // 0: none, 1: line, 2: biline, 3: wavy, 4: dotted, 5: dashed, 6 - 7: unknown.
                 ui32 ucolor : 8; // Underline 256-color 6x6x6-cube index. Alpha not used - it is shared with fgc alpha. If zero - sync with fgc.
-                ui32 cursor : 3; // 0: None, 1: Underline, 2: Block, 3: I-bar, 7: Transparent - hint for IME.
+                ui32 cursor : 3; // 0: None, 1: Underline, 2: Block, 3: I-bar, 7: Transparent - hint for IME. cell::px stores cursor fg/bg if cursor is set.
                 ui32 blinks : 1;
-                ui32 bitmap : 1; // Attached rgba bitmap (cursor/grid/whatever). Temp: cell::px stores cursor fg/bg if cursor!=0. Todo: draw cursor over attached bitmap if it is.
-                ui32 bit_reserv : 3;
+                ui32 bitmap : 2; // body::pxtype: Cursor losts its colors when it covers bitmap.
+                ui32 fusion : 2; // Background interpolation current c0 with neighbor c1 and c2 cells:
+                                 //
+                                 //    c0 c1
+                                 //    c2
+                                 // BG interpolation type (two 1-bit values):
+                                 // 0 -- None
+                                 // 1 -- Cubic
+                                 //
+                                 // 0 1
+                                 // │ └────── interpolation type between `c0` and `c2`
+                                 // └──────── interpolation type between `c0` and `c1`
+                //todo Cf's can not be entered: even using paste from clipboard
+                //dont show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
 
-                //todo ui32 fragment : 8; // 8 bit for CFA
+                //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
+                // append prev: U+200C ZERO WIDTH NON-JOINER
+                // append prev: U+00AD SOFT HYPHEN
 
                 // Unique attributes. From 24th bit.
-                //todo move all to cell::na
-                //ui32 r_to_l : 1;
-                ui32 hyphen : 1;
-                ui32 fnappl : 1;
-                ui32 itimes : 1;
-                ui32 isepar : 1;
-                ui32 inplus : 1;
-                ui32 zwnbsp : 1;
-                ui32 reserv : 2; // reserved
+                //todo ui32 fragment : 8; // 8 bit for CFA
+                ui32 reserv : 8;
             };
 
             ui32 token;
@@ -1175,6 +1189,7 @@ namespace netxs
             void itc(bool b) { attrs.italic = b; }
             void und(si32 n) { attrs.unline = n; }
             void unc(si32 c) { attrs.ucolor = c; }
+            void cur(si32 s) { attrs.cursor = s; }
             void inv(bool b) { attrs.invert = b; }
             void ovr(bool b) { attrs.overln = b; }
             void stk(bool b) { attrs.strike = b; }
@@ -1185,6 +1200,7 @@ namespace netxs
             bool itc() const { return attrs.italic; }
             si32 und() const { return attrs.unline; }
             si32 unc() const { return attrs.ucolor; }
+            si32 cur() const { return attrs.cursor; }
             bool inv() const { return attrs.invert; }
             bool ovr() const { return attrs.overln; }
             bool stk() const { return attrs.strike; }
@@ -1578,35 +1594,10 @@ namespace netxs
                 else                         dest += whitespace;
             }
         }
-        // cell: !!! Ensure that this.wdt == 2 and the next wdt == 3 and they are the same.
-        template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
-        bool scan(cell const& next, cell& base, T& dest) const
+        // cell: Check that the halves belong to the same wide glyph.
+        bool check_pair(cell const& next) const
         {
-            if constexpr (Mode == svga::dtvt) return {};
-            if (gc.same(next.gc) && like(next))
-            {
-                if (!like(base))
-                {
-                    //todo additionally consider UNIQUE ATTRIBUTES
-                    uv.get<Mode, UseSGR>(base.uv, dest);
-                    st.get<Mode, UseSGR>(base.st, dest);
-                    //if constexpr (Mode == svga::vtrgb && UseSGR) // Use colored grid only in vtrgb mode.
-                    //{
-                    //todo raw bitmap
-                    //    if (base.gridcolor != gridcolor)
-                    //    {
-                    //        dest.grd(gridcolor);
-                    //        base.gridcolor = gridcolor;
-                    //    }
-                    //}
-                }
-                filter<Mode, UseSGR>(base, dest);
-                return true;
-            }
-            else
-            {
-                return faux;
-            }
+            return gc.same(next.gc) && like(next);
         }
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         void scan(text& dest) const
@@ -1719,6 +1710,7 @@ namespace netxs
         auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
         auto& unc(rgba c)        { st.unc(c.to_256cube()); return *this; } // cell: Set Underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set Underline color.
+        auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
         auto& img(ui64 p)        { px.token = p;           return *this; } // cell: Set attached bitmap.
         auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
         auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
@@ -1744,12 +1736,6 @@ namespace netxs
             return *this;
         }
 
-        void hyphen(bool b) { st.attrs.hyphen = b; } // cell: Set the presence of the SOFT HYPHEN (U+00AD).
-        void fnappl(bool b) { st.attrs.fnappl = b; } // cell: Set the presence of the FUNCTION APPLICATION (U+2061).
-        void itimes(bool b) { st.attrs.itimes = b; } // cell: Set the presence of the INVISIBLE TIMES (U+2062).
-        void isepar(bool b) { st.attrs.isepar = b; } // cell: Set the presence of the INVISIBLE SEPARATOR (U+2063).
-        void inplus(bool b) { st.attrs.inplus = b; } // cell: Set the presence of the INVISIBLE PLUS (U+2064).
-        void zwnbsp(bool b) { st.attrs.zwnbsp = b; } // cell: Set the presence of the ZERO WIDTH NO-BREAK SPACE (U+FEFF).
 
         auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
@@ -1769,6 +1755,7 @@ namespace netxs
         auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
         auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
         auto  unc() const  { return st.unc();      } // cell: Return Underline color.
+        auto  cur() const  { return st.cur();      } // cell: Return cursor style.
         auto& img()        { return px.token;      } // cell: Return attached bitmap.
         auto& img() const  { return px.token;      } // cell: Return attached bitmap.
         auto  ovr() const  { return st.ovr();      } // cell: Return Overline attribute.
@@ -1798,6 +1785,21 @@ namespace netxs
                 }
             }
             return faux;
+        }
+        auto set_cursor(si32 style, cell color = {})
+        {
+            st.cur(style);
+            if (st.attrs.bitmap != body::pxtype::bitmap && (color.uv.bg.token || color.uv.fg.token))
+            {
+                st.attrs.bitmap = body::pxtype::colors;
+                px.token = ((ui64)color.uv.bg.token << 32) | (ui64)color.uv.fg.token;
+            }
+        }
+        auto cursor_color()
+        {
+            auto colored = st.attrs.bitmap == body::pxtype::colors;
+            return colored ? std::pair{ rgba{ (ui32)(px.token >> 32) }, rgba{ (ui32)(px.token & 0xFFFF'FFFF) }}
+                           : std::pair{ rgba{}, rgba{} };
         }
         // cell: Return whitespace cell.
         cell spc() const
@@ -2065,6 +2067,50 @@ namespace netxs
             static constexpr auto   invbit =   invbit_t{};
             static constexpr auto disabled = disabled_t{};
         };
+
+        auto draw_cursor()
+        {
+            auto [cursor_bgc, cursor_fgc] = cursor_color();
+            switch (st.cur())
+            {
+                case text_cursor::block:
+                    if (cursor_bgc.chan.a == 0)
+                    {
+                        auto b = inv() ? fgc() : bgc();
+                        auto f = cursor_fgc.chan.a ? cursor_fgc : b;
+                        inv(faux).fgc(f).bgc(cell::shaders::contrast.invert(b));
+                    }
+                    else
+                    {
+                        auto b = cursor_bgc;
+                        auto f = cursor_fgc.chan.a ? cursor_fgc : cell::shaders::contrast.invert(b);
+                        inv(faux).fgc(f).bgc(b);
+                    }
+                    break;
+                case text_cursor::I_bar:
+                case text_cursor::underline:
+                    if (cursor_bgc.chan.a == 0)
+                    {
+                        if (und() == unln::line)
+                        {
+                            und(unln::none);
+                        }
+                        else
+                        {
+                            auto b = inv() ? fgc() : bgc();
+                            auto u = rgba{ cell::shaders::contrast.invert(b) };
+                            und(unln::line).unc(u);
+                        }
+                    }
+                    else
+                    {
+                        auto u = cursor_bgc.to_256cube();
+                        if (u == unc() && und() == unln::line) und(unln::none);
+                        else                                   und(unln::line).unc(u);
+                    }
+                    break;
+            }
+        }
     };
 
     enum class bias : unsigned char { none, left, right, center, };
@@ -2436,7 +2482,7 @@ namespace netxs
             auto alpha = [&](auto txt)
             {
                 //todo revise (https://unicode.org/reports/tr29/#Word_Boundaries)
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster<true>(txt).attr.cdpoint;
                 return (c >= '0' && c <= '9')//30-39: '0'-'9'
                      ||(c >= '@' && c <= 'Z')//40-5A: '@','A'-'Z'
                      ||(c >= 'a' && c <= 'z')//5F,61-7A: '_','a'-'z'
@@ -2465,14 +2511,14 @@ namespace netxs
             };
             auto is_digit = [&](auto txt)
             {
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster(txt).attr.cdpoint;
                 return (c >= '0'    && c <= '9')
                      ||(c >= 0xFF10 && c <= 0xFF19) // U+FF10 (０) FULLWIDTH DIGIT ZERO - U+FF19 (９) FULLWIDTH DIGIT NINE
                      || c == '.';
             };
             auto digit = [&](auto txt)
             {
-                auto c = utf::letter(txt).attr.cdpoint;
+                auto c = utf::cluster(txt).attr.cdpoint;
                 return c == '.'
                     ||(c >= 'a' && c <= 'f')
                     ||(c >= 'A' && c <= 'F')

@@ -600,7 +600,8 @@ namespace netxs::os
                     auto dest = outbuf.begin();
                     while (head != tail)
                     {
-                        auto& src = *head++;
+                        auto src = *head++;
+                        if (src.cur()) src.draw_cursor();
                         auto& dst = *dest++;
                         dst.Attributes = nt::console::attr<Mode>(src);
                         toWIDE.clear();
@@ -4986,7 +4987,7 @@ namespace netxs::os
                         }
                         else // ESC cluster == Alt+cluster
                         {
-                            auto cluster = utf::letter(s.substr(1));
+                            auto cluster = utf::cluster<true>(s.substr(1));
                             s = s.substr(0, cluster.attr.utf8len + 1);
                         }
                     }
@@ -5372,7 +5373,7 @@ namespace netxs::os
                         }
                         else
                         {
-                            auto cluster = utf::letter(cache);
+                            auto cluster = utf::cluster<true>(cache);
                             detect_key(k, cluster.text);
                             cache.remove_prefix(cluster.attr.utf8len);
                         }

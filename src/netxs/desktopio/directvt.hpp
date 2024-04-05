@@ -74,8 +74,7 @@ namespace netxs::directvt
 
         static constexpr auto is_list = type{ 1 << (sizeof(type) * 8 - 1) };
 
-        //todo unify
-        struct frag : public view
+        struct blob : public view
         { };
 
         #pragma pack(push,1)
@@ -224,9 +223,9 @@ namespace netxs::directvt
                     }
                     return crop;
                 }
-                else if constexpr (std::is_same_v<D, frag>)
+                else if constexpr (std::is_same_v<D, blob>)
                 {
-                    auto crop = frag{ data };
+                    auto crop = blob{ data };
                     if constexpr (!PeekOnly)
                     {
                         data.remove_prefix(data.size());
@@ -791,7 +790,7 @@ namespace netxs::directvt
         auto& operator << (std::ostream& s, wchr const& o) { return s << utf::to_hex_0x(o); }
         auto& operator << (std::ostream& s, time const& o) { return s << utf::to_hex_0x(o.time_since_epoch().count()); }
 
-        STRUCT_macro(frame_element,     (frag, data))
+        STRUCT_macro(frame_element,     (blob, data))
         STRUCT_macro(jgc_element,       (ui64, token) (text, cluster))
         STRUCT_macro(tooltip_element,   (id_t, gear_id) (text, tip_text) (bool, update))
         STRUCT_macro(mouse_event,       (id_t, gear_id) (si32, ctlstat) (hint, cause) (twod, coord) (twod, delta) (si32, buttons))
@@ -1113,13 +1112,19 @@ namespace netxs::directvt
                 };
                 auto put = [&](cell const& cache)
                 {
-                    //todo
-                    cache.scan<Mode>(state, block);
+                    if (cache.cur())
+                    {
+                        auto c = cache;
+                        c.draw_cursor();
+                        c.scan<Mode>(state, block);
+                    }
+                    else cache.scan<Mode>(state, block);
                 };
                 auto dif = [&](cell const& cache, cell const& front)
                 {
-                    //todo
-                    return !cache.scan<Mode>(front, state, block);
+                    auto same = cache.check_pair(front);
+                    if (same) put(cache);
+                    return !same;
                 };
                 auto left_half = [&](cell const& cache)
                 {

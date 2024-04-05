@@ -259,68 +259,55 @@ namespace netxs::utf
         view text;
         prop attr;
 
-        auto letter(view utf8)
+        template<bool AllowControls = faux>
+        static auto take_cluster(view utf8)
         {
             if (auto code = cpit{ utf8 })
             {
                 auto next = code.take();
+                if (next.is_cmd())
+                {
+                    if constexpr (AllowControls) return frag{ view(code.textptr, code.utf8len), next };
+                    else                         return frag{ replacement, next };
+                }
+                auto head = code.textptr;
+                auto left = next;
                 do
                 {
-                    if (next.is_cmd())
+                    code.step();
+                    if (next.correct)
                     {
-                        //todo revise
-                        //code.step();
-                        return std::pair{ replacement, next };
+                        next = code.take();
+                        if (auto size = left.combine(next))
+                        {
+                            return frag{ view(head, size), left };
+                        }
                     }
                     else
                     {
-                        auto head = code.textptr;
-                        auto left = next;
-                        do
-                        {
-                            code.step();
-                            if (next.correct)
-                            {
-                                next = code.take();
-                                if (auto size = left.combine(next))
-                                {
-                                    return std::pair{ view(head, size), left };
-                                }
-                            }
-                            else
-                            {
-                                next.utf8len = left.utf8len;
-                                return std::pair{ replacement, next };
-                            }
-                        }
-                        while (true);
+                        next.utf8len = left.utf8len;
+                        return frag{ replacement, next };
                     }
                 }
-                while (code);
+                while (true);
             }
-            return std::pair{ replacement, prop{ 0 } };
+            return frag{ replacement, prop{ 0 } };
         }
 
         frag(view utf8, prop const& attr)
             : text{ utf8 },
               attr{ attr }
         { }
-        frag(view utf8, utfx code)
-            : text{ utf8 },
-              attr{ code, utf8.size() }
-        { }
-        frag(std::pair<view, prop> p)
-            : frag{ p.first, p.second }
-        { }
         frag(view utf8)
-            : frag{ letter(utf8) }
+            : frag{ take_cluster(utf8) }
         { }
     };
 
     // utf: Return the first grapheme cluster and its Unicode attributes.
-    auto letter(view utf8)
+    template<bool AllowControls = faux>
+    auto cluster(view utf8)
     {
-        return frag{ utf8 };
+        return frag::take_cluster<AllowControls>(utf8);
     }
 
     // utf: Break the text into the enriched grapheme clusters.
@@ -458,11 +445,11 @@ namespace netxs::utf
         auto pop_all(ctrl cmd)
         {
             auto n = si32{ 1 };
-            auto next = utf::letter(*this);
+            auto next = utf::cluster<true>(*this);
             while (next.attr.control == cmd)
             {
                 view::remove_prefix(next.attr.utf8len);
-                next = utf::letter(*this);
+                next = utf::cluster<true>(*this);
                 n++;
             }
             return n;
@@ -481,7 +468,7 @@ namespace netxs::utf
         // qiew: Return true and pop the front control point when it is equal to cmd.
         auto pop_if(ctrl cmd)
         {
-            auto next = utf::letter(*this);
+            auto next = utf::cluster<true>(*this);
             if (next.attr.control == cmd)
             {
                 view::remove_prefix(next.attr.utf8len);
@@ -553,12 +540,6 @@ namespace netxs::utf
         return result ? result.value() : fallback;
     }
 
-    struct letter_sync
-    {
-        int lb;
-        int rb;
-        int cp;
-    };
     void capacity(auto& target, auto additional)
     {
         auto required = target.size() + additional;
@@ -794,7 +775,7 @@ namespace netxs::utf
         if (tail != head) // Check codepoint.
         {
             auto p = head - tail - 1;
-            auto l = utf::letter(utf8.substr(p));
+            auto l = utf::cluster<true>(utf8.substr(p));
             if (!l.attr.correct)
             {
                 utf8 = utf8.substr(0, p);
@@ -1031,8 +1012,8 @@ namespace netxs::utf
         return to_hex(reinterpret_cast<std::uintptr_t>(ptr), std::forward<Args>(args)...);
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
-    template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
-    auto to_hex(text& crop, V number, size_t width = sizeof(V) * 2)
+    template<bool UpperCase = faux, class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+    auto to_hex(T number, text& crop, size_t width = sizeof(T) * 2)
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
                                                : "0123456789abcdef";
@@ -1045,39 +1026,33 @@ namespace netxs::utf
         return crop;
     }
     template<bool UpperCase = faux>
-    auto to_hex(view buffer, bool formatted = faux)
+    auto buffer_to_hex(view buffer, bool formatted = faux)
     {
         if (formatted)
         {
             auto size = buffer.size();
             auto addr = 0_sz;
             auto crop = text{};
-
             while (addr < size)
             {
                 auto frag = (size - addr > 16) ? 16
                                                : size - addr;
                 crop += adjust(std::to_string(addr), 4, '0', true);
-
                 for (auto i = 0_sz; i < 16; i++)
                 {
                     if (i % 8 == 0)
                     {
                         crop += i < frag ? " -" : "  ";
                     }
-
-                    crop += i < frag ? ' ' + to_hex<UpperCase>(buffer[addr + i], 2, true)
+                    crop += i < frag ? ' ' + utf::to_hex<UpperCase>(buffer[addr + i], 2)
                                      : "   ";
                 }
-
                 crop += "   ";
-
                 for (auto i = addr; i < addr + frag; i++)
                 {
-                    auto c = buffer[i];
-                    crop += (c < 33) ? '.' : c;
+                    auto c = (byte)buffer[i];
+                    crop += (c < 0x21 || c > 0x7e) ? '.' : c;
                 }
-
                 crop += '\n';
                 addr += 16;
             }
@@ -1336,8 +1311,8 @@ namespace netxs::utf
                 default:
                 {
                     auto cp = traits.cdpoint;
-                    if (cp < 0x100000) { buff += "\\u"; to_hex<true>(buff, cp, 4); }
-                    else               { buff += "\\U"; to_hex<true>(buff, cp, 8); }
+                    if (cp < 0x100000) { buff += "\\u"; utf::to_hex<true>(cp, buff, 4); }
+                    else               { buff += "\\U"; utf::to_hex<true>(cp, buff, 8); }
                 }
             }
             return utf8;

@@ -590,7 +590,7 @@ namespace netxs::ui
             }
             void notsupported(text const& property, view data)
             {
-                log("%%Not supported: OSC=%property% DATA=%data% SIZE=%length% HEX=%hexdata%", prompt::term, property, data, data.length(), utf::to_hex(data));
+                log("%%Not supported: OSC=%property% DATA=%data% SIZE=%length% HEX=%hexdata%", prompt::term, property, data, data.length(), utf::buffer_to_hex(data));
             }
 
             c_tracking(term& owner)
@@ -705,7 +705,7 @@ namespace netxs::ui
                 {
                     proc->second(data);
                 }
-                else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::to_hex(data));
+                else log("%%Not supported: OSC=%property% DATA=%data% HEX=%hexdata%", prompt::term, property, data, utf::buffer_to_hex(data));
             }
             void fgc(tint c) { owner.target->brush.fgc(color[c]); }
             void bgc(tint c) { owner.target->brush.bgc(color[c]); }
@@ -7614,7 +7614,7 @@ namespace netxs::ui
                     for (auto& jgc : lock.thing)
                     {
                         jumbos.set(jgc.token, jgc.cluster);
-                        if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", jgc.token, " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
+                        if constexpr (debugmode) log(prompt::dtvt, "New gc token: ", utf::to_hex_0x(jgc.token), " cluster size ", jgc.cluster.size(), " data: ", jgc.cluster);
                     }
                 }
                 netxs::events::enqueue(master.This(), [&](auto& /*boss*/) mutable
