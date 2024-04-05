@@ -1257,7 +1257,7 @@ namespace netxs::ui
                         params.push_back(delim);
                     }
                 }
-                log("%%CSI %params% %char%, (%val%) is not implemented", prompt::term, params, (unsigned char)i, i);
+                log("%%CSI %params% %char%, (%val%) is not implemented", prompt::term, params, (byte)i, i);
             }
             void not_implemented_ESC(si32 c, qiew& q)
             {

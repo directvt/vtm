@@ -869,10 +869,10 @@ namespace netxs
 
                 //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
                 //todo move width to body
-                byte width : utf::wcwidth_field_size; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
+                byte width : 2; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
 
                 //todo extend to 7 bit for cluster length in bytes
-                byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
+                byte count : 5; // grapheme cluster length (utf-8 encoded)
             };
 
             static constexpr auto asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
@@ -2113,9 +2113,9 @@ namespace netxs
         }
     };
 
-    enum class bias : unsigned char { none, left, right, center, };
-    enum class wrap : unsigned char { none, on,  off,            };
-    enum class rtol : unsigned char { none, rtl, ltr,            };
+    enum class bias : byte { none, left, right, center, };
+    enum class wrap : byte { none, on,  off,            };
+    enum class rtol : byte { none, rtl, ltr,            };
 
     namespace mime
     {

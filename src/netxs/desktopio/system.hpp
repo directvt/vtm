@@ -1173,7 +1173,7 @@ namespace netxs::os
 
                 if (os::linux_console)
                 {
-                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                    auto chars = std::vector<byte>(512 * 32 * 4);
                     auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
                                                   .flags     = 0,
                                                   .width     = 32,

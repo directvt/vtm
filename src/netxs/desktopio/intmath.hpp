@@ -59,7 +59,7 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 
-    enum class feed : unsigned char { none, rev, fwd, };
+    enum class feed : byte { none, rev, fwd, };
 
     template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
