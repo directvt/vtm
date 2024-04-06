@@ -681,19 +681,19 @@ namespace netxs
             twod over{};
             twod step{};
 
-            void generate(fp32 bias, fp32 alfa, si32 blur, twod offset, auto fuse)
+            void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
             {
                 //bias    += _k0 * 0.1f;
                 //opacity += _k1 * 1.f;
-                //blur    += _k2;
-                //offset  +=  dot_21 * _k3;
+                //size    += _k2;
+                //offset  +=  ratio * _k3;
                 sync = true;
                 alfa = std::clamp(alfa, 0.f, 255.f);
-                blur = std::abs(blur);
-                over = dot_21 * (blur * 4);
-                step = dot_21 * (blur * 2) - offset;
+                size = std::abs(size) * 2;
+                over = ratio * (size * 2);
+                step = over / 2 - offset;
                 auto spline = netxs::spline01{ bias };
-                auto sz = dot_21 * (blur * 4 + 1);
+                auto sz = ratio * (size * 2 + 1);
                 bitmap.size(sz);
                 auto it = bitmap.begin();
                 for (auto y = 0.f; y < sz.y; y++)
@@ -713,7 +713,6 @@ namespace netxs
             auto render(auto& canvas)
             {
                 canvas.step(step);
-                auto dir = dot_11;
                 auto win = canvas.full();
                 auto src = bitmap.area();
                 auto dst = rect{ dot_00, win.size + over };
@@ -742,6 +741,7 @@ namespace netxs
                     lft.coor.x += mid.size.x + lft.size.x;
                     netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
                 }
+                auto dir = dot_11;
                             netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
                 dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
                 dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);

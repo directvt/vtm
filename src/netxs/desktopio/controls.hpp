@@ -2179,6 +2179,7 @@ namespace netxs::ui
                                                       skin::globals().shadow_opacity,
                                                       skin::globals().shadow_blur,
                                                       skin::globals().shadow_offset,
+                                                      dot_21,
                                                       [](cell& c, auto a){ c.alpha(a); });
                     shadow.render(canvas);
                 }

@@ -800,7 +800,8 @@ namespace netxs
     {
         using base = T;
         base _data;
-        Rect _area;
+        Rect _area; // Canvas rectangle relative to document.
+        Rect _full; // Document rectangle.
         auto length() const { return _data.length(); }
         auto  begin()       { return _data.begin();  }
         auto  begin() const { return _data.begin();  }
@@ -808,8 +809,15 @@ namespace netxs
         auto    end() const { return _data.end();    }
         auto&  area()       { return _area;          }
         auto&  area() const { return _area;          }
+        auto&  full() const { return _full;          }
+        void   full(auto f) { _full = f;             }
+        void   step(auto s) { _area.coor += s;       }
+        void   move(auto p) { _area.coor = p;        }
         auto&  size()       { return _area.size;     }
         auto&  size() const { return _area.size;     }
+        auto&  coor()       { return _area.coor;     }
+        auto&  coor() const { return _area.coor;     }
+        auto& operator [] (auto p) { return*(begin() + p.x + p.y * _area.size.x); }
         void size(auto new_size, auto... filler)
         {
             _area.size = new_size;
@@ -818,7 +826,8 @@ namespace netxs
         raster() = default;
         raster(T data, Rect area)
             : _data{ data },
-              _area{ area }
+              _area{ area },
+              _full{ area }
         { }
     };
 
