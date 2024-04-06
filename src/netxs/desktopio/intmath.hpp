@@ -801,25 +801,25 @@ namespace netxs
         using base = T;
         base _data;
         Rect _area;
-        auto  length() const { return _data.length(); }
-        auto  begin()        { return _data.begin();  }
-        auto  end()          { return _data.end();    }
-        auto  begin()  const { return _data.begin();  }
-        auto  end()    const { return _data.end();    }
-        auto& size()         { return _area.size;     }
-        auto& area()         { return _area;          }
-        auto& size()   const { return _area.size;     }
-        auto& area()   const { return _area;          }
+        auto length() const { return _data.length(); }
+        auto  begin()       { return _data.begin();  }
+        auto  begin() const { return _data.begin();  }
+        auto    end()       { return _data.end();    }
+        auto    end() const { return _data.end();    }
+        auto&  area()       { return _area;          }
+        auto&  area() const { return _area;          }
+        auto&  size()       { return _area.size;     }
+        auto&  size() const { return _area.size;     }
+        void size(auto new_size, auto... filler)
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler...);
+        }
         raster() = default;
         raster(T data, Rect area)
             : _data{ data },
               _area{ area }
         { }
-        void resize(auto new_size, auto filler = {})
-        {
-            _area.size = new_size;
-            _data.resize(new_size.x * new_size.y, filler);
-        }
     };
 
     // intmath: Intersect two sprites and invoking

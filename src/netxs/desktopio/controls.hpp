@@ -2170,107 +2170,32 @@ namespace netxs::ui
             using skill::boss,
                   skill::memo;
 
-            struct corner_t
-            {
-                bool sync{};
-                core bitmap;
-                twod oversz;
-                twod offset;
-
-                void generate_corner()
-                {
-                    sync = true;
-                    auto bias    = skin::globals().shadow_bias;                            // +_k0 * 0.1f;
-                    auto opacity = std::clamp(skin::globals().shadow_opacity, 0.f, 255.f); // +_k1 * 1.f;
-                    auto blur    = std::abs(skin::globals().shadow_blur);                  // +_k2;
-                    auto shift   = skin::globals().shadow_offset;                          // + dot_21 * _k3;
-                    oversz = dot_21 * (blur * 4);
-                    offset = dot_21 * (blur * 2) - shift;
-                    auto spline = netxs::spline01{ bias };
-                    auto sz = dot_21 * (blur * 4 + 1);
-                    bitmap.size(sz);
-                    auto it = bitmap.begin();
-                    for (auto y = 0.f; y < sz.y; y++)
-                    {
-                        auto y0 = y / (sz.y - 1.f);
-                        auto sy = spline(y0);
-                        for (auto x = 0.f; x < sz.x; x++)
-                        {
-                            auto& c = *it++;
-                            auto& f = c.fgc();
-                            auto& b = c.bgc();
-                            auto x0 = x / (sz.x - 1.f);
-                            auto sx = spline(x0);
-                            auto xy = sy * sx;
-                            auto a = (byte)std::round(opacity * xy);
-                            f.chan.a = a;
-                            b.chan.a = a;
-                        }
-                    }
-                }
-            };
-
-            auto& get_corner()
-            {
-                static auto corner = corner_t{};
-                return corner;
-            }
-
             auto draw_shadow(face& canvas)
             {
-                auto& corner = ghost::get_corner();
-                if (!corner.sync) corner.generate_corner();
-                auto& edge = corner.bitmap;
-                canvas.step(corner.offset);
-                auto dir = dot_11;
-                auto win = boss.area();
-                auto src = edge.area();
-                auto dst = rect{ dot_00, win.size + corner.oversz };
-                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
-                auto off = dent{ 0, cut.x, 0, cut.y };
-                src += off;
-                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
-                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
-                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
-                if (mid)
+                if (skin::globals().shadow_enabled)
                 {
-                    auto base_shadow = edge[src.size - dot_11];
-                    netxs::onrect(canvas, mid, cell::shaders::blend(base_shadow));
+                    static auto shadow = netxs::misc::shadow<core, cell::shaders::blend>{};
+                    if (!shadow.sync) shadow.generate(skin::globals().shadow_bias,
+                                                      skin::globals().shadow_opacity,
+                                                      skin::globals().shadow_blur,
+                                                      skin::globals().shadow_offset,
+                                                      [](cell& c, auto a){ c.alpha(a); });
+                    shadow.render(canvas);
                 }
-                if (top)
-                {
-                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
-                    netxs::xform_scale(canvas, top, edge, pen, cell::shaders::blend);
-                    top.coor.y += mid.size.y + top.size.y;
-                    netxs::xform_scale(canvas, top, edge, pen.rotate({ 1, -1 }), cell::shaders::blend);
-                }
-                if (lft)
-                {
-                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
-                    netxs::xform_scale(canvas, lft, edge, pen, cell::shaders::blend);
-                    lft.coor.x += mid.size.x + lft.size.x;
-                    netxs::xform_scale(canvas, lft, edge, pen.rotate({ -1, 1 }), cell::shaders::blend);
-                }
-                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, edge, src.rotate(dir), cell::shaders::blend);
-                canvas.step(-corner.offset);
             }
 
         public:
             ghost(base&&) = delete;
-            ghost(base& boss)//, si32 shadowsize)
+            ghost(base& boss)
                 : skill{ boss }
             {
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas, memo)
                 {
-                    if (skin::globals().shadow_enabled) draw_shadow(parent_canvas);
+                    draw_shadow(parent_canvas);
                 };
                 //test
                 //boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear)
                 //{
-                //    draw_shadow();
                 //    boss.base::deface();
                 //};
             }

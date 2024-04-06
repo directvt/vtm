@@ -243,13 +243,13 @@ namespace netxs::ui
             : flow{ pagerect.size }
         { }
 
-        void vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
-        void  size(twod size)   { pagerect.size = size; } // flow: Set client full size.
-        void  full(rect area)   { pagerect = area;      } // flow: Set client full rect.
-        auto& full() const      { return pagerect;      } // flow: Get client full rect reference.
-        auto& minmax() const    { return boundary;      } // flow: Return the output range.
-        void  minmax(twod p)    { boundary |= p;        } // flow: Register twod.
-        void  minmax(rect r)    { boundary |= r;        } // flow: Register rect.
+        void   vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
+        void    size(twod size)   { pagerect.size = size; } // flow: Set client full size.
+        void    full(rect area)   { pagerect = area;      } // flow: Set client full rect.
+        auto&   full() const      { return pagerect;      } // flow: Get client full rect reference.
+        auto& minmax() const      { return boundary;      } // flow: Return the output range.
+        void  minmax(twod p)      { boundary |= p;        } // flow: Register twod.
+        void  minmax(rect r)      { boundary |= r;        } // flow: Register rect.
 
         // flow: Sync paragraph style.
         template<class T>
@@ -513,7 +513,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text line.
+    // richtext: Text line.
     class rich
         : public core
     {
@@ -556,7 +556,7 @@ namespace netxs::ui
             auto len = length();
             if constexpr (AutoGrow)
             {
-                resize(at + count);
+                rich::resize(at + count);
             }
             else
             {
@@ -572,7 +572,7 @@ namespace netxs::ui
         void splice(si32 at, Span const& fragment, Shader fuse)
         {
             auto len = fragment.length();
-            resize(len + at);
+            rich::resize(len + at);
             auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + len;
@@ -752,7 +752,7 @@ namespace netxs::ui
         void splice(si32 at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            resize(at + count);
+            rich::resize(at + count);
             auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
@@ -845,7 +845,7 @@ namespace netxs::ui
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            resize(max);
+            rich::resize(max);
             auto ptr = begin();
             auto dst = ptr + max;
             auto src = dst - vol;
@@ -922,7 +922,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    resize(margin + at);
+                    rich::resize(margin + at);
                     auto ptr = begin();
                     auto dst = ptr + at;
                     auto src = dst + count;
@@ -1020,7 +1020,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text paragraph.
+    // richtext: Text paragraph.
     class para
         : public ansi::parser
     {
@@ -1500,7 +1500,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text page.
+    // richtext: Text page.
     class page
         : public ansi::parser
     {

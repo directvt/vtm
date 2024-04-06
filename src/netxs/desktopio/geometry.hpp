@@ -670,4 +670,84 @@ namespace netxs
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
         else                                   return { dot_00, { static_cast<si32>(p),  1 } };
     }
+
+    namespace misc //todo classify
+    {
+        template<class T, auto fx>
+        struct shadow
+        {
+            T  bitmap{};
+            bool sync{};
+            twod over{};
+            twod step{};
+
+            void generate(fp32 bias, fp32 alfa, si32 blur, twod offset, auto fuse)
+            {
+                //bias    += _k0 * 0.1f;
+                //opacity += _k1 * 1.f;
+                //blur    += _k2;
+                //offset  +=  dot_21 * _k3;
+                sync = true;
+                alfa = std::clamp(alfa, 0.f, 255.f);
+                blur = std::abs(blur);
+                over = dot_21 * (blur * 4);
+                step = dot_21 * (blur * 2) - offset;
+                auto spline = netxs::spline01{ bias };
+                auto sz = dot_21 * (blur * 4 + 1);
+                bitmap.size(sz);
+                auto it = bitmap.begin();
+                for (auto y = 0.f; y < sz.y; y++)
+                {
+                    auto y0 = y / (sz.y - 1.f);
+                    auto sy = spline(y0);
+                    for (auto x = 0.f; x < sz.x; x++)
+                    {
+                        auto x0 = x / (sz.x - 1.f);
+                        auto sx = spline(x0);
+                        auto xy = sy * sx;
+                        auto a = (byte)std::round(alfa * xy);
+                        fuse(*it++, a);
+                    }
+                }
+            }
+            auto render(auto& canvas)
+            {
+                canvas.step(step);
+                auto dir = dot_11;
+                auto win = canvas.full();
+                auto src = bitmap.area();
+                auto dst = rect{ dot_00, win.size + over };
+                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
+                auto off = dent{ 0, cut.x, 0, cut.y };
+                src += off;
+                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
+                if (mid)
+                {
+                    auto base_shadow = bitmap[src.size - dot_11];
+                    netxs::onrect(canvas, mid, fx(base_shadow));
+                }
+                if (top)
+                {
+                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
+                    netxs::xform_scale(canvas, top, bitmap, pen, fx);
+                    top.coor.y += mid.size.y + top.size.y;
+                    netxs::xform_scale(canvas, top, bitmap, pen.rotate({ 1, -1 }), fx);
+                }
+                if (lft)
+                {
+                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
+                    netxs::xform_scale(canvas, lft, bitmap, pen, fx);
+                    lft.coor.x += mid.size.x + lft.size.x;
+                    netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
+                }
+                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                canvas.step(-step);
+            }
+        };
+    }
 }

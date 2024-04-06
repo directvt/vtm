@@ -862,7 +862,7 @@ namespace netxs
     {
         union glyf
         {
-            static constexpr auto limit = sizeof(ui64);
+            static constexpr auto limit = (byte)sizeof(ui64);
             static constexpr auto jumbo = 0x80; // Cluster oversize bit.
 
             static auto jumbos()
@@ -999,7 +999,7 @@ namespace netxs
             }
             auto len() const
             {
-                return is_jumbo() ? limit : glyph[0] + 1;
+                return is_jumbo() ? limit : (byte)(glyph[0] + 1);
             }
             void rst()
             {
@@ -1014,10 +1014,10 @@ namespace netxs
         {
             struct pxtype
             {
-                static constexpr auto none     = 0;
-                static constexpr auto colors   = 1; // rgba colors pair (cursor/grid/whatever).
-                static constexpr auto bitmap   = 2; // Attached rgba bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
-                static constexpr auto reserved = 3;
+                static constexpr auto none   = 0;
+                static constexpr auto colors = 1; // rgba colors pair (cursor/grid/whatever).
+                static constexpr auto bitmap = 2; // Attached rgba bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
+                static constexpr auto reserv = 3;
             };
             struct attr
             {
@@ -1811,6 +1811,7 @@ namespace netxs
 
         class shaders
         {
+        public:
             template<class Func>
             struct brush_t
             {
@@ -1829,6 +1830,8 @@ namespace netxs
                     }
                 };
             };
+
+        private:
             struct contrast_t : public brush_t<contrast_t>
             {
                 static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
@@ -2213,7 +2216,7 @@ namespace netxs
         void  clip(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
-        void size(twod new_size, cell const& c) // core: Change the size of the face.
+        void size(twod new_size, cell const& c) // core: Resize canvas.
         {
             if (region.size(std::max(dot_00, new_size)))
             {
@@ -2222,11 +2225,11 @@ namespace netxs
                 canvas.assign(region.size.x * region.size.y, c);
             }
         }
-        void size(twod new_size) // core: Change the size of the face.
+        void size(twod new_size) // core: Resize canvas.
         {
             size(new_size, marker);
         }
-        void size(si32 new_size_x, cell const& c) // core: Change the size of the face.
+        void size(si32 new_size_x, cell const& c) // core: Resize canvas.
         {
             region.size.x = new_size_x;
             region.size.y = 1;
@@ -2234,7 +2237,7 @@ namespace netxs
             canvas.assign(new_size_x, c);
             digest++;
         }
-        void crop(si32 new_size_x, cell const& c = {}) // core: Resize while saving the textline.
+        void crop(si32 new_size_x, cell const& c = {}) // core: Resize preserving textline.
         {
             region.size.x = new_size_x;
             region.size.y = 1;
@@ -2247,7 +2250,7 @@ namespace netxs
             crop(region.size.x + 1, c);
         }
         template<bool BottomAnchored = faux>
-        void crop(twod new_size, cell const& c) // core: Resize while saving the bitmap.
+        void crop(twod new_size, cell const& c) // core: Resize preserving bitmap.
         {
             auto block = core{ region.coor, new_size, c };
             if constexpr (BottomAnchored) block.step({ 0, region.size.y - new_size.y });
@@ -2257,11 +2260,11 @@ namespace netxs
             digest++;
         }
         template<bool BottomAnchored = faux>
-        void crop(twod new_size) // core: Resize while saving the bitmap.
+        void crop(twod new_size) // core: Resize preserving bitmap.
         {
             crop<BottomAnchored>(new_size, marker);
         }
-        void kill() // core: Collapse canvas to size zero (see para).
+        void kill() // core: Collapse canvas to zero size (see para).
         {
             region.size.x = 0;
             client.size.x = 0;
