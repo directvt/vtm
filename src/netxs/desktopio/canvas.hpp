@@ -2290,10 +2290,9 @@ namespace netxs
             }
             if constexpr (!Plain) return true;
         }
-        template<class P>
-        void each(rect region, P proc) // core: Exec a proc for each cell of the specified region.
+        void each(rect region, auto fx) // core: Exec a proc for each cell of the specified region.
         {
-            netxs::onrect(*this, region, proc);
+            netxs::onrect(*this, region, fx);
         }
         void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
         {
@@ -2317,33 +2316,29 @@ namespace netxs
             dest.size(region.size);
             dest.canvas = canvas;
         }
-        template<class P>
-        void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        void copy(core& target, auto fx) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
         {
-            netxs::oncopy(target, *this, proc);
+            netxs::oncopy(target, *this, fx);
             //todo should we copy all members?
             //target.marker = marker;
             //flow::cursor
         }
-        template<class P>
-        void fill(core const& block, P fuse) // core: Fill canvas by the specified block using its coordinates.
+        void fill(core const& block, auto fx) // core: Fill canvas by the specified block using its coordinates.
         {
-            netxs::onbody(*this, block, fuse);
+            netxs::onbody(*this, block, fx);
         }
-        template<class P>
-        void zoom(core const& block, P fuse) // core: Fill canvas by the stretched block.
+        void zoom(core const& block, auto fx) // core: Fill canvas by the stretched block.
         {
-            netxs::zoomin(*this, block, fuse);
+            netxs::zoomin(*this, block, fx);
         }
-        template<class P>
-        void plot(core const& block, P fuse) // core: Fill the client area by the specified block with coordinates inside the canvas area.
+        void plot(core const& block, auto fx) // core: Fill the client area by the specified block with coordinates inside the canvas area.
         {
             //todo use block.client instead of block.region
             auto joint = rect{ client.coor - region.coor, client.size };
             if (joint.trimby(block.region))
             {
                 auto place = joint.coor - block.region.coor;
-                netxs::inbody<faux>(*this, block, joint, place, fuse);
+                netxs::inbody<faux>(*this, block, joint, place, fx);
             }
         }
         auto& peek(twod p) // core: Take the cell at the specified coor.
@@ -2352,16 +2347,14 @@ namespace netxs
             auto& c = *(canvas.begin() + p.x + p.y * region.size.x);
             return c;
         }
-        template<class P>
-        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        void fill(rect block, auto fx) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
-            netxs::onrect(*this, block, fuse);
+            netxs::onrect(*this, block, fx);
         }
-        template<class P>
-        void fill(P fuse) // core: Fill the client area using lambda.
+        void fill(auto fx) // core: Fill the client area using lambda.
         {
-            fill(clip(), fuse);
+            fill(clip(), fx);
         }
         void fill(cell const& c) // core: Fill the client area using brush.
         {
@@ -2532,27 +2525,25 @@ namespace netxs
         {
             return word<Direction>(twod{ offset, 0 });
         }
-        template<class P>
-        void cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
             auto temp = area;
             temp.size.y = std::max(0, border.t); // Top
-            fill(temp.trim(area), fuse);
+            fill(temp.trim(area), fx);
             temp.coor.y += area.size.y - border.b; // Bottom
             temp.size.y = std::max(0, border.b);
-            fill(temp.trim(area), fuse);
+            fill(temp.trim(area), fx);
             temp.size.x = std::max(0, border.l); // Left
             temp.size.y = std::max(0, area.size.y - border.t - border.b);
             temp.coor.y = area.coor.y + border.t;
-            fill(temp.trim(area), fuse);
+            fill(temp.trim(area), fx);
             temp.coor.x += area.size.x - border.r; // Right
             temp.size.x = std::max(0, border.r);
-            fill(temp.trim(area), fuse);
+            fill(temp.trim(area), fx);
         }
-        template<class P>
-        void cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, twod border_width, auto fx) // core: Draw the cage around specified area.
         {
-            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fuse);
+            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fx);
         }
         template<class Text, class P = noop>
         void text(twod pos, Text const& txt, bool rtl = faux, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
@@ -2645,8 +2636,7 @@ namespace netxs
             auto upto = p2.x + p2.y * region.size.x + 1;
             return line(from, upto);
         }
-        template<class P>
-        auto tile(core& image, P fuse) // core: Tile with a specified bitmap.
+        auto tile(core& image, auto fx) // core: Tile with a specified bitmap.
         {
             auto step = image.size();
             auto init = region.coor - region.coor % step - region.coor.less(dot_00, step, dot_00);
@@ -2657,7 +2647,7 @@ namespace netxs
                 while (coor.x < stop.x)
                 {
                     image.move(coor);
-                    fill(image, fuse);
+                    fill(image, fx);
                     coor.x += step.x;
                 }
                 coor.x = init.x;

@@ -670,84 +670,186 @@ namespace netxs
         if constexpr (std::is_same_v<T, twod>) return { dot_00, p };
         else                                   return { dot_00, { static_cast<si32>(p),  1 } };
     }
+}
 
-    namespace misc //todo classify
+namespace netxs::misc //todo classify
+{
+    template<class T, auto fx>
+    struct shadow
     {
-        template<class T, auto fx>
-        struct shadow
-        {
-            T  bitmap{};
-            bool sync{};
-            twod over{};
-            twod step{};
+        T  bitmap{};
+        bool sync{};
+        twod over{};
+        twod step{};
 
-            void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
+        void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
+        {
+            //bias    += _k0 * 0.1f;
+            //opacity += _k1 * 1.f;
+            //size    += _k2;
+            //offset  +=  ratio * _k3;
+            sync = true;
+            alfa = std::clamp(alfa, 0.f, 255.f);
+            size = std::abs(size) * 2;
+            over = ratio * (size * 2);
+            step = over / 2 - offset;
+            auto spline = netxs::spline01{ bias };
+            auto sz = ratio * (size * 2 + 1);
+            bitmap.size(sz);
+            auto it = bitmap.begin();
+            for (auto y = 0.f; y < sz.y; y++)
             {
-                //bias    += _k0 * 0.1f;
-                //opacity += _k1 * 1.f;
-                //size    += _k2;
-                //offset  +=  ratio * _k3;
-                sync = true;
-                alfa = std::clamp(alfa, 0.f, 255.f);
-                size = std::abs(size) * 2;
-                over = ratio * (size * 2);
-                step = over / 2 - offset;
-                auto spline = netxs::spline01{ bias };
-                auto sz = ratio * (size * 2 + 1);
-                bitmap.size(sz);
-                auto it = bitmap.begin();
-                for (auto y = 0.f; y < sz.y; y++)
+                auto y0 = y / (sz.y - 1.f);
+                auto sy = spline(y0);
+                for (auto x = 0.f; x < sz.x; x++)
                 {
-                    auto y0 = y / (sz.y - 1.f);
-                    auto sy = spline(y0);
-                    for (auto x = 0.f; x < sz.x; x++)
-                    {
-                        auto x0 = x / (sz.x - 1.f);
-                        auto sx = spline(x0);
-                        auto xy = sy * sx;
-                        auto a = (byte)std::round(alfa * xy);
-                        fuse(*it++, a);
-                    }
+                    auto x0 = x / (sz.x - 1.f);
+                    auto sx = spline(x0);
+                    auto xy = sy * sx;
+                    auto a = (byte)std::round(alfa * xy);
+                    fuse(*it++, a);
                 }
             }
-            auto render(auto& canvas)
+        }
+        auto render(auto& canvas, auto win_size)
+        {
+            canvas.step(step);
+            auto src = bitmap.area();
+            auto dst = rect{ dot_00, win_size + over };
+            auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
+            auto off = dent{ 0, cut.x, 0, cut.y };
+            src += off;
+            auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
+            auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+            auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
+            if (mid)
             {
-                canvas.step(step);
-                auto win = canvas.full();
-                auto src = bitmap.area();
-                auto dst = rect{ dot_00, win.size + over };
-                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
-                auto off = dent{ 0, cut.x, 0, cut.y };
-                src += off;
-                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
-                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
-                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
-                if (mid)
-                {
-                    auto base_shadow = bitmap[src.size - dot_11];
-                    netxs::onrect(canvas, mid, fx(base_shadow));
-                }
-                if (top)
-                {
-                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
-                    netxs::xform_scale(canvas, top, bitmap, pen, fx);
-                    top.coor.y += mid.size.y + top.size.y;
-                    netxs::xform_scale(canvas, top, bitmap, pen.rotate({ 1, -1 }), fx);
-                }
-                if (lft)
-                {
-                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
-                    netxs::xform_scale(canvas, lft, bitmap, pen, fx);
-                    lft.coor.x += mid.size.x + lft.size.x;
-                    netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
-                }
-                auto dir = dot_11;
-                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
-                canvas.step(-step);
+                auto base_shadow = bitmap[src.size - dot_11];
+                netxs::onrect(canvas, mid, fx(base_shadow));
             }
-        };
+            if (top)
+            {
+                auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
+                netxs::xform_scale(canvas, top, bitmap, pen, fx);
+                top.coor.y += mid.size.y + top.size.y;
+                netxs::xform_scale(canvas, top, bitmap, pen.rotate({ 1, -1 }), fx);
+            }
+            if (lft)
+            {
+                auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
+                netxs::xform_scale(canvas, lft, bitmap, pen, fx);
+                lft.coor.x += mid.size.x + lft.size.x;
+                netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
+            }
+            auto dir = dot_11;
+                        netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+            dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+            dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+            dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+            canvas.step(-step);
+        }
+    };
+    struct szgrips
+    {
+        using test = testy<twod>;
+
+        twod origin; // szgrips: Grab's initial coord info.
+        twod dtcoor; // szgrips: The form coor parameter change factor while resizing.
+        twod sector; // szgrips: Active quadrant, x,y = {-1|+1}. Border widths.
+        rect hzgrip; // szgrips: Horizontal grip.
+        rect vtgrip; // szgrips: Vertical grip.
+        twod widths; // szgrips: Grip's widths.
+        bool inside; // szgrips: Is active.
+        bool seized; // szgrips: Is seized.
+        test lastxy; // szgrips: Change tracker.
+        rect zoomsz; // szgrips: Captured area for zooming.
+        dent zoomdt; // szgrips: Zoom step.
+        bool zoomon; // szgrips: Zoom in progress.
+        twod zoomat; // szgrips: Zoom pivot.
+
+        szgrips()
+            : inside{ faux },
+              seized{ faux },
+              zoomon{ faux }
+        { }
+
+        operator bool () { return inside || seized; }
+        auto corner(twod length)
+        {
+            return dtcoor.less(dot_11, length, dot_00);
+        }
+        auto grab(auto& master, twod curpos, dent outer)
+        {
+            if (inside)
+            {
+                origin = curpos - corner(master.size() + outer);
+                seized = true;
+            }
+            return seized;
+        }
+        auto calc(auto& master, twod curpos, dent outer, dent inner, dent border)
+        {
+            auto area = rect{ dot_00, master.size() };
+            auto inner_rect = area + inner;
+            auto outer_rect = area + outer;
+            inside = !inner_rect.hittest(curpos)
+                   && outer_rect.hittest(curpos);
+            auto& length = outer_rect.size;
+            curpos += outer.corner();
+            auto center = std::max(length / 2, dot_11);
+            if (!seized)
+            {
+                dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
+                sector = dtcoor.less(dot_11, -dot_11, dot_11);
+                widths = sector.less(dot_00, twod{-border.r,-border.b },
+                                             twod{ border.l, border.t });
+            }
+            auto l = sector * (curpos - corner(length));
+            auto a = center * l / center;
+            auto b = center *~l /~center;
+            auto s = sector * std::max(a - b + center, dot_00);
+
+            hzgrip.coor.x = widths.x;
+            hzgrip.coor.y = 0;
+            hzgrip.size.y = widths.y;
+            hzgrip.size.x = s.x;
+
+            vtgrip.coor = dot_00;
+            vtgrip.size = widths;
+            vtgrip.size.y += s.y;
+            return lastxy(curpos);
+        }
+        auto drag(auto& master, twod curpos, dent outer, bool zoom)
+        {
+            auto boxsz = master.size() + outer;
+            auto delta = (corner(boxsz) + origin - curpos) * sector;
+            if (zoom) delta *= 2;
+            auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
+            auto preview_area = rect{ master.coor() + preview_step, master.size() + delta };
+            return std::pair{ preview_area, delta };
+        }
+        auto move(twod dxdy, bool zoom)
+        {
+            auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
+            return step;
+        }
+        void drop()
+        {
+            seized = faux;
+        }
+        void draw(auto& canvas, rect area, auto fx)
+        {
+            auto vertex = corner(area.size);
+            auto side_x = hzgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
+            auto side_y = vtgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
+            netxs::onrect(canvas, side_x, fx);
+            netxs::onrect(canvas, side_y, fx);
+        }
+    };
+
+    void fill(auto& canvas, auto block, auto fx) // gfx: Fill block.
+    {
+        block.normalize_itself();
+        netxs::onrect(canvas, block, fx);
     }
 }

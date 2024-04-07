@@ -110,104 +110,7 @@ namespace netxs::ui
         class sizer
             : public skill
         {
-            struct sock
-            {
-                using test = testy<twod>;
-
-                twod origin; // sock: Grab's initial coord info.
-                twod dtcoor; // sock: The form coor parameter change factor while resizing.
-                twod sector; // sock: Active quadrant, x,y = {-1|+1}. Border widths.
-                rect hzgrip; // sock: Horizontal grip.
-                rect vtgrip; // sock: Vertical grip.
-                twod widths; // sock: Grip's widths.
-                bool inside; // sock: Is active.
-                bool seized; // sock: Is seized.
-                test lastxy; // sock: Change tracker.
-                rect zoomsz; // sock: Captured area for zooming.
-                dent zoomdt; // sock: Zoom step.
-                bool zoomon; // sock: Zoom in progress.
-                twod zoomat; // sock: Zoom pivot.
-
-                sock()
-                    : inside{ faux },
-                      seized{ faux },
-                      zoomon{ faux }
-                { }
-
-                operator bool () { return inside || seized; }
-                auto corner(twod length)
-                {
-                    return dtcoor.less(dot_11, length, dot_00);
-                }
-                auto grab(base const& master, twod curpos, dent outer)
-                {
-                    if (inside)
-                    {
-                        origin = curpos - corner(master.base::size() + outer);
-                        seized = true;
-                    }
-                    return seized;
-                }
-                auto calc(base const& master, twod curpos, dent outer, dent inner, dent border)
-                {
-                    auto area = rect{ dot_00, master.base::size() };
-                    auto inner_rect = area + inner;
-                    auto outer_rect = area + outer;
-                    inside = !inner_rect.hittest(curpos)
-                           && outer_rect.hittest(curpos);
-                    auto& length = outer_rect.size;
-                    curpos += outer.corner();
-                    auto center = std::max(length / 2, dot_11);
-                    if (!seized)
-                    {
-                        dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
-                        sector = dtcoor.less(dot_11, -dot_11, dot_11);
-                        widths = sector.less(dot_00, twod{-border.r,-border.b },
-                                                     twod{ border.l, border.t });
-                    }
-                    auto l = sector * (curpos - corner(length));
-                    auto a = center * l / center;
-                    auto b = center *~l /~center;
-                    auto s = sector * std::max(a - b + center, dot_00);
-
-                    hzgrip.coor.x = widths.x;
-                    hzgrip.coor.y = 0;
-                    hzgrip.size.y = widths.y;
-                    hzgrip.size.x = s.x;
-
-                    vtgrip.coor = dot_00;
-                    vtgrip.size = widths;
-                    vtgrip.size.y += s.y;
-                    return lastxy(curpos);
-                }
-                auto drag(base& master, twod curpos, dent outer, bool zoom)
-                {
-                    if (seized)
-                    {
-                        auto boxsz = master.base::size() + outer;
-                        auto delta = (corner(boxsz) + origin - curpos) * sector;
-                        if (zoom) delta *= 2;
-
-                        auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
-                        auto preview_area = rect{ master.base::coor() + preview_step, master.base::size() + delta };
-                        master.SIGNAL(tier::preview, e2::area, preview_area);
-
-                        if (auto dxdy = master.base::sizeby(delta))
-                        {
-                            auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
-                            master.base::moveby(step);
-                            master.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
-                        }
-                    }
-                    return seized;
-                }
-                void drop()
-                {
-                    seized = faux;
-                }
-            };
-
-            using list = socks<sock>;
+            using list = socks<netxs::misc::szgrips>;
             using skill::boss,
                   skill::memo;
 
@@ -218,7 +121,7 @@ namespace netxs::ui
             bool alive; // pro::sizer: The sizer state.
 
         public:
-            void props(dent outer_rect = {2,2,1,1}, dent inner_rect = {})
+            void props(dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
             {
                 outer = outer_rect;
                 inner = inner_rect;
@@ -230,7 +133,7 @@ namespace netxs::ui
             }
 
             sizer(base&&) = delete;
-            sizer(base& boss, dent outer_rect = {2,2,1,1}, dent inner_rect = {})
+            sizer(base& boss, dent outer_rect = { 2, 2, 1, 1 }, dent inner_rect = {})
                 : skill{ boss          },
                   items{ boss          },
                   outer{ outer_rect    },
@@ -251,7 +154,7 @@ namespace netxs::ui
                             g.zoomat = gear.coord;
                             gear.capture(boss.id);
                         }
-                        static constexpr auto warp = dent{ 2,2,1,1 } * 2;
+                        static constexpr auto warp = dent{ 2,  2, 1, 1 } * 2;
                         //todo respect pivot
                         auto prev = g.zoomdt;
                         auto coor = boss.coor();
@@ -278,17 +181,10 @@ namespace netxs::ui
                 {
                     if (!alive) return;
                     auto area = canvas.full() + outer;
-                    auto fuse = [&](cell& c){ c.xlight(); };
                     canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
-                    items.foreach([&](sock& item)
+                    items.foreach([&](auto& item)
                     {
-                        auto corner = item.corner(area.size);
-                        auto side_x = item.hzgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).trim(area);
-                        auto side_y = item.vtgrip.shift(corner).normalize_itself()
-                                                 .shift_itself(area.coor).trim(area);
-                        canvas.fill(side_x, fuse);
-                        canvas.fill(side_y, fuse);
+                        item.draw(canvas, area, cell::shaders::xlight);
                     });
                 };
                 boss.LISTEN(tier::preview, e2::form::layout::swarp, warp, memo)
@@ -346,8 +242,18 @@ namespace netxs::ui
                 };
                 boss.LISTEN(tier::release, e2::form::drag::pull::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).drag(boss, gear.coord, outer, gear.meta(hids::anyCtrl)))
+                    auto& g = items.take(gear);
+                    if (g.seized)
                     {
+                        auto zoom = gear.meta(hids::anyCtrl);
+                        auto [preview_area, size_delta] = g.drag(boss, gear.coord, outer, zoom);
+                        boss.SIGNAL(tier::preview, e2::area, preview_area);
+                        if (auto dxdy = boss.sizeby(size_delta))
+                        {
+                            auto step = g.move(dxdy, zoom);
+                            boss.moveby(step);
+                            boss.SIGNAL(tier::preview, e2::form::upon::changed, dxdy);
+                        }
                         gear.dismiss();
                     }
                 };
@@ -2181,7 +2087,7 @@ namespace netxs::ui
                                                       skin::globals().shadow_offset,
                                                       dot_21,
                                                       [](cell& c, auto a){ c.alpha(a); });
-                    shadow.render(canvas);
+                    shadow.render(canvas, boss.base::size());
                 }
             }
 
