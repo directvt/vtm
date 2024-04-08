@@ -21,6 +21,7 @@
 
     #include <Windows.h>
     #include <userenv.h>                 // ::GetUserProfileDirectoryW
+    #pragma comment(lib, "User32.lib")
     #pragma comment(lib, "Userenv.lib")
     #pragma comment(lib, "Advapi32.lib") // ::StartService() for arm arch
     #include <Psapi.h>                   // ::GetModuleFileNameEx

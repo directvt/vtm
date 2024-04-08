@@ -778,18 +778,19 @@ namespace netxs::misc //todo classify
         {
             return dtcoor.less(dot_11, length, dot_00);
         }
-        auto grab(auto& master, twod curpos, dent outer)
+        auto grab(rect window, twod curpos, dent outer)
         {
             if (inside)
             {
-                origin = curpos - corner(master.size() + outer);
+                origin = curpos - corner(window.size + outer);
                 seized = true;
             }
             return seized;
         }
-        auto calc(auto& master, twod curpos, dent outer, dent inner, dent border)
+        auto calc(rect window, twod curpos, dent outer, dent inner)
         {
-            auto area = rect{ dot_00, master.size() };
+            auto border = outer - inner;
+            auto area = rect{ dot_00, window.size };
             auto inner_rect = area + inner;
             auto outer_rect = area + outer;
             inside = !inner_rect.hittest(curpos)
@@ -819,13 +820,13 @@ namespace netxs::misc //todo classify
             vtgrip.size.y += s.y;
             return lastxy(curpos);
         }
-        auto drag(auto& master, twod curpos, dent outer, bool zoom)
+        auto drag(rect window, twod curpos, dent outer, bool zoom)
         {
-            auto boxsz = master.size() + outer;
+            auto boxsz = window.size + outer;
             auto delta = (corner(boxsz) + origin - curpos) * sector;
             if (zoom) delta *= 2;
             auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
-            auto preview_area = rect{ master.coor() + preview_step, master.size() + delta };
+            auto preview_area = rect{ window.coor + preview_step, window.size + delta };
             return std::pair{ preview_area, delta };
         }
         auto move(twod dxdy, bool zoom)
@@ -837,13 +838,14 @@ namespace netxs::misc //todo classify
         {
             seized = faux;
         }
-        void draw(auto& canvas, rect area, auto fx)
+        auto draw(auto& canvas, rect area, auto fx)
         {
             auto vertex = corner(area.size);
             auto side_x = hzgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
             auto side_y = vtgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
             netxs::onrect(canvas, side_x, fx);
             netxs::onrect(canvas, side_y, fx);
+            return std::pair{ side_x, side_y };
         }
     };
 
@@ -851,5 +853,21 @@ namespace netxs::misc //todo classify
     {
         block.normalize_itself();
         netxs::onrect(canvas, block, fx);
+    }
+    void cage(auto& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
+    {
+        auto temp = area;
+        temp.size.y = std::max(0, border.t); // Top
+        fill(canvas, temp.trim(area), fx);
+        temp.coor.y += area.size.y - border.b; // Bottom
+        temp.size.y = std::max(0, border.b);
+        fill(canvas, temp.trim(area), fx);
+        temp.size.x = std::max(0, border.l); // Left
+        temp.size.y = std::max(0, area.size.y - border.t - border.b);
+        temp.coor.y = area.coor.y + border.t;
+        fill(canvas, temp.trim(area), fx);
+        temp.coor.x += area.size.x - border.r; // Right
+        temp.size.x = std::max(0, border.r);
+        fill(canvas, temp.trim(area), fx);
     }
 }

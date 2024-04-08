@@ -117,7 +117,6 @@ namespace netxs::ui
             list items;
             dent outer;
             dent inner;
-            dent width;
             bool alive; // pro::sizer: The sizer state.
 
         public:
@@ -125,7 +124,6 @@ namespace netxs::ui
             {
                 outer = outer_rect;
                 inner = inner_rect;
-                width = outer - inner;
             }
             auto get_props()
             {
@@ -138,7 +136,6 @@ namespace netxs::ui
                   items{ boss          },
                   outer{ outer_rect    },
                   inner{ inner_rect    },
-                  width{ outer - inner },
                   alive{ true          }
             {
                 boss.LISTEN(tier::release, hids::events::mouse::scroll::any, gear, memo)
@@ -154,7 +151,7 @@ namespace netxs::ui
                             g.zoomat = gear.coord;
                             gear.capture(boss.id);
                         }
-                        static constexpr auto warp = dent{ 2,  2, 1, 1 } * 2;
+                        static constexpr auto warp = dent{ 2, 2, 1, 1 } * 2;
                         //todo respect pivot
                         auto prev = g.zoomdt;
                         auto coor = boss.coor();
@@ -181,7 +178,8 @@ namespace netxs::ui
                 {
                     if (!alive) return;
                     auto area = canvas.full() + outer;
-                    canvas.cage(area, width, [&](cell& c){ c.link(boss.id); });
+                    auto bord = outer - inner;
+                    canvas.cage(area, bord, [&](cell& c){ c.link(boss.id); });
                     items.foreach([&](auto& item)
                     {
                         item.draw(canvas, area, cell::shaders::xlight);
@@ -196,12 +194,10 @@ namespace netxs::ui
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::outer, outer_rect, memo)
                 {
                     outer = outer_rect;
-                    width = outer - inner;
                 };
                 boss.LISTEN(tier::release, e2::config::plugins::sizer::inner, inner_rect, memo)
                 {
                     inner = inner_rect;
-                    width = outer - inner;
                 };
                 boss.LISTEN(tier::request, e2::config::plugins::sizer::inner, inner_rect, memo)
                 {
@@ -219,7 +215,7 @@ namespace netxs::ui
                         g.zoomon = faux;
                         gear.setfree();
                     }
-                    if (g.calc(boss, gear.coord, outer, inner, width))
+                    if (g.calc(boss.base::area(), gear.coord, outer, inner))
                     {
                         boss.base::deface(); // Deface only if mouse moved.
                     }
@@ -234,7 +230,7 @@ namespace netxs::ui
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).grab(boss, gear.coord, outer))
+                    if (items.take(gear).grab(boss.base::area(), gear.coord, outer))
                     {
                         gear.dismiss();
                         boss.bell::expire<tier::release>(); // To prevent d_n_d triggering.
@@ -246,7 +242,7 @@ namespace netxs::ui
                     if (g.seized)
                     {
                         auto zoom = gear.meta(hids::anyCtrl);
-                        auto [preview_area, size_delta] = g.drag(boss, gear.coord, outer, zoom);
+                        auto [preview_area, size_delta] = g.drag(boss.base::area(), gear.coord, outer, zoom);
                         boss.SIGNAL(tier::preview, e2::area, preview_area);
                         if (auto dxdy = boss.sizeby(size_delta))
                         {

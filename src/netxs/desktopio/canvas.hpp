@@ -2527,19 +2527,7 @@ namespace netxs
         }
         void cage(rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
-            auto temp = area;
-            temp.size.y = std::max(0, border.t); // Top
-            fill(temp.trim(area), fx);
-            temp.coor.y += area.size.y - border.b; // Bottom
-            temp.size.y = std::max(0, border.b);
-            fill(temp.trim(area), fx);
-            temp.size.x = std::max(0, border.l); // Left
-            temp.size.y = std::max(0, area.size.y - border.t - border.b);
-            temp.coor.y = area.coor.y + border.t;
-            fill(temp.trim(area), fx);
-            temp.coor.x += area.size.x - border.r; // Right
-            temp.size.x = std::max(0, border.r);
-            fill(temp.trim(area), fx);
+            netxs::misc::cage(*this, area, border, fx);
         }
         void cage(rect area, twod border_width, auto fx) // core: Draw the cage around specified area.
         {

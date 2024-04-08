@@ -2933,7 +2933,9 @@ namespace netxs::ui
                 auto c = batch.caret;
                 #endif
                 sync_coord();
+                #if defined(DEBUG)
                 assert(c == batch.caret);
+                #endif
                 return true;
             }
             auto test_height()
