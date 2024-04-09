@@ -787,7 +787,7 @@ namespace netxs::misc //todo classify
             }
             return seized;
         }
-        auto calc(rect window, twod curpos, dent outer, dent inner)
+        auto calc(rect window, twod curpos, dent outer, dent inner, twod cell_size = dot_11)
         {
             auto border = outer - inner;
             auto area = rect{ dot_00, window.size };
@@ -813,11 +813,11 @@ namespace netxs::misc //todo classify
             hzgrip.coor.x = widths.x;
             hzgrip.coor.y = 0;
             hzgrip.size.y = widths.y;
-            hzgrip.size.x = s.x;
+            hzgrip.size.x = s.x - s.x % cell_size.x;
 
             vtgrip.coor = dot_00;
             vtgrip.size = widths;
-            vtgrip.size.y += s.y;
+            vtgrip.size.y += s.y - s.y % cell_size.y;
             return lastxy(curpos);
         }
         auto drag(rect window, twod curpos, dent outer, bool zoom)
