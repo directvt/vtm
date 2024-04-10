@@ -57,7 +57,6 @@
 
 Name               | Sequence                         | Description
 -------------------|----------------------------------|------------
-`grid lines`       | `CSI` 60 : n `m`                 | Set grid lines around the cell using bits from `n`:<br>0 bit: Left side<br>1 bit: Right side<br>2 bit: Top side<br>3 bit: Bottom side
 `grid color`       | `CSI` 68 : 2 :: r : g : b `m`<br>`CSI` 68 : 5 : n `m`<br>`CSI` 68 : n `m`    | Set grid color.
 `reset grid color` | `CSI` 69 `m`                     | Reset grid color (sync with foreground color).
 
