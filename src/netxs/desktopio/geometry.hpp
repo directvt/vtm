@@ -84,10 +84,10 @@ namespace netxs
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D> auto constexpr operator / (D i) const { return duplet<D>{ x / i, y / i }; }
-        template<class D> auto constexpr operator + (D i) const { return duplet<D>{ x + i, y + i }; }
-        template<class D> auto constexpr operator - (D i) const { return duplet<D>{ x - i, y - i }; }
-        template<class D> auto constexpr operator * (D i) const { return duplet<D>{ x * i, y * i }; }
+        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator / (D i) const { return duplet<D>{ x / i, y / i }; }
+        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator + (D i) const { return duplet<D>{ x + i, y + i }; }
+        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator - (D i) const { return duplet<D>{ x - i, y - i }; }
+        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator * (D i) const { return duplet<D>{ x * i, y * i }; }
 
         bool operator () (duplet const& p)
         {
@@ -539,19 +539,19 @@ namespace netxs
             return dent{ l * factor, r * factor, t * factor, b * factor };
         }
         // dent: Return size with padding.
-        friend auto operator + (twod size, dent pad)
+        friend constexpr auto operator + (twod size, dent pad)
         {
             return twod{ std::max(0, size.x + (pad.l + pad.r)),
                          std::max(0, size.y + (pad.t + pad.b)) };
         }
         // dent: Return size without padding.
-        friend auto operator - (twod size, dent pad)
+        friend constexpr auto operator - (twod size, dent pad)
         {
             return twod{ std::max(0, size.x - (pad.l + pad.r)),
                          std::max(0, size.y - (pad.t + pad.b)) };
         }
         // dent: Return area with padding.
-        friend auto operator + (rect area, dent pad)
+        friend constexpr auto operator + (rect area, dent pad)
         {
             if (area.size.x < 0) { area.coor.x += pad.l; area.size.x -= pad.l + pad.r; }
             else                 { area.coor.x -= pad.l; area.size.x += pad.l + pad.r; }
@@ -560,7 +560,7 @@ namespace netxs
             return area;
         }
         // dent: Return area without padding.
-        friend auto operator - (rect area, dent pad)
+        friend constexpr auto operator - (rect area, dent pad)
         {
             if (area.size.x < 0) { area.coor.x -= pad.l; area.size.x += pad.l + pad.r; }
             else                 { area.coor.x += pad.l; area.size.x -= pad.l + pad.r; }
@@ -569,27 +569,27 @@ namespace netxs
             return area;
         }
         // dent: Return area with padding.
-        friend auto operator += (rect& area, dent pad)
+        friend constexpr auto operator += (rect& area, dent pad)
         {
             return area = area + pad;
         }
         // dent: Return area without padding.
-        friend auto operator -= (rect& area, dent pad)
+        friend constexpr auto operator -= (rect& area, dent pad)
         {
             return area = area - pad;
         }
         // dent: Return size with padding.
-        friend auto operator += (twod& size, dent pad)
+        friend constexpr auto operator += (twod& size, dent pad)
         {
             return size = size + pad;
         }
         // dent: Return size without padding.
-        friend auto operator -= (twod& size, dent pad)
+        friend constexpr auto operator -= (twod& size, dent pad)
         {
             return size = size - pad;
         }
         // dent: Return summ of two paddings.
-        friend auto operator + (dent pad1, dent pad2)
+        friend constexpr auto operator + (dent pad1, dent pad2)
         {
             pad1.l += pad2.l;
             pad1.r += pad2.r;
@@ -598,7 +598,7 @@ namespace netxs
             return pad1;
         }
         // dent: Return diff of two paddings.
-        friend auto operator - (dent pad1, dent pad2)
+        friend constexpr auto operator - (dent pad1, dent pad2)
         {
             pad1.l -= pad2.l;
             pad1.r -= pad2.r;
@@ -625,8 +625,8 @@ namespace netxs
         {
             return s << d.str();
         }
-        friend auto min(dent d1, dent d2) { return dent{ std::min(d1.l, d2.l), std::min(d1.r, d2.r), std::min(d1.t, d2.t), std::min(d1.b, d2.b) }; }
-        friend auto max(dent d1, dent d2) { return dent{ std::max(d1.l, d2.l), std::max(d1.r, d2.r), std::max(d1.t, d2.t), std::max(d1.b, d2.b) }; }
+        friend constexpr auto min(dent d1, dent d2) { return dent{ std::min(d1.l, d2.l), std::min(d1.r, d2.r), std::min(d1.t, d2.t), std::min(d1.b, d2.b) }; }
+        friend constexpr auto max(dent d1, dent d2) { return dent{ std::max(d1.l, d2.l), std::max(d1.r, d2.r), std::max(d1.t, d2.t), std::max(d1.b, d2.b) }; }
     };
     // dent: Return difference between area.
     auto operator - (rect r1, rect r2)
@@ -761,7 +761,6 @@ namespace netxs::misc //todo classify
         twod widths; // szgrips: Grip's widths.
         bool inside; // szgrips: Is active.
         bool seized; // szgrips: Is seized.
-        test lastxy; // szgrips: Change tracker.
         rect zoomsz; // szgrips: Captured area for zooming.
         dent zoomdt; // szgrips: Zoom step.
         bool zoomon; // szgrips: Zoom in progress.
@@ -795,6 +794,17 @@ namespace netxs::misc //todo classify
             auto outer_rect = area + outer;
             inside = !inner_rect.hittest(curpos)
                    && outer_rect.hittest(curpos);
+            if (inside)
+            {
+                auto r1 = inner_rect;
+                auto l1 = r1.coor - curpos;
+                auto l2 = r1.coor + r1.size - curpos;
+                auto m = std::min({ std::abs(l1.x), std::abs(l1.y), std::abs(l2.x), std::abs(l2.y) });
+                m == std::abs(l1.x) ? curpos.x = r1.coor.x :
+                m == std::abs(l1.y) ? curpos.y = r1.coor.y :
+                m == std::abs(l2.x) ? curpos.x = r1.coor.x + r1.size.x :
+                                      curpos.y = r1.coor.y + r1.size.y;
+            }
             auto& length = outer_rect.size;
             curpos += outer.corner();
             auto center = std::max(length / 2, dot_11);
@@ -810,6 +820,9 @@ namespace netxs::misc //todo classify
             auto b = center *~l /~center;
             auto s = sector * std::max(a - b + center, dot_00);
 
+            auto hzgrip_prev = hzgrip;
+            auto vtgrip_prev = vtgrip;
+
             hzgrip.coor.x = widths.x;
             hzgrip.coor.y = 0;
             hzgrip.size.y = widths.y;
@@ -818,7 +831,8 @@ namespace netxs::misc //todo classify
             vtgrip.coor = dot_00;
             vtgrip.size = widths;
             vtgrip.size.y += s.y - s.y % cell_size.y;
-            return lastxy(curpos);
+            auto changed = hzgrip_prev != hzgrip || vtgrip_prev != vtgrip;
+            return changed;
         }
         auto drag(rect window, twod curpos, dent outer, bool zoom)
         {
