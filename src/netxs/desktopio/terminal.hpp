@@ -6816,11 +6816,6 @@ namespace netxs::ui
             selmod = newmod;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selmod, selmod);
-            if (mtrack && selmod == mime::disabled)
-            {
-                follow[axis::Y] = true; // Reset viewport.
-                ondata<true>();
-            }
         }
         // term: Set selection form.
         void selection_selalt(bool boxed)
@@ -6828,11 +6823,6 @@ namespace netxs::ui
             selalt = boxed;
             SIGNAL(tier::release, e2::form::draggable::left, selection_passed());
             SIGNAL(tier::release, ui::term::events::selalt, selalt);
-            if (mtrack && selmod == mime::disabled)
-            {
-                follow[axis::Y] = true; // Reset viewport.
-                ondata<true>();
-            }
         }
         // term: Set the next selection mode.
         void selection_selmod()
@@ -7223,14 +7213,10 @@ namespace netxs::ui
         void set_selmod(si32 mode)
         {
             selection_selmod(mode);
-            if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
-            ondata<true>();
         }
         void set_selalt(bool boxed)
         {
             selection_selalt(boxed);
-            if (faux == target->selection_active()) follow[axis::Y] = true; // Reset viewport.
-            ondata<true>();
         }
         void set_log(bool state)
         {
@@ -7257,7 +7243,7 @@ namespace netxs::ui
                 case commands::ui::look_rev:  console.selection_search(feed::rev); break;
                 default: break;
             }
-            if (!console.selection_active())
+            if (cmd != commands::ui::togglesel && !console.selection_active())
             {
                 follow[axis::Y] = true; // Reset viewport.
             }

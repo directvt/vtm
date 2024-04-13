@@ -154,7 +154,7 @@ namespace netxs::ui
                         static constexpr auto warp = dent{ 2, 2, 1, 1 } * 2;
                         //todo respect pivot
                         auto prev = g.zoomdt;
-                        auto coor = boss.coor();
+                        auto coor = boss.base::coor();
                         auto deed = boss.bell::protos<tier::release>();
                         if (deed == hids::events::mouse::scroll::down.id) g.zoomdt -= warp;
                         else                                              g.zoomdt += warp;
@@ -215,7 +215,9 @@ namespace netxs::ui
                         g.zoomon = faux;
                         gear.setfree();
                     }
-                    if (g.calc(boss.base::area(), gear.coord, outer, inner))
+                    auto area = boss.base::area();
+                    auto coor = area.coor + gear.coord;
+                    if (g.calc(area, coor, outer, inner))
                     {
                         boss.base::deface(); // Deface only if mouse moved.
                     }
@@ -230,7 +232,9 @@ namespace netxs::ui
                 boss.SIGNAL(tier::release, e2::form::draggable::_<Button>, true);
                 boss.LISTEN(tier::release, e2::form::drag::start::_<Button>, gear, memo)
                 {
-                    if (items.take(gear).grab(boss.base::area(), gear.coord, outer))
+                    auto area = boss.base::area();
+                    auto coor = area.coor + gear.coord;
+                    if (items.take(gear).grab(area, coor, outer))
                     {
                         gear.dismiss();
                         boss.bell::expire<tier::release>(); // To prevent d_n_d triggering.
@@ -242,7 +246,9 @@ namespace netxs::ui
                     if (g.seized)
                     {
                         auto zoom = gear.meta(hids::anyCtrl);
-                        auto [preview_area, size_delta] = g.drag(boss.base::area(), gear.coord, outer, zoom);
+                        auto area = boss.base::area();
+                        auto coor = area.coor + gear.coord;
+                        auto [preview_area, size_delta] = g.drag(area, coor, outer, zoom);
                         boss.SIGNAL(tier::preview, e2::area, preview_area);
                         if (auto dxdy = boss.sizeby(size_delta))
                         {

@@ -582,8 +582,8 @@ namespace netxs
     // intmath: Forward/Reverse (bool template arg) copy the specified
     //          sequence of cells onto the canvas at the specified offset
     //          and return count of copied cells.
-    template<bool RtoL, class T1, class T2, class P>
-    auto xerox(T1*& frame, T2 const& source, P handle)
+    template<bool RtoL>
+    auto xerox(auto*& frame, auto const& source, auto handle)
     {
         auto lyric = source.data();
         auto width = source.length();
@@ -601,8 +601,7 @@ namespace netxs
     }
 
     // intmath: Fill the canvas by the stretched bitmap.
-    template<class T, class P>
-    void zoomin(T& canvas, T const& bitmap, P handle)
+    void zoomin(auto&& canvas, auto const& bitmap, auto handle)
     {
         auto size1 = canvas.size();
         auto size2 = bitmap.size();
@@ -642,8 +641,8 @@ namespace netxs
     }
 
     // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
-    template<class P, class NewlineFx = noop>
-    void xform_scale(auto& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void xform_scale(auto&& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
@@ -685,8 +684,8 @@ namespace netxs
     }
 
     // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
-    template<class P, class NewlineFx = noop>
-    void xform_mirror(auto& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void xform_mirror(auto&& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
@@ -731,8 +730,7 @@ namespace netxs
 
     // intmath: Copy the bitmap to the bitmap by invoking
     //          handle(sprite1_element, sprite2_element) for each elem.
-    template<class T, class P>
-    void oncopy(T& bitmap1, T const& bitmap2, P handle)
+    void oncopy(auto&& bitmap1, auto const& bitmap2, auto handle)
     {
         auto& size1 = bitmap1.size();
         auto& size2 = bitmap2.size();
@@ -753,8 +751,8 @@ namespace netxs
     // intmath: Intersect two sprites and
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<bool RtoL, class T, class D, class R, class C, class P, class NewlineFx = noop>
-    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
+    template<bool RtoL, class R, class C, class P, class NewlineFx = noop>
+    void inbody(auto&& canvas, auto const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         if (region.size.y == 0) return;
         auto& base1 = region.coor;
@@ -830,8 +828,8 @@ namespace netxs
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<class T, class D, class P, class NewlineFx = noop>
-    void onbody(T& canvas, D const& bitmap, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void onbody(auto&& canvas, auto const& bitmap, auto handle, NewlineFx online = {})
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -847,7 +845,7 @@ namespace netxs
     //          invoking handle(canvas_element)
     //          (without boundary checking).
     template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
-    void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = {})
+    void onrect(T&& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
         auto& place = canvas.area();
         if (auto joint = region.trim(place))
