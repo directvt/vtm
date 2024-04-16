@@ -1806,7 +1806,7 @@ namespace netxs::ui
                     }
                 }
             }
-            auto clr(rgba c, view tag1, view tag2)
+            auto clr(argb c, view tag1, view tag2)
             {
                 auto size = clrs.size();
                 auto iter = clrs.try_emplace(c.token, size).first;
@@ -1817,13 +1817,13 @@ namespace netxs::ui
                 data += istr;
             }
             template<svga Mode = svga::vtrgb>
-            auto fgc(rgba c)
+            auto fgc(argb c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
             template<svga Mode = svga::vtrgb>
-            auto bgc(rgba c)
+            auto bgc(argb c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)
                            : clr(c, bg_1, bg_2);
@@ -1840,7 +1840,7 @@ namespace netxs::ui
                 static constexpr auto off = "\\i0 "sv;
                 data += b ? set : off;
             }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -1910,7 +1910,7 @@ namespace netxs::ui
                     if (c.wdt() != 3) c.scan(dest.base, dest);
                 });
             }
-            auto vect = std::vector<rgba>(dest.clrs.size());
+            auto vect = std::vector<argb>(dest.clrs.size());
             for (auto& [key, val] : dest.clrs)
             {
                 vect[val].token = key;
@@ -1992,13 +1992,13 @@ namespace netxs::ui
                 }
             }
             template<svga Mode>
-            auto fgc(rgba ) { }
+            auto fgc(argb ) { }
             template<svga Mode>
-            auto bgc(rgba ) { }
+            auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2068,13 +2068,13 @@ namespace netxs::ui
                 data += utf8;
             }
             template<svga Mode>
-            auto fgc(rgba ) { }
+            auto fgc(argb ) { }
             template<svga Mode>
-            auto bgc(rgba ) { }
+            auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }

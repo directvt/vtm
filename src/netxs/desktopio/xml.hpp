@@ -124,7 +124,7 @@ namespace netxs::xml
         return std::nullopt;
     }
     template<>
-    auto take<rgba>(qiew utf8) -> std::optional<rgba>
+    auto take<argb>(qiew utf8) -> std::optional<argb>
     {
         auto tobyte = [](auto c)
         {
@@ -134,7 +134,7 @@ namespace netxs::xml
         };
 
         auto value = utf::to_low(utf8.str());
-        auto result = rgba{};
+        auto result = argb{};
         auto shadow = view{ value };
         utf::trim_front(shadow, " ({[\"\'");
         if (shadow.starts_with('#')) // hex: #rrggbbaa
@@ -156,28 +156,28 @@ namespace netxs::xml
                 result.chan.a = 0xff;
                 return result;
             }
-            else log("%%Unknown hex rgba format: { %value% }, expected #rrggbbaa or #rrggbb rgba hex value", prompt::xml, value);
+            else log("%%Unknown hex color format: { %value% }, expected #rrggbbaa or #rrggbb color hex value", prompt::xml, value);
         }
-        else if (shadow.starts_with("0x")) // hex: 0xaabbggrr
+        else if (shadow.starts_with("0x")) // hex: 0xaarrggbb
         {
             shadow.remove_prefix(2);
-            if (shadow.size() >= 8) // hex: 0xaabbggrr
+            if (shadow.size() >= 8) // hex: 0xaarrggbb
             {
                 result.chan.a = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                result.chan.b = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                result.chan.r = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
                 result.chan.g = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
-                result.chan.r = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
+                result.chan.b = (tobyte(shadow[6]) << 4) + tobyte(shadow[7]);
                 return result;
             }
-            else if (shadow.size() >= 6) // hex: 0xbbggrr
+            else if (shadow.size() >= 6) // hex: 0xrrggbb
             {
-                result.chan.b = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
-                result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
-                result.chan.r = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 result.chan.a = 0xff;
+                result.chan.r = (tobyte(shadow[0]) << 4) + tobyte(shadow[1]);
+                result.chan.g = (tobyte(shadow[2]) << 4) + tobyte(shadow[3]);
+                result.chan.b = (tobyte(shadow[4]) << 4) + tobyte(shadow[5]);
                 return result;
             }
-            else log("%%Unknown hex rgba format: { %value% }, expected 0xaabbggrr or 0xbbggrr rgba hex value", prompt::xml, value);
+            else log("%%Unknown hex color format: { %value% }, expected 0xaarrggbb or 0xrrggbb color hex value", prompt::xml, value);
         }
         else if (utf::check_any(shadow, ",;/")) // dec: 000,000,000,000
         {
@@ -199,13 +199,13 @@ namespace netxs::xml
                     }
                 }
             }
-            log("%%Unknown hex rgba format: { %value% }, expected 000,000,000,000 decimal rgba value", prompt::xml, value);
+            log("%%Unknown hex color format: { %value% }, expected 000,000,000,000 decimal (r,g,b,a) color value", prompt::xml, value);
         }
         else if (auto c = utf::to_int(shadow)) // Single ANSI color value
         {
             if (c.value() >=0 && c.value() <=255)
             {
-                result = rgba::vt256[c.value()];
+                result = argb::vt256[c.value()];
                 return result;
             }
             else log("%%Unknown ANSI 256-color value format: { %value% }, expected 0-255 decimal value", prompt::xml, value);
@@ -312,15 +312,15 @@ namespace netxs::xml
             }
             auto show()
             {
-                static constexpr auto top_token_fg = rgba{ 0xFFffd799 };
-                static constexpr auto end_token_fg = rgba{ 0xFFb3966a };
-                static constexpr auto token_fg     = rgba{ 0xFFdab883 };
-                static constexpr auto liter_fg     = rgba{ 0xFF808080 };
-                static constexpr auto comment_fg   = rgba{ 0xFF4e4e4e };
-                static constexpr auto defaults_fg  = rgba{ 0xFF9e9e9e };
-                static constexpr auto quotes_fg    = rgba{ 0xFFBBBBBB };
-                static constexpr auto value_fg     = rgba{ 0xFFf09690 };
-                static constexpr auto value_bg     = rgba{ 0xFF202020 };
+                static constexpr auto top_token_fg = argb{ 0xFF'99'd7'ff };
+                static constexpr auto end_token_fg = argb{ 0xFF'6a'96'b3 };
+                static constexpr auto token_fg     = argb{ 0xFF'83'b8'da };
+                static constexpr auto liter_fg     = argb{ 0xFF'80'80'80 };
+                static constexpr auto comment_fg   = argb{ 0xFF'4e'4e'4e };
+                static constexpr auto defaults_fg  = argb{ 0xFF'9e'9e'9e };
+                static constexpr auto quotes_fg    = argb{ 0xFF'BB'BB'BB };
+                static constexpr auto value_fg     = argb{ 0xFF'90'96'f0 };
+                static constexpr auto value_bg     = argb{ 0xFF'20'20'20 };
     
                 //test
                 //auto tmp = page.data.front().upto;
@@ -342,8 +342,8 @@ namespace netxs::xml
                     //    tmp = item.upto;
                     //}
     
-                    auto fgc = rgba{};
-                    auto bgc = rgba{};
+                    auto fgc = argb{};
+                    auto bgc = argb{};
                     switch (kind)
                     {
                         case eof:           fgc = redlt;        break;

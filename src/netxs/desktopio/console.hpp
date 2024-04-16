@@ -435,8 +435,8 @@ namespace netxs::ui
                     os_user_id        = utf::concat("[", userid, ":", session_id, "]");
                     title             = os_user_id;
                     selected          = config.take("/config/menu/selected", ""s);
-                    background_color  = cell{}.fgc(config.take("background/fgc", rgba{ whitedk }))
-                                              .bgc(config.take("background/bgc", rgba{ 0xFF000000 }));
+                    background_color  = cell{}.fgc(config.take("background/fgc", argb{ whitedk }))
+                                              .bgc(config.take("background/bgc", argb{ 0xFF000000 }));
                     auto utf8_tile = config.take("background/tile", ""s);
                     if (utf8_tile.size())
                     {
@@ -702,7 +702,7 @@ namespace netxs::ui
             {
                 //todo use skin
                 stress = cell{}.fgc(whitelt);
-                alerts = cell{}.fgc(rgba{ 0xFFd0d0FFu });
+                alerts = cell{}.fgc(argb{ 0xFF'ff'd0'd0 });
 
                 status.style.wrp(wrap::on).jet(bias::left).rlf(feed::rev).mgl(4);
                 status.current().locus.cup(dot_00).cnl(2);
@@ -976,7 +976,7 @@ namespace netxs::ui
                 {
                     canvas.each([](cell& c)
                     {
-                        auto mark = rgba{ rgba::vt256[c.link() % 256] };
+                        auto mark = argb{ argb::vt256[c.link() % 256] };
                         auto bgc = c.bgc();
                         mark.alpha(64);
                         bgc.mix(mark);

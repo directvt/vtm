@@ -25,7 +25,7 @@ namespace netxs::events::userland
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
                 GROUP_XS( selection, si32 ),
-                GROUP_XS( colors   , rgba ),
+                GROUP_XS( colors   , argb ),
 
                 SUBSET_XS( selection )
                 {
@@ -34,8 +34,8 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( colors )
                 {
-                    EVENT_XS( bg, rgba ),
-                    EVENT_XS( fg, rgba ),
+                    EVENT_XS( bg, argb ),
+                    EVENT_XS( fg, argb ),
                 };
             };
             SUBSET_XS( release )
@@ -45,7 +45,7 @@ namespace netxs::events::userland
                 EVENT_XS( io_log   , bool ),
                 EVENT_XS( cwdsync  , bool ),
                 GROUP_XS( selection, si32 ),
-                GROUP_XS( colors   , rgba ),
+                GROUP_XS( colors   , argb ),
 
                 SUBSET_XS( selection )
                 {
@@ -54,8 +54,8 @@ namespace netxs::events::userland
                 };
                 SUBSET_XS( colors )
                 {
-                    EVENT_XS( bg, rgba ),
-                    EVENT_XS( fg, rgba ),
+                    EVENT_XS( bg, argb ),
+                    EVENT_XS( fg, argb ),
                 };
             };
             SUBSET_XS( data )
@@ -754,8 +754,8 @@ namespace netxs::app::terminal
             //->plugin<pro::acryl>()
             ->plugin<pro::cache>();
         config.cd("/config/term/color/default/");
-        auto def_fcolor = config.take("fgc", rgba{ whitelt });
-        auto def_bcolor = config.take("bgc", rgba{ blackdk });
+        auto def_fcolor = config.take("fgc", argb{ whitelt });
+        auto def_bcolor = config.take("bgc", argb{ blackdk });
         auto layers = window->attach(ui::cake::ctor())
                             ->colors(cB)
                             ->limits(dot_11, { 400,200 });

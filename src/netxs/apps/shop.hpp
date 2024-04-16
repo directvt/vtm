@@ -53,7 +53,7 @@ namespace netxs::app::shop
                 auto line = ansi::wrp(wrap::off).add("──────────────────────────────────────────────────────────────────────────────────────").wrp(wrap::on).eol();
                 auto item = [](auto app, auto clr, auto rating, auto price, auto buy, auto desc)
                 {
-                    auto clr_light = rgba{ clr };
+                    auto clr_light = argb{ clr };
                     clr_light.mix(0xa7ffffff);
 
                     auto lot = ansi::nil()
@@ -115,7 +115,7 @@ namespace netxs::app::shop
                     item("Char", yellowdk, "161", "Free ", "Get",
                     "Unicode codepoints browser."),
 
-                    item(ansi::fgc(0xFFff0000).add("File"), cyanlt, "4", "Free ", "Get",
+                    item(ansi::fgc(0xFF0000ff).add("File"), cyanlt, "4", "Free ", "Get",
                     "File manager."),
 
                     item("Time", bluedk, "4", "Free ", "Get",
@@ -124,7 +124,7 @@ namespace netxs::app::shop
                     item("Goto", bluedk, "4", "Free ", "Get",
                     "Internet/SSH browser."),
 
-                    item(ansi::fgc(0xFF00FFFF).add("Doom").fgc(), reddk, "4", "Free ", "Get",
+                    item(ansi::fgc(0xFFFFFF00).add("Doom").fgc(), reddk, "4", "Free ", "Get",
                     "Doom II source port."),
 
                     item("Clip", bluedk, "1", "Free ", "Get",

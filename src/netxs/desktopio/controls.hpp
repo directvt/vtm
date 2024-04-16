@@ -675,7 +675,7 @@ namespace netxs::ui
             operator bool () const { return memo.count(); }
 
             // pro::caret: Set cursor background color.
-            void bgc(rgba c)
+            void bgc(argb c)
             {
                 if (mark.bgc() != c)
                 {
@@ -1026,7 +1026,7 @@ namespace netxs::ui
                     if (auto gear_ptr = bell::getref<hids>(gear_id))
                     {
                         auto index = gear_ptr->user_index;
-                        auto color = rgba::vt256[4 + index % (256 - 4)];
+                        auto color = argb::vt256[4 + index % (256 - 4)];
                         auto image = ansi::fgc(color).add("\0▀"sv);
                         user_icon.push_front({ gear_id, image });
                         rebuild();
@@ -1791,8 +1791,8 @@ namespace netxs::ui
                 {
                     auto size = si32{ 5 }; // grade: Vertical gradient size.
                     auto step = si32{ 2 }; // grade: Vertical gradient step.
-                    auto shadow = rgba{0xFF000000};
-                    auto bright = rgba{0xFFffffff};
+                    auto shadow = argb{0xFF000000};
+                    auto bright = argb{0xFFffffff};
 
                     //todo optimize - don't fill the head and foot twice
                     auto area = parent_canvas.clip();
@@ -2014,7 +2014,7 @@ namespace netxs::ui
                   skill::memo;
 
             bool highlighted = faux; // light: .
-            rgba title_fg_color = 0xFFffffff;
+            argb title_fg_color = 0xFFffffff;
 
         public:
             light(base&&) = delete;

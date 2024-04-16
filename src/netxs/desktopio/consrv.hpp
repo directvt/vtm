@@ -4077,7 +4077,7 @@ struct impl : consrv
             {
                 auto const& c = *head++;
                 auto m = netxs::swap_bits<0, 2>(i); // ANSI<->DOS color scheme reindex.
-                rgbpalette[m] = c & 0x00FFFFFF; // conhost crashed if alpha non zero.
+                rgbpalette[m] = argb::swap_rb(c); // conhost crashes if alpha non zero.
                 if (c == frgb) fgcx = m;
                 if (c == brgb) bgcx = m + 1;
             }
@@ -4085,7 +4085,7 @@ struct impl : consrv
             {
                 bgcx = 0;
                 uiterm.ctrack.color[bgcx] = brgb;
-                rgbpalette         [bgcx] = brgb & 0x00FFFFFF; // conhost crashed if alpha non zero.
+                rgbpalette         [bgcx] = argb::swap_rb(brgb); // conhost crashes if alpha non zero.
             }
             packet.reply.attributes = static_cast<ui16>(fgcx + (bgcx << 4));
             if (mark.inv()) packet.reply.attributes |= COMMON_LVB_REVERSE_VIDEO;
@@ -4151,7 +4151,7 @@ struct impl : consrv
         auto i = 0;
         for (auto c : packet.input.rgbpalette)
         {
-            log("\t\t", utf::to_hex(i++), " ", rgba{ c });
+            log("\t\t", utf::to_hex(i++), " ", argb{ c });
         }
         if constexpr (isreal())
         {
@@ -4162,7 +4162,7 @@ struct impl : consrv
             while (i < 16)
             {
                 auto m = netxs::swap_bits<0, 2>(i++); // ANSI<->DOS color scheme reindex.
-                *head++ = rgbpalette[m] | 0xFF000000; // conhost crashed if alpha non zero.
+                *head++ = argb::swap_rb(rgbpalette[m]);
             }
         }
         unsync = true;

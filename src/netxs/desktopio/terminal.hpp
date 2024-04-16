@@ -14,7 +14,7 @@ namespace netxs::events::userland
             EVENT_XS( io_log, bool ),
             EVENT_XS( selmod, si32 ),
             EVENT_XS( selalt, si32 ),
-            GROUP_XS( colors, rgba ),
+            GROUP_XS( colors, argb ),
             GROUP_XS( layout, si32 ),
             GROUP_XS( search, input::hids ),
 
@@ -31,8 +31,8 @@ namespace netxs::events::userland
             };
             SUBSET_XS( colors )
             {
-                EVENT_XS( bg, rgba ),
-                EVENT_XS( fg, rgba ),
+                EVENT_XS( bg, argb ),
+                EVENT_XS( fg, argb ),
             };
         };
     };
@@ -126,7 +126,7 @@ namespace netxs::ui
         // term: Terminal configuration.
         struct termconfig
         {
-            using pals = std::remove_const_t<decltype(rgba::vt256)>;
+            using pals = std::remove_const_t<decltype(argb::vt256)>;
 
             si32 def_mxline;
             si32 def_length;
@@ -138,9 +138,9 @@ namespace netxs::ui
             si32 def_margin;
             si32 def_atexit;
             cell def_curclr;
-            rgba def_fcolor;
-            rgba def_bcolor;
-            rgba def_filler;
+            argb def_fcolor;
+            argb def_bcolor;
+            argb def_filler;
             si32 def_selmod;
             si32 def_cursor;
             bool def_selalt;
@@ -207,9 +207,9 @@ namespace netxs::ui
                 def_io_log =             config.take("logs",                 faux);
                 allow_logs =             true; // Disallowed for dtty.
                 def_atexit =             config.take("atexit",               commands::atexit::smart, atexit_options);
-                def_fcolor =             config.take("color/default/fgc",    rgba{ whitelt });
-                def_bcolor =             config.take("color/default/bgc",    rgba{ blackdk });
-                def_filler =             config.take("color/bground",        rgba{ 0x00'00'00'00 });
+                def_fcolor =             config.take("color/default/fgc",    argb{ whitelt });
+                def_bcolor =             config.take("color/default/bgc",    argb{ blackdk });
+                def_filler =             config.take("color/bground",        argb{ 0x00'ff'ff'ff });
 
                 def_safe_c =             config.take("color/selection/protected", cell{}.bgc(bluelt)    .fgc(whitelt));
                 def_ansi_c =             config.take("color/selection/ansi",      cell{}.bgc(bluelt)    .fgc(whitelt));
@@ -227,7 +227,7 @@ namespace netxs::ui
                 def_none_f =             config.take("color/selection/none/fx",      commands::fx::color,  fx_options);
                 def_find_f =             config.take("color/match/fx",               commands::fx::color,  fx_options);
 
-                std::copy(std::begin(rgba::vt256), std::end(rgba::vt256), std::begin(def_colors));
+                std::copy(std::begin(argb::vt256), std::end(argb::vt256), std::begin(def_colors));
                 for (auto i = 0; i < 16; i++)
                 {
                     def_colors[i] = config.take("color/color" + std::to_string(i), def_colors[i]);
@@ -550,7 +550,7 @@ namespace netxs::ui
         // term: Terminal 16/256 color palette tracking functionality.
         struct c_tracking
         {
-            using pals = std::remove_const_t<decltype(rgba::vt256)>;
+            using pals = std::remove_const_t<decltype(argb::vt256)>;
             using func = std::unordered_map<text, std::function<void(view)>>;
 
             term& owner; // c_tracking: Terminal object reference.
@@ -581,9 +581,9 @@ namespace netxs::ui
                     auto b1 = to_byte(data[10]);
                     auto b2 = to_byte(data[11]);
                     data.remove_prefix(12); // rgb:00/00/00
-                    return { (r1 << 4 ) + (r2      )
+                    return { (b1 << 4 ) + (b2      )
                            + (g1 << 12) + (g2 << 8 )
-                           + (b1 << 20) + (b2 << 16)
+                           + (r1 << 20) + (r2 << 16)
                            + 0xFF000000 };
                 }
                 return {};
@@ -608,9 +608,9 @@ namespace netxs::ui
                         auto g2 = to_byte(data[4]);
                         auto b1 = to_byte(data[5]);
                         auto b2 = to_byte(data[6]);
-                        color[n] = (r1 << 4 ) + (r2      )
+                        color[n] = (b1 << 4 ) + (b2      )
                                  + (g1 << 12) + (g2 << 8 )
-                                 + (b1 << 20) + (b2 << 16)
+                                 + (r1 << 20) + (r2 << 16)
                                  + 0xFF000000;
                     }
                 };
@@ -623,7 +623,7 @@ namespace netxs::ui
                         if (auto v = utf::to_int(data))
                         {
                             auto n = std::clamp(v.value(), 0, 255);
-                            color[n] = rgba::vt256[n];
+                            color[n] = argb::vt256[n];
                             empty = faux;
                         }
                     }
@@ -7162,7 +7162,7 @@ namespace netxs::ui
             brush.link(console.brush.link());
             console.brush.reset(brush);
         }
-        void set_bg_color(rgba bg)
+        void set_bg_color(argb bg)
         {
             auto& console = *target;
             auto brush = defclr;
@@ -7177,7 +7177,7 @@ namespace netxs::ui
             console.brush.reset(brush);
             SIGNAL(tier::release, ui::term::events::colors::bg, bg);
         }
-        void set_fg_color(rgba fg)
+        void set_fg_color(argb fg)
         {
             auto& console = *target;
             auto brush = defclr;
@@ -7270,7 +7270,7 @@ namespace netxs::ui
                 {
                     auto byemsg = escx{};
                     if (target != &normal) byemsg.locate({ 0, target->panel.y - 1 });
-                    byemsg.bgc(code ? rgba{ reddk } : rgba{}).fgc(whitelt).add(msg)
+                    byemsg.bgc(code ? argb{ reddk } : argb{}).fgc(whitelt).add(msg)
                           .add("\r\nProcess exited with code ", os::exitcode(code)).nil()
                           .add("\r\n\n");
                     return byemsg;
@@ -8059,7 +8059,7 @@ namespace netxs::ui
                         auto tmpbuf = vrgb{};
                         splash.zoom(canvas, cell::shaders::onlyid(parent_id));
                         splash.output(errmsg);
-                        splash.blur(2, tmpbuf, [](cell& c){ c.fgc(rgba::transit(c.bgc(), c.fgc(), 127)); });
+                        splash.blur(2, tmpbuf, [](cell& c){ c.fgc(argb::transit(c.bgc(), c.fgc(), 127)); });
                         splash.output(errmsg);
                     }
                     else

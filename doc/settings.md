@@ -209,7 +209,7 @@ All value literals containing spaces must be enclosed in double or single quotes
 
 Value type | Format
 -----------|-----------------
-`RGBA`     | `#rrggbbaa` \| `0xaabbggrr` \| `rrr,ggg,bbb,aaa` \| 256-color index
+`RGBA`     | `#rrggbbaa` \| `0xaarrggbb` \| `rrr,ggg,bbb,aaa` \| 256-color index
 `boolean`  | `true` \| `false` \| `yes` \| `no` \| `1` \| `0` \| `on` \| `off`
 `string`   | _UTF-8 text string_
 `x;y`      | _integer_ <any_delimeter> _integer_
@@ -368,20 +368,20 @@ Note: Hardcoded settings are built from the [/src/vtm.xml](../src/vtm.xml) sourc
     </appearance>
     <set>         <!-- Global namespace - Unresolved literals will be taken from here. -->
         <blackdk   = 0xFF101010 /> <!-- Color reference literals. -->
-        <reddk     = 0xFF1f0fc4 />
-        <greendk   = 0xFF0ea112 />
-        <yellowdk  = 0xFF009cc0 />
-        <bluedk    = 0xFFdb3700 />
-        <magentadk = 0xFF981787 />
-        <cyandk    = 0xFFdd963b />
+        <reddk     = 0xFFc40f1f />
+        <greendk   = 0xFF12a10e />
+        <yellowdk  = 0xFFc09c00 />
+        <bluedk    = 0xFF0037db />
+        <magentadk = 0xFF871798 />
+        <cyandk    = 0xFF3b96dd />
         <whitedk   = 0xFFbbbbbb />
         <blacklt   = 0xFF757575 />
-        <redlt     = 0xFF5648e6 />
-        <greenlt   = 0xFF0cc615 />
-        <yellowlt  = 0xFFa5f1f8 />
-        <bluelt    = 0xFFff783a />
-        <magentalt = 0xFF9e00b3 />
-        <cyanlt    = 0xFFd6d660 />
+        <redlt     = 0xFFe64856 />
+        <greenlt   = 0xFF15c60c />
+        <yellowlt  = 0xFFf8f1a5 />
+        <bluelt    = 0xFF3a78ff />
+        <magentalt = 0xFFb3009e />
+        <cyanlt    = 0xFF60d6d6 />
         <whitelt   = 0xFFf3f3f3 />
         <pureblack = 0xFF000000 />
         <purewhite = 0xFFffffff />

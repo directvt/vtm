@@ -416,7 +416,7 @@ namespace netxs::events::userland
                     EVENT_XS( cwd       , text       ), // riseup:preview->anycast: current working directory.
                     GROUP_XS( window    , twod       ), // set or request window properties.
                     GROUP_XS( ui        , text       ), // set or request textual properties.
-                    GROUP_XS( colors    , rgba       ), // set or request bg/fg colors.
+                    GROUP_XS( colors    , argb       ), // set or request bg/fg colors.
 
                     SUBSET_XS( window )
                     {
@@ -436,8 +436,8 @@ namespace netxs::events::userland
                     };
                     SUBSET_XS( colors )
                     {
-                        EVENT_XS( bg, rgba ), // set/get rgba color.
-                        EVENT_XS( fg, rgba ), // set/get rgba color.
+                        EVENT_XS( bg, argb ), // set/get argb color.
+                        EVENT_XS( fg, argb ), // set/get argb color.
                     };
                 };
                 SUBSET_XS( global )
@@ -647,7 +647,7 @@ namespace netxs::ui
             return area;
         }
         auto color() const { return base::filler; }
-        void color(rgba fg_color, rgba bg_color)
+        void color(argb fg_color, argb bg_color)
         {
             base::filler.bgc(bg_color)
                         .fgc(fg_color)

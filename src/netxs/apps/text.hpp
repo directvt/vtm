@@ -101,7 +101,7 @@ displaying the requested definition in a popup window or temporary buffer. Some 
                       };
                   });
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, 0xA05f1a00);
+                                ->colors(whitelt, 0xA0'00'1a'5f);
                 auto menu = object->attach(slot::_1, app::shared::menu::demo(config));
                 auto body_area = object->attach(slot::_2, ui::fork::ctor(axis::Y));
                     auto fields = body_area->attach(slot::_1, ui::pads::ctor(dent{ 1,1 }));

@@ -96,12 +96,12 @@ namespace netxs::app::test
                     "it's just a bunch of text samples.\n"
                     "\n")
                     .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                    .fgc(0xffFFFFFF).bgc(0xff0000FF).add(" ! ", "\n")
+                    .fgc(0xffFFFFFF).bgc(0xff'FF0000).add(" ! ", "\n")
                     .cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                     .add("Make sure your terminal supports mouse reporting.\n"
                     "\n")
                     .nil().jet(bias::left).mgl(4).mgr(4).wrp(wrap::off)
-                    .fgc(0xffFFFFFF).bgc(0xff0000FF).add(" ! ", "\n")
+                    .fgc(0xffFFFFFF).bgc(0xff'FF0000).add(" ! ", "\n")
                     .cuu(1).chx(0).mgl(9).fgc().bgc().wrp(wrap::on)
                     .add("At the moment terminal "
                     "emulators are not able to display wide characters "
@@ -433,7 +433,7 @@ namespace netxs::app::test
                     };
                 });
             auto object0 = window->attach(ui::fork::ctor(axis::Y))
-                                 ->colors(whitelt, 0xA0db3700);
+                                 ->colors(whitelt, 0xA0'00'37'db);
                 config.cd("/config/test/", "/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object0->attach(slot::_1, menu_block);
@@ -468,13 +468,13 @@ namespace netxs::app::test
                 auto& a = object->lyric(test_topic_vars::canvas1);
                     a.mark().fgc(0xFF000000);
                     a.size({ 40, 9 });
-                    a.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
+                    a.grad(argb{ 0xFF00FFFF }, argb{ 0x40FFFFFF });
                     auto t = para{ "ARBITRARY SIZE BLOCK" };
                     a.text((a.size() - twod{ t.length(), 0 }) / 2, t.shadow());
                 auto& b = object->lyric(test_topic_vars::canvas2);
                     b.mark().fgc(0xFF000000);
                     b.size({ 6, 2 });
-                    b.grad(rgba{ 0xFFFFFF00 }, rgba{ 0x40FFFFFF });
+                    b.grad(argb{ 0xFF00FFFF }, argb{ 0x40FFFFFF });
                     b[{5, 0}].alpha(0);
                     b[{5, 1}].alpha(0);
 

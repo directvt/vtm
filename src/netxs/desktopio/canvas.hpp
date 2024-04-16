@@ -74,30 +74,30 @@ namespace netxs
         };
     };
 
-    // canvas: 8-bit RGBA.
-    union rgba
+    // canvas: 8-bit ARGB.
+    union argb
     {
         ui32                        token;
-        struct { byte r, g, b, a; } chan;
+        struct { byte b, g, r, a; } chan;
 
-        constexpr rgba()
+        constexpr argb()
             : token{ 0 }
         { }
-        constexpr rgba(rgba const&) = default;
+        constexpr argb(argb const&) = default;
         template<class T, class A = byte>
-        constexpr rgba(T r, T g, T b, A a = 0xff)
-            : chan{ static_cast<byte>(r),
+        constexpr argb(T r, T g, T b, A a = 0xff)
+            : chan{ static_cast<byte>(b),
                     static_cast<byte>(g),
-                    static_cast<byte>(b),
+                    static_cast<byte>(r),
                     static_cast<byte>(a) }
         { }
-        constexpr rgba(ui32 c)
+        constexpr argb(ui32 c)
             : token{ netxs::letoh(c) }
         { }
-        constexpr rgba(tint c)
-            : rgba{ vt256[c] }
+        constexpr argb(tint c)
+            : argb{ vt256[c] }
         { }
-        rgba(fifo& queue)
+        argb(fifo& queue)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
@@ -141,52 +141,58 @@ namespace netxs
             }
         }
 
-        constexpr rgba& operator = (rgba const&) = default;
+        constexpr argb& operator = (argb const&) = default;
         constexpr explicit operator bool () const
         {
             return token;
         }
-        constexpr auto operator == (rgba c) const
+        constexpr auto operator == (argb c) const
         {
             return token == c.token;
         }
-        constexpr auto operator != (rgba c) const
+        constexpr auto operator != (argb c) const
         {
             return !operator==(c);
         }
-        // rgba: Set all channels to zero.
+        static auto swap_rb(ui32 c)
+        {
+            return (c >>  0) & 0x00'FF'00 |
+                   (c >> 16) & 0x00'00'FF |
+                   (c << 16) & 0xFF'00'00;
+        }
+        // argb: Set all channels to zero.
         void wipe()
         {
             token = 0;
         }
-        // rgba: Set color to opaque black.
+        // argb: Set color to opaque black.
         void rst()
         {
-            static constexpr auto colorblack = rgba{ 0xFF000000 };
+            static constexpr auto colorblack = argb{ 0xFF000000 };
             token = colorblack.token;
         }
-        // rgba: Are the colors alpha blenable?
+        // argb: Are the colors alpha blenable?
         auto is_alpha_blendable() const
         {
             return chan.a && chan.a != 0xFF;
         }
-        // rgba: Set alpha channel.
+        // argb: Set alpha channel.
         void alpha(si32 k)
         {
             chan.a = (byte)k;
         }
-        // rgba: Return alpha channel.
+        // argb: Return alpha channel.
         auto alpha() const
         {
             return chan.a;
         }
-        // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
+        // argb: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
         constexpr auto luma() const
         {
-            auto t = netxs::letoh(token);
-            return static_cast<byte>(0.2627f * ((t & 0x0000FF) >> 0)
-                                   + 0.6780f * ((t & 0x00FF00) >> 8)
-                                   + 0.0593f * ((t & 0xFF0000) >> 16));
+            auto r = (token >> 16) & 0xFF;
+            auto g = (token >>  8) & 0xFF;
+            auto b = (token >>  0) & 0xFF;
+            return static_cast<byte>(0.2627f * r + 0.6780f * g + 0.0593f * b);
         }
         static constexpr auto luma(si32 r, si32 g, si32 b)
         {
@@ -199,7 +205,7 @@ namespace netxs
             chan.g = l;
             chan.b = l;
         }
-        // rgba: Return 256-color 6x6x6 cube.
+        // argb: Return 256-color 6x6x6 cube.
         auto to_256cube() const
         {
             auto clr = 0;
@@ -216,15 +222,15 @@ namespace netxs
             }
             return (byte)clr;
         }
-        // rgba: Equal both to their average.
-        void avg(rgba& c)
+        // argb: Equal both to their average.
+        void avg(argb& c)
         {
             chan.r = c.chan.r = (byte)(((ui32)chan.r + c.chan.r) >> 1);
             chan.g = c.chan.g = (byte)(((ui32)chan.g + c.chan.g) >> 1);
             chan.b = c.chan.b = (byte)(((ui32)chan.b + c.chan.b) >> 1);
         }
-        // rgba: One-side alpha blending RGBA colors.
-        void inline mix_one(rgba c)
+        // argb: One-side alpha blending ARGB colors.
+        void inline mix_one(argb c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -243,8 +249,8 @@ namespace netxs
                 //if (!chan.a) chan.a = c.chan.a;
             }
         }
-        // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c)
+        // argb: Alpha blending ARGB colors.
+        void inline mix(argb c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -269,17 +275,17 @@ namespace netxs
                 chan.a = (byte)(a >> 8);
             }
         }
-        // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
-        static auto transit(rgba c1, rgba c2, si32 level)
+        // argb: ARGB transitional blending. Level = 0: equals c1, level = 256: equals c2.
+        static auto transit(argb c1, argb c2, si32 level)
         {
             auto inverse = 256 - level;
-            return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
+            return argb{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
                          (c2.chan.g * level + c1.chan.g * inverse) >> 8,
                          (c2.chan.b * level + c1.chan.b * inverse) >> 8,
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
-        // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c, si32 alpha)
+        // argb: Alpha blending ARGB colors.
+        void inline mix(argb c, si32 alpha)
         {
             if (alpha == 0xFF)
             {
@@ -294,8 +300,8 @@ namespace netxs
                 chan.a = (byte)((c.chan.a * alpha + chan.a * inverse) >> 8);
             }
         }
-        // rgba: Rough alpha blending RGBA colors.
-        //void mix_alpha(rgba c)
+        // argb: Rough alpha blending ARGB colors.
+        //void mix_alpha(argb c)
         //{
         //	auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
         //	{
@@ -324,15 +330,15 @@ namespace netxs
         //	}
         //}
 
-        //// rgba: Are the colors identical.
-        //bool like(rgba c) const
+        //// argb: Are the colors identical.
+        //bool like(argb c) const
         //{
         //
         //	static constexpr auto k = ui32{ 0b11110000 };
         //	static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
         //	return	(token & threshold) == (c.token & threshold);
         //}
-        // rgba: Shift color.
+        // argb: Shift color.
         void xlight(si32 factor = 1)
         {
             if (chan.a == 255)
@@ -383,8 +389,8 @@ namespace netxs
                 }
             }
         }
-        // rgba: Shift color pair.
-        void xlight(si32 factor, rgba& second)
+        // argb: Shift color pair.
+        void xlight(si32 factor, argb& second)
         {
             if (chan.a == 255)
             {
@@ -449,14 +455,14 @@ namespace netxs
                 }
             }
         }
-        // rgba: Darken the color.
+        // argb: Darken the color.
         void shadow(byte k = 39)
         {
             chan.r = chan.r < k ? 0x00 : chan.r - k;
             chan.g = chan.g < k ? 0x00 : chan.g - k;
             chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
-        // rgba: Lighten the color.
+        // argb: Lighten the color.
         void bright(si32 factor = 1)
         {
             auto k = (byte)std::clamp(39 * factor, 0, 0xFF);
@@ -464,15 +470,15 @@ namespace netxs
             chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
             chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
         }
-        // rgba: Invert the color.
+        // argb: Invert the color.
         void invert()
         {
-            static constexpr auto pureblack = rgba{ 0xFF000000 };
-            static constexpr auto antiwhite = rgba{ 0x00FFFFFF };
+            static constexpr auto pureblack = argb{ 0xFF000000 };
+            static constexpr auto antiwhite = argb{ 0x00FFFFFF };
 
             token = (token & pureblack.token) | ~(token & antiwhite.token);
         }
-        // rgba: Print channel values.
+        // argb: Print channel values.
         auto str() const
         {
             return "{" + std::to_string(chan.r) + ","
@@ -480,42 +486,42 @@ namespace netxs
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
-        // rgba: Linear to sRGB (g = 2.4)
+        // argb: Linear to sRGB (g = 2.4)
         static auto gamma(fp32 c)
         {
             return c <= 0.0031308f ? 12.92f * c
                                    : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
         }
-        // rgba: Linear to sRGB (g = 2.4)
+        // argb: Linear to sRGB (g = 2.4)
         static auto gamma(byte c)
         {
-            return (byte)rgba::gamma(c / 255.f);
+            return (byte)argb::gamma(c / 255.f);
         }
-        // rgba: Linear to sRGB (g = 2.4)
-        static auto gamma(rgba c)
+        // argb: Linear to sRGB (g = 2.4)
+        static auto gamma(argb c)
         {
-            return rgba{ rgba::gamma(c.chan.r),
-                         rgba::gamma(c.chan.g),
-                         rgba::gamma(c.chan.g), c.chan.a };
+            return argb{ argb::gamma(c.chan.r),
+                         argb::gamma(c.chan.g),
+                         argb::gamma(c.chan.g), c.chan.a };
         }
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
             i == tint::blackdk   ? 0xFF'10'10'10 :
-            i == tint::reddk     ? 0xFF'1F'0F'C4 :
-            i == tint::greendk   ? 0xFF'0E'A1'12 :
-            i == tint::yellowdk  ? 0xFF'00'9C'C0 :
-            i == tint::bluedk    ? 0xFF'DB'37'00 :
-            i == tint::magentadk ? 0xFF'98'17'87 :
-            i == tint::cyandk    ? 0xFF'DD'96'3B :
+            i == tint::reddk     ? 0xFF'C4'0F'1F :
+            i == tint::greendk   ? 0xFF'12'A1'0E :
+            i == tint::yellowdk  ? 0xFF'C0'9C'00 :
+            i == tint::bluedk    ? 0xFF'00'37'DB :
+            i == tint::magentadk ? 0xFF'87'17'98 :
+            i == tint::cyandk    ? 0xFF'3B'96'DD :
             i == tint::whitedk   ? 0xFF'BB'BB'BB :
             i == tint::blacklt   ? 0xFF'75'75'75 :
-            i == tint::redlt     ? 0xFF'56'48'E6 :
-            i == tint::greenlt   ? 0xFF'0C'C6'15 :
-            i == tint::yellowlt  ? 0xFF'A5'F1'F8 :
-            i == tint::bluelt    ? 0xFF'FF'78'3A :
-            i == tint::magentalt ? 0xFF'9E'00'B3 :
-            i == tint::cyanlt    ? 0xFF'D6'D6'60 :
+            i == tint::redlt     ? 0xFF'E6'48'56 :
+            i == tint::greenlt   ? 0xFF'15'C6'0C :
+            i == tint::yellowlt  ? 0xFF'F8'F1'A5 :
+            i == tint::bluelt    ? 0xFF'3A'78'FF :
+            i == tint::magentalt ? 0xFF'B3'00'9E :
+            i == tint::cyanlt    ? 0xFF'60'D6'D6 :
             i == tint::whitelt   ? 0xFF'F3'F3'F3 : 0;
         template<si32 i>
         static constexpr ui32 _vtm16 = // Compile-time value assigning (sorted by enum).
@@ -552,54 +558,54 @@ namespace netxs
             _vt16<8>, _vt16<9>, _vt16<10>, _vt16<11>, _vt16<12>, _vt16<13>, _vt16<14>, _vt16<15>,
 
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
-            0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
-            0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
-            0xFF008700, 0xFF5F8700, 0xFF878700, 0xFFAF8700, 0xFFD78700, 0xFFFF8700,
-            0xFF00AF00, 0xFF5FAF00, 0xFF87AF00, 0xFFAFAF00, 0xFFD7AF00, 0xFFFFAF00,
-            0xFF00D700, 0xFF5FD700, 0xFF87D700, 0xFFAFD700, 0xFFD7D700, 0xFFFFD700,
-            0xFF00FF00, 0xFF5FFF00, 0xFF87FF00, 0xFFAFFF00, 0xFFD7FF00, 0xFFFFFF00,
+            0xFF000000, 0xFF00005F, 0xFF000087, 0xFF0000AF, 0xFF0000D7, 0xFF0000FF,
+            0xFF005F00, 0xFF005F5F, 0xFF005F87, 0xFF005FAF, 0xFF005FD7, 0xFF005FFF,
+            0xFF008700, 0xFF00875F, 0xFF008787, 0xFF0087AF, 0xFF0087D7, 0xFF0087FF,
+            0xFF00AF00, 0xFF00AF5F, 0xFF00AF87, 0xFF00AFAF, 0xFF00AFD7, 0xFF00AFFF,
+            0xFF00D700, 0xFF00D75F, 0xFF00D787, 0xFF00D7AF, 0xFF00D7D7, 0xFF00D7FF,
+            0xFF00FF00, 0xFF00FF5F, 0xFF00FF87, 0xFF00FFAF, 0xFF00FFD7, 0xFF00FFFF,
 
-            0xFF00005F, 0xFF5F005F, 0xFF87005F, 0xFFAF005F, 0xFFD7005F, 0xFFFF005F,
-            0xFF005F5F, 0xFF5F5F5F, 0xFF875F5F, 0xFFAF5F5F, 0xFFD75F5F, 0xFFFF5F5F,
-            0xFF00875F, 0xFF5F875F, 0xFF87875F, 0xFFAF875F, 0xFFD7875F, 0xFFFF875F,
-            0xFF00AF5F, 0xFF5FAF5F, 0xFF87AF5F, 0xFFAFAF5F, 0xFFD7AF5F, 0xFFFFAF5F,
-            0xFF00D75F, 0xFF5FD75F, 0xFF87D75F, 0xFFAFD75F, 0xFFD7D75F, 0xFFFFD75F,
-            0xFF00FF5F, 0xFF5FFF5F, 0xFF87FF5F, 0xFFAFFF5F, 0xFFD7FF5F, 0xFFFFFF5F,
+            0xFF5F0000, 0xFF5F005F, 0xFF5F0087, 0xFF5F00AF, 0xFF5F00D7, 0xFF5F00FF,
+            0xFF5F5F00, 0xFF5F5F5F, 0xFF5F5F87, 0xFF5F5FAF, 0xFF5F5FD7, 0xFF5F5FFF,
+            0xFF5F8700, 0xFF5F875F, 0xFF5F8787, 0xFF5F87AF, 0xFF5F87D7, 0xFF5F87FF,
+            0xFF5FAF00, 0xFF5FAF5F, 0xFF5FAF87, 0xFF5FAFAF, 0xFF5FAFD7, 0xFF5FAFFF,
+            0xFF5FD700, 0xFF5FD75F, 0xFF5FD787, 0xFF5FD7AF, 0xFF5FD7D7, 0xFF5FD7FF,
+            0xFF5FFF00, 0xFF5FFF5F, 0xFF5FFF87, 0xFF5FFFAF, 0xFF5FFFD7, 0xFF5FFFFF,
 
-            0xFF000087, 0xFF5F0087, 0xFF870087, 0xFFAF0087, 0xFFD70087, 0xFFFF0087,
-            0xFF005F87, 0xFF5F5F87, 0xFF875F87, 0xFFAF5F87, 0xFFD75F87, 0xFFFF5F87,
-            0xFF008787, 0xFF5F8787, 0xFF878787, 0xFFAF8787, 0xFFD78787, 0xFFFF8787,
-            0xFF00AF87, 0xFF5FAF87, 0xFF87AF87, 0xFFAFAF87, 0xFFD7AF87, 0xFFFFAF87,
-            0xFF00D787, 0xFF5FD787, 0xFF87D787, 0xFFAFD787, 0xFFD7D787, 0xFFFFD787,
-            0xFF00FF87, 0xFF5FFF87, 0xFF87FF87, 0xFFAFFF87, 0xFFD7FF87, 0xFFFFFF87,
+            0xFF870000, 0xFF87005F, 0xFF870087, 0xFF8700AF, 0xFF8700D7, 0xFF8700FF,
+            0xFF875F00, 0xFF875F5F, 0xFF875F87, 0xFF875FAF, 0xFF875FD7, 0xFF875FFF,
+            0xFF878700, 0xFF87875F, 0xFF878787, 0xFF8787AF, 0xFF8787D7, 0xFF8787FF,
+            0xFF87AF00, 0xFF87AF5F, 0xFF87AF87, 0xFF87AFAF, 0xFF87AFD7, 0xFF87AFFF,
+            0xFF87D700, 0xFF87D75F, 0xFF87D787, 0xFF87D7AF, 0xFF87D7D7, 0xFF87D7FF,
+            0xFF87FF00, 0xFF87FF5F, 0xFF87FF87, 0xFF87FFAF, 0xFF87FFD7, 0xFF87FFFF,
 
-            0xFF0000AF, 0xFF5F00AF, 0xFF8700AF, 0xFFAF00AF, 0xFFD700AF, 0xFFFF00AF,
-            0xFF005FAF, 0xFF5F5FAF, 0xFF875FAF, 0xFFAF5FAF, 0xFFD75FAF, 0xFFFF5FAF,
-            0xFF0087AF, 0xFF5F87AF, 0xFF8787AF, 0xFFAF87AF, 0xFFD787AF, 0xFFFF87AF,
-            0xFF00AFAF, 0xFF5FAFAF, 0xFF87AFAF, 0xFFAFAFAF, 0xFFD7AFAF, 0xFFFFAFAF,
-            0xFF00D7AF, 0xFF5FD7AF, 0xFF87D7AF, 0xFFAFD7AF, 0xFFD7D7AF, 0xFFFFD7AF,
-            0xFF00FFAF, 0xFF5FFFAF, 0xFF87FFAF, 0xFFAFFFAF, 0xFFD7FFAF, 0xFFFFFFAF,
+            0xFFAF0000, 0xFFAF005F, 0xFFAF0087, 0xFFAF00AF, 0xFFAF00D7, 0xFFAF00FF,
+            0xFFAF5F00, 0xFFAF5F5F, 0xFFAF5F87, 0xFFAF5FAF, 0xFFAF5FD7, 0xFFAF5FFF,
+            0xFFAF8700, 0xFFAF875F, 0xFFAF8787, 0xFFAF87AF, 0xFFAF87D7, 0xFFAF87FF,
+            0xFFAFAF00, 0xFFAFAF5F, 0xFFAFAF87, 0xFFAFAFAF, 0xFFAFAFD7, 0xFFAFAFFF,
+            0xFFAFD700, 0xFFAFD75F, 0xFFAFD787, 0xFFAFD7AF, 0xFFAFD7D7, 0xFFAFD7FF,
+            0xFFAFFF00, 0xFFAFFF5F, 0xFFAFFF87, 0xFFAFFFAF, 0xFFAFFFD7, 0xFFAFFFFF,
 
-            0xFF0000D7, 0xFF5F00D7, 0xFF8700D7, 0xFFAF00D7, 0xFFD700D7, 0xFFFF00D7,
-            0xFF005FD7, 0xFF5F5FD7, 0xFF875FD7, 0xFFAF5FD7, 0xFFD75FD7, 0xFFFF5FD7,
-            0xFF0087D7, 0xFF5F87D7, 0xFF8787D7, 0xFFAF87D7, 0xFFD787D7, 0xFFFF87D7,
-            0xFF00AFD7, 0xFF5FAFD7, 0xFF87AFD7, 0xFFAFAFD7, 0xFFD7AFD7, 0xFFFFAFD7,
-            0xFF00D7D7, 0xFF5FD7D7, 0xFF87D7D7, 0xFFAFD7D7, 0xFFD7D7D7, 0xFFFFD7D7,
-            0xFF00FFD7, 0xFF5FFFD7, 0xFF87FFD7, 0xFFAFFFD7, 0xFFD7FFD7, 0xFFFFFFD7,
+            0xFFD70000, 0xFFD7005F, 0xFFD70087, 0xFFD700AF, 0xFFD700D7, 0xFFD700FF,
+            0xFFD75F00, 0xFFD75F5F, 0xFFD75F87, 0xFFD75FAF, 0xFFD75FD7, 0xFFD75FFF,
+            0xFFD78700, 0xFFD7875F, 0xFFD78787, 0xFFD787AF, 0xFFD787D7, 0xFFD787FF,
+            0xFFD7AF00, 0xFFD7AF5F, 0xFFD7AF87, 0xFFD7AFAF, 0xFFD7AFD7, 0xFFD7AFFF,
+            0xFFD7D700, 0xFFD7D75F, 0xFFD7D787, 0xFFD7D7AF, 0xFFD7D7D7, 0xFFD7D7FF,
+            0xFFD7FF00, 0xFFD7FF5F, 0xFFD7FF87, 0xFFD7FFAF, 0xFFD7FFD7, 0xFFD7FFFF,
 
-            0xFF0000FF, 0xFF5F00FF, 0xFF8700FF, 0xFFAF00FF, 0xFFD700FF, 0xFFFE00FF,
-            0xFF005FFF, 0xFF5F5FFF, 0xFF875FFF, 0xFFAF5FFF, 0xFFD75FFF, 0xFFFE5FFF,
-            0xFF0087FF, 0xFF5F87FF, 0xFF8787FF, 0xFFAF87FF, 0xFFD787FF, 0xFFFE87FF,
-            0xFF00AFFF, 0xFF5FAFFF, 0xFF87AFFF, 0xFFAFAFFF, 0xFFD7AFFF, 0xFFFEAFFF,
-            0xFF00D7FF, 0xFF5FD7FF, 0xFF87D7FF, 0xFFAFD7FF, 0xFFD7D7FF, 0xFFFED7FF,
-            0xFF00FFFF, 0xFF5FFFFF, 0xFF87FFFF, 0xFFAFFFFF, 0xFFD7FFFF, 0xFFFFFFFF,
+            0xFFFF0000, 0xFFFF005F, 0xFFFF0087, 0xFFFF00AF, 0xFFFF00D7, 0xFFFF00FE,
+            0xFFFF5F00, 0xFFFF5F5F, 0xFFFF5F87, 0xFFFF5FAF, 0xFFFF5FD7, 0xFFFF5FFE,
+            0xFFFF8700, 0xFFFF875F, 0xFFFF8787, 0xFFFF87AF, 0xFFFF87D7, 0xFFFF87FE,
+            0xFFFFAF00, 0xFFFFAF5F, 0xFFFFAF87, 0xFFFFAFAF, 0xFFFFAFD7, 0xFFFFAFFE,
+            0xFFFFD700, 0xFFFFD75F, 0xFFFFD787, 0xFFFFD7AF, 0xFFFFD7D7, 0xFFFFD7FE,
+            0xFFFFFF00, 0xFFFFFF5F, 0xFFFFFF87, 0xFFFFFFAF, 0xFFFFFFD7, 0xFFFFFFFF,
             // Grayscale colors, 24 steps
             0xFF080808, 0xFF121212, 0xFF1C1C1C, 0xFF262626, 0xFF303030, 0xFF3A3A3A,
             0xFF444444, 0xFF4E4E4E, 0xFF585858, 0xFF626262, 0xFF6C6C6C, 0xFF767676,
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
         });
-        friend auto& operator << (std::ostream& s, rgba c)
+        friend auto& operator << (std::ostream& s, argb c)
         {
             return s << "{" << (si32)c.chan.r
                      << "," << (si32)c.chan.g
@@ -611,7 +617,7 @@ namespace netxs
         {
             for (auto i = 0; i < 16; i++)
             {
-                proc(i, rgba::vtm16[i]);
+                proc(i, argb::vtm16[i]);
             }
         }
         auto lookup(auto& fast, auto&& palette) const
@@ -662,12 +668,12 @@ namespace netxs
             }
             return hit.second;
         }
-        auto to_vga16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color mode).
+        auto to_vga16(bool fg = true) const // argb: 4-bit Foreground color (vtm 16-color mode).
         {
             static auto cache_fg = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0; i < 16; i++) table.push_back({ rgba::vt256[i], i });
+                for (auto i = 0; i < 16; i++) table.push_back({ argb::vt256[i], i });
                 table.insert(table.end(),
                 {
                     { 0xFF'ff'ff'ff, tint::whitelt   },
@@ -676,15 +682,15 @@ namespace netxs
                     { 0xff'55'55'55, tint::blacklt   },
                     { 0xFF'00'00'00, tint::blackdk   },
 
-                    { 0xFF'00'00'55, tint::reddk     },
-                    { 0xFF'00'00'80, tint::reddk     },
-                    { 0xFF'00'00'aa, tint::reddk     },
-                    { 0xFF'00'00'ff, tint::redlt     },
+                    { 0xFF'55'00'00, tint::reddk     },
+                    { 0xFF'80'00'00, tint::reddk     },
+                    { 0xFF'aa'00'00, tint::reddk     },
+                    { 0xFF'ff'00'00, tint::redlt     },
 
-                    { 0xFF'55'00'00, tint::bluedk    },
-                    { 0xFF'80'00'00, tint::bluedk    },
-                    { 0xFF'aa'00'00, tint::bluedk    },
-                    { 0xFF'ff'00'00, tint::bluelt    },
+                    { 0xFF'00'00'55, tint::bluedk    },
+                    { 0xFF'00'00'80, tint::bluedk    },
+                    { 0xFF'00'00'aa, tint::bluedk    },
+                    { 0xFF'00'00'ff, tint::bluelt    },
 
                     { 0xFF'00'aa'00, tint::greendk   },
                     { 0xFF'00'80'00, tint::greendk   },
@@ -696,46 +702,46 @@ namespace netxs
                     { 0xFF'ff'55'ff, tint::magentalt },
                     { 0xFF'ff'00'ff, tint::magentalt },
 
-                    { 0xFF'80'80'00, tint::cyandk    },
-                    { 0xFF'aa'aa'00, tint::cyandk    },
-                    { 0xFF'ff'ff'55, tint::cyanlt    },
-                    { 0xFF'ff'ff'00, tint::cyanlt    },
+                    { 0xFF'00'80'80, tint::cyandk    },
+                    { 0xFF'00'aa'aa, tint::cyandk    },
+                    { 0xFF'55'ff'ff, tint::cyanlt    },
+                    { 0xFF'00'ff'ff, tint::cyanlt    },
 
-                    { 0xFF'00'55'aa, tint::yellowdk  },
-                    { 0xFF'00'80'80, tint::yellowdk  },
-                    { 0xFF'00'ff'ff, tint::yellowlt  },
-                    { 0xFF'55'ff'ff, tint::yellowlt  },
+                    { 0xFF'aa'55'00, tint::yellowdk  },
+                    { 0xFF'80'80'00, tint::yellowdk  },
+                    { 0xFF'ff'ff'00, tint::yellowlt  },
+                    { 0xFF'ff'ff'55, tint::yellowlt  },
                 });
                 return table;
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            auto c = lookup(cache, std::span{ rgba::vt256.data(), 16 });
+            auto c = lookup(cache, std::span{ argb::vt256.data(), 16 });
             return netxs::swap_bits<0, 2>(c); // ANSI<->DOS color scheme reindex.
         }
-        auto to_vtm16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color palette).
+        auto to_vtm16(bool fg = true) const // argb: 4-bit Foreground color (vtm 16-color palette).
         {
             static auto cache_fg = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0u; i < std::size(rgba::vtm16); i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(argb::vtm16); i++) table.push_back({ argb::vtm16[i], i });
                 table.insert(table.end(),
                 {
-                    { 0xFF'00'00'55,                 tint16::reddk     },
-                    { 0xFF'00'00'aa,                 tint16::reddk     },
-                    { 0xFF'00'00'80,                 tint16::reddk     },
-                    { 0xFF'00'00'ff,                 tint16::redlt     },
+                    { 0xFF'55'00'00,                 tint16::reddk     },
+                    { 0xFF'aa'00'00,                 tint16::reddk     },
+                    { 0xFF'80'00'00,                 tint16::reddk     },
+                    { 0xFF'ff'00'00,                 tint16::redlt     },
 
-                    { rgba::vt256[tint::magentadk],  tint16::reddk     },
+                    { argb::vt256[tint::magentadk],  tint16::reddk     },
                     { 0xFF'80'00'80,                 tint16::reddk     },
                     { 0xFF'ff'55'ff,                 tint16::magentalt },
                     { 0xFF'ff'00'ff,                 tint16::magentalt },
 
-                    { rgba::vt256[tint::cyandk],     tint16::bluelt    },
-                    { 0xFF'80'80'00,                 tint16::bluelt    },
-                    { 0xFF'aa'aa'00,                 tint16::bluelt    },
-                    { 0xFF'ff'ff'55,                 tint16::cyanlt    },
-                    { 0xFF'ff'ff'00,                 tint16::cyanlt    },
+                    { argb::vt256[tint::cyandk],     tint16::bluelt    },
+                    { 0xFF'00'80'80,                 tint16::bluelt    },
+                    { 0xFF'00'aa'aa,                 tint16::bluelt    },
+                    { 0xFF'55'ff'ff,                 tint16::cyanlt    },
+                    { 0xFF'00'ff'ff,                 tint16::cyanlt    },
 
                     { 0xFF'ff'ff'ff,                 tint16::whitelt   },
                     { 0xff'aa'aa'aa,                 tint16::whitedk   },
@@ -743,48 +749,48 @@ namespace netxs
                     { 0xff'55'55'55,                 tint16::graydk    },
                     { 0xFF'00'00'00,                 tint16::blackdk   },
 
-                    { 0xFF'55'00'00,                 tint16::bluedk    },
-                    { 0xFF'80'00'00,                 tint16::bluedk    },
-                    { 0xFF'aa'00'00,                 tint16::bluedk    },
-                    { 0xFF'ff'00'00,                 tint16::bluelt    },
+                    { 0xFF'00'00'55,                 tint16::bluedk    },
+                    { 0xFF'00'00'80,                 tint16::bluedk    },
+                    { 0xFF'00'00'aa,                 tint16::bluedk    },
+                    { 0xFF'00'00'ff,                 tint16::bluelt    },
 
                     { 0xFF'00'aa'00,                 tint16::greendk   },
                     { 0xFF'00'80'00,                 tint16::greendk   },
                     { 0xFF'00'ff'00,                 tint16::greenlt   },
                     { 0xFF'55'ff'55,                 tint16::greenlt   },
 
-                    { 0xFF'00'55'aa,                 tint16::yellowdk  },
-                    { 0xFF'00'80'80,                 tint16::yellowdk  },
-                    { 0xFF'00'ff'ff,                 tint16::yellowlt  },
-                    { 0xFF'55'ff'ff,                 tint16::yellowlt  },
+                    { 0xFF'aa'55'00,                 tint16::yellowdk  },
+                    { 0xFF'80'80'00,                 tint16::yellowdk  },
+                    { 0xFF'ff'ff'00,                 tint16::yellowlt  },
+                    { 0xFF'ff'ff'55,                 tint16::yellowlt  },
                 });
                 return table;
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            return lookup(cache, rgba::vtm16);
+            return lookup(cache, argb::vtm16);
         }
-        auto to_vtm8() const // rgba: 3-bit Background color (vtm 8-color palette).
+        auto to_vtm8() const // argb: 3-bit Background color (vtm 8-color palette).
         {
             static auto cache = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0u; i < std::size(rgba::vtm16) / 2; i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(argb::vtm16) / 2; i++) table.push_back({ argb::vtm16[i], i });
                 table.insert(table.end(),
                 {
-                    { rgba::vt256[tint::bluelt   ],  tint16::bluedk  },
-                    { rgba::vt256[tint::redlt    ],  tint16::reddk   },
-                    { rgba::vt256[tint::cyanlt   ],  tint16::whitedk },
-                    { rgba::vt256[tint::cyandk   ],  tint16::graylt  },
-                    { rgba::vt256[tint::greenlt  ],  tint16::graylt  },
-                    { rgba::vt256[tint::greendk  ],  tint16::graydk  },
-                    { rgba::vt256[tint::yellowdk ],  tint16::graydk  },
-                    { rgba::vt256[tint::yellowlt ],  tint16::whitelt },
-                    { rgba::vt256[tint::magentalt],  tint16::reddk   },
-                    { rgba::vt256[tint::magentadk],  tint16::reddk   },
+                    { argb::vt256[tint::bluelt   ],  tint16::bluedk  },
+                    { argb::vt256[tint::redlt    ],  tint16::reddk   },
+                    { argb::vt256[tint::cyanlt   ],  tint16::whitedk },
+                    { argb::vt256[tint::cyandk   ],  tint16::graylt  },
+                    { argb::vt256[tint::greenlt  ],  tint16::graylt  },
+                    { argb::vt256[tint::greendk  ],  tint16::graydk  },
+                    { argb::vt256[tint::yellowdk ],  tint16::graydk  },
+                    { argb::vt256[tint::yellowlt ],  tint16::whitelt },
+                    { argb::vt256[tint::magentalt],  tint16::reddk   },
+                    { argb::vt256[tint::magentadk],  tint16::reddk   },
                     { 0xff'00'00'00,                 tint16::blackdk },
-                    { 0xff'00'00'FF,                 tint16::reddk   },
-                    { 0xff'FF'00'00,                 tint16::bluedk  },
+                    { 0xff'FF'00'00,                 tint16::reddk   },
+                    { 0xff'00'00'FF,                 tint16::bluedk  },
                     { 0xff'FF'FF'FF,                 tint16::whitelt },
                     { 0xff'aa'aa'aa,                 tint16::whitedk },
                     { 0xff'80'80'80,                 tint16::graylt  },
@@ -792,7 +798,7 @@ namespace netxs
                 });
                 return table;
             }();
-            return lookup(cache, std::span{ rgba::vtm16.data(), 8 });
+            return lookup(cache, std::span{ argb::vtm16.data(), 8 });
         }
     };
 
@@ -807,14 +813,14 @@ namespace netxs
         constexpr irgb(T r, T g, T b, T a = { -1 })
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
-        constexpr irgb(rgba c)
+        constexpr irgb(argb c)
             : r{ c.chan.r },
               g{ c.chan.g },
               b{ c.chan.b },
               a{ c.chan.a }
         { }
 
-        operator rgba() const { return rgba{ r, g, b, a }; }
+        operator argb() const { return argb{ r, g, b, a }; }
 
         bool operator > (auto n) const { return r > n || g > n || b > n || a > n; }
         auto operator / (auto n) const { return irgb{ r / n, g / n, b / n, a / n }; } // 10% faster than divround.
@@ -859,14 +865,14 @@ namespace netxs
             b -= c.b;
             a -= c.a;
         }
-        void operator += (rgba c)
+        void operator += (argb c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
             a += c.chan.a;
         }
-        void operator -= (rgba c)
+        void operator -= (argb c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
@@ -1033,8 +1039,8 @@ namespace netxs
             struct pxtype
             {
                 static constexpr auto none   = 0;
-                static constexpr auto colors = 1; // rgba colors pair (cursor/grid/whatever).
-                static constexpr auto bitmap = 2; // Attached rgba bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
+                static constexpr auto colors = 1; // argb colors pair (cursor/grid/whatever).
+                static constexpr auto bitmap = 2; // Attached argb bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
                 static constexpr auto reserv = 3;
             };
             struct attr
@@ -1194,8 +1200,8 @@ namespace netxs
         };
         struct clrs
         {
-            rgba bg;
-            rgba fg;
+            argb bg;
+            argb fg;
 
             constexpr clrs() = default;
             constexpr clrs(auto colors)
@@ -1534,7 +1540,7 @@ namespace netxs
                         dest += egc;
                         return;
                     }
-                    auto bgc = rgba::transit(base.uv.bg, base.uv.fg, k);
+                    auto bgc = argb::transit(base.uv.bg, base.uv.fg, k);
                     if (bgc != base.uv.bg)
                     {
                         base.uv.bg = bgc;
@@ -1654,8 +1660,8 @@ namespace netxs
         // cell: Cell transitional color blending (fg/bg only).
         void avg(cell const& c1, cell const& c2, si32 level)
         {
-            uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
-            uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
+            uv.fg = argb::transit(c1.uv.fg, c2.uv.fg, level);
+            uv.bg = argb::transit(c1.uv.bg, c2.uv.bg, level);
         }
         // cell: Set grapheme cluster.
         void set_gc(cell const& c)
@@ -1674,8 +1680,8 @@ namespace netxs
                                    st = c.st;
                                    gc = c.gc;
                                    px = c.px;              return *this; }
-        auto& bgc(rgba c)        { uv.bg = c;              return *this; } // cell: Set background color.
-        auto& fgc(rgba c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
+        auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
+        auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
         auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
         auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set foreground alpha/transparency.
         auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
@@ -1683,7 +1689,7 @@ namespace netxs
         auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set bold attribute.
         auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set italic attribute.
         auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set underline attribute.
-        auto& unc(rgba c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
+        auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
         auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
         auto& img(ui64 p)        { px.token = p;           return *this; } // cell: Set attached bitmap.
@@ -1789,8 +1795,8 @@ namespace netxs
         auto cursor_color()
         {
             auto colored = st.attrs.bitmap == body::pxtype::colors;
-            return colored ? std::pair{ rgba{ (ui32)(px.token >> 32) }, rgba{ (ui32)(px.token & 0xFFFF'FFFF) }}
-                           : std::pair{ rgba{}, rgba{} };
+            return colored ? std::pair{ argb{ (ui32)(px.token >> 32) }, argb{ (ui32)(px.token & 0xFFFF'FFFF) }}
+                           : std::pair{ argb{}, argb{} };
         }
         // cell: Return whitespace cell.
         cell spc() const
@@ -1852,13 +1858,13 @@ namespace netxs
         private:
             struct contrast_t : public brush_t<contrast_t>
             {
-                static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
+                static constexpr auto threshold = argb{ tint::whitedk }.luma() - 0xF;
                 template<class C>
                 constexpr inline auto operator () (C brush) const
                 {
                     return func<C>(brush);
                 }
-                static inline auto invert(rgba color)
+                static inline auto invert(argb color)
                 {
                     return color.luma() >= threshold ? 0xFF000000
                                                      : 0xFFffffff;
@@ -2092,7 +2098,7 @@ namespace netxs
                         else
                         {
                             auto b = inv() ? fgc() : bgc();
-                            auto u = rgba{ cell::shaders::contrast.invert(b) };
+                            auto u = argb{ cell::shaders::contrast.invert(b) };
                             und(unln::line).unc(u);
                         }
                     }
@@ -2175,7 +2181,7 @@ namespace netxs
                     {
                         auto x0 = x / (sz.x - 1.f);
                         auto sx = spline(x0);
-                        auto xy = sy * sx; // rgba::gamma(sy * sx);
+                        auto xy = sy * sx; // argb::gamma(sy * sx);
                         auto a = (byte)std::round(alfa * xy);
                         fuse(*it++, a);
                     }
@@ -2603,7 +2609,7 @@ namespace netxs
         {
             fill(clip(), cell::shaders::full(c));
         }
-        void grad(rgba c1, rgba c2) // core: Fill the specified region with the linear gradient.
+        void grad(argb c1, argb c2) // core: Fill the specified region with the linear gradient.
         {
             auto mx = (fp32)region.size.x;
             auto my = (fp32)region.size.y;

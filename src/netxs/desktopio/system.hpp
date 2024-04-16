@@ -717,8 +717,8 @@ namespace netxs::os
                     vtparser()
                     {
                         auto s = status(); // Update current brush state.
-                        auto c = cell{}.fgc(rgba::vga16[(s.wAttributes & 0x0F)])
-                                       .bgc(rgba::vga16[(s.wAttributes & 0xF0) >> 4])
+                        auto c = cell{}.fgc(argb::vga16[(s.wAttributes & 0x0F)])
+                                       .bgc(argb::vga16[(s.wAttributes & 0xF0) >> 4])
                                        .inv(s.wAttributes & COMMON_LVB_REVERSE_VIDEO);
                         parser::brush.reset(c);
                         parser::style.reset();
@@ -5658,7 +5658,7 @@ namespace netxs::os
                 {
                     auto c16 = palette;
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
-                    rgba::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = color & 0x00FFFFFF; }); // conhost crashed if alpha non zero.
+                    argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 

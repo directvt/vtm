@@ -802,6 +802,8 @@ namespace netxs
         auto length() const { return _data.length(); }
         auto  begin()       { return _data.begin();  }
         auto  begin() const { return _data.begin();  }
+        auto   data()       { return _data.data();   }
+        auto   data() const { return _data.data();   }
         auto    end()       { return _data.end();    }
         auto    end() const { return _data.end();    }
         auto&  area()       { return _area;          }

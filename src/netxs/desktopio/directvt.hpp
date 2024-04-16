@@ -154,7 +154,7 @@ namespace netxs::directvt
                     auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
                     block += v;
                 }
-                else if constexpr (std::is_same_v<D, rgba>)
+                else if constexpr (std::is_same_v<D, argb>)
                 {
                     auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
                     block += v;
