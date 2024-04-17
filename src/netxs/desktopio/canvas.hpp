@@ -49,6 +49,14 @@ namespace netxs
     {
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
+        pureblack   = 16 + 36 * 0 + 6 * 0 + 0,
+        purewhite   = 16 + 36 * 5 + 6 * 5 + 5,
+        purered     = 16 + 36 * 5 + 6 * 0 + 0,
+        puregreen   = 16 + 36 * 0 + 6 * 5 + 0,
+        pureblue    = 16 + 36 * 0 + 6 * 0 + 5,
+        pureyellow  = 16 + 36 * 5 + 6 * 5 + 0,
+        purecyan    = 16 + 36 * 0 + 6 * 5 + 5,
+        puremagenta = 16 + 36 * 5 + 6 * 0 + 5,
     };
 
     struct tint16
@@ -90,6 +98,12 @@ namespace netxs
                     static_cast<byte>(g),
                     static_cast<byte>(r),
                     static_cast<byte>(a) }
+        { }
+        constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a)
+            : chan{ static_cast<byte>(b * 255),
+                    static_cast<byte>(g * 255),
+                    static_cast<byte>(r * 255),
+                    static_cast<byte>(a * 255) }
         { }
         constexpr argb(ui32 c)
             : token{ netxs::letoh(c) }
@@ -1898,6 +1912,11 @@ namespace netxs
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend(src); }
             };
+            struct alpha_t : public brush_t<alpha_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha(src); }
+            };
             struct full_t : public brush_t<full_t>
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
@@ -2054,6 +2073,7 @@ namespace netxs
             static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
             static constexpr auto    blend =    blend_t{};
+            static constexpr auto    alpha =    alpha_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
@@ -2157,7 +2177,14 @@ namespace netxs
             twod over{};
             twod step{};
 
-            // shadow: Generate sRGB (gamma=2.2) shadow sprite.
+            shadow() = default;
+            shadow(shadow&&) = default;
+            shadow(shadow const&) = default;
+            shadow(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
+            {
+                generate(bias, alfa, size, offset, ratio, fuse);
+            }
+            // shadow: Generate sRGB shadow sprite.
             void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
             {
                 //bias    += _k0 * 0.1f;
@@ -2910,4 +2937,40 @@ namespace netxs
             digest++;
         }
     };
+
+    template<si32 Repeat = 2, bool InnerGlow = faux, class T = vrgb, class P = noop, si32 Ratio = 1>
+    void boxblur(auto& image, si32 r, T&& cache = {}, P shade = {})
+    {
+        using irgb = T::value_type;
+
+        auto area = image.area();
+        auto clip = image.clip();
+        if (!clip) return;
+
+        auto w = std::max(0, clip.size.x);
+        auto h = std::max(0, clip.size.y);
+        auto s = w * h;
+
+        if (cache.size() < (size_t)s)
+        {
+            cache.resize(s);
+        }
+
+        auto start = clip.coor - area.coor;
+        auto s_ptr = image.begin() + start.x + area.size.x * start.y;
+        auto d_ptr = cache.begin();
+
+        auto s_width = area.size.x;
+        auto d_width = clip.size.x;
+
+        auto s_point = [](auto c)->auto& { return *c; }; //->bgc(); };
+        auto d_point = [](auto c)->auto& { return *c; };
+
+        for (auto _(Repeat); _--;) // Emulate Gaussian blur.
+        netxs::boxblur<irgb, InnerGlow>(s_ptr,
+                                        d_ptr, w,
+                                               h, r, s_width,
+                                                     d_width, Ratio, s_point,
+                                                                     d_point, shade);
+    }
 }

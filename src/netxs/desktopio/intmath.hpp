@@ -799,6 +799,7 @@ namespace netxs
         using base = T;
         base _data;
         Rect _area;
+        Rect _clip;
         auto length() const { return _data.length(); }
         auto  begin()       { return _data.begin();  }
         auto  begin() const { return _data.begin();  }
@@ -806,8 +807,11 @@ namespace netxs
         auto   data() const { return _data.data();   }
         auto    end()       { return _data.end();    }
         auto    end() const { return _data.end();    }
+        auto&  clip()       { return _clip;          }
+        auto&  clip() const { return _clip;          }
         auto&  area()       { return _area;          }
         auto&  area() const { return _area;          }
+        auto   clip(auto c) { _clip = c;             }
         void   step(auto s) { _area.coor += s;       }
         void   move(auto p) { _area.coor = p;        }
         auto&  size()       { return _area.size;     }
@@ -1359,25 +1363,5 @@ namespace netxs
                                                        s_dty, 1, count, d_ref,           //     auto works = std::list<std::thread>{};
                                                                         s_ref, shade);   //     while (t--) works.emplace_back(w);
         }                                                                                //     for (auto& t : works) t.join();
-    }
-    template<class T, bool InnerGlow = faux>
-    void boxblur(T& bitmap, si32 r, auto area, auto clip)
-    {
-        using type = std::decay_t<decltype(*bitmap.begin())>;
-        auto w = std::max(0, clip.size.x);
-        auto h = std::max(0, clip.size.y);
-        auto s = w * h;
-        auto buffer = T::base(s);
-        auto coor = clip.coor - area.coor;
-        auto s_ptr = bitmap.begin() + coor.x * coor.y;
-        auto d_ptr = buffer.begin();
-        auto s_width = area.size.x;
-        auto d_width = clip.size.x;
-        auto d_point = [](type* c)->auto& { return *c; };
-        netxs::boxblur<type, InnerGlow>(s_ptr,
-                                        d_ptr, w,
-                                               h, r, s_width,
-                                                     d_width, 1, d_point,
-                                                                 d_point);
     }
 }
