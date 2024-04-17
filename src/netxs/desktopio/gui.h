@@ -1,0 +1,893 @@
+// Copyright (c) NetXS Group.
+// Licensed under the MIT license.
+
+#pragma once
+
+#include <dwrite_2.h>
+#pragma comment(lib, "Gdi32")
+#pragma comment(lib, "Dwrite.lib")
+
+#define ok2(...) [&](){ auto hr = __VA_ARGS__; if (hr != S_OK) log(utf::to_hex(hr), " ", #__VA_ARGS__); return hr == S_OK; }()
+
+namespace netxs::gui
+{
+    using namespace input;
+
+    auto fx_trans = [](auto& c){ c = 0x01'00'00'00; };
+    auto fx_white = [](auto& c){ c = 0x5F'23'23'23; };
+    auto fx_black = [](auto& c){ c = 0x3F'00'00'00; };
+
+    struct w32window : IDWriteTextRenderer
+    {
+        using bits = netxs::raster<std::span<argb>, rect>;
+        using dwrt = IDWriteBitmapRenderTarget*;
+
+        struct gcfg
+        {
+            IDWriteFactory2*        pDWriteFactory{};
+            IDWriteGdiInterop*      pGdiInterop{};
+            IDWriteRenderingParams* pRenderingParams{};
+            IDWriteTextFormat*      pTextFormat{};
+            void reset()
+            {
+                pRenderingParams->Release();
+                pTextFormat->Release();
+                pGdiInterop->Release();
+                pDWriteFactory->Release();
+            }
+        };
+
+        HDC  hdc;
+        argb fgc;
+        argb shadow_color;
+        twod shadow_shift;
+        HWND hWnd;
+        bool sync;
+        rect prev;
+        rect area;
+        twod size;
+        ui32 refs;
+        gcfg conf;
+        dwrt surf;
+
+        w32window(w32window const&) = default;
+        w32window(w32window&&) = default;
+        w32window(gcfg context, HWND hWnd)
+            : hWnd{ hWnd },
+              sync{ faux },
+              prev{ .coor = dot_mx, .size = dot_11 },
+              area{ .size = dot_11 },
+              size{ dot_11 },
+              refs{ 0 },
+              conf{ context },
+              surf{ nullptr }
+        {
+            if (S_OK == conf.pGdiInterop->CreateBitmapRenderTarget(NULL, size.x, size.y, &surf))
+            {
+                hdc = surf->GetMemoryDC();
+            }
+            else size = {};
+        }
+        void reset() // We are not using custom copy/move ctors.
+        {
+            if (surf) surf->Release();
+        }
+        auto canvas()
+        {
+            if (area && hdc)
+            {
+                if (area.size != size)
+                {
+                    auto hr = surf->Resize(area.size.x, area.size.y);
+                    if (hr == S_OK) size = area.size;
+                    else            log("bitmap resizing error: ", utf::to_hex(hr));
+                }
+                sync = faux;
+                auto pv = BITMAP{};
+                if (sizeof(BITMAP) == ::GetObjectW(::GetCurrentObject(hdc, OBJ_BITMAP), sizeof(BITMAP), &pv))
+                {
+                    return bits{ std::span<argb>{ (argb*)pv.bmBits, (sz_t)size.x * size.y }, rect{ area.coor, size }};
+                }
+            }
+            return bits{};
+        }
+        auto textout(rect dest, argb color, wiew txt, argb shadow_clr = {}, twod shadow_off = {})
+        {
+            if (!dest || !hdc) return;
+            fgc = color;
+            shadow_color = shadow_clr;
+            shadow_shift = shadow_off;
+            auto pTextLayout = (IDWriteTextLayout*)nullptr;
+            auto textLength = (UINT32)txt.size();
+            ok2(conf.pDWriteFactory->CreateTextLayout(txt.data(),
+                                                      textLength,
+                                                      conf.pTextFormat,
+                                                      (fp32)std::abs(dest.size.x),
+                                                      (fp32)std::abs(dest.size.y),
+                                                      &pTextLayout));
+            if (dest.size.y < 0)
+            {
+                auto dtm = DWRITE_TEXT_METRICS{};
+                pTextLayout->GetMetrics(&dtm);
+                auto minHeight = dtm.height;
+                //auto minWidth = dtm.widthIncludingTrailingWhitespace;
+                //log("mh ", minHeight, " dest.size.y ", dest.size.y);
+                dest.coor.y -= (si32)minHeight;
+                dest.size.y = -dest.size.y;
+            }
+            if (dest.size.x < 0)
+            {
+                auto min_width = fp32{};
+                pTextLayout->DetermineMinWidth(&min_width);
+                auto mw = (si32)min_width;
+                //log("mw ", mw, " dest.size.x ", dest.size.x);
+                dest.coor.x -= mw + (shadow_clr ? shadow_off.x * 3 : 0);
+                dest.size.x = -dest.size.x;
+            }
+            //pTextLayout->SetUnderline(true, DWRITE_TEXT_RANGE{ 0, textLength });
+            //pTextLayout->SetStrikethrough(true, DWRITE_TEXT_RANGE{ 0, textLength });
+            ok2(pTextLayout->Draw(hdc, this, (fp32)dest.coor.x, (fp32)dest.coor.y));
+            pTextLayout->Release();
+        }
+        void display()
+        {
+            if (sync || !hdc) return;
+            static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
+            auto scr_coor = POINT{};
+            auto old_size =  SIZE{ prev.size.x, prev.size.y };
+            auto old_coor = POINT{ prev.coor.x, prev.coor.y };
+            auto win_size =  SIZE{      size.x,      size.y };
+            auto win_coor = POINT{ area.coor.x, area.coor.y };
+            //auto sized = prev.size(     size);
+            auto moved = prev.coor(area.coor);
+            auto rc = ::UpdateLayeredWindow(hWnd,   // 1.5 ms (copy bitmap to hardware)
+                                            HDC{},                       // No color palette matching.  HDC hdcDst,
+                                            moved ? &win_coor : nullptr, // POINT         *pptDst,
+                                            &win_size,                   // SIZE          *psize,
+                                            hdc,                         // HDC           hdcSrc,
+                                            &scr_coor,                   // POINT         *pptSrc,
+                                            {},                          // COLORREF      crKey,
+                                            &blend_props,                // BLENDFUNCTION *pblend,
+                                            ULW_ALPHA);                  // DWORD         dwFlags
+            if (!rc) log("UpdateLayeredWindow returns unexpected result ", rc);
+            sync = true;
+        }
+        void close()
+        {
+            ::SendMessageW(hWnd, WM_CLOSE, NULL, NULL);
+        }
+        IFACEMETHOD(DrawGlyphRun)(void* /*clientDrawingContext*/, fp32 baselineOriginX, fp32 baselineOriginY, DWRITE_MEASURING_MODE measuringMode, DWRITE_GLYPH_RUN const* glyphRun, DWRITE_GLYPH_RUN_DESCRIPTION const* glyphRunDescription, IUnknown* /*clientDrawingEffect*/)
+        {
+            auto dirtyRect = RECT{};
+            if (shadow_color) //todo draw shadow by the resulting bitmap instead of glyph run
+            {
+                auto cache = vrgb{};
+                auto clip = rect{};
+                auto dest = canvas();
+                dest.move(dot_00);
+                auto test = 0xff;
+                for (auto i = 0; i < 3 ; i++) //todo optimize, just apply gamma
+                {
+                    surf->DrawGlyphRun(baselineOriginX + shadow_shift.x,
+                                                 baselineOriginY + shadow_shift.y,
+                                                 measuringMode,
+                                                 glyphRun,
+                                                 conf.pRenderingParams,
+                                                 test,
+                                                 &dirtyRect);
+                    clip = rect{{ dirtyRect.left, dirtyRect.top }, { dirtyRect.right - dirtyRect.left, dirtyRect.bottom - dirtyRect.top }};
+                    clip += dent{ 1,1,1,1 } * 2;
+                    clip.trimby(dest.area());
+                    dest.clip(clip);
+                    netxs::boxblur<1>(dest, 1, cache);
+                }
+                auto d = shadow_color;
+                netxs::onrect(dest, clip, [d](auto& c){ c.chan.a = c.chan.r; c.chan.r = d.chan.r; c.chan.g = d.chan.g; c.chan.b = d.chan.b; });
+            }
+            auto para_layers = (IDWriteColorGlyphRunEnumerator*)nullptr;
+            auto hr = conf.pDWriteFactory->TranslateColorGlyphRun(baselineOriginX, baselineOriginY, glyphRun, glyphRunDescription, measuringMode, nullptr, 0, &para_layers);
+            if (para_layers) //todo cache color glyphs
+            {
+                auto subrun = (DWRITE_COLOR_GLYPH_RUN const*)nullptr;
+                auto next = BOOL{ true };
+                do
+                {
+                    hr = para_layers->GetCurrentRun(&subrun);
+                    auto& s = *subrun;
+                    auto color = argb{ s.runColor.r, s.runColor.g, s.runColor.b, s.runColor.a }; // s.runColor.a could be nan != 0.
+                    if (hr == S_OK && color.chan.a)
+                    {
+                        hr = surf->DrawGlyphRun(s.baselineOriginX, s.baselineOriginY,
+                                                measuringMode,
+                                                &s.glyphRun,
+                                                conf.pRenderingParams,
+                                                argb::swap_rb(s.paletteIndex == -1 ? fgc.token : color.token),
+                                                &dirtyRect);
+                    }
+                }
+                while (para_layers->MoveNext(&next), next);
+            }
+            else if (hr == DWRITE_E_NOCOLOR)
+            {
+                hr = surf->DrawGlyphRun(baselineOriginX,
+                                        baselineOriginY,
+                                        measuringMode,
+                                        glyphRun,
+                                        conf.pRenderingParams,
+                                        argb::swap_rb(fgc.token),
+                                        &dirtyRect);
+            }
+            return hr;
+        }
+        IFACEMETHOD(IsPixelSnappingDisabled)(void* /*clientDrawingContext*/, BOOL* isDisabled)
+        {
+            *isDisabled = FALSE;
+            return S_OK;
+        }
+        IFACEMETHOD(GetCurrentTransform)(void* /*clientDrawingContext*/ , DWRITE_MATRIX* transform)
+        {
+            surf->GetCurrentTransform(transform);
+            return S_OK;
+        }
+        IFACEMETHOD(GetPixelsPerDip)(void* /*clientDrawingContext*/, fp32* pixelsPerDip)
+        {
+            *pixelsPerDip = surf->GetPixelsPerDip();
+            return S_OK;
+        }
+        IFACEMETHOD(DrawUnderline)(void* /*clientDrawingContext*/, fp32 /*baselineOriginX*/, fp32 /*baselineOriginY*/, DWRITE_UNDERLINE const* /*underline*/, IUnknown* /*clientDrawingEffect*/)
+        {
+            return E_NOTIMPL;
+        }
+        IFACEMETHOD(DrawStrikethrough)(void* /*clientDrawingContext*/, fp32 /*baselineOriginX*/, fp32 /*baselineOriginY*/, DWRITE_STRIKETHROUGH const* /*strikethrough*/, IUnknown* /*clientDrawingEffect*/)
+        {
+            return E_NOTIMPL;
+        }
+        IFACEMETHOD(DrawInlineObject)(void* /*clientDrawingContext*/, fp32 /*originX*/, fp32 /*originY*/, IDWriteInlineObject* /*inlineObject*/, BOOL /*isSideways*/, BOOL /*isRightToLeft*/, IUnknown* /*clientDrawingEffect*/)
+        {
+            return E_NOTIMPL;
+        }
+        IFACEMETHOD_(unsigned long, AddRef)()
+        {
+            return InterlockedIncrement(&refs);
+        }
+        IFACEMETHOD_(unsigned long, Release) ()
+        {
+            auto new_refs = InterlockedDecrement(&refs);
+            if (new_refs == 0) delete this;
+            return new_refs;
+        }
+        IFACEMETHOD(QueryInterface)(IID const& riid, void** ppvObject)
+        {
+                 if (__uuidof(IDWriteTextRenderer)  == riid) *ppvObject = this;
+            else if (__uuidof(IDWritePixelSnapping) == riid) *ppvObject = this;
+            else if (__uuidof(IUnknown)             == riid) *ppvObject = this;
+            else                                           { *ppvObject = NULL; return E_FAIL; }
+            return S_OK;
+        }
+    };
+
+    template<class window>
+    struct w32renderer
+    {
+        using gcfg = w32window::gcfg;
+        using wins = std::vector<w32window>;
+
+        gcfg conf;
+        bool initialized;
+
+        w32renderer()
+            : initialized{ faux }
+        {
+            //auto s = 96;//::GetDeviceCaps(hdc, LOGPIXELSY);
+            auto height = -16;//::MulDiv(24, s, 96);
+            auto hfont = ::CreateFontW(height, //_In_ int cHeight
+                                       0, // _In_ int cWidth
+                                       0, // _In_ int cEscapement
+                                       0, // _In_ int cOrientation
+                                       0, // _In_ int cWeight
+                                       0, // _In_ DWORD bItalic
+                                       0, // _In_ DWORD bUnderline
+                                       0, // _In_ DWORD bStrikeOut
+                                       0, // _In_ DWORD iCharSet
+                                       0, // _In_ DWORD iOutPrecision
+                                       0, // _In_ DWORD iClipPrecision
+                                       0, // _In_ DWORD iQuality
+                                       0, // _In_ DWORD iPitchAndFamily
+                                       L"Consolas"); // _In_opt_ LPCWSTR pszFaceName
+                                       //L"Segoe UI Emoji"); // _In_opt_ LPCWSTR pszFaceName
+                                       //L"Monotty"); // _In_opt_ LPCWSTR pszFaceName
+
+            ok2(::DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), reinterpret_cast<IUnknown**>(&conf.pDWriteFactory)));
+            ok2(conf.pDWriteFactory->GetGdiInterop(&conf.pGdiInterop));
+
+            auto lf = LOGFONTW{};
+            ::GetObjectW(hfont, sizeof(LOGFONTW), &lf);
+            auto pFont = (IDWriteFont*)nullptr;
+            ok2(conf.pGdiInterop->CreateFontFromLOGFONT(&lf, &pFont));
+
+            auto pFontFamily = (IDWriteFontFamily*)nullptr;
+            auto pFamilyNames = (IDWriteLocalizedStrings*)nullptr;
+            ok2(pFont->GetFontFamily(&pFontFamily));
+            ok2(pFontFamily->GetFamilyNames(&pFamilyNames));
+
+            auto length = UINT32{};
+            auto index = UINT32{};
+            ok2(pFamilyNames->GetStringLength(index, &length));
+
+            auto family_name = std::wstring(length, 0);
+            ok2(pFamilyNames->GetString(index, family_name.data(), length + 1));
+            
+            auto fontSize = (fp32)-lf.lfHeight ;// -::MulDiv(lf.lfHeight, 96, 96);//GetDeviceCaps(hdc, LOGPIXELSY));
+
+            ok2(conf.pDWriteFactory->CreateTextFormat(family_name.data(),
+                                                      NULL,                        
+                                                      pFont->GetWeight(),
+                                                      pFont->GetStyle(),
+                                                      pFont->GetStretch(),
+                                                      fontSize,
+                                                      L"en-en",
+                                                      &conf.pTextFormat));
+            ok2(conf.pDWriteFactory->CreateRenderingParams(&conf.pRenderingParams));
+            pFontFamily->Release();
+            pFont->Release();
+            pFamilyNames->Release();
+            initialized = true;
+        }
+        ~w32renderer()
+        {
+            conf.reset();
+        }
+        constexpr explicit operator bool () const { return initialized; }
+        auto add(wins& layers, bool transparent, si32 owner_index = -1)
+        {
+            auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+            {
+                //log("\tmsW=", utf::to_hex(msg), " wP=", utf::to_hex(wParam), " lP=", utf::to_hex(lParam), " hwnd=", utf::to_hex(hWnd));
+                auto w = (window*)::GetWindowLongPtrW(hWnd, GWLP_USERDATA);
+                if (!w) return ::DefWindowProcW(hWnd, msg, wParam, lParam);
+                auto stat = LRESULT{};
+                auto hi = [](auto n){ return (si32)(si16)((n >> 16) & 0xffff); };
+                auto lo = [](auto n){ return (si32)(si16)((n >> 0 ) & 0xffff); };
+                static auto i = 0;
+                if (w->tasks) log("unsync ", i++);
+                switch (msg)
+                {
+                    case WM_MOUSEMOVE:   w->mouse_shift({ lo(lParam), hi(lParam) }); break; // Client-based coord.
+                    case WM_LBUTTONDOWN: w->mouse_press(window::bttn::left,   true); break;
+                    case WM_MBUTTONDOWN: w->mouse_press(window::bttn::middle, true); break;
+                    case WM_RBUTTONDOWN: w->mouse_press(window::bttn::right,  true); break;
+                    case WM_LBUTTONUP:   w->mouse_press(window::bttn::left,   faux); break;
+                    case WM_MBUTTONUP:   w->mouse_press(window::bttn::middle, faux); break;
+                    case WM_RBUTTONUP:   w->mouse_press(window::bttn::right,  faux); break;
+                    case WM_MOUSEWHEEL:  w->mouse_wheel(hi(wParam), faux);           break;
+                    case WM_MOUSEHWHEEL: w->mouse_wheel(hi(wParam), true);           break;
+                    case WM_MOUSELEAVE:  w->mouse_hover(faux);                       break;
+                    case WM_ACTIVATEAPP: w->focus_event(!!wParam);                   break; // Focus between apps.
+                    case WM_ACTIVATE:    w->state_event(!!lo(wParam), !!hi(wParam)); break; // Window focus within the app.
+                    //case WM_MOUSEACTIVATE: stat = MA_NOACTIVATE;                     break; // Suppress window activation with a mouse click.
+                    case WM_SHOWWINDOW:  w->shown_event(!!wParam, lParam);           break; //todo revise
+                    //case WM_GETMINMAXINFO: w->maximize(wParam, lParam);              break; // The system is about to maximize the window.
+                    //case WM_SYSCOMMAND:  w->sys_command(wParam, lParam);             break; //todo taskbar ctx menu to change the size and position
+                    case WM_KEYDOWN:
+                    case WM_KEYUP:
+                    case WM_SYSKEYDOWN:  // WM_CHAR/WM_SYSCHAR and WM_DEADCHAR/WM_SYSDEADCHAR are derived messages after translation.
+                    case WM_SYSKEYUP:    w->keybd_press(wParam, lParam);             break;
+                    case WM_DESTROY:     ::PostQuitMessage(0);                       break;
+                    case WM_PAINT:
+                    default:     stat = ::DefWindowProcW(hWnd, msg, wParam, lParam); break;
+                }
+                if (w->tasks) w->redraw();
+                return stat;
+            };
+            static auto wc_defwin = WNDCLASSW{ .lpfnWndProc = ::DefWindowProcW, .lpszClassName = L"vtm" };
+            static auto wc_window = WNDCLASSW{ .lpfnWndProc = window_proc, .hCursor = ::LoadCursorW(NULL, (LPCWSTR)IDC_ARROW), .lpszClassName = L"vtm_internal" };
+            static auto reg = ::RegisterClassW(&wc_defwin) && ::RegisterClassW(&wc_window);
+            if (!reg)
+            {
+                initialized = faux;
+                log("window class registration error: ", ::GetLastError());
+            }
+            auto& wc = transparent ? wc_window : wc_defwin;
+            auto owner = owner_index == -1 ? HWND{} : layers[owner_index].hWnd;
+            auto hWnd = ::CreateWindowExW(WS_EX_NOREDIRECTIONBITMAP | WS_EX_LAYERED | (wc.hCursor ? 0 : WS_EX_TRANSPARENT),
+                                          wc.lpszClassName, owner ? nullptr : wc.lpszClassName, // Title.
+                                          WS_POPUP /*todo | owner ? WS_SYSMENU : 0  taskbar ctx menu*/, 0, 0, 0, 0, owner, 0, 0, 0);
+            if (!hWnd)
+            {
+                initialized = faux;
+                log("window creation error: ", ::GetLastError());
+            }
+            auto win_index = (si32)layers.size();
+            layers.emplace_back(conf, hWnd);
+            return win_index;
+        }
+    };
+
+    auto header_text = L"Windows Command Prompt - C:\\Windows\\System32\\"s;
+    auto footer_text = L"4/4000 80:25"s;
+    auto header_para = ui::para{ utf::to_utf(header_text) };
+    auto footer_para = ui::para{ utf::to_utf(footer_text) };
+
+    template<template<class Window> class Renderer>
+    struct window
+    {
+        using reng = Renderer<window>;
+        using wins = reng::wins;
+        using gray = netxs::raster<std::vector<byte>, rect>;
+        using shad = netxs::misc::shadow<gray, cell::shaders::alpha>;
+
+        enum bttn
+        {
+            left   = 1 << 0,
+            right  = 1 << 1,
+            middle = 1 << 2,
+        };
+        struct task
+        {
+            enum
+            {
+                moved = 1 << 0,
+                sized = 1 << 1,
+                grips = 1 << 2,
+                inner = 1 << 3,
+                title = 1 << 4,
+                all = moved | sized | grips | inner | title,
+            };
+            si32 list{ all };
+            auto& operator += (si32 t) { list |= t; return *this; }
+            //auto& operator -= (si32 t) { list &=~t; return *this; }
+            auto operator () (si32 t) { return list & t; }
+            void reset() { list = 0; }
+            constexpr explicit operator bool () const
+            {
+                return !!list;
+            }
+        };
+
+        reng engine;
+        wins layers;
+        bool dx3d;
+        twod mouse_coord;
+        twod grid_size;
+        twod cell_size;
+        twod grip_cell;
+        twod grip_size;
+        shad shadow_rastr;
+        dent inner_dent;
+        dent outer_dent;
+        rect inner_rect;
+        netxs::misc::szgrips grip;
+        bool hovered{};
+        bool grips_drawn;
+        si32 buttons;
+        task tasks;
+        bool initialized{};
+        si32 shadow;
+        si32 header;
+        si32 footer;
+        si32 client;
+        constexpr explicit operator bool () const { return initialized; }
+
+        ~window()
+        {
+            for (auto& w : layers) w.reset();
+        }
+        window(rect win_coor_px_size_cell, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
+            : dx3d{ faux },
+              grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
+              cell_size{ cell_size },
+              grip_cell{ grip_cell },
+              grip_size{ grip_cell * cell_size },
+              shadow_rastr{ 0.44f/*bias*/, 116.5f/*alfa*/, cell_size.x, dot_00, dot_11, [](auto& c, auto a){ c = a; } },
+              inner_dent{},
+              outer_dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y },
+              inner_rect{ win_coor_px_size_cell.coor, grid_size * cell_size },
+              grips_drawn{ faux },
+              buttons{},
+              shadow{ engine.add(layers, 0) },
+              header{ engine.add(layers, 0, shadow) },
+              footer{ engine.add(layers, 0, shadow) },
+              client{ engine.add(layers, 1, shadow) }
+        {
+            if (!engine) return;
+            layers[shadow].area = { inner_rect.coor - shadow_rastr.over / 2, inner_rect.size + shadow_rastr.over };
+            layers[client].area = inner_rect + outer_dent;
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
+            ::SetWindowLongPtrW(layers[client].hWnd, GWLP_USERDATA, (LONG_PTR)this);
+            redraw();
+            initialized = true;
+        }
+        auto move_window(twod coor_delta)
+        {
+            layers[shadow].area.coor += coor_delta;
+            layers[client].area.coor += coor_delta;
+            inner_rect.coor            += coor_delta;
+            //todo unify
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
+
+            tasks += task::moved;
+        }
+        auto size_window(twod size_delta)
+        {
+            layers[client].area.size += size_delta;
+            layers[shadow].area.size += size_delta;
+            inner_rect.size            += size_delta;
+            //todo unify
+            layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
+            layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
+
+            tasks += task::sized;
+        }
+        auto resize_window(twod size_delta)
+        {
+            auto new_size = inner_rect.size + size_delta;
+            auto new_grid_size = std::max(dot_11, new_size / cell_size);
+            size_delta = dot_00;
+            if (grid_size != new_grid_size)
+            {
+                grid_size = new_grid_size;
+                size_delta = grid_size * cell_size - inner_rect.size;
+                size_window(size_delta);
+            }
+            return size_delta;
+        }
+        auto warp_window(dent warp_delta)
+        {
+            auto inner_prev = inner_rect;
+            auto new_area = inner_rect + warp_delta;
+            auto new_grid_size = std::max(dot_11, new_area.size / cell_size);
+            if (grid_size != new_grid_size)
+            {
+                grid_size = new_grid_size;
+                auto size_delta = grid_size * cell_size - inner_rect.size;
+                auto coor_delta = new_area.coor - inner_rect.coor;
+                size_window(size_delta);
+                move_window(coor_delta);
+            }
+            return inner_rect - inner_prev;
+        }
+        void mouse_hover(bool hover)
+        {
+            if (!hover)
+            {
+                hovered = faux;
+                if (grips_drawn) tasks += task::grips;
+            }
+            else
+            {
+                if (!hovered)
+                {
+                    hovered = true;
+                    static auto mouse_track = TRACKMOUSEEVENT{ .cbSize = sizeof(TRACKMOUSEEVENT),
+                                                               .dwFlags = TME_LEAVE,
+                                                               .hwndTrack = layers[client].hWnd,
+                                                               .dwHoverTime = HOVER_DEFAULT };
+                    auto rc = ::TrackMouseEvent(&mouse_track);
+                    if (!rc) log("track = ", rc ? "ok":"failed");
+                }
+            }
+        }
+        void draw_grid(auto canvas)
+        {
+            auto c  = rect{{}, cell_size };
+            auto lt = dent{ 1, 0, 1, 0 };
+            auto rb = dent{ 0, 1, 0, 1 };
+            auto fx_pure_wt = [](auto& c){ c = 0xFF'ff'ff'ff; };
+            auto fx_white2  = [](auto& c){ c = 0xAf'7f'7f'7f; };
+            auto fx_black2  = [](auto& c){ c = 0xAF'00'00'00; };
+            auto fx_blue    = [](auto& c){ c = 0xAF'00'00'7f; };
+            //auto fx_white = [](auto& c){ c = 0xFF'7f'7f'7f; };
+            //auto fx_black = [](auto& c){ c = 0xFF'00'00'00; };
+            //auto fx_blue  = [](auto& c){ c = 0xFF'00'00'7f; };
+            canvas.step(-inner_rect.coor);
+            for (c.coor.y = 0; c.coor.y < inner_rect.size.y; c.coor.y += cell_size.y)
+            for (c.coor.x = 0; c.coor.x < inner_rect.size.x; c.coor.x += cell_size.x)
+            {
+                netxs::onrect(canvas, c, fx_blue);
+                netxs::misc::cage(canvas, c, lt, fx_white2);
+                netxs::misc::cage(canvas, c, rb, fx_black2);
+            }
+
+            //auto c1 = rect{ dot_00, inner_rect.size - dent{ 0, inner_rect.size.x / 2, 0, 0 }};
+            //auto c2 = c1;
+            //auto c3 =  rect{ dot_00, inner_rect.size };
+            //c2.coor.x += inner_rect.size.x / 2;
+            //netxs::onrect(canvas, c1, fx_black);
+            //netxs::onrect(canvas, c2, fx_pure_wt);
+            //netxs::misc::cage(canvas, c2, 1, fx_black);
+            //netxs::onrect(canvas, c3, fx_pure_wt);
+
+            canvas.step(inner_rect.coor);
+        }
+        bool hit_grips()
+        {
+            auto hit = !grip.zoomon && (grip.seized || (hovered && !inner_rect.hittest(mouse_coord) && layers[client].area.hittest(mouse_coord)));
+            return hit;
+        }
+        void draw_grips(auto canvas)
+        {
+            auto fx_trans2 = [](auto& c){ c = 0x01'00'00'00; };
+            auto fx_white2 = [](auto& c){ c = 0x5F'23'23'23; };
+            auto fx_black2 = [](auto& c){ c = 0x3F'00'00'00; };
+            netxs::misc::cage(canvas, canvas.area(), outer_dent, fx_trans2); // Transparent grips.
+            grips_drawn = hit_grips();
+            if (grips_drawn)
+            {
+                auto [side_x, side_y] = grip.draw(canvas, canvas.area(), fx_white2);
+                auto s = grip.sector;
+                netxs::misc::cage(canvas, side_x, dent{ s.x < 0, s.x > 0, s.y > 0, s.y < 0 }, fx_black2); // 1-px dark contour around.
+                netxs::misc::cage(canvas, side_y, dent{ s.x > 0, s.x < 0, 1, 1 }, fx_black2);             //
+                //log("grips ", side_x, " ", side_y);
+            }
+        }
+        void draw_shadow(auto canvas) //todo draw shadow per cell
+        {
+            canvas.move(-shadow_rastr.over / 2); //todo unify
+            shadow_rastr.render(canvas, inner_rect.size);
+        }
+        void redraw()
+        {
+            auto mods = tasks;
+            tasks.reset();
+            if (mods.list == task::moved)
+            {
+                //todo unify
+                auto lock = ::BeginDeferWindowPos((si32)layers.size());
+                for (auto& w : layers)
+                {
+                    lock = ::DeferWindowPos(lock, w.hWnd, 0, w.area.coor.x, w.area.coor.y, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+                    if (!lock) { log("error: ", ::GetLastError()); throw; }
+                    w.prev.coor = w.area.coor;
+                }
+                ::EndDeferWindowPos(lock);
+            }
+            else if (mods)
+            {
+                if (mods(task::sized | task::inner))
+                {
+                    draw_grid(layers[client].canvas()); // 0.600 ms
+                    auto region = rect{ .coor = grip_size + cell_size * dot_01, .size = inner_rect.size };
+                    layers[client].textout(region, tint::cyanlt, L"vtm GUI frontend is currently under development. You can try it on any versions/editions of Windows platforms starting from Windows 8.1 (with colored emoji!), including Windows Server Core. 😀😬😁😂😃😄😅😆 👌🐞😎👪. Press Esc or Right click to close."s);
+                }
+                if (mods(task::sized | task::grips))  draw_grips(layers[client].canvas()); // 0.150 ms
+                if (mods(task::sized              )) draw_shadow(layers[shadow].canvas()); // 0.300 ms
+                if (mods(task::sized | task::title))
+                {
+                    auto header_dest = layers[header].canvas();
+                    auto footer_dest = layers[footer].canvas();
+                    netxs::misc::fill(header_dest, header_dest.area(), [](auto& c){ c = 0; });
+                    netxs::misc::fill(footer_dest, footer_dest.area(), [](auto& c){ c = 0; });
+                    auto h = layers[header].area;
+                    auto f = layers[footer].area;
+                    h.coor = {};
+                    f.coor = {};
+                    layers[header].textout(h.rotate({ 1, -1 }), tint::purewhite, header_text, tint::pureblack, dot_11);
+                    layers[footer].textout(f.rotate({ -1, 1 }), tint::purewhite, footer_text, tint::pureblack, dot_11);
+                }
+                if (hovered/*mouse test*/)
+                {
+                    auto fx_green = [](auto& c){ c = 0x7F'00'3f'00; };
+                    auto cursor = rect{ mouse_coord - (mouse_coord - layers[client].area.coor) % cell_size, cell_size };
+                    netxs::onrect(layers[client].canvas(), cursor, fx_green);
+                }
+                for (auto& w : layers) w.display();
+                //log("full update");
+            }
+        }
+        auto& kbs()
+        {
+            static auto state_kb = 0;
+            return state_kb;
+        }
+        auto keybd_state()
+        {
+            //todo unify
+            auto state = hids::LShift   * !!::GetAsyncKeyState(VK_LSHIFT)
+                       | hids::RShift   * !!::GetAsyncKeyState(VK_RSHIFT)
+                       | hids::LWin     * !!::GetAsyncKeyState(VK_LWIN)
+                       | hids::RWin     * !!::GetAsyncKeyState(VK_RWIN)
+                       | hids::LAlt     * !!::GetAsyncKeyState(VK_LMENU)
+                       | hids::RAlt     * !!::GetAsyncKeyState(VK_RMENU)
+                       | hids::LCtrl    * !!::GetAsyncKeyState(VK_LCONTROL)
+                       | hids::RCtrl    * !!::GetAsyncKeyState(VK_RCONTROL)
+                       | hids::ScrlLock * !!::GetKeyState(VK_SCROLL)
+                       | hids::NumLock  * !!::GetKeyState(VK_NUMLOCK)
+                       | hids::CapsLock * !!::GetKeyState(VK_CAPITAL);
+            return state;
+        }
+        void mouse_capture() { ::SetCapture(layers[client].hWnd); }
+        void mouse_release() { ::ReleaseCapture(); }
+        void mouse_wheel(si32 delta, bool /*hz*/)
+        {
+            auto wheeldt = delta / 120;
+            auto kb = kbs();
+            //     if (kb & (hids::LCtrl | hids::LAlt)) netxs::_k2 += wheeldt > 0 ? 1 : -1; // LCtrl + Alt t +Wheel.
+            //else if (kb & hids::LCtrl)                netxs::_k0 += wheeldt > 0 ? 1 : -1; // LCtrl+Wheel.
+            //else if (kb & hids::anyAlt)               netxs::_k1 += wheeldt > 0 ? 1 : -1; // Alt+Wheel.
+            //else if (kb & hids::RCtrl)                netxs::_k3 += wheeldt > 0 ? 1 : -1; // RCtrl+Wheel.
+            //shadow_rastr = build_shadow_corner(cell_size.x);
+            //tasks += task::sized;
+            //netxs::_k0 += wheeldt > 0 ? 1 : -1;
+            //log("wheel ", wheeldt, " k0= ", _k0, " k1= ", _k1, " k2= ", _k2, " k3= ", _k3, " keybd ", utf::to_bin(kb));
+
+            if ((kb & hids::anyCtrl) && !(kb & hids::ScrlLock))
+            {
+                if (!grip.zoomon)
+                {
+                    grip.zoomdt = {};
+                    grip.zoomon = true;
+                    grip.zoomsz = inner_rect;
+                    grip.zoomat = mouse_coord;
+                    mouse_capture();
+                }
+            }
+            else if (grip.zoomon)
+            {
+                grip.zoomon = faux;
+                mouse_release();
+            }
+            if (grip.zoomon)
+            {
+                auto warp = dent{ grip_size.x, grip_size.x, grip_size.y, grip_size.y };
+                auto step = grip.zoomdt + warp * wheeldt;
+                auto next = grip.zoomsz + step;
+                next.size = std::max(dot_00, next.size);
+                ///auto viewport = ...get max win size (multimon)
+                //next.trimby(viewport);
+                if (warp_window(next - inner_rect)) grip.zoomdt = step;
+            }
+        }
+        void mouse_shift(twod coord)
+        {
+            auto kb = kbs();// keybd_state();
+            mouse_hover(true);
+            coord += layers[client].area.coor;
+            if (hit_grips() || grip.seized)
+            {
+                if (buttons & bttn::left)
+                {
+                    if (!grip.seized) // drag start
+                    {
+                        grip.grab(inner_rect, mouse_coord, outer_dent, cell_size);
+                    }
+                    auto zoom = kb & hids::anyCtrl;
+                    auto [preview_area, size_delta] = grip.drag(inner_rect, coord, outer_dent, zoom, cell_size);
+                    if (auto dxdy = resize_window(size_delta))
+                    {
+                        if (auto move_delta = grip.move(dxdy, zoom))
+                        {
+                            move_window(move_delta);
+                        }
+                    }
+                }
+                else if (grip.seized) // drag stop
+                {
+                    grip.drop();
+                    tasks += task::grips;
+                }
+            }
+            if (grip.zoomon && !(kb & hids::anyCtrl))
+            {
+                grip.zoomon = faux;
+                mouse_release();
+            }
+            if (grip.calc(inner_rect, coord, outer_dent, inner_dent, cell_size))
+            {
+                tasks += task::grips;
+            }
+            if (!grip.seized && buttons & bttn::left)
+            {
+                if (auto dxdy = coord - mouse_coord)
+                {
+                    //log("moveby ", dxdy);
+                    for (auto& w : layers)
+                    {
+                        w.area.coor += dxdy;
+                        //log("   coor: ", w.area.coor);
+                    }
+                    inner_rect.coor += dxdy;
+                    tasks += task::moved;
+                }
+            }
+            else
+            {
+                //log(mouse_coord);
+            }
+            mouse_coord = coord;
+            if (!buttons)
+            {
+                static auto s = testy{ faux };
+                tasks += s(hit_grips()) ? task::grips | task::inner
+                                    : s ? task::grips : task::inner;
+            }
+        }
+        void mouse_press(si32 button, bool pressed)
+        {
+            if (pressed && !buttons) mouse_capture();
+            pressed ? buttons |= button
+                    : buttons &= ~button;
+            if (!buttons) mouse_release();
+            if (!pressed & (button == bttn::right)) quit();
+        }
+        void keybd_press(arch vkey, arch lParam)
+        {
+            union key_state
+            {
+                ui32 token;
+                struct k
+                {
+                    ui32 repeat   : 16;// 0-15
+                    ui32 scancode : 9; // 16-24 (24 - extended)
+                    ui32 reserved : 5; // 25-29 (29 - context)
+                    ui32 state    : 2; // 30-31: 0 - pressed, 1 - repeated, 2 - unknown, 3 - released
+                };
+            };
+            auto param = key_state{ .token = (ui32)lParam };
+            //log("vkey: ", utf::to_hex(vkey),
+            //    " scode: ", utf::to_hex(param.scancode),
+            //    " state: ", param.state == 0 ? "pressed"
+            //              : param.state == 1 ? "rep"
+            //              : param.state == 3 ? "released" : "unknown");
+            if (vkey == 0x1b) quit();
+            kbs() = keybd_state();
+            //auto s = keybd_state();
+            //log("keybd ", utf::to_bin(s));
+            //static auto keybd_state = std::array<byte, 256>{};
+            //::GetKeyboardState(keybd_state.data());
+            //auto l_shift = keybd_state[VK_LSHIFT];
+            //auto r_shift = keybd_state[VK_RSHIFT];
+            //auto l_win   = keybd_state[VK_LWIN];
+            //auto r_win   = keybd_state[VK_RWIN];
+            //bool alt     = keybd_state[VK_MENU];
+            //bool l_alt   = keybd_state[VK_LMENU];
+            //bool r_alt   = keybd_state[VK_RMENU];
+            //bool l_ctrl  = keybd_state[VK_LCONTROL];
+            //bool r_ctrl  = keybd_state[VK_RCONTROL];
+            //log("keybd",
+            //    "\n\t l_shift ", utf::to_hex(l_shift ),
+            //    "\n\t r_shift ", utf::to_hex(r_shift ),
+            //    "\n\t l_win   ", utf::to_hex(l_win   ),
+            //    "\n\t r_win   ", utf::to_hex(r_win   ),
+            //    "\n\t alt     ", utf::to_hex(alt     ),
+            //    "\n\t l_alt   ", utf::to_hex(l_alt   ),
+            //    "\n\t r_alt   ", utf::to_hex(r_alt   ),
+            //    "\n\t l_ctrl  ", utf::to_hex(l_ctrl  ),
+            //    "\n\t r_ctrl  ", utf::to_hex(r_ctrl  ));
+        }
+        void focus_event(bool focused)
+        {
+            log(focused ? "focused" : "unfocused");
+        }
+        void state_event(bool activated, bool minimized)
+        {
+            log(activated ? "activated" : "deactivated", " ", minimized ? "minimized" : "restored");
+        }
+        void shown_event(bool shown, arch reason) //todo revise
+        {
+            log(shown ? "shown" : "hidden", " ", reason == SW_OTHERUNZOOM   ? "The window is being uncovered because a maximize window was restored or minimized."
+                                               : reason == SW_OTHERZOOM     ? "The window is being covered by another window that has been maximized."
+                                               : reason == SW_PARENTCLOSING ? "The window's owner window is being minimized."
+                                               : reason == SW_PARENTOPENING ? "The window's owner window is being restored."
+                                                                            : "unknown reason");
+        }
+        void quit()
+        {
+            layers[client].close();
+        }
+        void dispatch()
+        {
+            auto msg = MSG{};
+            while (::GetMessageW(&msg, 0, 0, 0) > 0)
+            {
+                ::DispatchMessageW(&msg);
+            }
+        }
+        void show()
+        {
+            auto mode = SW_SHOWNORMAL;
+            for (auto& w : layers) { ::ShowWindow(w.hWnd, mode); }
+        }
+    };
+}

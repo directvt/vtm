@@ -2064,8 +2064,8 @@ namespace netxs
         public:
             template<class T>
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
-            static constexpr auto transparent(si32 alpha) { return transparent_t{ alpha }; }
-            static constexpr auto     xlucent(si32 alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
+            static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
@@ -2941,7 +2941,7 @@ namespace netxs
     template<si32 Repeat = 2, bool InnerGlow = faux, class T = vrgb, class P = noop, si32 Ratio = 1>
     void boxblur(auto& image, si32 r, T&& cache = {}, P shade = {})
     {
-        using irgb = T::value_type;
+        using irgb = std::decay_t<T>::value_type;
 
         auto area = image.area();
         auto clip = image.clip();

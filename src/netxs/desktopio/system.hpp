@@ -27,6 +27,7 @@
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
     #include <sddl.h>                    // ::ConvertSidToStringSidA()
+    #include "gui.h"
 
 #else
 
@@ -3495,7 +3496,7 @@ namespace netxs::os
             else
             {
                 dtvt::win_sz = dtvt::consize();
-                trygui = faux; //todo Not implemented.
+                //trygui = faux; //todo Not implemented.
                 if (trygui)
                 {
                     #if defined(_WIN32)
@@ -5731,9 +5732,15 @@ namespace netxs::os
         }
         auto native()
         {
-            #if defined(_WIN32)
-                ::MessageBoxW(NULL, L"Welcome to GUI Console", L"caption.data()", MB_OK);
+            #if defined(WIN32)
+                using window = gui::window<gui::w32renderer>;
+                if (auto w = window{{{ 200, 200 }, { 40, 10 }}, { 11, 22 }})
+                {
+                    w.show();
+                    w.dispatch();
+                }
             #else
+                //using window = gui::window<gui::x11renderer>;
             #endif
         }
         auto splice(xipc client)
