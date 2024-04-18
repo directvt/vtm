@@ -107,7 +107,7 @@ namespace netxs::unidata
 {
     namespace widths
     {
-        enum type : unsigned char
+        enum type : byte
         {
             zero,  // non-printable
             slim,  // narrow
@@ -117,7 +117,7 @@ namespace netxs::unidata
 
     namespace gbreak
     {
-        enum type : unsigned char
+        enum type : byte
         {
             any     ,  // Other
             cr      ,  // CR
@@ -140,7 +140,7 @@ namespace netxs::unidata
 
     namespace cntrls
     {
-        enum type : unsigned char
+        enum type : byte
         {
             nul                                       ,  //   0     0 NULL
             soh                                       ,  //   1     1 START OF HEADING

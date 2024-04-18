@@ -23,7 +23,7 @@ namespace netxs::app
 
 namespace netxs::app::shared
 {
-    static const auto version = "v0.9.77";
+    static const auto version = "v0.9.78";
     static const auto repository = "https://github.com/directvt/vtm";
     static const auto usr_config = "~/.config/vtm/settings.xml"s;
     static const auto sys_config = "/etc/vtm/settings.xml"s;
@@ -231,7 +231,7 @@ namespace netxs::app::shared
                 button->active(); // Always active for tooltips.
                 if (alive)
                 {
-                    if (hover.set()) button->shader(hover                , e2::form::state::hover);
+                    if (hover.clr()) button->shader(hover                , e2::form::state::hover);
                     else             button->shader(cell::shaders::xlight, e2::form::state::hover);
                 }
                 button->template plugin<pro::notes>(notes)
@@ -431,7 +431,7 @@ namespace netxs::app::shared
                     };
                 });
             auto msg = ui::post::ctor()
-                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->colors(whitelt, argb{ 0x7F404040 })
                 ->upload(ansi::fgc(yellowlt).mgl(4).mgr(4).wrp(wrap::off) +
                     "\n"
                     "\nUnsupported application type"
@@ -449,7 +449,7 @@ namespace netxs::app::shared
                     "\n" + ansi::nil().wrp(wrap::on).fgc(whitelt)
                     .add(prompt::apps, "See logs for details."));
             auto placeholder = ui::cake::ctor()
-                ->colors(whitelt, rgba{ 0x7F404040 })
+                ->colors(whitelt, argb{ 0x7F404040 })
                 ->attach(msg->alignment({ snap::head, snap::head }));
             window->attach(ui::rail::ctor())
                 ->attach(placeholder)

@@ -59,7 +59,7 @@ namespace netxs
 
     struct noop { template<class ...T> constexpr auto operator()(T...) { return faux; }; };
 
-    enum class feed : unsigned char { none, rev, fwd, };
+    enum class feed : byte { none, rev, fwd, };
 
     template<class T>
     using to_signed_t = std::conditional_t<(si64)std::numeric_limits<std::remove_reference_t<T>>::max() <= si16max, si16,
@@ -582,8 +582,8 @@ namespace netxs
     // intmath: Forward/Reverse (bool template arg) copy the specified
     //          sequence of cells onto the canvas at the specified offset
     //          and return count of copied cells.
-    template<bool RtoL, class T1, class T2, class P>
-    auto xerox(T1*& frame, T2 const& source, P handle)
+    template<bool RtoL>
+    auto xerox(auto*& frame, auto const& source, auto handle)
     {
         auto lyric = source.data();
         auto width = source.length();
@@ -601,8 +601,7 @@ namespace netxs
     }
 
     // intmath: Fill the canvas by the stretched bitmap.
-    template<class T, class P>
-    void zoomin(T& canvas, T const& bitmap, P handle)
+    void zoomin(auto&& canvas, auto const& bitmap, auto handle)
     {
         auto size1 = canvas.size();
         auto size2 = bitmap.size();
@@ -642,8 +641,8 @@ namespace netxs
     }
 
     // intmath: Project bitmap_view to the canvas_view (with nearest-neighbor interpolation and negative bitmap_size support for mirroring).
-    template<class P, class NewlineFx = noop>
-    void xform_scale(auto& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void xform_scale(auto&& canvas, auto canvas_rect, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
@@ -685,8 +684,8 @@ namespace netxs
     }
 
     // intmath: Project bitmap_rect to the canvas_rect_coor (with nearest-neighbor interpolation and support for negative bitmap_rect.size to mirroring/flipping).
-    template<class P, class NewlineFx = noop>
-    void xform_mirror(auto& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void xform_mirror(auto&& canvas, auto canvas_rect_coor, auto const& bitmap, auto bitmap_rect, auto handle, NewlineFx online = {})
     {
         auto dst_size = canvas.size();
         auto src_size = bitmap.size();
@@ -731,8 +730,7 @@ namespace netxs
 
     // intmath: Copy the bitmap to the bitmap by invoking
     //          handle(sprite1_element, sprite2_element) for each elem.
-    template<class T, class P>
-    void oncopy(T& bitmap1, T const& bitmap2, P handle)
+    void oncopy(auto&& bitmap1, auto const& bitmap2, auto handle)
     {
         auto& size1 = bitmap1.size();
         auto& size2 = bitmap2.size();
@@ -753,8 +751,8 @@ namespace netxs
     // intmath: Intersect two sprites and
     //          invoking handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<bool RtoL, class T, class D, class R, class C, class P, class NewlineFx = noop>
-    void inbody(T& canvas, D const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
+    template<bool RtoL, class R, class C, class P, class NewlineFx = noop>
+    void inbody(auto&& canvas, auto const& bitmap, R const& region, C const& base2, P handle, NewlineFx online = {})
     {
         if (region.size.y == 0) return;
         auto& base1 = region.coor;
@@ -801,32 +799,43 @@ namespace netxs
         using base = T;
         base _data;
         Rect _area;
-        auto  length() const { return _data.length(); }
-        auto  begin()        { return _data.begin();  }
-        auto  end()          { return _data.end();    }
-        auto  begin()  const { return _data.begin();  }
-        auto  end()    const { return _data.end();    }
-        auto& size()         { return _area.size;     }
-        auto& area()         { return _area;          }
-        auto& size()   const { return _area.size;     }
-        auto& area()   const { return _area;          }
+        Rect _clip;
+        auto length() const { return _data.length(); }
+        auto  begin()       { return _data.begin();  }
+        auto  begin() const { return _data.begin();  }
+        auto   data()       { return _data.data();   }
+        auto   data() const { return _data.data();   }
+        auto    end()       { return _data.end();    }
+        auto    end() const { return _data.end();    }
+        auto&  clip()       { return _clip;          }
+        auto&  clip() const { return _clip;          }
+        auto&  area()       { return _area;          }
+        auto&  area() const { return _area;          }
+        auto   clip(auto c) { _clip = c;             }
+        void   step(auto s) { _area.coor += s;       }
+        void   move(auto p) { _area.coor = p;        }
+        auto&  size()       { return _area.size;     }
+        auto&  size() const { return _area.size;     }
+        auto&  coor()       { return _area.coor;     }
+        auto&  coor() const { return _area.coor;     }
+        auto& operator [] (auto p) { return*(begin() + p.x + p.y * _area.size.x); }
+        void size(auto new_size, auto... filler)
+        {
+            _area.size = new_size;
+            _data.resize(new_size.x * new_size.y, filler...);
+        }
         raster() = default;
         raster(T data, Rect area)
             : _data{ data },
               _area{ area }
         { }
-        void resize(auto new_size, auto filler = {})
-        {
-            _area.size = new_size;
-            _data.resize(new_size.x * new_size.y, filler);
-        }
     };
 
     // intmath: Intersect two sprites and invoking
     //          handle(sprite1_element, sprite2_element)
     //          for each elem in the intersection.
-    template<class T, class D, class P, class NewlineFx = noop>
-    void onbody(T& canvas, D const& bitmap, P handle, NewlineFx online = {})
+    template<class NewlineFx = noop>
+    void onbody(auto&& canvas, auto const& bitmap, auto handle, NewlineFx online = {})
     {
         auto& rect1 = canvas.area();
         auto& rect2 = bitmap.area();
@@ -842,7 +851,7 @@ namespace netxs
     //          invoking handle(canvas_element)
     //          (without boundary checking).
     template<bool RtoL = faux, class T, class Rect, class P, class NewlineFx = noop, bool Plain = std::is_same_v<void, std::invoke_result_t<P, decltype(*(std::declval<T&>().begin()))>>>
-    void onrect(T& canvas, Rect const& region, P handle, NewlineFx online = {})
+    void onrect(T&& canvas, Rect const& region, P handle, NewlineFx online = {})
     {
         auto& place = canvas.area();
         if (auto joint = region.trim(place))
@@ -1354,25 +1363,5 @@ namespace netxs
                                                        s_dty, 1, count, d_ref,           //     auto works = std::list<std::thread>{};
                                                                         s_ref, shade);   //     while (t--) works.emplace_back(w);
         }                                                                                //     for (auto& t : works) t.join();
-    }
-    template<class T, bool InnerGlow = faux>
-    void boxblur(T& bitmap, si32 r, auto area, auto clip)
-    {
-        using type = std::decay_t<decltype(*bitmap.begin())>;
-        auto w = std::max(0, clip.size.x);
-        auto h = std::max(0, clip.size.y);
-        auto s = w * h;
-        auto buffer = T::base(s);
-        auto coor = clip.coor - area.coor;
-        auto s_ptr = bitmap.begin() + coor.x * coor.y;
-        auto d_ptr = buffer.begin();
-        auto s_width = area.size.x;
-        auto d_width = clip.size.x;
-        auto d_point = [](type* c)->auto& { return *c; };
-        netxs::boxblur<type, InnerGlow>(s_ptr,
-                                        d_ptr, w,
-                                               h, r, s_width,
-                                                     d_width, 1, d_point,
-                                                                 d_point);
     }
 }

@@ -243,13 +243,13 @@ namespace netxs::ui
             : flow{ pagerect.size }
         { }
 
-        void vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
-        void  size(twod size)   { pagerect.size = size; } // flow: Set client full size.
-        void  full(rect area)   { pagerect = area;      } // flow: Set client full rect.
-        auto& full() const      { return pagerect;      } // flow: Get client full rect reference.
-        auto& minmax() const    { return boundary;      } // flow: Return the output range.
-        void  minmax(twod p)    { boundary |= p;        } // flow: Register twod.
-        void  minmax(rect r)    { boundary |= r;        } // flow: Register rect.
+        void   vsize(si32 height) { pagerect.size.y = height;  } // flow: Set client full height.
+        void    size(twod size)   { pagerect.size = size; } // flow: Set client full size.
+        void    full(rect area)   { pagerect = area;      } // flow: Set client full rect.
+        auto&   full() const      { return pagerect;      } // flow: Get client full rect reference.
+        auto& minmax() const      { return boundary;      } // flow: Return the output range.
+        void  minmax(twod p)      { boundary |= p;        } // flow: Register twod.
+        void  minmax(rect r)      { boundary |= r;        } // flow: Register rect.
 
         // flow: Sync paragraph style.
         template<class T>
@@ -513,7 +513,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text line.
+    // richtext: Text line.
     class rich
         : public core
     {
@@ -556,7 +556,7 @@ namespace netxs::ui
             auto len = length();
             if constexpr (AutoGrow)
             {
-                resize(at + count);
+                rich::resize(at + count);
             }
             else
             {
@@ -572,7 +572,7 @@ namespace netxs::ui
         void splice(si32 at, Span const& fragment, Shader fuse)
         {
             auto len = fragment.length();
-            resize(len + at);
+            rich::resize(len + at);
             auto ptr = begin();
             auto dst = ptr + at;
             auto end = dst + len;
@@ -752,7 +752,7 @@ namespace netxs::ui
         void splice(si32 at, si32 count, Span const& proto, Shader fuse)
         {
             if (count <= 0) return;
-            resize(at + count);
+            rich::resize(at + count);
             auto end = begin() + at;
             auto dst = end + count;
             auto src = proto.end();
@@ -845,7 +845,7 @@ namespace netxs::ui
             auto pos = at % margin;
             auto vol = std::min(count, margin - pos);
             auto max = std::min(len + vol, at + margin - pos);
-            resize(max);
+            rich::resize(max);
             auto ptr = begin();
             auto dst = ptr + max;
             auto src = dst - vol;
@@ -922,7 +922,7 @@ namespace netxs::ui
                 }
                 else
                 {
-                    resize(margin + at);
+                    rich::resize(margin + at);
                     auto ptr = begin();
                     auto dst = ptr + at;
                     auto src = dst + count;
@@ -1020,7 +1020,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text paragraph.
+    // richtext: Text paragraph.
     class para
         : public ansi::parser
     {
@@ -1500,7 +1500,7 @@ namespace netxs::ui
         }
     };
 
-    // richtext: Enriched text page.
+    // richtext: Text page.
     class page
         : public ansi::parser
     {
@@ -1806,7 +1806,7 @@ namespace netxs::ui
                     }
                 }
             }
-            auto clr(rgba c, view tag1, view tag2)
+            auto clr(argb c, view tag1, view tag2)
             {
                 auto size = clrs.size();
                 auto iter = clrs.try_emplace(c.token, size).first;
@@ -1817,13 +1817,13 @@ namespace netxs::ui
                 data += istr;
             }
             template<svga Mode = svga::vtrgb>
-            auto fgc(rgba c)
+            auto fgc(argb c)
             {
                 base.inv() ? clr(c, bg_1, bg_2)
                            : clr(c, fg_1, fg_2);
             }
             template<svga Mode = svga::vtrgb>
-            auto bgc(rgba c)
+            auto bgc(argb c)
             {
                 base.inv() ? clr(c, fg_1, fg_2)
                            : clr(c, bg_1, bg_2);
@@ -1840,7 +1840,7 @@ namespace netxs::ui
                 static constexpr auto off = "\\i0 "sv;
                 data += b ? set : off;
             }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto und(si32 unline)
             {
                 static constexpr auto off = "\\ul0 "sv;
@@ -1910,7 +1910,7 @@ namespace netxs::ui
                     if (c.wdt() != 3) c.scan(dest.base, dest);
                 });
             }
-            auto vect = std::vector<rgba>(dest.clrs.size());
+            auto vect = std::vector<argb>(dest.clrs.size());
             for (auto& [key, val] : dest.clrs)
             {
                 vect[val].token = key;
@@ -1992,13 +1992,13 @@ namespace netxs::ui
                 }
             }
             template<svga Mode>
-            auto fgc(rgba ) { }
+            auto fgc(argb ) { }
             template<svga Mode>
-            auto bgc(rgba ) { }
+            auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }
@@ -2068,13 +2068,13 @@ namespace netxs::ui
                 data += utf8;
             }
             template<svga Mode>
-            auto fgc(rgba ) { }
+            auto fgc(argb ) { }
             template<svga Mode>
-            auto bgc(rgba ) { }
+            auto bgc(argb ) { }
             auto bld(bool ) { }
             auto itc(bool ) { }
             auto und(si32 ) { }
-            auto unc(rgba ) { }
+            auto unc(argb ) { }
             auto inv(bool ) { }
             auto stk(bool ) { }
             auto ovr(bool ) { }

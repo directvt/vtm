@@ -331,7 +331,7 @@ namespace netxs::{module}
 {{
     namespace {wclass}
     {{
-        enum type : unsigned char
+        enum type : byte
         {{
             {widths}
         }};
@@ -339,7 +339,7 @@ namespace netxs::{module}
 
     namespace {bclass}
     {{
-        enum type : unsigned char
+        enum type : byte
         {{
             {breaks}
         }};
@@ -347,7 +347,7 @@ namespace netxs::{module}
 
     namespace {cclass}
     {{
-        enum type : unsigned char
+        enum type : byte
         {{
             {cntrls}
         }};

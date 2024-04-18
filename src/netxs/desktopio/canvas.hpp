@@ -49,6 +49,14 @@ namespace netxs
     {
         blackdk, reddk, greendk, yellowdk, bluedk, magentadk, cyandk, whitedk,
         blacklt, redlt, greenlt, yellowlt, bluelt, magentalt, cyanlt, whitelt,
+        pureblack   = 16 + 36 * 0 + 6 * 0 + 0,
+        purewhite   = 16 + 36 * 5 + 6 * 5 + 5,
+        purered     = 16 + 36 * 5 + 6 * 0 + 0,
+        puregreen   = 16 + 36 * 0 + 6 * 5 + 0,
+        pureblue    = 16 + 36 * 0 + 6 * 0 + 5,
+        pureyellow  = 16 + 36 * 5 + 6 * 5 + 0,
+        purecyan    = 16 + 36 * 0 + 6 * 5 + 5,
+        puremagenta = 16 + 36 * 5 + 6 * 0 + 5,
     };
 
     struct tint16
@@ -74,30 +82,36 @@ namespace netxs
         };
     };
 
-    // canvas: 8-bit RGBA.
-    union rgba
+    // canvas: 8-bit ARGB.
+    union argb
     {
-        struct rgba_t { byte r, g, b, a; } chan;
-        ui32                               token;
+        ui32                        token;
+        struct { byte b, g, r, a; } chan;
 
-        constexpr rgba()
+        constexpr argb()
             : token{ 0 }
         { }
-        constexpr rgba(rgba const&) = default;
+        constexpr argb(argb const&) = default;
         template<class T, class A = byte>
-        constexpr rgba(T r, T g, T b, A a = 0xff)
-            : chan{ static_cast<byte>(r),
+        constexpr argb(T r, T g, T b, A a = 0xff)
+            : chan{ static_cast<byte>(b),
                     static_cast<byte>(g),
-                    static_cast<byte>(b),
+                    static_cast<byte>(r),
                     static_cast<byte>(a) }
         { }
-        constexpr rgba(ui32 c)
+        constexpr argb(fp32 r, fp32 g, fp32 b, fp32 a)
+            : chan{ static_cast<byte>(b * 255),
+                    static_cast<byte>(g * 255),
+                    static_cast<byte>(r * 255),
+                    static_cast<byte>(a * 255) }
+        { }
+        constexpr argb(ui32 c)
             : token{ netxs::letoh(c) }
         { }
-        constexpr rgba(tint c)
-            : rgba{ vt256[c] }
+        constexpr argb(tint c)
+            : argb{ vt256[c] }
         { }
-        rgba(fifo& queue)
+        argb(fifo& queue)
         {
             static constexpr auto mode_RGB = 2;
             static constexpr auto mode_256 = 5;
@@ -141,53 +155,64 @@ namespace netxs
             }
         }
 
-        constexpr rgba& operator = (rgba const&) = default;
+        constexpr argb& operator = (argb const&) = default;
         constexpr explicit operator bool () const
         {
             return token;
         }
-        constexpr auto operator == (rgba c) const
+        constexpr auto operator == (argb c) const
         {
             return token == c.token;
         }
-        constexpr auto operator != (rgba c) const
+        constexpr auto operator != (argb c) const
         {
             return !operator==(c);
         }
-        // rgba: Set all channels to zero.
+        static auto swap_rb(ui32 c)
+        {
+            return ((c >>  0) & 0x00'FF'00) |
+                   ((c >> 16) & 0x00'00'FF) |
+                   ((c << 16) & 0xFF'00'00);
+        }
+        // argb: Set all channels to zero.
         void wipe()
         {
             token = 0;
         }
-        // rgba: Set color to opaque black.
+        // argb: Set color to opaque black.
         void rst()
         {
-            static constexpr auto colorblack = rgba{ 0xFF000000 };
-
+            static constexpr auto colorblack = argb{ 0xFF000000 };
             token = colorblack.token;
         }
-        // rgba: Are the colors alpha blenable?
+        // argb: Are the colors alpha blenable?
         auto is_alpha_blendable() const
         {
             return chan.a && chan.a != 0xFF;
         }
-        // rgba: Set alpha channel.
-        void alpha(si32 k)
+        // argb: Set alpha channel.
+        auto& alpha(si32 k)
         {
             chan.a = (byte)k;
+            return *this;
         }
-        // rgba: Return alpha channel.
+        auto& alpha(fp32 k)
+        {
+            chan.a = (byte)std::clamp(k * 255.f, 0.f, 255.f);
+            return *this;
+        }
+        // argb: Return alpha channel.
         auto alpha() const
         {
             return chan.a;
         }
-        // rgba: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
+        // argb: Colourimetric (perceptual luminance-preserving) conversion to greyscale.
         constexpr auto luma() const
         {
-            auto t = netxs::letoh(token);
-            return static_cast<byte>(0.2627f * ((t & 0x0000FF) >> 0)
-                                   + 0.6780f * ((t & 0x00FF00) >> 8)
-                                   + 0.0593f * ((t & 0xFF0000) >> 16));
+            auto r = (token >> 16) & 0xFF;
+            auto g = (token >>  8) & 0xFF;
+            auto b = (token >>  0) & 0xFF;
+            return static_cast<byte>(0.2627f * r + 0.6780f * g + 0.0593f * b);
         }
         static constexpr auto luma(si32 r, si32 g, si32 b)
         {
@@ -200,7 +225,7 @@ namespace netxs
             chan.g = l;
             chan.b = l;
         }
-        // rgba: Return 256-color 6x6x6 cube.
+        // argb: Return 256-color 6x6x6 cube.
         auto to_256cube() const
         {
             auto clr = 0;
@@ -217,15 +242,15 @@ namespace netxs
             }
             return (byte)clr;
         }
-        // rgba: Equal both to their average.
-        void avg(rgba& c)
+        // argb: Equal both to their average.
+        void avg(argb& c)
         {
             chan.r = c.chan.r = (byte)(((ui32)chan.r + c.chan.r) >> 1);
             chan.g = c.chan.g = (byte)(((ui32)chan.g + c.chan.g) >> 1);
             chan.b = c.chan.b = (byte)(((ui32)chan.b + c.chan.b) >> 1);
         }
-        // rgba: One-side alpha blending RGBA colors.
-        void inline mix_one(rgba c)
+        // argb: One-side alpha blending ARGB colors.
+        void inline mix_one(argb c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -244,8 +269,8 @@ namespace netxs
                 //if (!chan.a) chan.a = c.chan.a;
             }
         }
-        // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c)
+        // argb: Alpha blending ARGB colors.
+        void inline mix(argb c)
         {
             if (c.chan.a == 0xFF)
             {
@@ -270,17 +295,25 @@ namespace netxs
                 chan.a = (byte)(a >> 8);
             }
         }
-        // rgba: RGBA transitional blending. Level = 0: equals c1, level = 256: equals c2.
-        static auto transit(rgba c1, rgba c2, si32 level)
+        // argb: ARGB transitional blending. Level = 0: equals c1, level = 256: equals c2.
+        static auto transit(argb c1, argb c2, si32 level)
         {
             auto inverse = 256 - level;
-            return rgba{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
+            return argb{ (c2.chan.r * level + c1.chan.r * inverse) >> 8,
                          (c2.chan.g * level + c1.chan.g * inverse) >> 8,
                          (c2.chan.b * level + c1.chan.b * inverse) >> 8,
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
         }
-        // rgba: Alpha blending RGBA colors.
-        void inline mix(rgba c, si32 alpha)
+        static auto transit(argb c1, argb c2, fp32 level)
+        {
+            auto inverse = 1.f - level;
+            return argb{ (byte)std::clamp(c2.chan.r * level + c1.chan.r * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.g * level + c1.chan.g * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.b * level + c1.chan.b * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.a * level + c1.chan.a * inverse, 0.f, 255.f) };
+        }
+        // argb: Alpha blending ARGB colors.
+        void inline mix(argb c, si32 alpha)
         {
             if (alpha == 0xFF)
             {
@@ -295,8 +328,8 @@ namespace netxs
                 chan.a = (byte)((c.chan.a * alpha + chan.a * inverse) >> 8);
             }
         }
-        // rgba: Rough alpha blending RGBA colors.
-        //void mix_alpha(rgba c)
+        // argb: Rough alpha blending ARGB colors.
+        //void mix_alpha(argb c)
         //{
         //	auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
         //	{
@@ -325,15 +358,15 @@ namespace netxs
         //	}
         //}
 
-        //// rgba: Are the colors identical.
-        //bool like(rgba c) const
+        //// argb: Are the colors identical.
+        //bool like(argb c) const
         //{
         //
         //	static constexpr auto k = ui32{ 0b11110000 };
         //	static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
         //	return	(token & threshold) == (c.token & threshold);
         //}
-        // rgba: Shift color.
+        // argb: Shift color.
         void xlight(si32 factor = 1)
         {
             if (chan.a == 255)
@@ -384,8 +417,8 @@ namespace netxs
                 }
             }
         }
-        // rgba: Shift color pair.
-        void xlight(si32 factor, rgba& second)
+        // argb: Shift color pair.
+        void xlight(si32 factor, argb& second)
         {
             if (chan.a == 255)
             {
@@ -450,14 +483,14 @@ namespace netxs
                 }
             }
         }
-        // rgba: Darken the color.
+        // argb: Darken the color.
         void shadow(byte k = 39)
         {
             chan.r = chan.r < k ? 0x00 : chan.r - k;
             chan.g = chan.g < k ? 0x00 : chan.g - k;
             chan.b = chan.b < k ? 0x00 : chan.b - k;
         }
-        // rgba: Lighten the color.
+        // argb: Lighten the color.
         void bright(si32 factor = 1)
         {
             auto k = (byte)std::clamp(39 * factor, 0, 0xFF);
@@ -465,15 +498,15 @@ namespace netxs
             chan.g = chan.g > 0xFF - k ? 0xFF : chan.g + k;
             chan.b = chan.b > 0xFF - k ? 0xFF : chan.b + k;
         }
-        // rgba: Invert the color.
+        // argb: Invert the color.
         void invert()
         {
-            static constexpr auto pureblack = rgba{ 0xFF000000 };
-            static constexpr auto antiwhite = rgba{ 0x00FFFFFF };
+            static constexpr auto pureblack = argb{ 0xFF000000 };
+            static constexpr auto antiwhite = argb{ 0x00FFFFFF };
 
             token = (token & pureblack.token) | ~(token & antiwhite.token);
         }
-        // rgba: Print channel values.
+        // argb: Print channel values.
         auto str() const
         {
             return "{" + std::to_string(chan.r) + ","
@@ -481,24 +514,42 @@ namespace netxs
                        + std::to_string(chan.b) + ","
                        + std::to_string(chan.a) + "}";
         }
+        // argb: Linear to sRGB (g = 2.4)
+        static auto gamma(fp32 c)
+        {
+            return c <= 0.0031308f ? 12.92f * c
+                                   : 1.055f * std::pow(c, 1.f / 2.4f) - 0.055f;
+        }
+        // argb: Linear to sRGB (g = 2.4)
+        static auto gamma(byte c)
+        {
+            return (byte)argb::gamma(c / 255.f);
+        }
+        // argb: Linear to sRGB (g = 2.4)
+        static auto gamma(argb c)
+        {
+            return argb{ argb::gamma(c.chan.r),
+                         argb::gamma(c.chan.g),
+                         argb::gamma(c.chan.g), c.chan.a };
+        }
 
         template<si32 i>
         static constexpr ui32 _vt16 = // Compile-time value assigning (sorted by enum).
             i == tint::blackdk   ? 0xFF'10'10'10 :
-            i == tint::reddk     ? 0xFF'1F'0F'C4 :
-            i == tint::greendk   ? 0xFF'0E'A1'12 :
-            i == tint::yellowdk  ? 0xFF'00'9C'C0 :
-            i == tint::bluedk    ? 0xFF'DB'37'00 :
-            i == tint::magentadk ? 0xFF'98'17'87 :
-            i == tint::cyandk    ? 0xFF'DD'96'3B :
+            i == tint::reddk     ? 0xFF'C4'0F'1F :
+            i == tint::greendk   ? 0xFF'12'A1'0E :
+            i == tint::yellowdk  ? 0xFF'C0'9C'00 :
+            i == tint::bluedk    ? 0xFF'00'37'DB :
+            i == tint::magentadk ? 0xFF'87'17'98 :
+            i == tint::cyandk    ? 0xFF'3B'96'DD :
             i == tint::whitedk   ? 0xFF'BB'BB'BB :
             i == tint::blacklt   ? 0xFF'75'75'75 :
-            i == tint::redlt     ? 0xFF'56'48'E6 :
-            i == tint::greenlt   ? 0xFF'0C'C6'15 :
-            i == tint::yellowlt  ? 0xFF'A5'F1'F8 :
-            i == tint::bluelt    ? 0xFF'FF'78'3A :
-            i == tint::magentalt ? 0xFF'9E'00'B3 :
-            i == tint::cyanlt    ? 0xFF'D6'D6'60 :
+            i == tint::redlt     ? 0xFF'E6'48'56 :
+            i == tint::greenlt   ? 0xFF'15'C6'0C :
+            i == tint::yellowlt  ? 0xFF'F8'F1'A5 :
+            i == tint::bluelt    ? 0xFF'3A'78'FF :
+            i == tint::magentalt ? 0xFF'B3'00'9E :
+            i == tint::cyanlt    ? 0xFF'60'D6'D6 :
             i == tint::whitelt   ? 0xFF'F3'F3'F3 : 0;
         template<si32 i>
         static constexpr ui32 _vtm16 = // Compile-time value assigning (sorted by enum).
@@ -535,66 +586,66 @@ namespace netxs
             _vt16<8>, _vt16<9>, _vt16<10>, _vt16<11>, _vt16<12>, _vt16<13>, _vt16<14>, _vt16<15>,
 
             // 6×6×6 RGB-cube (216 colors), index = 16 + 36r + 6g + b, r,g,b=[0, 5]
-            0xFF000000, 0xFF5F0000, 0xFF870000, 0xFFAF0000, 0xFFD70000, 0xFFFF0000,
-            0xFF005F00, 0xFF5F5F00, 0xFF875F00, 0xFFAF5F00, 0xFFD75F00, 0xFFFF5F00,
-            0xFF008700, 0xFF5F8700, 0xFF878700, 0xFFAF8700, 0xFFD78700, 0xFFFF8700,
-            0xFF00AF00, 0xFF5FAF00, 0xFF87AF00, 0xFFAFAF00, 0xFFD7AF00, 0xFFFFAF00,
-            0xFF00D700, 0xFF5FD700, 0xFF87D700, 0xFFAFD700, 0xFFD7D700, 0xFFFFD700,
-            0xFF00FF00, 0xFF5FFF00, 0xFF87FF00, 0xFFAFFF00, 0xFFD7FF00, 0xFFFFFF00,
+            0xFF000000, 0xFF00005F, 0xFF000087, 0xFF0000AF, 0xFF0000D7, 0xFF0000FF,
+            0xFF005F00, 0xFF005F5F, 0xFF005F87, 0xFF005FAF, 0xFF005FD7, 0xFF005FFF,
+            0xFF008700, 0xFF00875F, 0xFF008787, 0xFF0087AF, 0xFF0087D7, 0xFF0087FF,
+            0xFF00AF00, 0xFF00AF5F, 0xFF00AF87, 0xFF00AFAF, 0xFF00AFD7, 0xFF00AFFF,
+            0xFF00D700, 0xFF00D75F, 0xFF00D787, 0xFF00D7AF, 0xFF00D7D7, 0xFF00D7FF,
+            0xFF00FF00, 0xFF00FF5F, 0xFF00FF87, 0xFF00FFAF, 0xFF00FFD7, 0xFF00FFFF,
 
-            0xFF00005F, 0xFF5F005F, 0xFF87005F, 0xFFAF005F, 0xFFD7005F, 0xFFFF005F,
-            0xFF005F5F, 0xFF5F5F5F, 0xFF875F5F, 0xFFAF5F5F, 0xFFD75F5F, 0xFFFF5F5F,
-            0xFF00875F, 0xFF5F875F, 0xFF87875F, 0xFFAF875F, 0xFFD7875F, 0xFFFF875F,
-            0xFF00AF5F, 0xFF5FAF5F, 0xFF87AF5F, 0xFFAFAF5F, 0xFFD7AF5F, 0xFFFFAF5F,
-            0xFF00D75F, 0xFF5FD75F, 0xFF87D75F, 0xFFAFD75F, 0xFFD7D75F, 0xFFFFD75F,
-            0xFF00FF5F, 0xFF5FFF5F, 0xFF87FF5F, 0xFFAFFF5F, 0xFFD7FF5F, 0xFFFFFF5F,
+            0xFF5F0000, 0xFF5F005F, 0xFF5F0087, 0xFF5F00AF, 0xFF5F00D7, 0xFF5F00FF,
+            0xFF5F5F00, 0xFF5F5F5F, 0xFF5F5F87, 0xFF5F5FAF, 0xFF5F5FD7, 0xFF5F5FFF,
+            0xFF5F8700, 0xFF5F875F, 0xFF5F8787, 0xFF5F87AF, 0xFF5F87D7, 0xFF5F87FF,
+            0xFF5FAF00, 0xFF5FAF5F, 0xFF5FAF87, 0xFF5FAFAF, 0xFF5FAFD7, 0xFF5FAFFF,
+            0xFF5FD700, 0xFF5FD75F, 0xFF5FD787, 0xFF5FD7AF, 0xFF5FD7D7, 0xFF5FD7FF,
+            0xFF5FFF00, 0xFF5FFF5F, 0xFF5FFF87, 0xFF5FFFAF, 0xFF5FFFD7, 0xFF5FFFFF,
 
-            0xFF000087, 0xFF5F0087, 0xFF870087, 0xFFAF0087, 0xFFD70087, 0xFFFF0087,
-            0xFF005F87, 0xFF5F5F87, 0xFF875F87, 0xFFAF5F87, 0xFFD75F87, 0xFFFF5F87,
-            0xFF008787, 0xFF5F8787, 0xFF878787, 0xFFAF8787, 0xFFD78787, 0xFFFF8787,
-            0xFF00AF87, 0xFF5FAF87, 0xFF87AF87, 0xFFAFAF87, 0xFFD7AF87, 0xFFFFAF87,
-            0xFF00D787, 0xFF5FD787, 0xFF87D787, 0xFFAFD787, 0xFFD7D787, 0xFFFFD787,
-            0xFF00FF87, 0xFF5FFF87, 0xFF87FF87, 0xFFAFFF87, 0xFFD7FF87, 0xFFFFFF87,
+            0xFF870000, 0xFF87005F, 0xFF870087, 0xFF8700AF, 0xFF8700D7, 0xFF8700FF,
+            0xFF875F00, 0xFF875F5F, 0xFF875F87, 0xFF875FAF, 0xFF875FD7, 0xFF875FFF,
+            0xFF878700, 0xFF87875F, 0xFF878787, 0xFF8787AF, 0xFF8787D7, 0xFF8787FF,
+            0xFF87AF00, 0xFF87AF5F, 0xFF87AF87, 0xFF87AFAF, 0xFF87AFD7, 0xFF87AFFF,
+            0xFF87D700, 0xFF87D75F, 0xFF87D787, 0xFF87D7AF, 0xFF87D7D7, 0xFF87D7FF,
+            0xFF87FF00, 0xFF87FF5F, 0xFF87FF87, 0xFF87FFAF, 0xFF87FFD7, 0xFF87FFFF,
 
-            0xFF0000AF, 0xFF5F00AF, 0xFF8700AF, 0xFFAF00AF, 0xFFD700AF, 0xFFFF00AF,
-            0xFF005FAF, 0xFF5F5FAF, 0xFF875FAF, 0xFFAF5FAF, 0xFFD75FAF, 0xFFFF5FAF,
-            0xFF0087AF, 0xFF5F87AF, 0xFF8787AF, 0xFFAF87AF, 0xFFD787AF, 0xFFFF87AF,
-            0xFF00AFAF, 0xFF5FAFAF, 0xFF87AFAF, 0xFFAFAFAF, 0xFFD7AFAF, 0xFFFFAFAF,
-            0xFF00D7AF, 0xFF5FD7AF, 0xFF87D7AF, 0xFFAFD7AF, 0xFFD7D7AF, 0xFFFFD7AF,
-            0xFF00FFAF, 0xFF5FFFAF, 0xFF87FFAF, 0xFFAFFFAF, 0xFFD7FFAF, 0xFFFFFFAF,
+            0xFFAF0000, 0xFFAF005F, 0xFFAF0087, 0xFFAF00AF, 0xFFAF00D7, 0xFFAF00FF,
+            0xFFAF5F00, 0xFFAF5F5F, 0xFFAF5F87, 0xFFAF5FAF, 0xFFAF5FD7, 0xFFAF5FFF,
+            0xFFAF8700, 0xFFAF875F, 0xFFAF8787, 0xFFAF87AF, 0xFFAF87D7, 0xFFAF87FF,
+            0xFFAFAF00, 0xFFAFAF5F, 0xFFAFAF87, 0xFFAFAFAF, 0xFFAFAFD7, 0xFFAFAFFF,
+            0xFFAFD700, 0xFFAFD75F, 0xFFAFD787, 0xFFAFD7AF, 0xFFAFD7D7, 0xFFAFD7FF,
+            0xFFAFFF00, 0xFFAFFF5F, 0xFFAFFF87, 0xFFAFFFAF, 0xFFAFFFD7, 0xFFAFFFFF,
 
-            0xFF0000D7, 0xFF5F00D7, 0xFF8700D7, 0xFFAF00D7, 0xFFD700D7, 0xFFFF00D7,
-            0xFF005FD7, 0xFF5F5FD7, 0xFF875FD7, 0xFFAF5FD7, 0xFFD75FD7, 0xFFFF5FD7,
-            0xFF0087D7, 0xFF5F87D7, 0xFF8787D7, 0xFFAF87D7, 0xFFD787D7, 0xFFFF87D7,
-            0xFF00AFD7, 0xFF5FAFD7, 0xFF87AFD7, 0xFFAFAFD7, 0xFFD7AFD7, 0xFFFFAFD7,
-            0xFF00D7D7, 0xFF5FD7D7, 0xFF87D7D7, 0xFFAFD7D7, 0xFFD7D7D7, 0xFFFFD7D7,
-            0xFF00FFD7, 0xFF5FFFD7, 0xFF87FFD7, 0xFFAFFFD7, 0xFFD7FFD7, 0xFFFFFFD7,
+            0xFFD70000, 0xFFD7005F, 0xFFD70087, 0xFFD700AF, 0xFFD700D7, 0xFFD700FF,
+            0xFFD75F00, 0xFFD75F5F, 0xFFD75F87, 0xFFD75FAF, 0xFFD75FD7, 0xFFD75FFF,
+            0xFFD78700, 0xFFD7875F, 0xFFD78787, 0xFFD787AF, 0xFFD787D7, 0xFFD787FF,
+            0xFFD7AF00, 0xFFD7AF5F, 0xFFD7AF87, 0xFFD7AFAF, 0xFFD7AFD7, 0xFFD7AFFF,
+            0xFFD7D700, 0xFFD7D75F, 0xFFD7D787, 0xFFD7D7AF, 0xFFD7D7D7, 0xFFD7D7FF,
+            0xFFD7FF00, 0xFFD7FF5F, 0xFFD7FF87, 0xFFD7FFAF, 0xFFD7FFD7, 0xFFD7FFFF,
 
-            0xFF0000FF, 0xFF5F00FF, 0xFF8700FF, 0xFFAF00FF, 0xFFD700FF, 0xFFFE00FF,
-            0xFF005FFF, 0xFF5F5FFF, 0xFF875FFF, 0xFFAF5FFF, 0xFFD75FFF, 0xFFFE5FFF,
-            0xFF0087FF, 0xFF5F87FF, 0xFF8787FF, 0xFFAF87FF, 0xFFD787FF, 0xFFFE87FF,
-            0xFF00AFFF, 0xFF5FAFFF, 0xFF87AFFF, 0xFFAFAFFF, 0xFFD7AFFF, 0xFFFEAFFF,
-            0xFF00D7FF, 0xFF5FD7FF, 0xFF87D7FF, 0xFFAFD7FF, 0xFFD7D7FF, 0xFFFED7FF,
-            0xFF00FFFF, 0xFF5FFFFF, 0xFF87FFFF, 0xFFAFFFFF, 0xFFD7FFFF, 0xFFFFFFFF,
+            0xFFFF0000, 0xFFFF005F, 0xFFFF0087, 0xFFFF00AF, 0xFFFF00D7, 0xFFFF00FE,
+            0xFFFF5F00, 0xFFFF5F5F, 0xFFFF5F87, 0xFFFF5FAF, 0xFFFF5FD7, 0xFFFF5FFE,
+            0xFFFF8700, 0xFFFF875F, 0xFFFF8787, 0xFFFF87AF, 0xFFFF87D7, 0xFFFF87FE,
+            0xFFFFAF00, 0xFFFFAF5F, 0xFFFFAF87, 0xFFFFAFAF, 0xFFFFAFD7, 0xFFFFAFFE,
+            0xFFFFD700, 0xFFFFD75F, 0xFFFFD787, 0xFFFFD7AF, 0xFFFFD7D7, 0xFFFFD7FE,
+            0xFFFFFF00, 0xFFFFFF5F, 0xFFFFFF87, 0xFFFFFFAF, 0xFFFFFFD7, 0xFFFFFFFF,
             // Grayscale colors, 24 steps
             0xFF080808, 0xFF121212, 0xFF1C1C1C, 0xFF262626, 0xFF303030, 0xFF3A3A3A,
             0xFF444444, 0xFF4E4E4E, 0xFF585858, 0xFF626262, 0xFF6C6C6C, 0xFF767676,
             0xFF808080, 0xFF8A8A8A, 0xFF949494, 0xFF9E9E9E, 0xFFA8A8A8, 0xFFB2B2B2,
             0xFFBCBCBC, 0xFFC6C6C6, 0xFFD0D0D0, 0xFFDADADA, 0xFFE4E4E4, 0xFFEEEEEE,
         });
-        friend auto& operator << (std::ostream& s, rgba c)
+        friend auto& operator << (std::ostream& s, argb c)
         {
-            return s << "{" << (int)c.chan.r
-                     << "," << (int)c.chan.g
-                     << "," << (int)c.chan.b
-                     << "," << (int)c.chan.a
+            return s << "{" << (si32)c.chan.r
+                     << "," << (si32)c.chan.g
+                     << "," << (si32)c.chan.b
+                     << "," << (si32)c.chan.a
                      << "}";
         }
         static auto set_vtm16_palette(auto proc)
         {
             for (auto i = 0; i < 16; i++)
             {
-                proc(i, rgba::vtm16[i]);
+                proc(i, argb::vtm16[i]);
             }
         }
         auto lookup(auto& fast, auto&& palette) const
@@ -645,12 +696,12 @@ namespace netxs
             }
             return hit.second;
         }
-        auto to_vga16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color mode).
+        auto to_vga16(bool fg = true) const // argb: 4-bit Foreground color (vtm 16-color mode).
         {
             static auto cache_fg = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0; i < 16; i++) table.push_back({ rgba::vt256[i], i });
+                for (auto i = 0; i < 16; i++) table.push_back({ argb::vt256[i], i });
                 table.insert(table.end(),
                 {
                     { 0xFF'ff'ff'ff, tint::whitelt   },
@@ -659,15 +710,15 @@ namespace netxs
                     { 0xff'55'55'55, tint::blacklt   },
                     { 0xFF'00'00'00, tint::blackdk   },
 
-                    { 0xFF'00'00'55, tint::reddk     },
-                    { 0xFF'00'00'80, tint::reddk     },
-                    { 0xFF'00'00'aa, tint::reddk     },
-                    { 0xFF'00'00'ff, tint::redlt     },
+                    { 0xFF'55'00'00, tint::reddk     },
+                    { 0xFF'80'00'00, tint::reddk     },
+                    { 0xFF'aa'00'00, tint::reddk     },
+                    { 0xFF'ff'00'00, tint::redlt     },
 
-                    { 0xFF'55'00'00, tint::bluedk    },
-                    { 0xFF'80'00'00, tint::bluedk    },
-                    { 0xFF'aa'00'00, tint::bluedk    },
-                    { 0xFF'ff'00'00, tint::bluelt    },
+                    { 0xFF'00'00'55, tint::bluedk    },
+                    { 0xFF'00'00'80, tint::bluedk    },
+                    { 0xFF'00'00'aa, tint::bluedk    },
+                    { 0xFF'00'00'ff, tint::bluelt    },
 
                     { 0xFF'00'aa'00, tint::greendk   },
                     { 0xFF'00'80'00, tint::greendk   },
@@ -679,46 +730,46 @@ namespace netxs
                     { 0xFF'ff'55'ff, tint::magentalt },
                     { 0xFF'ff'00'ff, tint::magentalt },
 
-                    { 0xFF'80'80'00, tint::cyandk    },
-                    { 0xFF'aa'aa'00, tint::cyandk    },
-                    { 0xFF'ff'ff'55, tint::cyanlt    },
-                    { 0xFF'ff'ff'00, tint::cyanlt    },
+                    { 0xFF'00'80'80, tint::cyandk    },
+                    { 0xFF'00'aa'aa, tint::cyandk    },
+                    { 0xFF'55'ff'ff, tint::cyanlt    },
+                    { 0xFF'00'ff'ff, tint::cyanlt    },
 
-                    { 0xFF'00'55'aa, tint::yellowdk  },
-                    { 0xFF'00'80'80, tint::yellowdk  },
-                    { 0xFF'00'ff'ff, tint::yellowlt  },
-                    { 0xFF'55'ff'ff, tint::yellowlt  },
+                    { 0xFF'aa'55'00, tint::yellowdk  },
+                    { 0xFF'80'80'00, tint::yellowdk  },
+                    { 0xFF'ff'ff'00, tint::yellowlt  },
+                    { 0xFF'ff'ff'55, tint::yellowlt  },
                 });
                 return table;
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            auto c = lookup(cache, std::span{ rgba::vt256.data(), 16 });
+            auto c = lookup(cache, std::span{ argb::vt256.data(), 16 });
             return netxs::swap_bits<0, 2>(c); // ANSI<->DOS color scheme reindex.
         }
-        auto to_vtm16(bool fg = true) const // rgba: 4-bit Foreground color (vtm 16-color palette).
+        auto to_vtm16(bool fg = true) const // argb: 4-bit Foreground color (vtm 16-color palette).
         {
             static auto cache_fg = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0u; i < std::size(rgba::vtm16); i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(argb::vtm16); i++) table.push_back({ argb::vtm16[i], i });
                 table.insert(table.end(),
                 {
-                    { 0xFF'00'00'55,                 tint16::reddk     },
-                    { 0xFF'00'00'aa,                 tint16::reddk     },
-                    { 0xFF'00'00'80,                 tint16::reddk     },
-                    { 0xFF'00'00'ff,                 tint16::redlt     },
+                    { 0xFF'55'00'00,                 tint16::reddk     },
+                    { 0xFF'aa'00'00,                 tint16::reddk     },
+                    { 0xFF'80'00'00,                 tint16::reddk     },
+                    { 0xFF'ff'00'00,                 tint16::redlt     },
 
-                    { rgba::vt256[tint::magentadk],  tint16::reddk     },
+                    { argb::vt256[tint::magentadk],  tint16::reddk     },
                     { 0xFF'80'00'80,                 tint16::reddk     },
                     { 0xFF'ff'55'ff,                 tint16::magentalt },
                     { 0xFF'ff'00'ff,                 tint16::magentalt },
 
-                    { rgba::vt256[tint::cyandk],     tint16::bluelt    },
-                    { 0xFF'80'80'00,                 tint16::bluelt    },
-                    { 0xFF'aa'aa'00,                 tint16::bluelt    },
-                    { 0xFF'ff'ff'55,                 tint16::cyanlt    },
-                    { 0xFF'ff'ff'00,                 tint16::cyanlt    },
+                    { argb::vt256[tint::cyandk],     tint16::bluelt    },
+                    { 0xFF'00'80'80,                 tint16::bluelt    },
+                    { 0xFF'00'aa'aa,                 tint16::bluelt    },
+                    { 0xFF'55'ff'ff,                 tint16::cyanlt    },
+                    { 0xFF'00'ff'ff,                 tint16::cyanlt    },
 
                     { 0xFF'ff'ff'ff,                 tint16::whitelt   },
                     { 0xff'aa'aa'aa,                 tint16::whitedk   },
@@ -726,48 +777,48 @@ namespace netxs
                     { 0xff'55'55'55,                 tint16::graydk    },
                     { 0xFF'00'00'00,                 tint16::blackdk   },
 
-                    { 0xFF'55'00'00,                 tint16::bluedk    },
-                    { 0xFF'80'00'00,                 tint16::bluedk    },
-                    { 0xFF'aa'00'00,                 tint16::bluedk    },
-                    { 0xFF'ff'00'00,                 tint16::bluelt    },
+                    { 0xFF'00'00'55,                 tint16::bluedk    },
+                    { 0xFF'00'00'80,                 tint16::bluedk    },
+                    { 0xFF'00'00'aa,                 tint16::bluedk    },
+                    { 0xFF'00'00'ff,                 tint16::bluelt    },
 
                     { 0xFF'00'aa'00,                 tint16::greendk   },
                     { 0xFF'00'80'00,                 tint16::greendk   },
                     { 0xFF'00'ff'00,                 tint16::greenlt   },
                     { 0xFF'55'ff'55,                 tint16::greenlt   },
 
-                    { 0xFF'00'55'aa,                 tint16::yellowdk  },
-                    { 0xFF'00'80'80,                 tint16::yellowdk  },
-                    { 0xFF'00'ff'ff,                 tint16::yellowlt  },
-                    { 0xFF'55'ff'ff,                 tint16::yellowlt  },
+                    { 0xFF'aa'55'00,                 tint16::yellowdk  },
+                    { 0xFF'80'80'00,                 tint16::yellowdk  },
+                    { 0xFF'ff'ff'00,                 tint16::yellowlt  },
+                    { 0xFF'ff'ff'55,                 tint16::yellowlt  },
                 });
                 return table;
             }();
             static auto cache_bg = cache_fg;
             auto& cache = fg ? cache_fg : cache_bg; // Fg and Bg are sorted differently.
-            return lookup(cache, rgba::vtm16);
+            return lookup(cache, argb::vtm16);
         }
-        auto to_vtm8() const // rgba: 3-bit Background color (vtm 8-color palette).
+        auto to_vtm8() const // argb: 3-bit Background color (vtm 8-color palette).
         {
             static auto cache = []
             {
                 auto table = std::vector<std::pair<ui32, si32>>{};
-                for (auto i = 0u; i < std::size(rgba::vtm16) / 2; i++) table.push_back({ rgba::vtm16[i], i });
+                for (auto i = 0u; i < std::size(argb::vtm16) / 2; i++) table.push_back({ argb::vtm16[i], i });
                 table.insert(table.end(),
                 {
-                    { rgba::vt256[tint::bluelt   ],  tint16::bluedk  },
-                    { rgba::vt256[tint::redlt    ],  tint16::reddk   },
-                    { rgba::vt256[tint::cyanlt   ],  tint16::whitedk },
-                    { rgba::vt256[tint::cyandk   ],  tint16::graylt  },
-                    { rgba::vt256[tint::greenlt  ],  tint16::graylt  },
-                    { rgba::vt256[tint::greendk  ],  tint16::graydk  },
-                    { rgba::vt256[tint::yellowdk ],  tint16::graydk  },
-                    { rgba::vt256[tint::yellowlt ],  tint16::whitelt },
-                    { rgba::vt256[tint::magentalt],  tint16::reddk   },
-                    { rgba::vt256[tint::magentadk],  tint16::reddk   },
+                    { argb::vt256[tint::bluelt   ],  tint16::bluedk  },
+                    { argb::vt256[tint::redlt    ],  tint16::reddk   },
+                    { argb::vt256[tint::cyanlt   ],  tint16::whitedk },
+                    { argb::vt256[tint::cyandk   ],  tint16::graylt  },
+                    { argb::vt256[tint::greenlt  ],  tint16::graylt  },
+                    { argb::vt256[tint::greendk  ],  tint16::graydk  },
+                    { argb::vt256[tint::yellowdk ],  tint16::graydk  },
+                    { argb::vt256[tint::yellowlt ],  tint16::whitelt },
+                    { argb::vt256[tint::magentalt],  tint16::reddk   },
+                    { argb::vt256[tint::magentadk],  tint16::reddk   },
                     { 0xff'00'00'00,                 tint16::blackdk },
-                    { 0xff'00'00'FF,                 tint16::reddk   },
-                    { 0xff'FF'00'00,                 tint16::bluedk  },
+                    { 0xff'FF'00'00,                 tint16::reddk   },
+                    { 0xff'00'00'FF,                 tint16::bluedk  },
                     { 0xff'FF'FF'FF,                 tint16::whitelt },
                     { 0xff'aa'aa'aa,                 tint16::whitedk },
                     { 0xff'80'80'80,                 tint16::graylt  },
@@ -775,11 +826,11 @@ namespace netxs
                 });
                 return table;
             }();
-            return lookup(cache, std::span{ rgba::vtm16.data(), 8 });
+            return lookup(cache, std::span{ argb::vtm16.data(), 8 });
         }
     };
 
-    // canvas: Templated RGB.
+    // canvas: Generic RGBA.
     template<class T>
     struct irgb
     {
@@ -790,14 +841,14 @@ namespace netxs
         constexpr irgb(T r, T g, T b, T a = { -1 })
             : r{ r }, g{ g }, b{ b }, a{ a }
         { }
-        constexpr irgb(rgba c)
+        constexpr irgb(argb c)
             : r{ c.chan.r },
               g{ c.chan.g },
               b{ c.chan.b },
               a{ c.chan.a }
         { }
 
-        operator rgba() const { return rgba{ r, g, b, a }; }
+        operator argb() const { return argb{ r, g, b, a }; }
 
         bool operator > (auto n) const { return r > n || g > n || b > n || a > n; }
         auto operator / (auto n) const { return irgb{ r / n, g / n, b / n, a / n }; } // 10% faster than divround.
@@ -842,14 +893,14 @@ namespace netxs
             b -= c.b;
             a -= c.a;
         }
-        void operator += (rgba c)
+        void operator += (argb c)
         {
             r += c.chan.r;
             g += c.chan.g;
             b += c.chan.b;
             a += c.chan.a;
         }
-        void operator -= (rgba c)
+        void operator -= (argb c)
         {
             r -= c.chan.r;
             g -= c.chan.g;
@@ -858,25 +909,13 @@ namespace netxs
         }
     };
 
-    // canvas: Enriched grapheme cluster.
+    // canvas: Grapheme cluster.
     struct cell
     {
         union glyf
         {
-            struct mode
-            {
-                byte jumbo : 1;                  // grapheme cluster length overflow bit
-
-                //todo unify with CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
-                //todo move width to body
-                byte width : utf::wcwidth_field_size; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
-
-                //todo extend to 7 bit for cluster length in bytes
-                byte count : utf::cluster_field_size; // grapheme cluster length (utf-8 encoded) (max grapheme_cluster_limit)
-            };
-
-            static constexpr auto asset = netxs::letoh(~(ui64)0x07 /*jumbo:1 + width:2*/);
-            static constexpr auto limit = sizeof(ui64);
+            static constexpr auto limit = (byte)sizeof(ui64);
+            static constexpr auto jumbo = 0x80; // Cluster oversize bit.
 
             static auto jumbos()
             {
@@ -887,7 +926,7 @@ namespace netxs
                 struct vars
                 {
                     lock mutex{}; // There is no need to reset/clear/flush the map because
-                    depo jumbo{}; // count of different grapheme clusters is finite.
+                    depo jumbo{}; // count of different clusters is finite.
                 };
                 struct guard : sync
                 {
@@ -896,26 +935,26 @@ namespace netxs
                         : sync{ inst.mutex },
                            map{ inst.jumbo }
                     { }
-                    // jumbos: Get grapheme cluster.
+                    // jumbos: Get cluster.
                     auto& get(ui64 token)
                     {
                         static auto empty = text{};
-                        return netxs::get_or(map, token & glyf::asset, empty);
+                        return netxs::get_or(map, token, empty);
                     }
-                    // jumbos: Set grapheme cluster.
+                    // jumbos: Set cluster.
                     void set(ui64 token, view data)
                     {
-                        map[token & glyf::asset] = data;
+                        map[token] = data;
                     }
-                    // jumbos: Add grapheme cluster.
+                    // jumbos: Add cluster.
                     void add(ui64 token, view data)
                     {
-                        map.insert(std::pair{ token & glyf::asset, data }); // Silently ignore if it exists.
+                        map.insert(std::pair{ token, data }); // Silently ignore if it exists.
                     }
-                    // jumbos: Check the existence of a grapheme cluster by token.
+                    // jumbos: Check the cluster existence by token.
                     auto exists(ui64 token)
                     {
-                        return map.find(token & glyf::asset) != map.end();
+                        return map.find(token) != map.end();
                     }
                 };
 
@@ -924,110 +963,68 @@ namespace netxs
             }
 
             ui64 token;
-            mode state;
             char glyph[limit];
 
             constexpr glyf()
                 : token{ 0 }
             { }
-            constexpr glyf(glyf const& c)
-                : token{ c.token }
+            constexpr glyf(glyf const& g)
+                : token{ g.token }
             { }
             constexpr glyf(char c)
                 : token{ 0 }
             {
-                set(c);
+                glyph[0] = 1;
+                glyph[1] = c;
             }
-            glyf(glyf const& c, view utf8, size_t width)
-                : token{ c.token }
+            glyf(glyf const& g, view utf8)
+                : token{ g.token }
             {
-                set(utf8, width);
+                set_direct(utf8);
             }
 
             constexpr glyf& operator = (glyf const&) = default;
-            auto operator == (glyf const& c) const
+            auto operator == (glyf const& g) const
             {
-                return token == c.token;
+                return token == g.token;
             }
 
-            // Check grapheme clusters equality.
-            bool same(glyf const& c) const
+            constexpr auto is_jumbo() const
             {
-                return (token & glyf::asset) == (c.token & glyf::asset); // Compare excluding the first three bits.
+                return (glyph[0] & glyf::jumbo) != 0;
             }
-
-            void wipe()
-            {
-                token = 0;
-            }
-
-            /*
-            *   Width property
-            *       W   Wide                    ┌-------------------------------┐
-            *       Na  Narrow                  |   Narrow      ┌-------------------------------┐
-            *       F   Fullwidth, Em wide      |┌-------------┐|               |   Wide        |
-            *       H   Halfwidth, 1/2 Em wide  ||  Halfwidth  ||   Ambiguous	|┌-------------┐|
-            *       A   Ambiguous               |└-------------┘|               ||  Fullwidth  ||
-            *       N   Neutral =Not East Asian └---------------|---------------┘└-------------┘|
-            *                                                   └-------------------------------┘
-            *   This width takes on either of 𝐭𝐰𝐨 𝐯𝐚𝐥𝐮𝐞𝐬: 𝐧𝐚𝐫𝐫𝐨𝐰 or 𝐰𝐢𝐝𝐞. (UAX TR11)
-            *   For any given operation, these six default property values resolve into
-            *   only two property values, narrow and wide, depending on context.
-            *
-            *   width := {0 - nonprintable | 1 - Halfwidth(Narrow) | 2 - Fullwidth(Wide) }
-            *
-            *   ! Unicode Variation Selector 16 (U+FE0F) makes the character it combines with double-width.
-            *
-            *   The 0xfe0f character is "variation selector 16" that says "show the emoji version of
-            *   the previous character" and 0xfe0e is "variation selector 15" to say "show the non-emoji
-            *   version of the previous character"
-            */
-
             constexpr void set(ui64 t)
             {
                 token = netxs::letoh(t);
             }
             constexpr void set(char c)
             {
-                token       = 0;
-                state.width = 1;
-                state.count = 1;
-                glyph[1]    = c;
+                token = 0;
+                glyph[0] = 1;
+                glyph[1] = c;
             }
             constexpr void set_c0(char c)
             {
-                token       = 0;
-                state.width = 2;
-                state.count = 2;
-                glyph[1]    = '^';
-                glyph[2]    = '@' + (c & 0b00011111);
+                token = 0;
+                glyph[0] = 2;
+                glyph[1] = '^';
+                glyph[2] = '@' + (c & 0b00011111);
             }
-            void set(view utf8, size_t cwidth)
+            void set_direct(view utf8)
             {
                 static constexpr auto hasher = std::hash<view>{};
                 auto count = utf8.size();
                 if (count < limit)
                 {
                     token = 0;
-                    state.count = count;
-                    state.width = cwidth;
+                    glyph[0] = (byte)count;
                     std::memcpy(glyph + 1, utf8.data(), count);
                 }
                 else
                 {
                     token = hasher(utf8);
-                    state.jumbo = true;
-                    state.width = cwidth;
+                    glyph[0] |= glyf::jumbo;
                     jumbos().add(token, utf8);
-                }
-            }
-            void set(view utf8)
-            {
-                if (utf8.empty()) token = 0;
-                else
-                {
-                    auto cluster = utf::cluster(utf8);
-                    set(cluster.text, cluster.attr.ucwidth);
                 }
             }
             template<svga Mode = svga::vtrgb>
@@ -1036,13 +1033,9 @@ namespace netxs
                 if constexpr (Mode == svga::dtvt) return {};
                 else
                 {
-                    if (state.jumbo) return jumbos().get(token);
-                    else             return view(glyph + 1, state.count);
+                    if (is_jumbo()) return jumbos().get(token);
+                    else            return view(glyph + 1, glyph[0]);
                 }
-            }
-            auto is_registered() const
-            {
-                return jumbos().exists(token);
             }
             auto is_space() const
             {
@@ -1052,37 +1045,31 @@ namespace netxs
             {
                 return glyph[1] == 0;
             }
-            auto tkn() const
+            auto jgc() const
             {
-                return token & glyf::asset;
+                return !is_jumbo() || jumbos().exists(token);
             }
-            bool jgc() const
+            auto len() const
             {
-                return !state.jumbo || is_registered();
+                return is_jumbo() ? limit : (byte)(glyph[0] + 1);
             }
             void rst()
             {
                 set(whitespace);
             }
+            void wipe()
+            {
+                token = 0;
+            }
         };
         union body
         {
-            // There are no applicable rich text formatting attributes due to their gradual nature
-            // e.g.: the degree of thickness or italiciety/oblique varies from 0 to 255, etc.,
-            // and should not be represented as a flag.
-            //
-            // In Chinese, the underline/underscore is a punctuation mark for proper names
-            // and should never be used for emphasis.
-            //
-            // weigth := 0..255
-            // italic := 0..255
-            //
             struct pxtype
             {
-                static constexpr auto none     = 0;
-                static constexpr auto colors   = 1; // rgba colors pair (cursor/grid/whatever).
-                static constexpr auto bitmap   = 2; // Attached rgba bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
-                static constexpr auto reserved = 3;
+                static constexpr auto none   = 0;
+                static constexpr auto colors = 1; // argb colors pair (cursor/grid/whatever).
+                static constexpr auto bitmap = 2; // Attached argb bitmap reference: First 32 bit: bitmap index. Last 32 bit: offset inside bitmap.
+                static constexpr auto reserv = 3;
             };
             struct attr
             {
@@ -1108,30 +1095,58 @@ namespace netxs
                                  // 0 1
                                  // │ └────── interpolation type between `c0` and `c2`
                                  // └──────── interpolation type between `c0` and `c1`
-                //todo Cf's can not be entered: even using paste from clipboard
-                //dont show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
-
-                //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
-                // append prev: U+200C ZERO WIDTH NON-JOINER
-                // append prev: U+00AD SOFT HYPHEN
-
                 // Unique attributes. From 24th bit.
-                //todo ui32 fragment : 8; // 8 bit for CFA
-                ui32 reserv : 8;
+                //todo CFA https://gitlab.freedesktop.org/terminal-wg/specifications/-/issues/23
+                ui32 mosaic : 8; // 0: non-printing, 1: narrow, 2: wide:left_part, 3: wide:right_part  // 2: wide, 3: three-cell width
             };
+            static constexpr auto shared_bits = (1 << 24) - 1;
+
+            //todo Cf's can not be entered: even using paste from clipboard
+            //dont show (drop) Cf's but allow input it in any order (app is responsible to show it somehow)
+
+            //todo application context: word delimeters (use it in a word/line wrapping, check the last codepoint != Cf | Spc):
+            // append prev: U+200C ZERO WIDTH NON-JOINER
+            // append prev: U+00AD SOFT HYPHEN
+
+            // Width property
+            //     W   Wide                    ┌-------------------------------┐
+            //     Na  Narrow                  |   Narrow      ┌-------------------------------┐
+            //     F   Fullwidth, Em wide      |┌-------------┐|               |   Wide        |
+            //     H   Halfwidth, 1/2 Em wide  ||  Halfwidth  ||   Ambiguous   |┌-------------┐|
+            //     A   Ambiguous               |└-------------┘|               ||  Fullwidth  ||
+            //     N   Neutral =Not East Asian └---------------|---------------┘└-------------┘|
+            //                                                 └-------------------------------┘
+            // This width takes on either of 𝐭𝐰𝐨 𝐯𝐚𝐥𝐮𝐞𝐬: 𝐧𝐚𝐫𝐫𝐨𝐰 or 𝐰𝐢𝐝𝐞. (UAX TR11)
+            // For any given operation, these six default property values resolve into
+            // only two property values, narrow and wide, depending on context.
+            //
+            // width = { 0 - nonprintable | 1 - Halfwidth(Narrow) | 2 - Fullwidth(Wide) }
+            //
+            // Unicode Variation Selector 16 (U+FE0F) makes the character it combines with double-width.
+            //
+            // The 0xfe0f character is "variation selector 16" that says "show the emoji version of
+            // the previous character" and 0xfe0e is "variation selector 15" to say "show the non-emoji
+            // version of the previous character".
 
             ui32 token;
             attr attrs;
 
-            static constexpr auto shared_bits = (1 << 24) - 1;
-
             constexpr body()
                 : token{ 0 }
             { }
-
             constexpr body(body const& b)
                 : token{ b.token }
             { }
+            constexpr body(size_t width)
+                : token{ 0 }
+            {
+                attrs.mosaic = width;
+            }
+            constexpr body(body const& b, size_t width)
+                : token{ b.token }
+            {
+                attrs.mosaic = width;
+            }
 
             constexpr body& operator = (body const&) = default;
             bool operator == (body const& b) const
@@ -1144,9 +1159,13 @@ namespace netxs
             {
                 return !operator==(b);
             }
-            bool like(body b) const
+            bool like(body const& b) const
             {
                 return (token & body::shared_bits) == (b.token & body::shared_bits);
+            }
+            void meta(body const& b)
+            {
+                token = (token & ~body::shared_bits) | (b.token & body::shared_bits);
             }
             template<svga Mode = svga::vtrgb, bool UseSGR = true, class T>
             void get(body& base, T& dest) const
@@ -1166,7 +1185,6 @@ namespace netxs
                             if (attrs.overln != base.attrs.overln) dest.ovr(attrs.overln);
                             if (attrs.blinks != base.attrs.blinks) dest.blk(attrs.blinks);
                             if (attrs.ucolor != base.attrs.ucolor) dest.unc(attrs.ucolor);
-                            //if (attrs.r_to_l != base.attrs.r_to_l) {} //todo implement RTL
                         }
                         else
                         {
@@ -1180,7 +1198,7 @@ namespace netxs
             {
                 token = 0;
             }
-            void rev()
+            void reverse()
             {
                 attrs.invert = !!!attrs.invert;
             }
@@ -1193,8 +1211,8 @@ namespace netxs
             void inv(bool b) { attrs.invert = b; }
             void ovr(bool b) { attrs.overln = b; }
             void stk(bool b) { attrs.strike = b; }
-            //void rtl(bool b) { attrs.r_to_l = b; }
             void blk(bool b) { attrs.blinks = b; }
+            void wdt(si32 w) { attrs.mosaic = w; }
 
             bool bld() const { return attrs.bolded; }
             bool itc() const { return attrs.italic; }
@@ -1204,29 +1222,20 @@ namespace netxs
             bool inv() const { return attrs.invert; }
             bool ovr() const { return attrs.overln; }
             bool stk() const { return attrs.strike; }
-            //bool rtl() const { return attrs.r_to_l; }
             bool blk() const { return attrs.blinks; }
             bool raw() const { return attrs.bitmap; }
+            si32 wdt() const { return attrs.mosaic; }
         };
         struct clrs
         {
-            // Concept of using default colors:
-            //  if alpha is set to zero, then underlaid color should be used.
+            argb bg;
+            argb fg;
 
-            rgba bg;
-            rgba fg;
-
-            constexpr clrs()
-                : bg{},
-                  fg{}
-            { }
-
-            template<class T>
-            constexpr clrs(T colors)
+            constexpr clrs() = default;
+            constexpr clrs(auto colors)
                 : bg{ *(colors.begin() + 0) },
                   fg{ *(colors.begin() + 1) }
             { }
-
             constexpr clrs(clrs const& c)
                 : bg{ c.bg },
                   fg{ c.fg }
@@ -1344,9 +1353,9 @@ namespace netxs
         cell()
             : id{ 0 }
         { }
-
         cell(char c)
             : gc{ c },
+              st{ 1 },
               id{ 0 }
         {
             // sizeof(glyf);
@@ -1356,13 +1365,11 @@ namespace netxs
             // sizeof(pict);
             // sizeof(cell);
         }
-
-        cell(view chr)
+        cell(view utf8)
             : id{ 0 }
         {
-            gc.set(chr);
+            txt(utf8);
         }
-
         cell(cell const& base)
             : uv{ base.uv },
               gc{ base.gc },
@@ -1370,19 +1377,17 @@ namespace netxs
               id{ base.id },
               px{ base.px }
         { }
-
         cell(cell const& base, view cluster, size_t ucwidth)
             : uv{ base.uv },
-              gc{ base.gc, cluster, ucwidth },
-              st{ base.st },
+              gc{ base.gc, cluster },
+              st{ base.st, ucwidth },
               id{ base.id },
               px{ base.px }
         { }
-
         cell(cell const& base, char c)
             : uv{ base.uv },
               gc{ c       },
-              st{ base.st },
+              st{ base.st, 1 },
               id{ base.id },
               px{ base.px }
         { }
@@ -1408,11 +1413,11 @@ namespace netxs
             return *this;
         }
 
-        operator bool () const { return wdt(); } // cell: Is the cell not transparent?
+        operator bool () const { return wdt(); } // cell: Return true if cell contains printable character.
 
-        auto same_txt(cell const& c) const // cell: Compare text parts.
+        auto same_txt(cell const& c) const // cell: Compare clusters.
         {
-            return gc.same(c.gc);
+            return gc == c.gc;
         }
         bool like(cell const& c) const // cell: Precise comparisons of the two cells.
         {
@@ -1427,8 +1432,6 @@ namespace netxs
             st.wipe();
             px.wipe();
         }
-        auto& data() const { return *this;} // cell: Return the const reference of the base cell.
-
         // cell: Blend two cells according to visibility and other attributes.
         inline void fuse(cell const& c)
         {
@@ -1440,7 +1443,7 @@ namespace netxs
 
             st = c.st;
             if (st.raw()) px = c.px;
-            if (c.wdt()) gc = c.gc;
+            if (wdt()) gc = c.gc;
         }
         // cell: Blend two cells if text part != '\0'.
         inline void lite(cell const& c)
@@ -1472,7 +1475,7 @@ namespace netxs
             uv.bg.mix(c.uv.bg, alpha);
             st = c.st;
             if (st.raw()) px = c.px;
-            if (c.wdt()) gc = c.gc;
+            if (wdt()) gc = c.gc;
         }
         // cell: Blend colors using alpha.
         void mixfull(cell const& c, si32 alpha)
@@ -1532,7 +1535,7 @@ namespace netxs
         void meta(cell const& c)
         {
             uv = c.uv;
-            st = c.st;
+            st.meta(c.st);
             px = c.px;
         }
         // cell: Get differences of the visual attributes only (ANSI CSI/SGR format).
@@ -1565,7 +1568,7 @@ namespace netxs
                         dest += egc;
                         return;
                     }
-                    auto bgc = rgba::transit(base.uv.bg, base.uv.fg, k);
+                    auto bgc = argb::transit(base.uv.bg, base.uv.fg, k);
                     if (bgc != base.uv.bg)
                     {
                         base.uv.bg = bgc;
@@ -1597,7 +1600,7 @@ namespace netxs
         // cell: Check that the halves belong to the same wide glyph.
         bool check_pair(cell const& next) const
         {
-            return gc.same(next.gc) && like(next);
+            return gc == next.gc && like(next);
         }
         // cell: Convert to text. Ignore right half. Convert binary clusters (eg: ^C -> 0x03).
         void scan(text& dest) const
@@ -1668,7 +1671,7 @@ namespace netxs
         // cell: Flip inversion bit.
         void invbit()
         {
-            st.rev();
+            st.reverse();
         }
         // cell: Desaturate and dim fg color.
         void dim()
@@ -1685,47 +1688,70 @@ namespace netxs
         // cell: Cell transitional color blending (fg/bg only).
         void avg(cell const& c1, cell const& c2, si32 level)
         {
-            uv.fg = rgba::transit(c1.uv.fg, c2.uv.fg, level);
-            uv.bg = rgba::transit(c1.uv.bg, c2.uv.bg, level);
+            uv.fg = argb::transit(c1.uv.fg, c2.uv.fg, level);
+            uv.bg = argb::transit(c1.uv.bg, c2.uv.bg, level);
         }
-        // cell: Set Grapheme cluster and its width.
-        void set_gc(view c, size_t w) { gc.set(c, w); }
-        // cell: Set Grapheme cluster.
-        void set_gc(cell const& c) { gc = c.gc; }
-        // cell: Reset Grapheme cluster.
-        void set_gc() { gc.wipe(); }
-        // cell: Copy view of the cell (Preserve ID).
+        // cell: Set grapheme cluster.
+        void set_gc(cell const& c)
+        {
+            gc = c.gc;
+            st.wdt(c.st.wdt());
+        }
+        // cell: Reset grapheme cluster.
+        void set_gc()
+        {
+            gc.wipe();
+            st.wdt(0);
+        }
+        // cell: Copy view of the cell (preserve ID).
         auto& set(cell const& c) { uv = c.uv;
                                    st = c.st;
                                    gc = c.gc;
                                    px = c.px;              return *this; }
-        auto& bgc(rgba c)        { uv.bg = c;              return *this; } // cell: Set Background color.
-        auto& fgc(rgba c)        { uv.fg = c;              return *this; } // cell: Set Foreground color.
-        auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set Background alpha/transparency.
-        auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set Foreground alpha/transparency.
+        auto& bgc(argb c)        { uv.bg = c;              return *this; } // cell: Set background color.
+        auto& fgc(argb c)        { uv.fg = c;              return *this; } // cell: Set foreground color.
+        auto& bga(si32 k)        { uv.bg.chan.a = (byte)k; return *this; } // cell: Set background alpha/transparency.
+        auto& fga(si32 k)        { uv.fg.chan.a = (byte)k; return *this; } // cell: Set foreground alpha/transparency.
         auto& alpha(si32 k)      { uv.bg.chan.a = (byte)k;
                                    uv.fg.chan.a = (byte)k; return *this; } // cell: Set alpha/transparency (background and foreground).
-        auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set Bold attribute.
-        auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set Italic attribute.
-        auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set Underline attribute.
-        auto& unc(rgba c)        { st.unc(c.to_256cube()); return *this; } // cell: Set Underline color.
-        auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set Underline color.
+        auto& bld(bool b)        { st.bld(b);              return *this; } // cell: Set bold attribute.
+        auto& itc(bool b)        { st.itc(b);              return *this; } // cell: Set italic attribute.
+        auto& und(si32 n)        { st.und(n);              return *this; } // cell: Set underline attribute.
+        auto& unc(argb c)        { st.unc(c.to_256cube()); return *this; } // cell: Set underline color.
+        auto& unc(si32 c)        { st.unc(c);              return *this; } // cell: Set underline color.
         auto& cur(si32 s)        { st.cur(s);              return *this; } // cell: Set cursor style.
         auto& img(ui64 p)        { px.token = p;           return *this; } // cell: Set attached bitmap.
-        auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set Overline attribute.
-        auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set Invert attribute.
-        auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set Strikethrough attribute.
-        auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set Blink attribute.
-        auto& rtl(bool /*b*/) { /*todo st.rtl(b);*/     return *this; } // cell: Set Right-To-Left attribute.
+        auto& ovr(bool b)        { st.ovr(b);              return *this; } // cell: Set overline attribute.
+        auto& inv(bool b)        { st.inv(b);              return *this; } // cell: Set invert attribute.
+        auto& stk(bool b)        { st.stk(b);              return *this; } // cell: Set strikethrough attribute.
+        auto& blk(bool b)        { st.blk(b);              return *this; } // cell: Set blink attribute.
         auto& link(id_t oid)     { id = oid;               return *this; } // cell: Set object ID.
         auto& link(cell const& c){ id = c.id;              return *this; } // cell: Set object ID.
-        auto& txt(view c)        { c.size() ? gc.set(c)
-                                            : gc.wipe();   return *this; } // cell: Set Grapheme cluster.
-        auto& txt(view c, si32 w){ gc.set(c, w);           return *this; } // cell: Set Grapheme cluster.
-        auto& txt(char c)        { gc.set(c);              return *this; } // cell: Set Grapheme cluster from char.
-        auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set Grapheme cluster from cell.
+        auto& txt(view utf8, si32 w)
+        {
+            gc.set_direct(utf8);
+            st.wdt(w);
+            return *this;
+        }
+        cell& txt(view utf8)
+        {
+            if (utf8.empty())
+            {
+                gc.token = 0;
+                st.wdt(0);
+            }
+            else
+            {
+                auto cluster = utf::cluster(utf8);
+                gc.set_direct(cluster.text);
+                st.wdt(cluster.attr.ucwidth);
+            }
+            return *this;
+        }
+        auto& txt(char c)        { gc.set(c); st.wdt(1);   return *this; } // cell: Set grapheme cluster from char.
+        auto& txt(cell const& c) { gc = c.gc;              return *this; } // cell: Set grapheme cluster from cell.
         auto& clr(cell const& c) { uv = c.uv;              return *this; } // cell: Set the foreground and background colors only.
-        auto& wdt(si32 w)        { gc.state.width = w;     return *this; } // cell: Set Grapheme cluster screen width.
+        auto& wdt(si32 w)        { st.wdt(w);              return *this; } // cell: Set grapheme cluster screen width.
         auto& rst() // cell: Reset view attributes of the cell to zero.
         {
             static auto empty = cell{ whitespace };
@@ -1736,32 +1762,31 @@ namespace netxs
             return *this;
         }
 
-
-        auto  tkn() const  { return gc.tkn();      } // cell: Return grapheme cluster token.
+        auto  len() const  { return gc.len();      } // cell: Return grapheme cluster cell storage length (in bytes).
+        auto  tkn() const  { return gc.token;      } // cell: Return grapheme cluster token.
         bool  jgc() const  { return gc.jgc();      } // cell: Check the grapheme cluster registration (foreign jumbo clusters).
-        si32  len() const  { return gc.state.count;} // cell: Return Grapheme cluster utf-8 length.
-        si32  wdt() const  { return gc.state.width;} // cell: Return Grapheme cluster screen width.
-        auto  txt() const  { return gc.get();      } // cell: Return Grapheme cluster.
-        auto& egc()        { return gc;            } // cell: Get Grapheme cluster token.
-        auto& egc() const  { return gc;            } // cell: Get Grapheme cluster token.
-        auto  set() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
-        auto  bga() const  { return uv.bg.chan.a;  } // cell: Return Background alpha/transparency.
-        auto  fga() const  { return uv.fg.chan.a;  } // cell: Return Foreground alpha/transparency.
-        auto& bgc()        { return uv.bg;         } // cell: Return Background color.
-        auto& fgc()        { return uv.fg;         } // cell: Return Foreground color.
-        auto& bgc() const  { return uv.bg;         } // cell: Return Background color.
-        auto& fgc() const  { return uv.fg;         } // cell: Return Foreground color.
-        auto  bld() const  { return st.bld();      } // cell: Return Bold attribute.
-        auto  itc() const  { return st.itc();      } // cell: Return Italic attribute.
-        auto  und() const  { return st.und();      } // cell: Return Underline/Underscore attribute.
-        auto  unc() const  { return st.unc();      } // cell: Return Underline color.
+        si32  wdt() const  { return st.wdt();      } // cell: Return grapheme cluster screen width.
+        auto  txt() const  { return gc.get();      } // cell: Return grapheme cluster.
+        auto& egc()        { return gc;            } // cell: Get grapheme cluster token.
+        auto& egc() const  { return gc;            } // cell: Get grapheme cluster token.
+        auto  clr() const  { return uv.bg || uv.fg;} // cell: Return true if color set.
+        auto  bga() const  { return uv.bg.chan.a;  } // cell: Return background alpha/transparency.
+        auto  fga() const  { return uv.fg.chan.a;  } // cell: Return foreground alpha/transparency.
+        auto& bgc()        { return uv.bg;         } // cell: Return background color.
+        auto& fgc()        { return uv.fg;         } // cell: Return foreground color.
+        auto& bgc() const  { return uv.bg;         } // cell: Return background color.
+        auto& fgc() const  { return uv.fg;         } // cell: Return foreground color.
+        auto  bld() const  { return st.bld();      } // cell: Return bold attribute.
+        auto  itc() const  { return st.itc();      } // cell: Return italic attribute.
+        auto  und() const  { return st.und();      } // cell: Return underline/Underscore attribute.
+        auto  unc() const  { return st.unc();      } // cell: Return underline color.
         auto  cur() const  { return st.cur();      } // cell: Return cursor style.
         auto& img()        { return px.token;      } // cell: Return attached bitmap.
         auto& img() const  { return px.token;      } // cell: Return attached bitmap.
-        auto  ovr() const  { return st.ovr();      } // cell: Return Overline attribute.
-        auto  inv() const  { return st.inv();      } // cell: Return Negative attribute.
-        auto  stk() const  { return st.stk();      } // cell: Return Strikethrough attribute.
-        auto  blk() const  { return st.blk();      } // cell: Return Blink attribute.
+        auto  ovr() const  { return st.ovr();      } // cell: Return overline attribute.
+        auto  inv() const  { return st.inv();      } // cell: Return negative attribute.
+        auto  stk() const  { return st.stk();      } // cell: Return strikethrough attribute.
+        auto  blk() const  { return st.blk();      } // cell: Return blink attribute.
         auto& stl()        { return st.token;      } // cell: Return style token.
         auto& stl() const  { return st.token;      } // cell: Return style token.
         auto link() const  { return id;            } // cell: Return object ID.
@@ -1798,8 +1823,8 @@ namespace netxs
         auto cursor_color()
         {
             auto colored = st.attrs.bitmap == body::pxtype::colors;
-            return colored ? std::pair{ rgba{ (ui32)(px.token >> 32) }, rgba{ (ui32)(px.token & 0xFFFF'FFFF) }}
-                           : std::pair{ rgba{}, rgba{} };
+            return colored ? std::pair{ argb{ (ui32)(px.token >> 32) }, argb{ (ui32)(px.token & 0xFFFF'FFFF) }}
+                           : std::pair{ argb{}, argb{} };
         }
         // cell: Return whitespace cell.
         cell spc() const
@@ -1838,6 +1863,7 @@ namespace netxs
 
         class shaders
         {
+        public:
             template<class Func>
             struct brush_t
             {
@@ -1856,15 +1882,17 @@ namespace netxs
                     }
                 };
             };
+
+        private:
             struct contrast_t : public brush_t<contrast_t>
             {
-                static constexpr auto threshold = rgba{ tint::whitedk }.luma() - 0xF;
+                static constexpr auto threshold = argb{ tint::whitedk }.luma() - 0xF;
                 template<class C>
                 constexpr inline auto operator () (C brush) const
                 {
                     return func<C>(brush);
                 }
-                static inline auto invert(rgba color)
+                static inline auto invert(argb color)
                 {
                     return color.luma() >= threshold ? 0xFF000000
                                                      : 0xFFffffff;
@@ -1897,6 +1925,11 @@ namespace netxs
             {
                 template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
                 template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.blend(src); }
+            };
+            struct alpha_t : public brush_t<alpha_t>
+            {
+                template<class C> constexpr inline auto operator () (C brush) const { return func<C>(brush); }
+                template<class D, class S>  inline void operator () (D& dst, S& src) const { dst.alpha(src); }
             };
             struct full_t : public brush_t<full_t>
             {
@@ -2045,8 +2078,8 @@ namespace netxs
         public:
             template<class T>
             static constexpr auto       color(T    brush) { return       color_t{ brush }; }
-            static constexpr auto transparent(si32 alpha) { return transparent_t{ alpha }; }
-            static constexpr auto     xlucent(si32 alpha) { return     xlucent_t{ alpha }; }
+            static constexpr auto transparent(si32     a) { return transparent_t{ a     }; }
+            static constexpr auto     xlucent(si32     a) { return     xlucent_t{ a     }; }
             static constexpr auto      onlyid(id_t newid) { return      onlyid_t{ newid }; }
             static constexpr auto contrast = contrast_t{};
             static constexpr auto fusefull = fusefull_t{};
@@ -2054,6 +2087,7 @@ namespace netxs
             static constexpr auto   fuseid =   fuseid_t{};
             static constexpr auto      mix =      mix_t{};
             static constexpr auto    blend =    blend_t{};
+            static constexpr auto    alpha =    alpha_t{};
             static constexpr auto     lite =     lite_t{};
             static constexpr auto     fuse =     fuse_t{};
             static constexpr auto     flat =     flat_t{};
@@ -2098,7 +2132,7 @@ namespace netxs
                         else
                         {
                             auto b = inv() ? fgc() : bgc();
-                            auto u = rgba{ cell::shaders::contrast.invert(b) };
+                            auto u = argb{ cell::shaders::contrast.invert(b) };
                             und(unln::line).unc(u);
                         }
                     }
@@ -2113,9 +2147,9 @@ namespace netxs
         }
     };
 
-    enum class bias : unsigned char { none, left, right, center, };
-    enum class wrap : unsigned char { none, on,  off,            };
-    enum class rtol : unsigned char { none, rtl, ltr,            };
+    enum class bias : byte { none, left, right, center, };
+    enum class wrap : byte { none, on,  off,            };
+    enum class rtol : byte { none, rtl, ltr,            };
 
     namespace mime
     {
@@ -2147,22 +2181,252 @@ namespace netxs
         }
     }
 
+    namespace misc //todo classify
+    {
+        template<class T, auto fx>
+        struct shadow
+        {
+            T  bitmap{};
+            bool sync{};
+            twod over{};
+            twod step{};
+
+            shadow() = default;
+            shadow(shadow&&) = default;
+            shadow(shadow const&) = default;
+            shadow(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
+            {
+                generate(bias, alfa, size, offset, ratio, fuse);
+            }
+            // shadow: Generate sRGB shadow sprite.
+            void generate(fp32 bias, fp32 alfa, si32 size, twod offset, twod ratio, auto fuse)
+            {
+                //bias    += _k0 * 0.1f;
+                //opacity += _k1 * 1.f;
+                //size    += _k2;
+                //offset  +=  ratio * _k3;
+                sync = true;
+                alfa = std::clamp(alfa, 0.f, 255.f);
+                size = std::abs(size) * 2;
+                over = ratio * (size * 2);
+                step = over / 2 - offset;
+                auto spline = netxs::spline01{ bias };
+                auto sz = ratio * (size * 2 + 1);
+                bitmap.size(sz);
+                auto it = bitmap.begin();
+                for (auto y = 0.f; y < sz.y; y++)
+                {
+                    auto y0 = y / (sz.y - 1.f);
+                    auto sy = spline(y0);
+                    for (auto x = 0.f; x < sz.x; x++)
+                    {
+                        auto x0 = x / (sz.x - 1.f);
+                        auto sx = spline(x0);
+                        auto xy = sy * sx; // argb::gamma(sy * sx);
+                        auto a = (byte)std::round(alfa * xy);
+                        fuse(*it++, a);
+                    }
+                }
+            }
+            auto render(auto& canvas, auto win_size)
+            {
+                canvas.step(step);
+                auto src = bitmap.area();
+                auto dst = rect{ dot_00, win_size + over };
+                auto cut = std::min(dot_00, (dst.size - src.size * 2 - dot_11) / 2);
+                auto off = dent{ 0, cut.x, 0, cut.y };
+                src += off;
+                auto mid = rect{ src.size, std::max(dot_00, dst.size - src.size * 2) };
+                auto top = rect{ twod{ src.size.x, 0 }, { mid.size.x, src.size.y }};
+                auto lft = rect{ twod{ 0, src.size.y }, { src.size.x, mid.size.y }};
+                if (mid)
+                {
+                    auto base_shadow = bitmap[src.size - dot_11];
+                    netxs::onrect(canvas, mid, fx(base_shadow));
+                }
+                if (top)
+                {
+                    auto pen = rect{{ src.size.x - 1, 0 }, { 1, src.size.y }};
+                    netxs::xform_scale(canvas, top, bitmap, pen, fx);
+                    top.coor.y += mid.size.y + top.size.y;
+                    netxs::xform_scale(canvas, top, bitmap, pen.rotate({ 1, -1 }), fx);
+                }
+                if (lft)
+                {
+                    auto pen = rect{{ 0, src.size.y - 1 }, { src.size.x, 1 }};
+                    netxs::xform_scale(canvas, lft, bitmap, pen, fx);
+                    lft.coor.x += mid.size.x + lft.size.x;
+                    netxs::xform_scale(canvas, lft, bitmap, pen.rotate({ -1, 1 }), fx);
+                }
+                auto dir = dot_11;
+                            netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir.x += 2; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                dir = -dir; netxs::xform_mirror(canvas, dst.rotate(dir).coor, bitmap, src.rotate(dir), fx);
+                canvas.step(-step);
+            }
+        };
+        struct szgrips
+        {
+            using test = testy<twod>;
+
+            twod origin; // szgrips: Grab's initial coord info.
+            twod dtcoor; // szgrips: The form coor parameter change factor while resizing.
+            twod sector; // szgrips: Active quadrant, x,y = {-1|+1}. Border widths.
+            rect hzgrip; // szgrips: Horizontal grip.
+            rect vtgrip; // szgrips: Vertical grip.
+            twod widths; // szgrips: Grip's widths.
+            bool inside; // szgrips: Is active.
+            bool seized; // szgrips: Is seized.
+            rect zoomsz; // szgrips: Captured area for zooming.
+            dent zoomdt; // szgrips: Zoom step.
+            bool zoomon; // szgrips: Zoom in progress.
+            twod zoomat; // szgrips: Zoom pivot.
+
+            szgrips()
+                : inside{ faux },
+                  seized{ faux },
+                  zoomon{ faux }
+            { }
+
+            operator bool () { return inside || seized; }
+            auto corner(twod length) const
+            {
+                return dtcoor.less(dot_11, length, dot_00);
+            }
+            auto quantize(twod curpos, twod basis, twod cell_size) const
+            {
+                curpos -= basis;
+                curpos -= (curpos + cell_size/*to avoid negative values*/) % cell_size;
+                return curpos;
+            }
+            auto grab(rect window, twod curpos, dent outer, twod cell_size = dot_11)
+            {
+                if (inside)
+                {
+                    auto outer_rect = window + outer;
+                    curpos = quantize(curpos, outer_rect.coor, cell_size);
+                    origin = curpos - corner(outer_rect.size);
+                    seized = true;
+                }
+                return seized;
+            }
+            auto calc(rect window, twod curpos, dent outer, dent inner, twod cell_size = dot_11)
+            {
+                auto border = outer - inner;
+                auto inner_rect = window + inner;
+                auto outer_rect = window + outer;
+
+                auto inside_prev = inside;
+                auto hzgrip_prev = hzgrip;
+                auto vtgrip_prev = vtgrip;
+
+                inside = !inner_rect.hittest(curpos)
+                       && outer_rect.hittest(curpos);
+                if (!seized)
+                {
+                    auto r1 = inner_rect;
+                    auto l1 = r1.coor - curpos;
+                    auto l2 = r1.coor + r1.size - curpos;
+                    auto m = std::min({ std::abs(l1.x), std::abs(l1.y), std::abs(l2.x), std::abs(l2.y) });
+                    m == std::abs(l1.x) ? curpos.x = r1.coor.x :
+                    m == std::abs(l1.y) ? curpos.y = r1.coor.y :
+                    m == std::abs(l2.x) ? curpos.x = r1.coor.x + r1.size.x :
+                                          curpos.y = r1.coor.y + r1.size.y;
+                }
+                auto& length = outer_rect.size;
+                curpos = quantize(curpos, outer_rect.coor, cell_size);
+                auto center = std::max(length / 2, dot_11);
+                if (!seized)
+                {
+                    dtcoor = curpos.less(center + (length & 1), dot_11, dot_00);
+                    sector = dtcoor.less(dot_11, -dot_11, dot_11);
+                    widths = sector.less(dot_00, twod{-border.r,-border.b },
+                                                 twod{ border.l, border.t });
+                }
+                auto l = sector * (curpos - corner(length));
+                auto a = center * l / center;
+                auto b = center *~l /~center;
+                auto s = sector * std::max(a - b + center, dot_00);
+
+                hzgrip.coor.x = widths.x;
+                hzgrip.coor.y = 0;
+                hzgrip.size.y = widths.y;
+                hzgrip.size.x = s.x - s.x % cell_size.x;
+
+                vtgrip.coor = dot_00;
+                vtgrip.size = widths;
+                vtgrip.size.y += s.y - s.y % cell_size.y;
+                auto changed = inside_prev != inside || (inside && (hzgrip_prev != hzgrip || vtgrip_prev != vtgrip));
+                return changed;
+            }
+            auto drag(rect window, twod curpos, dent outer, bool zoom, twod cell_size = dot_11) const
+            {
+                auto outer_rect = window + outer;
+                curpos = quantize(curpos, outer_rect.coor, cell_size);
+                auto delta = (corner(outer_rect.size) + origin - curpos) * sector;
+                if (zoom) delta *= 2;
+                auto preview_step = zoom ? -delta / 2 : -delta * dtcoor;
+                auto preview_area = rect{ window.coor + preview_step, window.size + delta };
+                return std::pair{ preview_area, delta };
+            }
+            auto move(twod dxdy, bool zoom) const
+            {
+                auto step = zoom ? -dxdy / 2 : -dxdy * dtcoor;
+                return step;
+            }
+            void drop()
+            {
+                seized = faux;
+            }
+            auto draw(auto& canvas, rect area, auto fx) const
+            {
+                auto vertex = corner(area.size);
+                auto side_x = hzgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
+                auto side_y = vtgrip.shift(vertex).normalize_itself().shift_itself(area.coor).trim(area);
+                netxs::onrect(canvas, side_x, fx);
+                netxs::onrect(canvas, side_y, fx);
+                return std::pair{ side_x, side_y };
+            }
+        };
+
+        void fill(auto& canvas, auto block, auto fx) // gfx: Fill block.
+        {
+            block.normalize_itself();
+            netxs::onrect(canvas, block, fx);
+        }
+        void cage(auto& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
+        {
+            auto temp = area;
+            temp.size.y = std::max(0, border.t); // Top
+            fill(canvas, temp.trim(area), fx);
+            temp.coor.y += area.size.y - border.b; // Bottom
+            temp.size.y = std::max(0, border.b);
+            fill(canvas, temp.trim(area), fx);
+            temp.size.x = std::max(0, border.l); // Left
+            temp.size.y = std::max(0, area.size.y - border.t - border.b);
+            temp.coor.y = area.coor.y + border.t;
+            fill(canvas, temp.trim(area), fx);
+            temp.coor.x += area.size.x - border.r; // Right
+            temp.size.x = std::max(0, border.r);
+            fill(canvas, temp.trim(area), fx);
+        }
+    }
+
     using grid = std::vector<cell>;
     using vrgb = std::vector<irgb<si32>>;
 
     // canvas: Core grid.
     class core
     {
-        // Prefill canvas using brush.
-        core(twod coor, twod size, cell const& brush)
-            : region{ coor  , size },
+        core(twod coor, twod size, cell const& brush) // Prefill canvas using brush.
+            : region{ coor, size },
               client{ dot_00, size },
               canvas(size.x * size.y, brush),
               marker{ brush }
         { }
-        // Prefill canvas using zero.
-        core(twod coor, twod size)
-            : region{ coor  , size },
+        core(twod coor, twod size) // Prefill canvas using zero.
+            : region{ coor, size },
               client{ dot_00, size },
               canvas(size.x * size.y)
         { }
@@ -2242,7 +2506,7 @@ namespace netxs
         void  clip(rect new_client)            { client = new_client;                                                       }
         auto  hash() const                     { return digest;                                                             } // core: Return the digest value that associatated with the current canvas size.
         auto  hash(si32 d)                     { return digest != d ? ((void)(digest = d), true) : faux;                    } // core: Check and the digest value that associatated with the current canvas size.
-        void size(twod new_size, cell const& c) // core: Change the size of the face.
+        void size(twod new_size, cell const& c) // core: Resize canvas.
         {
             if (region.size(std::max(dot_00, new_size)))
             {
@@ -2251,11 +2515,11 @@ namespace netxs
                 canvas.assign(region.size.x * region.size.y, c);
             }
         }
-        void size(twod new_size) // core: Change the size of the face.
+        void size(twod new_size) // core: Resize canvas.
         {
             size(new_size, marker);
         }
-        void size(si32 new_size_x, cell const& c) // core: Change the size of the face.
+        void size(si32 new_size_x, cell const& c) // core: Resize canvas.
         {
             region.size.x = new_size_x;
             region.size.y = 1;
@@ -2263,7 +2527,7 @@ namespace netxs
             canvas.assign(new_size_x, c);
             digest++;
         }
-        void crop(si32 new_size_x, cell const& c = {}) // core: Resize while saving the textline.
+        void crop(si32 new_size_x, cell const& c = {}) // core: Resize preserving textline.
         {
             region.size.x = new_size_x;
             region.size.y = 1;
@@ -2276,7 +2540,7 @@ namespace netxs
             crop(region.size.x + 1, c);
         }
         template<bool BottomAnchored = faux>
-        void crop(twod new_size, cell const& c) // core: Resize while saving the bitmap.
+        void crop(twod new_size, cell const& c) // core: Resize preserving bitmap.
         {
             auto block = core{ region.coor, new_size, c };
             if constexpr (BottomAnchored) block.step({ 0, region.size.y - new_size.y });
@@ -2286,11 +2550,11 @@ namespace netxs
             digest++;
         }
         template<bool BottomAnchored = faux>
-        void crop(twod new_size) // core: Resize while saving the bitmap.
+        void crop(twod new_size) // core: Resize preserving bitmap.
         {
             crop<BottomAnchored>(new_size, marker);
         }
-        void kill() // core: Collapse canvas to size zero (see para).
+        void kill() // core: Collapse canvas to zero size (see para).
         {
             region.size.x = 0;
             client.size.x = 0;
@@ -2316,10 +2580,9 @@ namespace netxs
             }
             if constexpr (!Plain) return true;
         }
-        template<class P>
-        void each(rect region, P proc) // core: Exec a proc for each cell of the specified region.
+        void each(rect region, auto fx) // core: Exec a proc for each cell of the specified region.
         {
-            netxs::onrect(*this, region, proc);
+            netxs::onrect(*this, region, fx);
         }
         void utf8(netxs::text& crop) // core: Convert to raw utf-8 text. Ignore right halves.
         {
@@ -2343,33 +2606,29 @@ namespace netxs
             dest.size(region.size);
             dest.canvas = canvas;
         }
-        template<class P>
-        void copy(core& target, P proc) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
+        void copy(core& target, auto fx) const // core: Copy the canvas to the specified target bitmap. The target bitmap must be the same size.
         {
-            netxs::oncopy(target, *this, proc);
+            netxs::oncopy(target, *this, fx);
             //todo should we copy all members?
             //target.marker = marker;
             //flow::cursor
         }
-        template<class P>
-        void fill(core const& block, P fuse) // core: Fill canvas by the specified block using its coordinates.
+        void fill(core const& block, auto fx) // core: Fill canvas by the specified block using its coordinates.
         {
-            netxs::onbody(*this, block, fuse);
+            netxs::onbody(*this, block, fx);
         }
-        template<class P>
-        void zoom(core const& block, P fuse) // core: Fill canvas by the stretched block.
+        void zoom(core const& block, auto fx) // core: Fill canvas by the stretched block.
         {
-            netxs::zoomin(*this, block, fuse);
+            netxs::zoomin(*this, block, fx);
         }
-        template<class P>
-        void plot(core const& block, P fuse) // core: Fill the client area by the specified block with coordinates inside the canvas area.
+        void plot(core const& block, auto fx) // core: Fill the client area by the specified block with coordinates inside the canvas area.
         {
             //todo use block.client instead of block.region
             auto joint = rect{ client.coor - region.coor, client.size };
             if (joint.trimby(block.region))
             {
                 auto place = joint.coor - block.region.coor;
-                netxs::inbody<faux>(*this, block, joint, place, fuse);
+                netxs::inbody<faux>(*this, block, joint, place, fx);
             }
         }
         auto& peek(twod p) // core: Take the cell at the specified coor.
@@ -2378,22 +2637,20 @@ namespace netxs
             auto& c = *(canvas.begin() + p.x + p.y * region.size.x);
             return c;
         }
-        template<class P>
-        void fill(rect block, P fuse) // core: Process the specified region by the specified proc.
+        void fill(rect block, auto fx) // core: Process the specified region by the specified proc.
         {
             block.normalize_itself();
-            netxs::onrect(*this, block, fuse);
+            netxs::onrect(*this, block, fx);
         }
-        template<class P>
-        void fill(P fuse) // core: Fill the client area using lambda.
+        void fill(auto fx) // core: Fill the client area using lambda.
         {
-            fill(clip(), fuse);
+            fill(clip(), fx);
         }
         void fill(cell const& c) // core: Fill the client area using brush.
         {
             fill(clip(), cell::shaders::full(c));
         }
-        void grad(rgba c1, rgba c2) // core: Fill the specified region with the linear gradient.
+        void grad(argb c1, argb c2) // core: Fill the specified region with the linear gradient.
         {
             auto mx = (fp32)region.size.x;
             auto my = (fp32)region.size.y;
@@ -2558,27 +2815,13 @@ namespace netxs
         {
             return word<Direction>(twod{ offset, 0 });
         }
-        template<class P>
-        void cage(rect area, dent border, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
-            auto temp = area;
-            temp.size.y = std::max(0, border.t); // Top
-            fill(temp.trim(area), fuse);
-            temp.coor.y += area.size.y - border.b; // Bottom
-            temp.size.y = std::max(0, border.b);
-            fill(temp.trim(area), fuse);
-            temp.size.x = std::max(0, border.l); // Left
-            temp.size.y = std::max(0, area.size.y - border.t - border.b);
-            temp.coor.y = area.coor.y + border.t;
-            fill(temp.trim(area), fuse);
-            temp.coor.x += area.size.x - border.r; // Right
-            temp.size.x = std::max(0, border.r);
-            fill(temp.trim(area), fuse);
+            netxs::misc::cage(*this, area, border, fx);
         }
-        template<class P>
-        void cage(rect area, twod border_width, P fuse) // core: Draw the cage around specified area.
+        void cage(rect area, twod border_width, auto fx) // core: Draw the cage around specified area.
         {
-            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fuse);
+            cage(area, dent{ border_width.x, border_width.x, border_width.y, border_width.y }, fx);
         }
         template<class Text, class P = noop>
         void text(twod pos, Text const& txt, bool rtl = faux, P print = {}) // core: Put the specified text substring to the specified coordinates on the canvas.
@@ -2671,8 +2914,7 @@ namespace netxs
             auto upto = p2.x + p2.y * region.size.x + 1;
             return line(from, upto);
         }
-        template<class P>
-        auto tile(core& image, P fuse) // core: Tile with a specified bitmap.
+        auto tile(core& image, auto fx) // core: Tile with a specified bitmap.
         {
             auto step = image.size();
             auto init = region.coor - region.coor % step - region.coor.less(dot_00, step, dot_00);
@@ -2683,7 +2925,7 @@ namespace netxs
                 while (coor.x < stop.x)
                 {
                     image.move(coor);
-                    fill(image, fuse);
+                    fill(image, fx);
                     coor.x += step.x;
                 }
                 coor.x = init.x;
@@ -2709,4 +2951,40 @@ namespace netxs
             digest++;
         }
     };
+
+    template<si32 Repeat = 2, bool InnerGlow = faux, class T = vrgb, class P = noop, si32 Ratio = 1>
+    void boxblur(auto& image, si32 r, T&& cache = {}, P shade = {})
+    {
+        using irgb = std::decay_t<T>::value_type;
+
+        auto area = image.area();
+        auto clip = image.clip();
+        if (!clip) return;
+
+        auto w = std::max(0, clip.size.x);
+        auto h = std::max(0, clip.size.y);
+        auto s = w * h;
+
+        if (cache.size() < (size_t)s)
+        {
+            cache.resize(s);
+        }
+
+        auto start = clip.coor - area.coor;
+        auto s_ptr = image.begin() + start.x + area.size.x * start.y;
+        auto d_ptr = cache.begin();
+
+        auto s_width = area.size.x;
+        auto d_width = clip.size.x;
+
+        auto s_point = [](auto c)->auto& { return *c; }; //->bgc(); };
+        auto d_point = [](auto c)->auto& { return *c; };
+
+        for (auto _(Repeat); _--;) // Emulate Gaussian blur.
+        netxs::boxblur<irgb, InnerGlow>(s_ptr,
+                                        d_ptr, w,
+                                               h, r, s_width,
+                                                     d_width, Ratio, s_point,
+                                                                     d_point, shade);
+    }
 }

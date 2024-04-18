@@ -154,7 +154,7 @@ namespace netxs::directvt
                     auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
                     block += v;
                 }
-                else if constexpr (std::is_same_v<D, rgba>)
+                else if constexpr (std::is_same_v<D, argb>)
                 {
                     auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
                     block += v;
@@ -922,8 +922,7 @@ namespace netxs::directvt
                     if (c1.img() != c2.img()) { meaning += sizeof(c1.img()); changes |= rastr; }
                     if (c1.egc() != c2.egc())
                     {
-                        cluster = c1.egc().state.jumbo ? 8
-                                                       : c1.egc().state.count + 1;
+                        cluster = c1.len();
                         meaning += cluster + 1;
                         changes |= glyph;
                     }

@@ -21,11 +21,13 @@
 
     #include <Windows.h>
     #include <userenv.h>                 // ::GetUserProfileDirectoryW
+    #pragma comment(lib, "User32.lib")
     #pragma comment(lib, "Userenv.lib")
     #pragma comment(lib, "Advapi32.lib") // ::StartService() for arm arch
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
     #include <sddl.h>                    // ::ConvertSidToStringSidA()
+    #include "gui.h"
 
 #else
 
@@ -716,8 +718,8 @@ namespace netxs::os
                     vtparser()
                     {
                         auto s = status(); // Update current brush state.
-                        auto c = cell{}.fgc(rgba::vga16[(s.wAttributes & 0x0F)])
-                                       .bgc(rgba::vga16[(s.wAttributes & 0xF0) >> 4])
+                        auto c = cell{}.fgc(argb::vga16[(s.wAttributes & 0x0F)])
+                                       .bgc(argb::vga16[(s.wAttributes & 0xF0) >> 4])
                                        .inv(s.wAttributes & COMMON_LVB_REVERSE_VIDEO);
                         parser::brush.reset(c);
                         parser::style.reset();
@@ -1173,7 +1175,7 @@ namespace netxs::os
 
                 if (os::linux_console)
                 {
-                    auto chars = std::vector<unsigned char>(512 * 32 * 4);
+                    auto chars = std::vector<byte>(512 * 32 * 4);
                     auto fdata = console_font_op{ .op        = KD_FONT_OP_GET,
                                                   .flags     = 0,
                                                   .width     = 32,
@@ -3494,7 +3496,7 @@ namespace netxs::os
             else
             {
                 dtvt::win_sz = dtvt::consize();
-                trygui = faux; //todo Not implemented.
+                //trygui = faux; //todo Not implemented.
                 if (trygui)
                 {
                     #if defined(_WIN32)
@@ -5657,7 +5659,7 @@ namespace netxs::os
                 {
                     auto c16 = palette;
                     c16.srWindow = { .Right = (si16)dtvt::win_sz.x, .Bottom = (si16)dtvt::win_sz.y }; // Suppress unexpected scrollbars.
-                    rgba::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = color & 0x00FFFFFF; }); // conhost crashed if alpha non zero.
+                    argb::set_vtm16_palette([&](auto index, auto color){ c16.ColorTable[index] = argb::swap_rb(color); }); // conhost crashes if alpha non zero.
                     ok(::SetConsoleScreenBufferInfoEx(os::stdout_fd, &c16), "::SetConsoleScreenBufferInfoEx()", os::unexpected);
                 }
             #else 
@@ -5730,9 +5732,15 @@ namespace netxs::os
         }
         auto native()
         {
-            #if defined(_WIN32)
-                ::MessageBoxW(NULL, L"Welcome to GUI Console", L"caption.data()", MB_OK);
+            #if defined(WIN32)
+                using window = gui::window<gui::w32renderer>;
+                if (auto w = window{{{ 200, 200 }, { 80, 20 }}, { 11, 22 }})
+                {
+                    w.show();
+                    w.dispatch();
+                }
             #else
+                //using window = gui::window<gui::x11renderer>;
             #endif
         }
         auto splice(xipc client)

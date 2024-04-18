@@ -247,7 +247,7 @@ namespace netxs::app::shared
                         closing_on_quit(boss);
                     });
             auto object = window->attach(ui::fork::ctor(axis::Y))
-                                ->colors(whitelt, 0xA01f0fc4);
+                                ->colors(whitelt, 0xA0'c4'0f'1f);
                 config.cd("/config/defapp/");
                 auto [menu_block, cover, menu_data] = app::shared::menu::create(config, {});
                 auto menu = object->attach(slot::_1, menu_block);
@@ -298,7 +298,7 @@ namespace netxs::app::shared
                 closing_on_quit(boss);
                 boss.LISTEN(tier::release, e2::render::background::prerender, parent_canvas)
                 {
-                    auto title_fg_color = rgba{ 0xFFffffff };
+                    auto title_fg_color = argb{ 0xFFffffff };
                     auto area = parent_canvas.full();
                     auto mark = skin::color(tone::shadower);
                     mark.fgc(title_fg_color).link(boss.bell::id);
@@ -394,8 +394,8 @@ namespace netxs::app::shared
             auto dtvt = ui::dtvt::ctor();
             auto scrl = term->attach(ui::rail::ctor());
             config.cd("/config/term/color/default/");
-            auto def_fcolor = config.take("fgc", rgba{ whitelt });
-            auto def_bcolor = config.take("bgc", rgba{ blackdk });
+            auto def_fcolor = config.take("fgc", argb{ whitelt });
+            auto def_bcolor = config.take("bgc", argb{ blackdk });
             auto inst = scrl->attach(ui::term::ctor(config))
                 ->plugin<pro::focus>(pro::focus::mode::focused)
                 ->colors(def_fcolor, def_bcolor)

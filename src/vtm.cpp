@@ -370,7 +370,7 @@ int main(int argc, char* argv[])
         else if (whoami != type::client && client) return failed(code::interfer);
         else if (whoami == type::client && !client)
         {
-            log("%%New vtm session for [%userid%]", prompt::main, userid.first);
+            log("%%New desktop session for [%userid%]", prompt::main, userid.first);
             auto [success, successor] = os::process::fork(prefix, config.utf8());
             if (successor)
             {

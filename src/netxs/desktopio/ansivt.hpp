@@ -352,7 +352,7 @@ namespace netxs::ansi
                                     : n==unln::line   ? add("\033[4m")
                                     : n==unln::biline ? add("\033[21m")
                                                       : add("\033[4:", n, "m"); } // basevt: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute.
-        auto& unc(rgba c) // basevt: SGR 58/59 Underline color. RGB: red, green, blue.
+        auto& unc(argb c) // basevt: SGR 58/59 Underline color. RGB: red, green, blue.
         {
             return c.token == 0 ? add("\033[59m")
                                 : add("\033[58:2::", c.chan.r, ':', c.chan.g, ':', c.chan.b, 'm');
@@ -360,7 +360,7 @@ namespace netxs::ansi
         auto& unc(si32 c) // basevt: SGR 58/59 Underline color from 256-color 6x6x6-cube.
         {
             c &= 0xFF;
-            return c ? unc(rgba{ rgba::vt256[c] }) : add("\033[59m");
+            return c ? unc(argb{ argb::vt256[c] }) : add("\033[59m");
         }
         auto& blk(bool b)    { return add(b ? "\033[5m" : "\033[25m"         ); } // basevt: SGR Blink attribute.
         auto& inv(bool b)    { return add(b ? "\033[7m" : "\033[27m"         ); } // basevt: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
@@ -394,11 +394,11 @@ namespace netxs::ansi
         auto& edl()          { return add("\033[K"                           ); } // basevt: EDL.
         auto& del(si32 n)    { return add("\033[", n, "J"                    ); } // basevt: CSI n J  Erase display.
         auto& del_below()    { return add("\033[J"                           ); } // basevt: CSI   J  Erase below cursor.
-        auto& fgx(rgba c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
+        auto& fgx(argb c)    { return add("\033[38:2:", c.chan.r, ':',            // basevt: SGR Foreground color. RGB: red, green, blue and alpha.
                                                         c.chan.g, ':',
                                                         c.chan.b, ':',
                                                         c.chan.a, 'm'); }
-        auto& bgx(rgba c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
+        auto& bgx(argb c)    { return add("\033[48:2:", c.chan.r, ':',            // basevt: SGR Background color. RGB: red, green, blue and alpha.
                                                         c.chan.g, ':',
                                                         c.chan.b, ':',
                                                         c.chan.a, 'm'); }
@@ -414,7 +414,7 @@ namespace netxs::ansi
             return add("\033[", b + 40, 'm');
         }
         template<svga Mode = svga::vtrgb>
-        auto& fgc(rgba c) // basevt: SGR Foreground color. RGB: red, green, blue.
+        auto& fgc(argb c) // basevt: SGR Foreground color. RGB: red, green, blue.
         {
                  if constexpr (Mode == svga::vt16 ) return fgc_16(c.to_vtm16(true));
             else if constexpr (Mode == svga::vt256) return fgc256(c.to_256cube());
@@ -425,7 +425,7 @@ namespace netxs::ansi
             else return block;
         }
         template<svga Mode = svga::vtrgb>
-        auto& bgc(rgba c) // basevt: SGR Background color. RGB: red, green, blue.
+        auto& bgc(argb c) // basevt: SGR Background color. RGB: red, green, blue.
         {
                  if constexpr (Mode == svga::vt16 ) return bgc_8(c.to_vtm8());
             else if constexpr (Mode == svga::vt256) return bgc256(c.to_256cube());
@@ -436,7 +436,7 @@ namespace netxs::ansi
             else return block;
         }
         template<class ...Args>
-        auto& clr(rgba c, Args&&... data) { return fgc(c).add(std::forward<Args>(data)...).nil(); } // basevt: Add colored message.
+        auto& clr(argb c, Args&&... data) { return fgc(c).add(std::forward<Args>(data)...).nil(); } // basevt: Add colored message.
         template<class ...Args>
         auto& hi(Args&&... data) { return inv(true).add(std::forward<Args>(data)...).nil(); } // basevt: Add highlighted message.
         auto& err() { return fgc(redlt); } // basevt: Add error color.
@@ -591,13 +591,13 @@ namespace netxs::ansi
         {
             return clipbuf(mime::meta(size, form), utf8);
         }
-        auto& old_palette(si32 i, rgba c) // escx: Set color palette (Linux console).
+        auto& old_palette(si32 i, argb c) // escx: Set color palette (Linux console).
         {
             return add("\033]P", utf::to_hex(i, 1), utf::to_hex(c.chan.r, 2),
                                                     utf::to_hex(c.chan.g, 2),
                                                     utf::to_hex(c.chan.b, 2), '\033');
         }
-        auto& osc_palette(si32 i, rgba c) // escx: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
+        auto& osc_palette(si32 i, argb c) // escx: Set color palette. ESC ] 4 ; <i> ; rgb : <r> / <g> / <b> BEL.
         {
             return add("\033]4;", i, ";rgb:", utf::to_hex(c.chan.r), '/',
                                               utf::to_hex(c.chan.g), '/',
@@ -607,7 +607,7 @@ namespace netxs::ansi
         {
             for (auto i = 0; i < 16; i++)
             {
-                osc_palette(i, rgba::vt256[i]);
+                osc_palette(i, argb::vt256[i]);
             }
             return *this;
         }
@@ -616,8 +616,8 @@ namespace netxs::ansi
             if (legacy_color)
             {
                 save_palette();
-                rgba::set_vtm16_palette([&](auto ...Args){ escx::old_palette(Args...); });
-                rgba::set_vtm16_palette([&](auto ...Args){ escx::osc_palette(Args...); });
+                argb::set_vtm16_palette([&](auto ...Args){ escx::old_palette(Args...); });
+                argb::set_vtm16_palette([&](auto ...Args){ escx::osc_palette(Args...); });
             }
             return *this;
         }
@@ -809,7 +809,7 @@ namespace netxs::ansi
     template<class ...Args>
     auto add(Args&&... data)   { return escx{}.add(std::forward<Args>(data)...); } // ansi: Add text.
     template<class ...Args>
-    auto clr(rgba c, Args&&... data) { return escx{}.clr(c, std::forward<Args>(data)...); } // ansi: Add colored message.
+    auto clr(argb c, Args&&... data) { return escx{}.clr(c, std::forward<Args>(data)...); } // ansi: Add colored message.
     template<class ...Args>
     auto err(Args&&... data)   { return escx{}.err(std::forward<Args>(data)...); } // ansi: Add error message.
     template<class ...Args>
@@ -830,16 +830,16 @@ namespace netxs::ansi
     auto del()                 { return escx{}.del( );        } // ansi: Delete cell backwards ('\x7F').
     auto bld(bool b = true)    { return escx{}.bld(b);        } // ansi: SGR 𝗕𝗼𝗹𝗱 attribute.
     auto und(si32 n = 1   )    { return escx{}.und(n);        } // ansi: SGR 𝗨𝗻𝗱𝗲𝗿𝗹𝗶𝗻𝗲 attribute. 0 - no underline, 1 - single, 2 - double.
-    auto unc(rgba c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
+    auto unc(argb c)           { return escx{}.unc(c);        } // ansi: SGR SGR 58/59 Underline color. RGB: red, green, blue.
     auto blk(bool b = true)    { return escx{}.blk(b);        } // ansi: SGR Blink attribute.
     auto inv(bool b = true)    { return escx{}.inv(b);        } // ansi: SGR 𝗡𝗲𝗴𝗮𝘁𝗶𝘃𝗲 attribute.
     auto itc(bool b = true)    { return escx{}.itc(b);        } // ansi: SGR 𝑰𝒕𝒂𝒍𝒊𝒄 attribute.
     auto stk(bool b = true)    { return escx{}.stk(b);        } // ansi: SGR Strikethrough attribute.
     auto ovr(bool b = true)    { return escx{}.ovr(b);        } // ansi: SGR Overline attribute.
-    auto fgc(rgba n)           { return escx{}.fgc(n);        } // ansi: SGR Foreground color.
-    auto bgc(rgba n)           { return escx{}.bgc(n);        } // ansi: SGR Background color.
-    auto fgx(rgba n)           { return escx{}.fgx(n);        } // ansi: SGR Foreground color with alpha.
-    auto bgx(rgba n)           { return escx{}.bgx(n);        } // ansi: SGR Background color with alpha.
+    auto fgc(argb n)           { return escx{}.fgc(n);        } // ansi: SGR Foreground color.
+    auto bgc(argb n)           { return escx{}.bgc(n);        } // ansi: SGR Background color.
+    auto fgx(argb n)           { return escx{}.fgx(n);        } // ansi: SGR Foreground color with alpha.
+    auto bgx(argb n)           { return escx{}.bgx(n);        } // ansi: SGR Background color with alpha.
     auto fgc()                 { return escx{}.fgc( );        } // ansi: Set default foreground color.
     auto bgc()                 { return escx{}.bgc( );        } // ansi: Set default background color.
     auto sav()                 { return escx{}.sav( );        } // ansi: Save SGR attributes.
@@ -974,8 +974,8 @@ namespace netxs::ansi
         void reset(cell const& c) { *this = spare = fresh = c; }
         auto busy() const         { return  fresh != *this;    } // mark: Is the marker modified.
         void  sav()               { spare.set(*this);          } // mark: Save current SGR attributes.
-        void  sfg(rgba c)         { spare.fgc(c);              } // mark: Set default foreground color.
-        void  sbg(rgba c)         { spare.bgc(c);              } // mark: Set default background color.
+        void  sfg(argb c)         { spare.fgc(c);              } // mark: Set default foreground color.
+        void  sbg(argb c)         { spare.bgc(c);              } // mark: Set default background color.
         void  nil()               { this->set(spare);          } // mark: Restore saved SGR attributes.
         void  rfg()               { this->fgc(spare.fgc());    } // mark: Reset SGR Foreground color.
         void  rbg()               { this->bgc(spare.bgc());    } // mark: Reset SGR Background color.
@@ -1110,10 +1110,10 @@ namespace netxs::ansi
         changer	setter = {};
         marker()
         {
-            setter[ctrl::alm                 ] = [](cell& p){ p.rtl(true); };
-            setter[ctrl::rlm                 ] = [](cell& p){ p.rtl(true); };
-            setter[ctrl::lrm                 ] = [](cell& p){ p.rtl(faux); };
-            //setter[ctrl::shy                 ] = [](cell& p){ p.hyphen();  };
+            //setter[ctrl::alm] = [](cell& p){ p.rtl(true); };
+            //setter[ctrl::rlm] = [](cell& p){ p.rtl(true); };
+            //setter[ctrl::lrm] = [](cell& p){ p.rtl(faux); };
+            //setter[ctrl::shy] = [](cell& p){ p.hyphen();  };
         }
     };
 
@@ -1150,14 +1150,14 @@ namespace netxs::ansi
             * - void sav();                          // Set current SGR as default.
             * - void rfg();                          // Reset foreground color to default.
             * - void rbg();                          // Reset background color to default.
-            * - void fgc(rgba c);                    // Set foreground color.
-            * - void bgc(rgba c);                    // Set background color.
+            * - void fgc(argb c);                    // Set foreground color.
+            * - void bgc(argb c);                    // Set background color.
             * - void bld(bool b);                    // Set bold attribute.
             * - void itc(bool b);                    // Set italic attribute.
             * - void inv(bool b);                    // Set inverse attribute.
             * - void stk(bool b);                    // Set strikethgh attribute.
             * - void und(si32 b);                    // Set underline attribute. 1 - single, 2 - double.
-            * - void unc(rgba c);                    // Set underline color.
+            * - void unc(argb c);                    // Set underline color.
             * - void blk(bool b);                    // Set blink attribute.
             * - void ovr(bool b);                    // Set overline attribute.
             * - void wrp(bool b);                    // Set auto wrap.
@@ -1264,7 +1264,7 @@ namespace netxs::ansi
                     sgr[sgr_und      ] = V{ p->brush.und(q(unln::line));  };
                     sgr[sgr_doubleund] = V{ p->brush.und(  unln::biline); };
                     sgr[sgr_nound    ] = V{ p->brush.und(  unln::none  ); };
-                    sgr[sgr_uline_clr] = V{ p->brush.unc(rgba{ q }); };
+                    sgr[sgr_uline_clr] = V{ p->brush.unc(argb{ q }); };
                     sgr[sgr_uline_rst] = V{ p->brush.unc(0        ); };
                     sgr[sgr_slowblink] = V{ p->brush.blk(true); };
                     sgr[sgr_fastblink] = V{ p->brush.blk(true); };
@@ -1703,7 +1703,7 @@ namespace netxs::ansi
             if (auto w = attr.ucwidth)
             {
                 proto_count += w;
-                brush.set_gc(utf8, w);
+                brush.txt(utf8, w);
                 proto_cells.push_back(brush);
                 //debug += (debug.size() ? "_"s : ""s) + text(utf8);
             }
@@ -1725,7 +1725,7 @@ namespace netxs::ansi
                 }
                 else
                 {
-                    brush.set_gc(utf8, w);
+                    brush.txt(utf8, w);
                     proto_cells.push_back(brush);
                 }
                 //auto i = utf::to_hex((size_t)attr.control, 5, true);

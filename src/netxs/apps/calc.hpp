@@ -329,7 +329,7 @@ namespace netxs::app::calc
 
             auto window = ui::cake::ctor();
             window->plugin<pro::focus>(pro::focus::mode::focused)
-                  ->colors(whitelt, 0x601A5f00)
+                  ->colors(whitelt, 0x60'00'5f'1A)
                   ->limits({ 10,7 }, { -1,-1 })
                   ->plugin<pro::track>()
                   ->shader(c3, e2::form::state::keybd::focus::count)
