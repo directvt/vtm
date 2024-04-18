@@ -5734,7 +5734,7 @@ namespace netxs::os
         {
             #if defined(WIN32)
                 using window = gui::window<gui::w32renderer>;
-                if (auto w = window{{{ 200, 200 }, { 40, 10 }}, { 11, 22 }})
+                if (auto w = window{{{ 200, 200 }, { 80, 20 }}, { 11, 22 }})
                 {
                     w.show();
                     w.dispatch();

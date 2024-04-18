@@ -582,12 +582,23 @@ namespace netxs::gui
             //auto fx_black = [](auto& c){ c = 0xFF'00'00'00; };
             //auto fx_blue  = [](auto& c){ c = 0xFF'00'00'7f; };
             canvas.step(-inner_rect.coor);
+            auto rtc = argb{ tint::pureblue  }.alpha(0.5f);
+            auto ltc = argb{ tint::pureblack };
+            auto rbc = argb{ tint::pureblack };
+            auto lbc = argb{ tint::pureblue  }.alpha(0.5f);
             for (c.coor.y = 0; c.coor.y < inner_rect.size.y; c.coor.y += cell_size.y)
-            for (c.coor.x = 0; c.coor.x < inner_rect.size.x; c.coor.x += cell_size.x)
             {
-                netxs::onrect(canvas, c, fx_blue);
-                netxs::misc::cage(canvas, c, lt, fx_white2);
-                netxs::misc::cage(canvas, c, rb, fx_black2);
+                auto y = (fp32)c.coor.y / (inner_rect.size.y - 1);
+                auto lc = argb::transit(ltc, lbc, y);
+                auto rc = argb::transit(rtc, rbc, y);
+                for (c.coor.x = 0; c.coor.x < inner_rect.size.x; c.coor.x += cell_size.x)
+                {
+                    auto x = (fp32)c.coor.x / (inner_rect.size.x - 1);
+                    auto p = argb::transit(lc, rc, x);
+                    netxs::onrect(canvas, c, [&](auto& c){ c = p; });
+                    //netxs::misc::cage(canvas, c, lt, fx_white2);
+                    //netxs::misc::cage(canvas, c, rb, fx_black2);
+                }
             }
 
             //auto c1 = rect{ dot_00, inner_rect.size - dent{ 0, inner_rect.size.x / 2, 0, 0 }};

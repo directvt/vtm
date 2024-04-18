@@ -191,9 +191,15 @@ namespace netxs
             return chan.a && chan.a != 0xFF;
         }
         // argb: Set alpha channel.
-        void alpha(si32 k)
+        auto& alpha(si32 k)
         {
             chan.a = (byte)k;
+            return *this;
+        }
+        auto& alpha(fp32 k)
+        {
+            chan.a = (byte)std::clamp(k * 255.f, 0.f, 255.f);
+            return *this;
         }
         // argb: Return alpha channel.
         auto alpha() const
@@ -297,6 +303,14 @@ namespace netxs
                          (c2.chan.g * level + c1.chan.g * inverse) >> 8,
                          (c2.chan.b * level + c1.chan.b * inverse) >> 8,
                          (c2.chan.a * level + c1.chan.a * inverse) >> 8 };
+        }
+        static auto transit(argb c1, argb c2, fp32 level)
+        {
+            auto inverse = 1.f - level;
+            return argb{ (byte)std::clamp(c2.chan.r * level + c1.chan.r * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.g * level + c1.chan.g * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.b * level + c1.chan.b * inverse, 0.f, 255.f),
+                         (byte)std::clamp(c2.chan.a * level + c1.chan.a * inverse, 0.f, 255.f) };
         }
         // argb: Alpha blending ARGB colors.
         void inline mix(argb c, si32 alpha)
