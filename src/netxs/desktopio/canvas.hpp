@@ -170,9 +170,9 @@ namespace netxs
         }
         static auto swap_rb(ui32 c)
         {
-            return (c >>  0) & 0x00'FF'00 |
-                   (c >> 16) & 0x00'00'FF |
-                   (c << 16) & 0xFF'00'00;
+            return ((c >>  0) & 0x00'FF'00) |
+                   ((c >> 16) & 0x00'00'FF) |
+                   ((c << 16) & 0xFF'00'00);
         }
         // argb: Set all channels to zero.
         void wipe()
