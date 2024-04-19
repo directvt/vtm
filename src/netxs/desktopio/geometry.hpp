@@ -211,6 +211,7 @@ namespace netxs
         twod   map             (twod p) const { return p - coor;                              }
         rect   shift           (twod p) const { return { coor + p, size };                    }
         auto&  shift_itself    (twod p)       { coor += p; return *this;                      }
+        auto&  moveto          (twod p)       { coor = p;  return *this;                      }
         rect   operator |      (rect r) const { return unite(r, *this);                       }
         auto&  operator +=     (rect r)       { coor += r.coor; size += r.size; return *this; }
         auto&  operator -=     (rect r)       { coor -= r.coor; size -= r.size; return *this; }

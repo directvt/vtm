@@ -1127,7 +1127,7 @@ namespace netxs
         auto width = r1 + r;
         auto debug = [&]([[maybe_unused]] auto& accum)
         {
-            if constexpr (debugmode)
+            if constexpr (!std::is_same_v<std::decay_t<decltype(accum)>, fp32> && debugmode)
             {
                 auto n = accum / count;
                 if (n > 255) throw;

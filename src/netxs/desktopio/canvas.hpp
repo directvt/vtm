@@ -2962,7 +2962,10 @@ namespace netxs
             digest++;
         }
     };
+}
 
+namespace netxs::misc
+{
     template<si32 Repeat = 2, bool InnerGlow = faux, class T = vrgb, class P = noop, si32 Ratio = 1>
     void boxblur(auto& image, si32 r, T&& cache = {}, P shade = {})
     {
@@ -2997,5 +3000,21 @@ namespace netxs
                                                h, r, s_width,
                                                      d_width, Ratio, s_point,
                                                                      d_point, shade);
+    }
+    void contour(auto& image)
+    {
+        static auto shadows_cache = std::vector<fp32>{};
+        static auto boxblur_cache = std::vector<fp32>{};
+        auto r = image.area();
+        auto v = r.size.x * r.size.y;
+        boxblur_cache.resize(v);
+        shadows_cache.resize(v);
+        auto shadows_image = netxs::raster<std::span<fp32>, rect>{ shadows_cache, r };
+        shadows_image.step(-dot_11);
+        netxs::onbody(image, shadows_image, [](auto& src, auto& dst){ dst = src ? 255.f * 3.f : 0.f; });
+        shadows_image.step(dot_11);
+        shadows_image.clip(r);
+        netxs::misc::boxblur<2>(shadows_image, 1, boxblur_cache);
+        netxs::oncopy(image, shadows_image, [](auto& src, auto& dst){ src.chan.a = src ? 0xFF : (byte)std::clamp(dst, 0.f, 255.f); });
     }
 }
