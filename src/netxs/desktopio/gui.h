@@ -132,6 +132,7 @@ namespace netxs::gui
         void display()
         {
             if (sync || !hdc) return;
+            //netxs::misc::fill(canvas(), [](argb& c){ c.pma(); });
             static auto blend_props = BLENDFUNCTION{ .BlendOp = AC_SRC_OVER, .SourceConstantAlpha = 255, .AlphaFormat = AC_SRC_ALPHA };
             auto scr_coor = POINT{};
             auto old_size =  SIZE{ prev.size.x, prev.size.y };
@@ -338,7 +339,7 @@ namespace netxs::gui
             conf.reset();
         }
         constexpr explicit operator bool () const { return initialized; }
-        auto add(wins& layers, bool transparent, si32 owner_index = -1)
+        auto add(wins& layers, bool transparent, si32 owner_index = -1, window* host_ptr = nullptr)
         {
             auto window_proc = [](HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
             {
@@ -397,6 +398,7 @@ namespace netxs::gui
                 initialized = faux;
                 log("window creation error: ", ::GetLastError());
             }
+            if (host_ptr) ::SetWindowLongPtrW(hWnd, GWLP_USERDATA, (LONG_PTR)host_ptr);
             auto win_index = (si32)layers.size();
             layers.emplace_back(conf, hWnd);
             return win_index;
@@ -446,7 +448,6 @@ namespace netxs::gui
 
         reng engine;
         wins layers;
-        bool dx3d;
         twod mouse_coord;
         twod grid_size;
         twod cell_size;
@@ -473,8 +474,7 @@ namespace netxs::gui
             for (auto& w : layers) w.reset();
         }
         window(rect win_coor_px_size_cell, twod cell_size = { 10, 20 }, twod grip_cell = { 2, 1 })
-            : dx3d{ faux },
-              grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
+            : grid_size{ std::max(dot_11, win_coor_px_size_cell.size) },
               cell_size{ cell_size },
               grip_cell{ grip_cell },
               grip_size{ grip_cell * cell_size },
@@ -487,14 +487,13 @@ namespace netxs::gui
               shadow{ engine.add(layers, 0) },
               header{ engine.add(layers, 0, shadow) },
               footer{ engine.add(layers, 0, shadow) },
-              client{ engine.add(layers, 1, shadow) }
+              client{ engine.add(layers, 1, shadow, this) }
         {
             if (!engine) return;
             layers[shadow].area = { inner_rect.coor - shadow_rastr.over / 2, inner_rect.size + shadow_rastr.over };
             layers[client].area = inner_rect + outer_dent;
             layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself();
             layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }};
-            ::SetWindowLongPtrW(layers[client].hWnd, GWLP_USERDATA, (LONG_PTR)this);
             redraw();
             initialized = true;
         }

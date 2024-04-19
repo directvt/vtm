@@ -530,7 +530,14 @@ namespace netxs
         {
             return argb{ argb::gamma(c.chan.r),
                          argb::gamma(c.chan.g),
-                         argb::gamma(c.chan.g), c.chan.a };
+                         argb::gamma(c.chan.b), c.chan.a };
+        }
+        // argb: Premultiply alpha.
+        auto pma()
+        {
+            chan.r = (byte)((si32)chan.r * chan.a / 255);
+            chan.g = (byte)((si32)chan.g * chan.a / 255);
+            chan.b = (byte)((si32)chan.b * chan.a / 255);
         }
 
         template<si32 i>
@@ -2390,10 +2397,14 @@ namespace netxs
             }
         };
 
-        void fill(auto& canvas, auto block, auto fx) // gfx: Fill block.
+        void fill(auto&& canvas, auto block, auto fx) // gfx: Fill block.
         {
             block.normalize_itself();
             netxs::onrect(canvas, block, fx);
+        }
+        void fill(auto&& canvas, auto fx) // gfx: Fill canvas area.
+        {
+            netxs::onrect(canvas, canvas.area(), fx);
         }
         void cage(auto& canvas, rect area, dent border, auto fx) // core: Draw the cage around specified area.
         {
