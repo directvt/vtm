@@ -86,11 +86,14 @@ namespace netxs::gui
             {
                 if (area.size != size)
                 {
-                    auto hr = surf->Resize(area.size.x, area.size.y);
+                    auto undo = surf;
+                    auto hr = conf.pGdiInterop->CreateBitmapRenderTarget(NULL, area.size.x, area.size.y, &surf); // ET(auto hr = surf->Resize(area.size.x, area.size.y)); // Unnecessary copying.
                     if (hr == S_OK)
                     {
-                        //wipe = faux;
+                        hdc = surf->GetMemoryDC();
+                        wipe = faux;
                         size = area.size;
+                        undo->Release();
                     }
                     else log("bitmap resizing error: ", utf::to_hex(hr));
                 }
@@ -540,7 +543,7 @@ namespace netxs::gui
         {
             layers[shadow].area.coor += coor_delta;
             layers[client].area.coor += coor_delta;
-            inner_rect.coor            += coor_delta;
+            inner_rect.coor          += coor_delta;
             //todo unify
             layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself() + shadow_dent;
             layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }} + shadow_dent;
@@ -553,7 +556,7 @@ namespace netxs::gui
         {
             layers[client].area.size += size_delta;
             layers[shadow].area.size += size_delta;
-            inner_rect.size            += size_delta;
+            inner_rect.size          += size_delta;
             //todo unify
             layers[header].area = rect{ inner_rect.coor, { inner_rect.size.x, -cell_size.y * ((header_para.size().x + grid_size.x - 1)/ grid_size.x) }}.normalize_itself() + shadow_dent;
             layers[footer].area = rect{{ inner_rect.coor.x, inner_rect.coor.y + inner_rect.size.y }, { inner_rect.size.x, cell_size.y * ((footer_para.size().x + grid_size.x - 1)/ grid_size.x) }} + shadow_dent;
