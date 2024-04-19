@@ -8,6 +8,8 @@
 //#include <d2d1_2.h>
 //#include <dcomp.h>
 //#include <wrl.h> // ComPtr
+//using namespace Microsoft::WRL;
+//#define GDI_ONLY 1
 
 #include <dwrite_2.h>
 #pragma comment(lib, "Gdi32")
