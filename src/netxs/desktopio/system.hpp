@@ -27,7 +27,7 @@
     #include <Psapi.h>                   // ::GetModuleFileNameEx
     #include <winternl.h>                // ::NtOpenFile
     #include <sddl.h>                    // ::ConvertSidToStringSidA()
-    #include "gui.h"
+    #include "gui.hpp"
 
 #else
 
