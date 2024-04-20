@@ -331,7 +331,7 @@ namespace netxs::unidata
             if (l == gbreak::ep)
             {
                 l = (r == gbreak::ext) ? gbreak::ep    :
-               	    (r == gbreak::zwj) ? gbreak::combo : r;
+                    (r == gbreak::zwj) ? gbreak::combo : r;
             }
             else
             {

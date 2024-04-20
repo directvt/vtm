@@ -836,7 +836,7 @@ namespace netxs::ui
             detach();
         }
         // base: Recursively calculate global coordinate.
-        void global(twod& coor)
+        void global(auto& coor)
         {
             coor -= base::region.coor;
             if (auto parent_ptr = parent())

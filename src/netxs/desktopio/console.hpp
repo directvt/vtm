@@ -875,7 +875,7 @@ namespace netxs::ui
                         //todo optimize - cache tooltip_page
                         auto tooltip_page = page{ tooltip_data };
                         auto full_area = full;
-                        full_area.coor = std::max(dot_00, gear.coord - twod{ 4, tooltip_page.size() + 1 });
+                        full_area.coor = std::max(dot_00, twod{ gear.coord } - twod{ 4, tooltip_page.size() + 1 });
                         full_area.size.x = dot_mx.x; // Prevent line wrapping.
                         canvas.full(full_area);
                         canvas.cup(dot_00);

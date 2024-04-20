@@ -340,19 +340,19 @@ namespace netxs::ui
             return coor;
         }
 
-        void ax	(si32 x) { caretpos.x  = x;                 }
-        void ay	(si32 y) { caretpos.y  = y;                 }
-        void ac	(twod c) { ax(c.x); ay(c.y);                }
-        void ox	(si32 x) { caretpos.x  = x - 1;             }
-        void oy	(si32 y) { caretpos.y  = y - 1;             }
-        void oc	(twod c) { ox(c.x); oy(c.y);                }
-        void dx	(si32 n) { caretpos.x += n;                 }
-        void dy	(si32 n) { caretpos.y += n;                 }
-        void nl	(si32 n) { ax(0); dy(n);                    }
-        void px	(si32 x) { ax(textpads.h_ratio(x, size_x)); }
-        void py	(si32 y) { ay(textpads.v_ratio(y, size_y)); }
-        void pc	(twod c) { px(c.x); py(c.y);                }
-        void tb	(si32 n)
+        void ax(si32 x) { caretpos.x  = x;                 }
+        void ay(si32 y) { caretpos.y  = y;                 }
+        void ac(twod c) { ax(c.x); ay(c.y);                }
+        void ox(si32 x) { caretpos.x  = x - 1;             }
+        void oy(si32 y) { caretpos.y  = y - 1;             }
+        void oc(twod c) { ox(c.x); oy(c.y);                }
+        void dx(si32 n) { caretpos.x += n;                 }
+        void dy(si32 n) { caretpos.y += n;                 }
+        void nl(si32 n) { ax(0); dy(n);                    }
+        void px(si32 x) { ax(textpads.h_ratio(x, size_x)); }
+        void py(si32 y) { ay(textpads.v_ratio(y, size_y)); }
+        void pc(twod c) { px(c.x); py(c.y);                }
+        void tb(si32 n)
         {
             if (n)
             {

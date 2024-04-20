@@ -84,10 +84,10 @@ namespace netxs
         //duplet operator << (T i) const { return { x << i, y << i }; }
         //duplet operator >> (T i) const { return { x >> i, y >> i }; }
 
-        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator / (D i) const { return duplet<D>{ x / i, y / i }; }
-        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator + (D i) const { return duplet<D>{ x + i, y + i }; }
-        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator - (D i) const { return duplet<D>{ x - i, y - i }; }
-        template<class D, std::enable_if_t<std::is_arithmetic_v<D>>* = nullptr> constexpr auto operator * (D i) const { return duplet<D>{ x * i, y * i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator / (D i) const { return duplet<D>{ x / i, y / i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator + (D i) const { return duplet<D>{ x + i, y + i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator - (D i) const { return duplet<D>{ x - i, y - i }; }
+        template<class D, class = std::enable_if_t<std::is_arithmetic_v<D>>> constexpr auto operator * (D i) const { return duplet<D>{ x * i, y * i }; }
 
         bool operator () (duplet const& p)
         {
@@ -171,6 +171,7 @@ namespace netxs
 
     // geometry: 2D point.
     using twod = duplet<si32>;
+    using fp2d = duplet<fp32>;
 
     static constexpr auto dot_00 = twod{ 0,0 };
     static constexpr auto dot_01 = twod{ 0,1 };
@@ -185,6 +186,9 @@ namespace netxs
     twod divround(si32 n, twod p) { return { divround(n  , p.x), divround(n  , p.y) }; }
     twod divround(twod n, twod p) { return { divround(n.x, p.x), divround(n.y, p.y) }; }
     twod divupper(twod n, twod p) { return { divupper(n.x, p.x), divupper(n.y, p.y) }; }
+
+    //auto operator == (twod&& p1, fp2d&& p2) { return p1.x == p2.x && p1.y == p2.y; }
+    //auto operator == (fp2d&& p1, twod&& p2) { return p1.x == p2.x && p1.y == p2.y; }
 }
 
 namespace std

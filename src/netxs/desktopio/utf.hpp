@@ -91,7 +91,7 @@ namespace netxs::utf
 
     // utf: First byte based UTF-8 codepoint lengths.
     static constexpr auto utf8lengths = std::to_array(
-    {	//      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+    {   //      0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
         /* 0 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         /* 1 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
         /* 2 */ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -226,7 +226,7 @@ namespace netxs::utf
                             }
                             else return prop(utf8len = 1);
                         }
-                        else return	prop(utf8len = balance);
+                        else return prop(utf8len = balance);
                         break;
                 }
             }
@@ -483,7 +483,7 @@ namespace netxs::utf
         }
     };
 
-    template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of<view, View>::value == true, View>>
+    template<class A = si32, si32 Base = 10, class View, class = std::enable_if_t<std::is_base_of_v<view, View>>>
     std::optional<A> to_int(View& ascii)
     {
         auto num = A{};
@@ -522,7 +522,7 @@ namespace netxs::utf
         }
         return std::nullopt;
     }
-    template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of<view, T>::value == faux, T>>
+    template<class A = si32, si32 Base = 10, class T, class = std::enable_if_t<std::is_base_of_v<view, T>>>
     auto to_int(T&& utf8)
     {
         auto shadow = view{ std::forward<T>(utf8) };
@@ -985,7 +985,7 @@ namespace netxs::utf
     {
         return std::bitset<L>(n).to_string();
     }
-    template<bool UpperCase = faux, class V, class = typename std::enable_if<std::is_integral<V>::value>::type>
+    template<bool UpperCase = faux, class V, class = std::enable_if_t<std::is_integral_v<V>>>
     auto to_hex(V number, size_t width = sizeof(V) * 2, char filler = '0')
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"
@@ -1007,7 +1007,7 @@ namespace netxs::utf
         return to_hex(reinterpret_cast<std::uintptr_t>(ptr), std::forward<Args>(args)...);
     }
     // utf: to_hex without allocations (the crop should has a reserved capacity).
-    template<bool UpperCase = faux, class T, class = typename std::enable_if<std::is_integral<T>::value>::type>
+    template<bool UpperCase = faux, class T, class = std::enable_if_t<std::is_integral_v<T>>>
     auto to_hex(T number, text& crop, size_t width = sizeof(T) * 2)
     {
         static constexpr auto nums = UpperCase ? "0123456789ABCDEF"

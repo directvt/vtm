@@ -1023,9 +1023,9 @@ namespace netxs
     //template<class M, class K>
     //auto on_key_get(M const& map, K const& key)
     //{
-    //	const auto it = map.find(key);
-    //	return it == map.end() ? std::nullopt
-    //	                       : std::optional{ it };
+    //    const auto it = map.find(key);
+    //    return it == map.end() ? std::nullopt
+    //                           : std::optional{ it };
     //}
 
     template<class M>

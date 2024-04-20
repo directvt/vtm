@@ -145,10 +145,10 @@ If such a modifier appears the first in the input stream the terminal should be 
 Assing VT-sequence as a CSI/SGR command, because it define characters rendition state and sets the appearance of the following characters.
 ```
 Human readable format
-	ESC[ 110; <n1>;<n2>;<n3>;<n4> m
+    ESC[ 110; <n1>;<n2>;<n3>;<n4> m
 
 Sequence with "cooked" parameter
-	ESC[ 111; <P> m
+    ESC[ 111; <P> m
 ```
 - `n1`, `n2`, `n3`, `n4` are from 0 to 4.
 - `n1 = Dx`, `n2 = Nx`, `n3 = Dy`, `n4 = Ny`.

@@ -2968,7 +2968,7 @@ namespace netxs::ui
         {
             if (square.x != new_area.size.x)
             {
-            	deform(new_area);
+                deform(new_area);
             }
         }
 
@@ -3779,18 +3779,18 @@ namespace netxs::ui
             };
             //LISTEN(tier::release, hids::events::mouse::move, gear)
             //{
-            //	auto apply = [&](auto active)
-            //	{
-            //		wide = active;
-            //		if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
-            //		                                   : init);   //  wider on hover
-            //		base::reflow();
-            //		return faux; // One shot call
-            //	};
+            //    auto apply = [&](auto active)
+            //    {
+            //        wide = active;
+            //        if (Axis == axis::Y) config(active ? init * 2 // Make vertical scrollbar
+            //                                           : init);   //  wider on hover
+            //        base::reflow();
+            //        return faux; // One shot call
+            //    };
             //
-            //	timer.pacify(activity::mouse_leave);
-            //	apply(activity::mouse_hover);
-            //	timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
+            //    timer.pacify(activity::mouse_leave);
+            //    apply(activity::mouse_hover);
+            //    timer.template actify<activity::mouse_leave>(skin::globals().active_timeout, apply);
             //};
             LISTEN(tier::release, e2::render::any, parent_canvas)
             {

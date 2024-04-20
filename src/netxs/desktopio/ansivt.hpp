@@ -117,7 +117,7 @@ namespace netxs::ansi
     static const auto c0_ack = '\x06'; // Acknowledge         - Response to an ENQ, or an indication of successful receipt of a message.
     static const auto c0_bel = '\x07'; // Bell, Alert     \a  - Originally used to sound a bell on the terminal. Later used for a beep on systems that didn't have a physical bell. May also quickly turn on and off inverse video (a visual bell).
     static const auto c0_bs  = '\x08'; // Backspace       \b  - Move cursor one position leftwards. On input, this may delete the character to the left of the cursor. On output, where in early computer technology a character once printed could not be erased, the backspace was sometimes used to generate accented characters in ASCII. For example, à could be produced using the three character sequence a BS ` (or, using the characters’ hex values, 0x61 0x08 0x60). This usage is now deprecated and generally not supported. To provide disambiguation between the two potential uses of backspace, the cancel character control code was made part of the standard C1 control set.
-    static const auto c0_ht  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation	\t	Position to the next character tab stop.
+    static const auto c0_ht  = '\x09'; // Character       \t  - Tabulation, Horizontal Tabulation \t Position to the next character tab stop.
     static const auto c0_lf  = '\x0A'; // Line Feed       \n  - On typewriters, printers, and some terminal emulators, moves cursor down one row without affecting its column position. On Unix, used to mark end-of-line. In DOS, Windows, and various network standards, LF is used following CR as part of the end-of-line mark.
     static const auto c0_vt  = '\x0B'; // Line Tab,VTab   \v  - Position the form at the next line tab stop.
     static const auto c0_ff  = '\x0C'; // Form Feed       \f  - On printers, load the next page. Treated as whitespace in many programming languages, and may be used to separate logical divisions in code. In some terminal emulators, it clears the screen. It still appears in some common plain text files as a page break character, such as the RFCs published by IETF.
@@ -917,10 +917,10 @@ namespace netxs::ansi
         //hz, // text horizontal alignment.
         //rf, // reverse (line) feed.
 
-        //wl, // set left	horizontal wrapping field.
-        //wr, // set right	horizontal wrapping field.
-        //wt, // set top		vertical wrapping field.
-        //wb, // set bottom	vertical wrapping field.
+        //wl, // set left  horizontal wrapping field.
+        //wr, // set right horizontal wrapping field.
+        //wt, // set top     vertical wrapping field.
+        //wb, // set bottom  vertical wrapping field.
 
         sc, // Save cursor position.
         rc, // Load cursor position.
@@ -1107,7 +1107,7 @@ namespace netxs::ansi
     struct marker
     {
         using changer = std::array<void (*)(cell&), ctrl::count>;
-        changer	setter = {};
+        changer setter{};
         marker()
         {
             //setter[ctrl::alm] = [](cell& p){ p.rtl(true); };
@@ -1614,13 +1614,13 @@ namespace netxs::ansi
         // vt_parser: Set keypad mode.
         static void keym(qiew& /*ascii*/, T*& /*p*/)
         {
-            // Keypad mode	Application ESC =
-            // Keypad mode	Numeric     ESC >
+            // Keypad mode Application ESC =
+            // Keypad mode Numeric     ESC >
 
             //if (ascii)
             //{
-            //	ascii.pop_front(); // Take mode specifier =/>
-            //	//todo implement
+            //    ascii.pop_front(); // Take mode specifier =/>
+            //    //todo implement
             //}
         }
 

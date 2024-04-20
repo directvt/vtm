@@ -143,37 +143,35 @@ namespace netxs::directvt
                            || std::is_same_v<D, byte>
                            || std::is_same_v<D, type>)
                 {
-                    block.text::push_back(static_cast<char>(data));
+                    block.text::push_back((char)data);
                 }
-                else if constexpr (std::is_integral_v<D>
+                else if constexpr (std::is_arithmetic_v<D>
                                 || std::is_same_v<D, twod>
+                                || std::is_same_v<D, fp2d>
                                 || std::is_same_v<D, dent>
                                 || std::is_same_v<D, rect>)
                 {
                     auto le_data = netxs::letoh(data);
-                    auto v = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
-                    block += v;
+                    block += view{ (char*)&le_data, sizeof(le_data) };
                 }
                 else if constexpr (std::is_same_v<D, argb>)
                 {
-                    auto v = view{ reinterpret_cast<char const*>(&data), sizeof(data) };
-                    block += v;
+                    block += view{ (char*)&data, sizeof(data) };
                 }
                 else if constexpr (std::is_same_v<D, view>
                                 || std::is_same_v<D, qiew>
                                 || std::is_same_v<D, text>)
                 {
-                    auto length = static_cast<sz_t>(data.length());
-                    auto le_data = netxs::letoh(length);
-                    auto size = view{ reinterpret_cast<char const*>(&le_data), sizeof(le_data) };
-                    block += size;
+                    auto length = (sz_t)data.length();
+                    auto le_len = netxs::letoh(length);
+                    block += view{ (char*)&le_len, sizeof(le_len) };
                     block += data;
                 }
                 else if constexpr (std::is_same_v<D, time>)
                 {
                     auto n = data.time_since_epoch().count();
-                    auto v = view{ reinterpret_cast<char const*>(&n), sizeof(n) };
-                    block += v;
+                    auto le_n = netxs::letoh(n);
+                    block += view{ (char*)&le_n, sizeof(le_n) };
                 }
                 else if constexpr (std::is_same_v<D, std::unordered_map<text, text>>
                                 || std::is_same_v<D, std::map<text, text>>
@@ -836,7 +834,9 @@ namespace netxs::directvt
                                         (bool, wheeled)  // sysmouse: Vertical scroll wheel.
                                         (bool, hzwheel)  // sysmouse: Horizontal scroll wheel.
                                         (si32, wheeldt)  // sysmouse: Scroll delta.
+                                        //todo use pixel-wise coords only
                                         (twod, coordxy)  // sysmouse: Cursor coordinates.
+                                        (fp2d, pixelxy)  // sysmouse: Pixel-wise cursor coordinates.
                                         (time, timecod)  // sysmouse: Event time code.
                                         (ui32, changed)) // sysmouse: Update stamp.
         STRUCT_macro(mousebar,          (bool, mode)) // CCC_SMS/* 26:1p */

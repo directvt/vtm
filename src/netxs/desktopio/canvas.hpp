@@ -331,40 +331,38 @@ namespace netxs
         // argb: Rough alpha blending ARGB colors.
         //void mix_alpha(argb c)
         //{
-        //	auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
-        //	{
-        //		return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
-        //	};
-        //	auto norm = [](auto const& c2, auto const& alpha)
-        //	{
-        //		return (c2 * alpha) >> 8;
-        //	};
+        //    auto blend = [](auto const& c1, auto const& c2, auto const& alpha)
+        //    {
+        //        return ((c1 << 8) + (c2 - c1) * alpha) >> 8;
+        //    };
+        //    auto norm = [](auto const& c2, auto const& alpha)
+        //    {
+        //        return (c2 * alpha) >> 8;
+        //    };
         //
-        //	if (chan.a)
-        //	{
-        //		if (c.chan.a)
-        //		{
-        //			auto& a1 = chan.a;
-        //			auto& a2 = c.chan.a;
-        //			chan.r = blend(norm(c.chan.r, a2), chan.r, a1);
-        //			chan.g = blend(norm(c.chan.g, a2), chan.g, a1);
-        //			chan.b = blend(norm(c.chan.b, a2), chan.b, a1);
-        //			chan.a = c.chan.a;
-        //		}
-        //	}
-        //	else
-        //	{
-        //		chan = c.chan;
-        //	}
+        //    if (chan.a)
+        //    {
+        //        if (c.chan.a)
+        //        {
+        //            auto& a1 = chan.a;
+        //            auto& a2 = c.chan.a;
+        //            chan.r = blend(norm(c.chan.r, a2), chan.r, a1);
+        //            chan.g = blend(norm(c.chan.g, a2), chan.g, a1);
+        //            chan.b = blend(norm(c.chan.b, a2), chan.b, a1);
+        //            chan.a = c.chan.a;
+        //        }
+        //    }
+        //    else
+        //    {
+        //        chan = c.chan;
+        //    }
         //}
-
         //// argb: Are the colors identical.
         //bool like(argb c) const
         //{
-        //
-        //	static constexpr auto k = ui32{ 0b11110000 };
-        //	static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
-        //	return	(token & threshold) == (c.token & threshold);
+        //    static constexpr auto k = ui32{ 0b11110000 };
+        //    static constexpr auto threshold = ui32{ 0x00 + k << 16 + k << 8 + k };
+        //    return (token & threshold) == (c.token & threshold);
         //}
         // argb: Shift color.
         void xlight(si32 factor = 1)

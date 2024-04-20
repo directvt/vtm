@@ -350,7 +350,7 @@ namespace netxs::ui
                             }
                             else if (gear.m_sys.buttons) gear.capture(owner.id);
                             auto& console = *owner.target;
-                            auto c = gear.m_sys.coordxy;
+                            auto c = twod{ gear.m_sys.coordxy };
                             c.y -= console.get_basis();
                             auto moved = coord((state & mode::over) ? c
                                                                     : std::clamp(c, dot_00, console.panel - dot_11));
