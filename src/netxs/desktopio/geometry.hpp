@@ -42,7 +42,7 @@ namespace netxs
         { }
 
         template<class D>
-        constexpr auto operator == (xy2d<D> p) const
+        constexpr bool operator == (xy2d<D> p) const //todo Apple clang don't get auto result.
         {
             return x == netxs::saturate_cast<T>(p.x)
                 && y == netxs::saturate_cast<T>(p.y);
