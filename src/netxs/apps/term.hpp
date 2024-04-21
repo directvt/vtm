@@ -779,7 +779,8 @@ namespace netxs::app::terminal
         auto cB = menu_white;
 
         config.cd("/config/term/");
-        auto borders = config.take(attr::borders, 0);
+        auto border = config.take(attr::borders, 0);
+        auto borders = dent{ border, border, 0, 0 };
         auto menu_height = ptr::shared(0);
         auto gradient = [menu_height, borders, bground = core{}](face& parent_canvas, si32 /*param*/, base& /*boss*/) mutable
         {
@@ -823,7 +824,7 @@ namespace netxs::app::terminal
             // Left/right border background.
             auto color = bground[dot_00];
             full -= dent{ 0, 0, menu_size.y, stat_size.y };
-            parent_canvas.cage(full, dent{ borders, borders, 0, 0 }, cell::shaders::blend(color));
+            parent_canvas.cage(full, borders, cell::shaders::blend(color));
             // Restore clipping area.
             parent_canvas.clip(clip);
         };
@@ -836,14 +837,14 @@ namespace netxs::app::terminal
 
         auto object = window->attach(ui::fork::ctor(axis::Y));
         auto term_stat_area = object->attach(slot::_2, ui::fork::ctor(axis::Y))
-            ->setpad({ borders, borders })
+            ->setpad(borders)
             ->invoke([&](auto& boss)
             {
                 if (borders)
                 boss.LISTEN(tier::release, e2::render::background::any, parent_canvas, -, (borders, cB)) // Shade left/right borders.
                 {
                     auto full = parent_canvas.full();
-                    parent_canvas.cage(full, dent{ borders, borders, 0, 0 }, [&](cell& c){ c.fuse(cB); });
+                    parent_canvas.cage(full, borders, [&](cell& c){ c.fuse(cB); });
                 };
             });
         auto layers = term_stat_area->attach(slot::_1, ui::cake::ctor())
@@ -1011,8 +1012,14 @@ namespace netxs::app::terminal
             };
             boss.LISTEN(tier::release, e2::render::any, parent_canvas, -, (bar, winsz, term_bgc_ptr, borders))
             {
-                if (winsz->y != 1) parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(term_bgc).txt(bar).link(bar); });
-                else               parent_canvas.fill([&](cell& c){ c.fgc(c.bgc()).bgc(0       ).txt(bar).link(bar); });
+                auto full = parent_canvas.full();
+                if (winsz->y != 1 && borders)
+                {
+                    parent_canvas.cage(full, borders, [&](cell& c){ c.txt(whitespace).link(bar); });
+                    full -= borders;
+                }
+                auto bgc = winsz->y != 1 ? term_bgc : 0;
+                parent_canvas.fill(full, [&](cell& c){ c.fgc(c.bgc()).bgc(bgc).txt(bar).link(bar); });
             };
         });
 
