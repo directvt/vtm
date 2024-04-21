@@ -73,7 +73,7 @@ namespace netxs::gui
         { }
         void set_dpi(auto dpi)
         {
-            auto pixelsPerDip = dpi / 96.f;
+            //auto pixelsPerDip = dpi / 96.f;
             //surf->SetPixelsPerDip(pixelsPerDip);
             log("DPI CHANGED ", dpi);
         }
